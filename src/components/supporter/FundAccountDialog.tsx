@@ -3,10 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Wallet, ArrowRight, Sparkles, AlertCircle } from 'lucide-react';
+import { Wallet, ArrowRight, Sparkles, AlertCircle, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+const QUICK_AMOUNTS = [50_000, 100_000, 200_000, 500_000, 1_000_000];
 
 interface FundAccountDialogProps {
   open: boolean;
@@ -15,6 +16,7 @@ interface FundAccountDialogProps {
   accountId: string;
   walletBalance: number;
   onFund: (accountId: string, amount: number) => Promise<void>;
+  onDeposit?: () => void;
 }
 
 export function FundAccountDialog({ 
@@ -23,9 +25,10 @@ export function FundAccountDialog({
   accountName, 
   accountId, 
   walletBalance,
-  onFund 
+  onFund,
+  onDeposit,
 }: FundAccountDialogProps) {
-  const [amount, setAmount] = useState(10000);
+  const [amount, setAmount] = useState(0);
   const [loading, setLoading] = useState(false);
 
   const handleFund = async () => {
@@ -34,24 +37,25 @@ export function FundAccountDialog({
     setLoading(true);
     try {
       await onFund(accountId, amount);
-      setAmount(10000);
+      setAmount(0);
       onOpenChange(false);
     } finally {
       setLoading(false);
     }
   };
 
-  const maxAmount = Math.min(walletBalance, 200000000000); // Max 200B
   const isValid = amount > 0 && amount <= walletBalance;
+  const remainingBalance = walletBalance - amount;
   const monthlyReturn = amount * 0.15;
+  const noFunds = walletBalance <= 0;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) setAmount(0); onOpenChange(v); }}>
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Wallet className="h-5 w-5 text-primary" />
-            Fund Investment Account
+            Top Up Investment
           </DialogTitle>
         </DialogHeader>
         
@@ -63,110 +67,155 @@ export function FundAccountDialog({
           </div>
 
           {/* Wallet Balance */}
-          <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
-            <div className="flex items-center gap-2">
-              <Wallet className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Wallet Balance</span>
+          <div className="p-3 rounded-xl bg-muted/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Wallet Balance</span>
+              </div>
+              <span className="font-bold">{formatUGX(walletBalance)}</span>
             </div>
-            <span className="font-bold">{formatUGX(walletBalance)}</span>
+            {amount > 0 && amount <= walletBalance && (
+              <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-border/50">
+                <span className="text-xs text-muted-foreground">After top-up</span>
+                <span className="text-xs font-bold text-muted-foreground">{formatUGX(remainingBalance)}</span>
+              </div>
+            )}
           </div>
 
-          {/* Amount Input */}
-          <div className="space-y-3">
-            <Label>Amount to Transfer</Label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium">
-                UGX
-              </span>
-              <Input
-                type="text"
-                value={amount.toLocaleString()}
-                onChange={(e) => {
-                  const value = parseInt(e.target.value.replace(/,/g, '')) || 0;
-                  setAmount(Math.max(0, Math.min(value, maxAmount)));
-                }}
-                className="pl-12 text-lg font-bold h-12 text-center"
-              />
+          {/* No funds state */}
+          {noFunds ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-warning/10 border border-warning/20 text-warning text-sm">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>No funds in your wallet. Deposit money first to top up your investment.</span>
+              </div>
+              {onDeposit && (
+                <Button onClick={() => { onOpenChange(false); onDeposit(); }} className="w-full gap-2">
+                  <Plus className="h-4 w-4" />
+                  Deposit to Wallet
+                </Button>
+              )}
             </div>
-            
-            {walletBalance > 0 && (
-              <>
-                <Slider
-                  value={[amount]}
-                  onValueChange={([value]) => setAmount(value)}
-                  min={1000}
-                  max={maxAmount}
-                  step={1000}
-                  className="py-2"
-                />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>UGX 1,000</span>
-                  <button 
+          ) : (
+            <>
+              {/* Amount Input */}
+              <div className="space-y-3">
+                <Label>Amount to Top Up</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium">
+                    UGX
+                  </span>
+                  <Input
+                    type="text"
+                    value={amount > 0 ? amount.toLocaleString() : ''}
+                    placeholder="Enter amount"
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value.replace(/,/g, '')) || 0;
+                      setAmount(Math.max(0, value));
+                    }}
+                    className="pl-12 text-lg font-bold h-12 text-center"
+                  />
+                </div>
+
+                {/* Quick Amount Buttons */}
+                <div className="flex flex-wrap gap-2">
+                  {QUICK_AMOUNTS.filter(a => a <= walletBalance).map((qa) => (
+                    <button
+                      key={qa}
+                      type="button"
+                      onClick={() => setAmount(qa)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                        amount === qa
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-muted/50 text-foreground border-border/60 hover:bg-accent/40'
+                      }`}
+                    >
+                      {formatUGX(qa)}
+                    </button>
+                  ))}
+                  <button
                     type="button"
                     onClick={() => setAmount(walletBalance)}
-                    className="text-primary font-medium hover:underline"
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                      amount === walletBalance
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-muted/50 text-foreground border-border/60 hover:bg-accent/40'
+                    }`}
                   >
                     Max
                   </button>
-                  <span>{formatUGX(maxAmount)}</span>
                 </div>
-              </>
-            )}
-          </div>
+              </div>
 
-          {/* Insufficient Balance Warning */}
-          {amount > walletBalance && (
-            <div className="flex items-center gap-2 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>Insufficient wallet balance</span>
-            </div>
+              {/* Insufficient Balance Warning */}
+              {amount > walletBalance && (
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <div>
+                    <span>Insufficient wallet balance.</span>
+                    {onDeposit && (
+                      <button
+                        type="button"
+                        onClick={() => { onOpenChange(false); onDeposit(); }}
+                        className="ml-1 text-primary font-medium hover:underline"
+                      >
+                        Deposit more
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ROI Preview */}
+              <AnimatePresence mode="wait">
+                {isValid && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-success/10 to-emerald-500/10 border border-success/20">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Sparkles className="h-4 w-4 text-success" />
+                        <span className="text-sm font-bold text-success">Expected Monthly Return</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground">{formatUGX(amount)}</span>
+                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-xl font-black text-success">{formatUGX(monthlyReturn)}</span>
+                        <span className="text-xs text-success/70">/month</span>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </>
           )}
-
-          {/* ROI Preview */}
-          <AnimatePresence mode="wait">
-            {isValid && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden"
-              >
-                <div className="p-3 rounded-xl bg-gradient-to-br from-success/10 to-emerald-500/10 border border-success/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Sparkles className="h-4 w-4 text-success" />
-                    <span className="text-sm font-bold text-success">Expected Monthly Return</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground">{formatUGX(amount)}</span>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-xl font-black text-success">{formatUGX(monthlyReturn)}</span>
-                    <span className="text-xs text-success/70">/month</span>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
 
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleFund} 
-            disabled={!isValid || loading}
-            className="gap-2 bg-gradient-to-r from-primary to-violet-500"
-          >
-            {loading ? (
-              'Processing...'
-            ) : (
-              <>
-                <Wallet className="h-4 w-4" />
-                Fund Account
-              </>
-            )}
-          </Button>
-        </DialogFooter>
+        {!noFunds && (
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleFund} 
+              disabled={!isValid || loading}
+              className="gap-2 bg-gradient-to-r from-primary to-violet-500"
+            >
+              {loading ? (
+                'Processing...'
+              ) : (
+                <>
+                  <Wallet className="h-4 w-4" />
+                  Top Up {isValid ? formatUGX(amount) : ''}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );
