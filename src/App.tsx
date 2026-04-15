@@ -302,6 +302,7 @@ function AppRoutes() {
           <Route path="/house/:id" element={<HouseDetail />} />
           
           <Route path="/shop" element={<ShopEntry />} />
+          <Route path="/landlord-signup" element={<LandlordSignup />} />
           <Route path="/landlord-agreement" element={<LandlordAgreement />} />
           <Route path="/agent-agreement" element={<AgentAgreement />} />
           <Route path="/angel-pool-agreement" element={<AngelPoolAgreement />} />
