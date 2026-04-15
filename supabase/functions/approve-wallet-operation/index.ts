@@ -106,12 +106,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Fetch pending operations
+    // Fetch pending operations (accept both 'pending' and 'coo_approved' statuses)
     const { data: operations, error: fetchErr } = await adminClient
       .from("pending_wallet_operations")
       .select("*")
       .in("id", idsToProcess)
-      .eq("status", "pending");
+      .in("status", ["pending", "coo_approved"]);
 
     if (fetchErr || !operations || operations.length === 0) {
       return new Response(
