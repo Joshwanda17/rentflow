@@ -55,6 +55,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
   const isAgent = role === 'agent';
   const { commissionBalance, floatBalance } = useAgentBalances();
   const displayBalance = wallet?.balance || 0;
+  const realWithdrawableBalance = Math.max(0, Math.min(displayBalance, commissionBalance));
   const balanceLabel = 'Total Balance';
   const [sendOpen, setSendOpen] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
@@ -190,7 +191,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                   <WalletDisclaimer variant="dark" />
                   {isAgent && (
                     <p className="text-[11px] text-white/60 mt-2">
-                      Withdrawable: <CompactAmount value={commissionBalance} className="text-white/80 border-0" /> · Locked: <CompactAmount value={floatBalance} className="text-white/80 border-0" />
+                      Withdrawable: <CompactAmount value={realWithdrawableBalance} className="text-white/80 border-0" /> · Locked: <CompactAmount value={floatBalance} className="text-white/80 border-0" />
                     </p>
                   )}
                 </div>
@@ -444,7 +445,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
       <WithdrawRequestDialog 
         open={withdrawOpen} 
         onOpenChange={setWithdrawOpen} 
-        walletBalance={isAgent ? commissionBalance : (wallet?.balance || 0)}
+        walletBalance={isAgent ? realWithdrawableBalance : (wallet?.balance || 0)}
         onSuccess={refreshWallet}
       />
       <TransactionReceipt 

@@ -5,6 +5,7 @@ import { Loader2, Wallet } from 'lucide-react';
 
 export function AgentFloatBalanceCard() {
   const { floatBalance, commissionBalance, totalBalance, isLoading } = useAgentBalances();
+  const realWithdrawableBalance = Math.max(0, Math.min(totalBalance, commissionBalance));
 
   if (isLoading) {
     return (
@@ -30,7 +31,7 @@ export function AgentFloatBalanceCard() {
           {formatUGX(totalBalance)}
         </p>
         <p className="text-xs text-muted-foreground mt-1">
-          Withdrawable: <span className="font-medium text-emerald-600">{formatUGX(commissionBalance)}</span>
+          Withdrawable: <span className="font-medium text-emerald-600">{formatUGX(realWithdrawableBalance)}</span>
           {' · '}
           Locked: <span className="font-medium text-primary">{formatUGX(floatBalance)}</span>
         </p>

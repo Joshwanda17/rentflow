@@ -185,6 +185,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [showQuickTransfer, setShowQuickTransfer] = useState(false);
 
   const { isFinancialAgent } = useIsFinancialAgent();
+  const realWithdrawableBalance = Math.max(0, Math.min(wallet?.balance ?? 0, commissionBalance));
   // Check if this agent is a CFO-assigned cashout agent
   const { data: isCashoutAgent } = useQuery({
     queryKey: ['is-cashout-agent', user.id],
@@ -288,7 +289,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
            balance={floatBalance + commissionBalance}
            role="agent"
            secondaryLabel="Withdrawable"
-           secondaryValue={formatUGX(commissionBalance)}
+           secondaryValue={formatUGX(realWithdrawableBalance)}
            onOpenWallet={() => setShowWallet(true)}
            quickActions={
              <div className="flex items-center gap-2">
@@ -399,7 +400,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
       <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />
       <DepositFlow open={showQuickDeposit} onOpenChange={setShowQuickDeposit} />
-      <WithdrawFlow open={showQuickWithdraw} onOpenChange={setShowQuickWithdraw} availableBalance={commissionBalance} />
+      <WithdrawFlow open={showQuickWithdraw} onOpenChange={setShowQuickWithdraw} availableBalance={realWithdrawableBalance} />
       <SendMoneyDialog open={showQuickTransfer} onOpenChange={setShowQuickTransfer} />
       
       <AgentMenuDrawer
