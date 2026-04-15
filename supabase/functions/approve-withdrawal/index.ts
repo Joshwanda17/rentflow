@@ -120,17 +120,37 @@ Deno.serve(async (req) => {
       .eq("user_id", targetUserId)
       .single();
 
-    if (!wallet || wallet.balance < amount) {
-      const currentBalance = wallet?.balance || 0;
+    // Check if there's already a pending hold (pre-deduction) for this withdrawal
+    // This happens when agents submit proxy withdrawals — they pre-deduct via a
+    // 'withdrawal_pending' ledger entry. We must credit that back before re-checking.
+    const { data: pendingHolds } = await admin
+      .from("general_ledger")
+      .select("id, amount")
+      .eq("source_table", "withdrawal_requests")
+      .eq("source_id", withdrawal_id)
+      .eq("category", "withdrawal_pending")
+      .eq("direction", "cash_out");
+
+    const totalPendingHold = (pendingHolds || []).reduce((sum: number, h: any) => sum + Number(h.amount), 0);
+    const effectiveBalance = (wallet?.balance || 0) + totalPendingHold;
+
+    if (!wallet || effectiveBalance < amount) {
       return new Response(
         JSON.stringify({
-          error: `Insufficient balance. Wallet has UGX ${currentBalance.toLocaleString()}, cannot withdraw UGX ${amount.toLocaleString()}`,
+          error: `Insufficient balance. Wallet has UGX ${effectiveBalance.toLocaleString()}, cannot withdraw UGX ${amount.toLocaleString()}`,
         }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
+    }
+
+    // Reverse the pending hold entries so the final withdrawal entry is the sole deduction
+    if (pendingHolds && pendingHolds.length > 0) {
+      for (const hold of pendingHolds) {
+        await admin.from("general_ledger").delete().eq("id", hold.id);
+      }
     }
 
     // Get target user profile for audit
