@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Wallet, ArrowRight, Sparkles, AlertCircle, Plus } from 'lucide-react';
+import { Wallet, Sparkles, AlertCircle, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const QUICK_AMOUNTS = [50_000, 100_000, 200_000, 500_000, 1_000_000];
