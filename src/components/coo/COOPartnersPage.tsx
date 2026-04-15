@@ -197,6 +197,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [rows, setRows] = useState<PartnerRow[]>([]);
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
 
   // Table state
   const [search, setSearch] = useState('');
