@@ -84,10 +84,12 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
     const checkProxy = async () => {
       if (!user?.id) return;
       const { count } = await supabase
-        .from('investor_portfolios')
+        .from('pending_wallet_operations')
         .select('id', { count: 'exact', head: true })
-        .eq('agent_id', user.id)
-        .neq('investor_id', user.id);
+        .eq('target_wallet_user_id', user.id)
+        .in('category', ['roi_payout', 'supporter_platform_rewards'])
+        .eq('status', 'approved')
+        .not('transaction_group_id', 'is', null);
       setHasProxyPartners((count || 0) > 0);
     };
     if (open) checkProxy();

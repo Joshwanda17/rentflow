@@ -32,6 +32,7 @@ interface LedgerCredit {
   direction: string;
   category: string;
   source_id: string | null;
+  transaction_group_id: string | null;
 }
 
 interface PortfolioInfo {
@@ -114,18 +115,43 @@ export function ProxyPartnerFunds() {
         return;
       }
 
-      // Step 2: Fetch profiles, ledger credits (with source_id), completed withdrawals, active withdrawals, and portfolios
+      // Step 2: First, get CFO-approved ROI payout transaction_group_ids for this proxy agent
+      const { data: approvedOps } = await supabase
+        .from('pending_wallet_operations')
+        .select('transaction_group_id')
+        .eq('target_wallet_user_id', user.id)
+        .in('category', ['roi_payout', 'supporter_platform_rewards'])
+        .eq('status', 'approved')
+        .not('transaction_group_id', 'is', null);
+
+      const approvedGroupIds = (approvedOps || [])
+        .map(op => op.transaction_group_id)
+        .filter(Boolean) as string[];
+
+      if (approvedGroupIds.length === 0) {
+        setProfiles({});
+        setLedgerCredits([]);
+        setCompletedWithdrawals([]);
+        setPortfolios([]);
+        setPartnerWithdrawalStatus({});
+        setLoading(false);
+        return;
+      }
+
+      // Step 3: Fetch profiles, ledger credits (ONLY from CFO-approved transactions), withdrawals, and portfolios
       const [profileRes, ledgerRes, completedRes, activeWithdrawalRes, portfolioRes] = await Promise.all([
         supabase
           .from('profiles')
           .select('id, full_name, phone')
           .in('id', approvedIds),
-        // Actual approved ROI entries from the ledger for this agent (include source_id for portfolio mapping)
+        // Only fetch ledger entries tied to CFO-approved ROI payouts via transaction_group_id
         supabase
           .from('general_ledger')
-          .select('user_id, linked_party, amount, direction, category, source_id')
+          .select('user_id, linked_party, amount, direction, category, source_id, transaction_group_id')
           .eq('user_id', user.id)
-          .in('category', ['roi_payout', 'roi_wallet_credit', 'balance_correction']),
+          .eq('direction', 'cash_in')
+          .in('category', ['roi_payout', 'roi_wallet_credit'])
+          .in('transaction_group_id', approvedGroupIds),
         // Completed withdrawals for these partners (delivered)
         supabase
           .from('withdrawal_requests')
@@ -370,8 +396,8 @@ export function ProxyPartnerFunds() {
       <Card className="border-border/50">
         <CardContent className="py-10 text-center text-muted-foreground">
           <Users className="h-10 w-10 mx-auto mb-2 opacity-30" />
-          <p className="text-sm font-medium">No proxy partners yet</p>
-          <p className="text-xs mt-1">Approved partners and their ROI returns will appear here</p>
+          <p className="text-sm font-medium">No proxy partner payouts ready</p>
+          <p className="text-xs mt-1">CFO-approved ROI returns for your proxy partners will appear here</p>
         </CardContent>
       </Card>
     );
@@ -380,7 +406,7 @@ export function ProxyPartnerFunds() {
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground px-1">
-        Earned returns for your approved proxy partners. Withdraw to deliver to partner.
+        CFO-approved returns ready for delivery to your proxy partners.
       </p>
 
       {partnerBalances.map((partner) => {
