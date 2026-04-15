@@ -259,6 +259,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
         lc1_name: '', lc1_phone: '', lc1_village: '',
       });
       setExistingLc1Options([]);
+      setAttempted(false);
     } catch (err: any) {
       toast.error(err.message || 'Failed to list house');
     } finally {
