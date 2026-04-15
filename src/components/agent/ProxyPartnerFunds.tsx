@@ -109,23 +109,54 @@ export function ProxyPartnerFunds() {
         return;
       }
 
-      // Step 2: Extract unique partner IDs from metadata.initiated_by or linked_party
-      const partnerIds = new Set<string>();
+      // Step 2: Collect portfolio IDs first to resolve actual partner (investor) IDs
       const portfolioIds = new Set<string>();
       ops.forEach(op => {
-        const meta = op.metadata || {};
-        const partnerId = meta.initiated_by || (op.linked_party !== user.id ? op.linked_party : null);
-        if (partnerId) partnerIds.add(partnerId);
         if (op.source_id) portfolioIds.add(op.source_id);
+      });
+      const uniquePortfolioIds = [...portfolioIds];
+
+      // Fetch portfolios first so we can resolve partner IDs
+      let fetchedPortfolios: PortfolioInfo[] = [];
+      if (uniquePortfolioIds.length > 0) {
+        const { data: portfolioData } = await supabase
+          .from('investor_portfolios')
+          .select('id, portfolio_code, account_name, investor_id')
+          .in('id', uniquePortfolioIds);
+        fetchedPortfolios = (portfolioData || []) as PortfolioInfo[];
+      }
+      setPortfolios(fetchedPortfolios);
+
+      // Build portfolio→investor map
+      const portfolioToInvestor: Record<string, string> = {};
+      fetchedPortfolios.forEach(p => { portfolioToInvestor[p.id] = p.investor_id; });
+
+      // Extract unique partner IDs: prefer portfolio investor_id, then metadata.initiated_by (if not self), then linked_party (if not self)
+      const partnerIds = new Set<string>();
+      ops.forEach(op => {
+        const meta = op.metadata || {};
+        // Best source: portfolio investor_id
+        if (op.source_id && portfolioToInvestor[op.source_id]) {
+          partnerIds.add(portfolioToInvestor[op.source_id]);
+          return;
+        }
+        // Fallback: metadata.initiated_by if it's not the agent
+        const initiatedBy = meta.initiated_by as string | null;
+        if (initiatedBy && initiatedBy !== user.id) {
+          partnerIds.add(initiatedBy);
+          return;
+        }
+        // Last resort: linked_party if not self
+        if (op.linked_party && op.linked_party !== user.id) {
+          partnerIds.add(op.linked_party);
+        }
       });
 
       const uniquePartnerIds = [...partnerIds];
-      const uniquePortfolioIds = [...portfolioIds];
 
       if (uniquePartnerIds.length === 0) {
         setProfiles({});
         setCompletedWithdrawals([]);
-        setPortfolios([]);
         setPartnerWithdrawalStatus({});
         setLoading(false);
         return;
