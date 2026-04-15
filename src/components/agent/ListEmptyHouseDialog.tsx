@@ -46,6 +46,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
   const [submitting, setSubmitting] = useState(false);
   const [houseImages, setHouseImages] = useState<HouseImageFile[]>([]);
   const [existingLc1Options, setExistingLc1Options] = useState<Array<{name: string; phone: string; village: string}>>([]);
+  const [attempted, setAttempted] = useState(false);
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -100,27 +101,38 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAttempted(true);
+
+    // Auto-sync lc1_village from village
+    const syncedForm = { ...form, lc1_village: form.village.trim() };
+
     if (!monthlyRent || monthlyRent < 10000) {
       toast.error('Monthly rent must be at least UGX 10,000');
       return;
     }
-    if (!form.region || !form.address) {
-      toast.error('Region and address are required');
+    if (!syncedForm.region) {
+      toast.error('Please select a region');
       return;
     }
-    if (!form.village.trim()) {
-      toast.error('Village/Zone is required to verify LC1 Chairperson');
+    if (!syncedForm.address.trim()) {
+      toast.error('Address is required');
       return;
     }
-    if (!form.lc1_name || !form.lc1_phone) {
-      toast.error('LC1 Chairperson details are required');
+    if (!syncedForm.village.trim()) {
+      toast.error('Village/Zone is required');
       return;
     }
-    // Validate LC1 village matches property village
-    if (form.lc1_village.toLowerCase() !== form.village.toLowerCase()) {
-      toast.error('LC1 Chairperson village must match property village');
+    if (!syncedForm.lc1_name.trim()) {
+      toast.error('LC1 Chairperson name is required');
       return;
     }
+    if (!syncedForm.lc1_phone.trim()) {
+      toast.error('LC1 Chairperson phone is required');
+      return;
+    }
+
+    // Update form with synced lc1_village
+    setForm(syncedForm);
 
     setSubmitting(true);
     try {
@@ -247,6 +259,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
         lc1_name: '', lc1_phone: '', lc1_village: '',
       });
       setExistingLc1Options([]);
+      setAttempted(false);
     } catch (err: any) {
       toast.error(err.message || 'Failed to list house');
     } finally {
@@ -399,6 +412,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
                 placeholder="e.g. 150000"
                 value={form.monthly_rent}
                 onChange={e => setForm(f => ({ ...f, monthly_rent: e.target.value }))}
+                className={attempted && !monthlyRent ? 'border-destructive' : ''}
               />
               {monthlyRent > 0 && (
                 <div className="mt-2 p-3 rounded-lg bg-success/10 border border-success/20">
@@ -458,6 +472,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
                 placeholder="e.g. Plot 12, Nansana Road"
                 value={form.address}
                 onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
+                className={attempted && !form.address.trim() ? 'border-destructive' : ''}
               />
             </div>
             <div>
@@ -470,6 +485,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
                   setForm(f => ({ ...f, village: val, lc1_village: val }));
                   if (val.trim().length >= 3) fetchLc1ForVillage(val);
                 }}
+                className={attempted && !form.village.trim() ? 'border-destructive' : ''}
               />
             </div>
             <Button
@@ -499,6 +515,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
                   placeholder="Chairperson name"
                   value={form.lc1_name}
                   onChange={e => setForm(f => ({ ...f, lc1_name: e.target.value }))}
+                  className={attempted && !form.lc1_name.trim() ? 'border-destructive' : ''}
                 />
               </div>
               <div>
@@ -507,6 +524,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
                   placeholder="0771234567"
                   value={form.lc1_phone}
                   onChange={e => setForm(f => ({ ...f, lc1_phone: e.target.value }))}
+                  className={attempted && !form.lc1_phone.trim() ? 'border-destructive' : ''}
                 />
               </div>
             </div>
@@ -567,7 +585,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
             <p className="text-xs text-chart-4 font-semibold">💰 You earn UGX 5,000 when this landlord is verified</p>
           </div>
 
-          <Button type="submit" className="w-full" disabled={submitting || !monthlyRent || !form.region || !form.address || !form.village || !form.lc1_name || !form.lc1_phone}>
+          <Button type="submit" className="w-full" disabled={submitting}>
             {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Home className="h-4 w-4 mr-2" />}
             List House at {monthlyRent > 0 ? `${formatUGX(pricing.dailyRate)}/day` : '...'}
           </Button>
