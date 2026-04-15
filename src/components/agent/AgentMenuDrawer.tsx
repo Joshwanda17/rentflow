@@ -77,6 +77,7 @@ interface AgentMenuDrawerProps {
   onShareLandlordSignup?: () => void;
   onCreatePromissoryNote?: () => void;
   onViewPromissoryNotes?: () => void;
+  onRequestAdvance?: () => void;
   isFinancialAgent?: boolean;
 }
 
@@ -130,6 +131,7 @@ export function AgentMenuDrawer({
   onShareLandlordSignup,
   onCreatePromissoryNote,
   onViewPromissoryNotes,
+  onRequestAdvance,
   isFinancialAgent = false,
 }: AgentMenuDrawerProps) {
   const navigate = useNavigate();
