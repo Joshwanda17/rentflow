@@ -32,7 +32,7 @@ interface PartnerItem {
   investedAmount: number;
 }
 
-type TabFilter = 'all' | 'invited' | 'proxy';
+type TabFilter = 'invited' | 'proxy';
 
 const statusConfig: Record<string, { label: string; variant: 'success' | 'warning' | 'primary' | 'muted' | 'destructive' }> = {
   active: { label: 'Active', variant: 'success' },
