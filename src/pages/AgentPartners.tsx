@@ -5,14 +5,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { UserAvatar, MARBLE_COLORS } from '@/components/UserAvatar';
+import { UserAvatar } from '@/components/UserAvatar';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
 import { format } from 'date-fns';
 import {
   ArrowLeft, Users, UserCheck, Activity, Search,
   Share2, FileText, Heart, Briefcase, PiggyBank, HandCoins,
-  Loader2, ChevronRight, Zap, RefreshCw,
+  Loader2, ChevronRight, Zap, RefreshCw, Phone, Wallet,
 } from 'lucide-react';
 
 // Lazy imports for dialogs
