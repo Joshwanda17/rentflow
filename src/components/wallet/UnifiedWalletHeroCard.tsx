@@ -49,6 +49,7 @@ export function UnifiedWalletHeroCard({
   onHousesTap,
   onReturnTap,
   onDeployedTap,
+  quickActions,
 }: UnifiedWalletHeroCardProps) {
   const { formatAmount } = useCurrency();
 
