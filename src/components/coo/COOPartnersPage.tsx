@@ -22,7 +22,7 @@ import { format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { downloadPortfolioPdf, sharePortfolioViaWhatsApp, type PortfolioPdfData } from '@/lib/portfolioPdf';
-import { fetchAllUserIdsByRole, batchedQuery } from '@/lib/supabaseBatchUtils';
+import { fetchAllUserIdsByRole, batchedQuery, fetchPaginatedSupporterIds, fetchSupporterSummary } from '@/lib/supabaseBatchUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
