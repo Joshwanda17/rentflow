@@ -650,7 +650,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       toast.success(`${pendingApprovalCount} portfolios activated successfully`);
       setShowActivateConfirm(false);
       setPendingApprovalCount(0);
-      fetchData();
+      refreshInBackground();
     } catch (e: any) {
       console.error('Bulk activate error:', e);
       toast.error(e.message || 'Failed to activate portfolios');
@@ -780,7 +780,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       setMergeDialogPortfolioId(null);
       setMergeReason('');
       if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
-      fetchData();
+      refreshInBackground();
     } catch (e: any) {
       toast.error('Failed to merge top-ups', { description: e.message });
     } finally {
@@ -917,7 +917,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       }
       setDeletePortfolio(null);
       setDeleteReason('');
-      fetchData();
+      refreshInBackground();
     } catch (e: any) {
       toast.error(e.message || 'Failed to delete portfolio');
     } finally {
@@ -1018,7 +1018,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       setAddPortfolioPayoutDay('15');
       setAddPortfolioDate('');
       await openPartnerDetail(partnerId);
-      fetchData();
+      refreshInBackground();
     } catch (e: any) {
       console.error('Add portfolio error:', e);
       toast.error(e.message || 'Failed to create portfolio');
@@ -1101,7 +1101,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       );
       setDetailPartner({ ...detailPartner, portfolios: updated });
       setEditPortfolio(null);
-      fetchData();
+      refreshInBackground();
     } catch (e: any) { toast.error(e.message || 'Failed to update portfolio'); }
     finally { setSavingEditPortfolio(false); }
   }
@@ -1177,7 +1177,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       toast.success(`Invested ${formatUGX(amt)} for ${investPartner.name}`, { description: `Ref: ${result.reference_id}` });
       setInvestPartner(null);
       setInvestAmount('');
-      fetchData();
+      refreshInBackground();
     } catch (e: any) { toast.error(e.message || 'Investment failed'); }
     finally { setInvesting(false); }
   }
@@ -1205,7 +1205,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       setWalletToPortfolioAmount('');
       setWalletToPortfolioReason('');
       if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
-      fetchData();
+      refreshInBackground();
     } catch (e: any) { toast.error(e.message || 'Transfer failed'); }
     finally { setWalletToPortfolioSaving(false); }
   }
@@ -1239,7 +1239,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       }
       toast.success(`Updated ${editName.trim()}`);
       setEditPartner(null);
-      fetchData();
+      refreshInBackground();
     } catch (e: any) { toast.error(e.message || 'Update failed'); }
     finally { setSaving(false); }
   }
@@ -1260,7 +1260,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       if (error) throw error;
       toast.success(`${suspendPartner.name} is now ${shouldFreeze ? 'suspended' : 'active'}`);
       setSuspendPartner(null);
-      fetchData();
+      refreshInBackground();
     } catch (e: any) { toast.error(e.message || 'Failed'); }
     finally { setSuspending(false); }
   }
@@ -1304,7 +1304,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       toast.success(`${deletePartnerTarget.name} has been permanently deleted as a partner`);
       setDeletePartnerTarget(null);
       setDeletePartnerReason('');
-      fetchData();
+      refreshInBackground();
     } catch (e: any) {
       toast.error(e.message || 'Failed to delete partner');
     } finally {
@@ -2300,7 +2300,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       </Dialog>
 
       {/* Import Dialog */}
-      <PartnerImportDialog open={importOpen} onOpenChange={setImportOpen} onSuccess={() => { fetchData(); fetchPendingCount(); }} />
+      <PartnerImportDialog open={importOpen} onOpenChange={setImportOpen} onSuccess={() => { refreshInBackground(); fetchPendingCount(); }} />
 
       {/* Compound Preview Dialog */}
       <AlertDialog open={!!compoundPreview} onOpenChange={(open) => { if (!open) setCompoundPreview(null); }}>
@@ -2360,12 +2360,12 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       </AlertDialog>
 
       <UpdateContributionDatesDialog open={updateDatesOpen} onOpenChange={setUpdateDatesOpen} onSuccess={() => {
-        fetchData();
+        refreshInBackground();
         if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
       }} />
 
       {/* Top-level Create Portfolio Dialog */}
-      <CreateInvestmentAccountDialog open={createPortfolioOpen} onOpenChange={setCreatePortfolioOpen} onSuccess={() => { fetchData(); fetchPendingCount(); }} />
+      <CreateInvestmentAccountDialog open={createPortfolioOpen} onOpenChange={setCreatePortfolioOpen} onSuccess={() => { refreshInBackground(); fetchPendingCount(); }} />
 
       {/* ─── Bulk Activate Confirmation ─── */}
       <AlertDialog open={showActivateConfirm} onOpenChange={setShowActivateConfirm}>
