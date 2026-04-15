@@ -1,0 +1,367 @@
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { UserAvatar, MARBLE_COLORS } from '@/components/UserAvatar';
+import { cn } from '@/lib/utils';
+import { hapticTap } from '@/lib/haptics';
+import { format } from 'date-fns';
+import {
+  ArrowLeft, Users, UserCheck, Activity, Search,
+  Share2, FileText, Heart, Briefcase, PiggyBank, HandCoins,
+  Loader2, ChevronRight, Zap, RefreshCw,
+} from 'lucide-react';
+
+// Lazy imports for dialogs
+import { AgentInvestForPartnerDialog } from '@/components/agent/AgentInvestForPartnerDialog';
+import { AgentAngelPoolInvestDialog } from '@/components/agent/AgentAngelPoolInvestDialog';
+import { PromissoryNoteDialog } from '@/components/agent/PromissoryNoteDialog';
+import { AgentPromissoryNotesList } from '@/components/agent/AgentPromissoryNotesList';
+
+interface PartnerItem {
+  id: string;
+  name: string;
+  phone: string;
+  avatarUrl: string | null;
+  invitedDate: string;
+  status: 'active' | 'pending' | 'matured' | 'payout' | 'cancelled';
+  isProxy: boolean;
+  investedAmount: number;
+}
+
+type TabFilter = 'all' | 'invited' | 'proxy';
+
+const statusConfig: Record<string, { label: string; variant: 'success' | 'warning' | 'primary' | 'muted' | 'destructive' }> = {
+  active: { label: 'Active', variant: 'success' },
+  pending: { label: 'Pending', variant: 'warning' },
+  matured: { label: 'Mature', variant: 'primary' },
+  payout: { label: 'Payout', variant: 'muted' },
+  cancelled: { label: 'Cancelled', variant: 'destructive' },
+};
+
+export default function AgentPartners() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [partners, setPartners] = useState<PartnerItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [activeTab, setActiveTab] = useState<TabFilter>('all');
+
+  // Dialog states
+  const [investForPartnerOpen, setInvestForPartnerOpen] = useState(false);
+  const [angelPoolOpen, setAngelPoolOpen] = useState(false);
+  const [promissoryNoteOpen, setPromissoryNoteOpen] = useState(false);
+  const [promissoryListOpen, setPromissoryListOpen] = useState(false);
+
+  const fetchPartners = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+
+    try {
+      // Fetch invited partners (supporter_invites created by this agent)
+      const { data: invites } = await supabase
+        .from('supporter_invites')
+        .select('id, full_name, phone, created_at, status, activated_user_id, role')
+        .eq('created_by', user.id)
+        .eq('role', 'supporter')
+        .order('created_at', { ascending: false });
+
+      // Fetch proxy partner assignments
+      const { data: proxyAssignments } = await supabase
+        .from('proxy_agent_assignments')
+        .select('id, beneficiary_id, created_at, is_active, approval_status')
+        .eq('agent_id', user.id);
+
+      // Fetch portfolio data for this agent's partners
+      const { data: portfolios } = await supabase
+        .from('investor_portfolios')
+        .select('investor_id, investment_amount, status, created_at')
+        .eq('agent_id', user.id);
+
+      // Get proxy beneficiary profiles
+      const proxyIds = (proxyAssignments || []).map(p => p.beneficiary_id).filter(Boolean);
+      let proxyProfiles: Record<string, any> = {};
+      if (proxyIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone, avatar_url')
+          .in('id', proxyIds);
+        (profiles || []).forEach(p => { proxyProfiles[p.id] = p; });
+      }
+
+      // Build portfolio lookup by investor_id
+      const portfolioMap: Record<string, { amount: number; status: string }> = {};
+      (portfolios || []).forEach(p => {
+        if (!portfolioMap[p.investor_id] || p.investment_amount > portfolioMap[p.investor_id].amount) {
+          portfolioMap[p.investor_id] = { amount: Number(p.investment_amount), status: p.status };
+        }
+      });
+
+      const partnerList: PartnerItem[] = [];
+
+      // Process invited partners
+      (invites || []).forEach(inv => {
+        const portfolioInfo = inv.activated_user_id ? portfolioMap[inv.activated_user_id] : null;
+        let status: PartnerItem['status'] = 'pending';
+        if (inv.status === 'activated' && portfolioInfo) {
+          status = portfolioInfo.status === 'matured' ? 'matured' : 'active';
+        } else if (inv.status === 'activated') {
+          status = 'active';
+        } else if (inv.status === 'cancelled') {
+          status = 'cancelled';
+        }
+
+        partnerList.push({
+          id: inv.id,
+          name: inv.full_name || 'Unknown',
+          phone: inv.phone || '',
+          avatarUrl: null,
+          invitedDate: inv.created_at,
+          status,
+          isProxy: false,
+          investedAmount: portfolioInfo?.amount || 0,
+        });
+      });
+
+      // Process proxy partners (that aren't already in invites)
+      const existingPhones = new Set(partnerList.map(p => p.phone));
+      (proxyAssignments || []).forEach(pa => {
+        const profile = proxyProfiles[pa.beneficiary_id];
+        if (!profile || existingPhones.has(profile.phone)) {
+          // If already present from invites, mark as proxy
+          const existing = partnerList.find(p => p.phone === profile?.phone);
+          if (existing) existing.isProxy = true;
+          return;
+        }
+
+        const portfolioInfo = portfolioMap[pa.beneficiary_id];
+        let status: PartnerItem['status'] = pa.approval_status === 'approved' ? 'active' : 'pending';
+        if (portfolioInfo?.status === 'matured') status = 'matured';
+
+        partnerList.push({
+          id: pa.id,
+          name: profile.full_name || 'Unknown',
+          phone: profile.phone || '',
+          avatarUrl: profile.avatar_url,
+          invitedDate: pa.created_at,
+          status,
+          isProxy: true,
+          investedAmount: portfolioInfo?.amount || 0,
+        });
+      });
+
+      setPartners(partnerList);
+    } catch (err) {
+      console.error('Failed to fetch partners:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchPartners();
+  }, [fetchPartners]);
+
+  // Filtered partners
+  const filtered = useMemo(() => {
+    let list = partners;
+    if (activeTab === 'invited') list = list.filter(p => !p.isProxy);
+    if (activeTab === 'proxy') list = list.filter(p => p.isProxy);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(p => p.name.toLowerCase().includes(q) || p.phone.includes(q));
+    }
+    return list;
+  }, [partners, activeTab, search]);
+
+  // KPIs
+  const kpis = useMemo(() => ({
+    total: partners.length,
+    invited: partners.filter(p => !p.isProxy).length,
+    active: partners.filter(p => p.status === 'active').length,
+  }), [partners]);
+
+  const handleSharePartnerForm = async () => {
+    hapticTap();
+    const url = `${window.location.origin}/become-supporter?ref=${user?.id}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Become a Partner', text: 'Join as a partner on Welile!', url });
+      } catch {}
+    } else {
+      await navigator.clipboard.writeText(url);
+      const { toast } = await import('sonner');
+      toast.success('Partner link copied!');
+    }
+  };
+
+  const handleInviteFunder = async () => {
+    hapticTap();
+    const url = `${window.location.origin}/become-supporter?ref=${user?.id}`;
+    const message = `🤝 Join me on Welile as a partner investor!\n\nEarn monthly returns on your investment.\n\n${url}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
+  const quickActions = [
+    { icon: Share2, label: 'Share Form', color: 'text-emerald-500', bg: 'bg-emerald-500/10', onClick: handleSharePartnerForm },
+    { icon: FileText, label: 'Promissory', color: 'text-purple-500', bg: 'bg-purple-500/10', onClick: () => setPromissoryNoteOpen(true) },
+    { icon: Heart, label: 'Invite', color: 'text-primary', bg: 'bg-primary/10', onClick: handleInviteFunder },
+    { icon: HandCoins, label: 'Invest', color: 'text-emerald-600', bg: 'bg-emerald-600/10', onClick: () => setInvestForPartnerOpen(true) },
+    { icon: PiggyBank, label: 'Angel Pool', color: 'text-amber-500', bg: 'bg-amber-500/10', onClick: () => setAngelPoolOpen(true) },
+    { icon: Briefcase, label: 'Notes', color: 'text-indigo-500', bg: 'bg-indigo-500/10', onClick: () => setPromissoryListOpen(true) },
+  ];
+
+  const tabs: { key: TabFilter; label: string; count: number }[] = [
+    { key: 'all', label: 'All', count: partners.length },
+    { key: 'invited', label: 'Invited', count: kpis.invited },
+    { key: 'proxy', label: 'Proxy', count: partners.length - kpis.invited },
+  ];
+
+  return (
+    <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
+      {/* Header */}
+      <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-md border-b border-border/40 px-4 py-3 flex items-center gap-3">
+        <button onClick={() => navigate(-1)} className="p-1.5 -ml-1.5 rounded-lg hover:bg-muted/50 active:scale-95 transition-all">
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <h1 className="text-lg font-bold flex-1">My Partners</h1>
+        <button onClick={fetchPartners} className="p-2 rounded-lg hover:bg-muted/50 active:scale-95 transition-all">
+          <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+        </button>
+      </header>
+
+      <div className="flex-1 overflow-y-auto pb-8">
+        <div className="px-4 py-4 space-y-4 max-w-lg mx-auto">
+
+          {/* KPI Cards */}
+          <div className="grid grid-cols-3 gap-2.5">
+            {[
+              { label: 'All Partners', value: kpis.total, icon: Users, color: 'text-primary', bg: 'bg-primary/10' },
+              { label: 'Invited', value: kpis.invited, icon: Heart, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+              { label: 'Active', value: kpis.active, icon: Activity, color: 'text-success', bg: 'bg-success/10' },
+            ].map(kpi => (
+              <div key={kpi.label} className="rounded-2xl border border-border/60 bg-card p-3.5 text-center space-y-1.5 shadow-sm">
+                <div className={cn("mx-auto w-9 h-9 rounded-xl flex items-center justify-center", kpi.bg)}>
+                  <kpi.icon className={cn("h-4.5 w-4.5", kpi.color)} />
+                </div>
+                <p className="text-2xl font-bold tabular-nums">{loading ? '—' : kpi.value}</p>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{kpi.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Quick Actions */}
+          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
+            {quickActions.map(a => (
+              <button
+                key={a.label}
+                onClick={() => { hapticTap(); a.onClick(); }}
+                className={cn(
+                  "flex flex-col items-center gap-1.5 min-w-[68px] py-3 px-2 rounded-xl border border-border/40 active:scale-95 transition-all shrink-0",
+                  a.bg
+                )}
+              >
+                <a.icon className={cn("h-4.5 w-4.5", a.color)} />
+                <span className={cn("text-[10px] font-semibold", a.color)}>{a.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Tabs + Search */}
+          <div className="space-y-3">
+            <div className="flex gap-1 bg-muted/50 p-1 rounded-xl">
+              {tabs.map(tab => (
+                <button
+                  key={tab.key}
+                  onClick={() => { hapticTap(); setActiveTab(tab.key); }}
+                  className={cn(
+                    "flex-1 py-2 rounded-lg text-xs font-semibold transition-all",
+                    activeTab === tab.key
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {tab.label} <span className="text-[10px] opacity-70">({tab.count})</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search by name or phone..."
+                className="pl-9 h-10 rounded-xl bg-muted/30 border-border/40"
+              />
+            </div>
+          </div>
+
+          {/* Partner Cards */}
+          <div className="space-y-2.5">
+            {loading ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="text-center py-16 space-y-3">
+                <div className="mx-auto w-14 h-14 rounded-2xl bg-muted/50 flex items-center justify-center">
+                  <Users className="h-7 w-7 text-muted-foreground/50" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">No partners found</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {search ? 'Try a different search' : 'Invite your first partner using the actions above'}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              filtered.map(partner => {
+                const sc = statusConfig[partner.status] || statusConfig.pending;
+                return (
+                  <div
+                    key={partner.id}
+                    className="flex items-center gap-3 p-3.5 rounded-2xl border border-border/60 bg-card shadow-sm hover:shadow-md active:scale-[0.98] transition-all"
+                  >
+                    <UserAvatar
+                      avatarUrl={partner.avatarUrl}
+                      fullName={partner.name}
+                      size="md"
+                    />
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-semibold text-sm truncate">{partner.name}</p>
+                        {partner.isProxy && (
+                          <Badge variant="outline" size="sm" className="shrink-0 text-[9px] border-primary/30 text-primary bg-primary/5">
+                            🔗 Proxy
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Invited {format(new Date(partner.invitedDate), 'MMM d, yyyy')}
+                      </p>
+                    </div>
+
+                    <Badge variant={sc.variant} size="sm" className="shrink-0">
+                      {sc.label}
+                    </Badge>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Dialogs */}
+      <AgentInvestForPartnerDialog open={investForPartnerOpen} onOpenChange={setInvestForPartnerOpen} onSuccess={fetchPartners} />
+      <AgentAngelPoolInvestDialog open={angelPoolOpen} onOpenChange={setAngelPoolOpen} onSuccess={fetchPartners} />
+      <PromissoryNoteDialog open={promissoryNoteOpen} onOpenChange={setPromissoryNoteOpen} />
+      <AgentPromissoryNotesList open={promissoryListOpen} onOpenChange={setPromissoryListOpen} />
+    </div>
+  );
+}

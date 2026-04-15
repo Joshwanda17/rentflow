@@ -50,6 +50,7 @@ const UpdatePassword = lazy(() => import("./pages/UpdatePassword"));
 const OrderHistory = lazy(() => import("./pages/OrderHistory"));
 const Wishlist = lazy(() => import("./pages/Wishlist"));
 const AgentAnalytics = lazy(() => import("./pages/AgentAnalytics"));
+const AgentPartners = lazy(() => import("./pages/AgentPartners"));
 const FlashSales = lazy(() => import("./pages/FlashSales"));
 const Marketplace = lazy(() => import("./pages/Marketplace"));
 const Categories = lazy(() => import("./pages/Categories"));
@@ -279,6 +280,7 @@ function AppRoutes() {
           {/* Chat feature removed */}
           <Route path="/agent-registrations" element={<AgentRegistrations />} />
           <Route path="/sub-agents" element={<SubAgentAnalytics />} />
+          <Route path="/agent/partners" element={<AgentPartners />} />
           <Route path="/join" element={<Join />} />
           <Route path="/calculator" element={<Calculator />} />
           <Route path="/users" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cto']}><AdminUsersPage /></RoleGuard>} />
