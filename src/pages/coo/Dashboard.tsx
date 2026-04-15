@@ -4,6 +4,7 @@ import ExecutiveDashboardLayout from '@/components/layout/ExecutiveDashboardLayo
 import { COOWithdrawalApprovals } from '@/components/coo/COOWithdrawalApprovals';
 import { COOPartnerWithdrawalApprovals } from '@/components/coo/COOPartnerWithdrawalApprovals';
 import { COOROIApprovals } from '@/components/coo/COOROIApprovals';
+import { CancelledProxyWithdrawals } from '@/components/coo/CancelledProxyWithdrawals';
 import FinancialMetricsCards from '@/components/coo/FinancialMetricsCards';
 import FinancialTransactionsTable from '@/components/coo/FinancialTransactionsTable';
 import AgentCollectionsOverview from '@/components/coo/AgentCollectionsOverview';
@@ -176,6 +177,7 @@ export default function COODashboardPage() {
             {renderSectionHeader('ROI Return Approvals', TrendingUp)}
             <p className="text-sm text-muted-foreground -mt-2">Approve partner ROI payouts before they go to CFO for disbursement.</p>
             <COOROIApprovals />
+            <CancelledProxyWithdrawals />
           </div>
         );
       case 'partners':

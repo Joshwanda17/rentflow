@@ -14,6 +14,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { COOWithdrawalApprovals } from '@/components/coo/COOWithdrawalApprovals';
 import { COOPartnerWithdrawalApprovals } from '@/components/coo/COOPartnerWithdrawalApprovals';
 import { COOROIApprovals } from '@/components/coo/COOROIApprovals';
+import { CancelledProxyWithdrawals } from '@/components/coo/CancelledProxyWithdrawals';
 
 type HealthStatus = 'green' | 'yellow' | 'red';
 
@@ -412,6 +413,9 @@ export default function COODashboard() {
       {/* COO ROI Return Approvals */}
       <div className="px-4 pt-4">
         <COOROIApprovals />
+      </div>
+      <div className="px-4 pt-4">
+        <CancelledProxyWithdrawals />
       </div>
     </div>
   );
