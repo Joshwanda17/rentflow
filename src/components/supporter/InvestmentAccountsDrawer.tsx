@@ -20,6 +20,8 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { formatDateOnlyForDisplay, extractDateOnly, dateOnlyToLocalDate } from '@/lib/portfolioDates';
 import { hapticTap } from '@/lib/haptics';
 import { supabase } from '@/integrations/supabase/client';
+import { FundAccountDialog } from './FundAccountDialog';
+import { useWallet } from '@/hooks/useWallet';
 import { toast } from 'sonner';
 import { downloadPortfolioPdf, type PortfolioPdfData } from '@/lib/portfolioPdf';
 import { differenceInCalendarDays } from 'date-fns';
