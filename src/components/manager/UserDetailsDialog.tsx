@@ -61,7 +61,7 @@ import UserEcosystemSection from './user-details/UserEcosystemSection';
 import AddBalanceDialog from './AddBalanceDialog';
 import FundEditHistory from './FundEditHistory';
 
-type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager' | 'super_admin' | 'employee' | 'operations' | 'ceo' | 'coo' | 'cfo' | 'cto' | 'cmo' | 'crm';
+type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager' | 'super_admin' | 'employee' | 'operations' | 'ceo' | 'coo' | 'cfo' | 'cto' | 'cmo' | 'crm' | 'hr';
 
 const OPERATIONS_DEPARTMENTS = ['Agent', 'Tenant', 'Landlord', 'Partner'] as const;
 
@@ -80,6 +80,7 @@ const allRoles: { value: AppRole; label: string; description: string; color: str
   { value: 'cto', label: 'CTO', description: 'Chief Technology Officer', color: 'bg-violet-500/20 text-violet-600', emoji: '🔧', category: 'executive' },
   { value: 'cmo', label: 'CMO', description: 'Chief Marketing Officer', color: 'bg-pink-500/20 text-pink-600', emoji: '📢', category: 'executive' },
   { value: 'crm', label: 'CRM', description: 'Customer Relationship Manager', color: 'bg-cyan-500/20 text-cyan-600', emoji: '🤝', category: 'executive' },
+  { value: 'hr', label: 'HR', description: 'Human Resources Manager', color: 'bg-indigo-500/20 text-indigo-600', emoji: '👥', category: 'internal' },
 ];
 
 interface InvestmentAccount {

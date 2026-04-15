@@ -19,6 +19,7 @@ const DASHBOARDS = [
   { key: 'tenant-ops', label: 'Tenant Ops' },
   { key: 'landlord-ops', label: 'Landlord Ops' },
   { key: 'partner-ops', label: 'Partner Ops' },
+  { key: 'hr', label: 'HR Dashboard' },
 ];
 
 interface DashboardPermissionsTabProps {

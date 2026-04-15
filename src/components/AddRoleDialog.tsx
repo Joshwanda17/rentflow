@@ -36,6 +36,7 @@ const allRoles: { value: AppRole; label: string; description: string; icon: Reac
   { value: 'employee', label: 'Employee', description: 'Internal staff member', icon: <Users className="h-4 w-4" />, requiresCode: true },
   { value: 'operations', label: 'Operations', description: 'Operations management', icon: <Shield className="h-4 w-4" />, requiresCode: true },
   { value: 'super_admin', label: 'Super Admin', description: 'Full system access', icon: <Shield className="h-4 w-4" />, requiresCode: true },
+  { value: 'hr', label: 'HR', description: 'Human Resources Manager', icon: <Users className="h-4 w-4" />, requiresCode: true },
 ];
 
 export default function AddRoleDialog({ availableRoles, onAddRole }: AddRoleDialogProps) {
