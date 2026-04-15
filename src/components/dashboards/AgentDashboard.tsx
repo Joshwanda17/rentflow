@@ -32,6 +32,9 @@ import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
+import DepositFlow from '@/components/payments/DepositFlow';
+import WithdrawFlow from '@/components/payments/WithdrawFlow';
+import { SendMoneyDialog } from '@/components/wallet/SendMoneyDialog';
 import { WalletDisclaimer } from '@/components/wallet/WalletDisclaimer';
 
 import { useProfile } from '@/hooks/useProfile';
