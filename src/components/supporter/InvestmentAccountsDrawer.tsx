@@ -600,6 +600,7 @@ export function InvestmentAccountsDrawer({ open, onOpenChange, defaultTab = 'acc
           accountName={topUpTarget.account_name || topUpTarget.portfolio_code || 'Investment Account'}
           accountId={topUpTarget.id}
           walletBalance={wallet?.balance || 0}
+          currentBalance={Number(topUpTarget.investment_amount) || 0}
           onDeposit={() => window.dispatchEvent(new CustomEvent('open-deposit'))}
           onFund={async (portfolioId, amt) => {
             const { data, error } = await supabase.functions.invoke('portfolio-topup', {
