@@ -206,14 +206,23 @@ export function ProxyPartnerFunds() {
   }, [portfolios]);
 
   const partnerBalances = useMemo<PartnerBalance[]>(() => {
-    // Group ledger entries by (linked_party, source_id)
+    // Build a map of portfolio_id -> investor_id from fetched portfolios
+    const portfolioToInvestor: Record<string, string> = {};
+    portfolios.forEach(p => { portfolioToInvestor[p.id] = p.investor_id; });
+
+    // Group ledger entries by (partnerId, source_id)
     const groupMap: Record<string, { partnerId: string; portfolioId: string | null; entries: LedgerCredit[] }> = {};
 
     ledgerCredits.forEach((entry) => {
-      if (!entry.linked_party || !approvedPartnerIds.includes(entry.linked_party)) return;
-      const key = `${entry.linked_party}-${entry.source_id || 'no_portfolio'}`;
+      // Determine partnerId: prefer linked_party, fallback to portfolio->investor mapping
+      let partnerId = entry.linked_party;
+      if (!partnerId && entry.source_id && portfolioToInvestor[entry.source_id]) {
+        partnerId = portfolioToInvestor[entry.source_id];
+      }
+      if (!partnerId || !approvedPartnerIds.includes(partnerId)) return;
+      const key = `${partnerId}-${entry.source_id || 'no_portfolio'}`;
       if (!groupMap[key]) {
-        groupMap[key] = { partnerId: entry.linked_party, portfolioId: entry.source_id, entries: [] };
+        groupMap[key] = { partnerId, portfolioId: entry.source_id, entries: [] };
       }
       groupMap[key].entries.push(entry);
     });
