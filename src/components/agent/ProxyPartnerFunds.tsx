@@ -125,7 +125,7 @@ export function ProxyPartnerFunds() {
           .from('general_ledger')
           .select('user_id, linked_party, amount, direction, category, source_id')
           .eq('user_id', user.id)
-          .in('category', ['roi_payout', 'balance_correction']),
+          .in('category', ['roi_payout', 'roi_wallet_credit', 'balance_correction']),
         // Completed withdrawals for these partners (delivered)
         supabase
           .from('withdrawal_requests')
