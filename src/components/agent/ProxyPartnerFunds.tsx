@@ -201,7 +201,7 @@ export function ProxyPartnerFunds() {
         // Active (pending/processing) withdrawal requests
         supabase
           .from('withdrawal_requests')
-          .select('id, linked_party, status, reason, metadata')
+          .select('id, linked_party, status, reason')
           .eq('user_id', user.id)
           .in('status', ['pending', 'approved', 'processing', 'manager_approved']),
       ]);
@@ -217,10 +217,7 @@ export function ProxyPartnerFunds() {
       const statusMap: Record<string, string> = {};
       const idMap: Record<string, string> = {};
       (activeWithdrawalRes.data || []).forEach((w: any) => {
-        const meta = (w.metadata || {}) as Record<string, any>;
-        const portfolioKey = meta.portfolio_id
-          ? `${w.linked_party}-${meta.portfolio_id}`
-          : w.linked_party;
+        const portfolioKey = w.linked_party;
 
         if (w.linked_party && uniquePartnerIds.includes(w.linked_party)) {
           if (portfolioKey) {
@@ -401,20 +398,30 @@ export function ProxyPartnerFunds() {
     if (!cancelTarget || !user?.id) return;
     setCancellingId(cancelTarget.withdrawalId);
     try {
-      // 1. Update withdrawal_requests status to 'cancelled'
+      // 1. Fetch the actual withdrawal amount from the database
+      const { data: withdrawalData } = await supabase
+        .from('withdrawal_requests')
+        .select('amount')
+        .eq('id', cancelTarget.withdrawalId)
+        .single();
+
+      const withdrawalAmount = withdrawalData?.amount || 0;
+      if (!withdrawalAmount) throw new Error('Could not determine withdrawal amount');
+
+      // 2. Update withdrawal_requests status to 'cancelled'
       const { error } = await supabase
         .from('withdrawal_requests')
         .update({ status: 'cancelled' } as any)
         .eq('id', cancelTarget.withdrawalId);
       if (error) throw error;
 
-      // 2. Reverse the held-funds ledger entry (cash_in to restore balance)
+      // 3. Reverse the held-funds ledger entry (cash_in to restore ROI balance in agent wallet)
       await supabase.from('general_ledger').insert({
         user_id: user.id,
-        amount: prefillAmount,
+        amount: withdrawalAmount,
         direction: 'cash_in',
         category: 'withdrawal_reversal',
-        description: `Proxy withdrawal cancelled by agent for ${cancelTarget.partnerName}`,
+        description: `Proxy withdrawal cancelled by agent for ${cancelTarget.partnerName} – ROI returns restored`,
         currency: 'UGX',
         transaction_group_id: `wallet-withdraw-cancel-${cancelTarget.withdrawalId}`,
         source_table: 'withdrawal_requests',
@@ -422,7 +429,7 @@ export function ProxyPartnerFunds() {
         ledger_scope: 'platform',
       } as any);
 
-      // 3. Audit log
+      // 4. Audit log
       await supabase.from('audit_logs').insert({
         user_id: user.id,
         action_type: 'proxy_withdrawal_cancelled',
@@ -431,11 +438,12 @@ export function ProxyPartnerFunds() {
         metadata: {
           partner_name: cancelTarget.partnerName,
           cancelled_by: user.id,
+          amount_restored: withdrawalAmount,
         },
       } as any);
 
       toast.success('Withdrawal cancelled', {
-        description: `The withdrawal request for ${cancelTarget.partnerName} has been cancelled and funds restored.`,
+        description: `The ROI withdrawal for ${cancelTarget.partnerName} has been cancelled and ${formatAmount(withdrawalAmount)} restored to your wallet.`,
       });
       loadProxyFunds();
     } catch (err: any) {
