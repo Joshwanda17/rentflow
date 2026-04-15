@@ -48,7 +48,7 @@ export default function AgentPartners() {
   const [partners, setPartners] = useState<PartnerItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<TabFilter>('all');
+  const [activeTab, setActiveTab] = useState<TabFilter>('invited');
 
   // Dialog states
   const [investForPartnerOpen, setInvestForPartnerOpen] = useState(false);
@@ -167,9 +167,7 @@ export default function AgentPartners() {
 
   // Filtered partners
   const filtered = useMemo(() => {
-    let list = partners;
-    if (activeTab === 'invited') list = list.filter(p => !p.isProxy);
-    if (activeTab === 'proxy') list = list.filter(p => p.isProxy);
+    let list = activeTab === 'proxy' ? partners.filter(p => p.isProxy) : partners.filter(p => !p.isProxy);
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(p => p.name.toLowerCase().includes(q) || p.phone.includes(q));
@@ -179,8 +177,8 @@ export default function AgentPartners() {
 
   // KPIs
   const kpis = useMemo(() => ({
-    total: partners.length,
     invited: partners.filter(p => !p.isProxy).length,
+    proxy: partners.filter(p => p.isProxy).length,
     active: partners.filter(p => p.status === 'active').length,
   }), [partners]);
 
@@ -215,9 +213,8 @@ export default function AgentPartners() {
   ];
 
   const tabs: { key: TabFilter; label: string; count: number }[] = [
-    { key: 'all', label: 'All', count: partners.length },
     { key: 'invited', label: 'Invited', count: kpis.invited },
-    { key: 'proxy', label: 'Proxy', count: partners.length - kpis.invited },
+    { key: 'proxy', label: 'Proxy', count: kpis.proxy },
   ];
 
   return (
@@ -239,8 +236,8 @@ export default function AgentPartners() {
           {/* KPI Cards */}
           <div className="grid grid-cols-3 gap-2.5">
             {[
-              { label: 'All Partners', value: kpis.total, icon: Users, color: 'text-primary', bg: 'bg-primary/10' },
               { label: 'Invited', value: kpis.invited, icon: Heart, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+              { label: 'Proxy', value: kpis.proxy, icon: Zap, color: 'text-primary', bg: 'bg-primary/10' },
               { label: 'Active', value: kpis.active, icon: Activity, color: 'text-success', bg: 'bg-success/10' },
             ].map(kpi => (
               <div key={kpi.label} className="rounded-2xl border border-border/60 bg-card p-3.5 text-center space-y-1.5 shadow-sm">
