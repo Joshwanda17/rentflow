@@ -290,6 +290,31 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
            secondaryLabel="Withdrawable"
            secondaryValue={formatUGX(commissionBalance)}
            onOpenWallet={() => setShowWallet(true)}
+           quickActions={
+             <div className="flex items-center gap-2">
+               <button
+                 onClick={() => { hapticTap(); setShowQuickDeposit(true); }}
+                 className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 active:scale-95 transition-all"
+               >
+                 <ArrowDownToLine className="h-3.5 w-3.5 text-emerald-400" />
+                 <span className="text-[10px] font-bold text-emerald-300 uppercase tracking-wider">Deposit</span>
+               </button>
+               <button
+                 onClick={() => { hapticTap(); setShowQuickWithdraw(true); }}
+                 className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 active:scale-95 transition-all"
+               >
+                 <ArrowUpFromLine className="h-3.5 w-3.5 text-amber-400" />
+                 <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider">Withdraw</span>
+               </button>
+               <button
+                 onClick={() => { hapticTap(); setShowQuickTransfer(true); }}
+                 className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-blue-500/15 hover:bg-blue-500/25 active:scale-95 transition-all"
+               >
+                 <ArrowLeftRight className="h-3.5 w-3.5 text-blue-400" />
+                 <span className="text-[10px] font-bold text-blue-300 uppercase tracking-wider">Transfer</span>
+               </button>
+             </div>
+           }
          />
 
         {/* Verification Checklist */}
