@@ -582,18 +582,33 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   }, []);
 
   /* ─── Initial fetch (with loading spinner) ─── */
+  const isInitialLoad = useRef(true);
   const fetchData = useCallback(async () => {
-    setIsLoading(true);
+    // Only show full spinner on first load, not on search/page changes
+    if (isInitialLoad.current) {
+      setIsLoading(true);
+    } else {
+      setIsSearching(true);
+    }
     try { await fetchDataCore(page, debouncedSearch); }
     catch (e) { console.error(e); }
-    finally { setIsLoading(false); }
+    finally {
+      setIsLoading(false);
+      setIsSearching(false);
+      isInitialLoad.current = false;
+    }
   }, [fetchDataCore, page, debouncedSearch]);
 
   /* ─── Background refresh (no spinner, no page flash) ─── */
   const refreshInBackground = useCallback(async () => {
-    try { await fetchDataCore(page, debouncedSearch); }
+    try {
+      await Promise.all([
+        fetchDataCore(page, debouncedSearch),
+        fetchNearingPayoutsAsync(),
+      ]);
+    }
     catch (e) { console.error('Background refresh error:', e); }
-  }, [fetchDataCore, page, debouncedSearch]);
+  }, [fetchDataCore, page, debouncedSearch, fetchNearingPayoutsAsync]);
 
   // Fetch pending_approval count
   const fetchPendingCount = useCallback(async () => {
@@ -615,8 +630,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
   useEffect(() => { fetchData(); fetchPendingCount(); }, [fetchData, fetchPendingCount]);
 
-  // Fetch summary stats once on mount
+  // Fetch summary stats + nearing payouts once on mount (independent)
   useEffect(() => { fetchSummaryStats(); }, [fetchSummaryStats]);
+  useEffect(() => { fetchNearingPayoutsAsync(); }, [fetchNearingPayoutsAsync]);
 
   // Single portfolio approve
   const [approvingId, setApprovingId] = useState<string | null>(null);
