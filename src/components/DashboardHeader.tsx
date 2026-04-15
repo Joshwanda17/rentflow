@@ -228,6 +228,18 @@ const DashboardHeader = memo(function DashboardHeader({
                     </DropdownMenuItem>
                   )}
 
+                  {currentRole === 'agent' && (
+                    <DropdownMenuItem
+                      onClick={() => navigate('/internship')}
+                      className="gap-3 cursor-pointer py-3 px-3 rounded-xl text-sm font-medium touch-manipulation"
+                    >
+                      <div className="p-1.5 rounded-lg" style={{ backgroundColor: 'rgba(114, 20, 201, 0.1)' }}>
+                        <GraduationCap className="h-4 w-4" style={{ color: '#7214c9' }} />
+                      </div>
+                      Internship Program
+                    </DropdownMenuItem>
+                  )}
+
                   {menuItems.length > 0 && <DropdownMenuSeparator />}
                   
                   {menuItems.map((item, index) => (
