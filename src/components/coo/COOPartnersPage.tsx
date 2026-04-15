@@ -1185,28 +1185,71 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     finally { setInvesting(false); }
   }
 
+  /* ─── Fetch proxy agent for wallet transfer dialog ─── */
+  async function fetchProxyAgentForPartner(partnerId: string) {
+    setLoadingProxyAgent(true);
+    setProxyAgentInfo(null);
+    try {
+      const { data: proxyAssignment } = await supabase
+        .from('proxy_agent_assignments')
+        .select('agent_id')
+        .eq('beneficiary_id', partnerId)
+        .eq('is_active', true)
+        .eq('approval_status', 'approved')
+        .limit(1)
+        .maybeSingle();
+
+      if (proxyAssignment?.agent_id) {
+        const [profileRes, walletRes] = await Promise.all([
+          supabase.from('profiles').select('full_name').eq('id', proxyAssignment.agent_id).single(),
+          supabase.from('wallets').select('balance').eq('user_id', proxyAssignment.agent_id).maybeSingle(),
+        ]);
+        setProxyAgentInfo({
+          agentId: proxyAssignment.agent_id,
+          agentName: profileRes.data?.full_name || 'Agent',
+          walletBalance: walletRes.data ? Number(walletRes.data.balance) : 0,
+        });
+      }
+    } catch { /* ignore */ }
+    finally { setLoadingProxyAgent(false); }
+  }
+
   /* ─── Wallet → Portfolio Transfer ─── */
   async function handleWalletToPortfolio() {
     if (!walletToPortfolio || !detailPartner) return;
     const amt = Number(walletToPortfolioAmount);
+
+    const sourceBalance = walletTransferMethod === 'wallet'
+      ? detailPartner.walletBalance
+      : proxyAgentInfo?.walletBalance ?? 0;
+
     if (isNaN(amt) || amt < 1000) { toast.error('Minimum: UGX 1,000'); return; }
-    if (amt > detailPartner.walletBalance) { toast.error(`Only ${formatUGX(detailPartner.walletBalance)} available in wallet`); return; }
+    if (amt > sourceBalance) { toast.error(`Only ${formatUGX(sourceBalance)} available in ${walletTransferMethod === 'wallet' ? 'partner wallet' : 'proxy agent wallet'}`); return; }
     if (walletToPortfolioReason.trim().length < 10) { toast.error('Reason must be at least 10 characters'); return; }
+    if (walletTransferMethod === 'proxy_agent' && !proxyAgentInfo) { toast.error('No proxy agent assigned'); return; }
 
     setWalletToPortfolioSaving(true);
     try {
       const { data: result, error } = await supabase.functions.invoke('coo-wallet-to-portfolio', {
-        body: { portfolio_id: walletToPortfolio.id, amount: amt, reason: walletToPortfolioReason.trim(), payment_method: 'wallet' },
+        body: {
+          portfolio_id: walletToPortfolio.id,
+          amount: amt,
+          reason: walletToPortfolioReason.trim(),
+          payment_method: walletTransferMethod,
+          source_wallet_user_id: walletTransferMethod === 'proxy_agent' ? proxyAgentInfo?.agentId : undefined,
+        },
       });
       if (error) throw new Error(typeof result === 'object' && result?.error ? result.error : error.message);
       if (result?.error) throw new Error(result.error);
 
-      toast.success(`${formatUGX(amt)} top-up submitted for ${walletToPortfolio.account_name || walletToPortfolio.portfolio_code}`, {
-        description: `⏳ Awaiting Financial Operations approval. No funds deducted yet.`,
+      const sourceLabel = walletTransferMethod === 'wallet' ? 'partner wallet' : `${proxyAgentInfo?.agentName}'s wallet`;
+      toast.success(`${formatUGX(amt)} top-up processed for ${walletToPortfolio.account_name || walletToPortfolio.portfolio_code}`, {
+        description: `Deducted from ${sourceLabel}. Applied at maturity.`,
       });
       setWalletToPortfolio(null);
       setWalletToPortfolioAmount('');
       setWalletToPortfolioReason('');
+      setProxyAgentInfo(null);
       if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
       refreshInBackground();
     } catch (e: any) { toast.error(e.message || 'Transfer failed'); }
