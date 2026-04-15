@@ -98,6 +98,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // Tenant info (for non-account holders)
   const [tenantName, setTenantName] = useState('');
   const [tenantPhone, setTenantPhone] = useState('');
+  const [tenantNationalId, setTenantNationalId] = useState('');
   
   // Rent details
   const [rentAmount, setRentAmount] = useState('');
@@ -199,6 +200,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setIncomeType(null);
     setTenantName('');
     setTenantPhone('');
+    setTenantNationalId('');
     setRentAmount('');
     setOutstandingBalance('');
     setDuration('30');
@@ -308,6 +310,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       return;
     }
 
+    // Validate National ID (10-14 alphanumeric characters)
+    const cleanNationalId = tenantNationalId.trim().toUpperCase();
+    if (!cleanNationalId || cleanNationalId.length < 10 || cleanNationalId.length > 14 || !/^[A-Z0-9]+$/.test(cleanNationalId)) {
+      toast.error('National ID is required (10-14 alphanumeric characters)');
+      return;
+    }
+
     const isOutstanding = incomeType === 'outstanding';
 
     if (!landlordName.trim() || !landlordPhone.trim()) {
@@ -406,6 +415,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         body: {
           full_name: tenantName.trim(),
           phone: cleanTenantPhone,
+          national_id: tenantNationalId.trim().toUpperCase(),
         },
       });
 
