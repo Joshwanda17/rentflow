@@ -457,7 +457,7 @@ export function ProxyPartnerFunds() {
 
       const notifyUserIds = new Set<string>();
       (cooUsers || []).forEach(u => notifyUserIds.add(u.user_id));
-      (partnerOpsUsers || []).forEach(u => notifyUserIds.add(u.user_id));
+      (opsUsers || []).forEach(u => notifyUserIds.add(u.user_id));
       // Remove self from notifications
       notifyUserIds.delete(user.id);
 
