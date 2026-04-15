@@ -156,8 +156,10 @@ export function MyPortfolioAccounts() {
   const { portfolios, totalInvested, loading } = useCapitalOpportunities();
   const { hasShares, totalShares, companyOwnershipPct, totalInvested: angelInvested } = useMyAngelShares();
   const { formatAmount } = useCurrency();
+  const { wallet, refreshWallet } = useWallet();
   const [selectedPortfolio, setSelectedPortfolio] = useState<PortfolioRecord | null>(null);
   const [showDetail, setShowDetail] = useState(false);
+  const [topUpTarget, setTopUpTarget] = useState<PortfolioRecord | null>(null);
 
   if (loading) {
     return (
