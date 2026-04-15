@@ -9,6 +9,10 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap } from '@/lib/haptics';
 import { useMyAngelShares } from '@/hooks/useMyAngelShares';
 import { useCurrency } from '@/hooks/useCurrency';
+import { useWallet } from '@/hooks/useWallet';
+import { FundAccountDialog } from './FundAccountDialog';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline'; dot: string }> = {
   active: { label: 'Active', variant: 'default', dot: 'bg-success animate-pulse' },
@@ -52,7 +56,7 @@ function PortfolioRow({ p, onTap }: { p: PortfolioRecord; onTap: () => void }) {
   );
 }
 
-function PortfolioDetailSheet({ portfolio, open, onOpenChange }: { portfolio: PortfolioRecord | null; open: boolean; onOpenChange: (o: boolean) => void }) {
+function PortfolioDetailSheet({ portfolio, open, onOpenChange, onTopUp }: { portfolio: PortfolioRecord | null; open: boolean; onOpenChange: (o: boolean) => void; onTopUp?: (p: PortfolioRecord) => void }) {
   if (!portfolio) return null;
   const amount = Number(portfolio.investment_amount);
   const roiPct = Number(portfolio.roi_percentage);
@@ -116,7 +120,7 @@ function PortfolioDetailSheet({ portfolio, open, onOpenChange }: { portfolio: Po
             <div className="flex gap-3">
               <Button
                 onClick={() => {
-                  window.dispatchEvent(new CustomEvent('open-deposit'));
+                  onTopUp?.(portfolio);
                   onOpenChange(false);
                 }}
                 className="flex-1 h-11 font-semibold gap-2"
@@ -152,8 +156,10 @@ export function MyPortfolioAccounts() {
   const { portfolios, totalInvested, loading } = useCapitalOpportunities();
   const { hasShares, totalShares, companyOwnershipPct, totalInvested: angelInvested } = useMyAngelShares();
   const { formatAmount } = useCurrency();
+  const { wallet, refreshWallet } = useWallet();
   const [selectedPortfolio, setSelectedPortfolio] = useState<PortfolioRecord | null>(null);
   const [showDetail, setShowDetail] = useState(false);
+  const [topUpTarget, setTopUpTarget] = useState<PortfolioRecord | null>(null);
 
   if (loading) {
     return (
@@ -215,7 +221,30 @@ export function MyPortfolioAccounts() {
         portfolio={selectedPortfolio}
         open={showDetail}
         onOpenChange={setShowDetail}
+        onTopUp={(p) => setTopUpTarget(p)}
       />
+
+      {topUpTarget && (
+        <FundAccountDialog
+          open={!!topUpTarget}
+          onOpenChange={(open) => { if (!open) setTopUpTarget(null); }}
+          accountName={topUpTarget.account_name || topUpTarget.portfolio_code}
+          accountId={topUpTarget.id}
+          walletBalance={wallet?.balance || 0}
+          onDeposit={() => window.dispatchEvent(new CustomEvent('open-deposit'))}
+          onFund={async (portfolioId, amt) => {
+            const { data, error } = await supabase.functions.invoke('portfolio-topup', {
+              body: { portfolio_id: portfolioId, amount: amt },
+            });
+            if (error || data?.error) {
+              toast.error(data?.error || error?.message || 'Top-up failed');
+              throw new Error(data?.error || 'Failed');
+            }
+            toast.success(`Successfully topped up ${topUpTarget.account_name || topUpTarget.portfolio_code}`);
+            refreshWallet();
+          }}
+        />
+      )}
     </div>
   );
 }

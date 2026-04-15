@@ -20,6 +20,8 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { formatDateOnlyForDisplay, extractDateOnly, dateOnlyToLocalDate } from '@/lib/portfolioDates';
 import { hapticTap } from '@/lib/haptics';
 import { supabase } from '@/integrations/supabase/client';
+import { FundAccountDialog } from './FundAccountDialog';
+import { useWallet } from '@/hooks/useWallet';
 import { toast } from 'sonner';
 import { downloadPortfolioPdf, type PortfolioPdfData } from '@/lib/portfolioPdf';
 import { differenceInCalendarDays } from 'date-fns';
@@ -112,11 +114,12 @@ function DetailRow({ label, value, icon: Icon, valueClassName }: { label: string
   );
 }
 
-function PortfolioDetailSheet({ portfolio, open, onOpenChange, onRenamed }: {
+function PortfolioDetailSheet({ portfolio, open, onOpenChange, onRenamed, onTopUp }: {
   portfolio: PortfolioRecord | null;
   open: boolean;
   onOpenChange: (o: boolean) => void;
   onRenamed: () => void;
+  onTopUp?: (p: PortfolioRecord) => void;
 }) {
   const [isRenaming, setIsRenaming] = useState(false);
   const [newName, setNewName] = useState('');
@@ -389,7 +392,7 @@ function PortfolioDetailSheet({ portfolio, open, onOpenChange, onRenamed }: {
             <div className="flex gap-3">
               <Button
                 onClick={() => {
-                  window.dispatchEvent(new CustomEvent('open-deposit'));
+                  onTopUp?.(portfolio);
                   onOpenChange(false);
                 }}
                 className="flex-1 h-11 font-semibold gap-2"
@@ -436,8 +439,10 @@ export function InvestmentAccountsDrawer({ open, onOpenChange, defaultTab = 'acc
   const { portfolios, totalInvested, loading, refetch } = useCapitalOpportunities();
   const { hasShares, totalShares, companyOwnershipPct, totalInvested: angelInvested, poolOwnershipPct, records, valuations } = useMyAngelShares();
   const { formatAmount } = useCurrency();
+  const { wallet, refreshWallet } = useWallet();
   const [selectedPortfolio, setSelectedPortfolio] = useState<PortfolioRecord | null>(null);
   const [showDetail, setShowDetail] = useState(false);
+  const [topUpTarget, setTopUpTarget] = useState<PortfolioRecord | null>(null);
 
   return (
     <>
@@ -585,7 +590,31 @@ export function InvestmentAccountsDrawer({ open, onOpenChange, defaultTab = 'acc
         open={showDetail}
         onOpenChange={setShowDetail}
         onRenamed={refetch}
+        onTopUp={(p) => setTopUpTarget(p)}
       />
+
+      {topUpTarget && (
+        <FundAccountDialog
+          open={!!topUpTarget}
+          onOpenChange={(open) => { if (!open) setTopUpTarget(null); }}
+          accountName={topUpTarget.account_name || topUpTarget.portfolio_code || 'Investment Account'}
+          accountId={topUpTarget.id}
+          walletBalance={wallet?.balance || 0}
+          onDeposit={() => window.dispatchEvent(new CustomEvent('open-deposit'))}
+          onFund={async (portfolioId, amt) => {
+            const { data, error } = await supabase.functions.invoke('portfolio-topup', {
+              body: { portfolio_id: portfolioId, amount: amt },
+            });
+            if (error || data?.error) {
+              toast.error(data?.error || error?.message || 'Top-up failed');
+              throw new Error(data?.error || 'Failed');
+            }
+            toast.success(`Successfully topped up ${topUpTarget.account_name || topUpTarget.portfolio_code}`);
+            refreshWallet();
+            refetch();
+          }}
+        />
+      )}
     </>
   );
 }
