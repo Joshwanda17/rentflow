@@ -221,7 +221,30 @@ export function MyPortfolioAccounts() {
         portfolio={selectedPortfolio}
         open={showDetail}
         onOpenChange={setShowDetail}
+        onTopUp={(p) => setTopUpTarget(p)}
       />
+
+      {topUpTarget && (
+        <FundAccountDialog
+          open={!!topUpTarget}
+          onOpenChange={(open) => { if (!open) setTopUpTarget(null); }}
+          accountName={topUpTarget.account_name || topUpTarget.portfolio_code}
+          accountId={topUpTarget.id}
+          walletBalance={wallet?.balance || 0}
+          onDeposit={() => window.dispatchEvent(new CustomEvent('open-deposit'))}
+          onFund={async (portfolioId, amt) => {
+            const { data, error } = await supabase.functions.invoke('portfolio-topup', {
+              body: { portfolio_id: portfolioId, amount: amt },
+            });
+            if (error || data?.error) {
+              toast.error(data?.error || error?.message || 'Top-up failed');
+              throw new Error(data?.error || 'Failed');
+            }
+            toast.success(`Successfully topped up ${topUpTarget.account_name || topUpTarget.portfolio_code}`);
+            refreshWallet();
+          }}
+        />
+      )}
     </div>
   );
 }
