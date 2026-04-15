@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Wallet, ArrowRight, Sparkles, AlertCircle, Plus } from 'lucide-react';
+import { Wallet, Sparkles, AlertCircle, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const QUICK_AMOUNTS = [50_000, 100_000, 200_000, 500_000, 1_000_000];
@@ -15,6 +15,7 @@ interface FundAccountDialogProps {
   accountName: string;
   accountId: string;
   walletBalance: number;
+  currentBalance?: number;
   onFund: (accountId: string, amount: number) => Promise<void>;
   onDeposit?: () => void;
 }
@@ -25,6 +26,7 @@ export function FundAccountDialog({
   accountName, 
   accountId, 
   walletBalance,
+  currentBalance = 0,
   onFund,
   onDeposit,
 }: FundAccountDialogProps) {
@@ -46,7 +48,8 @@ export function FundAccountDialog({
 
   const isValid = amount > 0 && amount <= walletBalance;
   const remainingBalance = walletBalance - amount;
-  const monthlyReturn = amount * 0.15;
+  const newPortfolioBalance = currentBalance + amount;
+  const monthlyReturn = newPortfolioBalance * 0.15;
   const noFunds = walletBalance <= 0;
 
   return (
@@ -176,16 +179,23 @@ export function FundAccountDialog({
                     exit={{ opacity: 0, height: 0 }}
                     className="overflow-hidden"
                   >
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-success/10 to-emerald-500/10 border border-success/20">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Sparkles className="h-4 w-4 text-success" />
-                        <span className="text-sm font-bold text-success">Expected Monthly Return</span>
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-success/10 to-emerald-500/10 border border-success/20 space-y-2">
+                      {/* Current → New Portfolio Balance */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Current Portfolio</span>
+                        <span className="text-sm font-bold">{formatUGX(currentBalance)}</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground">{formatUGX(amount)}</span>
-                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-xl font-black text-success">{formatUGX(monthlyReturn)}</span>
-                        <span className="text-xs text-success/70">/month</span>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">After Top-up</span>
+                        <span className="text-sm font-black text-success">{formatUGX(newPortfolioBalance)}</span>
+                      </div>
+                      {/* Projected return - small */}
+                      <div className="flex items-center justify-between pt-1.5 border-t border-success/15">
+                        <span className="text-[10px] text-success/70 flex items-center gap-1">
+                          <Sparkles className="h-3 w-3" />
+                          Projected return (15%/mo)
+                        </span>
+                        <span className="text-xs font-bold text-success">{formatUGX(monthlyReturn)}/mo</span>
                       </div>
                     </div>
                   </motion.div>

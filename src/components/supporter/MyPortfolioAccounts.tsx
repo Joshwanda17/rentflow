@@ -231,6 +231,7 @@ export function MyPortfolioAccounts() {
           accountName={topUpTarget.account_name || topUpTarget.portfolio_code}
           accountId={topUpTarget.id}
           walletBalance={wallet?.balance || 0}
+          currentBalance={Number(topUpTarget.investment_amount) || 0}
           onDeposit={() => window.dispatchEvent(new CustomEvent('open-deposit'))}
           onFund={async (portfolioId, amt) => {
             const { data, error } = await supabase.functions.invoke('portfolio-topup', {
