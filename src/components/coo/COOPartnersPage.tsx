@@ -3166,7 +3166,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         user_id: p.investorId,
         title: isProxyAgent ? 'ROI Payout Initiated (Agent Wallet)' : mode === 'wallet' ? 'ROI Payout Initiated' : 'ROI Payment Recorded',
         message: isProxyAgent
-          ? `An ROI payout of ${formatUGX(roiAmount)} has been initiated for ${managed.agentName}'s agent wallet. Pending CFO approval. Ref: ${refId}`
+          ? `An ROI payout of ${formatUGX(roiAmount)} has been initiated for ${managed.agentName}'s agent wallet. Pending COO approval. Ref: ${refId}`
           : `An ROI payout of ${formatUGX(roiAmount)} has been ${mode === 'wallet' ? 'initiated for your wallet' : 'recorded as already paid'}. Pending approval. Ref: ${refId}`,
         type: 'payout_initiated',
         metadata: { portfolio_id: p.portfolioId, roi_amount: roiAmount, reference: refId, pay_mode: mode },
