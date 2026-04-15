@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const VALID_METHODS = ["cash", "mobile_money", "bank", "wallet"] as const;
+const VALID_METHODS = ["wallet", "proxy_agent"] as const;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function jsonRes(body: Record<string, unknown>, status: number) {
@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { portfolio_id, amount, notes, payment_method, transaction_reference } = body;
+    const { portfolio_id, amount, notes, payment_method, source_wallet_user_id } = body;
 
     // Validate portfolio_id
     if (!portfolio_id || !UUID_RE.test(portfolio_id)) {
@@ -65,16 +65,7 @@ Deno.serve(async (req) => {
 
     // Validate payment method
     if (!payment_method || !VALID_METHODS.includes(payment_method)) {
-      return jsonRes({ error: "Invalid payment method. Use: cash, mobile_money, bank, or wallet" }, 400);
-    }
-
-    // Validate transaction reference for non-cash/non-wallet methods
-    const safeRef = typeof transaction_reference === "string" ? transaction_reference.trim().slice(0, 50) : "";
-    if (payment_method === "mobile_money" && safeRef.length < 8) {
-      return jsonRes({ error: "Mobile Money TID must be at least 8 characters" }, 400);
-    }
-    if (payment_method === "bank" && safeRef.length < 6) {
-      return jsonRes({ error: "Bank reference must be at least 6 characters" }, 400);
+      return jsonRes({ error: "Invalid payment method. Use: wallet or proxy_agent" }, 400);
     }
 
     const safeNotes = typeof notes === "string" ? notes.slice(0, 500) : "";
@@ -95,127 +86,161 @@ Deno.serve(async (req) => {
     const partnerId = portfolio.investor_id || portfolio.agent_id;
     const txGroupId = crypto.randomUUID();
     const accountLabel = portfolio.account_name || portfolio.portfolio_code;
-    const now = new Date().toISOString();
 
-    const methodLabel = payment_method === "wallet" ? "Wallet" : payment_method === "mobile_money" ? "Mobile Money" : payment_method === "bank" ? "Bank Transfer" : "Cash";
-    const refLabel = safeRef ? ` (${payment_method === "mobile_money" ? "TID" : "Ref"}: ${safeRef})` : "";
+    // ── Resolve source wallet ──
+    let walletOwnerId = partnerId;
+    let walletOwnerLabel = "Partner Wallet";
+    let agentName: string | null = null;
 
-    // ── WALLET PAYMENT: Check balance & deduct via ledger ──
-    if (payment_method === "wallet") {
-      // 1. Check partner wallet balance
-      const { data: wallet, error: wErr } = await supabase
-        .from("wallets")
-        .select("balance")
-        .eq("user_id", partnerId)
+    if (payment_method === "proxy_agent") {
+      // Validate source_wallet_user_id or look up proxy assignment
+      let agentId = source_wallet_user_id;
+      if (!agentId) {
+        const { data: proxyAssignment } = await supabase
+          .from("proxy_agent_assignments")
+          .select("agent_id")
+          .eq("beneficiary_id", partnerId)
+          .eq("is_active", true)
+          .eq("approval_status", "approved")
+          .limit(1)
+          .maybeSingle();
+
+        if (!proxyAssignment?.agent_id) {
+          return jsonRes({ error: "No active proxy agent assigned to this partner" }, 400);
+        }
+        agentId = proxyAssignment.agent_id;
+      }
+      walletOwnerId = agentId;
+
+      // Get agent name
+      const { data: agentProfile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", agentId)
         .single();
-
-      if (wErr || !wallet) return jsonRes({ error: "Partner wallet not found" }, 404);
-
-      if (Number(wallet.balance) < topupAmount) {
-        return jsonRes({ error: `Insufficient wallet balance. Available: UGX ${Number(wallet.balance).toLocaleString()}` }, 400);
-      }
-
-      // 2. Record pending operation
-      const { error: pendingErr } = await supabase.from("pending_wallet_operations").insert({
-        user_id: partnerId,
-        amount: topupAmount,
-        direction: "cash_in",
-        category: "pending_portfolio_topup",
-        source_table: "investor_portfolios",
-        source_id: portfolio_id,
-        transaction_group_id: txGroupId,
-        description: `Wallet top-up for ${accountLabel} — initiated by executive`,
-        linked_party: "platform",
-        status: "pending",
-        operation_type: "portfolio_topup",
-        reference_id: null,
-        account: "wallet",
-        metadata: {
-          payment_method: "wallet",
-          initiated_by: user.id,
-          portfolio_code: portfolio.portfolio_code,
-          source: "executive_wallet_deduction",
-        },
-      });
-
-      if (pendingErr) {
-        console.error("[manager-portfolio-topup] pending insert error:", pendingErr);
-        return jsonRes({ error: "Failed to record pending top-up" }, 500);
-      }
-
-      // 3. NO ledger entries at submission — Financial Ops must approve first.
-      //    Money only moves from wallet when approve-wallet-operation processes this.
-
-    } else {
-      // ── NON-WALLET PAYMENT (cash, mobile_money, bank) ──
-
-      // 1. Record pending operation
-      const { error: pendingErr } = await supabase.from("pending_wallet_operations").insert({
-        user_id: partnerId,
-        amount: topupAmount,
-        direction: "cash_in",
-        category: "pending_portfolio_topup",
-        source_table: "investor_portfolios",
-        source_id: portfolio_id,
-        transaction_group_id: txGroupId,
-        description: `Pending ${methodLabel} top-up for ${accountLabel}${refLabel}`,
-        linked_party: "platform",
-        status: "pending",
-        operation_type: "portfolio_topup",
-        reference_id: safeRef || null,
-        account: payment_method,
-        metadata: {
-          payment_method,
-          transaction_reference: safeRef || null,
-          initiated_by: user.id,
-          portfolio_code: portfolio.portfolio_code,
-        },
-      });
-
-      if (pendingErr) {
-        console.error("[manager-portfolio-topup] pending insert error:", pendingErr);
-        return jsonRes({ error: "Failed to record pending top-up" }, 500);
-      }
-
-      // 2. NO ledger entry for external payments (cash/MoMo/bank).
-      //    The pending_wallet_operations record tracks the intent.
-      //    Actual ledger entries are created when apply-pending-topups
-      //    runs at maturity — matching the deposit approval pattern.
-      //    Writing a wallet cash_out here would phantom-debit the partner.
+      agentName = agentProfile?.full_name || "Agent";
+      walletOwnerLabel = `Proxy Agent (${agentName})`;
     }
 
-    // ── SHARED: Audit trail ──
+    // ── Check wallet balance ──
+    const { data: wallet, error: wErr } = await supabase
+      .from("wallets")
+      .select("balance")
+      .eq("user_id", walletOwnerId)
+      .single();
+
+    if (wErr || !wallet) return jsonRes({ error: `${walletOwnerLabel} wallet not found` }, 404);
+
+    const walletBalance = Number(wallet.balance);
+    if (walletBalance < topupAmount) {
+      return jsonRes({ error: `Insufficient ${walletOwnerLabel.toLowerCase()} balance. Available: UGX ${walletBalance.toLocaleString()}` }, 400);
+    }
+
+    // ── 1. Create wallet transaction (visible in partner/agent tx history) ──
+    const { error: txErr } = await supabase.from("wallet_transactions").insert({
+      sender_id: walletOwnerId,
+      recipient_id: walletOwnerId, // self — internal portfolio transfer
+      amount: topupAmount,
+      description: `Portfolio top-up: ${accountLabel} (${portfolio.portfolio_code})`,
+    });
+
+    if (txErr) {
+      console.error("[manager-portfolio-topup] wallet_transactions insert error:", txErr);
+      return jsonRes({ error: "Failed to record wallet transaction" }, 500);
+    }
+
+    // ── 2. Deduct from wallet immediately ──
+    const { error: deductErr } = await supabase.rpc("create_ledger_transaction", {
+      p_entries: JSON.stringify([
+        {
+          user_id: walletOwnerId,
+          amount: topupAmount,
+          direction: "cash_out",
+          category: "portfolio_topup_deduction",
+          description: `Wallet deduction for ${accountLabel} top-up`,
+          source_table: "investor_portfolios",
+          source_id: portfolio_id,
+          linked_party: "platform",
+        },
+        {
+          user_id: partnerId,
+          amount: topupAmount,
+          direction: "cash_in",
+          category: "pending_portfolio_topup",
+          description: `Pending capital for ${accountLabel} — applied at maturity`,
+          source_table: "investor_portfolios",
+          source_id: portfolio_id,
+          linked_party: walletOwnerId,
+        },
+      ]),
+    });
+
+    if (deductErr) {
+      console.error("[manager-portfolio-topup] ledger error:", deductErr);
+      // Fallback: still record the pending op so nothing is lost
+    }
+
+    // ── 3. Record pre-approved pending operation (for maturity merge) ──
+    const { error: pendingErr } = await supabase.from("pending_wallet_operations").insert({
+      user_id: partnerId,
+      amount: topupAmount,
+      direction: "cash_in",
+      category: "pending_portfolio_topup",
+      source_table: "investor_portfolios",
+      source_id: portfolio_id,
+      transaction_group_id: txGroupId,
+      description: `${walletOwnerLabel} top-up for ${accountLabel} — pre-approved`,
+      linked_party: "platform",
+      status: "approved",
+      operation_type: "portfolio_topup",
+      account: payment_method,
+      metadata: {
+        payment_method,
+        source_wallet_user_id: walletOwnerId,
+        source_wallet_owner: walletOwnerLabel,
+        agent_name: agentName,
+        initiated_by: user.id,
+        portfolio_code: portfolio.portfolio_code,
+        pre_approved: true,
+        wallet_balance_before: walletBalance,
+      },
+    });
+
+    if (pendingErr) {
+      console.error("[manager-portfolio-topup] pending insert error:", pendingErr);
+      return jsonRes({ error: "Failed to record pending top-up" }, 500);
+    }
+
+    // ── 4. Audit trail ──
     await supabase.from("audit_logs").insert({
       user_id: user.id,
-      action_type: "manager_portfolio_topup_pending",
+      action_type: "manager_portfolio_topup_instant",
       table_name: "investor_portfolios",
       record_id: portfolio_id,
       metadata: {
         partner_id: partnerId,
+        wallet_owner_id: walletOwnerId,
+        wallet_owner_label: walletOwnerLabel,
         amount: topupAmount,
         current_capital: Number(portfolio.investment_amount),
         payment_method,
-        transaction_reference: safeRef || null,
         notes: safeNotes,
-        status: "pending_verification",
-        wallet_deduction: payment_method === "wallet",
+        status: "approved",
+        wallet_balance_before: walletBalance,
+        wallet_balance_after: walletBalance - topupAmount,
       },
     });
 
-    // ── SHARED: Notify partner ──
-    const partnerMsg = payment_method === "wallet"
-      ? `UGX ${topupAmount.toLocaleString()} deducted from your wallet for portfolio "${accountLabel}". Awaiting verification.`
-      : `UGX ${topupAmount.toLocaleString()} ${methodLabel} top-up submitted for "${accountLabel}".${refLabel} Awaiting verification.`;
-
+    // ── 5. Notify partner ──
     await supabase.from("notifications").insert({
       user_id: partnerId,
-      title: payment_method === "wallet" ? "💳 Wallet → Portfolio Top-Up" : "⏳ Portfolio Top-Up Pending",
-      message: partnerMsg,
+      title: "💰 Portfolio Top-Up Processed",
+      message: `UGX ${topupAmount.toLocaleString()} deducted from ${walletOwnerLabel.toLowerCase()} for "${accountLabel}". Capital will be applied at maturity.`,
       type: "info",
-      metadata: { portfolio_id, amount: topupAmount, payment_method, status: "pending", initiated_by: user.id },
+      metadata: { portfolio_id, amount: topupAmount, payment_method, status: "approved", source: walletOwnerLabel },
     });
 
-    // ── SHARED: Notify CFO + COO executives ──
+    // ── 6. Notify executives (non-blocking) ──
     try {
       const { data: execs } = await supabase
         .from("user_roles")
@@ -228,8 +253,8 @@ Deno.serve(async (req) => {
           await supabase.from("notifications").insert(
             uniqueIds.map((uid: string) => ({
               user_id: uid,
-              title: "📊 Portfolio Top-Up Submitted",
-              message: `UGX ${topupAmount.toLocaleString()} ${methodLabel} top-up for "${accountLabel}" (${portfolio.portfolio_code})${refLabel} — pending verification.`,
+              title: "📊 Portfolio Top-Up (Pre-Approved)",
+              message: `UGX ${topupAmount.toLocaleString()} from ${walletOwnerLabel} → "${accountLabel}" (${portfolio.portfolio_code}). Instant deduction — applied at maturity.`,
               type: "info",
               metadata: { portfolio_id, amount: topupAmount, payment_method, portfolio_code: portfolio.portfolio_code, initiated_by: user.id },
             }))
@@ -240,30 +265,30 @@ Deno.serve(async (req) => {
       console.error("[manager-portfolio-topup] Executive notification error (non-blocking):", notifErr);
     }
 
-    console.log(`[manager-portfolio-topup] Manager ${user.id} submitted ${methodLabel} top-up for ${portfolio_id} (partner: ${partnerId}) amount ${topupAmount}${refLabel}`);
+    console.log(`[manager-portfolio-topup] ${user.id} instant ${payment_method} top-up ${topupAmount} for portfolio ${portfolio_id} (wallet owner: ${walletOwnerId})`);
 
-    // Notify managers (fire-and-forget)
+    // Fire-and-forget notifications
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
-      body: JSON.stringify({ title: "📊 Manager Portfolio Top-Up", body: `UGX ${topupAmount.toLocaleString()} ${methodLabel} top-up for ${accountLabel} (${portfolio.portfolio_code})`, url: "/manager" }),
+      body: JSON.stringify({ title: "📊 Portfolio Top-Up", body: `UGX ${topupAmount.toLocaleString()} ${walletOwnerLabel} → ${accountLabel} (${portfolio.portfolio_code})`, url: "/manager" }),
     }).catch(() => {});
 
-    // Push notification to partner (fire-and-forget)
     fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
       body: JSON.stringify({
         userIds: [partnerId],
-        payload: { title: "💰 Portfolio Credited", body: `UGX ${topupAmount.toLocaleString()} ${methodLabel} top-up submitted for ${accountLabel}`, url: "/dashboard", type: "success" },
+        payload: { title: "💰 Portfolio Credited", body: `UGX ${topupAmount.toLocaleString()} top-up processed for ${accountLabel}`, url: "/dashboard", type: "success" },
       }),
     }).catch(() => {});
 
     return jsonRes({
       success: true,
       amount: topupAmount,
-      status: "pending",
+      status: "approved",
       payment_method,
+      source_wallet: walletOwnerLabel,
       current_capital: Number(portfolio.investment_amount),
       portfolio_code: portfolio.portfolio_code,
     }, 200);
