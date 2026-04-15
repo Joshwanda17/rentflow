@@ -52,3 +52,106 @@ export async function batchedQuery<T>(
   }
   return results;
 }
+
+/**
+ * Fetch a paginated page of supporter IDs + total count.
+ * Optionally filter by name/phone/email search term (joins profiles).
+ */
+export async function fetchPaginatedSupporterIds(
+  page: number,
+  pageSize: number,
+  search?: string
+): Promise<{ ids: string[]; totalCount: number }> {
+  // If searching, we need to find matching profile IDs first, then intersect with supporter role
+  if (search && search.trim().length > 0) {
+    const q = search.trim().toLowerCase();
+    // Get all supporter IDs (we need this for the intersection)
+    const allSupporterIds = await fetchAllUserIdsByRole('supporter');
+    if (allSupporterIds.length === 0) return { ids: [], totalCount: 0 };
+
+    // Search profiles for matches among supporters
+    const matchingProfiles = await batchedQuery<{ id: string }>(
+      allSupporterIds,
+      (batch) => supabase
+        .from('profiles')
+        .select('id')
+        .in('id', batch)
+        .or(`full_name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%`)
+    );
+    const matchedIds = matchingProfiles.map(p => p.id);
+    const start = page * pageSize;
+    return {
+      ids: matchedIds.slice(start, start + pageSize),
+      totalCount: matchedIds.length,
+    };
+  }
+
+  // No search: simple paginated query on user_roles
+  const start = page * pageSize;
+  const end = start + pageSize - 1;
+
+  const [{ count }, { data }] = await Promise.all([
+    supabase
+      .from('user_roles')
+      .select('user_id', { count: 'exact', head: true })
+      .eq('role', 'supporter')
+      .eq('enabled', true),
+    supabase
+      .from('user_roles')
+      .select('user_id')
+      .eq('role', 'supporter')
+      .eq('enabled', true)
+      .range(start, end),
+  ]);
+
+  return {
+    ids: (data || []).map(r => r.user_id),
+    totalCount: count || 0,
+  };
+}
+
+/**
+ * Fetch lightweight summary stats for ALL supporters (count, total funded, etc.)
+ * without loading full profile/wallet data.
+ */
+export async function fetchSupporterSummary(): Promise<{
+  totalPartners: number;
+  totalFunded: number;
+  totalWalletBalance: number;
+  totalDeals: number;
+  activePartners: number;
+  suspendedPartners: number;
+}> {
+  const allIds = await fetchAllUserIdsByRole('supporter');
+  if (allIds.length === 0) {
+    return { totalPartners: 0, totalFunded: 0, totalWalletBalance: 0, totalDeals: 0, activePartners: 0, suspendedPartners: 0 };
+  }
+
+  const [wallets, portfolioAgg, frozenCount] = await Promise.all([
+    batchedQuery<{ balance: number }>(allIds, (batch) =>
+      supabase.from('wallets').select('balance').in('user_id', batch)
+    ),
+    batchedQuery<{ investment_amount: number }>(allIds, (batch) =>
+      supabase.from('investor_portfolios')
+        .select('investment_amount')
+        .or(`investor_id.in.(${batch.join(',')}),agent_id.in.(${batch.join(',')})`)
+        .in('status', ['active', 'pending_approval', 'pending'])
+    ),
+    batchedQuery<{ frozen_at: string | null }>(allIds, (batch) =>
+      supabase.from('profiles').select('frozen_at').in('id', batch).not('frozen_at', 'is', null)
+    ),
+  ]);
+
+  const totalWalletBalance = wallets.reduce((s, w) => s + (w.balance || 0), 0);
+  const totalFunded = portfolioAgg.reduce((s, p) => s + (p.investment_amount || 0), 0);
+  const suspendedPartners = frozenCount.length;
+
+  return {
+    totalPartners: allIds.length,
+    totalFunded,
+    totalWalletBalance,
+    totalDeals: portfolioAgg.length,
+    activePartners: allIds.length - suspendedPartners,
+    suspendedPartners,
+  };
+}
