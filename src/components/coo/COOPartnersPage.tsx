@@ -2977,6 +2977,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
   // Split payout state
   const [splitCashAmount, setSplitCashAmount] = useState(0);
   const [splitPayMode, setSplitPayMode] = useState<'wallet' | 'agent_wallet' | 'already_paid'>('wallet');
+  const [splitReinvestMode, setSplitReinvestMode] = useState<'reinvest' | 'keep_returns'>('reinvest');
 
   // Keep a local snapshot so items don't vanish when parent refetches
   const [localPortfolios, setLocalPortfolios] = useState<NearingPayoutPortfolio[]>(portfolios);
@@ -3234,6 +3235,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
     setSelectedPayout(p);
     setSplitCashAmount(Math.round(roiAmount / 2)); // Default 50/50
     setSplitPayMode('wallet');
+    setSplitReinvestMode('reinvest');
     setPaymentStep('split-config');
 
     // Check managed status
