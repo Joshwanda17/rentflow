@@ -3285,13 +3285,33 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
 
       // Date stays unchanged — only advances when CFO approves the payout
 
-      // ── Reinvest portion: add to principal ──
-      const newPrincipal = p.investmentAmount + reinvestAmount;
-      const { error: upErr } = await supabase
-        .from('investor_portfolios')
-        .update({ investment_amount: newPrincipal })
-        .eq('id', p.portfolioId);
-      if (upErr) throw upErr;
+      const isKeepReturns = reinvestMode === 'keep_returns';
+      const reinvestLabel = isKeepReturns ? 'kept as returns' : 'reinvested into principal';
+
+      // ── Reinvest portion: add to principal OR keep as earned returns ──
+      let newPrincipal = p.investmentAmount;
+      if (isKeepReturns) {
+        // Keep as returns — add to total_roi_earned, principal stays flat
+        const { error: upErr } = await supabase
+          .from('investor_portfolios')
+          .update({ total_roi_earned: (portfolio_total_roi || 0) + reinvestAmount })
+          .eq('id', p.portfolioId);
+        if (upErr) throw upErr;
+
+        // Fetch current total_roi_earned for accuracy
+        const { data: currentP } = await supabase.from('investor_portfolios').select('total_roi_earned').eq('id', p.portfolioId).single();
+        const portfolio_total_roi_updated = currentP?.total_roi_earned || reinvestAmount;
+
+        newPrincipal = p.investmentAmount; // stays the same
+      } else {
+        // Reinvest — add to principal (current behavior)
+        newPrincipal = p.investmentAmount + reinvestAmount;
+        const { error: upErr } = await supabase
+          .from('investor_portfolios')
+          .update({ investment_amount: newPrincipal })
+          .eq('id', p.portfolioId);
+        if (upErr) throw upErr;
+      }
 
       // Reinvest ledger via RPC (double-entry: roi_expense + roi_reinvestment)
       const { error: ledgerErr } = await supabase.rpc('create_ledger_transaction', {
@@ -3302,7 +3322,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
             direction: 'cash_out',
             amount: reinvestAmount,
             category: 'roi_expense',
-            description: `[Split ROI] ${formatUGX(reinvestAmount)} reinvested into principal. New principal: ${formatUGX(newPrincipal)}. Cash portion: ${formatUGX(cashAmount)} via ${modeLabel}. Reason: ${reason}`,
+            description: `[Split ROI] ${formatUGX(reinvestAmount)} ${reinvestLabel}. ${isKeepReturns ? `Principal unchanged: ${formatUGX(p.investmentAmount)}` : `New principal: ${formatUGX(newPrincipal)}`}. Cash portion: ${formatUGX(cashAmount)} via ${modeLabel}. Reason: ${reason}`,
             reference_id: refId,
             source_table: 'investor_portfolios',
             source_id: p.portfolioId,
@@ -3314,8 +3334,8 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
             ledger_scope: 'platform',
             direction: 'cash_in',
             amount: reinvestAmount,
-            category: 'roi_reinvestment',
-            description: `[Split ROI] ${formatUGX(reinvestAmount)} reinvestment into portfolio principal. Ref: ${refId}`,
+            category: isKeepReturns ? 'roi_wallet_credit' : 'roi_reinvestment',
+            description: `[Split ROI] ${formatUGX(reinvestAmount)} ${reinvestLabel}. Ref: ${refId}`,
             reference_id: refId,
             source_table: 'investor_portfolios',
             source_id: p.portfolioId,
