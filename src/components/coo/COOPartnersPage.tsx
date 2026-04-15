@@ -3387,18 +3387,21 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         metadata: {
           roi_amount: roiAmount, cash_amount: cashAmount, reinvest_amount: reinvestAmount,
           new_principal: newPrincipal, reference: refId, partner_id: p.investorId, partner_name: p.name,
-          reason, pay_mode: payMode,
+          reason, pay_mode: payMode, reinvest_mode: reinvestMode,
           ...(isProxyAgent ? { target_agent_id: managed.agentId, target_agent_name: managed.agentName } : {}),
         },
       });
 
       // ── Notifications ──
+      const reinvestMsg = isKeepReturns
+        ? `${formatUGX(reinvestAmount)} kept as earned returns (principal unchanged: ${formatUGX(p.investmentAmount)})`
+        : `${formatUGX(reinvestAmount)} reinvested into your portfolio. New principal: ${formatUGX(newPrincipal)}`;
       await supabase.from('notifications').insert({
         user_id: p.investorId,
         title: '✂️ Split ROI Processed',
-        message: `Your ROI of ${formatUGX(roiAmount)} has been split: ${formatUGX(cashAmount)} ${payMode === 'already_paid' ? 'paid via cash' : 'sent to your wallet (pending approval)'}, and ${formatUGX(reinvestAmount)} reinvested into your portfolio. New principal: ${formatUGX(newPrincipal)}. Ref: ${refId}`,
+        message: `Your ROI of ${formatUGX(roiAmount)} has been split: ${formatUGX(cashAmount)} ${payMode === 'already_paid' ? 'paid via cash' : 'sent to your wallet (pending approval)'}, and ${reinvestMsg}. Ref: ${refId}`,
         type: 'payout_initiated',
-        metadata: { portfolio_id: p.portfolioId, roi_amount: roiAmount, cash_amount: cashAmount, reinvest_amount: reinvestAmount, reference: refId },
+        metadata: { portfolio_id: p.portfolioId, roi_amount: roiAmount, cash_amount: cashAmount, reinvest_amount: reinvestAmount, reinvest_mode: reinvestMode, reference: refId },
       });
 
       // Notify CFO
@@ -3408,15 +3411,15 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
           cfoUsers.map((c: any) => ({
             user_id: c.user_id,
             title: '✂️ Split ROI Payout Pending',
-            message: `${p.name}: ${formatUGX(cashAmount)} cash (${modeLabel}) + ${formatUGX(reinvestAmount)} reinvested. Awaiting approval. Ref: ${refId}`,
+            message: `${p.name}: ${formatUGX(cashAmount)} cash (${modeLabel}) + ${formatUGX(reinvestAmount)} ${isKeepReturns ? 'kept as returns' : 'reinvested'}. Awaiting approval. Ref: ${refId}`,
             type: 'approval_needed',
-            metadata: { portfolio_id: p.portfolioId, reference: refId, cash_amount: cashAmount, reinvest_amount: reinvestAmount },
+            metadata: { portfolio_id: p.portfolioId, reference: refId, cash_amount: cashAmount, reinvest_amount: reinvestAmount, reinvest_mode: reinvestMode },
           }))
         );
       }
 
       toast.success(`Split payout for ${p.name}`, {
-        description: `${formatUGX(cashAmount)} to ${modeLabel} · ${formatUGX(reinvestAmount)} reinvested · Ref: ${refId}`,
+        description: `${formatUGX(cashAmount)} to ${modeLabel} · ${formatUGX(reinvestAmount)} ${isKeepReturns ? 'kept as returns' : 'reinvested'} · Ref: ${refId}`,
       });
       setCompleted(prev => ({ ...prev, [p.portfolioId]: 'split' }));
       setPaymentStep('list');
