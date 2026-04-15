@@ -1502,6 +1502,10 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     );
   }
 
+  if (showApprovedWithdrawals) {
+    return <ApprovedPartnerWithdrawals onBack={() => setShowApprovedWithdrawals(false)} />;
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
