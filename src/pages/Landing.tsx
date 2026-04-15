@@ -38,7 +38,7 @@ const intentOptions: IntentOption[] = [
   {
     role: 'agent',
     emoji: '⚡',
-    intent: 'I want to hustle',
+    intent: 'I want to earn and learn',
     outcome: 'Register & earn cash',
     gradient: 'from-amber-500 to-orange-600',
   },
