@@ -406,7 +406,7 @@ export function ProxyPartnerFunds() {
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground px-1">
-        Earned returns for your approved proxy partners. Withdraw to deliver to partner.
+        CFO-approved returns ready for delivery to your proxy partners.
       </p>
 
       {partnerBalances.map((partner) => {
