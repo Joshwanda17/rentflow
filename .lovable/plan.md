@@ -1,41 +1,67 @@
 
 
-## Add Inline TID Verification to Pending Deposits List
+## Plan: Wallet + Proxy Agent Top-Up (Skip Approval, Instant Deduction)
 
-### Problem
-When the Financial Ops manager taps "Verify Deposits" and sees the pending deposits list, they can see depositor names and amounts but can only reject deposits inline. To approve/verify, they must go to a separate TID Verification screen, losing context of whose deposit they're verifying.
+### Summary
+Replace the 4 payment methods (Cash, MoMo, Bank, Wallet) with just **Wallet** and **Proxy Agent** on both the Partner Operations (Manager) and COO dashboards. Since money comes from already-verified wallets, skip Financial Ops approval entirely -- deduct immediately, record a wallet transaction the partner can see, and park the top-up for maturity.
 
-### Solution
-Add an inline TID input field directly on each pending deposit card in `DepositStatsPanel.tsx`, so the manager can enter the transaction ID while seeing the depositor's name and amount, then approve in one tap.
+### What changes
 
-### Changes in `src/components/financial-ops/DepositStatsPanel.tsx`
+**1. UI -- `FundInvestmentAccountDialog.tsx` (Manager/Partner Ops)**
+- Replace `PAYMENT_OPTIONS` with 2 options: **Wallet** (partner's own) and **Proxy Agent**
+- On dialog open, fetch partner wallet balance AND proxy agent assignment + agent wallet balance
+- Show balance inline for whichever option is selected; disable Proxy Agent if none assigned
+- Remove `transaction_reference` field, `isRefValid()` logic, and all MoMo/Bank/Cash UI
+- Update preview to say "Instant deduction -- applied at maturity" instead of "Pending Verification"
 
-1. **Add state** for tracking which deposit is being verified inline (`verifyingId`), the entered TID (`inlineTid`), and processing state (`inlineApproving`).
+**2. UI -- `COOPartnersPage.tsx` (COO inline wallet transfer)**
+- Add a Proxy Agent option alongside the existing Wallet option in the inline dialog
+- Fetch proxy agent data when dialog opens; show agent name + balance
+- Pass `payment_method` (`wallet` or `proxy_agent`) and `source_wallet_user_id` to the edge function
 
-2. **Replace the deposit card layout** (lines 269-307): Each pending deposit card gets:
-   - Depositor name and amount remain prominently visible at the top
-   - A "Verify" button that expands an inline TID input field below the card
-   - When expanded: a TID input field + provider selector + "Approve" button, all within the same card so the name and amount stay visible
-   - The existing "Reject" button remains
+**3. Edge Function -- `manager-portfolio-topup/index.ts`**
+- Change `VALID_METHODS` to `["wallet", "proxy_agent"]`
+- Remove all cash/MoMo/bank branches and reference validation
+- For `proxy_agent`: look up `proxy_agent_assignments` for the partner, fetch agent wallet, validate balance
+- **Instant wallet deduction**: Create `wallet_transactions` record (sender = wallet owner, recipient = platform) so the partner/agent sees it in their transaction history
+- Create `pending_wallet_operations` with `status: "approved"` (pre-approved, no Financial Ops step)
+- Create ledger entries immediately (double-entry: wallet `cash_out` for deduction, portfolio `cash_in` for pending capital)
+- Audit log with full metadata (payment_method, source_wallet_owner, agent details if proxy)
 
-3. **Add inline approve handler**: When the manager enters a TID and taps "Approve":
-   - Calls `supabase.functions.invoke('approve-deposit', { body: { deposit_request_id, action: 'approve' } })`
-   - Logs an audit entry with the entered TID, depositor name, and amount
-   - Removes the deposit from the pending list and shows success toast
-   - Optionally updates the deposit's `transaction_id` if the manager entered/corrected it
+**4. Edge Function -- `coo-wallet-to-portfolio/index.ts`**
+- Same changes as manager-portfolio-topup: accept `wallet` or `proxy_agent`
+- For `proxy_agent`: resolve agent via `proxy_agent_assignments`, validate agent wallet balance
+- Instant deduction + wallet transaction record + ledger entries
+- Remove the "pending Financial Ops approval" messaging from notifications; replace with "Applied at maturity"
 
-4. **UI layout per card** (expanded state):
-   ```text
-   ┌──────────────────────────────────┐
-   │ 👤 John Doe          USh 50,000  │
-   │    MP241231... · MTN · 10:30 AM  │
-   │ ┌──────────────────────────────┐ │
-   │ │ TID: [____________] [MTN ▾] │ │
-   │ │ [✓ Approve]        [✗ Reject]│ │
-   │ └──────────────────────────────┘ │
-   └──────────────────────────────────┘
-   ```
+**5. Supporter's `FundAccountDialog.tsx`**
+- No changes needed -- this is the supporter's own self-service dialog (already wallet-only)
 
-### Files Modified
-- `src/components/financial-ops/DepositStatsPanel.tsx` — add inline TID entry and approve action to each pending deposit card
+### What stays the same
+- The `merge-pending-topups` / `apply-pending-topups` maturity logic is unchanged -- capital still merges at payout
+- Notification flow to partner and executives is preserved (updated messaging only)
+- Audit logging structure preserved
+
+### Technical detail
+
+```text
+Flow (both dashboards):
+  User selects Wallet or Proxy Agent
+  → Balance shown instantly
+  → Submit
+  → Edge function:
+     1. Validate wallet balance (partner or agent)
+     2. INSERT wallet_transactions (visible to partner/agent)
+     3. INSERT general_ledger (cash_out from wallet, cash_in to portfolio)
+     4. INSERT pending_wallet_operations (status='approved', operation_type='portfolio_topup')
+     5. INSERT audit_logs
+     6. INSERT notifications
+     7. Return success — no approval step
+```
+
+### Files modified
+- `src/components/manager/FundInvestmentAccountDialog.tsx`
+- `src/components/coo/COOPartnersPage.tsx`
+- `supabase/functions/manager-portfolio-topup/index.ts`
+- `supabase/functions/coo-wallet-to-portfolio/index.ts`
 
