@@ -282,6 +282,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [walletToPortfolioAmount, setWalletToPortfolioAmount] = useState('');
   const [walletToPortfolioReason, setWalletToPortfolioReason] = useState('');
   const [walletToPortfolioSaving, setWalletToPortfolioSaving] = useState(false);
+  const [walletTransferMethod, setWalletTransferMethod] = useState<'wallet' | 'proxy_agent'>('wallet');
+  const [proxyAgentInfo, setProxyAgentInfo] = useState<{ agentId: string; agentName: string; walletBalance: number } | null>(null);
+  const [loadingProxyAgent, setLoadingProxyAgent] = useState(false);
 
   // Pending top-ups per portfolio (status: pending)
   const [pendingTopUps, setPendingTopUps] = useState<Record<string, { count: number; total: number }>>({});
