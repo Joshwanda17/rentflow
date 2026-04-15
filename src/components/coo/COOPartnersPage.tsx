@@ -2607,7 +2607,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       />
 
       {/* Wallet → Portfolio Transfer Dialog */}
-      <Dialog open={!!walletToPortfolio} onOpenChange={(open) => { if (!open) { setWalletToPortfolio(null); setWalletToPortfolioAmount(''); setWalletToPortfolioReason(''); } }}>
+      <Dialog open={!!walletToPortfolio} onOpenChange={(open) => { if (!open) { setWalletToPortfolio(null); setWalletToPortfolioAmount(''); setWalletToPortfolioReason(''); setProxyAgentInfo(null); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -2615,7 +2615,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
               Wallet → Portfolio Transfer
             </DialogTitle>
             <DialogDescription>
-              Move funds from {detailPartner?.profile?.full_name}'s wallet directly into this portfolio.
+              Move funds into this portfolio from partner wallet or proxy agent wallet.
             </DialogDescription>
           </DialogHeader>
 
@@ -2629,11 +2629,57 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 </p>
               </div>
 
-              {/* Wallet balance */}
+              {/* Funding source selector */}
+              <div className="space-y-1.5">
+                <Label className="text-xs">Funding Source</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setWalletTransferMethod('wallet')}
+                    className={cn(
+                      "flex flex-col items-center gap-1 rounded-lg border-2 p-3 transition-all text-center",
+                      walletTransferMethod === 'wallet'
+                        ? "border-primary bg-primary/10 shadow-sm"
+                        : "border-border bg-background hover:border-muted-foreground/30 cursor-pointer"
+                    )}
+                  >
+                    <Wallet className={cn("h-4 w-4", walletTransferMethod === 'wallet' ? "text-primary" : "text-muted-foreground")} />
+                    <span className={cn("text-xs font-medium", walletTransferMethod === 'wallet' ? "text-primary" : "text-muted-foreground")}>Wallet</span>
+                    <span className="text-[10px] text-muted-foreground">Partner wallet</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!proxyAgentInfo && !loadingProxyAgent}
+                    onClick={() => proxyAgentInfo && setWalletTransferMethod('proxy_agent')}
+                    className={cn(
+                      "flex flex-col items-center gap-1 rounded-lg border-2 p-3 transition-all text-center",
+                      !proxyAgentInfo && !loadingProxyAgent
+                        ? "border-border bg-muted/30 opacity-50 cursor-not-allowed"
+                        : walletTransferMethod === 'proxy_agent'
+                          ? "border-primary bg-primary/10 shadow-sm"
+                          : "border-border bg-background hover:border-muted-foreground/30 cursor-pointer"
+                    )}
+                  >
+                    <Users className={cn("h-4 w-4", walletTransferMethod === 'proxy_agent' ? "text-primary" : "text-muted-foreground")} />
+                    <span className={cn("text-xs font-medium", walletTransferMethod === 'proxy_agent' ? "text-primary" : "text-muted-foreground")}>Proxy Agent</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {loadingProxyAgent ? '...' : proxyAgentInfo ? proxyAgentInfo.agentName : 'No agent assigned'}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Balance display */}
               <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border/60">
                 <Wallet className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Wallet Balance:</span>
-                <span className="text-sm font-bold">{formatUGX(detailPartner.walletBalance)}</span>
+                <span className="text-sm text-muted-foreground">
+                  {walletTransferMethod === 'wallet' ? 'Partner Wallet:' : `${proxyAgentInfo?.agentName || 'Agent'} Wallet:`}
+                </span>
+                <span className="text-sm font-bold">
+                  {walletTransferMethod === 'wallet'
+                    ? formatUGX(detailPartner.walletBalance)
+                    : proxyAgentInfo ? formatUGX(proxyAgentInfo.walletBalance) : '—'}
+                </span>
               </div>
 
               {/* Amount */}
@@ -2642,25 +2688,39 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                 <Input
                   type="number"
                   min={1000}
-                  max={detailPartner.walletBalance}
                   value={walletToPortfolioAmount}
                   onChange={e => setWalletToPortfolioAmount(e.target.value)}
                   placeholder="e.g. 5,000,000"
                   className="h-9"
                   autoFocus
                 />
-                <div className="flex gap-2 flex-wrap">
-                  {[50000, 100000, 500000, 1000000].filter(a => a <= detailPartner.walletBalance).map(a => (
-                    <Button key={a} variant="outline" size="sm" className="text-xs h-7"
-                      onClick={() => setWalletToPortfolioAmount(String(a))}>
-                      {formatUGX(a)}
-                    </Button>
-                  ))}
-                  <Button variant="outline" size="sm" className="text-xs h-7"
-                    onClick={() => setWalletToPortfolioAmount(String(detailPartner.walletBalance))}>
-                    Max
-                  </Button>
-                </div>
+                {(() => {
+                  const maxBal = walletTransferMethod === 'wallet' ? detailPartner.walletBalance : (proxyAgentInfo?.walletBalance ?? 0);
+                  return (
+                    <div className="flex gap-2 flex-wrap">
+                      {[50000, 100000, 500000, 1000000].filter(a => a <= maxBal).map(a => (
+                        <Button key={a} variant="outline" size="sm" className="text-xs h-7"
+                          onClick={() => setWalletToPortfolioAmount(String(a))}>
+                          {formatUGX(a)}
+                        </Button>
+                      ))}
+                      {maxBal >= 1000 && (
+                        <Button variant="outline" size="sm" className="text-xs h-7"
+                          onClick={() => setWalletToPortfolioAmount(String(maxBal))}>
+                          Max
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })()}
+                {(() => {
+                  const maxBal = walletTransferMethod === 'wallet' ? detailPartner.walletBalance : (proxyAgentInfo?.walletBalance ?? 0);
+                  const amt = Number(walletToPortfolioAmount) || 0;
+                  if (amt > maxBal && maxBal >= 0) {
+                    return <p className="text-[10px] text-destructive font-medium">Insufficient balance ({formatUGX(maxBal)} available)</p>;
+                  }
+                  return null;
+                })()}
               </div>
 
               {/* Reason */}
@@ -2682,13 +2742,15 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                     <span className="font-bold text-foreground">{formatUGX(Number(walletToPortfolioAmount))}</span>
                   </div>
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Remaining wallet</span>
-                    <span className="font-medium text-foreground">{formatUGX(detailPartner.walletBalance - Number(walletToPortfolioAmount))}</span>
+                    <span>Source</span>
+                    <span className="font-medium text-foreground">
+                      {walletTransferMethod === 'wallet' ? 'Partner Wallet' : `${proxyAgentInfo?.agentName} (Proxy Agent)`}
+                    </span>
                   </div>
                   <div className="flex items-start gap-1.5 pt-1 border-t border-border/50">
-                    <Clock className="h-3 w-3 text-amber-500 mt-0.5 shrink-0" />
+                    <CheckCircle2 className="h-3 w-3 text-primary mt-0.5 shrink-0" />
                     <p className="text-[10px] text-muted-foreground">
-                      Funds will be deducted from wallet and added to portfolio capital at maturity.
+                      Instant deduction — funds will be applied to portfolio capital at maturity.
                     </p>
                   </div>
                 </div>
@@ -2700,10 +2762,10 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             <Button variant="outline" onClick={() => setWalletToPortfolio(null)}>Cancel</Button>
             <Button
               onClick={handleWalletToPortfolio}
-              disabled={walletToPortfolioSaving || Number(walletToPortfolioAmount) < 1000 || walletToPortfolioReason.trim().length < 10}
+              disabled={walletToPortfolioSaving || Number(walletToPortfolioAmount) < 1000 || walletToPortfolioReason.trim().length < 10 || (walletTransferMethod === 'proxy_agent' && !proxyAgentInfo)}
             >
               {walletToPortfolioSaving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
-              Transfer from Wallet
+              Submit Top-Up
             </Button>
           </DialogFooter>
         </DialogContent>
