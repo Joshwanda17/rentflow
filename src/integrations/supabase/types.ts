@@ -4480,6 +4480,77 @@ export type Database = {
         }
         Relationships: []
       }
+      landlord_leads: {
+        Row: {
+          created_at: string
+          full_name: string
+          guaranteed_12m_income: number | null
+          id: string
+          number_of_units: number
+          phone: string
+          property_location: string
+          referrer_agent_id: string | null
+          rent_per_unit: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          full_name: string
+          guaranteed_12m_income?: number | null
+          id?: string
+          number_of_units?: number
+          phone: string
+          property_location: string
+          referrer_agent_id?: string | null
+          rent_per_unit?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string
+          guaranteed_12m_income?: number | null
+          id?: string
+          number_of_units?: number
+          phone?: string
+          property_location?: string
+          referrer_agent_id?: string | null
+          rent_per_unit?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "landlord_leads_referrer_agent_id_fkey"
+            columns: ["referrer_agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "landlord_leads_referrer_agent_id_fkey"
+            columns: ["referrer_agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "landlord_leads_referrer_agent_id_fkey"
+            columns: ["referrer_agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "landlord_leads_referrer_agent_id_fkey"
+            columns: ["referrer_agent_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       landlords: {
         Row: {
           account_number: string | null
