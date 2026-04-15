@@ -414,7 +414,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       toast.success(`Compounded ${formatUGX(roiAmount)}`, { description: `New principal: ${formatUGX(newAmount)}. Ref: ${refId}` });
       // Refresh detail view
       if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
-      fetchData();
+      refreshInBackground();
     } catch (err: any) {
       toast.error('Compound failed', { description: err.message });
     } finally {
@@ -422,157 +422,167 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     }
   };
 
-  /* ─── Fetch ─── */
+  /* ─── Core fetch logic (shared by initial load and background refresh) ─── */
+  const fetchDataCore = useCallback(async () => {
+    const supporterIds = await fetchAllUserIdsByRole('supporter');
+    if (supporterIds.length === 0) {
+      setRows([]);
+      setSummary({ totalPartners: 0, activePartners: 0, suspendedPartners: 0, totalFunded: 0, totalWalletBalance: 0, avgROI: 0, totalDeals: 0, topPartnerName: '—' });
+      return;
+    }
+
+    const ids = supporterIds;
+    const [profiles, wallets, portfolios] = await Promise.all([
+      batchedQuery<any>(ids, (batch) => supabase.from('profiles').select('id, full_name, phone, email, created_at, frozen_at').in('id', batch)),
+      batchedQuery<any>(ids, (batch) => supabase.from('wallets').select('user_id, balance').in('user_id', batch)),
+      batchedQuery<any>(ids, (batch) =>
+        supabase.from('investor_portfolios')
+          .select('id, investor_id, agent_id, investment_amount, roi_percentage, payout_day, roi_mode, status, created_at, next_roi_date')
+          .or(`investor_id.in.(${batch.join(',')}),agent_id.in.(${batch.join(',')})`)
+          .in('status', ['active', 'pending_approval', 'pending'])
+          .order('created_at', { ascending: false })
+      ),
+    ]);
+
+    // Deduplicate portfolios that may appear in multiple batches
+    const seenPortfolioIds = new Set<string>();
+    const dedupedPortfolios = (portfolios as any[]).filter(p => {
+      if (seenPortfolioIds.has(p.id)) return false;
+      seenPortfolioIds.add(p.id);
+      return true;
+    });
+
+    const profileMap = new Map((profiles as any[]).map(p => [p.id, p]));
+    const walletMap = new Map((wallets as any[]).map(w => [w.user_id, w.balance || 0]));
+
+    // Aggregate portfolios per supporter
+    const supporterIdSet = new Set(ids);
+    const partnerAgg = new Map<string, { funded: number; deals: number; roiPercentage: number; payoutDay: number; roiMode: string; lastActivity: string; nextRoiDate: string | null }>();
+
+    dedupedPortfolios.forEach(p => {
+      // Determine which supporter this portfolio belongs to
+      const ownerId = p.investor_id && supporterIdSet.has(p.investor_id)
+        ? p.investor_id
+        : p.agent_id && supporterIdSet.has(p.agent_id)
+          ? p.agent_id
+          : null;
+      if (!ownerId) return;
+
+      const existing = partnerAgg.get(ownerId) || { funded: 0, deals: 0, roiPercentage: 0, payoutDay: 0, roiMode: 'monthly_payout', lastActivity: '', nextRoiDate: null as string | null };
+      existing.funded += (p.investment_amount || 0);
+      existing.deals += 1;
+      if (existing.deals === 1 || !existing.roiPercentage) {
+        existing.roiPercentage = p.roi_percentage ?? 15;
+        existing.payoutDay = p.payout_day ?? 15;
+        existing.roiMode = p.roi_mode ?? 'monthly_payout';
+      }
+      // Track earliest next_roi_date — roll forward stale dates
+      const effectiveDate = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15);
+      if (!existing.nextRoiDate || effectiveDate < existing.nextRoiDate) {
+        existing.nextRoiDate = effectiveDate;
+      }
+      if (!existing.lastActivity || p.created_at > existing.lastActivity) {
+        existing.lastActivity = p.created_at;
+      }
+      partnerAgg.set(ownerId, existing);
+    });
+
+    const tableRows: PartnerRow[] = ids.map(id => {
+      const agg = partnerAgg.get(id) || { funded: 0, deals: 0, roiPercentage: 15, payoutDay: 15, roiMode: 'monthly_payout', lastActivity: '', nextRoiDate: null };
+      const profile = profileMap.get(id);
+      const isSuspended = !!profile?.frozen_at;
+      return {
+        id,
+        name: profile?.full_name || id.slice(0, 8),
+        phone: profile?.phone || '',
+        email: profile?.email || '',
+        funded: agg.funded,
+        activeDeals: agg.deals,
+        avgDeal: agg.deals > 0 ? Math.round(agg.funded / agg.deals) : 0,
+        walletBalance: walletMap.get(id) || 0,
+        roiPercentage: agg.roiPercentage,
+        payoutDay: agg.payoutDay,
+        roiMode: agg.roiMode,
+        status: (isSuspended ? 'suspended' : 'active') as 'active' | 'suspended',
+        joinedAt: profile?.created_at || '',
+        lastActivity: agg.lastActivity || '',
+        nextRoiDate: agg.nextRoiDate,
+      };
+    })
+      .sort((a, b) => b.funded - a.funded);
+
+    const totalFunded = tableRows.reduce((s, r) => s + r.funded, 0);
+    const totalWalletBalance = tableRows.reduce((s, r) => s + r.walletBalance, 0);
+    const activeCount = tableRows.filter(r => r.status === 'active').length;
+    const suspendedCount = tableRows.filter(r => r.status === 'suspended').length;
+    const totalDeals = tableRows.reduce((s, r) => s + r.activeDeals, 0);
+    const roiValues = tableRows.filter(r => r.roiPercentage > 0);
+    const avgROI = roiValues.length > 0 ? Math.round(roiValues.reduce((s, r) => s + r.roiPercentage, 0) / roiValues.length) : 0;
+    const topPartner = tableRows[0];
+
+    setSummary({
+      totalPartners: tableRows.length,
+      activePartners: activeCount,
+      suspendedPartners: suspendedCount,
+      totalFunded,
+      totalWalletBalance,
+      avgROI,
+      totalDeals,
+      topPartnerName: topPartner?.name || '—',
+    });
+    setRows(tableRows);
+
+    // Build portfolio-level nearing payouts — only portfolios with an actual next_roi_date set
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const nearingList: NearingPayoutPortfolio[] = [];
+    dedupedPortfolios.forEach(p => {
+      if (p.status !== 'active') return;
+      // Only include portfolios that have a real next_roi_date stored in the DB
+      if (!p.next_roi_date) return;
+      const ownerId = p.investor_id && supporterIdSet.has(p.investor_id) ? p.investor_id
+        : p.agent_id && supporterIdSet.has(p.agent_id) ? p.agent_id : null;
+      if (!ownerId) return;
+
+      const effectiveNextDate = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15);
+      const roiDate = dateOnlyToLocalDate(effectiveNextDate);
+      const diffMs = roiDate.getTime() - now.getTime();
+      const du = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      // Include all active portfolios with a next_roi_date (past-due + upcoming)
+      const prof = profileMap.get(ownerId);
+      const effectivePayoutDay = p.payout_day || roiDate.getDate();
+      nearingList.push({
+        portfolioId: p.id,
+        investorId: ownerId,
+        name: prof?.full_name || ownerId.slice(0, 8),
+        phone: prof?.phone || '',
+        email: prof?.email || '',
+        investmentAmount: p.investment_amount || 0,
+        roiPercentage: p.roi_percentage ?? 15,
+        payoutDay: effectivePayoutDay,
+        roiMode: p.roi_mode ?? 'monthly_payout',
+        createdAt: p.created_at,
+        daysUntil: du,
+        nextPayoutDate: effectiveNextDate,
+      });
+    });
+    nearingList.sort((a, b) => a.daysUntil - b.daysUntil);
+    setAllPortfoliosForPayout(nearingList);
+  }, []);
+
+  /* ─── Initial fetch (with loading spinner) ─── */
   const fetchData = useCallback(async () => {
     setIsLoading(true);
-    try {
-      const supporterIds = await fetchAllUserIdsByRole('supporter');
-      if (supporterIds.length === 0) {
-        setRows([]);
-        setSummary({ totalPartners: 0, activePartners: 0, suspendedPartners: 0, totalFunded: 0, totalWalletBalance: 0, avgROI: 0, totalDeals: 0, topPartnerName: '—' });
-        return;
-      }
-
-      const ids = supporterIds;
-      const [profiles, wallets, portfolios] = await Promise.all([
-        batchedQuery<any>(ids, (batch) => supabase.from('profiles').select('id, full_name, phone, email, created_at, frozen_at').in('id', batch)),
-        batchedQuery<any>(ids, (batch) => supabase.from('wallets').select('user_id, balance').in('user_id', batch)),
-        batchedQuery<any>(ids, (batch) =>
-          supabase.from('investor_portfolios')
-            .select('id, investor_id, agent_id, investment_amount, roi_percentage, payout_day, roi_mode, status, created_at, next_roi_date')
-            .or(`investor_id.in.(${batch.join(',')}),agent_id.in.(${batch.join(',')})`)
-            .in('status', ['active', 'pending_approval', 'pending'])
-            .order('created_at', { ascending: false })
-        ),
-      ]);
-
-      // Deduplicate portfolios that may appear in multiple batches
-      const seenPortfolioIds = new Set<string>();
-      const dedupedPortfolios = (portfolios as any[]).filter(p => {
-        if (seenPortfolioIds.has(p.id)) return false;
-        seenPortfolioIds.add(p.id);
-        return true;
-      });
-
-      const profileMap = new Map((profiles as any[]).map(p => [p.id, p]));
-      const walletMap = new Map((wallets as any[]).map(w => [w.user_id, w.balance || 0]));
-
-      // Aggregate portfolios per supporter
-      const supporterIdSet = new Set(ids);
-      const partnerAgg = new Map<string, { funded: number; deals: number; roiPercentage: number; payoutDay: number; roiMode: string; lastActivity: string; nextRoiDate: string | null }>();
-
-      dedupedPortfolios.forEach(p => {
-        // Determine which supporter this portfolio belongs to
-        const ownerId = p.investor_id && supporterIdSet.has(p.investor_id)
-          ? p.investor_id
-          : p.agent_id && supporterIdSet.has(p.agent_id)
-            ? p.agent_id
-            : null;
-        if (!ownerId) return;
-
-        const existing = partnerAgg.get(ownerId) || { funded: 0, deals: 0, roiPercentage: 0, payoutDay: 0, roiMode: 'monthly_payout', lastActivity: '', nextRoiDate: null as string | null };
-        existing.funded += (p.investment_amount || 0);
-        existing.deals += 1;
-        if (existing.deals === 1 || !existing.roiPercentage) {
-          existing.roiPercentage = p.roi_percentage ?? 15;
-          existing.payoutDay = p.payout_day ?? 15;
-          existing.roiMode = p.roi_mode ?? 'monthly_payout';
-        }
-        // Track earliest next_roi_date — roll forward stale dates
-        const effectiveDate = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15);
-        if (!existing.nextRoiDate || effectiveDate < existing.nextRoiDate) {
-          existing.nextRoiDate = effectiveDate;
-        }
-        if (!existing.lastActivity || p.created_at > existing.lastActivity) {
-          existing.lastActivity = p.created_at;
-        }
-        partnerAgg.set(ownerId, existing);
-      });
-
-      const tableRows: PartnerRow[] = ids.map(id => {
-        const agg = partnerAgg.get(id) || { funded: 0, deals: 0, roiPercentage: 15, payoutDay: 15, roiMode: 'monthly_payout', lastActivity: '', nextRoiDate: null };
-        const profile = profileMap.get(id);
-        const isSuspended = !!profile?.frozen_at;
-        return {
-          id,
-          name: profile?.full_name || id.slice(0, 8),
-          phone: profile?.phone || '',
-          email: profile?.email || '',
-          funded: agg.funded,
-          activeDeals: agg.deals,
-          avgDeal: agg.deals > 0 ? Math.round(agg.funded / agg.deals) : 0,
-          walletBalance: walletMap.get(id) || 0,
-          roiPercentage: agg.roiPercentage,
-          payoutDay: agg.payoutDay,
-          roiMode: agg.roiMode,
-          status: (isSuspended ? 'suspended' : 'active') as 'active' | 'suspended',
-          joinedAt: profile?.created_at || '',
-          lastActivity: agg.lastActivity || '',
-          nextRoiDate: agg.nextRoiDate,
-        };
-      })
-        .sort((a, b) => b.funded - a.funded);
-
-      const totalFunded = tableRows.reduce((s, r) => s + r.funded, 0);
-      const totalWalletBalance = tableRows.reduce((s, r) => s + r.walletBalance, 0);
-      const activeCount = tableRows.filter(r => r.status === 'active').length;
-      const suspendedCount = tableRows.filter(r => r.status === 'suspended').length;
-      const totalDeals = tableRows.reduce((s, r) => s + r.activeDeals, 0);
-      const roiValues = tableRows.filter(r => r.roiPercentage > 0);
-      const avgROI = roiValues.length > 0 ? Math.round(roiValues.reduce((s, r) => s + r.roiPercentage, 0) / roiValues.length) : 0;
-      const topPartner = tableRows[0];
-
-      setSummary({
-        totalPartners: tableRows.length,
-        activePartners: activeCount,
-        suspendedPartners: suspendedCount,
-        totalFunded,
-        totalWalletBalance,
-        avgROI,
-        totalDeals,
-        topPartnerName: topPartner?.name || '—',
-      });
-      setRows(tableRows);
-
-      // Build portfolio-level nearing payouts — only portfolios with an actual next_roi_date set
-      const now = new Date();
-      now.setHours(0, 0, 0, 0);
-      const nearingList: NearingPayoutPortfolio[] = [];
-      dedupedPortfolios.forEach(p => {
-        if (p.status !== 'active') return;
-        // Only include portfolios that have a real next_roi_date stored in the DB
-        if (!p.next_roi_date) return;
-        const ownerId = p.investor_id && supporterIdSet.has(p.investor_id) ? p.investor_id
-          : p.agent_id && supporterIdSet.has(p.agent_id) ? p.agent_id : null;
-        if (!ownerId) return;
-
-        const effectiveNextDate = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15);
-        const roiDate = dateOnlyToLocalDate(effectiveNextDate);
-        const diffMs = roiDate.getTime() - now.getTime();
-        const du = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-        // Include all active portfolios with a next_roi_date (past-due + upcoming)
-        const prof = profileMap.get(ownerId);
-        const effectivePayoutDay = p.payout_day || roiDate.getDate();
-        nearingList.push({
-          portfolioId: p.id,
-          investorId: ownerId,
-          name: prof?.full_name || ownerId.slice(0, 8),
-          phone: prof?.phone || '',
-          email: prof?.email || '',
-          investmentAmount: p.investment_amount || 0,
-          roiPercentage: p.roi_percentage ?? 15,
-          payoutDay: effectivePayoutDay,
-          roiMode: p.roi_mode ?? 'monthly_payout',
-          createdAt: p.created_at,
-          daysUntil: du,
-          nextPayoutDate: effectiveNextDate,
-        });
-      });
-      nearingList.sort((a, b) => a.daysUntil - b.daysUntil);
-      setAllPortfoliosForPayout(nearingList);
-    } catch (e) { console.error(e); }
+    try { await fetchDataCore(); }
+    catch (e) { console.error(e); }
     finally { setIsLoading(false); }
-  }, []);
+  }, [fetchDataCore]);
+
+  /* ─── Background refresh (no spinner, no page flash) ─── */
+  const refreshInBackground = useCallback(async () => {
+    try { await fetchDataCore(); }
+    catch (e) { console.error('Background refresh error:', e); }
+  }, [fetchDataCore]);
 
   // Fetch pending_approval count
   const fetchPendingCount = useCallback(async () => {
@@ -640,7 +650,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       toast.success(`${pendingApprovalCount} portfolios activated successfully`);
       setShowActivateConfirm(false);
       setPendingApprovalCount(0);
-      fetchData();
+      refreshInBackground();
     } catch (e: any) {
       console.error('Bulk activate error:', e);
       toast.error(e.message || 'Failed to activate portfolios');
@@ -770,7 +780,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       setMergeDialogPortfolioId(null);
       setMergeReason('');
       if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
-      fetchData();
+      refreshInBackground();
     } catch (e: any) {
       toast.error('Failed to merge top-ups', { description: e.message });
     } finally {
@@ -907,7 +917,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       }
       setDeletePortfolio(null);
       setDeleteReason('');
-      fetchData();
+      refreshInBackground();
     } catch (e: any) {
       toast.error(e.message || 'Failed to delete portfolio');
     } finally {
@@ -1008,7 +1018,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       setAddPortfolioPayoutDay('15');
       setAddPortfolioDate('');
       await openPartnerDetail(partnerId);
-      fetchData();
+      refreshInBackground();
     } catch (e: any) {
       console.error('Add portfolio error:', e);
       toast.error(e.message || 'Failed to create portfolio');
@@ -1091,7 +1101,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       );
       setDetailPartner({ ...detailPartner, portfolios: updated });
       setEditPortfolio(null);
-      fetchData();
+      refreshInBackground();
     } catch (e: any) { toast.error(e.message || 'Failed to update portfolio'); }
     finally { setSavingEditPortfolio(false); }
   }
@@ -1167,7 +1177,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       toast.success(`Invested ${formatUGX(amt)} for ${investPartner.name}`, { description: `Ref: ${result.reference_id}` });
       setInvestPartner(null);
       setInvestAmount('');
-      fetchData();
+      refreshInBackground();
     } catch (e: any) { toast.error(e.message || 'Investment failed'); }
     finally { setInvesting(false); }
   }
@@ -1183,7 +1193,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     setWalletToPortfolioSaving(true);
     try {
       const { data: result, error } = await supabase.functions.invoke('coo-wallet-to-portfolio', {
-        body: { portfolio_id: walletToPortfolio.id, amount: amt, reason: walletToPortfolioReason.trim() },
+        body: { portfolio_id: walletToPortfolio.id, amount: amt, reason: walletToPortfolioReason.trim(), payment_method: 'wallet' },
       });
       if (error) throw new Error(typeof result === 'object' && result?.error ? result.error : error.message);
       if (result?.error) throw new Error(result.error);
@@ -1195,7 +1205,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       setWalletToPortfolioAmount('');
       setWalletToPortfolioReason('');
       if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
-      fetchData();
+      refreshInBackground();
     } catch (e: any) { toast.error(e.message || 'Transfer failed'); }
     finally { setWalletToPortfolioSaving(false); }
   }
@@ -1229,7 +1239,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       }
       toast.success(`Updated ${editName.trim()}`);
       setEditPartner(null);
-      fetchData();
+      refreshInBackground();
     } catch (e: any) { toast.error(e.message || 'Update failed'); }
     finally { setSaving(false); }
   }
@@ -1250,7 +1260,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       if (error) throw error;
       toast.success(`${suspendPartner.name} is now ${shouldFreeze ? 'suspended' : 'active'}`);
       setSuspendPartner(null);
-      fetchData();
+      refreshInBackground();
     } catch (e: any) { toast.error(e.message || 'Failed'); }
     finally { setSuspending(false); }
   }
@@ -1294,7 +1304,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       toast.success(`${deletePartnerTarget.name} has been permanently deleted as a partner`);
       setDeletePartnerTarget(null);
       setDeletePartnerReason('');
-      fetchData();
+      refreshInBackground();
     } catch (e: any) {
       toast.error(e.message || 'Failed to delete partner');
     } finally {
@@ -2290,7 +2300,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       </Dialog>
 
       {/* Import Dialog */}
-      <PartnerImportDialog open={importOpen} onOpenChange={setImportOpen} onSuccess={() => { fetchData(); fetchPendingCount(); }} />
+      <PartnerImportDialog open={importOpen} onOpenChange={setImportOpen} onSuccess={() => { refreshInBackground(); fetchPendingCount(); }} />
 
       {/* Compound Preview Dialog */}
       <AlertDialog open={!!compoundPreview} onOpenChange={(open) => { if (!open) setCompoundPreview(null); }}>
@@ -2350,12 +2360,12 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       </AlertDialog>
 
       <UpdateContributionDatesDialog open={updateDatesOpen} onOpenChange={setUpdateDatesOpen} onSuccess={() => {
-        fetchData();
+        refreshInBackground();
         if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
       }} />
 
       {/* Top-level Create Portfolio Dialog */}
-      <CreateInvestmentAccountDialog open={createPortfolioOpen} onOpenChange={setCreatePortfolioOpen} onSuccess={() => { fetchData(); fetchPendingCount(); }} />
+      <CreateInvestmentAccountDialog open={createPortfolioOpen} onOpenChange={setCreatePortfolioOpen} onSuccess={() => { refreshInBackground(); fetchPendingCount(); }} />
 
       {/* ─── Bulk Activate Confirmation ─── */}
       <AlertDialog open={showActivateConfirm} onOpenChange={setShowActivateConfirm}>
@@ -2651,7 +2661,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         </DialogContent>
       </Dialog>
       {/* Nearing Payouts Dialog */}
-      <NearingPayoutsDialog open={nearingPayoutsOpen} onOpenChange={setNearingPayoutsOpen} portfolios={allPortfoliosForPayout} onActionComplete={fetchData} />
+      <NearingPayoutsDialog open={nearingPayoutsOpen} onOpenChange={setNearingPayoutsOpen} portfolios={allPortfoliosForPayout} onActionComplete={refreshInBackground} />
 
       {/* Merge Pending Top-Ups Dialog */}
       <Dialog open={!!mergeDialogPortfolioId} onOpenChange={(open) => { if (!open) { setMergeDialogPortfolioId(null); setMergeReason(''); } }}>
