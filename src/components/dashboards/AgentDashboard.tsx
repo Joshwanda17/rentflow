@@ -310,8 +310,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
          <UnifiedWalletHeroCard
            balance={floatBalance + commissionBalance}
            role="agent"
-           secondaryLabel="Withdrawable"
-           secondaryValue={formatUGX(realWithdrawableBalance)}
+           floatBalance={floatBalance}
+           commissionBalance={commissionBalance}
+           withdrawableBalance={realWithdrawableBalance}
            onOpenWallet={() => setShowWallet(true)}
            quickActions={
               <div className="flex items-center gap-2.5">
