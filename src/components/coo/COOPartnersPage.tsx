@@ -1193,7 +1193,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     setWalletToPortfolioSaving(true);
     try {
       const { data: result, error } = await supabase.functions.invoke('coo-wallet-to-portfolio', {
-        body: { portfolio_id: walletToPortfolio.id, amount: amt, reason: walletToPortfolioReason.trim() },
+        body: { portfolio_id: walletToPortfolio.id, amount: amt, reason: walletToPortfolioReason.trim(), payment_method: 'wallet' },
       });
       if (error) throw new Error(typeof result === 'object' && result?.error ? result.error : error.message);
       if (result?.error) throw new Error(result.error);
