@@ -3267,7 +3267,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
   };
 
   // Handle Split Payout — cash portion to pending_wallet_operations, reinvest portion to portfolio
-  const handleSplitPayout = async (p: NearingPayoutPortfolio, cashAmount: number, reason: string, payMode: 'wallet' | 'agent_wallet' | 'already_paid') => {
+  const handleSplitPayout = async (p: NearingPayoutPortfolio, cashAmount: number, reason: string, payMode: 'wallet' | 'agent_wallet' | 'already_paid', reinvestMode: 'reinvest' | 'keep_returns' = 'reinvest') => {
     setProcessing(prev => ({ ...prev, [p.portfolioId]: 'split' }));
     try {
       const roiAmount = Math.round(p.investmentAmount * p.roiPercentage / 100);
