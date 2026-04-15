@@ -352,29 +352,51 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* Today's Collections — who owes, at a glance */}
         <TodayCollectionsCard agentId={user.id} onViewTenants={() => setTenantsSheetOpen(true)} />
 
-        {/* 5 Key Action Buttons + Hub — immediately accessible */}
-        <div className="grid grid-cols-4 gap-2">
-          {[
-            { icon: Banknote, label: 'Pay Rent', onClick: () => setTopUpTenantOpen(true), color: 'text-primary', bg: 'bg-primary/10 border-primary/30 hover:bg-primary/15' },
-            { icon: FileText, label: 'Add Tenant', onClick: () => setRentRequestOpen(true), color: 'text-[#7C3BED]', bg: 'bg-[#7C3BED]/10 border-[#7C3BED]/30 hover:bg-[#7C3BED]/15 ring-1 ring-[#7C3BED]/30' },
-            { icon: Users, label: 'Tenants', onClick: () => setTenantsSheetOpen(true), color: 'text-primary', bg: 'bg-primary/10 border-primary/30 hover:bg-primary/15' },
-            { icon: Home, label: 'List House', onClick: () => setListHouseOpen(true), color: 'text-[#7C3BED]', bg: 'bg-[#7C3BED]/10 border-[#7C3BED]/30 hover:bg-[#7C3BED]/15' },
-            { icon: Building2, label: 'Landlord', onClick: handleShareLandlordSignup, color: 'text-purple-600', bg: 'bg-purple-600/10 border-purple-600/30 hover:bg-purple-600/15' },
-            { icon: Sparkles, label: 'Partners', onClick: () => navigate('/agent/partners'), color: 'text-[#7C3BED]', bg: 'bg-[#7C3BED]/10 border-[#7C3BED]/30 hover:bg-[#7C3BED]/15' },
-            { icon: Menu, label: 'Agent Hub', onClick: handleOpenMenu, color: 'text-foreground/70', bg: 'bg-card border-border/40 hover:bg-muted/40' },
-          ].map((action, i) => (
-            <button
-              key={action.label}
-              onClick={() => { hapticTap(); action.onClick(); }}
-              className={cn(
-                "flex flex-col items-center justify-center gap-1.5 py-3.5 rounded-xl border touch-manipulation active:opacity-80",
-                action.bg
-              )}
-            >
-              <action.icon className={cn("h-5 w-5", action.color)} />
-              <span className={cn("text-[10px] font-semibold", action.color)}>{action.label}</span>
-            </button>
-          ))}
+        {/* Quick Actions — grouped for easy discovery */}
+        <div className="space-y-2">
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-0.5">Daily Actions</p>
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              { icon: Banknote, label: 'Pay Rent', onClick: () => setTopUpTenantOpen(true), color: 'text-primary', bg: 'bg-primary/10 border-primary/30' },
+              { icon: FileText, label: 'Add Tenant', onClick: () => setRentRequestOpen(true), color: 'text-[#7C3BED]', bg: 'bg-[#7C3BED]/10 border-[#7C3BED]/30 ring-1 ring-[#7C3BED]/30' },
+              { icon: Users, label: 'Tenants', onClick: () => setTenantsSheetOpen(true), color: 'text-primary', bg: 'bg-primary/10 border-primary/30' },
+              { icon: Home, label: 'List House', onClick: () => setListHouseOpen(true), color: 'text-[#7C3BED]', bg: 'bg-[#7C3BED]/10 border-[#7C3BED]/30' },
+            ].map((action) => (
+              <button
+                key={action.label}
+                onClick={() => { hapticTap(); action.onClick(); }}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-1.5 py-3.5 rounded-xl border touch-manipulation active:scale-95 transition-transform",
+                  action.bg
+                )}
+              >
+                <action.icon className={cn("h-5 w-5", action.color)} />
+                <span className={cn("text-[10px] font-semibold", action.color)}>{action.label}</span>
+              </button>
+            ))}
+          </div>
+
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-0.5 pt-1">Share & Grow</p>
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              { icon: Building2, label: 'Landlord', onClick: handleShareLandlordSignup, color: 'text-purple-600', bg: 'bg-purple-600/10 border-purple-600/30' },
+              { icon: Sparkles, label: 'Partners', onClick: () => navigate('/agent/partners'), color: 'text-[#7C3BED]', bg: 'bg-[#7C3BED]/10 border-[#7C3BED]/30' },
+              { icon: UserPlus, label: 'Invite', onClick: () => navigate('/referrals'), color: 'text-emerald-600', bg: 'bg-emerald-600/10 border-emerald-600/30' },
+              { icon: Menu, label: 'All Menu', onClick: handleOpenMenu, color: 'text-foreground/70', bg: 'bg-card border-border/40' },
+            ].map((action) => (
+              <button
+                key={action.label}
+                onClick={() => { hapticTap(); action.onClick(); }}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-1.5 py-3.5 rounded-xl border touch-manipulation active:scale-95 transition-transform",
+                  action.bg
+                )}
+              >
+                <action.icon className={cn("h-5 w-5", action.color)} />
+                <span className={cn("text-[10px] font-semibold", action.color)}>{action.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Credit Access moved to Agent Hub → Earnings tab */}
