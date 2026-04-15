@@ -584,6 +584,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           setMenuOpen(false);
           setPromissoryListOpen(true);
         }}
+        onRequestAdvance={() => {
+          setMenuOpen(false);
+          setAdvanceRequestOpen(true);
+        }}
       />
 
       {/* Existing Dialogs */}
