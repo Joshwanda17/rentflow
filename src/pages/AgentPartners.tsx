@@ -386,10 +386,18 @@ export default function AgentPartners() {
                               hapticTap();
                               const url = `${window.location.origin}/become-supporter?ref=${user?.id}`;
                               const message = `🤝 Hi ${partner.name}, you've been invited to join Welile as a partner investor!\n\nActivate your account here:\n${url}`;
-                              window.open(`https://wa.me/${partner.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
+                              if (navigator.share) {
+                                try {
+                                  await navigator.share({ title: 'Partner Activation', text: message, url });
+                                } catch {}
+                              } else {
+                                await navigator.clipboard.writeText(`${message}\n${url}`);
+                                const { toast } = await import('sonner');
+                                toast.success('Activation link copied!');
+                              }
                             }}
                           >
-                            <Send className="h-3.5 w-3.5" />
+                            <ShareIcon className="h-3.5 w-3.5" />
                             Resend
                           </Button>
                         )}
