@@ -22,7 +22,7 @@ import { format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { downloadPortfolioPdf, sharePortfolioViaWhatsApp, type PortfolioPdfData } from '@/lib/portfolioPdf';
-import { fetchAllUserIdsByRole, batchedQuery } from '@/lib/supabaseBatchUtils';
+import { fetchAllUserIdsByRole, batchedQuery, fetchPaginatedSupporterIds, fetchSupporterSummary } from '@/lib/supabaseBatchUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -197,6 +197,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [rows, setRows] = useState<PartnerRow[]>([]);
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
 
   // Table state
   const [search, setSearch] = useState('');
@@ -425,12 +427,16 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     }
   };
 
-  /* ─── Core fetch logic (shared by initial load and background refresh) ─── */
-  const fetchDataCore = useCallback(async () => {
-    const supporterIds = await fetchAllUserIdsByRole('supporter');
+  /* ─── Core fetch logic: server-side paginated ─── */
+  const fetchDataCore = useCallback(async (fetchPage: number, searchTerm: string) => {
+    const { ids: supporterIds, totalCount: count } = await fetchPaginatedSupporterIds(fetchPage, PAGE_SIZE, searchTerm);
+    setTotalCount(count);
+
     if (supporterIds.length === 0) {
       setRows([]);
-      setSummary({ totalPartners: 0, activePartners: 0, suspendedPartners: 0, totalFunded: 0, totalWalletBalance: 0, avgROI: 0, totalDeals: 0, topPartnerName: '—' });
+      if (count === 0) {
+        setSummary({ totalPartners: 0, activePartners: 0, suspendedPartners: 0, totalFunded: 0, totalWalletBalance: 0, avgROI: 0, totalDeals: 0, topPartnerName: '—' });
+      }
       return;
     }
 
@@ -447,7 +453,6 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       ),
     ]);
 
-    // Deduplicate portfolios that may appear in multiple batches
     const seenPortfolioIds = new Set<string>();
     const dedupedPortfolios = (portfolios as any[]).filter(p => {
       if (seenPortfolioIds.has(p.id)) return false;
@@ -458,12 +463,10 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     const profileMap = new Map((profiles as any[]).map(p => [p.id, p]));
     const walletMap = new Map((wallets as any[]).map(w => [w.user_id, w.balance || 0]));
 
-    // Aggregate portfolios per supporter
     const supporterIdSet = new Set(ids);
     const partnerAgg = new Map<string, { funded: number; deals: number; roiPercentage: number; payoutDay: number; roiMode: string; lastActivity: string; nextRoiDate: string | null }>();
 
     dedupedPortfolios.forEach(p => {
-      // Determine which supporter this portfolio belongs to
       const ownerId = p.investor_id && supporterIdSet.has(p.investor_id)
         ? p.investor_id
         : p.agent_id && supporterIdSet.has(p.agent_id)
@@ -479,7 +482,6 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         existing.payoutDay = p.payout_day ?? 15;
         existing.roiMode = p.roi_mode ?? 'monthly_payout';
       }
-      // Track earliest next_roi_date — roll forward stale dates
       const effectiveDate = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15);
       if (!existing.nextRoiDate || effectiveDate < existing.nextRoiDate) {
         existing.nextRoiDate = effectiveDate;
@@ -511,37 +513,16 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         lastActivity: agg.lastActivity || '',
         nextRoiDate: agg.nextRoiDate,
       };
-    })
-      .sort((a, b) => b.funded - a.funded);
-
-    const totalFunded = tableRows.reduce((s, r) => s + r.funded, 0);
-    const totalWalletBalance = tableRows.reduce((s, r) => s + r.walletBalance, 0);
-    const activeCount = tableRows.filter(r => r.status === 'active').length;
-    const suspendedCount = tableRows.filter(r => r.status === 'suspended').length;
-    const totalDeals = tableRows.reduce((s, r) => s + r.activeDeals, 0);
-    const roiValues = tableRows.filter(r => r.roiPercentage > 0);
-    const avgROI = roiValues.length > 0 ? Math.round(roiValues.reduce((s, r) => s + r.roiPercentage, 0) / roiValues.length) : 0;
-    const topPartner = tableRows[0];
-
-    setSummary({
-      totalPartners: tableRows.length,
-      activePartners: activeCount,
-      suspendedPartners: suspendedCount,
-      totalFunded,
-      totalWalletBalance,
-      avgROI,
-      totalDeals,
-      topPartnerName: topPartner?.name || '—',
     });
+
     setRows(tableRows);
 
-    // Build portfolio-level nearing payouts — only portfolios with an actual next_roi_date set
+    // Build nearing payouts from current page portfolios
     const now = new Date();
     now.setHours(0, 0, 0, 0);
     const nearingList: NearingPayoutPortfolio[] = [];
     dedupedPortfolios.forEach(p => {
       if (p.status !== 'active') return;
-      // Only include portfolios that have a real next_roi_date stored in the DB
       if (!p.next_roi_date) return;
       const ownerId = p.investor_id && supporterIdSet.has(p.investor_id) ? p.investor_id
         : p.agent_id && supporterIdSet.has(p.agent_id) ? p.agent_id : null;
@@ -551,7 +532,6 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       const roiDate = dateOnlyToLocalDate(effectiveNextDate);
       const diffMs = roiDate.getTime() - now.getTime();
       const du = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-      // Include all active portfolios with a next_roi_date (past-due + upcoming)
       const prof = profileMap.get(ownerId);
       const effectivePayoutDay = p.payout_day || roiDate.getDate();
       nearingList.push({
@@ -573,19 +553,33 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     setAllPortfoliosForPayout(nearingList);
   }, []);
 
+  /* ─── Summary stats (fetched once, cached) ─── */
+  const fetchSummaryStats = useCallback(async () => {
+    try {
+      const stats = await fetchSupporterSummary();
+      setSummary({
+        ...stats,
+        avgROI: 0,
+        topPartnerName: '—',
+      });
+    } catch (e) {
+      console.error('Summary stats error:', e);
+    }
+  }, []);
+
   /* ─── Initial fetch (with loading spinner) ─── */
   const fetchData = useCallback(async () => {
     setIsLoading(true);
-    try { await fetchDataCore(); }
+    try { await fetchDataCore(page, debouncedSearch); }
     catch (e) { console.error(e); }
     finally { setIsLoading(false); }
-  }, [fetchDataCore]);
+  }, [fetchDataCore, page, debouncedSearch]);
 
   /* ─── Background refresh (no spinner, no page flash) ─── */
   const refreshInBackground = useCallback(async () => {
-    try { await fetchDataCore(); }
+    try { await fetchDataCore(page, debouncedSearch); }
     catch (e) { console.error('Background refresh error:', e); }
-  }, [fetchDataCore]);
+  }, [fetchDataCore, page, debouncedSearch]);
 
   // Fetch pending_approval count
   const fetchPendingCount = useCallback(async () => {
@@ -596,7 +590,19 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     setPendingApprovalCount(count || 0);
   }, []);
 
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(0);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   useEffect(() => { fetchData(); fetchPendingCount(); }, [fetchData, fetchPendingCount]);
+
+  // Fetch summary stats once on mount
+  useEffect(() => { fetchSummaryStats(); }, [fetchSummaryStats]);
 
   // Single portfolio approve
   const [approvingId, setApprovingId] = useState<string | null>(null);
@@ -1109,7 +1115,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     finally { setSavingEditPortfolio(false); }
   }
 
-  /* ─── Filtered / Sorted ─── */
+  /* ─── Filtered / Sorted (local filters on current page, search is server-side) ─── */
   const processed = useMemo(() => {
     let result = [...rows];
     if (filterStatus !== 'all') result = result.filter(r => r.status === filterStatus);
@@ -1118,10 +1124,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     else if (filterContact === 'no_phone') result = result.filter(r => !r.phone || r.phone.includes('@'));
     else if (filterContact === 'has_email') result = result.filter(r => r.email && !r.email.includes('placeholder'));
     else if (filterContact === 'no_email') result = result.filter(r => !r.email || r.email.includes('placeholder'));
-    // Payment date range filter
     if (payoutDateFrom || payoutDateTo) {
       result = result.filter(r => {
-        // Use the first portfolio's next_roi_date if available
         const portfolioData = (r as any).nextRoiDate;
         if (!portfolioData) return false;
         const nextPayout = new Date(portfolioData + 'T00:00:00');
@@ -1130,10 +1134,6 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         if (payoutDateTo && nextPayout > payoutDateTo) return false;
         return true;
       });
-    }
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter(r => r.name.toLowerCase().includes(q) || r.phone.includes(q) || r.email.toLowerCase().includes(q));
     }
     if (sortKey && sortDir) {
       result.sort((a, b) => {
@@ -1147,11 +1147,12 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       });
     }
     return result;
-  }, [rows, search, sortKey, sortDir, filterStatus, filterRoiMode, filterContact, payoutDateFrom, payoutDateTo]);
+  }, [rows, sortKey, sortDir, filterStatus, filterRoiMode, filterContact, payoutDateFrom, payoutDateTo]);
 
-  const totalPages = Math.max(1, Math.ceil(processed.length / PAGE_SIZE));
+  // Server-side pagination: use totalCount for page count, display all rows from current page
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const safePage = Math.min(page, totalPages - 1);
-  const paged = processed.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+  const paged = processed;
 
   function handleSort(key: string) {
     if (sortKey === key) {
