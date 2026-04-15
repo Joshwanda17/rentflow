@@ -131,6 +131,9 @@ export function UnifiedWalletHeroCard({
           </div>
         )}
 
+        {/* Quick Actions slot */}
+        {quickActions}
+
         {/* Footer — View Wallet link */}
         <div className="flex items-center justify-between pt-1">
           <div className="flex items-center gap-1.5">
