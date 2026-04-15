@@ -389,6 +389,64 @@ export function ProxyPartnerFunds() {
     loadProxyFunds();
   };
 
+  const handleCancelRequest = (partner: PartnerBalance) => {
+    const key = getStatusKey(partner);
+    const withdrawalId = partnerWithdrawalIds[key];
+    if (!withdrawalId) return;
+    setCancelTarget({ key, withdrawalId, partnerName: partner.partnerName });
+    setCancelConfirmOpen(true);
+  };
+
+  const confirmCancel = async () => {
+    if (!cancelTarget || !user?.id) return;
+    setCancellingId(cancelTarget.withdrawalId);
+    try {
+      // 1. Update withdrawal_requests status to 'cancelled'
+      const { error } = await supabase
+        .from('withdrawal_requests')
+        .update({ status: 'cancelled' } as any)
+        .eq('id', cancelTarget.withdrawalId);
+      if (error) throw error;
+
+      // 2. Reverse the held-funds ledger entry (cash_in to restore balance)
+      await supabase.from('general_ledger').insert({
+        user_id: user.id,
+        amount: prefillAmount,
+        direction: 'cash_in',
+        category: 'withdrawal_reversal',
+        description: `Proxy withdrawal cancelled by agent for ${cancelTarget.partnerName}`,
+        currency: 'UGX',
+        transaction_group_id: `wallet-withdraw-cancel-${cancelTarget.withdrawalId}`,
+        source_table: 'withdrawal_requests',
+        source_id: cancelTarget.withdrawalId,
+        ledger_scope: 'platform',
+      } as any);
+
+      // 3. Audit log
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: 'proxy_withdrawal_cancelled',
+        table_name: 'withdrawal_requests',
+        record_id: cancelTarget.withdrawalId,
+        metadata: {
+          partner_name: cancelTarget.partnerName,
+          cancelled_by: user.id,
+        },
+      } as any);
+
+      toast.success('Withdrawal cancelled', {
+        description: `The withdrawal request for ${cancelTarget.partnerName} has been cancelled and funds restored.`,
+      });
+      loadProxyFunds();
+    } catch (err: any) {
+      toast.error('Failed to cancel', { description: err.message });
+    } finally {
+      setCancellingId(null);
+      setCancelConfirmOpen(false);
+      setCancelTarget(null);
+    }
+  };
+
   const getStatusKey = (partner: PartnerBalance) => {
     if (partner.portfolioId) {
       const portfolioKey = `${partner.partnerId}-${partner.portfolioId}`;
