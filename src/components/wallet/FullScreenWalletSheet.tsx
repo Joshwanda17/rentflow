@@ -79,16 +79,15 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
     setPendingWithdrawals(counts.withdrawals);
   }, [user]);
 
-  // Check if user has proxy partner entries
+  // Check if user has proxy partner entries (is agent for other investors' portfolios)
   useEffect(() => {
     const checkProxy = async () => {
       if (!user?.id) return;
       const { count } = await supabase
-        .from('general_ledger')
+        .from('investor_portfolios')
         .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('category', 'roi_payout')
-        .not('linked_party', 'is', null);
+        .eq('agent_id', user.id)
+        .neq('investor_id', user.id);
       setHasProxyPartners((count || 0) > 0);
     };
     if (open) checkProxy();
