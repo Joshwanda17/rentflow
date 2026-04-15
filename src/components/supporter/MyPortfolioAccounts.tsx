@@ -56,7 +56,7 @@ function PortfolioRow({ p, onTap }: { p: PortfolioRecord; onTap: () => void }) {
   );
 }
 
-function PortfolioDetailSheet({ portfolio, open, onOpenChange }: { portfolio: PortfolioRecord | null; open: boolean; onOpenChange: (o: boolean) => void }) {
+function PortfolioDetailSheet({ portfolio, open, onOpenChange, onTopUp }: { portfolio: PortfolioRecord | null; open: boolean; onOpenChange: (o: boolean) => void; onTopUp?: (p: PortfolioRecord) => void }) {
   if (!portfolio) return null;
   const amount = Number(portfolio.investment_amount);
   const roiPct = Number(portfolio.roi_percentage);
