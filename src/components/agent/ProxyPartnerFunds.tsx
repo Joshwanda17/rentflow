@@ -201,7 +201,7 @@ export function ProxyPartnerFunds() {
         // Active (pending/processing) withdrawal requests
         supabase
           .from('withdrawal_requests')
-          .select('linked_party, status, reason, metadata')
+          .select('id, linked_party, status, reason, metadata')
           .eq('user_id', user.id)
           .in('status', ['pending', 'approved', 'processing', 'manager_approved']),
       ]);
@@ -213,8 +213,9 @@ export function ProxyPartnerFunds() {
       setProfiles(profileMap);
       setCompletedWithdrawals((completedRes.data || []).filter(w => uniquePartnerIds.includes(w.linked_party)));
 
-      // Build active withdrawal status map
+      // Build active withdrawal status map + ID map
       const statusMap: Record<string, string> = {};
+      const idMap: Record<string, string> = {};
       (activeWithdrawalRes.data || []).forEach((w: any) => {
         const meta = (w.metadata || {}) as Record<string, any>;
         const portfolioKey = meta.portfolio_id
@@ -226,14 +227,15 @@ export function ProxyPartnerFunds() {
             const existing = statusMap[portfolioKey];
             if (!existing || w.status === 'pending') {
               statusMap[portfolioKey] = w.status;
+              idMap[portfolioKey] = w.id;
             }
           }
           const existing = statusMap[w.linked_party];
           if (!existing || w.status === 'pending') {
             statusMap[w.linked_party] = w.status;
+            idMap[w.linked_party] = w.id;
           }
         }
-        // Fallback: match by reason containing partner name
         if (!w.linked_party && w.reason) {
           for (const pid of uniquePartnerIds) {
             const name = profileMap[pid]?.full_name;
@@ -241,6 +243,7 @@ export function ProxyPartnerFunds() {
               const existing = statusMap[pid];
               if (!existing || w.status === 'pending') {
                 statusMap[pid] = w.status;
+                idMap[pid] = w.id;
               }
               break;
             }
@@ -248,6 +251,7 @@ export function ProxyPartnerFunds() {
         }
       });
       setPartnerWithdrawalStatus(statusMap);
+      setPartnerWithdrawalIds(idMap);
     } catch (err) {
       console.error('Error loading proxy funds:', err);
     } finally {
