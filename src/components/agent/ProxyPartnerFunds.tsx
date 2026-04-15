@@ -459,7 +459,7 @@ export function ProxyPartnerFunds() {
         onSuccess={handleWithdrawSuccess}
         prefillAmount={prefillAmount}
         prefillReason={prefillReason}
-        linkedPartyId={selectedPartnerId}
+        linkedParty={selectedPartnerId}
       />
     </div>
   );
