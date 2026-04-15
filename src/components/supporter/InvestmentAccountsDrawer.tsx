@@ -112,11 +112,12 @@ function DetailRow({ label, value, icon: Icon, valueClassName }: { label: string
   );
 }
 
-function PortfolioDetailSheet({ portfolio, open, onOpenChange, onRenamed }: {
+function PortfolioDetailSheet({ portfolio, open, onOpenChange, onRenamed, onTopUp }: {
   portfolio: PortfolioRecord | null;
   open: boolean;
   onOpenChange: (o: boolean) => void;
   onRenamed: () => void;
+  onTopUp?: (p: PortfolioRecord) => void;
 }) {
   const [isRenaming, setIsRenaming] = useState(false);
   const [newName, setNewName] = useState('');
