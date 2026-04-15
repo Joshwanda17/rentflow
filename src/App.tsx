@@ -280,6 +280,7 @@ function AppRoutes() {
           {/* Chat feature removed */}
           <Route path="/agent-registrations" element={<AgentRegistrations />} />
           <Route path="/sub-agents" element={<SubAgentAnalytics />} />
+          <Route path="/agent/partners" element={<AgentPartners />} />
           <Route path="/join" element={<Join />} />
           <Route path="/calculator" element={<Calculator />} />
           <Route path="/users" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cto']}><AdminUsersPage /></RoleGuard>} />
