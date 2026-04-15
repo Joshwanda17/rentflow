@@ -3,7 +3,7 @@ import {
   TrendingUp, Users, Home, Building2, Handshake, Activity, Megaphone, Target, Share2,
   MessageSquare, HeadphonesIcon, AlertTriangle, Scale, UserCheck, FileText, Wallet,
   Crown, LayoutDashboard, Globe, DollarSign, UserCog, Truck, Layers, MinusCircle, Receipt,
-  ShieldCheck
+  ShieldCheck, GraduationCap
 } from 'lucide-react';
 import type { AppRole } from '@/hooks/auth/types';
 
@@ -114,6 +114,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Partner Finance', icon: Receipt, id: 'partner-finance' },
         { label: 'Partner Top-ups', icon: TrendingUp, id: 'partner-topups' },
         { label: 'Staff Performance', icon: UserCheck, id: 'staff-performance' },
+        { label: 'Internship Applications', icon: GraduationCap, id: 'internships' },
       ],
     },
   ],
@@ -166,6 +167,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Payroll', icon: Banknote, id: 'payroll' },
         { label: 'Disciplinary', icon: AlertTriangle, id: 'disciplinary' },
         { label: 'Audit Trail', icon: FileText, id: 'audit' },
+        { label: 'Internship Applications', icon: GraduationCap, id: 'internships' },
       ],
     },
   ],
@@ -188,6 +190,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'User Management', icon: Users, id: 'users' },
         { label: 'Deposits', icon: Banknote, id: 'deposits' },
         { label: 'Financial Ops', icon: Wallet, id: 'financial-ops' },
+        { label: 'Internship Applications', icon: GraduationCap, id: 'internships' },
         { label: 'Audit Log', icon: ClipboardList, id: 'audit' },
       ],
     },
