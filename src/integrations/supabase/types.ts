@@ -9016,6 +9016,7 @@ export type Database = {
           control_key: string
           enabled: boolean
           id: string
+          strict_mode: boolean | null
           updated_at: string
           updated_by: string | null
         }
@@ -9023,6 +9024,7 @@ export type Database = {
           control_key: string
           enabled?: boolean
           id?: string
+          strict_mode?: boolean | null
           updated_at?: string
           updated_by?: string | null
         }
@@ -9030,6 +9032,7 @@ export type Database = {
           control_key?: string
           enabled?: boolean
           id?: string
+          strict_mode?: boolean | null
           updated_at?: string
           updated_by?: string | null
         }
