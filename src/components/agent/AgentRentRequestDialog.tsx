@@ -1050,6 +1050,22 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     )}
                   </div>
                 </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="tenantNationalId" className="text-xs">National ID *</Label>
+                  <Input
+                    id="tenantNationalId"
+                    value={tenantNationalId}
+                    onChange={(e) => setTenantNationalId(e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase())}
+                    placeholder="e.g. CM12345678901"
+                    className="h-10 font-mono uppercase"
+                    maxLength={14}
+                    required
+                  />
+                  {tenantNationalId.length > 0 && (tenantNationalId.length < 10 || tenantNationalId.length > 14) && (
+                    <p className="text-[10px] text-destructive">Must be 10-14 characters</p>
+                  )}
+                </div>
               </div>
 
               <Separator />
