@@ -3291,17 +3291,14 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       // ── Reinvest portion: add to principal OR keep as earned returns ──
       let newPrincipal = p.investmentAmount;
       if (isKeepReturns) {
-        // Keep as returns — add to total_roi_earned, principal stays flat
+        // Keep as returns — increment total_roi_earned, principal stays flat
+        const { data: currentP } = await supabase.from('investor_portfolios').select('total_roi_earned').eq('id', p.portfolioId).single();
+        const currentRoiEarned = Number(currentP?.total_roi_earned || 0);
         const { error: upErr } = await supabase
           .from('investor_portfolios')
-          .update({ total_roi_earned: (portfolio_total_roi || 0) + reinvestAmount })
+          .update({ total_roi_earned: currentRoiEarned + reinvestAmount })
           .eq('id', p.portfolioId);
         if (upErr) throw upErr;
-
-        // Fetch current total_roi_earned for accuracy
-        const { data: currentP } = await supabase.from('investor_portfolios').select('total_roi_earned').eq('id', p.portfolioId).single();
-        const portfolio_total_roi_updated = currentP?.total_roi_earned || reinvestAmount;
-
         newPrincipal = p.investmentAmount; // stays the same
       } else {
         // Reinvest — add to principal (current behavior)
