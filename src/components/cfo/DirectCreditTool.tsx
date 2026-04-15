@@ -397,7 +397,7 @@ export function DirectCreditTool() {
             <SelectTrigger>
               <SelectValue placeholder="Select a category..." />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent position="popper" className="max-h-[280px] overflow-y-auto z-[9999]" sideOffset={4} align="start">
               {availableCategories.map(cat => {
                 const cfg = IMPACT_CONFIG[cat.impact];
                 const isRent = cat.id === 'rent_disbursement';
@@ -432,7 +432,7 @@ export function DirectCreditTool() {
               <SelectTrigger>
                 <SelectValue placeholder="Select a subcategory..." />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper" className="max-h-[280px] overflow-y-auto z-[9999]" sideOffset={4} align="start">
                 {selectedCategory!.subCategories!.map(sub => (
                   <SelectItem key={sub.id} value={sub.id}>
                     {sub.label}
