@@ -39,7 +39,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
   const [entries, setEntries] = useState<InvestmentEntry[]>([]);
   const [pendingByPortfolio, setPendingByPortfolio] = useState<Record<string, { count: number; total: number }>>({});
   const [loading, setLoading] = useState(true);
-  const [topUpTarget, setTopUpTarget] = useState<{ id: string; name: string } | null>(null);
+  const [topUpTarget, setTopUpTarget] = useState<{ id: string; name: string; balance: number } | null>(null);
   const [payoutTarget, setPayoutTarget] = useState<{ id: string; name: string } | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [withdrawDialog, setWithdrawDialog] = useState<{ id: string; name: string; maxAmount: number } | null>(null);
@@ -447,7 +447,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                               <Button
                                 size="sm"
                                 className="gap-1.5 text-xs h-10 min-h-[44px] rounded-lg font-semibold"
-                                onClick={() => setTopUpTarget({ id: entry.id, name: entry.account_name || entry.code })}
+                                onClick={() => setTopUpTarget({ id: entry.id, name: entry.account_name || entry.code, balance: Number(entry.amount) || 0 })}
                               >
                                 <Plus className="h-3.5 w-3.5" />
                                 Top Up
@@ -569,6 +569,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
           accountName={topUpTarget.name}
           accountId={topUpTarget.id}
           walletBalance={wallet?.balance || 0}
+          currentBalance={topUpTarget.balance}
           onFund={async (portfolioId, amt) => {
             const { data, error } = await supabase.functions.invoke('portfolio-topup', {
               body: { portfolio_id: portfolioId, amount: amt },
