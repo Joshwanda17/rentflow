@@ -4164,6 +4164,42 @@ export type Database = {
           },
         ]
       }
+      internship_applications: {
+        Row: {
+          created_at: string
+          email: string | null
+          full_name: string
+          id: string
+          motivation: string | null
+          phone: string
+          ready_to_learn: boolean | null
+          referral_code: string | null
+          skills: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          full_name: string
+          id?: string
+          motivation?: string | null
+          phone: string
+          ready_to_learn?: boolean | null
+          referral_code?: string | null
+          skills?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          full_name?: string
+          id?: string
+          motivation?: string | null
+          phone?: string
+          ready_to_learn?: boolean | null
+          referral_code?: string | null
+          skills?: string | null
+        }
+        Relationships: []
+      }
       investment_withdrawal_requests: {
         Row: {
           amount: number

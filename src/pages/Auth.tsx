@@ -24,7 +24,7 @@ const VALID_SIGNUP_ROLES = ['tenant', 'agent', 'landlord', 'supporter'] as const
 const ROLE_OPTIONS = [
   { role: 'tenant' as const, emoji: '🏠', label: 'I need rent help', desc: 'Get funded instantly', gradient: 'from-blue-500 to-indigo-600' },
   { role: 'supporter' as const, emoji: '💰', label: 'I want to earn', desc: '15% monthly returns', gradient: 'from-emerald-500 to-teal-600' },
-  { role: 'agent' as const, emoji: '⚡', label: 'I want to hustle', desc: 'Register & earn cash', gradient: 'from-amber-500 to-orange-600' },
+  { role: 'agent' as const, emoji: '⚡', label: 'I want to earn and learn', desc: 'Register & earn cash', gradient: 'from-amber-500 to-orange-600' },
   { role: 'landlord' as const, emoji: '🏢', label: 'Guaranteed rent', desc: 'Never chase tenants', gradient: 'from-purple-500 to-violet-600' },
 ];
 
@@ -64,6 +64,20 @@ export default function Auth() {
   const { toast } = useToast();
   const { user, loading: authLoading, signIn: authSignIn } = useAuth();
   const [emailLoginLoading, setEmailLoginLoading] = useState(false);
+
+  // Internship funnel: auto-fill from query params and switch to signup
+  useEffect(() => {
+    const source = searchParams.get('source');
+    if (source === 'internship') {
+      setIsSignUp(true);
+      const nameParam = searchParams.get('name');
+      const phoneParam = searchParams.get('phone');
+      const emailParam = searchParams.get('email');
+      if (nameParam) setFullName(decodeURIComponent(nameParam));
+      if (phoneParam) setPhone(decodeURIComponent(phoneParam));
+      if (emailParam) setEmail(decodeURIComponent(emailParam));
+    }
+  }, []); // Run once on mount
 
   const hasValidRole = !!preSelectedRole && VALID_SIGNUP_ROLES.includes(preSelectedRole as any);
   const needsRoleSelection = isSignUp && !hasValidRole;

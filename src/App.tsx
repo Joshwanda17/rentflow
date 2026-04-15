@@ -137,6 +137,7 @@ const AgentAgreement = lazy(() => import('./pages/AgentAgreement'));
 const AngelPool = lazy(() => import('./pages/AngelPool'));
 const AngelPoolAgreement = lazy(() => import('./pages/AngelPoolAgreement'));
 const AgentCommissionBenefits = lazy(() => import('./pages/AgentCommissionBenefits'));
+const Internship = lazy(() => import('./pages/Internship'));
 
 // Detect iOS standalone mode for cache settings
 const isIOSStandalone = (() => {
@@ -244,7 +245,8 @@ function AppRoutes() {
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/welcome" element={<Landing />} />
-          <Route path="/auth" element={<Auth />} />
+           <Route path="/internship" element={<Internship />} />
+           <Route path="/auth" element={<Auth />} />
           <Route path="/r/:code" element={<ResolveShortLink />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/select-role" element={<SelectRole />} />
