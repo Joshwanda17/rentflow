@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { optimizeImage } from '@/lib/imageOptimizer';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,7 @@ export function ServiceCentreSubmissionForm() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [submitStep, setSubmitStep] = useState<'compressing' | 'uploading' | 'saving' | null>(null);
 
   const { data: profile } = useQuery({
     queryKey: ['agent-profile-for-sc', user?.id],
@@ -82,13 +84,28 @@ export function ServiceCentreSubmissionForm() {
 
     setSubmitting(true);
     try {
-      const ext = photoFile.name.split('.').pop() || 'jpg';
+      // Step 1: Compress
+      setSubmitStep('compressing');
+      const optimized = await optimizeImage(photoFile, { maxWidth: 1200, maxHeight: 1200, quality: 0.8 });
+      const compressedFile = optimized.file;
+
+      // Step 2: Upload with timeout
+      setSubmitStep('uploading');
+      const ext = compressedFile.name.split('.').pop() || 'jpg';
       const filePath = `${user.id}/${Date.now()}.${ext}`;
-      const { error: uploadErr } = await supabase.storage
+
+      const uploadPromise = supabase.storage
         .from('service-centre-photos')
-        .upload(filePath, photoFile);
+        .upload(filePath, compressedFile);
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Upload timed out')), 30000)
+      );
+
+      const { error: uploadErr } = await Promise.race([uploadPromise, timeoutPromise]);
       if (uploadErr) throw uploadErr;
 
+      // Step 3: Save record
+      setSubmitStep('saving');
       const { data: urlData } = supabase.storage
         .from('service-centre-photos')
         .getPublicUrl(filePath);
@@ -115,9 +132,13 @@ export function ServiceCentreSubmissionForm() {
       setLocationName('');
       queryClient.invalidateQueries({ queryKey: ['my-service-centre-setups'] });
     } catch (err: any) {
-      toast.error(err.message || 'Failed to submit');
+      const msg = err.message === 'Upload timed out'
+        ? 'Upload timed out. Check your connection and try again.'
+        : (err.message || 'Failed to submit');
+      toast.error(msg);
     } finally {
       setSubmitting(false);
+      setSubmitStep(null);
     }
   };
 
@@ -208,8 +229,17 @@ export function ServiceCentreSubmissionForm() {
             disabled={submitting || !photoFile || latitude === null || !locationName.trim()}
             className="w-full gap-2"
           >
-            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            Submit Service Centre
+            {submitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {submitStep === 'compressing' ? 'Compressing photo…' : submitStep === 'uploading' ? 'Uploading…' : 'Saving…'}
+              </>
+            ) : (
+              <>
+                <Send className="h-4 w-4" />
+                Submit Service Centre
+              </>
+            )}
           </Button>
         </CardContent>
       </Card>
