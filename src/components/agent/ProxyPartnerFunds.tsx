@@ -247,14 +247,20 @@ export function ProxyPartnerFunds() {
 
     approvedOps.forEach((op) => {
       const meta = op.metadata || {};
-      // Determine partner ID: prefer metadata.initiated_by, fallback to linked_party (if not self)
-      let partnerId = meta.initiated_by as string | null;
-      if (!partnerId || partnerId === user.id) {
-        partnerId = op.linked_party !== user.id ? op.linked_party : null;
-      }
-      // If still no partner, try to get from portfolio investor mapping
-      if (!partnerId && op.source_id && portfolioMap[op.source_id]) {
+      // Determine partner ID: BEST source is portfolio investor_id, then metadata, then linked_party
+      let partnerId: string | null = null;
+      // 1. Portfolio investor_id (most reliable)
+      if (op.source_id && portfolioMap[op.source_id]) {
         partnerId = portfolioMap[op.source_id].investor_id;
+      }
+      // 2. metadata.initiated_by (if not self)
+      if (!partnerId) {
+        const initiatedBy = meta.initiated_by as string | null;
+        if (initiatedBy && initiatedBy !== user.id) partnerId = initiatedBy;
+      }
+      // 3. linked_party (if not self)
+      if (!partnerId && op.linked_party && op.linked_party !== user.id) {
+        partnerId = op.linked_party;
       }
       if (!partnerId) return;
 
