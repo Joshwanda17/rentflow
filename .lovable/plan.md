@@ -1,27 +1,31 @@
 
 
-# Add "Share Landlord Signup" to Agent Menu Drawer
+# Fix Service Centre Submit Button — Spinning Forever
 
-## What's Missing
+## Problem
+The submit button spins indefinitely because phone camera photos (often 5-10MB) are uploaded raw to storage over slow mobile networks. The `supabase.storage.upload()` call hangs without any timeout or progress indicator, making it appear frozen.
 
-The landlord signup page (`/landlord-signup`) exists but there's **no share button** in the Agent Menu Drawer. The drawer already has share actions for Tenant Form, Partner Form, Funder, and Angel Investor — but not for landlords.
+## Solution
 
-## Plan
+### 1. Compress photos before upload
+Use the existing Canvas API image optimization pattern (already used elsewhere in the platform) to resize and compress photos to max 1200px width, WebP/JPEG format, ~80% quality. This reduces file size from 5-10MB to ~100-300KB.
 
-### 1. Add `onShareLandlordSignup` prop to `AgentMenuDrawer.tsx`
-- Add a new menu item in the "Share & Grow" section alongside the existing share links
-- Icon: `Building2`, Label: "Share Landlord Signup", Description: "Invite landlords to guarantee rent"
-- Badge: `🏠`
+### 2. Add upload timeout
+Wrap the storage upload in a `Promise.race` with a 30-second timeout so the button never spins forever. If it times out, show a clear error message.
 
-### 2. Wire up the handler in `AgentDashboard.tsx`
-- Add an `onShareLandlordSignup` async handler that:
-  - Generates a short link to `/landlord-signup?ref={agent.id}` using `createShortLink`
-  - Uses `navigator.share()` on mobile (WhatsApp-optimized) with a compelling message like: *"Guarantee your rent for 12 months with Welile! Sign up here: {link}"*
-  - Falls back to clipboard copy on desktop
-- Pass this handler to the `AgentMenuDrawer`
+### 3. Add progress feedback
+Replace the generic spinner with step-by-step status text:
+- "Compressing photo..." → "Uploading..." → "Saving..." → Done
+This gives users on slow connections confidence that something is happening.
 
-### Technical Details
-- **Files to edit**: `src/components/agent/AgentMenuDrawer.tsx`, `src/components/dashboards/AgentDashboard.tsx`
-- Follows the exact same pattern as `onShareTenantForm` and `onSharePartnerForm`
-- The `?ref=` param is already supported by the landlord signup page for agent attribution
+### 4. Add retry guidance on failure
+If upload fails, show a toast with actionable advice: "Upload failed. Check your connection and try again."
+
+## Files to Edit
+- **`src/components/agent/ServiceCentreSubmissionForm.tsx`** — Add image compression (Canvas API resize to 1200px, JPEG 0.8 quality), upload timeout wrapper, and step-by-step status text in the submit button.
+
+## Technical Details
+- Reuse the platform's established Canvas API pattern: `drawImage` → `toBlob('image/jpeg', 0.8)` with max 1200px dimension
+- Timeout: `Promise.race([upload, new Promise((_, reject) => setTimeout(() => reject(new Error('Upload timed out')), 30000))])`
+- Status states: `'compressing' | 'uploading' | 'saving' | null` displayed in the button label
 
