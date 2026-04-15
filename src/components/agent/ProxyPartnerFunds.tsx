@@ -20,19 +20,14 @@ interface PartnerBalance {
   available: number;
 }
 
-interface PendingWithdrawal {
-  partnerId: string;
-  status: string;
-}
-
-interface LedgerCredit {
-  user_id: string | null;
-  linked_party: string | null;
+interface PwoEntry {
+  id: string;
   amount: number;
-  direction: string;
-  category: string;
+  linked_party: string | null;
   source_id: string | null;
-  transaction_group_id: string | null;
+  description: string | null;
+  metadata: Record<string, any> | null;
+  created_at: string;
 }
 
 interface PortfolioInfo {
@@ -46,9 +41,8 @@ export function ProxyPartnerFunds() {
   const { user } = useAuth();
   const { formatAmount } = useCurrency();
   const [loading, setLoading] = useState(true);
-  const [approvedPartnerIds, setApprovedPartnerIds] = useState<string[]>([]);
+  const [approvedOps, setApprovedOps] = useState<PwoEntry[]>([]);
   const [profiles, setProfiles] = useState<Record<string, { full_name: string; phone: string }>>({});
-  const [ledgerCredits, setLedgerCredits] = useState<LedgerCredit[]>([]);
   const [completedWithdrawals, setCompletedWithdrawals] = useState<any[]>([]);
   const [portfolios, setPortfolios] = useState<PortfolioInfo[]>([]);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
@@ -91,46 +85,23 @@ export function ProxyPartnerFunds() {
     if (!user?.id) return;
     setLoading(true);
     try {
-      // Step 1: Get approved proxy assignments only
-      const { data: assignments, error: assignmentsError } = await supabase
-        .from('proxy_agent_assignments')
-        .select('beneficiary_id')
-        .eq('agent_id', user.id)
-        .eq('beneficiary_role', 'supporter')
-        .eq('approval_status', 'approved')
-        .eq('is_active', true);
-
-      if (assignmentsError) throw assignmentsError;
-
-      const approvedIds = [...new Set((assignments || []).map(a => a.beneficiary_id).filter(Boolean))];
-      setApprovedPartnerIds(approvedIds);
-
-      if (approvedIds.length === 0) {
-        setProfiles({});
-        setLedgerCredits([]);
-        setCompletedWithdrawals([]);
-        setPortfolios([]);
-        setPartnerWithdrawalStatus({});
-        setLoading(false);
-        return;
-      }
-
-      // Step 2: First, get CFO-approved ROI payout transaction_group_ids for this proxy agent
-      const { data: approvedOps } = await supabase
+      // Step 1: Get CFO-approved ROI payouts directed to this proxy agent's wallet
+      // This is the SOLE source of truth — only CFO-approved entries appear
+      const { data: pwoData, error: pwoError } = await supabase
         .from('pending_wallet_operations')
-        .select('transaction_group_id')
+        .select('id, amount, linked_party, source_id, description, metadata, created_at')
         .eq('target_wallet_user_id', user.id)
         .in('category', ['roi_payout', 'supporter_platform_rewards'])
         .eq('status', 'approved')
-        .not('transaction_group_id', 'is', null);
+        .order('created_at', { ascending: false });
 
-      const approvedGroupIds = (approvedOps || [])
-        .map(op => op.transaction_group_id)
-        .filter(Boolean) as string[];
+      if (pwoError) throw pwoError;
 
-      if (approvedGroupIds.length === 0) {
+      const ops = (pwoData || []) as PwoEntry[];
+      setApprovedOps(ops);
+
+      if (ops.length === 0) {
         setProfiles({});
-        setLedgerCredits([]);
         setCompletedWithdrawals([]);
         setPortfolios([]);
         setPartnerWithdrawalStatus({});
@@ -138,21 +109,66 @@ export function ProxyPartnerFunds() {
         return;
       }
 
-      // Step 3: Fetch profiles, ledger credits (ONLY from CFO-approved transactions), withdrawals, and portfolios
-      const [profileRes, ledgerRes, completedRes, activeWithdrawalRes, portfolioRes] = await Promise.all([
+      // Step 2: Collect portfolio IDs first to resolve actual partner (investor) IDs
+      const portfolioIds = new Set<string>();
+      ops.forEach(op => {
+        if (op.source_id) portfolioIds.add(op.source_id);
+      });
+      const uniquePortfolioIds = [...portfolioIds];
+
+      // Fetch portfolios first so we can resolve partner IDs
+      let fetchedPortfolios: PortfolioInfo[] = [];
+      if (uniquePortfolioIds.length > 0) {
+        const { data: portfolioData } = await supabase
+          .from('investor_portfolios')
+          .select('id, portfolio_code, account_name, investor_id')
+          .in('id', uniquePortfolioIds);
+        fetchedPortfolios = (portfolioData || []) as PortfolioInfo[];
+      }
+      setPortfolios(fetchedPortfolios);
+
+      // Build portfolio→investor map
+      const portfolioToInvestor: Record<string, string> = {};
+      fetchedPortfolios.forEach(p => { portfolioToInvestor[p.id] = p.investor_id; });
+
+      // Extract unique partner IDs: prefer portfolio investor_id, then metadata.initiated_by (if not self), then linked_party (if not self)
+      const partnerIds = new Set<string>();
+      ops.forEach(op => {
+        const meta = op.metadata || {};
+        // Best source: portfolio investor_id
+        if (op.source_id && portfolioToInvestor[op.source_id]) {
+          partnerIds.add(portfolioToInvestor[op.source_id]);
+          return;
+        }
+        // Fallback: metadata.initiated_by if it's not the agent
+        const initiatedBy = meta.initiated_by as string | null;
+        if (initiatedBy && initiatedBy !== user.id) {
+          partnerIds.add(initiatedBy);
+          return;
+        }
+        // Last resort: linked_party if not self
+        if (op.linked_party && op.linked_party !== user.id) {
+          partnerIds.add(op.linked_party);
+        }
+      });
+
+      const uniquePartnerIds = [...partnerIds];
+
+      if (uniquePartnerIds.length === 0) {
+        setProfiles({});
+        setCompletedWithdrawals([]);
+        setPartnerWithdrawalStatus({});
+        setLoading(false);
+        return;
+      }
+
+      // Step 4: Fetch profiles, completed withdrawals, active withdrawals in parallel
+      const [profileRes, completedRes, activeWithdrawalRes] = await Promise.all([
         supabase
           .from('profiles')
           .select('id, full_name, phone')
-          .in('id', approvedIds),
-        // Only fetch ledger entries tied to CFO-approved ROI payouts via transaction_group_id
-        supabase
-          .from('general_ledger')
-          .select('user_id, linked_party, amount, direction, category, source_id, transaction_group_id')
-          .eq('user_id', user.id)
-          .eq('direction', 'cash_in')
-          .in('category', ['roi_payout', 'roi_wallet_credit'])
-          .in('transaction_group_id', approvedGroupIds),
-        // Completed withdrawals for these partners (delivered)
+          .in('id', uniquePartnerIds),
+        // Completed withdrawals for these partners (already delivered)
         supabase
           .from('withdrawal_requests')
           .select('linked_party, amount, status, reason')
@@ -162,15 +178,9 @@ export function ProxyPartnerFunds() {
         // Active (pending/processing) withdrawal requests
         supabase
           .from('withdrawal_requests')
-          .select('linked_party, status, reason')
+          .select('linked_party, status, reason, metadata')
           .eq('user_id', user.id)
           .in('status', ['pending', 'approved', 'processing', 'manager_approved']),
-        // Portfolios where THIS user is the proxy agent (not self-managed ones)
-        supabase
-          .from('investor_portfolios')
-          .select('id, portfolio_code, account_name, investor_id')
-          .eq('agent_id', user.id)
-          .neq('investor_id', user.id),
       ]);
 
       const profileMap: Record<string, { full_name: string; phone: string }> = {};
@@ -178,11 +188,9 @@ export function ProxyPartnerFunds() {
         profileMap[p.id] = { full_name: p.full_name || 'Unknown', phone: p.phone || '' };
       });
       setProfiles(profileMap);
-      setLedgerCredits((ledgerRes.data || []) as LedgerCredit[]);
-      setCompletedWithdrawals((completedRes.data || []).filter(w => approvedIds.includes(w.linked_party)));
-      setPortfolios((portfolioRes.data || []) as PortfolioInfo[]);
+      setCompletedWithdrawals((completedRes.data || []).filter(w => uniquePartnerIds.includes(w.linked_party)));
 
-      // Build active withdrawal status map keyed by partnerId-portfolioId
+      // Build active withdrawal status map
       const statusMap: Record<string, string> = {};
       (activeWithdrawalRes.data || []).forEach((w: any) => {
         const meta = (w.metadata || {}) as Record<string, any>;
@@ -190,14 +198,13 @@ export function ProxyPartnerFunds() {
           ? `${w.linked_party}-${meta.portfolio_id}`
           : w.linked_party;
 
-        if (w.linked_party && approvedIds.includes(w.linked_party)) {
+        if (w.linked_party && uniquePartnerIds.includes(w.linked_party)) {
           if (portfolioKey) {
             const existing = statusMap[portfolioKey];
             if (!existing || w.status === 'pending') {
               statusMap[portfolioKey] = w.status;
             }
           }
-          // Also set partner-level status for backward compat
           const existing = statusMap[w.linked_party];
           if (!existing || w.status === 'pending') {
             statusMap[w.linked_party] = w.status;
@@ -205,7 +212,7 @@ export function ProxyPartnerFunds() {
         }
         // Fallback: match by reason containing partner name
         if (!w.linked_party && w.reason) {
-          for (const pid of approvedIds) {
+          for (const pid of uniquePartnerIds) {
             const name = profileMap[pid]?.full_name;
             if (name && w.reason.includes(name)) {
               const existing = statusMap[pid];
@@ -225,7 +232,7 @@ export function ProxyPartnerFunds() {
     }
   };
 
-  // Build a map of portfolio id -> portfolio info
+  // Build portfolio lookup map
   const portfolioMap = useMemo(() => {
     const map: Record<string, PortfolioInfo> = {};
     portfolios.forEach(p => { map[p.id] = p; });
@@ -233,78 +240,82 @@ export function ProxyPartnerFunds() {
   }, [portfolios]);
 
   const partnerBalances = useMemo<PartnerBalance[]>(() => {
-    // Build a map of portfolio_id -> investor_id from fetched portfolios
-    const portfolioToInvestor: Record<string, string> = {};
-    portfolios.forEach(p => { portfolioToInvestor[p.id] = p.investor_id; });
+    if (!user?.id) return [];
 
-    // Group ledger entries by (partnerId, source_id)
-    const groupMap: Record<string, { partnerId: string; portfolioId: string | null; entries: LedgerCredit[] }> = {};
+    // Group PWO entries by (partnerId, portfolioId)
+    const groupMap: Record<string, { partnerId: string; portfolioId: string | null; totalAmount: number }> = {};
 
-    ledgerCredits.forEach((entry) => {
-      // Determine partnerId: prefer linked_party, fallback to portfolio->investor mapping
-      let partnerId = entry.linked_party;
-      if (!partnerId && entry.source_id && portfolioToInvestor[entry.source_id]) {
-        partnerId = portfolioToInvestor[entry.source_id];
+    approvedOps.forEach((op) => {
+      const meta = op.metadata || {};
+      // Determine partner ID: BEST source is portfolio investor_id, then metadata, then linked_party
+      let partnerId: string | null = null;
+      // 1. Portfolio investor_id (most reliable)
+      if (op.source_id && portfolioMap[op.source_id]) {
+        partnerId = portfolioMap[op.source_id].investor_id;
       }
-      if (!partnerId || !approvedPartnerIds.includes(partnerId)) return;
-      const key = `${partnerId}-${entry.source_id || 'no_portfolio'}`;
+      // 2. metadata.initiated_by (if not self)
+      if (!partnerId) {
+        const initiatedBy = meta.initiated_by as string | null;
+        if (initiatedBy && initiatedBy !== user.id) partnerId = initiatedBy;
+      }
+      // 3. linked_party (if not self)
+      if (!partnerId && op.linked_party && op.linked_party !== user.id) {
+        partnerId = op.linked_party;
+      }
+      if (!partnerId) return;
+
+      const key = `${partnerId}-${op.source_id || 'no_portfolio'}`;
       if (!groupMap[key]) {
-        groupMap[key] = { partnerId, portfolioId: entry.source_id, entries: [] };
+        groupMap[key] = { partnerId, portfolioId: op.source_id, totalAmount: 0 };
       }
-      groupMap[key].entries.push(entry);
+      groupMap[key].totalAmount += Number(op.amount) || 0;
     });
 
-    // Group completed withdrawals by linked_party (portfolio-level tracking will apply to new withdrawals)
+    // Group completed withdrawals by linked_party
     const withdrawalsByPartner: Record<string, number> = {};
     completedWithdrawals.forEach(w => {
       withdrawalsByPartner[w.linked_party] = (withdrawalsByPartner[w.linked_party] || 0) + (Number(w.amount) || 0);
     });
 
-    // STEP 1: Compute partner-level net balance (source of truth)
-    // Sum ALL entries per partner — no grouping by source_id, no clamping
-    const partnerNet: Record<string, number> = {};
+    // Compute partner-level totals
+    const partnerTotals: Record<string, number> = {};
     Object.values(groupMap).forEach(g => {
-      const groupNet = g.entries.reduce((s, e) => s + (e.direction === 'cash_out' ? -Number(e.amount) : Number(e.amount)), 0);
-      partnerNet[g.partnerId] = (partnerNet[g.partnerId] || 0) + groupNet;
+      partnerTotals[g.partnerId] = (partnerTotals[g.partnerId] || 0) + g.totalAmount;
     });
 
-    // Single clamp at partner level AFTER subtracting withdrawals
+    // Single clamp at partner level after subtracting withdrawals
     const partnerAvailable: Record<string, number> = {};
-    Object.keys(partnerNet).forEach(partnerId => {
+    Object.keys(partnerTotals).forEach(partnerId => {
       const totalWithdrawn = withdrawalsByPartner[partnerId] || 0;
-      partnerAvailable[partnerId] = Math.max(0, partnerNet[partnerId] - totalWithdrawn);
+      partnerAvailable[partnerId] = Math.max(0, partnerTotals[partnerId] - totalWithdrawn);
     });
 
-    // STEP 2: Compute per-group net for proportional display
-    const groupNets: Record<string, number> = {};
-    const positiveGroupSumByPartner: Record<string, number> = {};
-    Object.entries(groupMap).forEach(([key, g]) => {
-      const groupNet = g.entries.reduce((s, e) => s + (e.direction === 'cash_out' ? -Number(e.amount) : Number(e.amount)), 0);
-      groupNets[key] = groupNet;
-      if (groupNet > 0) {
-        positiveGroupSumByPartner[g.partnerId] = (positiveGroupSumByPartner[g.partnerId] || 0) + groupNet;
-      }
-    });
-
-    // STEP 3: Build display entries — distribute partnerAvailable proportionally across positive groups
+    // Build display entries — distribute proportionally across portfolio groups
     return Object.entries(groupMap)
-      .filter(([key]) => groupNets[key] > 0) // Only show positive-net groups
-      .map(([key, group]) => {
-        const positiveSum = positiveGroupSumByPartner[group.partnerId] || 1;
-        const proportion = groupNets[key] / positiveSum;
+      .filter(([, g]) => g.totalAmount > 0)
+      .map(([, group]) => {
+        const partnerTotal = partnerTotals[group.partnerId] || 1;
+        const proportion = group.totalAmount / partnerTotal;
         const available = Math.round(partnerAvailable[group.partnerId] * proportion);
         const totalWithdrawn = Math.round((withdrawalsByPartner[group.partnerId] || 0) * proportion);
 
         const pInfo = group.portfolioId ? portfolioMap[group.portfolioId] : null;
+        // Use metadata partner_name as fallback if profile not found
+        const partnerName = profiles[group.partnerId]?.full_name
+          || approvedOps.find(op => {
+            const m = op.metadata || {};
+            return m.initiated_by === group.partnerId || op.linked_party === group.partnerId;
+          })?.metadata?.partner_name as string
+          || 'Unknown Partner';
 
         return {
           partnerId: group.partnerId,
-          partnerName: profiles[group.partnerId]?.full_name || 'Unknown Partner',
+          partnerName,
           partnerPhone: profiles[group.partnerId]?.phone || '',
           portfolioId: group.portfolioId,
           portfolioCode: pInfo?.portfolio_code || null,
           accountName: pInfo?.account_name || null,
-          totalReturns: Math.round(Math.max(0, partnerNet[group.partnerId]) * proportion),
+          totalReturns: Math.round(group.totalAmount),
           totalWithdrawn,
           available,
         };
@@ -315,7 +326,7 @@ export function ProxyPartnerFunds() {
         if (b.totalReturns !== a.totalReturns) return b.totalReturns - a.totalReturns;
         return a.partnerName.localeCompare(b.partnerName);
       });
-  }, [approvedPartnerIds, ledgerCredits, completedWithdrawals, profiles, portfolioMap]);
+  }, [approvedOps, completedWithdrawals, profiles, portfolioMap, user?.id]);
 
   const handleWithdraw = async (partner: PartnerBalance) => {
     setSelectedPartnerId(partner.partnerId);
@@ -449,48 +460,23 @@ export function ProxyPartnerFunds() {
                 </div>
                 <div className="rounded-lg bg-muted/50 p-2">
                   <p className="text-[10px] text-muted-foreground">Delivered</p>
-                  <p className="text-xs font-bold text-foreground tabular-nums">{formatAmount(partner.totalWithdrawn)}</p>
+                  <p className="text-xs font-bold tabular-nums">{formatAmount(partner.totalWithdrawn)}</p>
                 </div>
                 <div className="rounded-lg bg-primary/10 p-2">
-                  <p className="text-[10px] text-muted-foreground">Available</p>
+                  <p className="text-[10px] text-muted-foreground">To Withdraw</p>
                   <p className="text-xs font-bold text-primary tabular-nums">{formatAmount(partner.available)}</p>
                 </div>
               </div>
 
-              {partner.available > 0 && !hasPending && (
-                <Button
-                  size="sm"
-                  className="w-full gap-2"
-                  onClick={() => handleWithdraw(partner)}
-                >
-                  <ArrowUpRight className="h-4 w-4" />
-                  Withdraw {formatAmount(partner.available)}
-                </Button>
-              )}
-
-              {partner.available > 0 && hasPending && (
-                <Button
-                  size="sm"
-                  className="w-full gap-2"
-                  variant="outline"
-                  disabled
-                >
-                  <Clock className="h-4 w-4" />
-                  Withdrawal {partnerWithdrawalStatus[statusKey] === 'pending' ? 'Pending Approval' : 'Processing'}
-                </Button>
-              )}
-
-              {partner.available <= 0 && partner.totalReturns > 0 && (
-                <div className="text-center">
-                  <Badge variant="secondary" className="text-xs">Fully delivered</Badge>
-                </div>
-              )}
-
-              {partner.available <= 0 && partner.totalReturns === 0 && (
-                <div className="text-center">
-                  <Badge variant="secondary" className="text-xs">No returns accrued yet</Badge>
-                </div>
-              )}
+              <Button
+                size="sm"
+                className="w-full gap-1"
+                onClick={() => handleWithdraw(partner)}
+                disabled={partner.available <= 0 || hasPending}
+              >
+                <ArrowUpRight className="h-3.5 w-3.5" />
+                {hasPending ? 'Withdrawal In Progress' : `Withdraw ${formatAmount(partner.available)}`}
+              </Button>
             </CardContent>
           </Card>
         );
@@ -499,11 +485,10 @@ export function ProxyPartnerFunds() {
       <WithdrawRequestDialog
         open={withdrawOpen}
         onOpenChange={setWithdrawOpen}
-        walletBalance={prefillAmount}
+        onSuccess={handleWithdrawSuccess}
         prefillAmount={prefillAmount}
         prefillReason={prefillReason}
         linkedParty={selectedPartnerId}
-        onSuccess={handleWithdrawSuccess}
       />
     </div>
   );
