@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { portfolio_id, amount, reason } = body;
+    const { portfolio_id, amount, reason, payment_method } = body;
 
     // Validate inputs
     if (!portfolio_id || !UUID_RE.test(portfolio_id)) {
