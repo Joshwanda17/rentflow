@@ -235,8 +235,9 @@ Deno.serve(async (req) => {
         reference: reference.trim().toUpperCase(),
         payment_method,
         txn_group_id: txnGroupId,
-        previous_balance: wallet.balance,
-        new_balance: wallet.balance - amount,
+        previous_balance: effectiveBalance,
+        new_balance: effectiveBalance - amount,
+        pending_hold_reversed: totalPendingHold,
       },
     });
 
