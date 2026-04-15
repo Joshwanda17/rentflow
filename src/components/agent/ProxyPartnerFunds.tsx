@@ -2,11 +2,17 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Users, ArrowUpRight, Clock, CheckCircle2 } from 'lucide-react';
+import { Loader2, Users, ArrowUpRight, Clock, CheckCircle2, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrency } from '@/hooks/useCurrency';
 import { WithdrawRequestDialog } from '@/components/wallet/WithdrawRequestDialog';
+import { toast } from 'sonner';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface PartnerBalance {
   partnerId: string;
@@ -50,7 +56,10 @@ export function ProxyPartnerFunds() {
   const [prefillReason, setPrefillReason] = useState('');
   const [selectedPartnerId, setSelectedPartnerId] = useState<string>('');
   const [partnerWithdrawalStatus, setPartnerWithdrawalStatus] = useState<Record<string, string>>({});
-
+  const [partnerWithdrawalIds, setPartnerWithdrawalIds] = useState<Record<string, string>>({});
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<{ key: string; withdrawalId: string; partnerName: string } | null>(null);
   useEffect(() => {
     if (!user?.id) return;
     loadProxyFunds();
@@ -192,7 +201,7 @@ export function ProxyPartnerFunds() {
         // Active (pending/processing) withdrawal requests
         supabase
           .from('withdrawal_requests')
-          .select('linked_party, status, reason, metadata')
+          .select('id, linked_party, status, reason, metadata')
           .eq('user_id', user.id)
           .in('status', ['pending', 'approved', 'processing', 'manager_approved']),
       ]);
@@ -204,8 +213,9 @@ export function ProxyPartnerFunds() {
       setProfiles(profileMap);
       setCompletedWithdrawals((completedRes.data || []).filter(w => uniquePartnerIds.includes(w.linked_party)));
 
-      // Build active withdrawal status map
+      // Build active withdrawal status map + ID map
       const statusMap: Record<string, string> = {};
+      const idMap: Record<string, string> = {};
       (activeWithdrawalRes.data || []).forEach((w: any) => {
         const meta = (w.metadata || {}) as Record<string, any>;
         const portfolioKey = meta.portfolio_id
@@ -217,14 +227,15 @@ export function ProxyPartnerFunds() {
             const existing = statusMap[portfolioKey];
             if (!existing || w.status === 'pending') {
               statusMap[portfolioKey] = w.status;
+              idMap[portfolioKey] = w.id;
             }
           }
           const existing = statusMap[w.linked_party];
           if (!existing || w.status === 'pending') {
             statusMap[w.linked_party] = w.status;
+            idMap[w.linked_party] = w.id;
           }
         }
-        // Fallback: match by reason containing partner name
         if (!w.linked_party && w.reason) {
           for (const pid of uniquePartnerIds) {
             const name = profileMap[pid]?.full_name;
@@ -232,6 +243,7 @@ export function ProxyPartnerFunds() {
               const existing = statusMap[pid];
               if (!existing || w.status === 'pending') {
                 statusMap[pid] = w.status;
+                idMap[pid] = w.id;
               }
               break;
             }
@@ -239,6 +251,7 @@ export function ProxyPartnerFunds() {
         }
       });
       setPartnerWithdrawalStatus(statusMap);
+      setPartnerWithdrawalIds(idMap);
     } catch (err) {
       console.error('Error loading proxy funds:', err);
     } finally {
@@ -376,6 +389,64 @@ export function ProxyPartnerFunds() {
     loadProxyFunds();
   };
 
+  const handleCancelRequest = (partner: PartnerBalance) => {
+    const key = getStatusKey(partner);
+    const withdrawalId = partnerWithdrawalIds[key];
+    if (!withdrawalId) return;
+    setCancelTarget({ key, withdrawalId, partnerName: partner.partnerName });
+    setCancelConfirmOpen(true);
+  };
+
+  const confirmCancel = async () => {
+    if (!cancelTarget || !user?.id) return;
+    setCancellingId(cancelTarget.withdrawalId);
+    try {
+      // 1. Update withdrawal_requests status to 'cancelled'
+      const { error } = await supabase
+        .from('withdrawal_requests')
+        .update({ status: 'cancelled' } as any)
+        .eq('id', cancelTarget.withdrawalId);
+      if (error) throw error;
+
+      // 2. Reverse the held-funds ledger entry (cash_in to restore balance)
+      await supabase.from('general_ledger').insert({
+        user_id: user.id,
+        amount: prefillAmount,
+        direction: 'cash_in',
+        category: 'withdrawal_reversal',
+        description: `Proxy withdrawal cancelled by agent for ${cancelTarget.partnerName}`,
+        currency: 'UGX',
+        transaction_group_id: `wallet-withdraw-cancel-${cancelTarget.withdrawalId}`,
+        source_table: 'withdrawal_requests',
+        source_id: cancelTarget.withdrawalId,
+        ledger_scope: 'platform',
+      } as any);
+
+      // 3. Audit log
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: 'proxy_withdrawal_cancelled',
+        table_name: 'withdrawal_requests',
+        record_id: cancelTarget.withdrawalId,
+        metadata: {
+          partner_name: cancelTarget.partnerName,
+          cancelled_by: user.id,
+        },
+      } as any);
+
+      toast.success('Withdrawal cancelled', {
+        description: `The withdrawal request for ${cancelTarget.partnerName} has been cancelled and funds restored.`,
+      });
+      loadProxyFunds();
+    } catch (err: any) {
+      toast.error('Failed to cancel', { description: err.message });
+    } finally {
+      setCancellingId(null);
+      setCancelConfirmOpen(false);
+      setCancelTarget(null);
+    }
+  };
+
   const getStatusKey = (partner: PartnerBalance) => {
     if (partner.portfolioId) {
       const portfolioKey = `${partner.partnerId}-${partner.portfolioId}`;
@@ -482,15 +553,42 @@ export function ProxyPartnerFunds() {
                 </div>
               </div>
 
-              <Button
-                size="sm"
-                className="w-full gap-1"
-                onClick={() => handleWithdraw(partner)}
-                disabled={partner.available <= 0 || hasPending}
-              >
-                <ArrowUpRight className="h-3.5 w-3.5" />
-                {hasPending ? 'Withdrawal In Progress' : `Withdraw ${formatAmount(partner.available)}`}
-              </Button>
+              {hasPending && partnerWithdrawalStatus[statusKey] === 'pending' ? (
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    className="flex-1 gap-1"
+                    disabled
+                  >
+                    <Clock className="h-3.5 w-3.5" />
+                    Withdrawal Pending
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="gap-1"
+                    disabled={cancellingId === partnerWithdrawalIds[statusKey]}
+                    onClick={() => handleCancelRequest(partner)}
+                  >
+                    {cancellingId === partnerWithdrawalIds[statusKey] ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <XCircle className="h-3.5 w-3.5" />
+                    )}
+                    Cancel
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  size="sm"
+                  className="w-full gap-1"
+                  onClick={() => handleWithdraw(partner)}
+                  disabled={partner.available <= 0 || hasPending}
+                >
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                  {hasPending ? 'Withdrawal In Progress' : `Withdraw ${formatAmount(partner.available)}`}
+                </Button>
+              )}
             </CardContent>
           </Card>
         );
@@ -504,6 +602,26 @@ export function ProxyPartnerFunds() {
         prefillReason={prefillReason}
         linkedParty={selectedPartnerId}
       />
+
+      <AlertDialog open={cancelConfirmOpen} onOpenChange={setCancelConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Withdrawal?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will cancel the pending withdrawal for <strong>{cancelTarget?.partnerName}</strong> and restore the funds to the available balance. This action is audited.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Request</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmCancel}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Yes, Cancel Withdrawal
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
