@@ -1,34 +1,79 @@
 
 
-## Plan: Fix Outstanding Balance Tenant Registration Feedback
+# ROI Payout Pipeline Redesign — Remove Financial Ops, Add COO Approval Stage
 
-### Problem
-When an agent registers a tenant with an existing outstanding balance, the submission completes but:
-1. The success screen says "Request Posted! The rent request is now visible to supporters" — misleading for outstanding balances which are debt registrations, not fundable rent requests
-2. No confirmation that the tenant account was actually created/linked
-3. No way to distinguish outstanding balance entries from regular rent requests in the "My Tenants" list
+## Summary
 
-### Changes
+Restructure the ROI payout flow so that when Partner Ops or COO initiates a partner payout from "Nearing Payouts," it first goes through a **COO approval stage** (new section on COO Dashboard), and only after COO approval does it appear on the **CFO Dashboard** as an ROI expense item ready for disbursement — mirroring how the Rent Disbursement Queue works.
 
-**File 1: `src/components/agent/AgentRentRequestDialog.tsx`**
-- Update the success screen to show different messaging when `incomeType === 'outstanding'`:
-  - Title: "Tenant Registered!" instead of "Request Posted!"
-  - Description: "Outstanding balance of UGX X has been recorded for [tenant name]" instead of supporter-related text
-  - Show tenant name, amount, and duration in a summary card
-  - Keep the activation link section as-is (still needed for new tenants)
-- Store `incomeType` in a ref or state that persists into the success screen (currently it's available since the form state isn't reset until dialog closes)
+## New Pipeline Flow
 
-**File 2: `src/components/agent/AgentTenantsSheet.tsx`**
-- When displaying tenant rent requests in the expanded view, add a badge/indicator for entries where `registration_type === 'outstanding_balance'`
-- Fetch `registration_type` in the rent request select query
-- Show a distinct "Outstanding Balance" badge (amber) vs regular rent requests
+```text
+Partner Ops / COO (Nearing Payouts)
+  ↓  initiates payout → status: 'pending_coo_approval'
+COO Dashboard → "ROI Return Approvals" (NEW section)
+  ↓  COO approves → status: 'coo_approved'
+CFO Dashboard → "ROI Payout Expense" queue (batch disbursement)
+  ↓  CFO disburses → wallet credited, ledger entries written
+```
 
-### Technical details
-- No database changes needed — `registration_type` column already exists on `rent_requests`
-- Success screen conditionally renders based on `incomeType` state which is preserved until dialog close
-- Badge in tenant list uses existing `Badge` component with amber styling
+Financial Ops is completely removed from this pipeline.
 
-### Files
-- **Edit**: `src/components/agent/AgentRentRequestDialog.tsx` — Conditional success screen for outstanding flow
-- **Edit**: `src/components/agent/AgentTenantsSheet.tsx` — Add outstanding balance badge to tenant request list
+---
+
+## Technical Plan
+
+### Step 1 — Modify `handlePay` in COOPartnersPage (Nearing Payouts)
+
+Currently inserts into `pending_wallet_operations` with `status: 'pending'`. Change to:
+- Set `status` to `'pending_coo_approval'` (new status value)
+- Remove CFO notification — instead notify COO users
+- Keep audit log with action `roi_payout_initiated`
+
+### Step 2 — Create `COOROIApprovals` component
+
+New file: `src/components/coo/COOROIApprovals.tsx`
+
+- Queries `pending_wallet_operations` where `category = 'roi_payout'` AND `status = 'pending_coo_approval'`
+- Shows partner name, amount, portfolio reference, initiated date
+- **Bulk approval**: checkbox selection + "Approve All Selected" button
+- Individual approve/reject buttons
+- On approve: updates `status` to `'coo_approved'`, sets `reviewed_by` and `reviewed_at`
+- On reject: updates `status` to `'rejected'` with reason
+- Notifies CFO users on approval
+- Audit log entry: `coo_roi_approval`
+
+### Step 3 — Add "ROI Return Approvals" to COO Dashboard
+
+In `src/pages/COODashboard.tsx`:
+- Add `<COOROIApprovals />` section below existing withdrawal approvals
+- Include a pending count badge
+
+### Step 4 — Update CFO `CFOROIRequests` component
+
+Modify `src/components/cfo/CFOROIRequests.tsx`:
+- Change the pending filter from `status = 'pending'` to `status = 'coo_approved'`
+- This ensures only COO-approved items appear for CFO disbursement
+- The existing approve flow (calling `approve-wallet-operation` edge function) handles the actual wallet credit and ledger entries
+- Rename the section label to "ROI Payout — Expense" for clarity
+
+### Step 5 — Add bulk approval support to COOROIApprovals
+
+- Checkbox per row + "Select All" toggle
+- Batch approve button that processes all selected items
+- Batch reference input (like `RentDisbursementQueue` pattern)
+- Treasury impact banner showing total selected amount
+
+---
+
+## Files Changed
+
+| File | Action |
+|------|--------|
+| `src/components/coo/COOROIApprovals.tsx` | **Create** — New COO approval queue with bulk support |
+| `src/pages/COODashboard.tsx` | **Edit** — Add ROI Approvals section + menu item |
+| `src/components/coo/COOPartnersPage.tsx` | **Edit** — Change `handlePay` status to `pending_coo_approval`, notify COO instead of CFO |
+| `src/components/cfo/CFOROIRequests.tsx` | **Edit** — Filter on `coo_approved` status instead of `pending` |
+
+No database migration needed — `pending_wallet_operations.status` is a text column that already accepts arbitrary values.
 
