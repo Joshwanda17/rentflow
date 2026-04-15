@@ -111,6 +111,70 @@ export async function fetchPaginatedSupporterIds(
 }
 
 /**
+ * Fetch ALL active portfolios with their owner profiles for nearing payout computation.
+ * This runs independently of the paginated table view.
+ */
+export async function fetchAllNearingPayoutPortfolios(): Promise<{
+  portfolios: Array<{
+    id: string;
+    investor_id: string | null;
+    agent_id: string;
+    investment_amount: number;
+    roi_percentage: number;
+    payout_day: number;
+    roi_mode: string;
+    status: string;
+    created_at: string;
+    next_roi_date: string | null;
+    account_name: string | null;
+    portfolio_code: string;
+  }>;
+  profileMap: Map<string, { full_name: string; phone: string; email: string }>;
+  supporterIds: Set<string>;
+}> {
+  // 1. Get all supporter IDs
+  const allSupporterIds = await fetchAllUserIdsByRole('supporter');
+  if (allSupporterIds.length === 0) {
+    return { portfolios: [], profileMap: new Map(), supporterIds: new Set() };
+  }
+
+  const supporterIdSet = new Set(allSupporterIds);
+
+  // 2. Fetch ALL active portfolios belonging to supporters
+  const portfolios = await batchedQuery<any>(allSupporterIds, (batch) =>
+    supabase.from('investor_portfolios')
+      .select('id, investor_id, agent_id, investment_amount, roi_percentage, payout_day, roi_mode, status, created_at, next_roi_date, account_name, portfolio_code')
+      .or(`investor_id.in.(${batch.join(',')}),agent_id.in.(${batch.join(',')})`)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+  );
+
+  // Dedup
+  const seen = new Set<string>();
+  const deduped = portfolios.filter(p => {
+    if (seen.has(p.id)) return false;
+    seen.add(p.id);
+    return true;
+  });
+
+  // 3. Collect unique owner IDs and fetch profiles
+  const ownerIds = new Set<string>();
+  deduped.forEach(p => {
+    if (p.investor_id && supporterIdSet.has(p.investor_id)) ownerIds.add(p.investor_id);
+    else if (p.agent_id && supporterIdSet.has(p.agent_id)) ownerIds.add(p.agent_id);
+  });
+
+  const profiles = await batchedQuery<{ id: string; full_name: string; phone: string; email: string }>(
+    Array.from(ownerIds),
+    (batch) => supabase.from('profiles').select('id, full_name, phone, email').in('id', batch)
+  );
+
+  const profileMap = new Map(profiles.map(p => [p.id, p]));
+
+  return { portfolios: deduped, profileMap, supporterIds: supporterIdSet };
+}
+
+/**
  * Fetch lightweight summary stats for ALL supporters (count, total funded, etc.)
  * without loading full profile/wallet data.
  */
