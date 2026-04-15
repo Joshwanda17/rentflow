@@ -101,8 +101,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Only allow approval of pending/requested/manager_approved
-    const approvableStatuses = ["pending", "requested", "manager_approved"];
+    // Only allow approval of pending/requested/manager_approved/rejected (re-approval)
+    const approvableStatuses = ["pending", "requested", "manager_approved", "rejected"];
     if (!approvableStatuses.includes(wr.status)) {
       return new Response(JSON.stringify({ error: `Cannot approve: withdrawal is already '${wr.status}'` }), {
         status: 409,
