@@ -3137,7 +3137,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
           ? `[Agent Wallet] ROI payout of ${formatUGX(roiAmount)} to ${managed.agentName}'s agent wallet on behalf of ${p.name}. Portfolio: ${p.portfolioId.slice(0, 8)}. Reason: ${reason}`
           : `[${modeLabel}] ROI payout of ${formatUGX(roiAmount)} to ${p.name}'s wallet. Portfolio: ${p.portfolioId.slice(0, 8)}. Reason: ${reason}`,
         linked_party: user.id,
-        status: 'pending',
+        status: 'pending_coo_approval',
         metadata: {
           partner_name: p.name,
           roi_percentage: p.roiPercentage,
@@ -3172,22 +3172,23 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         metadata: { portfolio_id: p.portfolioId, roi_amount: roiAmount, reference: refId, pay_mode: mode },
       });
 
-      const { data: cfoUsers } = await supabase.from('user_roles').select('user_id').eq('role', 'cfo');
-      if (cfoUsers && cfoUsers.length > 0) {
+      // Notify COO users (not CFO — COO must approve first)
+      const { data: cooUsers } = await supabase.from('user_roles').select('user_id').eq('role', 'manager');
+      if (cooUsers && cooUsers.length > 0) {
         await supabase.from('notifications').insert(
-          cfoUsers.map(c => ({
+          cooUsers.map(c => ({
             user_id: c.user_id,
-            title: 'ROI Payout Awaiting Approval',
+            title: 'ROI Payout Awaiting COO Approval',
             message: isProxyAgent
-              ? `[Agent Wallet] ${p.name} → ${managed.agentName}: ${formatUGX(roiAmount)} pending CFO approval. Ref: ${refId}`
-              : `[${modeLabel}] ${p.name} has an ROI payout of ${formatUGX(roiAmount)} pending approval. Ref: ${refId}`,
+              ? `[Agent Wallet] ${p.name} → ${managed.agentName}: ${formatUGX(roiAmount)} pending COO approval. Ref: ${refId}`
+              : `[${modeLabel}] ${p.name} has an ROI payout of ${formatUGX(roiAmount)} pending COO approval. Ref: ${refId}`,
             type: 'approval_required',
             metadata: { portfolio_id: p.portfolioId, partner_id: p.investorId, roi_amount: roiAmount, reference: refId, pay_mode: mode },
           }))
         );
       }
 
-      toast.success(`${modeLabel}: ${formatUGX(roiAmount)} submitted for CFO approval`, { description: `Ref: ${refId}` });
+      toast.success(`${modeLabel}: ${formatUGX(roiAmount)} submitted for COO approval`, { description: `Ref: ${refId}` });
       setCompleted(prev => ({ ...prev, [p.portfolioId]: 'pending' }));
       setPaymentStep('list');
       setSelectedPayout(null);
