@@ -471,6 +471,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
                 placeholder="e.g. Plot 12, Nansana Road"
                 value={form.address}
                 onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
+                className={attempted && !form.address.trim() ? 'border-destructive' : ''}
               />
             </div>
             <div>
