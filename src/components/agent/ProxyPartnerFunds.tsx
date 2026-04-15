@@ -217,10 +217,7 @@ export function ProxyPartnerFunds() {
       const statusMap: Record<string, string> = {};
       const idMap: Record<string, string> = {};
       (activeWithdrawalRes.data || []).forEach((w: any) => {
-        const meta = (w.metadata || {}) as Record<string, any>;
-        const portfolioKey = meta.portfolio_id
-          ? `${w.linked_party}-${meta.portfolio_id}`
-          : w.linked_party;
+        const portfolioKey = w.linked_party;
 
         if (w.linked_party && uniquePartnerIds.includes(w.linked_party)) {
           if (portfolioKey) {
