@@ -14,6 +14,62 @@ export type Database = {
   }
   public: {
     Tables: {
+      advance_fee_config: {
+        Row: {
+          default_monthly_rate: number
+          id: string
+          max_rate: number
+          min_rate: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          default_monthly_rate?: number
+          id?: string
+          max_rate?: number
+          min_rate?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          default_monthly_rate?: number
+          id?: string
+          max_rate?: number
+          min_rate?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "advance_fee_config_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "advance_fee_config_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "advance_fee_config_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "advance_fee_config_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       agent_advance_ledger: {
         Row: {
           advance_id: string
@@ -55,6 +111,274 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "agent_advances"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_advance_requests: {
+        Row: {
+          access_fee: number
+          agent_id: string
+          agent_ops_notes: string | null
+          agent_ops_reviewed_at: string | null
+          approved_by_coo: string | null
+          cfo_adjusted_rate: number | null
+          cfo_notes: string | null
+          cfo_paid_at: string | null
+          coo_approved_at: string | null
+          coo_notes: string | null
+          created_at: string
+          cycle_days: number
+          daily_payment: number
+          id: string
+          landlord_ops_notes: string | null
+          landlord_ops_reviewed_at: string | null
+          monthly_rate: number
+          paid_by_cfo: string | null
+          principal: number
+          reason: string
+          registration_fee: number
+          rejection_reason: string | null
+          reviewed_by_agent_ops: string | null
+          reviewed_by_landlord_ops: string | null
+          reviewed_by_tenant_ops: string | null
+          status: string
+          tenant_ops_notes: string | null
+          tenant_ops_reviewed_at: string | null
+          total_payable: number
+          updated_at: string
+        }
+        Insert: {
+          access_fee?: number
+          agent_id: string
+          agent_ops_notes?: string | null
+          agent_ops_reviewed_at?: string | null
+          approved_by_coo?: string | null
+          cfo_adjusted_rate?: number | null
+          cfo_notes?: string | null
+          cfo_paid_at?: string | null
+          coo_approved_at?: string | null
+          coo_notes?: string | null
+          created_at?: string
+          cycle_days?: number
+          daily_payment?: number
+          id?: string
+          landlord_ops_notes?: string | null
+          landlord_ops_reviewed_at?: string | null
+          monthly_rate?: number
+          paid_by_cfo?: string | null
+          principal?: number
+          reason?: string
+          registration_fee?: number
+          rejection_reason?: string | null
+          reviewed_by_agent_ops?: string | null
+          reviewed_by_landlord_ops?: string | null
+          reviewed_by_tenant_ops?: string | null
+          status?: string
+          tenant_ops_notes?: string | null
+          tenant_ops_reviewed_at?: string | null
+          total_payable?: number
+          updated_at?: string
+        }
+        Update: {
+          access_fee?: number
+          agent_id?: string
+          agent_ops_notes?: string | null
+          agent_ops_reviewed_at?: string | null
+          approved_by_coo?: string | null
+          cfo_adjusted_rate?: number | null
+          cfo_notes?: string | null
+          cfo_paid_at?: string | null
+          coo_approved_at?: string | null
+          coo_notes?: string | null
+          created_at?: string
+          cycle_days?: number
+          daily_payment?: number
+          id?: string
+          landlord_ops_notes?: string | null
+          landlord_ops_reviewed_at?: string | null
+          monthly_rate?: number
+          paid_by_cfo?: string | null
+          principal?: number
+          reason?: string
+          registration_fee?: number
+          rejection_reason?: string | null
+          reviewed_by_agent_ops?: string | null
+          reviewed_by_landlord_ops?: string | null
+          reviewed_by_tenant_ops?: string | null
+          status?: string
+          tenant_ops_notes?: string | null
+          tenant_ops_reviewed_at?: string | null
+          total_payable?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_advance_requests_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_approved_by_coo_fkey"
+            columns: ["approved_by_coo"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_approved_by_coo_fkey"
+            columns: ["approved_by_coo"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_approved_by_coo_fkey"
+            columns: ["approved_by_coo"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_approved_by_coo_fkey"
+            columns: ["approved_by_coo"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_paid_by_cfo_fkey"
+            columns: ["paid_by_cfo"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_paid_by_cfo_fkey"
+            columns: ["paid_by_cfo"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_paid_by_cfo_fkey"
+            columns: ["paid_by_cfo"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_paid_by_cfo_fkey"
+            columns: ["paid_by_cfo"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_agent_ops_fkey"
+            columns: ["reviewed_by_agent_ops"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_agent_ops_fkey"
+            columns: ["reviewed_by_agent_ops"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_agent_ops_fkey"
+            columns: ["reviewed_by_agent_ops"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_agent_ops_fkey"
+            columns: ["reviewed_by_agent_ops"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_landlord_ops_fkey"
+            columns: ["reviewed_by_landlord_ops"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_landlord_ops_fkey"
+            columns: ["reviewed_by_landlord_ops"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_landlord_ops_fkey"
+            columns: ["reviewed_by_landlord_ops"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_landlord_ops_fkey"
+            columns: ["reviewed_by_landlord_ops"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_tenant_ops_fkey"
+            columns: ["reviewed_by_tenant_ops"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_tenant_ops_fkey"
+            columns: ["reviewed_by_tenant_ops"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_tenant_ops_fkey"
+            columns: ["reviewed_by_tenant_ops"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_tenant_ops_fkey"
+            columns: ["reviewed_by_tenant_ops"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
           },
         ]
       }
