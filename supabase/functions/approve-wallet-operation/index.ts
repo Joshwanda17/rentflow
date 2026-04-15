@@ -133,21 +133,27 @@ Deno.serve(async (req) => {
         const isManaged = !!op.target_wallet_user_id && op.target_wallet_user_id !== op.user_id;
 
         // Insert into general_ledger (this triggers wallet balance update via existing trigger)
-        // Determine ledger_scope based on category
-        const PLATFORM_CATEGORIES = [
-          'tenant_access_fee', 'tenant_request_fee', 'platform_service_income',
-          'landlord_platform_fee', 'management_fee', 'roi_payout',
-          'supporter_platform_rewards', 'agent_commission_payout',
-          'transaction_platform_expenses', 'operational_expenses',
+        // Determine ledger_scope for the USER-FACING entry (entry[0])
+        // Categories that credit/debit a user's wallet MUST use 'wallet' scope
+        // so the sync_wallet_from_ledger trigger fires and updates wallet balance.
+        const WALLET_CREDIT_CATEGORIES = [
+          'roi_payout', 'supporter_platform_rewards', 'agent_commission_payout',
           'agent_requisition', 'salary_payment', 'employee_advance',
           'platform_expense_disbursement',
         ];
+        const PLATFORM_ONLY_CATEGORIES = [
+          'tenant_access_fee', 'tenant_request_fee', 'platform_service_income',
+          'landlord_platform_fee', 'management_fee',
+          'transaction_platform_expenses', 'operational_expenses',
+        ];
         const BRIDGE_CATEGORIES = ['supporter_facilitation_capital', 'wallet_to_investment'];
-        const scopeForCategory = PLATFORM_CATEGORIES.includes(op.category)
-          ? 'platform'
+        const scopeForCategory = WALLET_CREDIT_CATEGORIES.includes(op.category)
+          ? 'wallet'
           : BRIDGE_CATEGORIES.includes(op.category)
             ? 'bridge'
-            : 'wallet';
+            : PLATFORM_ONLY_CATEGORIES.includes(op.category)
+              ? 'platform'
+              : 'wallet';
 
         // Insert into general_ledger via RPC
         const { data: rpcTxGroupId, error: ledgerErr } = await adminClient.rpc('create_ledger_transaction', {
