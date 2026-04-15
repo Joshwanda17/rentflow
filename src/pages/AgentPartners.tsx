@@ -12,7 +12,7 @@ import { format } from 'date-fns';
 import {
   ArrowLeft, Users, UserCheck, Activity, Search,
   Share2, FileText, Heart, Briefcase, PiggyBank, HandCoins,
-  Loader2, ChevronRight, Zap, RefreshCw, Phone, Wallet, Send,
+  Loader2, ChevronRight, Zap, RefreshCw, Phone, Wallet, Share2 as ShareIcon,
 } from 'lucide-react';
 
 // Lazy imports for dialogs
