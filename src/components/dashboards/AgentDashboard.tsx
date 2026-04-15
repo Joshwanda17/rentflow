@@ -180,6 +180,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [promissoryNoteOpen, setPromissoryNoteOpen] = useState(false);
   const [promissoryListOpen, setPromissoryListOpen] = useState(false);
 
+  const [showQuickDeposit, setShowQuickDeposit] = useState(false);
+  const [showQuickWithdraw, setShowQuickWithdraw] = useState(false);
+  const [showQuickTransfer, setShowQuickTransfer] = useState(false);
+
   const { isFinancialAgent } = useIsFinancialAgent();
   // Check if this agent is a CFO-assigned cashout agent
   const { data: isCashoutAgent } = useQuery({
