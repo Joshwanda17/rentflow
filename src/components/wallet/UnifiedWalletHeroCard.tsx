@@ -19,6 +19,8 @@ interface UnifiedWalletHeroCardProps {
   onHousesTap?: () => void;
   onReturnTap?: () => void;
   onDeployedTap?: () => void;
+  /** Optional quick action buttons rendered below the balance */
+  quickActions?: ReactNode;
 }
 
 const ROLE_LABELS: Record<WalletRole, string> = {
