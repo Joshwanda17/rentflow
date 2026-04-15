@@ -1,3 +1,4 @@
+import { ReactNode } from 'react';
 import { Wallet, ChevronRight, Shield, Home, TrendingUp, Rocket } from 'lucide-react';
 import { hapticTap } from '@/lib/haptics';
 import { useCurrency } from '@/hooks/useCurrency';
