@@ -23,6 +23,9 @@ export function AgentWalletHeroCard({
   territory,
 }: AgentWalletHeroCardProps) {
   const [showWallet, setShowWallet] = useState(false);
+  const [showDeposit, setShowDeposit] = useState(false);
+  const [showWithdraw, setShowWithdraw] = useState(false);
+  const [showTransfer, setShowTransfer] = useState(false);
   const { formatAmount, formatAmountCompact } = useCurrency();
 
   return (
