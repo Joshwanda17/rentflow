@@ -521,7 +521,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   }, []);
 
   /* ─── Nearing payouts: loaded independently from ALL supporters ─── */
-  const [nearingPayoutsLoading, setNearingPayoutsLoading] = useState(false);
+  const [nearingPayoutsLoading, setNearingPayoutsLoading] = useState(false); // eslint-disable-line -- top-level hook, after all other useState
   const fetchNearingPayoutsAsync = useCallback(async () => {
     setNearingPayoutsLoading(true);
     try {
