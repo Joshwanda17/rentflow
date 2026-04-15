@@ -93,6 +93,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
         .in('category', ['roi_payout', 'supporter_platform_rewards'])
         .eq('status', 'approved')
         .in('reviewed_by', cfoIds)
+        .not('metadata->coo_approved_by', 'is', null)
         .not('transaction_group_id', 'is', null);
       setHasProxyPartners((count || 0) > 0);
     };
