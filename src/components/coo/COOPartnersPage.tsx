@@ -2001,6 +2001,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                       setWalletToPortfolio(p);
                                       setWalletToPortfolioAmount('');
                                       setWalletToPortfolioReason('');
+                                      setWalletTransferMethod('wallet');
+                                      if (detailPartner?.profile?.id) fetchProxyAgentForPartner(detailPartner.profile.id);
                                     }}
                                   >
                                     <ArrowRightLeft className="h-3.5 w-3.5" /> Wallet → Portfolio
