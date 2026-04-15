@@ -651,18 +651,38 @@ export function ProxyPartnerFunds() {
         linkedParty={selectedPartnerId}
       />
 
-      <AlertDialog open={cancelConfirmOpen} onOpenChange={setCancelConfirmOpen}>
+      <AlertDialog open={cancelConfirmOpen} onOpenChange={(open) => {
+        setCancelConfirmOpen(open);
+        if (!open) setCancelReason('');
+      }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Cancel Withdrawal?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will cancel the pending withdrawal for <strong>{cancelTarget?.partnerName}</strong> and restore the funds to the available balance. This action is audited.
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  This will cancel the pending withdrawal for <strong>{cancelTarget?.partnerName}</strong> and restore the ROI funds to the available balance. COO &amp; Operations will be notified.
+                </p>
+                <div>
+                  <Label className="text-xs font-medium">Cancellation Reason (min 10 chars) *</Label>
+                  <Textarea
+                    placeholder="e.g. Partner requested to delay payout until next month"
+                    value={cancelReason}
+                    onChange={e => setCancelReason(e.target.value)}
+                    maxLength={500}
+                    rows={3}
+                    className="mt-1"
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{cancelReason.length}/500</p>
+                </div>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Keep Request</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmCancel}
+              disabled={cancelReason.trim().length < 10}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Yes, Cancel Withdrawal
