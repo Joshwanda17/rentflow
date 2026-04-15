@@ -411,6 +411,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
                 placeholder="e.g. 150000"
                 value={form.monthly_rent}
                 onChange={e => setForm(f => ({ ...f, monthly_rent: e.target.value }))}
+                className={attempted && !monthlyRent ? 'border-destructive' : ''}
               />
               {monthlyRent > 0 && (
                 <div className="mt-2 p-3 rounded-lg bg-success/10 border border-success/20">
