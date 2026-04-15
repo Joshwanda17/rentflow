@@ -1115,7 +1115,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     finally { setSavingEditPortfolio(false); }
   }
 
-  /* ─── Filtered / Sorted ─── */
+  /* ─── Filtered / Sorted (local filters on current page, search is server-side) ─── */
   const processed = useMemo(() => {
     let result = [...rows];
     if (filterStatus !== 'all') result = result.filter(r => r.status === filterStatus);
@@ -1124,10 +1124,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     else if (filterContact === 'no_phone') result = result.filter(r => !r.phone || r.phone.includes('@'));
     else if (filterContact === 'has_email') result = result.filter(r => r.email && !r.email.includes('placeholder'));
     else if (filterContact === 'no_email') result = result.filter(r => !r.email || r.email.includes('placeholder'));
-    // Payment date range filter
     if (payoutDateFrom || payoutDateTo) {
       result = result.filter(r => {
-        // Use the first portfolio's next_roi_date if available
         const portfolioData = (r as any).nextRoiDate;
         if (!portfolioData) return false;
         const nextPayout = new Date(portfolioData + 'T00:00:00');
@@ -1136,10 +1134,6 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         if (payoutDateTo && nextPayout > payoutDateTo) return false;
         return true;
       });
-    }
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter(r => r.name.toLowerCase().includes(q) || r.phone.includes(q) || r.email.toLowerCase().includes(q));
     }
     if (sortKey && sortDir) {
       result.sort((a, b) => {
@@ -1153,11 +1147,12 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       });
     }
     return result;
-  }, [rows, search, sortKey, sortDir, filterStatus, filterRoiMode, filterContact, payoutDateFrom, payoutDateTo]);
+  }, [rows, sortKey, sortDir, filterStatus, filterRoiMode, filterContact, payoutDateFrom, payoutDateTo]);
 
-  const totalPages = Math.max(1, Math.ceil(processed.length / PAGE_SIZE));
+  // Server-side pagination: use totalCount for page count, display all rows from current page
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const safePage = Math.min(page, totalPages - 1);
-  const paged = processed.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
+  const paged = processed;
 
   function handleSort(key: string) {
     if (sortKey === key) {
