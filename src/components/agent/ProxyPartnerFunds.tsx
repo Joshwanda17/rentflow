@@ -448,9 +448,9 @@ export function ProxyPartnerFunds() {
         },
       } as any);
 
-      // 5. Notify COO and Partner Ops users
+      // 5. Notify COO and Operations users
       const { data: cooUsers } = await supabase.from('user_roles').select('user_id').eq('role', 'coo');
-      const { data: partnerOpsUsers } = await supabase.from('user_roles').select('user_id').eq('role', 'partner_ops');
+      const { data: opsUsers } = await supabase.from('user_roles').select('user_id').eq('role', 'operations');
 
       const { data: agentProfile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single();
       const agentName = agentProfile?.full_name || 'Agent';
