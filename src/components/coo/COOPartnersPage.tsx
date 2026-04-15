@@ -93,6 +93,7 @@ interface NearingPayoutPortfolio {
   portfolioId: string;
   investorId: string;
   name: string;
+  portfolioName: string;
   phone: string;
   email: string;
   investmentAmount: number;
@@ -538,6 +539,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         portfolioId: p.id,
         investorId: ownerId,
         name: prof?.full_name || ownerId.slice(0, 8),
+        portfolioName: p.account_name || p.portfolio_code || p.id.slice(0, 8),
         phone: prof?.phone || '',
         email: prof?.email || '',
         investmentAmount: p.investment_amount || 0,
@@ -3442,6 +3444,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="font-semibold text-sm truncate">{p.name}</p>
+                          <p className="text-xs text-primary/80 font-medium truncate">{p.portfolioName}</p>
                           <p className="text-xs text-muted-foreground">{p.phone || p.email || 'No contact'}</p>
                         </div>
                         {isDone === 'pending' ? (
