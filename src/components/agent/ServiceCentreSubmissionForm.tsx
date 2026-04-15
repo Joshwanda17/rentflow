@@ -229,8 +229,17 @@ export function ServiceCentreSubmissionForm() {
             disabled={submitting || !photoFile || latitude === null || !locationName.trim()}
             className="w-full gap-2"
           >
-            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            Submit Service Centre
+            {submitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {submitStep === 'compressing' ? 'Compressing photo…' : submitStep === 'uploading' ? 'Uploading…' : 'Saving…'}
+              </>
+            ) : (
+              <>
+                <Send className="h-4 w-4" />
+                Submit Service Centre
+              </>
+            )}
           </Button>
         </CardContent>
       </Card>
