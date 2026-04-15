@@ -74,6 +74,7 @@ interface AgentMenuDrawerProps {
   onAngelPoolInvest?: () => void;
   onShareTenantForm?: () => void;
   onSharePartnerForm?: () => void;
+  onShareLandlordSignup?: () => void;
   onCreatePromissoryNote?: () => void;
   onViewPromissoryNotes?: () => void;
   isFinancialAgent?: boolean;
@@ -126,6 +127,7 @@ export function AgentMenuDrawer({
   onAngelPoolInvest,
   onShareTenantForm,
   onSharePartnerForm,
+  onShareLandlordSignup,
   onCreatePromissoryNote,
   onViewPromissoryNotes,
   isFinancialAgent = false,
@@ -169,6 +171,7 @@ export function AgentMenuDrawer({
         { icon: Briefcase, label: 'Invite Investor', description: 'Share Angel Pool signup', onClick: onInviteAngelInvestor, accent: 'purple-500', badge: '🦄' },
         { icon: Share2, label: 'Share Tenant Form', description: 'Shareable registration link', onClick: onShareTenantForm, accent: 'teal-500', badge: '🔗' },
         { icon: UserPlus, label: 'Share Partner Form', description: 'Partner investment link', onClick: onSharePartnerForm, accent: 'emerald-600', badge: '🤝' },
+        { icon: Building2, label: 'Share Landlord Signup', description: 'Invite landlords to guarantee rent', onClick: onShareLandlordSignup, accent: 'purple-600', badge: '🏠' },
         { icon: FileText, label: 'Promissory Note', description: 'Capture partner commitment', onClick: onCreatePromissoryNote, accent: 'purple-600', badge: '📝' },
         { icon: FileText, label: 'My Promissory Notes', description: 'View notes & potential earnings', onClick: onViewPromissoryNotes, accent: 'purple-500', badge: '📋' },
       ].filter(i => i.onClick !== undefined || i.path !== undefined),

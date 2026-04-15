@@ -507,6 +507,25 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             toast.error(err.message || 'Failed to generate link');
           }
         }}
+        onShareLandlordSignup={async () => {
+          setMenuOpen(false);
+          try {
+            const { toast } = await import('sonner');
+            toast.info('Generating landlord signup link...');
+            const { createShortLink } = await import('@/lib/createShortLink');
+            const landlordLink = await createShortLink(user.id, '/landlord-signup', { ref: user.id });
+            const shareText = `🏠 Guarantee your rent for 12 months with Welile! No more chasing tenants. Sign up here: ${landlordLink}`;
+            if (navigator.share) {
+              navigator.share({ title: 'Welile Landlord Signup', text: shareText, url: landlordLink }).catch(() => {});
+            } else {
+              await navigator.clipboard.writeText(landlordLink);
+              toast.success('Landlord signup link copied!');
+            }
+          } catch (err: any) {
+            const { toast } = await import('sonner');
+            toast.error(err.message || 'Failed to generate link');
+          }
+        }}
         onCreatePromissoryNote={() => {
           setMenuOpen(false);
           setPromissoryNoteOpen(true);
