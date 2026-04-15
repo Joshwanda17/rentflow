@@ -13,6 +13,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { formatDistanceToNow } from 'date-fns';
 import { COOWithdrawalApprovals } from '@/components/coo/COOWithdrawalApprovals';
 import { COOPartnerWithdrawalApprovals } from '@/components/coo/COOPartnerWithdrawalApprovals';
+import { COOROIApprovals } from '@/components/coo/COOROIApprovals';
 
 type HealthStatus = 'green' | 'yellow' | 'red';
 
@@ -408,7 +409,10 @@ export default function COODashboard() {
         <COOPartnerWithdrawalApprovals />
       </div>
 
-      
+      {/* COO ROI Return Approvals */}
+      <div className="px-4 pt-4">
+        <COOROIApprovals />
+      </div>
     </div>
   );
 }
