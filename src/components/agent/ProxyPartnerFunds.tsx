@@ -32,6 +32,7 @@ interface LedgerCredit {
   direction: string;
   category: string;
   source_id: string | null;
+  transaction_group_id: string | null;
 }
 
 interface PortfolioInfo {
