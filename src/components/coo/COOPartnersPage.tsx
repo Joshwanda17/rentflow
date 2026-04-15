@@ -312,6 +312,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [addPortfolioOpen, setAddPortfolioOpen] = useState(false);
   // Top-level create portfolio dialog
   const [createPortfolioOpen, setCreatePortfolioOpen] = useState(false);
+  const [showApprovedWithdrawals, setShowApprovedWithdrawals] = useState(false);
   const [addPortfolioAmount, setAddPortfolioAmount] = useState('');
   const [addPortfolioRoi, setAddPortfolioRoi] = useState('20');
   const [addPortfolioRoiMode, setAddPortfolioRoiMode] = useState('monthly_payout');
