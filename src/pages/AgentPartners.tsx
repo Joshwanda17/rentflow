@@ -12,7 +12,7 @@ import { format } from 'date-fns';
 import {
   ArrowLeft, Users, UserCheck, Activity, Search,
   Share2, FileText, Heart, Briefcase, PiggyBank, HandCoins,
-  Loader2, ChevronRight, Zap, RefreshCw, Phone, Wallet,
+  Loader2, ChevronRight, Zap, RefreshCw, Phone, Wallet, Send,
 } from 'lucide-react';
 
 // Lazy imports for dialogs
@@ -376,6 +376,23 @@ export default function AgentPartners() {
                           <Wallet className="h-3.5 w-3.5" />
                           Deposit
                         </Button>
+
+                        {partner.status === 'pending' && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="gap-1.5"
+                            onClick={async () => {
+                              hapticTap();
+                              const url = `${window.location.origin}/become-supporter?ref=${user?.id}`;
+                              const message = `🤝 Hi ${partner.name}, you've been invited to join Welile as a partner investor!\n\nActivate your account here:\n${url}`;
+                              window.open(`https://wa.me/${partner.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
+                            }}
+                          >
+                            <Send className="h-3.5 w-3.5" />
+                            Resend
+                          </Button>
+                        )}
 
                         {partner.phone && (
                           <Button
