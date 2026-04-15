@@ -2661,7 +2661,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         </DialogContent>
       </Dialog>
       {/* Nearing Payouts Dialog */}
-      <NearingPayoutsDialog open={nearingPayoutsOpen} onOpenChange={setNearingPayoutsOpen} portfolios={allPortfoliosForPayout} onActionComplete={fetchData} />
+      <NearingPayoutsDialog open={nearingPayoutsOpen} onOpenChange={setNearingPayoutsOpen} portfolios={allPortfoliosForPayout} onActionComplete={refreshInBackground} />
 
       {/* Merge Pending Top-Ups Dialog */}
       <Dialog open={!!mergeDialogPortfolioId} onOpenChange={(open) => { if (!open) { setMergeDialogPortfolioId(null); setMergeReason(''); } }}>
