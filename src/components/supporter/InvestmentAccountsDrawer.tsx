@@ -439,8 +439,10 @@ export function InvestmentAccountsDrawer({ open, onOpenChange, defaultTab = 'acc
   const { portfolios, totalInvested, loading, refetch } = useCapitalOpportunities();
   const { hasShares, totalShares, companyOwnershipPct, totalInvested: angelInvested, poolOwnershipPct, records, valuations } = useMyAngelShares();
   const { formatAmount } = useCurrency();
+  const { wallet, refreshWallet } = useWallet();
   const [selectedPortfolio, setSelectedPortfolio] = useState<PortfolioRecord | null>(null);
   const [showDetail, setShowDetail] = useState(false);
+  const [topUpTarget, setTopUpTarget] = useState<PortfolioRecord | null>(null);
 
   return (
     <>
