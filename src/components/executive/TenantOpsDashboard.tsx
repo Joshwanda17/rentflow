@@ -254,6 +254,13 @@ export function TenantOpsDashboard() {
       icon: FileSearch,
       color: 'bg-teal-500/10 text-teal-600 border-teal-200',
     },
+    {
+      id: 'advance-requests' as ActiveView,
+      label: 'Agent Advances',
+      description: 'Review advance requests',
+      icon: Banknote,
+      color: 'bg-purple-500/10 text-purple-600 border-purple-200',
+    },
   ];
 
   const goBack = () => {
