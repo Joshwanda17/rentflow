@@ -514,6 +514,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
                   placeholder="Chairperson name"
                   value={form.lc1_name}
                   onChange={e => setForm(f => ({ ...f, lc1_name: e.target.value }))}
+                  className={attempted && !form.lc1_name.trim() ? 'border-destructive' : ''}
                 />
               </div>
               <div>
@@ -522,6 +523,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
                   placeholder="0771234567"
                   value={form.lc1_phone}
                   onChange={e => setForm(f => ({ ...f, lc1_phone: e.target.value }))}
+                  className={attempted && !form.lc1_phone.trim() ? 'border-destructive' : ''}
                 />
               </div>
             </div>
