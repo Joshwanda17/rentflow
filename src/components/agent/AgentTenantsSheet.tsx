@@ -186,7 +186,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         .from('rent_requests')
         .select('id, rent_amount, total_repayment, duration_days, daily_repayment, amount_repaid, status, created_at, disbursed_at, registration_type, landlord:landlords(name, property_address)')
         .eq('tenant_id', tenantId)
-        .in('status', ['approved', 'disbursed', 'repaying', 'completed'])
+        .in('status', ['pending', 'approved', 'disbursed', 'repaying', 'completed'])
         .order('created_at', { ascending: false })
         .limit(5);
 
