@@ -99,6 +99,7 @@ import { useIsFinancialAgent } from '@/hooks/useIsFinancialAgent';
 import { FinancialAgentSection } from '@/components/agent/FinancialAgentSection';
 import { PromissoryNoteDialog } from '@/components/agent/PromissoryNoteDialog';
 import { AgentPromissoryNotesList } from '@/components/agent/AgentPromissoryNotesList';
+import { AgentAdvanceRequestForm } from '@/components/agent/AgentAdvanceRequestForm';
 
 // New Phase 1 components
 import { AgentDailyOpsCard } from '@/components/agent/AgentDailyOpsCard';
@@ -180,6 +181,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [angelPoolInvestOpen, setAngelPoolInvestOpen] = useState(false);
   const [promissoryNoteOpen, setPromissoryNoteOpen] = useState(false);
   const [promissoryListOpen, setPromissoryListOpen] = useState(false);
+  const [advanceRequestOpen, setAdvanceRequestOpen] = useState(false);
 
   const [showQuickDeposit, setShowQuickDeposit] = useState(false);
   const [showQuickWithdraw, setShowQuickWithdraw] = useState(false);
@@ -582,6 +584,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           setMenuOpen(false);
           setPromissoryListOpen(true);
         }}
+        onRequestAdvance={() => {
+          setMenuOpen(false);
+          setAdvanceRequestOpen(true);
+        }}
       />
 
       {/* Existing Dialogs */}
@@ -651,6 +657,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
       <PromissoryNoteDialog open={promissoryNoteOpen} onOpenChange={setPromissoryNoteOpen} />
       <AgentPromissoryNotesList open={promissoryListOpen} onOpenChange={setPromissoryListOpen} />
+      <AgentAdvanceRequestForm open={advanceRequestOpen} onOpenChange={setAdvanceRequestOpen} />
 
     </div>
   );

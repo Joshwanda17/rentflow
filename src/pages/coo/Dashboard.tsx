@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AdvanceRequestsQueue } from '@/components/ops/AdvanceRequestsQueue';
 import ExecutiveDashboardLayout from '@/components/layout/ExecutiveDashboardLayout';
 import { COOWithdrawalApprovals } from '@/components/coo/COOWithdrawalApprovals';
 import { COOPartnerWithdrawalApprovals } from '@/components/coo/COOPartnerWithdrawalApprovals';
@@ -50,6 +51,7 @@ const quickNavItems: QuickNavItem[] = [
   { id: 'partner-topups', label: 'Partner Top-ups', icon: TrendingUp, color: 'bg-green-500/10 text-green-600 border-green-500/20', description: 'Pending top-ups' },
   { id: 'partner-finance', label: 'Partner Finance', icon: Receipt, color: 'bg-violet-500/10 text-violet-600 border-violet-500/20', description: 'All activity' },
   { id: 'staff-performance', label: 'Staff', icon: UserCheck, color: 'bg-pink-500/10 text-pink-600 border-pink-500/20', description: 'Team metrics' },
+  { id: 'advance-requests', label: 'Agent Advances', icon: Banknote, color: 'bg-purple-500/10 text-purple-600 border-purple-500/20', description: 'Approve advances' },
 ];
 
 export default function COODashboardPage() {
@@ -215,6 +217,15 @@ export default function COODashboardPage() {
           <div className="space-y-3">
             {isMobile && renderBackButton('Overview')}
             <HRInternshipApplications />
+          </div>
+        );
+      case 'advance-requests':
+        return (
+          <div className="space-y-3">
+            {isMobile && renderBackButton('Overview')}
+            {renderSectionHeader('Agent Advance Approvals', Banknote)}
+            <p className="text-sm text-muted-foreground -mt-2">Final operational approval before CFO payment.</p>
+            <AdvanceRequestsQueue stage="coo" />
           </div>
         );
       default:

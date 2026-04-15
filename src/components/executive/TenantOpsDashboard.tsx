@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AdvanceRequestsQueue } from '@/components/ops/AdvanceRequestsQueue';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
@@ -32,7 +33,7 @@ import { generateTenantOpsReportPdf } from '@/lib/generateTenantOpsReportPdf';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 
-type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review';
+type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests';
 
 interface NavCard {
   id: ActiveView;
@@ -253,6 +254,13 @@ export function TenantOpsDashboard() {
       icon: FileSearch,
       color: 'bg-teal-500/10 text-teal-600 border-teal-200',
     },
+    {
+      id: 'advance-requests' as ActiveView,
+      label: 'Agent Advances',
+      description: 'Review advance requests',
+      icon: Banknote,
+      color: 'bg-purple-500/10 text-purple-600 border-purple-200',
+    },
   ];
 
   const goBack = () => {
@@ -379,6 +387,8 @@ export function TenantOpsDashboard() {
             }}
           />
         );
+      case 'advance-requests':
+        return <AdvanceRequestsQueue stage="tenant_ops" />;
       default:
         return null;
     }

@@ -34,6 +34,7 @@ import { PendingPortfolioTopUps } from '@/components/cfo/PendingPortfolioTopUps'
 import { AngelPoolManagementPanel } from '@/components/executive/AngelPoolManagementPanel';
 import { WalletRetractionsFeed } from '@/components/cfo/WalletRetractionsFeed';
 import { CFOAdvancesManager } from '@/components/cfo/CFOAdvancesManager';
+import { CFOAdvanceRequestPayments } from '@/components/cfo/CFOAdvanceRequestPayments';
 import { ManagerApprovalAudit } from '@/components/cfo/ManagerApprovalAudit';
 import { CFOAgentRequisitions } from '@/components/cfo/CFOAgentRequisitions';
 import { RentCollectionsFeed } from '@/components/cfo/RentCollectionsFeed';
@@ -143,7 +144,12 @@ export default function CFODashboardPage() {
       case 'retractions':
         return <WalletRetractionsFeed />;
       case 'advances':
-        return <CFOAdvancesManager />;
+        return (
+          <div className="space-y-6">
+            <CFOAdvanceRequestPayments />
+            <CFOAdvancesManager />
+          </div>
+        );
       case 'approval-audit':
         return <ManagerApprovalAudit />;
       case 'agent-requisitions':

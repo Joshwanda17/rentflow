@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AdvanceRequestsQueue } from '@/components/ops/AdvanceRequestsQueue';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
@@ -27,7 +28,7 @@ import { format } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 
-type ActiveView = null | 'pipeline' | 'brief' | 'directory' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sub-agents' | 'float-payouts' | 'alerts' | 'leaderboard' | 'earnings' | 'transfers';
+type ActiveView = null | 'pipeline' | 'brief' | 'directory' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sub-agents' | 'float-payouts' | 'alerts' | 'leaderboard' | 'earnings' | 'transfers' | 'advance-requests';
 
 const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; priority?: boolean }[] = [
   { key: 'pipeline', icon: Briefcase, label: 'Pipeline', color: 'bg-primary', priority: true },
@@ -44,6 +45,7 @@ const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; pri
   { key: 'earnings', icon: Banknote, label: 'Earnings', color: 'bg-green-500' },
   { key: 'alerts', icon: Bell, label: 'Alerts', color: 'bg-slate-500' },
   { key: 'transfers', icon: ArrowLeftRight, label: 'Transfers', color: 'bg-cyan-600' },
+  { key: 'advance-requests', icon: Banknote, label: 'Advances', color: 'bg-purple-600', priority: true },
   { key: 'brief', icon: DollarSign, label: 'Daily Brief', color: 'bg-rose-500' },
 ];
 
@@ -156,6 +158,7 @@ export function AgentOpsDashboard() {
       case 'service-centres': return <ServiceCentreVerificationQueue />;
       case 'sub-agents': return <SubAgentVerificationQueue />;
       case 'float-payouts': return <AgentOpsFloatPayoutReview />;
+      case 'advance-requests': return <AdvanceRequestsQueue stage="agent_ops" />;
       case 'alerts': return <AgentAlertFeed />;
       case 'transfers': return (
         <div className="rounded-2xl border border-border bg-card p-3">
