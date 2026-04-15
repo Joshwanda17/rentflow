@@ -1236,7 +1236,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           amount: amt,
           reason: walletToPortfolioReason.trim(),
           payment_method: walletTransferMethod,
-          source_wallet_user_id: walletTransferMethod === 'proxy_agent' ? proxyAgentInfo?.agentId : undefined,
+          source_wallet_user_id: walletTransferMethod === 'proxy_agent' ? proxyAgentInfo?.agentId : detailPartner?.profile?.id,
         },
       });
       if (error) throw new Error(typeof result === 'object' && result?.error ? result.error : error.message);

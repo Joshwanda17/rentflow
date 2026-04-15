@@ -87,7 +87,11 @@ Deno.serve(async (req) => {
     const accountLabel = portfolio.account_name || portfolio.portfolio_code;
 
     // ── Resolve source wallet ──
-    let walletOwnerId = partnerId;
+    // For "wallet" method, use explicit source_wallet_user_id if provided (COO may be viewing
+    // a partner whose portfolios have a different investor_id)
+    let walletOwnerId = (method === "wallet" && source_wallet_user_id && UUID_RE.test(source_wallet_user_id))
+      ? source_wallet_user_id
+      : partnerId;
     let walletOwnerLabel = "Partner Wallet";
     let agentName: string | null = null;
 
