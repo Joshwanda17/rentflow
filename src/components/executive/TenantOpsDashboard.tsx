@@ -387,6 +387,8 @@ export function TenantOpsDashboard() {
             }}
           />
         );
+      case 'advance-requests':
+        return <AdvanceRequestsQueue stage="tenant_ops" />;
       default:
         return null;
     }
