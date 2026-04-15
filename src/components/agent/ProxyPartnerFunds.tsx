@@ -396,7 +396,8 @@ export function ProxyPartnerFunds() {
   };
 
   const handleWithdrawSuccess = () => {
-    loadProxyFunds();
+    // Small delay to ensure DB write is committed before re-fetching
+    setTimeout(() => loadProxyFunds(), 800);
   };
 
   const handleCancelRequest = (partner: PartnerBalance) => {
