@@ -25,6 +25,7 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   ArrowLeftRight,
+  Building2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -201,6 +202,25 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     },
   });
 
+  const handleShareLandlordSignup = async () => {
+    try {
+      const { toast } = await import('sonner');
+      toast.info('Generating landlord signup link...');
+      const { createShortLink } = await import('@/lib/createShortLink');
+      const landlordLink = await createShortLink(user.id, '/landlord-signup', { ref: user.id });
+      const shareText = `🏠 Guarantee your rent for 12 months with Welile! No more chasing tenants. Sign up here: ${landlordLink}`;
+      if (navigator.share) {
+        navigator.share({ title: 'Welile Landlord Signup', text: shareText, url: landlordLink }).catch(() => {});
+      } else {
+        await navigator.clipboard.writeText(landlordLink);
+        toast.success('Landlord signup link copied!');
+      }
+    } catch (err: any) {
+      const { toast } = await import('sonner');
+      toast.error(err.message || 'Failed to generate link');
+    }
+  };
+
   const handleApplyToSell = async () => {
     setApplyingToSell(true);
     try {
@@ -333,12 +353,13 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         <TodayCollectionsCard agentId={user.id} onViewTenants={() => setTenantsSheetOpen(true)} />
 
         {/* 5 Key Action Buttons + Hub — immediately accessible */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-4 gap-2">
           {[
             { icon: Banknote, label: 'Pay Rent', onClick: () => setTopUpTenantOpen(true), color: 'text-primary', bg: 'bg-primary/10 border-primary/30 hover:bg-primary/15' },
             { icon: FileText, label: 'Add Tenant', onClick: () => setRentRequestOpen(true), color: 'text-[#7C3BED]', bg: 'bg-[#7C3BED]/10 border-[#7C3BED]/30 hover:bg-[#7C3BED]/15 ring-1 ring-[#7C3BED]/30' },
             { icon: Users, label: 'Tenants', onClick: () => setTenantsSheetOpen(true), color: 'text-primary', bg: 'bg-primary/10 border-primary/30 hover:bg-primary/15' },
             { icon: Home, label: 'List House', onClick: () => setListHouseOpen(true), color: 'text-[#7C3BED]', bg: 'bg-[#7C3BED]/10 border-[#7C3BED]/30 hover:bg-[#7C3BED]/15' },
+            { icon: Building2, label: 'Landlord', onClick: handleShareLandlordSignup, color: 'text-purple-600', bg: 'bg-purple-600/10 border-purple-600/30 hover:bg-purple-600/15' },
             { icon: Sparkles, label: 'Partners', onClick: () => navigate('/agent/partners'), color: 'text-[#7C3BED]', bg: 'bg-[#7C3BED]/10 border-[#7C3BED]/30 hover:bg-[#7C3BED]/15' },
             { icon: Menu, label: 'Agent Hub', onClick: handleOpenMenu, color: 'text-foreground/70', bg: 'bg-card border-border/40 hover:bg-muted/40' },
           ].map((action, i) => (
@@ -346,12 +367,12 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               key={action.label}
               onClick={() => { hapticTap(); action.onClick(); }}
               className={cn(
-                "flex flex-col items-center justify-center gap-1.5 py-4 rounded-xl border touch-manipulation active:opacity-80",
+                "flex flex-col items-center justify-center gap-1.5 py-3.5 rounded-xl border touch-manipulation active:opacity-80",
                 action.bg
               )}
             >
               <action.icon className={cn("h-5 w-5", action.color)} />
-              <span className={cn("text-[11px] font-semibold", action.color)}>{action.label}</span>
+              <span className={cn("text-[10px] font-semibold", action.color)}>{action.label}</span>
             </button>
           ))}
         </div>
@@ -507,24 +528,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             toast.error(err.message || 'Failed to generate link');
           }
         }}
-        onShareLandlordSignup={async () => {
+        onShareLandlordSignup={() => {
           setMenuOpen(false);
-          try {
-            const { toast } = await import('sonner');
-            toast.info('Generating landlord signup link...');
-            const { createShortLink } = await import('@/lib/createShortLink');
-            const landlordLink = await createShortLink(user.id, '/landlord-signup', { ref: user.id });
-            const shareText = `🏠 Guarantee your rent for 12 months with Welile! No more chasing tenants. Sign up here: ${landlordLink}`;
-            if (navigator.share) {
-              navigator.share({ title: 'Welile Landlord Signup', text: shareText, url: landlordLink }).catch(() => {});
-            } else {
-              await navigator.clipboard.writeText(landlordLink);
-              toast.success('Landlord signup link copied!');
-            }
-          } catch (err: any) {
-            const { toast } = await import('sonner');
-            toast.error(err.message || 'Failed to generate link');
-          }
+          handleShareLandlordSignup();
         }}
         onCreatePromissoryNote={() => {
           setMenuOpen(false);
