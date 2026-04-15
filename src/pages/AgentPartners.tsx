@@ -5,14 +5,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { UserAvatar, MARBLE_COLORS } from '@/components/UserAvatar';
+import { UserAvatar } from '@/components/UserAvatar';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
 import { format } from 'date-fns';
 import {
   ArrowLeft, Users, UserCheck, Activity, Search,
   Share2, FileText, Heart, Briefcase, PiggyBank, HandCoins,
-  Loader2, ChevronRight, Zap, RefreshCw,
+  Loader2, ChevronRight, Zap, RefreshCw, Phone, Wallet,
 } from 'lucide-react';
 
 // Lazy imports for dialogs
@@ -23,6 +23,7 @@ import { AgentPromissoryNotesList } from '@/components/agent/AgentPromissoryNote
 
 interface PartnerItem {
   id: string;
+  userId: string | null;
   name: string;
   phone: string;
   avatarUrl: string | null;
@@ -49,6 +50,7 @@ export default function AgentPartners() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<TabFilter>('invited');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Dialog states
   const [investForPartnerOpen, setInvestForPartnerOpen] = useState(false);
@@ -116,6 +118,7 @@ export default function AgentPartners() {
 
         partnerList.push({
           id: inv.id,
+          userId: inv.activated_user_id || null,
           name: inv.full_name || 'Unknown',
           phone: inv.phone || '',
           avatarUrl: null,
@@ -143,6 +146,7 @@ export default function AgentPartners() {
 
         partnerList.push({
           id: pa.id,
+          userId: pa.beneficiary_id,
           name: profile.full_name || 'Unknown',
           phone: profile.phone || '',
           avatarUrl: profile.avatar_url,
@@ -319,34 +323,76 @@ export default function AgentPartners() {
             ) : (
               filtered.map(partner => {
                 const sc = statusConfig[partner.status] || statusConfig.pending;
+                const isExpanded = expandedId === partner.id;
                 return (
                   <div
                     key={partner.id}
-                    className="flex items-center gap-3 p-3.5 rounded-2xl border border-border/60 bg-card shadow-sm hover:shadow-md active:scale-[0.98] transition-all"
+                    className="rounded-2xl border border-border/60 bg-card shadow-sm hover:shadow-md transition-all overflow-hidden"
                   >
-                    <UserAvatar
-                      avatarUrl={partner.avatarUrl}
-                      fullName={partner.name}
-                      size="md"
-                    />
+                    <button
+                      onClick={() => { hapticTap(); setExpandedId(isExpanded ? null : partner.id); }}
+                      className="flex items-center gap-3 p-3.5 w-full text-left active:scale-[0.98] transition-all"
+                    >
+                      <UserAvatar
+                        avatarUrl={partner.avatarUrl}
+                        fullName={partner.name}
+                        size="md"
+                      />
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <p className="font-semibold text-sm truncate">{partner.name}</p>
-                        {partner.isProxy && (
-                          <Badge variant="outline" size="sm" className="shrink-0 text-[9px] border-primary/30 text-primary bg-primary/5">
-                            🔗 Proxy
-                          </Badge>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <p className="font-semibold text-sm truncate">{partner.name}</p>
+                          {partner.isProxy && (
+                            <Badge variant="outline" size="sm" className="shrink-0 text-[9px] border-primary/30 text-primary bg-primary/5">
+                              🔗 Proxy
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          {activeTab === 'proxy' ? 'Assigned' : 'Invited'} {format(new Date(partner.invitedDate), 'MMM d, yyyy')}
+                        </p>
+                      </div>
+
+                      <Badge variant={sc.variant} size="sm" className="shrink-0">
+                        {sc.label}
+                      </Badge>
+                    </button>
+
+                    {/* Expanded actions */}
+                    {isExpanded && (
+                      <div className="px-3.5 pb-3.5 pt-0 flex items-center gap-2 border-t border-border/30 pt-2.5 animate-in fade-in slide-in-from-top-1 duration-200">
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="flex-1 gap-1.5"
+                          onClick={() => {
+                            hapticTap();
+                            if (partner.userId) {
+                              navigate(`/agent/deposit?for=${partner.userId}&name=${encodeURIComponent(partner.name)}`);
+                            }
+                          }}
+                          disabled={!partner.userId}
+                        >
+                          <Wallet className="h-3.5 w-3.5" />
+                          Deposit
+                        </Button>
+
+                        {partner.phone && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1.5"
+                            onClick={() => {
+                              hapticTap();
+                              window.open(`tel:${partner.phone}`, '_self');
+                            }}
+                          >
+                            <Phone className="h-3.5 w-3.5" />
+                            Call
+                          </Button>
                         )}
                       </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        Invited {format(new Date(partner.invitedDate), 'MMM d, yyyy')}
-                      </p>
-                    </div>
-
-                    <Badge variant={sc.variant} size="sm" className="shrink-0">
-                      {sc.label}
-                    </Badge>
+                    )}
                   </div>
                 );
               })
