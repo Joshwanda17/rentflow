@@ -1,21 +1,30 @@
 
 
-## Plan: Add Internship Program Link to Agent Header Menu
+## Plan: Add Internship Applications to Staff Panel
 
 ### What changes
 
-**File: `src/components/DashboardHeader.tsx`**
+1. **New sidebar item** in `executiveSidebarConfig.ts` under the `hr` section: "Internship Applications" with a `GraduationCap` icon and id `internships`
 
-Add a new dropdown menu item for "Internship Program" inside the `currentRole === 'agent'` block, right after the "Agent Commission Benefits" item (around line 229). It will use a `GraduationCap` icon and navigate to `/internship`. No authentication needed since `/internship` is already a public route.
+2. **New component** `src/components/hr/HRInternshipApplications.tsx` — A table view showing all submissions from `internship_applications`:
+   - Columns: Full Name, Phone, Email, Motivation, Skills, Ready to Learn, Referral Code, Applied At
+   - Sorted by newest first
+   - Status badges (ready/exploring)
+   - Simple, clean table with search/filter
 
-```
-- Import GraduationCap from lucide-react
-- Add menu item after Agent Commission Benefits:
-  icon: GraduationCap (purple themed to match)
-  label: "Internship Program"  
-  onClick: navigate('/internship')
-  Visible only for agent role
-```
+3. **Wire into HR Dashboard** (`src/pages/hr/Dashboard.tsx`) — Add `case 'internships'` to the switch, rendering the new component
 
-Single file edit, minimal change.
+### Also visible to Manager/COO
+
+Add the same sidebar item under `manager` and `coo` sections in `executiveSidebarConfig.ts`, since the RLS read policy already grants access to `manager`, `super_admin`, `coo`, and `hr` roles.
+
+### Files
+
+- **Edit**: `src/components/layout/executiveSidebarConfig.ts` — Add "Internship Applications" item to `hr`, `manager`, `coo` sections
+- **New**: `src/components/hr/HRInternshipApplications.tsx` — Table component
+- **Edit**: `src/pages/hr/Dashboard.tsx` — Add case for `internships`
+- **Edit**: `src/pages/COODashboard.tsx` (if it uses same pattern) — Add case
+- **Edit**: Manager dashboard — Add case
+
+No database changes needed — table and RLS already exist.
 
