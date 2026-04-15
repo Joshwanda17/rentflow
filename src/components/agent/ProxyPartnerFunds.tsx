@@ -396,8 +396,8 @@ export function ProxyPartnerFunds() {
       <Card className="border-border/50">
         <CardContent className="py-10 text-center text-muted-foreground">
           <Users className="h-10 w-10 mx-auto mb-2 opacity-30" />
-          <p className="text-sm font-medium">No proxy partners yet</p>
-          <p className="text-xs mt-1">Approved partners and their ROI returns will appear here</p>
+          <p className="text-sm font-medium">No proxy partner payouts ready</p>
+          <p className="text-xs mt-1">CFO-approved ROI returns for your proxy partners will appear here</p>
         </CardContent>
       </Card>
     );
