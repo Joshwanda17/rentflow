@@ -86,6 +86,7 @@ const WelileHomesDashboard = lazy(() => import('./pages/WelileHomesDashboard'));
 const LandlordWelileHomesPage = lazy(() => import('./pages/LandlordWelileHomesPage'));
 const TryCalculator = lazy(() => import('./pages/TryCalculator'));
 const PublicRentCalculator = lazy(() => import('./pages/PublicRentCalculator'));
+const LandlordSignup = lazy(() => import('./pages/LandlordSignup'));
 
 const RegisterTenantPublic = lazy(() => import('./pages/RegisterTenantPublic'));
 const RegisterPartnerPublic = lazy(() => import('./pages/RegisterPartnerPublic'));
