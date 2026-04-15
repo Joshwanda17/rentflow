@@ -61,7 +61,7 @@ export function ProxyPartnerFunds() {
   const [partnerWithdrawalIds, setPartnerWithdrawalIds] = useState<Record<string, string>>({});
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
-  const [cancelTarget, setCancelTarget] = useState<{ key: string; withdrawalId: string; partnerName: string } | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<{ key: string; withdrawalId: string; partnerName: string; partnerId: string } | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   useEffect(() => {
     if (!user?.id) return;
@@ -393,7 +393,7 @@ export function ProxyPartnerFunds() {
     const key = getStatusKey(partner);
     const withdrawalId = partnerWithdrawalIds[key];
     if (!withdrawalId) return;
-    setCancelTarget({ key, withdrawalId, partnerName: partner.partnerName });
+    setCancelTarget({ key, withdrawalId, partnerName: partner.partnerName, partnerId: partner.partnerId });
     setCancelReason('');
     setCancelConfirmOpen(true);
   };
@@ -422,17 +422,19 @@ export function ProxyPartnerFunds() {
         .eq('id', cancelTarget.withdrawalId);
       if (error) throw error;
 
-      // 3. Reverse the held-funds ledger entry (cash_in to restore ROI balance)
+      // 3. Reverse the held-funds ledger entry on the PARTNER's account (cash_in to restore their ROI returns)
+      // The agent's wallet is NOT affected — they hadn't paid out yet
       await supabase.from('general_ledger').insert({
-        user_id: user.id,
+        user_id: cancelTarget.partnerId,
         amount: withdrawalAmount,
         direction: 'cash_in',
         category: 'withdrawal_reversal',
-        description: `Proxy withdrawal cancelled by agent for ${cancelTarget.partnerName} – ROI returns restored. Reason: ${cancelReason.trim()}`,
+        description: `Proxy withdrawal cancelled by agent – ROI returns restored to partner ${cancelTarget.partnerName}. Reason: ${cancelReason.trim()}`,
         currency: 'UGX',
         transaction_group_id: `wallet-withdraw-cancel-${cancelTarget.withdrawalId}`,
         source_table: 'withdrawal_requests',
         source_id: cancelTarget.withdrawalId,
+        linked_party: user.id,
         ledger_scope: 'platform',
       } as any);
 
