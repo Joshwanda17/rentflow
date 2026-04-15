@@ -22,7 +22,7 @@ import { format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { downloadPortfolioPdf, sharePortfolioViaWhatsApp, type PortfolioPdfData } from '@/lib/portfolioPdf';
-import { fetchAllUserIdsByRole, batchedQuery, fetchPaginatedSupporterIds, fetchSupporterSummary } from '@/lib/supabaseBatchUtils';
+import { fetchAllUserIdsByRole, batchedQuery, fetchPaginatedSupporterIds, fetchSupporterSummary, fetchAllNearingPayoutPortfolios } from '@/lib/supabaseBatchUtils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -198,6 +198,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [rows, setRows] = useState<PartnerRow[]>([]);
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
