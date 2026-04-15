@@ -22,6 +22,9 @@ import {
   FileText,
   Users,
   Sparkles,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  ArrowLeftRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -29,6 +32,9 @@ import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
+import DepositFlow from '@/components/payments/DepositFlow';
+import WithdrawFlow from '@/components/payments/WithdrawFlow';
+import { SendMoneyDialog } from '@/components/wallet/SendMoneyDialog';
 import { WalletDisclaimer } from '@/components/wallet/WalletDisclaimer';
 
 import { useProfile } from '@/hooks/useProfile';
@@ -174,6 +180,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [promissoryNoteOpen, setPromissoryNoteOpen] = useState(false);
   const [promissoryListOpen, setPromissoryListOpen] = useState(false);
 
+  const [showQuickDeposit, setShowQuickDeposit] = useState(false);
+  const [showQuickWithdraw, setShowQuickWithdraw] = useState(false);
+  const [showQuickTransfer, setShowQuickTransfer] = useState(false);
+
   const { isFinancialAgent } = useIsFinancialAgent();
   // Check if this agent is a CFO-assigned cashout agent
   const { data: isCashoutAgent } = useQuery({
@@ -280,6 +290,31 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
            secondaryLabel="Withdrawable"
            secondaryValue={formatUGX(commissionBalance)}
            onOpenWallet={() => setShowWallet(true)}
+           quickActions={
+             <div className="flex items-center gap-2">
+               <button
+                 onClick={() => { hapticTap(); setShowQuickDeposit(true); }}
+                 className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 active:scale-95 transition-all"
+               >
+                 <ArrowDownToLine className="h-3.5 w-3.5 text-emerald-400" />
+                 <span className="text-[10px] font-bold text-emerald-300 uppercase tracking-wider">Deposit</span>
+               </button>
+               <button
+                 onClick={() => { hapticTap(); setShowQuickWithdraw(true); }}
+                 className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 active:scale-95 transition-all"
+               >
+                 <ArrowUpFromLine className="h-3.5 w-3.5 text-amber-400" />
+                 <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider">Withdraw</span>
+               </button>
+               <button
+                 onClick={() => { hapticTap(); setShowQuickTransfer(true); }}
+                 className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-blue-500/15 hover:bg-blue-500/25 active:scale-95 transition-all"
+               >
+                 <ArrowLeftRight className="h-3.5 w-3.5 text-blue-400" />
+                 <span className="text-[10px] font-bold text-blue-300 uppercase tracking-wider">Transfer</span>
+               </button>
+             </div>
+           }
          />
 
         {/* Verification Checklist */}
@@ -363,6 +398,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       </div>
 
       <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />
+      <DepositFlow open={showQuickDeposit} onOpenChange={setShowQuickDeposit} />
+      <WithdrawFlow open={showQuickWithdraw} onOpenChange={setShowQuickWithdraw} availableBalance={commissionBalance} />
+      <SendMoneyDialog open={showQuickTransfer} onOpenChange={setShowQuickTransfer} />
       
       <AgentMenuDrawer
         open={menuOpen}

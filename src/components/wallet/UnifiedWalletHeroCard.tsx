@@ -1,3 +1,4 @@
+import { ReactNode } from 'react';
 import { Wallet, ChevronRight, Shield, Home, TrendingUp, Rocket } from 'lucide-react';
 import { hapticTap } from '@/lib/haptics';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -18,6 +19,8 @@ interface UnifiedWalletHeroCardProps {
   onHousesTap?: () => void;
   onReturnTap?: () => void;
   onDeployedTap?: () => void;
+  /** Optional quick action buttons rendered below the balance */
+  quickActions?: ReactNode;
 }
 
 const ROLE_LABELS: Record<WalletRole, string> = {
@@ -46,6 +49,7 @@ export function UnifiedWalletHeroCard({
   onHousesTap,
   onReturnTap,
   onDeployedTap,
+  quickActions,
 }: UnifiedWalletHeroCardProps) {
   const { formatAmount } = useCurrency();
 
@@ -88,6 +92,9 @@ export function UnifiedWalletHeroCard({
             {formatAmount(balance)}
           </p>
         </button>
+
+        {/* Quick Actions slot */}
+        {quickActions}
 
         {/* Supporter metric cards — individually tappable */}
         {role === 'supporter' && (
