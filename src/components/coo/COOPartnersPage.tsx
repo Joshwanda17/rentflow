@@ -414,7 +414,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       toast.success(`Compounded ${formatUGX(roiAmount)}`, { description: `New principal: ${formatUGX(newAmount)}. Ref: ${refId}` });
       // Refresh detail view
       if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
-      fetchData();
+      refreshInBackground();
     } catch (err: any) {
       toast.error('Compound failed', { description: err.message });
     } finally {
