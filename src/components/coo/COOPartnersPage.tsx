@@ -518,42 +518,53 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     });
 
     setRows(tableRows);
+  }, []);
 
-    // Build nearing payouts from current page portfolios
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    const nearingList: NearingPayoutPortfolio[] = [];
-    dedupedPortfolios.forEach(p => {
-      if (p.status !== 'active') return;
-      if (!p.next_roi_date) return;
-      const ownerId = p.investor_id && supporterIdSet.has(p.investor_id) ? p.investor_id
-        : p.agent_id && supporterIdSet.has(p.agent_id) ? p.agent_id : null;
-      if (!ownerId) return;
+  /* ─── Nearing payouts: loaded independently from ALL supporters ─── */
+  const [nearingPayoutsLoading, setNearingPayoutsLoading] = useState(false);
+  const fetchNearingPayoutsAsync = useCallback(async () => {
+    setNearingPayoutsLoading(true);
+    try {
+      const { portfolios, profileMap, supporterIds } = await fetchAllNearingPayoutPortfolios();
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      const nearingList: NearingPayoutPortfolio[] = [];
+      portfolios.forEach(p => {
+        if (p.status !== 'active') return;
+        if (!p.next_roi_date) return;
+        const ownerId = p.investor_id && supporterIds.has(p.investor_id) ? p.investor_id
+          : p.agent_id && supporterIds.has(p.agent_id) ? p.agent_id : null;
+        if (!ownerId) return;
 
-      const effectiveNextDate = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15);
-      const roiDate = dateOnlyToLocalDate(effectiveNextDate);
-      const diffMs = roiDate.getTime() - now.getTime();
-      const du = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-      const prof = profileMap.get(ownerId);
-      const effectivePayoutDay = p.payout_day || roiDate.getDate();
-      nearingList.push({
-        portfolioId: p.id,
-        investorId: ownerId,
-        name: prof?.full_name || ownerId.slice(0, 8),
-        portfolioName: p.account_name || p.portfolio_code || p.id.slice(0, 8),
-        phone: prof?.phone || '',
-        email: prof?.email || '',
-        investmentAmount: p.investment_amount || 0,
-        roiPercentage: p.roi_percentage ?? 15,
-        payoutDay: effectivePayoutDay,
-        roiMode: p.roi_mode ?? 'monthly_payout',
-        createdAt: p.created_at,
-        daysUntil: du,
-        nextPayoutDate: effectiveNextDate,
+        const effectiveNextDate = getNextPayoutDate(p.next_roi_date, p.created_at, p.payout_day ?? 15);
+        const roiDate = dateOnlyToLocalDate(effectiveNextDate);
+        const diffMs = roiDate.getTime() - now.getTime();
+        const du = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+        const prof = profileMap.get(ownerId);
+        const effectivePayoutDay = p.payout_day || roiDate.getDate();
+        nearingList.push({
+          portfolioId: p.id,
+          investorId: ownerId,
+          name: prof?.full_name || ownerId.slice(0, 8),
+          portfolioName: p.account_name || p.portfolio_code || p.id.slice(0, 8),
+          phone: prof?.phone || '',
+          email: prof?.email || '',
+          investmentAmount: p.investment_amount || 0,
+          roiPercentage: p.roi_percentage ?? 15,
+          payoutDay: effectivePayoutDay,
+          roiMode: p.roi_mode ?? 'monthly_payout',
+          createdAt: p.created_at,
+          daysUntil: du,
+          nextPayoutDate: effectiveNextDate,
+        });
       });
-    });
-    nearingList.sort((a, b) => a.daysUntil - b.daysUntil);
-    setAllPortfoliosForPayout(nearingList);
+      nearingList.sort((a, b) => a.daysUntil - b.daysUntil);
+      setAllPortfoliosForPayout(nearingList);
+    } catch (e) {
+      console.error('Nearing payouts fetch error:', e);
+    } finally {
+      setNearingPayoutsLoading(false);
+    }
   }, []);
 
   /* ─── Summary stats (fetched once, cached) ─── */
