@@ -1,8 +1,11 @@
 import { useState } from 'react';
-import { Wallet, ChevronRight, Shield, Users, Banknote, CreditCard } from 'lucide-react';
+import { Wallet, ChevronRight, Shield, Users, Banknote, CreditCard, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight } from 'lucide-react';
 import { hapticTap } from '@/lib/haptics';
 import { useCurrency } from '@/hooks/useCurrency';
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
+import DepositFlow from '@/components/payments/DepositFlow';
+import WithdrawFlow from '@/components/payments/WithdrawFlow';
+import { SendMoneyDialog } from '@/components/wallet/SendMoneyDialog';
 
 interface AgentWalletHeroCardProps {
   floatBalance: number;
