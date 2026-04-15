@@ -98,12 +98,26 @@ export function COOROIApprovals() {
     setProcessing(true);
     try {
       for (const opId of ids) {
+        // First fetch current metadata to merge
+        const { data: current } = await supabase
+          .from('pending_wallet_operations')
+          .select('metadata')
+          .eq('id', opId)
+          .single();
+
+        const existingMeta = (current?.metadata as Record<string, any>) || {};
+
         const { error } = await supabase
           .from('pending_wallet_operations')
           .update({
             status: 'coo_approved',
             reviewed_by: user?.id,
             reviewed_at: new Date().toISOString(),
+            metadata: {
+              ...existingMeta,
+              coo_approved_by: user?.id,
+              coo_approved_at: new Date().toISOString(),
+            },
           })
           .eq('id', opId);
         if (error) throw error;
