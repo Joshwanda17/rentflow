@@ -23,6 +23,7 @@ import { AgentPromissoryNotesList } from '@/components/agent/AgentPromissoryNote
 
 interface PartnerItem {
   id: string;
+  userId: string | null;
   name: string;
   phone: string;
   avatarUrl: string | null;
