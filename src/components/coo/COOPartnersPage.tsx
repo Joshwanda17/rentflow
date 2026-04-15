@@ -3773,8 +3773,12 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                     <p className="text-xs font-bold tabular-nums text-primary">{formatUGX(selectedRoiAmount)}</p>
                   </div>
                   <div className="rounded-lg bg-background p-2">
-                    <p className="text-[10px] text-muted-foreground">New Principal</p>
-                    <p className="text-xs font-bold tabular-nums">{formatUGX(selectedPayout.investmentAmount + (selectedRoiAmount - splitCashAmount))}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {splitReinvestMode === 'keep_returns' ? 'Principal (unchanged)' : 'New Principal'}
+                    </p>
+                    <p className="text-xs font-bold tabular-nums">
+                      {formatUGX(splitReinvestMode === 'keep_returns' ? selectedPayout.investmentAmount : selectedPayout.investmentAmount + (selectedRoiAmount - splitCashAmount))}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -3811,10 +3815,17 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                     <p className="text-[10px] text-muted-foreground">Cash Payout</p>
                     <p className="text-sm font-bold tabular-nums text-primary">{formatUGX(splitCashAmount)}</p>
                   </div>
-                  <div className="rounded-xl border-2 border-green-500/30 bg-green-500/5 p-3 text-center">
+                  <div className={cn("rounded-xl border-2 p-3 text-center cursor-pointer transition-all", splitReinvestMode === 'reinvest' ? "border-green-500/50 bg-green-500/10" : "border-border/40 bg-muted/30 hover:border-green-500/30")} onClick={() => setSplitReinvestMode('reinvest')}>
                     <TrendingUp className="h-4 w-4 mx-auto mb-1 text-green-600" />
-                    <p className="text-[10px] text-muted-foreground">Reinvested</p>
+                    <p className="text-[10px] text-muted-foreground">Reinvest</p>
                     <p className="text-sm font-bold tabular-nums text-green-600">{formatUGX(selectedRoiAmount - splitCashAmount)}</p>
+                    <p className="text-[9px] text-muted-foreground mt-0.5">Adds to principal</p>
+                  </div>
+                  <div className={cn("rounded-xl border-2 p-3 text-center cursor-pointer transition-all", splitReinvestMode === 'keep_returns' ? "border-amber-500/50 bg-amber-500/10" : "border-border/40 bg-muted/30 hover:border-amber-500/30")} onClick={() => setSplitReinvestMode('keep_returns')}>
+                    <PiggyBank className="h-4 w-4 mx-auto mb-1 text-amber-600" />
+                    <p className="text-[10px] text-muted-foreground">Keep as Returns</p>
+                    <p className="text-sm font-bold tabular-nums text-amber-600">{formatUGX(selectedRoiAmount - splitCashAmount)}</p>
+                    <p className="text-[9px] text-muted-foreground mt-0.5">Principal stays flat</p>
                   </div>
                 </div>
               </div>
@@ -3854,7 +3865,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
               <Button
                 className="w-full gap-2"
                 disabled={!!selectedProcessing || splitCashAmount < 1 || splitCashAmount >= selectedRoiAmount}
-                onClick={() => handleSplitPayout(selectedPayout, splitCashAmount, selectedReason, splitPayMode)}
+                onClick={() => handleSplitPayout(selectedPayout, splitCashAmount, selectedReason, splitPayMode, splitReinvestMode)}
               >
                 {selectedProcessing === 'split' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Scissors className="h-4 w-4" />}
                 Confirm Split Payout
