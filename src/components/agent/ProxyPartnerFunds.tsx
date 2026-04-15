@@ -115,18 +115,43 @@ export function ProxyPartnerFunds() {
         return;
       }
 
-      // Step 2: Fetch profiles, ledger credits (with source_id), completed withdrawals, active withdrawals, and portfolios
+      // Step 2: First, get CFO-approved ROI payout transaction_group_ids for this proxy agent
+      const { data: approvedOps } = await supabase
+        .from('pending_wallet_operations')
+        .select('transaction_group_id')
+        .eq('target_wallet_user_id', user.id)
+        .in('category', ['roi_payout', 'supporter_platform_rewards'])
+        .eq('status', 'approved')
+        .not('transaction_group_id', 'is', null);
+
+      const approvedGroupIds = (approvedOps || [])
+        .map(op => op.transaction_group_id)
+        .filter(Boolean) as string[];
+
+      if (approvedGroupIds.length === 0) {
+        setProfiles({});
+        setLedgerCredits([]);
+        setCompletedWithdrawals([]);
+        setPortfolios([]);
+        setPartnerWithdrawalStatus({});
+        setLoading(false);
+        return;
+      }
+
+      // Step 3: Fetch profiles, ledger credits (ONLY from CFO-approved transactions), withdrawals, and portfolios
       const [profileRes, ledgerRes, completedRes, activeWithdrawalRes, portfolioRes] = await Promise.all([
         supabase
           .from('profiles')
           .select('id, full_name, phone')
           .in('id', approvedIds),
-        // Actual approved ROI entries from the ledger for this agent (include source_id for portfolio mapping)
+        // Only fetch ledger entries tied to CFO-approved ROI payouts via transaction_group_id
         supabase
           .from('general_ledger')
-          .select('user_id, linked_party, amount, direction, category, source_id')
+          .select('user_id, linked_party, amount, direction, category, source_id, transaction_group_id')
           .eq('user_id', user.id)
-          .in('category', ['roi_payout', 'roi_wallet_credit', 'balance_correction']),
+          .eq('direction', 'cash_in')
+          .in('category', ['roi_payout', 'roi_wallet_credit'])
+          .in('transaction_group_id', approvedGroupIds),
         // Completed withdrawals for these partners (delivered)
         supabase
           .from('withdrawal_requests')
