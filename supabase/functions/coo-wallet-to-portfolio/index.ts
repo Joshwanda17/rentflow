@@ -116,6 +116,7 @@ Deno.serve(async (req) => {
         initiated_by: user.id,
         initiated_by_role: "coo",
         source: "wallet",
+        payment_method: payment_method || "wallet",
         portfolio_code: portfolio.portfolio_code,
         reason: safeReason,
       },
