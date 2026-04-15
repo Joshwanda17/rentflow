@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { RentPipelineQueue } from './RentPipelineQueue';
+import { AdvanceRequestsQueue } from '@/components/ops/AdvanceRequestsQueue';
 import { LandlordOpsPayoutReview } from '@/components/cfo/LandlordOpsPayoutReview';
 import { KPICard } from './KPICard';
 import {
@@ -1293,6 +1294,17 @@ export function LandlordOpsDashboard() {
           <KPICard title="Bonuses Pending" value={`${fmt(unverifiedListings.length * 5000)}`} icon={Banknote} loading={isLoading} color="bg-orange-500/10 text-orange-600" subtitle="UGX to agents" />
         </div>
         <VacancyAnalytics listings={rows as any} />
+      </div>
+    );
+  }
+
+  // ─── ADVANCE REQUESTS VIEW ───
+  if (view === 'advance-requests') {
+    return (
+      <div className="space-y-3">
+        <BackButton />
+        <h2 className="text-lg font-bold">Agent Advance Requests</h2>
+        <AdvanceRequestsQueue stage="landlord_ops" />
       </div>
     );
   }
