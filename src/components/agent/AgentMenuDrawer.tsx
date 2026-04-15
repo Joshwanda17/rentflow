@@ -133,7 +133,7 @@ export function AgentMenuDrawer({
   isFinancialAgent = false,
 }: AgentMenuDrawerProps) {
   const navigate = useNavigate();
-  const [activeCategory, setActiveCategory] = useState('actions');
+  const [activeCategory, setActiveCategory] = useState('money');
   const [guideOpen, setGuideOpen] = useState<string | null>(null);
 
   const handleClose = () => {
