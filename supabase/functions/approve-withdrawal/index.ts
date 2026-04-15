@@ -134,10 +134,33 @@ Deno.serve(async (req) => {
     const totalPendingHold = (pendingHolds || []).reduce((sum: number, h: any) => sum + Number(h.amount), 0);
     const effectiveBalance = (wallet?.balance || 0) + totalPendingHold;
 
-    if (!wallet || effectiveBalance < amount) {
+    // For agents, check commission-aware withdrawable balance
+    // Commission is earned money that IS withdrawable, even if float is low
+    const { data: agentRole } = await admin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", targetUserId)
+      .eq("role", "agent")
+      .maybeSingle();
+
+    let withdrawableBalance = effectiveBalance;
+
+    if (agentRole) {
+      // Use split balance RPC to get commission (withdrawable) portion
+      const { data: splitBalances } = await admin.rpc("get_agent_split_balances", {
+        p_agent_id: targetUserId,
+      });
+      const balRow = Array.isArray(splitBalances) ? splitBalances[0] : splitBalances;
+      const commissionBalance = Number(balRow?.commission_balance ?? 0);
+      // Withdrawable = min(wallet balance, commission earned)
+      withdrawableBalance = Math.min(effectiveBalance, commissionBalance);
+    }
+
+    if (!wallet || withdrawableBalance < amount) {
+      const label = agentRole ? "commission" : "balance";
       return new Response(
         JSON.stringify({
-          error: `Insufficient balance. Wallet has UGX ${effectiveBalance.toLocaleString()}, cannot withdraw UGX ${amount.toLocaleString()}`,
+          error: `Insufficient ${label}. Withdrawable: UGX ${withdrawableBalance.toLocaleString()}, requested: UGX ${amount.toLocaleString()}`,
         }),
         {
           status: 400,
