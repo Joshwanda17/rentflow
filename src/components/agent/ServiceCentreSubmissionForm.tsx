@@ -84,13 +84,28 @@ export function ServiceCentreSubmissionForm() {
 
     setSubmitting(true);
     try {
-      const ext = photoFile.name.split('.').pop() || 'jpg';
+      // Step 1: Compress
+      setSubmitStep('compressing');
+      const optimized = await optimizeImage(photoFile, { maxWidth: 1200, maxHeight: 1200, quality: 0.8 });
+      const compressedFile = optimized.file;
+
+      // Step 2: Upload with timeout
+      setSubmitStep('uploading');
+      const ext = compressedFile.name.split('.').pop() || 'jpg';
       const filePath = `${user.id}/${Date.now()}.${ext}`;
-      const { error: uploadErr } = await supabase.storage
+
+      const uploadPromise = supabase.storage
         .from('service-centre-photos')
-        .upload(filePath, photoFile);
+        .upload(filePath, compressedFile);
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Upload timed out')), 30000)
+      );
+
+      const { error: uploadErr } = await Promise.race([uploadPromise, timeoutPromise]);
       if (uploadErr) throw uploadErr;
 
+      // Step 3: Save record
+      setSubmitStep('saving');
       const { data: urlData } = supabase.storage
         .from('service-centre-photos')
         .getPublicUrl(filePath);
@@ -117,9 +132,13 @@ export function ServiceCentreSubmissionForm() {
       setLocationName('');
       queryClient.invalidateQueries({ queryKey: ['my-service-centre-setups'] });
     } catch (err: any) {
-      toast.error(err.message || 'Failed to submit');
+      const msg = err.message === 'Upload timed out'
+        ? 'Upload timed out. Check your connection and try again.'
+        : (err.message || 'Failed to submit');
+      toast.error(msg);
     } finally {
       setSubmitting(false);
+      setSubmitStep(null);
     }
   };
 
