@@ -177,6 +177,7 @@ export default function COODashboardPage() {
             {renderSectionHeader('ROI Return Approvals', TrendingUp)}
             <p className="text-sm text-muted-foreground -mt-2">Approve partner ROI payouts before they go to CFO for disbursement.</p>
             <COOROIApprovals />
+            <CancelledProxyWithdrawals />
           </div>
         );
       case 'partners':
