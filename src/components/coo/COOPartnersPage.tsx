@@ -46,6 +46,7 @@ import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
 import PartnerImportDialog from './PartnerImportDialog';
 import UpdateContributionDatesDialog from './UpdateContributionDatesDialog';
+import { ApprovedPartnerWithdrawals } from './ApprovedPartnerWithdrawals';
 
 /** Roll a stale next_roi_date forward month-by-month until it's >= today */
 function getNextPayoutDate(nextRoiDate: string | null, createdAt: string, payoutDay: number): string {
@@ -311,6 +312,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [addPortfolioOpen, setAddPortfolioOpen] = useState(false);
   // Top-level create portfolio dialog
   const [createPortfolioOpen, setCreatePortfolioOpen] = useState(false);
+  const [showApprovedWithdrawals, setShowApprovedWithdrawals] = useState(false);
   const [addPortfolioAmount, setAddPortfolioAmount] = useState('');
   const [addPortfolioRoi, setAddPortfolioRoi] = useState('20');
   const [addPortfolioRoiMode, setAddPortfolioRoiMode] = useState('monthly_payout');
@@ -1500,6 +1502,10 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     );
   }
 
+  if (showApprovedWithdrawals) {
+    return <ApprovedPartnerWithdrawals onBack={() => setShowApprovedWithdrawals(false)} />;
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -1531,7 +1537,11 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           <a href="/reinvestment-history" className="block">
             <SummaryCard icon={<RefreshCw className="h-4 w-4" />} label="Reinvestment History" value="View"
               sub="Compounding growth timeline" accent="primary" />
-          </a>
+           </a>
+          <button onClick={() => setShowApprovedWithdrawals(true)} className="block text-left w-full">
+            <SummaryCard icon={<CheckCircle2 className="h-4 w-4" />} label="Partner Withdrawals" value="View All"
+              sub="Approved & completed payouts" accent="emerald" />
+          </button>
         </div>
       )}
 
