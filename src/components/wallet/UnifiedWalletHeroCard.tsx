@@ -93,8 +93,6 @@ export function UnifiedWalletHeroCard({
           </p>
         </button>
 
-        {/* Quick Actions slot */}
-        {quickActions}
 
         {/* Supporter metric cards — individually tappable */}
         {role === 'supporter' && (
@@ -132,6 +130,9 @@ export function UnifiedWalletHeroCard({
             <span className="text-[11px] text-white/70 font-bold">{secondaryValue}</span>
           </div>
         )}
+
+        {/* Quick Actions slot */}
+        {quickActions}
 
         {/* Footer — View Wallet link */}
         <div className="flex items-center justify-between pt-1">
