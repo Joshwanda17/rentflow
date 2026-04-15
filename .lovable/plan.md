@@ -1,67 +1,66 @@
 
 
-## Plan: Wallet + Proxy Agent Top-Up (Skip Approval, Instant Deduction)
+## Plan: Internship Application Funnel (Landing + Form + Auth Integration)
 
-### Summary
-Replace the 4 payment methods (Cash, MoMo, Bank, Wallet) with just **Wallet** and **Proxy Agent** on both the Partner Operations (Manager) and COO dashboards. Since money comes from already-verified wallets, skip Financial Ops approval entirely -- deduct immediately, record a wallet transaction the partner can see, and park the top-up for maturity.
+### What Gets Built
 
-### What changes
+1. **New page: `/internship`** — Public landing + application form (no auth required)
+2. **Agent sidebar link** — "Internship Program" item in `AgentMenuDrawer`
+3. **Auth page integration** — Detect `?source=internship` and auto-highlight "I want to earn and learn", pre-fill name/phone/email from query params
+4. **Fix Auth page** — Update agent role label from "I want to hustle" to "I want to earn and learn"
+5. **Store submissions** — Save to a new `internship_applications` table for tracking
 
-**1. UI -- `FundInvestmentAccountDialog.tsx` (Manager/Partner Ops)**
-- Replace `PAYMENT_OPTIONS` with 2 options: **Wallet** (partner's own) and **Proxy Agent**
-- On dialog open, fetch partner wallet balance AND proxy agent assignment + agent wallet balance
-- Show balance inline for whichever option is selected; disable Proxy Agent if none assigned
-- Remove `transaction_reference` field, `isRefValid()` logic, and all MoMo/Bank/Cash UI
-- Update preview to say "Instant deduction -- applied at maturity" instead of "Pending Verification"
+### Page Structure: `/internship`
 
-**2. UI -- `COOPartnersPage.tsx` (COO inline wallet transfer)**
-- Add a Proxy Agent option alongside the existing Wallet option in the inline dialog
-- Fetch proxy agent data when dialog opens; show agent name + balance
-- Pass `payment_method` (`wallet` or `proxy_agent`) and `source_wallet_user_id` to the edge function
+Single-page layout, mobile-first, no auth:
 
-**3. Edge Function -- `manager-portfolio-topup/index.ts`**
-- Change `VALID_METHODS` to `["wallet", "proxy_agent"]`
-- Remove all cash/MoMo/bank branches and reference validation
-- For `proxy_agent`: look up `proxy_agent_assignments` for the partner, fetch agent wallet, validate balance
-- **Instant wallet deduction**: Create `wallet_transactions` record (sender = wallet owner, recipient = platform) so the partner/agent sees it in their transaction history
-- Create `pending_wallet_operations` with `status: "approved"` (pre-approved, no Financial Ops step)
-- Create ledger entries immediately (double-entry: wallet `cash_out` for deduction, portfolio `cash_in` for pending capital)
-- Audit log with full metadata (payment_method, source_wallet_owner, agent details if proxy)
+- **Hero section**: "Earn While You Learn with Welile" + subtitle about skills, income, experience
+- **Benefits cards**: 3 quick cards (Skills, Income, Experience)
+- **Application form** (inline, not a separate step):
+  - Full Name (required)
+  - Phone Number (required)
+  - Email (required)
+  - "Why do you want to join Welile?" (required, textarea)
+  - "What skills do you have?" (optional, textarea)
+  - "Are you ready to learn and actively participate?" (required, Yes/No radio)
+  - Referral Code (optional)
+- **CTA button**: "Start My Journey"
+- **On submit**: Save to `internship_applications` table, then redirect to `/auth?source=internship&intent=earn&role=agent&name=...&email=...&phone=...`
 
-**4. Edge Function -- `coo-wallet-to-portfolio/index.ts`**
-- Same changes as manager-portfolio-topup: accept `wallet` or `proxy_agent`
-- For `proxy_agent`: resolve agent via `proxy_agent_assignments`, validate agent wallet balance
-- Instant deduction + wallet transaction record + ledger entries
-- Remove the "pending Financial Ops approval" messaging from notifications; replace with "Applied at maturity"
+### Database
 
-**5. Supporter's `FundAccountDialog.tsx`**
-- No changes needed -- this is the supporter's own self-service dialog (already wallet-only)
+New table `internship_applications`:
+- `id` (uuid, PK)
+- `full_name` (text, not null)
+- `phone` (text, not null)
+- `email` (text)
+- `motivation` (text)
+- `skills` (text)
+- `ready_to_learn` (boolean)
+- `referral_code` (text)
+- `created_at` (timestamptz)
+- No RLS needed (public insert, admin-only read)
 
-### What stays the same
-- The `merge-pending-topups` / `apply-pending-topups` maturity logic is unchanged -- capital still merges at payout
-- Notification flow to partner and executives is preserved (updated messaging only)
-- Audit logging structure preserved
+### Auth Page Changes
 
-### Technical detail
+- Detect `source=internship` query param
+- Auto-select agent role ("I want to earn and learn")
+- Pre-fill fullName, phone, email from query params
+- Auto-switch to sign-up mode
+- Update `ROLE_OPTIONS` agent label from "I want to hustle" to "I want to earn and learn"
 
-```text
-Flow (both dashboards):
-  User selects Wallet or Proxy Agent
-  → Balance shown instantly
-  → Submit
-  → Edge function:
-     1. Validate wallet balance (partner or agent)
-     2. INSERT wallet_transactions (visible to partner/agent)
-     3. INSERT general_ledger (cash_out from wallet, cash_in to portfolio)
-     4. INSERT pending_wallet_operations (status='approved', operation_type='portfolio_topup')
-     5. INSERT audit_logs
-     6. INSERT notifications
-     7. Return success — no approval step
+### Agent Sidebar
+
+Add to the "More" category in `AgentMenuDrawer`:
+```
+{ icon: GraduationCap, label: 'Internship Program', description: 'Earn while you learn', path: '/internship' }
 ```
 
-### Files modified
-- `src/components/manager/FundInvestmentAccountDialog.tsx`
-- `src/components/coo/COOPartnersPage.tsx`
-- `supabase/functions/manager-portfolio-topup/index.ts`
-- `supabase/functions/coo-wallet-to-portfolio/index.ts`
+### Files Modified/Created
+
+- **New**: `src/pages/Internship.tsx` — Landing + form page
+- **Edit**: `src/App.tsx` — Add `/internship` route
+- **Edit**: `src/components/agent/AgentMenuDrawer.tsx` — Add sidebar link
+- **Edit**: `src/pages/Auth.tsx` — Update agent label, handle internship source + pre-fill
+- **Migration**: Create `internship_applications` table
 
