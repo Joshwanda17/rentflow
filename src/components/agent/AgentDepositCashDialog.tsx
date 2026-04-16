@@ -74,7 +74,9 @@ export function AgentDepositCashDialog({ open, onOpenChange, onSuccess }: AgentD
     toast({ 
       title: depositType === 'float' 
         ? 'Float deposit recorded! Float capacity restored.' 
-        : 'Rent repayment deposit recorded!'
+        : depositType === 'operations_float'
+          ? 'Operations float deposit recorded! You can now pay tenant rent from your float.'
+          : 'Rent repayment deposit recorded!'
     });
     onSuccess?.();
   };
