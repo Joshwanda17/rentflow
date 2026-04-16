@@ -84,7 +84,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
       const [profileRes, rentRes, repaymentRes, walletRes, portfolioRes, ledgerRes] = await Promise.all([
         supabase
           .from('profiles')
-          .select('id, full_name, phone, email, created_at, monthly_rent, verified, national_id, role')
+          .select('id, full_name, phone, email, created_at, monthly_rent, verified, national_id')
           .eq('id', tenantId)
           .single(),
         supabase
@@ -118,11 +118,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
       ]);
 
       if (profileRes.data) {
-        setProfile(profileRes.data as TenantProfile);
-        // Derive roles from profile role field
-        const detectedRoles: string[] = [];
-        if (profileRes.data.role) detectedRoles.push(profileRes.data.role);
-        setRoles(detectedRoles);
+        setProfile(profileRes.data as unknown as TenantProfile);
       }
 
       setRequests((rentRes.data as unknown as RentRequestRow[]) || []);
@@ -284,9 +280,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
             <UserCheck className="h-3.5 w-3.5" /> Roles & Verification
           </h3>
           <div className="flex flex-wrap gap-1.5">
-            {profile.role && (
-              <Badge variant="outline" className="capitalize text-[10px]">{profile.role}</Badge>
-            )}
+            <Badge variant="outline" className="capitalize text-[10px]">Tenant</Badge>
             {profile.verified && <Badge className="bg-success/15 text-success border-0 text-[10px]">✓ Verified</Badge>}
             {profile.national_id && <Badge className="bg-primary/10 text-primary border-0 text-[10px]">ID on file</Badge>}
             {!profile.verified && <Badge className="bg-warning/15 text-warning border-0 text-[10px]">⏳ Unverified</Badge>}
