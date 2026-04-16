@@ -60,6 +60,7 @@ export default function AgentPartners() {
   const [angelPoolOpen, setAngelPoolOpen] = useState(false);
   const [promissoryNoteOpen, setPromissoryNoteOpen] = useState(false);
   const [promissoryListOpen, setPromissoryListOpen] = useState(false);
+  const [depositPartner, setDepositPartner] = useState<{ id: string; full_name: string; phone: string } | null>(null);
 
   const fetchPartners = useCallback(async () => {
     if (!user) return;
