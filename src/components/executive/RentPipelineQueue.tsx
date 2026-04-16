@@ -749,6 +749,69 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                 />
               )}
 
+              {/* Landlord Verification Checklist - only for Landlord Ops */}
+              {stage === 'agent_verified' && (
+                <div className="space-y-3 rounded-xl border-2 border-purple-500/30 p-3 bg-purple-500/5">
+                  <h4 className="text-sm font-bold flex items-center gap-2">
+                    <PhoneCall className="h-4 w-4 text-purple-600" />
+                    Landlord Verification Checklist
+                  </h4>
+                  <p className="text-[10px] text-muted-foreground">
+                    Call the landlord at <span className="font-mono font-bold">{selectedRequest.landlord_phone || selectedRequest.landlord_momo}</span> and complete this checklist before approving.
+                  </p>
+
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox
+                        checked={landlordCalled}
+                        onCheckedChange={(v) => setLandlordCalled(!!v)}
+                      />
+                      <span className="text-sm">I have called the landlord</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox
+                        checked={landlordAcknowledged}
+                        onCheckedChange={(v) => setLandlordAcknowledged(!!v)}
+                      />
+                      <span className="text-sm">Landlord acknowledges Welile as the payer</span>
+                    </label>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">Verification Method</label>
+                    <Select value={landlordVerificationMethod} onValueChange={setLandlordVerificationMethod}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="How was the landlord verified?" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="phone_call">Phone Call</SelectItem>
+                        <SelectItem value="physical_visit">Physical Visit</SelectItem>
+                        <SelectItem value="lc1_confirmation">LC1 Confirmation</SelectItem>
+                        <SelectItem value="video_call">Video Call</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">Call Notes</label>
+                    <Textarea
+                      placeholder="Notes from the landlord call..."
+                      value={landlordCallNotes}
+                      onChange={e => setLandlordCallNotes(e.target.value)}
+                      rows={2}
+                    />
+                  </div>
+
+                  {(!landlordCalled || !landlordAcknowledged) && (
+                    <p className="text-[10px] text-destructive flex items-center gap-1">
+                      <ShieldCheck className="h-3 w-3" />
+                      Both checkboxes must be checked to approve
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Payout Fields - only for CFO */}
               {config.showPayoutFields && (
                 <div className="space-y-3 rounded-xl border-2 border-primary/30 p-3 bg-primary/5">
