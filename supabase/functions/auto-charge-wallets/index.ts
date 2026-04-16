@@ -449,13 +449,12 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // === GRACE PERIOD EXPIRED: Charge agent ===
-        console.log(`[auto-charge-wallets] ${charge.tenant_id}: Grace period expired (${Math.round(hoursSinceFailure)}h). Charging agent.`);
+        // === GRACE PERIOD EXPIRED: Record debt (agents are no longer charged) ===
+        console.log(`[auto-charge-wallets] ${charge.tenant_id}: Grace period expired (${Math.round(hoursSinceFailure)}h). Recording debt.`);
 
         // Try partial from tenant first (with proportional split)
         const tenantPartial = Math.max(0, walletBalance);
         let amountDeducted = 0;
-        let agentAmountCharged = 0;
         let debtAdded = 0;
         let logStatus: string;
 
@@ -473,136 +472,105 @@ Deno.serve(async (req) => {
             ,
           });
         }
-        const newBalance = walletBalance - amountDeducted;
 
         const shortfall = chargeAmount - tenantPartial;
+        debtAdded = shortfall;
+        logStatus = tenantPartial > 0 ? "partial_debt_72h" : "debt_recorded_72h";
+        results.insufficient++;
 
-        if (charge.agent_id) {
-          const agentCharged = await chargeAgent(supabase, charge, shortfall, today, tenantName, tenantPhone, now);
-          if (agentCharged) {
-            agentAmountCharged = shortfall;
-            logStatus = tenantPartial > 0 ? "partial_agent_covered_72h" : "agent_covered_72h";
-            results.agent_charged++;
+        // GRACE CIRCUIT BREAKER
+        const newFailures = (charge.consecutive_failures || 0) + 1;
 
-            await supabase.from("subscription_charges").update({ consecutive_failures: 0 }).eq("id", charge.id);
-          } else {
-            debtAdded = shortfall;
-            logStatus = tenantPartial > 0 ? "partial_72h" : "insufficient_72h";
-            results.insufficient++;
+        if (newFailures >= MAX_CONSECUTIVE_FAILURES) {
+          await supabase.from("subscription_charges").update({
+            status: "stalled",
+            consecutive_failures: newFailures,
+            tenant_failed_at: null,
+          }).eq("id", charge.id);
 
-            // GRACE CIRCUIT BREAKER
-            const newFailures = (charge.consecutive_failures || 0) + 1;
+          const { data: managers } = await supabase
+            .from("profiles")
+            .select("id")
+            .eq("role", "manager");
 
-            if (newFailures >= MAX_CONSECUTIVE_FAILURES) {
-              await supabase.from("subscription_charges").update({
-                status: "stalled",
-                consecutive_failures: newFailures,
-                tenant_failed_at: null,
-              }).eq("id", charge.id);
-
-              const { data: managers } = await supabase
-                .from("profiles")
-                .select("id")
-                .eq("role", "manager");
-
-              if (managers && managers.length > 0) {
-                const managerNotifications = managers.map((m: any) => ({
-                  user_id: m.id,
-                  title: "🛑 Charge Stalled — Manual Intervention Required",
-                  message: `${tenantName} (${tenantPhone}): ${newFailures} consecutive failed grace cycles. Both tenant and agent have insufficient funds. Charge amount: UGX ${chargeAmount.toLocaleString()}/day. Total accumulated debt: UGX ${(Number(charge.accumulated_debt) + debtAdded).toLocaleString()}.`,
-                  type: "warning",
-                  metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, agent_id: charge.agent_id, consecutive_failures: newFailures },
-                }));
-                await supabase.from("notifications").insert(managerNotifications);
-              }
-
-              await supabase.from("notifications").insert({
-                user_id: charge.agent_id,
-                title: "🛑 Charge Stalled — Action Required",
-                message: `After ${newFailures} failed attempts, rent collection for ${tenantName} (${tenantPhone}) has been paused. Please top up your wallet or contact the tenant. Amount: UGX ${chargeAmount.toLocaleString()}.`,
-                type: "warning",
-                metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, amount: chargeAmount },
-              });
-
-              results.stalled++;
-              console.log(`[auto-charge-wallets] STALLED: ${tenantName} after ${newFailures} consecutive failures`);
-            } else {
-              await supabase.from("subscription_charges").update({
-                consecutive_failures: newFailures,
-                tenant_failed_at: null,
-              }).eq("id", charge.id);
-
-              console.log(`[auto-charge-wallets] ${tenantName}: failure #${newFailures}/${MAX_CONSECUTIVE_FAILURES}, grace reset`);
-            }
+          if (managers && managers.length > 0) {
+            const managerNotifications = managers.map((m: any) => ({
+              user_id: m.id,
+              title: "🛑 Charge Stalled — Manual Intervention Required",
+              message: `${tenantName} (${tenantPhone}): ${newFailures} consecutive failed grace cycles. Tenant has insufficient funds. Charge amount: UGX ${chargeAmount.toLocaleString()}/day. Total accumulated debt: UGX ${(Number(charge.accumulated_debt) + debtAdded).toLocaleString()}.`,
+              type: "warning",
+              metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, agent_id: charge.agent_id, consecutive_failures: newFailures },
+            }));
+            await supabase.from("notifications").insert(managerNotifications);
           }
+
+          if (charge.agent_id) {
+            await supabase.from("notifications").insert({
+              user_id: charge.agent_id,
+              title: "🛑 Charge Stalled — Action Required",
+              message: `After ${newFailures} failed attempts, rent collection for ${tenantName} (${tenantPhone}) has been paused. Please contact the tenant. Amount: UGX ${chargeAmount.toLocaleString()}.`,
+              type: "warning",
+              metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, amount: chargeAmount },
+            });
+          }
+
+          results.stalled++;
+          console.log(`[auto-charge-wallets] STALLED: ${tenantName} after ${newFailures} consecutive failures`);
         } else {
-          debtAdded = shortfall;
-          logStatus = tenantPartial > 0 ? "partial_no_agent" : "no_agent_insufficient";
-          results.insufficient++;
+          await supabase.from("subscription_charges").update({
+            consecutive_failures: newFailures,
+            tenant_failed_at: null,
+          }).eq("id", charge.id);
+
+          console.log(`[auto-charge-wallets] ${tenantName}: failure #${newFailures}/${MAX_CONSECUTIVE_FAILURES}, grace reset`);
         }
 
-        if ((charge.consecutive_failures || 0) + 1 < MAX_CONSECUTIVE_FAILURES || agentAmountCharged > 0) {
+        if (newFailures < MAX_CONSECUTIVE_FAILURES) {
           await supabase.from("subscription_charges").update({ tenant_failed_at: null }).eq("id", charge.id);
         }
 
-        const totalCollected = amountDeducted + agentAmountCharged;
-        if (charge.rent_request_id && totalCollected > 0) {
+        if (charge.rent_request_id && amountDeducted > 0) {
           await supabase.rpc("record_rent_request_repayment", {
-            p_tenant_id: charge.tenant_id, p_amount: totalCollected,
+            p_tenant_id: charge.tenant_id, p_amount: amountDeducted,
           });
           await supabase.rpc("credit_agent_rent_commission", {
-            p_rent_request_id: charge.rent_request_id, p_repayment_amount: totalCollected,
+            p_rent_request_id: charge.rent_request_id, p_repayment_amount: amountDeducted,
             p_tenant_id: charge.tenant_id,
             p_event_reference_id: `auto-charge-split-${charge.id}-${today}`,
           });
         }
 
         await logAndUpdateCharge(supabase, charge, {
-          chargeAmount, amountDeducted, agentAmountCharged, debtAdded,
+          chargeAmount, amountDeducted, agentAmountCharged: 0, debtAdded,
           walletBefore: walletBalance, walletAfter: walletBalance - amountDeducted,
           logStatus, tenantName, tenantPhone, today,
         });
 
         // Notifications
-        if (agentAmountCharged > 0 && charge.agent_id) {
-          await supabase.from("notifications").insert({
-            user_id: charge.agent_id,
-            title: "⚠️ 72h Grace Expired — You Were Charged",
-            message: `${tenantName} (${tenantPhone}) didn't pay within 72 hours. UGX ${agentAmountCharged.toLocaleString()} deducted from your wallet for their ${charge.frequency} rent instalment.`,
-            type: "warning",
-            metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, tenant_name: tenantName, tenant_phone: tenantPhone, amount: agentAmountCharged },
-          });
-
-          await supabase.from("notifications").insert({
-            user_id: charge.tenant_id,
-            title: "💳 Instalment Covered by Agent",
-            message: `Your agent covered UGX ${agentAmountCharged.toLocaleString()} for your ${charge.frequency} instalment after 72h. Please top up to avoid this.`,
-            type: "warning",
-            metadata: { subscription_id: charge.id, agent_covered: agentAmountCharged },
-          });
-
-          if (tenantPhone) {
-            const totalPaid = amountDeducted + agentAmountCharged;
-            const sms = `WELILE: Dear ${tenantName}, UGX ${totalPaid.toLocaleString()} has been paid towards your rent${agentAmountCharged > 0 ? ' (covered by your agent)' : ''}. Please top up your wallet. Access up to UGX 30M with WELILE!`;
-            sendTenantSMS(tenantPhone, sms).catch(e => console.error("[auto-charge-wallets] SMS error:", e));
-          }
-        }
-
         if (debtAdded > 0 && charge.agent_id) {
           await supabase.from("notifications").insert({
             user_id: charge.agent_id,
-            title: "⚠️ Tenant & Agent Insufficient — Debt Added",
-            message: `Neither you nor ${tenantName} (${tenantPhone}) could cover UGX ${chargeAmount.toLocaleString()}. UGX ${debtAdded.toLocaleString()} added as debt.`,
+            title: "📋 Tenant Missed Payment — Debt Recorded",
+            message: `${tenantName} (${tenantPhone}) couldn't cover UGX ${chargeAmount.toLocaleString()} after 72h grace. UGX ${debtAdded.toLocaleString()} recorded as tenant debt. Please follow up with the tenant.`,
             type: "warning",
             metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, tenant_name: tenantName, debt: debtAdded },
           });
         }
 
+        if (debtAdded > 0) {
+          await supabase.from("notifications").insert({
+            user_id: charge.tenant_id,
+            title: "⚠️ Missed Payment — Debt Recorded",
+            message: `Your instalment of UGX ${debtAdded.toLocaleString()} could not be charged after 72 hours. This has been recorded as debt. Please top up your wallet.`,
+            type: "warning",
+            metadata: { subscription_id: charge.id, debt: debtAdded },
+          });
+        }
+
         results.totalCharged += amountDeducted;
-        results.totalAgentCharged += agentAmountCharged;
         results.totalDebt += debtAdded;
 
-        console.log(`[auto-charge-wallets] ${charge.tenant_id}: ${logStatus} - tenant:${amountDeducted}, agent:${agentAmountCharged}, debt:${debtAdded}`);
+        console.log(`[auto-charge-wallets] ${charge.tenant_id}: ${logStatus} - tenant:${amountDeducted}, debt:${debtAdded}`);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error(`[auto-charge-wallets] Error processing ${charge.id}:`, msg);
