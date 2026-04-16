@@ -64,7 +64,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
   const [requests, setRequests] = useState<RentRequestRow[]>([]);
   const [repayments, setRepayments] = useState<RepaymentRow[]>([]);
   const [walletData, setWalletData] = useState<WalletData | null>(null);
-  const [roles, setRoles] = useState<string[]>([]);
+  
   const [partnershipAmount, setPartnershipAmount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
