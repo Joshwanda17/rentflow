@@ -380,11 +380,20 @@ export function RentRequestButton({ userId, onSuccess }: RentRequestButtonProps)
       onSuccess();
 
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to submit request',
-        variant: 'destructive',
-      });
+      const msg = error.message || 'Failed to submit request';
+      if (msg.includes('row-level security') || msg.includes('RLS')) {
+        toast({
+          title: 'Session Expired',
+          description: 'Your session has expired. Please log out and log in again.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Error',
+          description: msg,
+          variant: 'destructive',
+        });
+      }
     } finally {
       setLoading(false);
     }
