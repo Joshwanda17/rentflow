@@ -10,6 +10,7 @@ import {
   Loader2, ArrowLeft, Phone, Mail, MapPin, Home, User, Shield, Calendar,
   CreditCard, TrendingUp, Copy, CheckCircle2, Wallet, Banknote, History,
   UserCheck, Star, AlertTriangle, ChevronDown, ChevronUp, Navigation, Share2, Smartphone,
+  MessageCircle, Pencil,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useGeoLocation } from '@/hooks/useGeoLocation';
