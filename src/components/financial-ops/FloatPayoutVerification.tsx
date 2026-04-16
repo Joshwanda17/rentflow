@@ -330,6 +330,15 @@ export function FloatPayoutVerification() {
                               <Banknote className="h-3 w-3 shrink-0 text-chart-4" />
                               <span className="text-muted-foreground">Type:</span>
                               <Badge variant="outline" className="text-[9px] border-chart-4/40 text-chart-4">Landlord Float Withdrawal</Badge>
+                              {p.landlord_otp_verified ? (
+                                <Badge className="text-[9px] bg-emerald-500/20 text-emerald-700 gap-0.5">
+                                  <ShieldCheck className="h-2.5 w-2.5" /> OTP Verified
+                                </Badge>
+                              ) : (
+                                <Badge variant="destructive" className="text-[9px] gap-0.5">
+                                  ⚠ No OTP
+                                </Badge>
+                              )}
                             </div>
                           </div>
 
