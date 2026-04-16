@@ -18,7 +18,7 @@ import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryF
 import { AgentRequisitionForm } from './AgentRequisitionForm';
 import { 
   ShieldCheck, Banknote, ArrowLeft, ChevronDown, ChevronUp,
-  ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, MinusCircle, FileText, Briefcase
+  ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, MinusCircle, FileText
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { AnimatePresence } from 'framer-motion';
