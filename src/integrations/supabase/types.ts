@@ -4203,6 +4203,7 @@ export type Database = {
           transaction_date: string
           transaction_group_id: string | null
           user_id: string | null
+          wallet_id: string | null
         }
         Insert: {
           account?: string | null
@@ -4224,6 +4225,7 @@ export type Database = {
           transaction_date?: string
           transaction_group_id?: string | null
           user_id?: string | null
+          wallet_id?: string | null
         }
         Update: {
           account?: string | null
@@ -4245,8 +4247,17 @@ export type Database = {
           transaction_date?: string
           transaction_group_id?: string | null
           user_id?: string | null
+          wallet_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "general_ledger_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       house_listings: {
         Row: {
@@ -6928,6 +6939,7 @@ export type Database = {
           territory: string | null
           updated_at: string
           verified: boolean
+          wallet_id: string | null
           whatsapp_verified: boolean | null
           whatsapp_verified_at: string | null
         }
@@ -6958,6 +6970,7 @@ export type Database = {
           territory?: string | null
           updated_at?: string
           verified?: boolean
+          wallet_id?: string | null
           whatsapp_verified?: boolean | null
           whatsapp_verified_at?: string | null
         }
@@ -6988,10 +7001,19 @@ export type Database = {
           territory?: string | null
           updated_at?: string
           verified?: boolean
+          wallet_id?: string | null
           whatsapp_verified?: boolean | null
           whatsapp_verified_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       promissory_notes: {
         Row: {
