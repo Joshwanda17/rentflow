@@ -13,7 +13,7 @@ import { LedgerHub } from '@/components/ledgers/LedgerHub';
 import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
 import { DepositStatsPanel } from './DepositStatsPanel';
 import { WalletOverviewCard } from './WalletOverviewCard';
-import { PortfolioTopUpVerification } from './PortfolioTopUpVerification';
+
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
 import { AgentRequisitionForm } from './AgentRequisitionForm';
 import { 
@@ -23,7 +23,7 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { AnimatePresence } from 'framer-motion';
 
-type View = 'home' | 'deposits' | 'portfolio-topups';
+type View = 'home' | 'deposits';
 type Tool = null | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit' | 'withdrawals' | 'opportunities' | 'deductions' | 'requisitions';
 
 const supportTools = [
@@ -167,19 +167,6 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
             )}
           </AnimatePresence>
 
-          {/* Portfolio Top-Up Verification */}
-          <button
-            onClick={() => setView('portfolio-topups')}
-            className="flex items-center gap-4 p-5 rounded-2xl border-2 border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10 hover:border-blue-500/50 transition-all text-left min-h-[80px]"
-          >
-            <div className="h-12 w-12 rounded-xl bg-blue-500/15 flex items-center justify-center shrink-0">
-              <Briefcase className="h-6 w-6 text-blue-600" />
-            </div>
-            <div className="flex-1">
-              <p className="font-bold text-base">Portfolio Top-Ups</p>
-              <p className="text-xs text-muted-foreground">Verify & approve partner capital injections</p>
-            </div>
-          </button>
 
           {/* Withdrawals & Payouts */}
           <button
