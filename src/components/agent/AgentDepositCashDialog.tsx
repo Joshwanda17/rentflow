@@ -7,7 +7,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useProfile } from '@/hooks/useProfile';
-import { Loader2, CheckCircle2, ArrowDownCircle, AlertCircle, Smartphone, Building2, Banknote, CreditCard, Phone } from 'lucide-react';
+import { Loader2, CheckCircle2, ArrowDownCircle, AlertCircle, Smartphone, Building2, Banknote, CreditCard, Phone, Wallet } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 
 interface AgentDepositCashDialogProps {
@@ -116,8 +116,21 @@ export function AgentDepositCashDialog({ open, onOpenChange, onSuccess }: AgentD
                   <RadioGroupItem value="float" id="type-float" className="sr-only" />
                   <Banknote className="h-5 w-5 text-primary" />
                   <div className="flex-1">
-                    <p className="font-medium text-sm">Float</p>
-                    <p className="text-xs text-muted-foreground">Replenish operational float for rent payments</p>
+                    <p className="font-medium text-sm">Float (Cash-Out)</p>
+                    <p className="text-xs text-muted-foreground">Replenish cash-out float capacity</p>
+                  </div>
+                </Label>
+                <Label
+                  htmlFor="type-ops-float"
+                  className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                    depositType === 'operations_float' ? 'border-success bg-success/5' : 'border-border hover:border-success/30'
+                  }`}
+                >
+                  <RadioGroupItem value="operations_float" id="type-ops-float" className="sr-only" />
+                  <Wallet className="h-5 w-5 text-success" />
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">Agent Operations Float</p>
+                    <p className="text-xs text-muted-foreground">For paying tenant rent from your wallet</p>
                   </div>
                 </Label>
                 <Label
