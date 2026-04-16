@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { AgentProxyWithdrawalDialog } from './AgentProxyWithdrawalDialog';
-import { AgentDepositDialog } from './AgentDepositDialog';
+import { ProxyPartnerDepositDialog } from './ProxyPartnerDepositDialog';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import {
@@ -91,7 +91,6 @@ export function FunderDetailView({
 
   const [withdrawDialogOpen, setWithdrawDialogOpen] = useState(false);
   const [depositDialogOpen, setDepositDialogOpen] = useState(false);
-  const [depositPhone, setDepositPhone] = useState('');
 
   const [activeTab, setActiveTab] = useState<'overview' | 'portfolios' | 'history'>('overview');
 
@@ -283,12 +282,7 @@ export function FunderDetailView({
           <Button
             variant="outline"
             className="h-auto py-2.5 flex-col gap-1 text-[10px]"
-            onClick={() => {
-              if (funder.beneficiary?.phone) {
-                setDepositPhone(funder.beneficiary.phone);
-                setDepositDialogOpen(true);
-              }
-            }}
+            onClick={() => setDepositDialogOpen(true)}
           >
             <Banknote className="h-4 w-4 text-success" />
             Deposit
@@ -564,10 +558,10 @@ export function FunderDetailView({
               onRefresh();
             }}
           />
-          <AgentDepositDialog
+          <ProxyPartnerDepositDialog
             open={depositDialogOpen}
             onOpenChange={setDepositDialogOpen}
-            prefillPhone={depositPhone}
+            partner={funder.beneficiary}
             onSuccess={() => {
               fetchAllData();
               onRefresh();
