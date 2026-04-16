@@ -44,11 +44,14 @@ export function AgentProxyWithdrawalDialog({
     if (!user || !isValid) return;
     setLoading(true);
     try {
+      // Insert with agent's user_id so the deduction trigger hits the AGENT's wallet
+      // (where ROI funds actually sit), and tag the partner via proxy_partner_id
       const { error } = await supabase.from('withdrawal_requests').insert({
-        user_id: funderId,
+        user_id: user.id,
         amount,
         status: 'pending' as const,
         reason: `[Agent proxy: ${user.id}] ${reason.trim()}`,
+        proxy_partner_id: funderId,
       } as any);
       if (error) throw error;
 

@@ -119,7 +119,7 @@ export function FunderDetailView({
           .limit(20),
         supabase.from('withdrawal_requests')
           .select('id, amount, status, payout_method, created_at')
-          .eq('user_id', beneficiaryId)
+          .eq('proxy_partner_id', beneficiaryId)
           .order('created_at', { ascending: false })
           .limit(20),
         supabase.from('proxy_agent_assignments')
