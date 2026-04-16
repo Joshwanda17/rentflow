@@ -5,7 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw } from 'lucide-react';
+import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfDay } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -13,6 +13,7 @@ import { downloadRepaymentPdf, shareRepaymentPdfWhatsApp } from '@/lib/repayment
 import { downloadRentStatement } from '@/lib/receiptPdf';
 import { useToast } from '@/hooks/use-toast';
 import AgentRentRequestDialog from './AgentRentRequestDialog';
+import { AgentTenantCollectDialog } from './AgentTenantCollectDialog';
 
 interface Tenant {
   id: string;
@@ -60,6 +61,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [tenantStatuses, setTenantStatuses] = useState<Record<string, Set<string>>>({});
   const [renewDialogOpen, setRenewDialogOpen] = useState(false);
   const [renewPrefill, setRenewPrefill] = useState<{ name: string; phone: string; amount: string } | null>(null);
+  const [collectDialogOpen, setCollectDialogOpen] = useState(false);
+  const [collectTarget, setCollectTarget] = useState<{ tenant: Tenant; reqId: string; owing: number } | null>(null);
 
   useEffect(() => {
     if (open && user) fetchTenants();
@@ -461,6 +464,21 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                                     </div>
                                   </div>
 
+                                  {/* Collect button — prominent if owing */}
+                                  {owing > 0 && (
+                                    <button
+                                      onClick={() => {
+                                        setCollectTarget({ tenant, reqId: req.id, owing });
+                                        setCollectDialogOpen(true);
+                                      }}
+                                      className="flex items-center justify-center gap-2 h-12 rounded-xl bg-success text-success-foreground font-bold text-sm active:scale-95 transition-transform w-full shadow-sm"
+                                      style={{ touchAction: 'manipulation' }}
+                                    >
+                                      <Banknote className="h-5 w-5" />
+                                      Collect Payment — {formatUGX(owing)}
+                                    </button>
+                                  )}
+
                                   {/* 2×2 Action Buttons */}
                                   <div className="grid grid-cols-2 gap-2">
                                     <a
@@ -548,6 +566,28 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         prefillTenantName={renewPrefill?.name}
         prefillTenantPhone={renewPrefill?.phone}
         prefillRentAmount={renewPrefill?.amount}
+      />
+
+      <AgentTenantCollectDialog
+        open={collectDialogOpen}
+        onOpenChange={(open) => {
+          setCollectDialogOpen(open);
+          if (!open) setCollectTarget(null);
+        }}
+        tenant={collectTarget ? { id: collectTarget.tenant.id, full_name: collectTarget.tenant.full_name, phone: collectTarget.tenant.phone } : null}
+        rentRequestId={collectTarget?.reqId || ''}
+        outstandingBalance={collectTarget?.owing || 0}
+        onSuccess={() => {
+          setCollectDialogOpen(false);
+          setCollectTarget(null);
+          // Refresh tenant data to show updated balances
+          setTenantRequests(prev => {
+            const updated = { ...prev };
+            if (collectTarget) delete updated[collectTarget.tenant.id];
+            return updated;
+          });
+          fetchTenants();
+        }}
       />
     </Sheet>
   );
