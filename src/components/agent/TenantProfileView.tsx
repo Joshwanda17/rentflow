@@ -69,7 +69,7 @@ const PAGE_SIZE = 5;
 export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) {
   const { toast } = useToast();
   const { user } = useAuth();
-  const { floatBalance: agentFloatBalance, isLoading: floatLoading, refetch: refetchFloat } = useAgentBalances();
+  const { floatBalance: agentFloatBalance, isLoading: floatLoading, error: floatError, refetch: refetchFloat } = useAgentBalances(user?.id);
   const [profile, setProfile] = useState<TenantProfile | null>(null);
   const [requests, setRequests] = useState<RentRequestRow[]>([]);
   const [repayments, setRepayments] = useState<RepaymentRow[]>([]);
