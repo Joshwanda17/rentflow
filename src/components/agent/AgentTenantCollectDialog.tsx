@@ -178,7 +178,7 @@ export function AgentTenantCollectDialog({
                 placeholder="e.g. 13000"
                 value={amount || ''}
                 onChange={e => setAmount(Number(e.target.value))}
-                min={500}
+                min={100}
                 max={maxAllowable}
                 className="h-12 text-lg font-mono font-bold"
                 style={{ fontSize: '18px' }}
