@@ -61,6 +61,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [tenantStatuses, setTenantStatuses] = useState<Record<string, Set<string>>>({});
   const [renewDialogOpen, setRenewDialogOpen] = useState(false);
   const [renewPrefill, setRenewPrefill] = useState<{ name: string; phone: string; amount: string } | null>(null);
+  const [collectDialogOpen, setCollectDialogOpen] = useState(false);
+  const [collectTarget, setCollectTarget] = useState<{ tenant: Tenant; reqId: string; owing: number } | null>(null);
 
   useEffect(() => {
     if (open && user) fetchTenants();
