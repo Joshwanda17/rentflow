@@ -502,11 +502,13 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
               </div>
               <div className="bg-success/10 rounded-xl p-3">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Your Ops Float</p>
-                <p className="text-lg font-black font-mono text-success">{formatUGX(agentFloatBalance)}</p>
+                <p className="text-lg font-black font-mono text-success">
+                  {floatLoading ? <Loader2 className="h-4 w-4 animate-spin inline" /> : formatUGX(agentFloatBalance)}
+                </p>
               </div>
             </div>
 
-            {agentFloatBalance < 500 && (
+            {!floatLoading && agentFloatBalance < 500 && (
               <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/20 rounded-xl p-3">
                 <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
                 <p className="text-xs text-destructive font-medium">Insufficient float. Deposit to your operations float first or ask CFO to top up.</p>
