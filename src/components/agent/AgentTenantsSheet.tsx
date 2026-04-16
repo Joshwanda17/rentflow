@@ -566,7 +566,36 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                                         Receipt
                                       </button>
                                     )}
-                                  </div>
+                                  {/* Behavior Card button */}
+                                  <button
+                                    onClick={() => {
+                                      const totalPayments = req.duration_days;
+                                      const paidDays = req.daily_repayment > 0 ? Math.floor(req.amount_repaid / req.daily_repayment) : 0;
+                                      setBehaviorData({
+                                        tenantName: tenant.full_name,
+                                        tenantPhone: tenant.phone,
+                                        landlordName: req.landlord?.name || 'N/A',
+                                        propertyAddress: req.landlord?.property_address || 'N/A',
+                                        houseCategory: req.landlord?.house_category || '',
+                                        rentAmount: req.rent_amount,
+                                        totalRepayment: req.total_repayment,
+                                        amountRepaid: req.amount_repaid,
+                                        durationDays: req.duration_days,
+                                        status: req.status || 'approved',
+                                        createdAt: req.created_at,
+                                        onTimePayments: paidDays,
+                                        latePayments: 0,
+                                        missedPayments: Math.max(0, totalPayments - paidDays),
+                                      });
+                                      setBehaviorCardOpen(true);
+                                    }}
+                                    className="flex items-center justify-center gap-2 h-10 rounded-xl bg-primary/10 text-primary font-semibold text-xs active:scale-95 transition-transform w-full"
+                                    style={{ touchAction: 'manipulation' }}
+                                  >
+                                    <TrendingUp className="h-4 w-4" />
+                                    Share Behavior Card
+                                  </button>
+                                </div>
                                 </div>
                               );
                             })
