@@ -16,6 +16,7 @@ export const AGENT_COMMISSION_CATEGORIES = {
   EARNED: 'agent_commission_earned',
   WITHDRAWAL: 'agent_commission_withdrawal',
   USED_FOR_RENT: 'agent_commission_used_for_rent',
+  PARTNER_COMMISSION: 'partner_commission',
 } as const;
 
 /**
@@ -71,6 +72,8 @@ export const LOCKED_CATEGORIES = [
   'tax_expense',
   'interest_expense',
   'equipment_expense',
+  // Partner commission
+  'partner_commission',
 ] as const;
 
 export type LockedCategory = typeof LOCKED_CATEGORIES[number];
