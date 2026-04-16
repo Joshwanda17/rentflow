@@ -99,7 +99,7 @@ export function AgentDepositCashDialog({ open, onOpenChange, onSuccess }: AgentD
             <h3 className="text-lg font-semibold">Deposit Received!</h3>
             <p className="text-sm text-muted-foreground">{formatUGX(parseFloat(amount))}</p>
             <p className="text-sm font-medium text-success">
-              {depositType === 'float' ? 'Float Capacity Restored' : 'Rent Repayment Recorded'}
+              {depositType === 'float' ? 'Float Capacity Restored' : depositType === 'operations_float' ? 'Operations Float Credited' : 'Rent Repayment Recorded'}
             </p>
             <Button onClick={handleClose} className="w-full h-12">Done</Button>
           </div>
