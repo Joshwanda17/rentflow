@@ -487,54 +487,88 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
           </div>
         </div>
 
-        {/* ── Pay from Operations Float — PROMINENT ── */}
+        {/* ── Rent Collection Actions ── */}
         {summary.activeRequest && summary.currentOutstanding > 0 && (
-          <div className="rounded-2xl border-2 border-success/40 bg-gradient-to-br from-success/10 to-success/5 p-4 space-y-3">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-success flex items-center gap-1.5">
-              <Wallet className="h-4 w-4" /> Pay from Operations Float
+          <div className="rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-card p-4 space-y-4">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+              <Banknote className="h-4 w-4" /> Rent Collection
             </h3>
-            <p className="text-xs text-muted-foreground">
-              Use your operations float to pay this tenant's rent directly. The amount will be deducted from your float balance.
-            </p>
+
+            {/* Balance overview */}
             <div className="grid grid-cols-2 gap-2 text-center">
-              <div className="bg-success/10 rounded-xl p-3">
+              <div className="bg-destructive/10 rounded-xl p-3">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Outstanding</p>
                 <p className="text-lg font-black font-mono text-destructive">{formatUGX(summary.currentOutstanding)}</p>
               </div>
               <div className="bg-success/10 rounded-xl p-3">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Your Float</p>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Your Ops Float</p>
                 <p className="text-lg font-black font-mono text-success">{formatUGX(agentFloatBalance)}</p>
               </div>
             </div>
+
             {agentFloatBalance < 500 && (
               <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/20 rounded-xl p-3">
                 <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
                 <p className="text-xs text-destructive font-medium">Insufficient float. Deposit to your operations float first or ask CFO to top up.</p>
               </div>
             )}
-            <Button
-              onClick={() => setCollectDialogOpen(true)}
-              className="w-full gap-2 text-base h-14 font-bold rounded-xl shadow-lg"
-              variant="success"
-              size="xl"
-              disabled={agentFloatBalance < 500}
-            >
-              <Banknote className="h-6 w-6" />
-              Pay {formatUGX(Math.min(summary.currentOutstanding, agentFloatBalance))} from Float
-            </Button>
-            <p className="text-[10px] text-center text-muted-foreground">
-              💡 You earn <span className="font-bold text-success">10% commission</span> on every float payment
-            </p>
+
+            {/* ── Option 1: Pay from Operations Float ── */}
+            <div className="rounded-xl border border-success/30 bg-success/5 p-3 space-y-2">
+              <div className="flex items-start gap-2">
+                <Wallet className="h-4 w-4 text-success mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm font-bold text-success">Pay from Your Float</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Deducts from <strong>your operations float</strong> to pay this tenant's rent. You earn <strong className="text-success">10% commission</strong> instantly. Best for field collections where you've already received cash.
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={() => setCollectDialogOpen(true)}
+                className="w-full gap-2 text-base h-14 font-bold rounded-xl shadow-lg active:scale-[0.96] transition-transform"
+                variant="success"
+                size="xl"
+                disabled={agentFloatBalance < 500}
+              >
+                <Banknote className="h-6 w-6" />
+                Pay {formatUGX(Math.min(summary.currentOutstanding, agentFloatBalance))} from Float
+              </Button>
+            </div>
+
+            {/* ── Option 2: Auto-Collect from Tenant Wallet ── */}
+            {walletData && walletData.balance > 0 && (
+              <div className="rounded-xl border border-border/40 bg-muted/30 p-3 space-y-2">
+                <div className="flex items-start gap-2">
+                  <Bot className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-bold">Auto-Collect from Tenant Wallet</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Automatically deducts <strong className="font-mono">{formatUGX(Math.min(walletData.balance, summary.currentOutstanding))}</strong> from the <strong>tenant's wallet</strong>. No cash needed — instant digital transfer. Tenant wallet: <strong className="font-mono text-primary">{formatUGX(walletData.balance)}</strong>
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  onClick={handleAutoCollectFromWallet}
+                  disabled={autoCollecting}
+                  variant="outline"
+                  size="default"
+                  className="w-full gap-2 text-sm h-10 rounded-xl border-primary/30 active:scale-[0.96] transition-transform"
+                >
+                  {autoCollecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bot className="h-4 w-4 text-primary" />}
+                  Auto-Collect {formatUGX(Math.min(walletData.balance, summary.currentOutstanding))}
+                </Button>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Quick Actions — Make Sub-Agent, Send Dashboard, Auto-Collect */}
+        {/* Quick Actions — Make Sub-Agent, Send Dashboard */}
         <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
           <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
             <Zap className="h-4 w-4" /> Quick Actions
           </h3>
           <div className="grid grid-cols-2 gap-2">
-            {/* Make Sub-Agent */}
             <Button
               variant="outline"
               size="lg"
@@ -544,8 +578,6 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
               <UsersRound className="h-5 w-5 text-warning" />
               Make Sub-Agent
             </Button>
-
-            {/* Send Dashboard Link */}
             <Button
               variant="outline"
               size="lg"
@@ -556,23 +588,6 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
               {sharingLink ? <Loader2 className="h-5 w-5 animate-spin" /> : <Smartphone className="h-5 w-5 text-primary" />}
               Dashboard Link
             </Button>
-
-            {/* Auto-Collect from Tenant Wallet */}
-            {summary.activeRequest && walletData && walletData.balance > 0 && (
-              <Button
-                variant="outline"
-                size="lg"
-                className="gap-2 text-sm h-auto py-3 flex-col items-center col-span-2 border-success/30 bg-success/5"
-                onClick={handleAutoCollectFromWallet}
-                disabled={autoCollecting}
-              >
-                {autoCollecting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Bot className="h-5 w-5 text-success" />}
-                <span>Auto-Collect from Wallet</span>
-                <span className="text-xs text-muted-foreground font-mono">
-                  {formatUGX(Math.min(walletData.balance, summary.currentOutstanding))}
-                </span>
-              </Button>
-            )}
           </div>
         </div>
 
