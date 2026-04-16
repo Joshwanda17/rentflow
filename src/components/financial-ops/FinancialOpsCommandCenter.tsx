@@ -189,6 +189,20 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
             </div>
           </button>
 
+          {/* Debt Recovery */}
+          <button
+            onClick={() => openTool('debt_recovery')}
+            className="flex items-center gap-4 p-5 rounded-2xl border-2 border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10 hover:border-orange-500/40 transition-all text-left min-h-[80px]"
+          >
+            <div className="h-12 w-12 rounded-xl bg-orange-500/10 flex items-center justify-center shrink-0">
+              <AlertTriangle className="h-6 w-6 text-orange-500" />
+            </div>
+            <div className="flex-1">
+              <p className="font-bold text-base">Debt Recovery</p>
+              <p className="text-xs text-muted-foreground">Track & recover unauthorized payouts</p>
+            </div>
+          </button>
+
           {/* Ledger */}
           <button
             onClick={() => openTool('ledgers')}
