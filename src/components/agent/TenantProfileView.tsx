@@ -498,7 +498,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
               className="gap-2 text-sm h-auto py-3 flex-col items-center"
               onClick={() => setSubAgentDialogOpen(true)}
             >
-              <UsersRound className="h-5 w-5 text-amber-500" />
+              <UsersRound className="h-5 w-5 text-warning" />
               Make Sub-Agent
             </Button>
 
