@@ -169,7 +169,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const switchRole = (newRole: AppRole) => {
-    if (rolesRef.current.includes(newRole)) setRole(newRole);
+    if (rolesRef.current.includes(newRole)) {
+      setRole(newRole);
+      try { localStorage.setItem('welile_last_role', newRole); } catch {}
+    }
   };
 
   const addRole = async (newRole: AppRole) => {
