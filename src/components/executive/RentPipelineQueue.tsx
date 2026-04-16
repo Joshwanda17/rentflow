@@ -524,6 +524,51 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
 
   const fmt = (n: number) => Number(n || 0).toLocaleString();
 
+  const handleBulkApprove = async () => {
+    if (!user || selectedIds.size === 0) return;
+    setProcessing(true);
+    try {
+      const ids = [...selectedIds];
+      for (const id of ids) {
+        const { error } = await supabase
+          .from('rent_requests')
+          .update({
+            status: config.nextStatus,
+            [config.reviewerColumn]: user.id,
+            [config.reviewerAtColumn]: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', id);
+        if (error) throw error;
+      }
+      toast({ title: `✅ ${ids.length} requests approved` });
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ['rent-pipeline'] });
+    } catch (err: any) {
+      toast({ title: 'Bulk approval error', description: err.message, variant: 'destructive' });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map(r => r.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const isCooStage = stage === 'landlord_ops_approved';
+
   return (
     <Card className="border border-border">
       <CardHeader className="pb-3">
@@ -533,6 +578,29 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
             {rows.length} pending
           </Badge>
         </div>
+        {/* COO Bulk Approve Controls */}
+        {isCooStage && filtered.length > 0 && (
+          <div className="flex items-center justify-between gap-2 mt-2 p-2 rounded-lg bg-muted/50 border">
+            <label className="flex items-center gap-2 cursor-pointer text-sm">
+              <Checkbox
+                checked={selectedIds.size === filtered.length && filtered.length > 0}
+                onCheckedChange={toggleSelectAll}
+              />
+              Select All ({filtered.length})
+            </label>
+            {selectedIds.size > 0 && (
+              <Button
+                size="sm"
+                className="h-8 text-xs gap-1"
+                disabled={processing}
+                onClick={handleBulkApprove}
+              >
+                {processing ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
+                Approve Selected ({selectedIds.size})
+              </Button>
+            )}
+          </div>
+        )}
         <div className="relative mt-2">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
