@@ -24,7 +24,7 @@ export function AgentTenantCollectDialog({
   open, onOpenChange, tenant, rentRequestId, outstandingBalance, onSuccess,
 }: AgentTenantCollectDialogProps) {
   const { user } = useAuth();
-  const { floatBalance, refetch: refetchBalances } = useAgentBalances();
+  const { floatBalance, refetch: refetchBalances } = useAgentBalances(user?.id);
   const [amount, setAmount] = useState<number>(0);
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
