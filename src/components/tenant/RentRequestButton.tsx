@@ -249,6 +249,22 @@ export function RentRequestButton({ userId, onSuccess }: RentRequestButtonProps)
     setLoading(true);
 
     try {
+      // Verify session is still valid before submitting
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        // Try refreshing the session
+        const { error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError) {
+          toast({
+            title: 'Session Expired',
+            description: 'Please log in again to submit your request.',
+            variant: 'destructive',
+          });
+          setLoading(false);
+          return;
+        }
+      }
+
       // Create landlord with payment details
       const { data: landlord, error: landlordError } = await supabase
         .from('landlords')
@@ -280,28 +296,30 @@ export function RentRequestButton({ userId, onSuccess }: RentRequestButtonProps)
       // Get referral agent ID from localStorage
       const agentId = localStorage.getItem('referral_agent_id');
 
-      // Capture GPS location for the request
+      // Capture GPS location (non-blocking — don't let this fail the submission)
       let requestLat: number | null = null;
       let requestLon: number | null = null;
       let requestCity: string | null = null;
       let requestCountry: string | null = null;
       
       try {
-        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: true,
-            timeout: 5000,
-            maximumAge: 60000,
-          });
-        });
+        const position = await Promise.race([
+          new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: false,
+              timeout: 3000,
+              maximumAge: 300000,
+            });
+          }),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('GPS timeout')), 3000))
+        ]);
         requestLat = position.coords.latitude;
         requestLon = position.coords.longitude;
-        // Uganda coordinate check
         if (requestLat >= -1.5 && requestLat <= 4.2 && requestLon >= 29.5 && requestLon <= 35.0) {
           requestCountry = 'Uganda';
         }
-      } catch (locErr) {
-        console.warn('Could not capture location for rent request:', locErr);
+      } catch {
+        // GPS failed — proceed without location
       }
 
       // Build rent request payload with validated types
@@ -362,11 +380,20 @@ export function RentRequestButton({ userId, onSuccess }: RentRequestButtonProps)
       onSuccess();
 
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to submit request',
-        variant: 'destructive',
-      });
+      const msg = error.message || 'Failed to submit request';
+      if (msg.includes('row-level security') || msg.includes('RLS')) {
+        toast({
+          title: 'Session Expired',
+          description: 'Your session has expired. Please log out and log in again.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Error',
+          description: msg,
+          variant: 'destructive',
+        });
+      }
     } finally {
       setLoading(false);
     }

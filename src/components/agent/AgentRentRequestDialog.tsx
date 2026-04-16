@@ -351,6 +351,16 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setLoading(true);
 
     try {
+      // Verify session is still valid before submitting
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session) {
+        const { error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError) {
+          toast.error('Session expired. Please log in again to submit.');
+          setLoading(false);
+          return;
+        }
+      }
       // ===== FIX #3: Upsert landlord — check existing by phone first =====
       const cleanLandlordPhone = landlordPhone.replace(/\s/g, '');
       let landlordId: string;
@@ -499,7 +509,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       onSuccess?.();
     } catch (error: any) {
       console.error('Submission error:', error);
-      toast.error(error.message || 'Failed to submit request');
+      const msg = error.message || 'Failed to submit request';
+      if (msg.includes('row-level security') || msg.includes('RLS')) {
+        toast.error('Permission denied — your session may have expired. Please log out and log in again.');
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setLoading(false);
     }
