@@ -13,7 +13,7 @@ import { LedgerHub } from '@/components/ledgers/LedgerHub';
 import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
 import { DepositStatsPanel } from './DepositStatsPanel';
 import { WalletOverviewCard } from './WalletOverviewCard';
-import { DebtRecoveryPanel } from './DebtRecoveryPanel';
+
 
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
 import { AgentRequisitionForm } from './AgentRequisitionForm';
@@ -25,7 +25,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import { AnimatePresence } from 'framer-motion';
 
 type View = 'home' | 'deposits';
-type Tool = null | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit' | 'withdrawals' | 'opportunities' | 'deductions' | 'requisitions' | 'debt_recovery';
+type Tool = null | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit' | 'withdrawals' | 'opportunities' | 'deductions' | 'requisitions';
 
 const supportTools = [
   { id: 'ops' as const, label: 'Ops Center', icon: Gauge, desc: 'Automation & monitoring' },
@@ -110,15 +110,6 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
             <AgentRequisitionForm />
           </div>
         )}
-        {activeTool === 'debt_recovery' && (
-          <div className="max-w-2xl w-full">
-            <h2 className="text-lg font-bold flex items-center gap-2 mb-4">
-              <AlertTriangle className="h-5 w-5 text-orange-500" />
-              Debt Recovery
-            </h2>
-            <DebtRecoveryPanel />
-          </div>
-        )}
       </div>
     );
   }
@@ -189,19 +180,6 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
             </div>
           </button>
 
-          {/* Debt Recovery */}
-          <button
-            onClick={() => openTool('debt_recovery')}
-            className="flex items-center gap-4 p-5 rounded-2xl border-2 border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10 hover:border-orange-500/40 transition-all text-left min-h-[80px]"
-          >
-            <div className="h-12 w-12 rounded-xl bg-orange-500/10 flex items-center justify-center shrink-0">
-              <AlertTriangle className="h-6 w-6 text-orange-500" />
-            </div>
-            <div className="flex-1">
-              <p className="font-bold text-base">Debt Recovery</p>
-              <p className="text-xs text-muted-foreground">Track & recover unauthorized payouts</p>
-            </div>
-          </button>
 
           {/* Ledger */}
           <button
