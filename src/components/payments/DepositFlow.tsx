@@ -119,7 +119,8 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
     }
     if (!transactionDate) { toast.error('Select the transaction date'); return false; }
     if (!transactionTime) { toast.error('Enter the transaction time'); return false; }
-    if (!reason.trim()) { toast.error('Enter the reason for this deposit'); return false; }
+    if (!depositPurpose) { toast.error('Select the deposit purpose'); return false; }
+    if (depositPurpose === 'other' && !reason.trim()) { toast.error('Enter the reason for this deposit'); return false; }
 
     const txDate = new Date(`${transactionDate}T${transactionTime}`);
     const now = new Date();
