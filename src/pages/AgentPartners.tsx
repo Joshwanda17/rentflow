@@ -183,7 +183,6 @@ export default function AgentPartners() {
 
   // Reset pagination when filter changes
   useEffect(() => {
-  useEffect(() => {
     setCurrentPage(0);
   }, [activeTab, search]);
 
