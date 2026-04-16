@@ -57,6 +57,8 @@ export const LOCKED_CATEGORIES = [
   // Agent float
   'agent_float_deposit',
   'agent_float_used_for_rent',
+  'agent_float_assignment',
+  'agent_float_settlement',
   // Agent advances
   'agent_advance_credit',
   // Portfolio

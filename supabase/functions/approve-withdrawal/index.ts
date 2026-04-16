@@ -152,11 +152,26 @@ Deno.serve(async (req) => {
       });
       const balRow = Array.isArray(splitBalances) ? splitBalances[0] : splitBalances;
       const commissionBalance = Number(balRow?.commission_balance ?? 0);
-      const floatBalance = Number(balRow?.float_balance ?? 0);
 
       // Commission is always freely withdrawable; float (company money) is never withdrawable
-      // Withdrawable = min(wallet balance, commission earned)
       withdrawableBalance = Math.min(effectiveBalance, commissionBalance);
+
+      // Soft check: if agent has high outstanding float, warn but allow
+      // (Future: configurable threshold from treasury_controls)
+      const { data: outstandingRows } = await admin.rpc("get_outstanding_agent_float");
+      const agentFloat = (outstandingRows || []).find((r: any) => r.agent_id === targetUserId);
+      const outstandingFloat = Number(agentFloat?.outstanding ?? 0);
+      const ageHours = Number(agentFloat?.age_hours ?? 0);
+
+      // If agent has overdue float (>72h), block commission withdrawal entirely
+      if (outstandingFloat > 0 && ageHours > 72) {
+        return new Response(
+          JSON.stringify({
+            error: `Commission withdrawal blocked: you have UGX ${outstandingFloat.toLocaleString()} in unsettled float outstanding for ${Math.floor(ageHours)}h. Please settle landlord deliveries first.`,
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     if (!wallet || withdrawableBalance < amount) {

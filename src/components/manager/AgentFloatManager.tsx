@@ -108,11 +108,11 @@ export function AgentFloatManager() {
     setProcessing(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('wallet-transfer', {
+      const { data, error } = await supabase.functions.invoke('assign-agent-float', {
         body: {
-          recipient_id: selectedAgent.id,
+          agent_id: selectedAgent.id,
           amount: parseFloat(amount),
-          description: `Float transfer to agent: ${selectedAgent.full_name}`
+          description: `Float assignment to ${selectedAgent.full_name} for landlord delivery`
         }
       });
 

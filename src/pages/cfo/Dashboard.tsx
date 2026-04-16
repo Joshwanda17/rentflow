@@ -41,6 +41,7 @@ import { RentCollectionsFeed } from '@/components/cfo/RentCollectionsFeed';
 import { AgentPerformanceRankings } from '@/components/cfo/AgentPerformanceRankings';
 import { AgentFloatManagement } from '@/components/cfo/AgentFloatManagement';
 import { LedgerHealthPanel } from '@/components/cfo/LedgerHealthPanel';
+import { FieldCashExposureCard } from '@/components/cfo/FieldCashExposureCard';
 
 export default function CFODashboardPage() {
   const { currency, setCurrency, getCurrencyByCode } = useCurrency();
@@ -159,7 +160,12 @@ export default function CFODashboardPage() {
       case 'agent-rankings':
         return <AgentPerformanceRankings />;
       case 'float-management':
-        return <AgentFloatManagement />;
+        return (
+          <div className="space-y-6">
+            <AgentFloatManagement />
+            <FieldCashExposureCard />
+          </div>
+        );
       case 'ledger-health':
         return <LedgerHealthPanel />;
       default:
