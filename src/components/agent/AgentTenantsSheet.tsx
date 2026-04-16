@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import AgentRentRequestDialog from './AgentRentRequestDialog';
 import { AgentTenantCollectDialog } from './AgentTenantCollectDialog';
 import { TenantBehaviorCard } from './TenantBehaviorCard';
+import { TenantProfileView } from './TenantProfileView';
 
 interface Tenant {
   id: string;
@@ -66,10 +67,11 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [collectTarget, setCollectTarget] = useState<{ tenant: Tenant; reqId: string; owing: number } | null>(null);
   const [behaviorCardOpen, setBehaviorCardOpen] = useState(false);
   const [behaviorData, setBehaviorData] = useState<any>(null);
+  const [profileTenantId, setProfileTenantId] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && user) fetchTenants();
-    if (!open) setExpandedTenantId(null);
+    if (!open) { setExpandedTenantId(null); setProfileTenantId(null); }
   }, [open, user]);
 
   const fetchTenants = async () => {
@@ -255,6 +257,10 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[92vh] rounded-t-3xl flex flex-col p-0 gap-0">
+        {profileTenantId ? (
+          <TenantProfileView tenantId={profileTenantId} onBack={() => setProfileTenantId(null)} />
+        ) : (
+        <>
         {/* ───── Sticky Header ───── */}
         <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b border-border/50 px-4 pt-4 pb-3 space-y-3">
           <SheetHeader className="pb-0">
@@ -370,7 +376,10 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
 
                       {/* Name + phone + progress */}
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm truncate">{tenant.full_name}</p>
+                        <p
+                          className="font-semibold text-sm truncate text-primary underline underline-offset-2 cursor-pointer"
+                          onClick={(e) => { e.stopPropagation(); setProfileTenantId(tenant.id); }}
+                        >{tenant.full_name}</p>
                         <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                           <Phone className="h-2.5 w-2.5" />
                           {tenant.phone}
@@ -609,6 +618,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
             })
           )}
         </div>
+        </>
+        )}
       </SheetContent>
 
       <AgentRentRequestDialog
