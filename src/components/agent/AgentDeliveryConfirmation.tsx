@@ -79,6 +79,31 @@ export function AgentDeliveryConfirmation({ disbursementId, rentRequestId, onCon
       await supabase.from('disbursement_records')
         .update({ agent_confirmed: true, agent_confirmed_at: new Date().toISOString() })
         .eq('id', disbursementId);
+
+      // Create float settlement ledger entry (reduces agent float, records settlement on platform)
+      await supabase.functions.invoke('create-ledger-entry', {
+        body: {
+          entries: [
+            {
+              user_id: user.id,
+              amount: 0, // Amount will come from the disbursement; use 0 as proof marker
+              direction: 'cash_out',
+              category: 'agent_float_settlement',
+              ledger_scope: 'wallet',
+              description: `Float settled – landlord delivery confirmed for disbursement ${disbursementId}`,
+              currency: 'UGX',
+              source_table: 'agent_delivery_confirmations',
+              source_id: disbursementId,
+              transaction_date: new Date().toISOString(),
+              metadata: JSON.stringify({
+                gps: gps,
+                photo_count: photoUrls.length,
+                rent_request_id: rentRequestId,
+              }),
+            },
+          ],
+        },
+      });
     },
     onSuccess: () => {
       toast.success('Delivery confirmed!');
