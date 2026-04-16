@@ -138,6 +138,7 @@ Just click the link and enter your password to get started!`;
   const hasMore = invites.length > 3;
 
   return (
+    <>
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
