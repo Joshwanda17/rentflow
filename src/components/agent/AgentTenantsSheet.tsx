@@ -144,7 +144,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     try {
       const { data, error } = await supabase
         .from('rent_requests')
-        .select('id, rent_amount, total_repayment, duration_days, daily_repayment, amount_repaid, status, created_at, disbursed_at, registration_type, landlord:landlords(name, property_address)')
+        .select('id, rent_amount, total_repayment, duration_days, daily_repayment, amount_repaid, status, created_at, disbursed_at, registration_type, landlord:landlords(name, property_address, house_category, latitude, longitude)')
         .eq('tenant_id', tenantId)
         .in('status', ['pending', 'approved', 'disbursed', 'repaying', 'completed'])
         .order('created_at', { ascending: false })
