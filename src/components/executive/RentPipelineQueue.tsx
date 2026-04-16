@@ -286,6 +286,13 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
       setSelectedRequest(req);
       return;
     }
+    // For Landlord Ops stage — enforce checklist
+    if (stage === 'agent_verified') {
+      if (!landlordCalled || !landlordAcknowledged) {
+        toast({ title: 'Complete the landlord verification checklist first', variant: 'destructive' });
+        return;
+      }
+    }
     setQuickProcessingId(req.id);
     try {
       const updateData: any = {
@@ -296,6 +303,10 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
       };
 
       if (stage === 'agent_verified') {
+        updateData.landlord_called = true;
+        updateData.landlord_acknowledged = true;
+        updateData.landlord_verification_method = landlordVerificationMethod || 'phone_call';
+        updateData.landlord_call_notes = landlordCallNotes || null;
         try {
           await supabase.functions.invoke('credit-landlord-verification-bonus', {
             body: { rent_request_id: req.id },
