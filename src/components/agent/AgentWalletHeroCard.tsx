@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { Wallet, ChevronRight, Shield, Users, Banknote, CreditCard, ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight } from 'lucide-react';
+import { Wallet, ChevronRight, Shield, Users, Banknote, CreditCard, ArrowUpFromLine, ArrowLeftRight, Truck } from 'lucide-react';
 import { hapticTap } from '@/lib/haptics';
 import { useCurrency } from '@/hooks/useCurrency';
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
-import DepositFlow from '@/components/payments/DepositFlow';
 import WithdrawFlow from '@/components/payments/WithdrawFlow';
 import { SendMoneyDialog } from '@/components/wallet/SendMoneyDialog';
 
@@ -23,7 +22,6 @@ export function AgentWalletHeroCard({
   territory,
 }: AgentWalletHeroCardProps) {
   const [showWallet, setShowWallet] = useState(false);
-  const [showDeposit, setShowDeposit] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
   const { formatAmount, formatAmountCompact } = useCurrency();
@@ -67,9 +65,12 @@ export function AgentWalletHeroCard({
                 {formatAmount(floatBalance + commissionBalance)}
               </p>
             </div>
-            <div className="flex items-center gap-2 mt-2">
-              <span className="font-bold text-primary-foreground text-3xl">
-                Withdrawable: {formatAmountCompact(commissionBalance)}
+            <div className="flex items-center gap-3 mt-2 text-xs">
+              <span className="text-emerald-300 font-semibold">
+                Commission: {formatAmountCompact(commissionBalance)}
+              </span>
+              <span className="text-blue-300 font-semibold">
+                Float: {formatAmountCompact(floatBalance)}
               </span>
             </div>
           </button>
@@ -77,18 +78,11 @@ export function AgentWalletHeroCard({
           {/* Quick Actions */}
           <div className="flex items-center gap-2">
             <button
-              onClick={() => { hapticTap(); setShowDeposit(true); }}
+              onClick={() => { hapticTap(); setShowWithdraw(true); }}
               className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 active:scale-95 transition-all"
             >
-              <ArrowDownToLine className="h-3.5 w-3.5 text-emerald-400" />
-              <span className="text-[10px] font-bold text-emerald-300 uppercase tracking-wider">Deposit</span>
-            </button>
-            <button
-              onClick={() => { hapticTap(); setShowWithdraw(true); }}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 active:scale-95 transition-all"
-            >
-              <ArrowUpFromLine className="h-3.5 w-3.5 text-amber-400" />
-              <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider">Withdraw</span>
+              <ArrowUpFromLine className="h-3.5 w-3.5 text-emerald-400" />
+              <span className="text-[10px] font-bold text-emerald-300 uppercase tracking-wider">Withdraw</span>
             </button>
             <button
               onClick={() => { hapticTap(); setShowTransfer(true); }}
@@ -156,7 +150,6 @@ export function AgentWalletHeroCard({
       </div>
 
       {showWallet && <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />}
-      <DepositFlow open={showDeposit} onOpenChange={setShowDeposit} />
       <WithdrawFlow open={showWithdraw} onOpenChange={setShowWithdraw} availableBalance={commissionBalance} />
       <SendMoneyDialog open={showTransfer} onOpenChange={setShowTransfer} />
     </>

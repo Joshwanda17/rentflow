@@ -154,16 +154,7 @@ Deno.serve(async (req) => {
       const commissionBalance = Number(balRow?.commission_balance ?? 0);
       const floatBalance = Number(balRow?.float_balance ?? 0);
 
-      // Float-gated: commission is only withdrawable when agent has positive float
-      if (floatBalance <= 0) {
-        return new Response(
-          JSON.stringify({
-            error: "Withdrawals require active landlord payment funds (float). Agent float balance is zero.",
-          }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
+      // Commission is always freely withdrawable; float (company money) is never withdrawable
       // Withdrawable = min(wallet balance, commission earned)
       withdrawableBalance = Math.min(effectiveBalance, commissionBalance);
     }
