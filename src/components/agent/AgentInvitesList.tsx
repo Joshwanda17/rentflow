@@ -220,7 +220,7 @@ Just click the link and enter your password to get started!`;
                     </div>
                   </div>
                   
-                  {isPending && (
+                  {isPending ? (
                     <div className="flex gap-1 shrink-0">
                       <Button 
                         variant="outline" 
@@ -242,6 +242,21 @@ Just click the link and enter your password to get started!`;
                         <Share2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
+                  ) : (
+                    invite.role === 'supporter' && invite.activated_user_id && (
+                      <Button
+                        size="sm"
+                        className="h-8 gap-1 shrink-0"
+                        onClick={() => setDepositPartner({
+                          id: invite.activated_user_id!,
+                          full_name: invite.full_name,
+                          phone: invite.phone,
+                        })}
+                      >
+                        <Banknote className="h-3.5 w-3.5" />
+                        Deposit
+                      </Button>
+                    )
                   )}
                 </div>
               </div>
