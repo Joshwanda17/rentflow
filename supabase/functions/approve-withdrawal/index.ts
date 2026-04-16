@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
 
     // Parse body
     const body = await req.json();
-    const { withdrawal_id, reference, payment_method, recovery_mode, recovery_percentage } = body;
+    const { withdrawal_id, reference, payment_method } = body;
 
     if (!withdrawal_id || typeof withdrawal_id !== "string") {
       return new Response(JSON.stringify({ error: "withdrawal_id is required" }), {
@@ -75,20 +75,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Recovery mode only needs withdrawal_id
-    if (!recovery_mode) {
-      if (!reference || typeof reference !== "string" || reference.trim().length < 3) {
-        return new Response(JSON.stringify({ error: "reference (TID/bank ref) must be at least 3 characters" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (!payment_method || typeof payment_method !== "string") {
-        return new Response(JSON.stringify({ error: "payment_method is required" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+    if (!reference || typeof reference !== "string" || reference.trim().length < 3) {
+      return new Response(JSON.stringify({ error: "reference (TID/bank ref) must be at least 3 characters" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!payment_method || typeof payment_method !== "string") {
+      return new Response(JSON.stringify({ error: "payment_method is required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Fetch withdrawal request (fresh from DB — never trust cache)
@@ -117,95 +114,7 @@ Deno.serve(async (req) => {
     const targetUserId = wr.user_id;
     const amount = Number(wr.amount);
 
-    // ═══ RECOVERY MODE: Flag for debt recovery instead of paying out ═══
-    if (recovery_mode) {
-      // Check for duplicate recovery case
-      const { data: existingCase } = await admin
-        .from("debt_recovery_cases")
-        .select("id")
-        .eq("withdrawal_request_id", withdrawal_id)
-        .maybeSingle();
 
-      if (existingCase) {
-        return new Response(JSON.stringify({ error: "A debt recovery case already exists for this withdrawal" }), {
-          status: 409,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      const pct = typeof recovery_percentage === "number" && recovery_percentage >= 1 && recovery_percentage <= 100
-        ? recovery_percentage : 20;
-
-      // Get target user profile for audit
-      const { data: profile } = await admin
-        .from("profiles")
-        .select("full_name, phone")
-        .eq("id", targetUserId)
-        .single();
-      const targetName = profile?.full_name || "Unknown";
-
-      // Update withdrawal status
-      await admin
-        .from("withdrawal_requests")
-        .update({
-          status: "re_approved_for_recovery",
-          updated_at: new Date().toISOString(),
-        } as any)
-        .eq("id", withdrawal_id);
-
-      // Create debt recovery case
-      const { data: newCase, error: caseErr } = await admin
-        .from("debt_recovery_cases")
-        .insert({
-          withdrawal_request_id: withdrawal_id,
-          user_id: targetUserId,
-          original_amount: amount,
-          recovery_percentage: pct,
-          created_by: user.id,
-        })
-        .select("id")
-        .single();
-
-      if (caseErr) {
-        console.error("[approve-withdrawal] Debt recovery case error:", caseErr);
-        return new Response(JSON.stringify({ error: "Failed to create debt recovery case" }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      // Audit log
-      await admin.from("audit_logs").insert({
-        user_id: user.id,
-        action_type: "debt_recovery_initiated",
-        record_id: withdrawal_id,
-        table_name: "withdrawal_requests",
-        metadata: {
-          amount,
-          target_user: targetUserId,
-          target_user_name: targetName,
-          recovery_percentage: pct,
-          case_id: newCase.id,
-          reason_text: "Debt Recovery – Unauthorized Withdrawal Adjustment",
-        },
-      });
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          mode: "debt_recovery",
-          withdrawal_id,
-          case_id: newCase.id,
-          amount,
-          recovery_percentage: pct,
-          target_user: targetName,
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
 
 
     // Check wallet balance (from wallets table, which is derived from ledger)

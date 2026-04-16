@@ -51,12 +51,12 @@ export function FinOpsWithdrawalVerification() {
   const [processing, setProcessing] = useState<string | null>(null);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
-  const [recoveryOpen, setRecoveryOpen] = useState(false);
+  
   const [selected, setSelected] = useState<WithdrawalRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [reference, setReference] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<string>('');
-  const [recoveryPct, setRecoveryPct] = useState<string>('20');
+  
   const [activeTab, setActiveTab] = useState<ActiveTab>('pending');
 
   const fetchProfiles = async (data: any[]) => {
@@ -173,31 +173,6 @@ export function FinOpsWithdrawalVerification() {
     }
   };
 
-  const handleFlagRecovery = async () => {
-    if (!user || !selected) return;
-    setProcessing(selected.id);
-    try {
-      const { data, error } = await supabase.functions.invoke('approve-withdrawal', {
-        body: {
-          withdrawal_id: selected.id,
-          recovery_mode: true,
-          recovery_percentage: Number(recoveryPct),
-        },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      toast.success(`Debt recovery case created for ${formatCurrency(selected.amount)}`);
-      setRejectedRequests(prev => prev.filter(r => r.id !== selected.id));
-      setRecoveryOpen(false);
-      setSelected(null);
-      setRecoveryPct('20');
-    } catch (e: any) {
-      toast.error(e.message || 'Failed to flag for recovery');
-    } finally {
-      setProcessing(null);
-    }
-  };
 
   const getPayoutLabel = (req: WithdrawalRequest) => {
     const method = req.payout_method || 'mobile_money';
@@ -359,16 +334,6 @@ export function FinOpsWithdrawalVerification() {
             {ageBadge}
           </div>
           <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 text-xs border-orange-500/30 text-orange-600"
-              onClick={() => { setSelected(req); setRecoveryPct('20'); setRecoveryOpen(true); }}
-              disabled={!!processing}
-            >
-              <AlertTriangle className="h-3 w-3 mr-1" />
-              Flag Debt Recovery
-            </Button>
             <Button
               size="sm"
               className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
@@ -591,64 +556,6 @@ export function FinOpsWithdrawalVerification() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Debt Recovery Dialog */}
-      <AlertDialog open={recoveryOpen} onOpenChange={(open) => { setRecoveryOpen(open); if (!open) setRecoveryPct('20'); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-orange-500" />
-              Flag for Debt Recovery
-            </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-3 pt-1">
-                <div className="px-2.5 py-2 rounded-lg bg-orange-500/10 border border-orange-500/30">
-                  <p className="text-[10px] font-semibold text-orange-600 uppercase tracking-wider mb-0.5">⚠️ Unauthorized Payout</p>
-                  <p className="text-xs text-foreground">This user received a cash payout despite their withdrawal being rejected. The full amount will be recorded as a debt and progressively recovered.</p>
-                </div>
-                {selected && (
-                  <div className="space-y-1.5 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Name</span>
-                      <span className="font-semibold text-foreground">{selected.user?.full_name}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Debt Amount</span>
-                      <span className="font-black text-foreground">{formatCurrency(selected.amount)}</span>
-                    </div>
-                  </div>
-                )}
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-1.5">Recovery Percentage per Cycle</p>
-                  <Select value={recoveryPct} onValueChange={setRecoveryPct}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="10">10% — Conservative</SelectItem>
-                      <SelectItem value="20">20% — Moderate (default)</SelectItem>
-                      <SelectItem value="30">30% — Aggressive</SelectItem>
-                      <SelectItem value="50">50% — Fast Recovery</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    System will deduct {recoveryPct}% of the remaining debt from the user's wallet balance each cycle until fully recovered.
-                  </p>
-                </div>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <Button
-              onClick={handleFlagRecovery}
-              disabled={!!processing}
-              className="bg-orange-600 hover:bg-orange-700 text-white"
-            >
-              {processing ? 'Processing...' : 'Confirm Debt Recovery'}
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }
