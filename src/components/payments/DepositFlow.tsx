@@ -214,6 +214,7 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
     setTransactionDate('');
     setTransactionTime('');
     setReason('');
+    setDepositPurpose('');
     setBankSlipFile(null);
     onOpenChange(false);
   };
