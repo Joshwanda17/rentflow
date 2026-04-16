@@ -1136,7 +1136,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       value={landlordPhone}
                       onChange={(e) => setLandlordPhone(formatPhoneInput(e.target.value))}
                       placeholder="0700 123 456"
-                      className="h-10"
+                      className={`h-10 ${hasFieldError('landlord phone') ? 'border-destructive border-2' : ''}`}
                       maxLength={12}
                       required
                     />
@@ -1265,7 +1265,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       value={lc1Phone}
                       onChange={(e) => setLc1Phone(formatPhoneInput(e.target.value))}
                       placeholder="0700 123 456"
-                      className="h-10"
+                      className={`h-10 ${hasFieldError('lc1 phone') ? 'border-destructive border-2' : ''}`}
                       maxLength={12}
                       required
                     />
