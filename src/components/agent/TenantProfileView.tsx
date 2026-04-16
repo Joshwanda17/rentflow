@@ -69,7 +69,7 @@ const PAGE_SIZE = 5;
 export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) {
   const { toast } = useToast();
   const { user } = useAuth();
-  const { floatBalance: agentFloatBalance, refetch: refetchFloat } = useAgentBalances();
+  const { floatBalance: agentFloatBalance, isLoading: floatLoading, refetch: refetchFloat } = useAgentBalances();
   const [profile, setProfile] = useState<TenantProfile | null>(null);
   const [requests, setRequests] = useState<RentRequestRow[]>([]);
   const [repayments, setRepayments] = useState<RepaymentRow[]>([]);
@@ -502,11 +502,13 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
               </div>
               <div className="bg-success/10 rounded-xl p-3">
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Your Ops Float</p>
-                <p className="text-lg font-black font-mono text-success">{formatUGX(agentFloatBalance)}</p>
+                <p className="text-lg font-black font-mono text-success">
+                  {floatLoading ? <Loader2 className="h-4 w-4 animate-spin inline" /> : formatUGX(agentFloatBalance)}
+                </p>
               </div>
             </div>
 
-            {agentFloatBalance < 500 && (
+            {!floatLoading && agentFloatBalance < 500 && (
               <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/20 rounded-xl p-3">
                 <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
                 <p className="text-xs text-destructive font-medium">Insufficient float. Deposit to your operations float first or ask CFO to top up.</p>
@@ -529,10 +531,10 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
                 className="w-full gap-2 text-base h-14 font-bold rounded-xl shadow-lg active:scale-[0.96] transition-transform"
                 variant="success"
                 size="xl"
-                disabled={agentFloatBalance < 500}
+                disabled={floatLoading || agentFloatBalance < 500}
               >
-                <Banknote className="h-6 w-6" />
-                Pay {formatUGX(Math.min(summary.currentOutstanding, agentFloatBalance))} from Float
+                {floatLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Banknote className="h-6 w-6" />}
+                {floatLoading ? 'Loading float...' : `Pay ${formatUGX(Math.min(summary.currentOutstanding, agentFloatBalance))} from Float`}
               </Button>
             </div>
 
@@ -823,13 +825,13 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
 
             <Button
               onClick={() => setCollectDialogOpen(true)}
-              disabled={summary.currentOutstanding <= 0 || agentFloatBalance < 100}
+              disabled={floatLoading || summary.currentOutstanding <= 0 || agentFloatBalance < 100}
               className="w-full gap-2 text-base"
               variant="success"
               size="xl"
             >
-              <Banknote className="h-5 w-5" />
-              Pay from Operations Float — {formatUGX(Math.min(summary.currentOutstanding, agentFloatBalance))}
+              {floatLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Banknote className="h-5 w-5" />}
+              {floatLoading ? 'Loading float...' : `Pay from Operations Float — ${formatUGX(Math.min(summary.currentOutstanding, agentFloatBalance))}`}
             </Button>
           </div>
         )}

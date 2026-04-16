@@ -29,6 +29,8 @@ export function useAgentBalances() {
       const floatBalance = Number(row?.float_balance ?? 0);
       const commissionBalance = Number(row?.commission_balance ?? 0);
 
+      console.log('[useAgentBalances] fetched:', { floatBalance, commissionBalance, userId: user.id });
+
       return {
         floatBalance,
         commissionBalance,
@@ -36,7 +38,9 @@ export function useAgentBalances() {
       };
     },
     enabled: !!user?.id,
-    staleTime: 30_000,
+    staleTime: 15_000,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
   });
 
   return {
