@@ -56,6 +56,7 @@ export function AgentInvitesList() {
   const [invites, setInvites] = useState<UserInvite[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [depositPartner, setDepositPartner] = useState<{ id: string; full_name: string; phone: string } | null>(null);
   const activatedIdsRef = useRef<Set<string>>(new Set());
 
   const fetchInvites = async () => {
