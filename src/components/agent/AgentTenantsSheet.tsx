@@ -429,6 +429,33 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
 
                               return (
                                 <div key={req.id} className="bg-muted/30 rounded-xl p-3 space-y-3">
+                                  {/* Landlord & Location Info */}
+                                  {req.landlord && (
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div className="bg-background rounded-lg p-2 flex items-start gap-1.5">
+                                        <User className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
+                                        <div className="min-w-0">
+                                          <p className="text-[9px] text-muted-foreground">Landlord</p>
+                                          <p className="text-xs font-semibold truncate">{req.landlord.name}</p>
+                                        </div>
+                                      </div>
+                                      <div className="bg-background rounded-lg p-2 flex items-start gap-1.5">
+                                        <Home className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
+                                        <div className="min-w-0">
+                                          <p className="text-[9px] text-muted-foreground">House Type</p>
+                                          <p className="text-xs font-semibold truncate">{req.landlord.house_category || 'N/A'}</p>
+                                        </div>
+                                      </div>
+                                      <div className="bg-background rounded-lg p-2 flex items-start gap-1.5 col-span-2">
+                                        <MapPin className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
+                                        <div className="min-w-0">
+                                          <p className="text-[9px] text-muted-foreground">Location</p>
+                                          <p className="text-xs font-semibold truncate">{req.landlord.property_address || 'N/A'}</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+
                                   {/* 2×2 Financial summary */}
                                   <div className="grid grid-cols-2 gap-2">
                                     <div className="bg-background rounded-lg p-2.5 text-center">
