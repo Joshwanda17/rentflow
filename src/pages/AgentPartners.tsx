@@ -181,6 +181,14 @@ export default function AgentPartners() {
     return list;
   }, [partners, activeTab, search]);
 
+  // Reset pagination when filter changes
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [activeTab, search]);
+
+  const paginatedPartners = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
+  const hasMore = visibleCount < filtered.length;
+
   // KPIs
   const kpis = useMemo(() => ({
     invited: partners.filter(p => !p.isProxy).length,
