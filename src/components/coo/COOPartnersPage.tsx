@@ -1502,9 +1502,6 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     );
   }
 
-  if (showApprovedWithdrawals) {
-    return <ApprovedPartnerWithdrawals onBack={() => setShowApprovedWithdrawals(false)} />;
-  }
 
   return (
     <div className="space-y-6">
@@ -1538,10 +1535,6 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             <SummaryCard icon={<RefreshCw className="h-4 w-4" />} label="Reinvestment History" value="View"
               sub="Compounding growth timeline" accent="primary" />
            </a>
-          <button onClick={() => setShowApprovedWithdrawals(true)} className="block text-left w-full">
-            <SummaryCard icon={<CheckCircle2 className="h-4 w-4" />} label="Partner Withdrawals" value="View All"
-              sub="Approved & completed payouts" accent="emerald" />
-          </button>
         </div>
       )}
 
