@@ -633,7 +633,7 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
       </CardContent>
 
       {/* Tenant Detail Sheet */}
-      <Sheet open={!!selectedRequest} onOpenChange={(open) => { if (!open) { setSelectedRequest(null); setComment(''); setAssignedAgentId(null); setPayoutRef(''); } }}>
+      <Sheet open={!!selectedRequest} onOpenChange={(open) => { if (!open) { setSelectedRequest(null); setComment(''); setAssignedAgentId(null); setPayoutRef(''); setLandlordCalled(false); setLandlordAcknowledged(false); setLandlordVerificationMethod(''); setLandlordCallNotes(''); } }}>
         <SheetContent side="bottom" className="h-[85vh] rounded-t-2xl">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2 text-base">
