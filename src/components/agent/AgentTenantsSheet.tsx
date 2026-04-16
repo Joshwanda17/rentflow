@@ -257,6 +257,10 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[92vh] rounded-t-3xl flex flex-col p-0 gap-0">
+        {profileTenantId ? (
+          <TenantProfileView tenantId={profileTenantId} onBack={() => setProfileTenantId(null)} />
+        ) : (
+        <>
         {/* ───── Sticky Header ───── */}
         <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b border-border/50 px-4 pt-4 pb-3 space-y-3">
           <SheetHeader className="pb-0">
