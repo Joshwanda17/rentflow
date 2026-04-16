@@ -1,106 +1,130 @@
 
 
-# Hardening Agent Wallet: Settlement Proof, Float Aging & Risk Dashboard
+# Rent Pipeline Refinement: OTP-Gated Landlord Payout & Process Hardening
 
-## What You Identified (4 Gaps)
+## Current State (What Already Exists)
 
-1. **No settlement proof** — agent says "I delivered" with no verification trail
-2. **Float sits idle** — no aging/alerting when float isn't settled
-3. **Commission gaming** — agent withdraws commission then disappears with float
-4. **No finance visibility** — "how much cash is in the field?" has no answer
+Your pipeline already has the 6-stage flow working:
+1. **Agent submits** rent request → status `pending`
+2. **Tenant Ops** verifies tenant → `tenant_ops_approved`
+3. **Agent Ops** verifies agent qualification → `agent_verified`
+4. **Landlord Ops** reviews landlord → `landlord_ops_approved`
+5. **COO** approves → `coo_approved`
+6. **CFO** funds agent float → `funded`
 
-## Current State
+Then the agent uses `AgentFloatPayoutWizard` to pay the landlord (MoMo TID + GPS + receipt), and Financial Ops verifies the withdrawal.
 
-- `AgentDeliveryConfirmation` exists with GPS + photos + notes — but it writes to `agent_delivery_confirmations` only. **No ledger settlement entry** is created, so float balance never decreases after delivery.
-- `wallet-transfer` uses generic `wallet_transfer` category — no distinction between "float assignment to agent" vs regular transfer.
-- No `agent_float_assignment` or `agent_float_settlement` categories exist yet.
-- No float aging tracking (no `assigned_at` concept).
-- The `get_agent_split_balances` RPC treats everything that isn't commission as float (residual calculation).
+**The `sms-otp` edge function already exists** and works with Africa's Talking. The `OtpVerificationStep` component is also built.
+
+## What's Missing (Your Request)
+
+### Gap 1: Landlord Ops Has No Structured Verification Checklist
+Currently Landlord Ops just clicks "Approve". No landlord call logging, no acknowledgment capture, no phone verification.
+
+### Gap 2: No Landlord OTP Gate on Float Withdrawal
+Currently the agent enters a MoMo TID to prove payment. But there's no OTP sent to the **landlord's phone** to prove the agent is physically with the landlord and that the landlord's number is real.
+
+### Gap 3: Non-Smartphone Landlords Can't Receive OTP via App
+Many landlords in Gulu/Mbarara have feature phones. OTP via SMS works perfectly for them — they just read the code to the agent.
 
 ## Plan
 
-### 1. New Ledger Categories
-Add `agent_float_assignment` and `agent_float_settlement` to:
-- `LOCKED_CATEGORIES` in `ledgerConstants.ts`
-- `validate_ledger_category` DB function (migration)
+### 1. Landlord Ops Verification Checklist (Pipeline Stage `agent_verified`)
 
-### 2. Tag Float Assignments Properly
-When a manager sends money to an agent for landlord payment (via `AgentFloatManager` → `wallet-transfer`), the description already says "Float transfer to agent". But the category is `wallet_transfer`.
+Add structured fields to the Landlord Ops stage in `RentPipelineQueue`:
+- **Landlord called?** (checkbox + timestamp)
+- **Landlord acknowledges Welile as payer?** (yes/no)
+- **Recommended verification method** (dropdown: Phone Call, Physical Visit, LC1 Confirmation)
+- **Landlord phone verified?** (Send OTP to landlord's MoMo number at this stage)
+- **Notes from call**
 
-**Change**: Create a new edge function `assign-agent-float` (or modify `wallet-transfer` to accept a `purpose` field). When purpose = `landlord_delivery`, use category `agent_float_assignment` instead of `wallet_transfer`. This makes float trackable.
+These fields get stored on the `rent_requests` table (new columns via migration).
 
-**Simpler approach**: Update `AgentFloatManager.tsx` to call a dedicated `assign-agent-float` edge function that uses `agent_float_assignment` category and records `assigned_at` in metadata.
+Approval is blocked until: called = true AND acknowledged = true.
 
-### 3. Settlement on Delivery Confirmation
-When `AgentDeliveryConfirmation` submits, **also create a ledger entry**:
-- Agent: `cash_out` / `agent_float_settlement` (reduces float)
-- Platform: `cash_in` / `agent_float_settlement` (records settlement)
+### 2. OTP-Gated Float Withdrawal (The Big Change)
 
-This closes the loop: float assigned → float settled = outstanding float decreases.
+Modify `AgentFloatPayoutWizard` to add a mandatory OTP step:
 
-### 4. Float Aging Query & UI (Finance Dashboard)
-Create an RPC `get_outstanding_agent_float` that returns per-agent:
-- `total_assigned` (sum of `agent_float_assignment` cash_in)
-- `total_settled` (sum of `agent_float_settlement` cash_out)
-- `outstanding` (assigned - settled)
-- `oldest_unsettled_at` (from metadata.assigned_at of earliest unmatched assignment)
-- `age_hours` (hours since oldest unsettled)
+**Flow:**
+1. Agent selects rent request to pay landlord
+2. Agent taps "Send OTP to Landlord" → calls `sms-otp` edge function with landlord's phone
+3. OTP SMS arrives on landlord's phone (works on ANY phone — feature phone or smartphone)
+4. Landlord physically reads the 6-digit code to the agent
+5. Agent enters the OTP in the app
+6. System verifies OTP → only THEN allows the payout submission
+7. The `agent_float_withdrawals` record stores `landlord_otp_verified: true` and `landlord_otp_verified_at`
 
-Add a **"Field Cash Exposure"** card to the CFO dashboard showing:
-- Total outstanding float across all agents
-- Per-agent breakdown with aging indicators (green < 24h, yellow 24-72h, red > 72h)
+**Why SMS OTP is perfect for non-smartphone landlords:**
+- SMS works on every phone (Nokia 3310 to iPhone)
+- No app download required
+- The landlord just reads 6 digits aloud
+- This proves: (a) the number is real, (b) the agent is physically present, (c) the landlord consents
 
-### 5. Soft Commission Lock on High Outstanding Float
-In `approve-withdrawal` edge function, add an **optional** check:
-- If agent has outstanding float > configurable threshold (e.g., from `treasury_controls`), reduce withdrawable commission by a percentage or block entirely
-- This is the "soft link" — not hard block, but risk reduction
+### 3. Landlord Acknowledgment SMS (After Payment)
 
-### 6. Update `get_agent_split_balances` RPC
-Add `agent_float_assignment` (cash_in) and `agent_float_settlement` (cash_out) to the float calculation so they're properly categorized.
+After the agent completes the payout, send a confirmation SMS to the landlord:
+> "Welile has paid UGX {amount} rent for {tenant_name} to your number. If you did not receive this, call 0800-XXX-XXX."
 
-### 7. Agent UX: "Complete Landlord Payment" Button
-In `AgentWalletHeroCard`, replace or add alongside the current actions:
-- **"Complete Landlord Payment"** button that shows: Assigned / Settled / Remaining
-- Opens the delivery confirmation flow with mandatory proof
+This creates an audit trail and gives landlords a way to dispute.
 
-### 8. Memory Update
-Save the float accountability model to memory.
+### 4. COO Bulk Approval Enhancement
+
+Add a "Select All" checkbox + "Approve Selected" button to the COO stage so bulk approval is efficient.
 
 ## Files to Change
 
 | File | Change |
 |------|--------|
-| `src/lib/ledgerConstants.ts` | Add `agent_float_assignment`, `agent_float_settlement` |
-| **DB Migration** | Add categories to allowlist, create `get_outstanding_agent_float` RPC, update `get_agent_split_balances` |
-| **New**: `supabase/functions/assign-agent-float/index.ts` | Dedicated float assignment with `assigned_at` metadata |
-| `src/components/manager/AgentFloatManager.tsx` | Call `assign-agent-float` instead of `wallet-transfer` |
-| `src/components/agent/AgentDeliveryConfirmation.tsx` | Add ledger settlement entry on confirmation |
-| `src/components/agent/AgentWalletHeroCard.tsx` | Add "Complete Landlord Payment" with outstanding float display |
-| `supabase/functions/approve-withdrawal/index.ts` | Add soft outstanding-float check |
-| **New**: `src/components/cfo/FieldCashExposureCard.tsx` | CFO dashboard card for outstanding float visibility |
+| **DB Migration** | Add `landlord_called`, `landlord_acknowledged`, `landlord_verification_method`, `landlord_call_notes` to `rent_requests`. Add `landlord_otp_verified`, `landlord_otp_verified_at` to `agent_float_withdrawals` |
+| `src/components/executive/RentPipelineQueue.tsx` | Add landlord verification checklist UI at `agent_verified` stage; add COO bulk approve |
+| `src/components/agent/AgentFloatPayoutWizard.tsx` | Add OTP step: send OTP to landlord phone → verify before allowing submission |
+| `src/components/auth/OtpVerificationStep.tsx` | Reuse existing component (already built) |
+| `supabase/functions/sms-otp/index.ts` | Already works — no changes needed |
+| **New**: `src/hooks/useLandlordOtp.ts` | Hook wrapping sms-otp for landlord verification context |
+| `src/components/financial-ops/FloatPayoutVerification.tsx` | Show OTP verification status badge |
 
-## Technical Detail
+## Technical Flow (OTP-Gated Payout)
 
 ```text
-Float Lifecycle:
+Agent taps "Pay Landlord"
+        │
+        ▼
+Select rent request → Show landlord name + phone
+        │
+        ▼
+"Send OTP to Landlord" → sms-otp edge function (action: send)
+        │
+        ▼
+Landlord receives SMS: "Your Welile code is: 482916"
+        │
+        ▼
+Agent enters 6-digit code → sms-otp (action: verify)
+        │
+        ▼  (verified = true)
+Agent enters MoMo TID + receipt photo + GPS
+        │
+        ▼
+Submit → agent_float_withdrawals record created
+        │
+        ▼
+Confirmation SMS sent to landlord: "Welile paid UGX X for {tenant}"
+```
 
-  Manager sends 500k to agent
-  ┌─────────────────────────────────┐
-  │ category: agent_float_assignment│
-  │ direction: cash_in (agent)      │
-  │ metadata: { assigned_at: now }  │
-  └─────────────────────────────────┘
-         │
-         ▼
-  Agent delivers to landlord
-  ┌─────────────────────────────────┐
-  │ category: agent_float_settlement│
-  │ direction: cash_out (agent)     │
-  │ proof: GPS + photos + landlord  │
-  └─────────────────────────────────┘
-         │
-         ▼
-  Outstanding = assigned - settled
-  If > 0 for > 72h → flagged
+## Non-Smartphone Landlord Support
+
+SMS OTP is the solution — no changes needed. Every phone receives SMS. The physical handshake (landlord reads code → agent types it) is the most secure verification possible for rural Uganda. No internet required on the landlord's side.
+
+## COO Bulk Approval
+
+```text
+┌─────────────────────────────────────────┐
+│ ☐ Select All (12 requests)              │
+│ ☑ Tenant A — 500,000 UGX — Agent Kato  │
+│ ☑ Tenant B — 300,000 UGX — Agent Okello│
+│ ☐ Tenant C — 450,000 UGX — Agent Biira │
+│                                         │
+│ [Approve Selected (2)]  [Reject Selected]│
+└─────────────────────────────────────────┘
 ```
 
