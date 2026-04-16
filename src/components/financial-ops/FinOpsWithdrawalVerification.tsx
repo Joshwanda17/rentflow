@@ -358,15 +358,27 @@ export function FinOpsWithdrawalVerification() {
             </p>
             {ageBadge}
           </div>
-          <Button
-            size="sm"
-            className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-            onClick={() => { setSelected(req); setApproveOpen(true); }}
-            disabled={!!processing}
-          >
-            <CheckCircle className="h-3 w-3 mr-1" />
-            Re-Approve & Complete
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs border-orange-500/30 text-orange-600"
+              onClick={() => { setSelected(req); setRecoveryPct('20'); setRecoveryOpen(true); }}
+              disabled={!!processing}
+            >
+              <AlertTriangle className="h-3 w-3 mr-1" />
+              Flag Debt Recovery
+            </Button>
+            <Button
+              size="sm"
+              className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={() => { setSelected(req); setApproveOpen(true); }}
+              disabled={!!processing}
+            >
+              <CheckCircle className="h-3 w-3 mr-1" />
+              Re-Approve & Pay
+            </Button>
+          </div>
         </div>
       </div>
     );
