@@ -20,13 +20,14 @@ import { ChangeMaturityDateDialog } from './ChangeMaturityDateDialog';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { PartnerOpsWithdrawalQueue } from './PartnerOpsWithdrawalQueue';
+import { ApprovedPartnerWithdrawals } from '@/components/coo/ApprovedPartnerWithdrawals';
 import { PendingPortfolioTopUps } from '@/components/cfo/PendingPortfolioTopUps';
 import { ShareSupporterRecruit } from '@/components/shared/ShareSupporterRecruit';
 import { PartnerFinancialActivity } from './PartnerFinancialActivity';
 import { PendingFunderApprovals } from './PendingFunderApprovals';
 import { PromissoryNotesQueue } from './PromissoryNotesQueue';
 
-type Tab = 'portfolios' | 'capital' | 'roi' | 'topups' | 'activity' | 'promissory';
+type Tab = 'portfolios' | 'capital' | 'roi' | 'topups' | 'activity' | 'promissory' | 'withdrawals';
 
 export function PartnersOpsDashboard() {
   const { toast } = useToast();
@@ -138,6 +139,7 @@ export function PartnersOpsDashboard() {
     { key: 'roi', label: 'Returns Payouts', icon: TrendingUp },
     { key: 'topups', label: 'Top-ups', icon: PlusCircle },
     { key: 'promissory', label: 'Promissory Notes', icon: FileText },
+    { key: 'withdrawals', label: 'Withdrawals', icon: Banknote },
   ];
 
   // ═══ RENDER TAB CONTENT ═══
@@ -158,6 +160,12 @@ export function PartnersOpsDashboard() {
       case 'topups': return <PendingPortfolioTopUps />;
       case 'activity': return <PartnerFinancialActivity />;
       case 'promissory': return <PromissoryNotesQueue />;
+      case 'withdrawals': return (
+        <div className="space-y-6">
+          <PartnerOpsWithdrawalQueue />
+          <ApprovedPartnerWithdrawals onBack={() => setTab('portfolios')} />
+        </div>
+      );
       default: return null;
     }
   };
@@ -208,8 +216,7 @@ export function PartnersOpsDashboard() {
       {/* ═══ C. PENDING FUNDER APPROVALS ═══ */}
       <PendingFunderApprovals />
 
-      {/* ═══ D. WITHDRAWAL QUEUE ═══ */}
-      <PartnerOpsWithdrawalQueue />
+      {/* ═══ D. WITHDRAWAL QUEUE — now inside Withdrawals tab ═══ */}
 
       {/* ═══ E. DAILY BRIEF ═══ */}
       <PartnerOpsBrief onNavigate={(t) => setTab(t as Tab)} />
