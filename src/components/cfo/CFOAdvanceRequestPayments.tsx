@@ -113,7 +113,7 @@ export function CFOAdvanceRequestPayments() {
             ledger_scope: 'wallet',
             direction: 'cash_in',
             amount: Number(req.principal),
-            category: 'wallet_deposit',
+            category: 'agent_advance_credit',
             source_table: 'agent_advance_requests',
             source_id: req.id,
             description: `Agent advance disbursement - ${Number(req.cycle_days)}d @ ${Math.round(adjustedRate * 100)}%`,

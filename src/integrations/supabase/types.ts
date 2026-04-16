@@ -10953,6 +10953,10 @@ export type Database = {
         }
         Returns: Json
       }
+      validate_ledger_category: {
+        Args: { p_category: string }
+        Returns: boolean
+      }
       validate_treasury_action: {
         Args: { action_type: string; p_amount: number; p_user_id?: string }
         Returns: boolean
