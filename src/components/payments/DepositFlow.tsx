@@ -16,6 +16,15 @@ interface DepositFlowProps {
 }
 
 type DepositChannel = 'momo' | 'bank' | 'agent_cash' | 'cash';
+type DepositPurpose = 'operational_float' | 'personal_deposit' | 'partnership_deposit' | 'personal_rent_repayment' | 'other';
+
+const DEPOSIT_PURPOSES: { id: DepositPurpose; label: string; emoji: string; desc: string }[] = [
+  { id: 'operational_float', emoji: '🏘️', label: 'Operational Float', desc: 'Cash collected from tenants in the field' },
+  { id: 'personal_deposit', emoji: '💰', label: 'Personal Deposit', desc: 'Your own money top-up' },
+  { id: 'partnership_deposit', emoji: '🤝', label: 'Partnership Deposit', desc: 'Money from or for a supporter/partner' },
+  { id: 'personal_rent_repayment', emoji: '🏠', label: 'Personal Rent Repayment', desc: 'Paying your own rent' },
+  { id: 'other', emoji: '📝', label: 'Other', desc: 'Specify your own reason' },
+];
 
 const MERCHANT_CODES = {
   mtn: '090777',
