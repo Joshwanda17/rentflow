@@ -110,6 +110,15 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
             <AgentRequisitionForm />
           </div>
         )}
+        {activeTool === 'debt_recovery' && (
+          <div className="max-w-2xl w-full">
+            <h2 className="text-lg font-bold flex items-center gap-2 mb-4">
+              <AlertTriangle className="h-5 w-5 text-orange-500" />
+              Debt Recovery
+            </h2>
+            <DebtRecoveryPanel />
+          </div>
+        )}
       </div>
     );
   }
