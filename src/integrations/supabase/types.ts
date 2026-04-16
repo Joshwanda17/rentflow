@@ -1254,6 +1254,8 @@ export type Database = {
           landlord_location_accuracy: number | null
           landlord_longitude: number | null
           landlord_name: string
+          landlord_otp_verified: boolean | null
+          landlord_otp_verified_at: string | null
           landlord_phone: string
           manager_notes: string | null
           manager_reviewed_at: string | null
@@ -1287,6 +1289,8 @@ export type Database = {
           landlord_location_accuracy?: number | null
           landlord_longitude?: number | null
           landlord_name: string
+          landlord_otp_verified?: boolean | null
+          landlord_otp_verified_at?: string | null
           landlord_phone: string
           manager_notes?: string | null
           manager_reviewed_at?: string | null
@@ -1320,6 +1324,8 @@ export type Database = {
           landlord_location_accuracy?: number | null
           landlord_longitude?: number | null
           landlord_name?: string
+          landlord_otp_verified?: boolean | null
+          landlord_otp_verified_at?: string | null
           landlord_phone?: string
           manager_notes?: string | null
           manager_reviewed_at?: string | null
@@ -7656,9 +7662,13 @@ export type Database = {
           house_image_urls: string[] | null
           id: string
           initial_outstanding_balance: number | null
+          landlord_acknowledged: boolean | null
+          landlord_call_notes: string | null
+          landlord_called: boolean | null
           landlord_id: string
           landlord_ops_reviewed_at: string | null
           landlord_ops_reviewed_by: string | null
+          landlord_verification_method: string | null
           lc1_id: string
           manager_verified: boolean | null
           manager_verified_at: string | null
@@ -7717,9 +7727,13 @@ export type Database = {
           house_image_urls?: string[] | null
           id?: string
           initial_outstanding_balance?: number | null
+          landlord_acknowledged?: boolean | null
+          landlord_call_notes?: string | null
+          landlord_called?: boolean | null
           landlord_id: string
           landlord_ops_reviewed_at?: string | null
           landlord_ops_reviewed_by?: string | null
+          landlord_verification_method?: string | null
           lc1_id: string
           manager_verified?: boolean | null
           manager_verified_at?: string | null
@@ -7778,9 +7792,13 @@ export type Database = {
           house_image_urls?: string[] | null
           id?: string
           initial_outstanding_balance?: number | null
+          landlord_acknowledged?: boolean | null
+          landlord_call_notes?: string | null
+          landlord_called?: boolean | null
           landlord_id?: string
           landlord_ops_reviewed_at?: string | null
           landlord_ops_reviewed_by?: string | null
+          landlord_verification_method?: string | null
           lc1_id?: string
           manager_verified?: boolean | null
           manager_verified_at?: string | null
