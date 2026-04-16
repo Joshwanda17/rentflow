@@ -67,6 +67,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [collectTarget, setCollectTarget] = useState<{ tenant: Tenant; reqId: string; owing: number } | null>(null);
   const [behaviorCardOpen, setBehaviorCardOpen] = useState(false);
   const [behaviorData, setBehaviorData] = useState<any>(null);
+  const [profileTenantId, setProfileTenantId] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && user) fetchTenants();
