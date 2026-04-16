@@ -5,7 +5,10 @@ import { Loader2, Wallet } from 'lucide-react';
 
 export function AgentFloatBalanceCard() {
   const { floatBalance, commissionBalance, totalBalance, isLoading } = useAgentBalances();
-  const realWithdrawableBalance = Math.max(0, Math.min(totalBalance, commissionBalance));
+  // Commission is only withdrawable when agent has positive float (landlord payment funds)
+  const realWithdrawableBalance = floatBalance > 0
+    ? Math.max(0, Math.min(totalBalance, commissionBalance))
+    : 0;
 
   if (isLoading) {
     return (
