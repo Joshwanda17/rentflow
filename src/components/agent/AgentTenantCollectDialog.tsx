@@ -40,7 +40,7 @@ export function AgentTenantCollectDialog({
   }, [open]);
 
   const maxAllowable = Math.min(outstandingBalance, floatBalance);
-  const isValid = amount >= 500 && amount <= outstandingBalance && amount <= floatBalance;
+  const isValid = amount >= 100 && amount <= outstandingBalance && amount <= floatBalance;
 
   const handleAllocate = async () => {
     if (!user || !isValid || !tenant) return;
