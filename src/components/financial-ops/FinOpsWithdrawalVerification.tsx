@@ -173,7 +173,32 @@ export function FinOpsWithdrawalVerification() {
     }
   };
 
-  const getPayoutLabel = (req: WithdrawalRequest) => {
+  const handleFlagRecovery = async () => {
+    if (!user || !selected) return;
+    setProcessing(selected.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('approve-withdrawal', {
+        body: {
+          withdrawal_id: selected.id,
+          recovery_mode: true,
+          recovery_percentage: Number(recoveryPct),
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success(`Debt recovery case created for ${formatCurrency(selected.amount)}`);
+      setRejectedRequests(prev => prev.filter(r => r.id !== selected.id));
+      setRecoveryOpen(false);
+      setSelected(null);
+      setRecoveryPct('20');
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to flag for recovery');
+    } finally {
+      setProcessing(null);
+    }
+  };
+
     const method = req.payout_method || 'mobile_money';
     if (method === 'bank_transfer') return `🏦 ${req.bank_name || 'Bank'} · ${req.bank_account_number || '—'}`;
     if (method === 'cash') return `💵 Cash at: ${req.agent_location || 'Agent'}`;
