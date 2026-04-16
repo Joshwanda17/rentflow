@@ -26,23 +26,18 @@ export function AgentRiskExposureCard() {
       const totalExposure = activeCharges.reduce((s, c) => s + Number(c.charge_amount || 0), 0);
       const activeDebt = activeCharges.reduce((s, c) => s + Number(c.accumulated_debt || 0), 0);
 
-      // Defaults this month from ledger
+      // Count tenants with accumulated debt this month
       const startOfMonth = new Date();
       startOfMonth.setDate(1);
       startOfMonth.setHours(0, 0, 0, 0);
 
-      const { count: defaultsThisMonth } = await supabase
-        .from('general_ledger')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('category', 'tenant_default_charge')
-        .gte('transaction_date', startOfMonth.toISOString());
+      const tenantsWithDebt = activeCharges.filter(c => Number(c.accumulated_debt || 0) > 0).length;
 
       return {
         guaranteedTenants,
         totalExposure,
         activeDebt,
-        defaultsThisMonth: defaultsThisMonth || 0,
+        defaultsThisMonth: tenantsWithDebt,
       };
     },
     enabled: !!user?.id,
