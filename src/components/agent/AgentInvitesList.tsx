@@ -8,10 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Check, Share2, Users, Building2, Clock, CheckCircle2, RefreshCw, ChevronRight, HandCoins } from 'lucide-react';
+import { Copy, Check, Share2, Users, Building2, Clock, CheckCircle2, RefreshCw, ChevronRight, HandCoins, Banknote } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { hapticSuccess } from '@/lib/haptics';
 import { playSuccessSound } from '@/lib/notificationSound';
+import { ProxyPartnerDepositDialog } from './ProxyPartnerDepositDialog';
 
 interface UserInvite {
   id: string;
@@ -24,6 +25,7 @@ interface UserInvite {
   temp_password: string;
   created_at: string;
   activated_at: string | null;
+  activated_user_id: string | null;
 }
 
 const roleConfig: Record<string, { label: string; icon: React.ElementType; color: string; emoji: string }> = {
@@ -54,6 +56,7 @@ export function AgentInvitesList() {
   const [invites, setInvites] = useState<UserInvite[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [depositPartner, setDepositPartner] = useState<{ id: string; full_name: string; phone: string } | null>(null);
   const activatedIdsRef = useRef<Set<string>>(new Set());
 
   const fetchInvites = async () => {
@@ -135,6 +138,7 @@ Just click the link and enter your password to get started!`;
   const hasMore = invites.length > 3;
 
   return (
+    <>
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
@@ -217,7 +221,7 @@ Just click the link and enter your password to get started!`;
                     </div>
                   </div>
                   
-                  {isPending && (
+                  {isPending ? (
                     <div className="flex gap-1 shrink-0">
                       <Button 
                         variant="outline" 
@@ -239,6 +243,21 @@ Just click the link and enter your password to get started!`;
                         <Share2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
+                  ) : (
+                    invite.role === 'supporter' && invite.activated_user_id && (
+                      <Button
+                        size="sm"
+                        className="h-8 gap-1 shrink-0"
+                        onClick={() => setDepositPartner({
+                          id: invite.activated_user_id!,
+                          full_name: invite.full_name,
+                          phone: invite.phone,
+                        })}
+                      >
+                        <Banknote className="h-3.5 w-3.5" />
+                        Deposit
+                      </Button>
+                    )
                   )}
                 </div>
               </div>
@@ -259,6 +278,14 @@ Just click the link and enter your password to get started!`;
       )}
     </CardContent>
     </Card>
+
+    <ProxyPartnerDepositDialog
+      open={!!depositPartner}
+      onOpenChange={(open) => { if (!open) setDepositPartner(null); }}
+      partner={depositPartner}
+      onSuccess={fetchInvites}
+    />
+    </>
   );
 }
 
