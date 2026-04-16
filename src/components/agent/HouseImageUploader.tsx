@@ -1,34 +1,36 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Camera, X, Loader2 } from 'lucide-react';
+import { Camera, X, Loader2, Image, FolderOpen, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { optimizeImage, generateThumbnail } from '@/lib/imageOptimizer';
+import { ExistingPropertyPhotosDialog } from './ExistingPropertyPhotosDialog';
 
-interface HouseImageFile {
+export interface HouseImageFile {
   id: string;
   previewUrl: string;
   file: File;
   thumbnailFile?: File;
+  source?: 'camera' | 'gallery' | 'existing';
 }
 
 interface HouseImageUploaderProps {
   images: HouseImageFile[];
   onChange: (images: HouseImageFile[]) => void;
   maxImages?: number;
+  region?: string;
+  district?: string;
+  village?: string;
 }
 
-export type { HouseImageFile };
-
-export function HouseImageUploader({ images, onChange, maxImages = 5 }: HouseImageUploaderProps) {
+export function HouseImageUploader({ images, onChange, maxImages = 5, region, district, village }: HouseImageUploaderProps) {
   const [compressing, setCompressing] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showExisting, setShowExisting] = useState(false);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
-  const handleSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
-
+  const processFiles = async (files: File[], source: 'camera' | 'gallery') => {
     const remaining = maxImages - images.length;
     if (files.length > remaining) {
       toast.error(`You can only add ${remaining} more photo(s)`);
@@ -48,7 +50,7 @@ export function HouseImageUploader({ images, onChange, maxImages = 5 }: HouseIma
       try {
         const optimized = await optimizeImage(file, { maxWidth: 1200, maxHeight: 1200, quality: 0.8 });
         const thumb = await generateThumbnail(file, 300);
-        
+
         const saved = Math.round((1 - optimized.compressedSize / optimized.originalSize) * 100);
         if (saved > 10) {
           console.log(`[ImageOptimizer] ${file.name}: ${(optimized.originalSize/1024).toFixed(0)}KB → ${(optimized.compressedSize/1024).toFixed(0)}KB (${saved}% smaller)`);
@@ -59,6 +61,7 @@ export function HouseImageUploader({ images, onChange, maxImages = 5 }: HouseIma
           previewUrl: optimized.previewUrl,
           file: optimized.file,
           thumbnailFile: thumb.file,
+          source,
         });
       } catch (err) {
         console.error('Image optimization failed, using original:', err);
@@ -66,13 +69,31 @@ export function HouseImageUploader({ images, onChange, maxImages = 5 }: HouseIma
           id: `img-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           previewUrl: URL.createObjectURL(file),
           file,
+          source,
         });
       }
     }
 
     setCompressing(false);
     onChange([...images, ...newImages]);
-    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleCameraCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length) await processFiles(files, 'camera');
+    if (cameraInputRef.current) cameraInputRef.current.value = '';
+  };
+
+  const handleGallerySelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length) await processFiles(files, 'gallery');
+    if (galleryInputRef.current) galleryInputRef.current.value = '';
+  };
+
+  const handleExistingSelect = (existingImages: HouseImageFile[]) => {
+    const remaining = maxImages - images.length;
+    const toAdd = existingImages.slice(0, remaining);
+    onChange([...images, ...toAdd]);
   };
 
   const remove = (id: string) => {
@@ -81,24 +102,42 @@ export function HouseImageUploader({ images, onChange, maxImages = 5 }: HouseIma
     onChange(images.filter(i => i.id !== id));
   };
 
+  const allFromExisting = images.length > 0 && images.every(i => i.source === 'existing');
+  const remaining = maxImages - images.length;
+
   return (
     <div className="space-y-2">
       <Label className="text-xs">Photos ({images.length}/{maxImages})</Label>
+
+      {/* Hidden file inputs */}
       <input
-        ref={fileInputRef}
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleCameraCapture}
+        className="hidden"
+      />
+      <input
+        ref={galleryInputRef}
         type="file"
         accept="image/*"
         multiple
-        capture="environment"
-        onChange={handleSelect}
+        onChange={handleGallerySelect}
         className="hidden"
       />
 
+      {/* Image preview strip */}
       {images.length > 0 && (
         <div className="flex gap-2 overflow-x-auto pb-1 snap-x">
           {images.map(img => (
             <div key={img.id} className="relative shrink-0 w-20 h-20 rounded-lg overflow-hidden border border-border">
               <img src={img.previewUrl} alt="" className="w-full h-full object-cover" />
+              {img.source === 'existing' && (
+                <div className="absolute bottom-0 left-0 right-0 bg-amber-500/80 text-[8px] text-center text-white font-medium py-0.5">
+                  Reused
+                </div>
+              )}
               <button
                 type="button"
                 onClick={() => remove(img.id)}
@@ -111,31 +150,78 @@ export function HouseImageUploader({ images, onChange, maxImages = 5 }: HouseIma
         </div>
       )}
 
-      {images.length < maxImages && (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="w-full border-dashed min-h-[44px]"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={compressing}
-        >
+      {/* Freshness warning */}
+      {allFromExisting && (
+        <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+          <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+          <p className="text-[10px] text-amber-700 dark:text-amber-400">
+            All photos are from existing listings. At least one recent photo is recommended for verification.
+          </p>
+        </div>
+      )}
+
+      {/* Three action buttons */}
+      {remaining > 0 && (
+        <div className="flex flex-col gap-1.5">
           {compressing ? (
-            <>
+            <Button type="button" variant="outline" size="sm" className="w-full min-h-[44px]" disabled>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               Optimizing...
-            </>
+            </Button>
           ) : (
             <>
-              <Camera className="h-4 w-4 mr-2" />
-              {images.length === 0 ? 'Add Photos' : 'Add More'}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full border-dashed min-h-[44px]"
+                onClick={() => cameraInputRef.current?.click()}
+              >
+                <Camera className="h-4 w-4 mr-2" />
+                Take Photo
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full border-dashed min-h-[44px]"
+                onClick={() => galleryInputRef.current?.click()}
+              >
+                <Image className="h-4 w-4 mr-2" />
+                Upload from Gallery
+              </Button>
+              {region && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-dashed min-h-[44px]"
+                  onClick={() => setShowExisting(true)}
+                >
+                  <FolderOpen className="h-4 w-4 mr-2" />
+                  Use Existing Photos
+                </Button>
+              )}
             </>
           )}
-        </Button>
+        </div>
       )}
+
       <p className="text-[10px] text-muted-foreground">
         Photos help tenants find your listing · max 5MB each
       </p>
+
+      {/* Existing photos dialog */}
+      {region && (
+        <ExistingPropertyPhotosDialog
+          open={showExisting}
+          onOpenChange={setShowExisting}
+          region={region}
+          village={village || ''}
+          onSelect={handleExistingSelect}
+          maxSelectable={remaining}
+        />
+      )}
     </div>
   );
 }
