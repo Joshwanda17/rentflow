@@ -1062,7 +1062,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       value={tenantPhone}
                       onChange={(e) => setTenantPhone(formatPhoneInput(e.target.value))}
                       placeholder="0783 123 456"
-                      className="h-10"
+                      className={`h-10 ${hasFieldError('tenant phone') ? 'border-destructive border-2' : ''}`}
                       maxLength={12}
                       required
                     />
