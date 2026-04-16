@@ -301,83 +301,34 @@ Deno.serve(async (req) => {
           }
         }
 
-        // If charge_agent_wallet flag is set (no smartphone), skip tenant wallet entirely and charge agent
+        // If charge_agent_wallet flag is set (no smartphone), record as debt (agents are no longer charged)
         if (charge.charge_agent_wallet && charge.agent_id) {
-          console.log(`[auto-charge-wallets] charge_agent_wallet=true for ${charge.tenant_id}, charging agent ${charge.agent_id} directly`);
-          let agentAmountCharged = 0;
-          let debtAdded = 0;
-          let logStatus: string;
-
-          const agentCharged = await chargeAgent(supabase, charge, chargeAmount, today, tenantName, tenantPhone, now);
-          if (agentCharged) {
-            agentAmountCharged = chargeAmount;
-            logStatus = "agent_direct_no_smartphone";
-            results.agent_charged++;
-
-            await supabase.from("subscription_charges").update({ consecutive_failures: 0 }).eq("id", charge.id);
-          } else {
-            logStatus = "agent_insufficient_no_smartphone_retry_pending";
-            results.insufficient++;
-
-            await supabase.from("subscription_charge_logs").insert({
-              subscription_id: charge.id,
-              tenant_id: charge.tenant_id,
-              charge_amount: chargeAmount,
-              amount_deducted: 0,
-              debt_added: 0,
-              wallet_balance_before: 0,
-              wallet_balance_after: 0,
-              status: logStatus,
-              charge_date: today,
-            });
-
-            await supabase.from("notifications").insert({
-              user_id: charge.agent_id,
-              title: "⚠️ Insufficient Funds — Retrying in 3 Hours",
-              message: `Couldn't deduct UGX ${chargeAmount.toLocaleString()} for ${tenantName} (${tenantPhone}). System will retry every 3 hours until covered.`,
-              type: "warning",
-              metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, tenant_name: tenantName, amount: chargeAmount },
-            });
-
-            console.log(`[auto-charge-wallets] ${charge.tenant_id}: agent insufficient (no-smartphone), will retry in 3h`);
-            continue;
-          }
+          console.log(`[auto-charge-wallets] charge_agent_wallet=true for ${charge.tenant_id}, recording debt (agent not charged)`);
+          const debtAdded = chargeAmount;
+          const logStatus = "debt_recorded_no_smartphone";
 
           await logAndUpdateCharge(supabase, charge, {
-            chargeAmount, amountDeducted: 0, agentAmountCharged, debtAdded,
+            chargeAmount, amountDeducted: 0, agentAmountCharged: 0, debtAdded,
             walletBefore: 0, walletAfter: 0, logStatus, tenantName, tenantPhone, today,
           });
 
-          if (charge.rent_request_id && agentAmountCharged > 0) {
+          if (charge.rent_request_id) {
             await supabase.rpc("record_rent_request_repayment", {
-              p_tenant_id: charge.tenant_id, p_amount: agentAmountCharged,
-            });
-            await supabase.rpc("credit_agent_rent_commission", {
-              p_rent_request_id: charge.rent_request_id, p_repayment_amount: agentAmountCharged,
-              p_tenant_id: charge.tenant_id,
-              p_event_reference_id: `auto-charge-nophone-${charge.id}-${today}`,
+              p_tenant_id: charge.tenant_id, p_amount: 0,
             });
           }
 
-          if (agentAmountCharged > 0) {
-            await supabase.from("notifications").insert({
-              user_id: charge.agent_id,
-              title: "💳 Auto-Charge: No-Smartphone Tenant",
-              message: `UGX ${agentAmountCharged.toLocaleString()} deducted for ${tenantName}'s (${tenantPhone}) ${charge.frequency} rent instalment (no smartphone). Remaining payments: ${Math.max(0, charge.charges_remaining - 1)}.`,
-              type: "info",
-              metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, tenant_name: tenantName, tenant_phone: tenantPhone, amount: agentAmountCharged },
-            });
-          }
+          await supabase.from("notifications").insert({
+            user_id: charge.agent_id,
+            title: "📋 No-Smartphone Tenant — Debt Recorded",
+            message: `UGX ${chargeAmount.toLocaleString()} for ${tenantName}'s (${tenantPhone}) ${charge.frequency} rent instalment recorded as debt. Please collect from the tenant.`,
+            type: "warning",
+            metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, tenant_name: tenantName, tenant_phone: tenantPhone, amount: chargeAmount },
+          });
 
-          if (agentAmountCharged > 0 && tenantPhone) {
-            const remaining = Number(charge.charges_remaining) - 1;
-            const sms = `WELILE: Dear ${tenantName}, UGX ${agentAmountCharged.toLocaleString()} has been paid for your rent by your agent. ${remaining > 0 ? `${remaining} payments remaining.` : 'Rent fully paid!'} Access up to UGX 30M with WELILE. Ask your agent!`;
-            sendTenantSMS(tenantPhone, sms).catch(e => console.error("[auto-charge-wallets] SMS error:", e));
-          }
-
-          results.totalAgentCharged += agentAmountCharged;
+          results.insufficient++;
           results.totalDebt += debtAdded;
-          console.log(`[auto-charge-wallets] ${charge.tenant_id}: ${logStatus} (no-smartphone) - agent:${agentAmountCharged}, debt:${debtAdded}`);
+          console.log(`[auto-charge-wallets] ${charge.tenant_id}: ${logStatus} (no-smartphone) - debt:${debtAdded}`);
           continue;
         }
 
