@@ -1,35 +1,65 @@
 
 
-# Add "Withdrawals" Tab to Partner Operations Dashboard
+# Enhance Agent "My Tenants" Page for Field Operations
 
-## Problem
-Completed partner payouts are buried inside the Portfolios tab (via COOPartnersPage). Partners Ops staff must navigate into Portfolios → tap "Partner Withdrawals" card to see them. This makes tracking payout completion harder than it should be.
+## What This Solves
 
-## What Changes
+Agents managing 100+ tenants (many without smartphones) need:
+- Easy back navigation throughout the flow
+- Bigger, readable fonts for small screens
+- Ability to pay any amount from operations float (not just full outstanding)
+- GPS capture on tenant profiles
+- A shareable signup link so tenants can create their own dashboard when they get a smartphone
 
-Add a **"Withdrawals"** tab to the Partner Operations tab bar that combines both views:
-1. The existing **pending queue** (`PartnerOpsWithdrawalQueue` — currently shown above the tabs as section D)
-2. The **completed/approved list** (`ApprovedPartnerWithdrawals` — currently hidden inside Portfolios)
+## Changes
 
-This gives Partner Ops a single tab with full withdrawal lifecycle visibility.
+### 1. Add Back Button to My Tenants Sheet Header
+**File:** `AgentTenantsSheet.tsx`
+- Add a visible "← Back" button in the sticky header next to "My Tenants" title that closes the sheet (`onOpenChange(false)`)
 
-## Steps
+### 2. Increase Font Sizes for Small Smartphones
+**Files:** `AgentTenantsSheet.tsx`, `TenantProfileView.tsx`
+- Tenant name: `text-sm` → `text-base`
+- Phone numbers: `text-xs` → `text-sm`
+- Balance amounts: `text-sm` → `text-lg`
+- Section headers: `text-xs` → `text-sm`
+- All `text-[10px]` labels → `text-xs`
+- All `text-[9px]` → `text-[11px]`
+- Touch targets already meet 44px minimum — no changes needed there
 
-### 1. Add `'withdrawals'` tab to `PartnersOpsDashboard.tsx`
-- Extend `Tab` type: `'portfolios' | 'capital' | 'roi' | 'topups' | 'activity' | 'promissory' | 'withdrawals'`
-- Add to `tabs` array: `{ key: 'withdrawals', label: 'Withdrawals', icon: Banknote }`
+### 3. Add "Pay from Float" Button on Tenant Profile
+**File:** `TenantProfileView.tsx`
+- Replace the current "Pay Rent" button (which calls `tenant-pay-rent` edge function using the tenant's own wallet) with a button that opens the `AgentTenantCollectDialog`
+- Import and wire up `AgentTenantCollectDialog` inside `TenantProfileView`
+- The dialog already supports any amount (min 500 UGX), quick-amount buttons, and shows float balance — no changes needed to the dialog itself
 
-### 2. Move the withdrawal queue into the tab content
-- Remove `<PartnerOpsWithdrawalQueue />` from its current always-visible position (line 212)
-- In `renderTabContent()`, add a `case 'withdrawals'` that renders both:
-  - `<PartnerOpsWithdrawalQueue />` (pending approvals at top)
-  - `<ApprovedPartnerWithdrawals onBack={() => setTab('portfolios')} />` (completed payouts below)
-- Wrap both in a single `<div className="space-y-4">` so they stack cleanly
+### 4. Add GPS Capture on Tenant Profile
+**File:** `TenantProfileView.tsx`
+- Add a "Capture GPS Location" button in the Contact Details section
+- Use the existing `useGeoLocation` hook
+- On capture, display lat/lng coordinates inline
+- Store will be display-only for now (agent can reference when visiting tenant)
 
-### 3. Remove the "Partner Withdrawals" card from COOPartnersPage
-- Remove the `showApprovedWithdrawals` state toggle and the `SummaryCard` button (lines ~1505-1544) since this view now lives in its own dedicated tab — no need to duplicate it
+### 5. Add "Send Dashboard Link" Button on Tenant Profile
+**File:** `TenantProfileView.tsx`
+- Add a button below the contact section: "Send Dashboard Link"
+- Uses `createShortLink` to generate a signup/login link with the tenant's phone pre-filled: `/auth?phone={tenant.phone}&ref={agent.id}`
+- Triggers `navigator.share()` (or copies to clipboard as fallback) so agent can send via WhatsApp/SMS
+- This lets tenants who later buy smartphones access their own dashboard
 
-**Files modified:** 
-- `src/components/executive/PartnersOpsDashboard.tsx`
-- `src/components/coo/COOPartnersPage.tsx` (remove duplicate entry point)
+### 6. Improve Navigation in Tenant Profile Header
+**File:** `TenantProfileView.tsx`
+- Make the back button larger (`h-11 w-11`) with a text label "← Back" instead of icon-only
+- Make tenant name in header `text-base font-bold` (currently `text-sm`)
+
+## Technical Details
+
+**Files modified:**
+- `src/components/agent/AgentTenantsSheet.tsx` — back button, font scaling
+- `src/components/agent/TenantProfileView.tsx` — font scaling, float payment integration, GPS capture, dashboard link sharing
+
+**Existing components reused (no modifications):**
+- `AgentTenantCollectDialog` — already handles partial amounts from float
+- `useGeoLocation` hook — already built
+- `createShortLink` — already built
 
