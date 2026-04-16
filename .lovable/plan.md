@@ -1,130 +1,71 @@
 
 
-# Rent Pipeline Refinement: OTP-Gated Landlord Payout & Process Hardening
+# Fix: Proxy Partner Wallet Deduction on Withdrawal
 
-## Current State (What Already Exists)
+## Root Cause
 
-Your pipeline already has the 6-stage flow working:
-1. **Agent submits** rent request → status `pending`
-2. **Tenant Ops** verifies tenant → `tenant_ops_approved`
-3. **Agent Ops** verifies agent qualification → `agent_verified`
-4. **Landlord Ops** reviews landlord → `landlord_ops_approved`
-5. **COO** approves → `coo_approved`
-6. **CFO** funds agent float → `funded`
+There is a fundamental mismatch in the proxy partner withdrawal flow:
 
-Then the agent uses `AgentFloatPayoutWizard` to pay the landlord (MoMo TID + GPS + receipt), and Financial Ops verifies the withdrawal.
+1. **ROI credits go to the AGENT's wallet** (e.g., LUKODDA JOSEPH receives `roi_wallet_credit` on behalf of partners)
+2. **The withdrawal dialog inserts `user_id: funderId` (partner's ID)** into `withdrawal_requests`
+3. **The DB trigger `deduct_wallet_on_withdrawal_request`** fires on the PARTNER's wallet — but the partner's wallet may not have those funds since ROI was credited to the agent
+4. **The wallet balance shown** is fetched from the partner's `wallets` row, which doesn't reflect the actual funds available
 
-**The `sms-otp` edge function already exists** and works with Africa's Talking. The `OtpVerificationStep` component is also built.
+This means: money comes in via the agent, goes out via the partner record, and neither wallet correctly tracks the proxy partner's share.
 
-## What's Missing (Your Request)
+## Solution: Partner-Scoped Virtual Balance + Agent Wallet Deduction
 
-### Gap 1: Landlord Ops Has No Structured Verification Checklist
-Currently Landlord Ops just clicks "Approve". No landlord call logging, no acknowledgment capture, no phone verification.
+### Step 1: Fix the wallet balance source for proxy partners
 
-### Gap 2: No Landlord OTP Gate on Float Withdrawal
-Currently the agent enters a MoMo TID to prove payment. But there's no OTP sent to the **landlord's phone** to prove the agent is physically with the landlord and that the landlord's number is real.
+Instead of reading from the partner's `wallets` row, compute the proxy partner's available balance from the **agent's ledger entries tagged to that partner**.
 
-### Gap 3: Non-Smartphone Landlords Can't Receive OTP via App
-Many landlords in Gulu/Mbarara have feature phones. OTP via SMS works perfectly for them — they just read the code to the agent.
+Query: sum all `roi_wallet_credit` entries on the agent's wallet where `description LIKE '%on behalf of partner {partnerId}%'` minus sum of completed proxy withdrawals for that partner.
 
-## Plan
+Create a small RPC `get_proxy_partner_balance(agent_id, partner_id)` that returns the computed balance.
 
-### 1. Landlord Ops Verification Checklist (Pipeline Stage `agent_verified`)
+### Step 2: Fix the withdrawal to deduct from the AGENT's wallet
 
-Add structured fields to the Landlord Ops stage in `RentPipelineQueue`:
-- **Landlord called?** (checkbox + timestamp)
-- **Landlord acknowledges Welile as payer?** (yes/no)
-- **Recommended verification method** (dropdown: Phone Call, Physical Visit, LC1 Confirmation)
-- **Landlord phone verified?** (Send OTP to landlord's MoMo number at this stage)
-- **Notes from call**
+Change `AgentProxyWithdrawalDialog` to insert `user_id: agent_id` (the logged-in agent) instead of `funderId`, while storing `funderId` in metadata. This way:
+- The existing trigger deducts from the **agent's** wallet (where the money actually sits)
+- On rejection, the existing no-op trigger means no refund (money stays deducted as designed)
 
-These fields get stored on the `rent_requests` table (new columns via migration).
+Add a `proxy_partner_id` column to `withdrawal_requests` to track which partner the withdrawal is for without overriding `user_id`.
 
-Approval is blocked until: called = true AND acknowledged = true.
+### Step 3: Update the UI balance display
 
-### 2. OTP-Gated Float Withdrawal (The Big Change)
+In `FunderManagementSheet.tsx` and `FunderDetailView.tsx`, replace the direct `wallets.balance` query with the new RPC, so the displayed balance reflects only that specific partner's share of the agent's wallet.
 
-Modify `AgentFloatPayoutWizard` to add a mandatory OTP step:
+### Step 4: Handle status transitions properly
 
-**Flow:**
-1. Agent selects rent request to pay landlord
-2. Agent taps "Send OTP to Landlord" → calls `sms-otp` edge function with landlord's phone
-3. OTP SMS arrives on landlord's phone (works on ANY phone — feature phone or smartphone)
-4. Landlord physically reads the 6-digit code to the agent
-5. Agent enters the OTP in the app
-6. System verifies OTP → only THEN allows the payout submission
-7. The `agent_float_withdrawals` record stores `landlord_otp_verified: true` and `landlord_otp_verified_at`
+- **On INSERT (pending)**: Trigger deducts from agent's wallet immediately (existing behavior, now targeting correct wallet)
+- **On CFO approval (completed)**: Balance stays deducted — money is paid out. No further action needed.
+- **On rejection**: Add a refund leg back to `handle_withdrawal_approval` trigger, restoring funds to the agent's wallet
 
-**Why SMS OTP is perfect for non-smartphone landlords:**
-- SMS works on every phone (Nokia 3310 to iPhone)
-- No app download required
-- The landlord just reads 6 digits aloud
-- This proves: (a) the number is real, (b) the agent is physically present, (c) the landlord consents
+## Database Changes
 
-### 3. Landlord Acknowledgment SMS (After Payment)
+1. **Migration**: Add `proxy_partner_id UUID` column to `withdrawal_requests`
+2. **RPC**: Create `get_proxy_partner_balance(p_agent_id UUID, p_partner_id UUID)` that computes available balance from ledger entries
+3. **Update trigger**: Modify `handle_withdrawal_approval` to refund agent's wallet on rejection when `proxy_partner_id IS NOT NULL`
 
-After the agent completes the payout, send a confirmation SMS to the landlord:
-> "Welile has paid UGX {amount} rent for {tenant_name} to your number. If you did not receive this, call 0800-XXX-XXX."
-
-This creates an audit trail and gives landlords a way to dispute.
-
-### 4. COO Bulk Approval Enhancement
-
-Add a "Select All" checkbox + "Approve Selected" button to the COO stage so bulk approval is efficient.
-
-## Files to Change
+## Code Changes
 
 | File | Change |
 |------|--------|
-| **DB Migration** | Add `landlord_called`, `landlord_acknowledged`, `landlord_verification_method`, `landlord_call_notes` to `rent_requests`. Add `landlord_otp_verified`, `landlord_otp_verified_at` to `agent_float_withdrawals` |
-| `src/components/executive/RentPipelineQueue.tsx` | Add landlord verification checklist UI at `agent_verified` stage; add COO bulk approve |
-| `src/components/agent/AgentFloatPayoutWizard.tsx` | Add OTP step: send OTP to landlord phone → verify before allowing submission |
-| `src/components/auth/OtpVerificationStep.tsx` | Reuse existing component (already built) |
-| `supabase/functions/sms-otp/index.ts` | Already works — no changes needed |
-| **New**: `src/hooks/useLandlordOtp.ts` | Hook wrapping sms-otp for landlord verification context |
-| `src/components/financial-ops/FloatPayoutVerification.tsx` | Show OTP verification status badge |
+| `AgentProxyWithdrawalDialog.tsx` | Insert `user_id: user.id` (agent), add `proxy_partner_id: funderId` |
+| `FunderManagementSheet.tsx` | Replace `wallets.balance` query with RPC call |
+| `FunderDetailView.tsx` | Use computed proxy balance from RPC |
+| `FunderPortfolioCard.tsx` | Display computed balance |
 
-## Technical Flow (OTP-Gated Payout)
+## Technical Detail
 
 ```text
-Agent taps "Pay Landlord"
-        │
-        ▼
-Select rent request → Show landlord name + phone
-        │
-        ▼
-"Send OTP to Landlord" → sms-otp edge function (action: send)
-        │
-        ▼
-Landlord receives SMS: "Your Welile code is: 482916"
-        │
-        ▼
-Agent enters 6-digit code → sms-otp (action: verify)
-        │
-        ▼  (verified = true)
-Agent enters MoMo TID + receipt photo + GPS
-        │
-        ▼
-Submit → agent_float_withdrawals record created
-        │
-        ▼
-Confirmation SMS sent to landlord: "Welile paid UGX X for {tenant}"
-```
+BEFORE (broken):
+  ROI → Agent Wallet (cash_in)
+  Withdraw → Partner's user_id → Trigger tries to deduct Partner's wallet → MISMATCH
 
-## Non-Smartphone Landlord Support
-
-SMS OTP is the solution — no changes needed. Every phone receives SMS. The physical handshake (landlord reads code → agent types it) is the most secure verification possible for rural Uganda. No internet required on the landlord's side.
-
-## COO Bulk Approval
-
-```text
-┌─────────────────────────────────────────┐
-│ ☐ Select All (12 requests)              │
-│ ☑ Tenant A — 500,000 UGX — Agent Kato  │
-│ ☑ Tenant B — 300,000 UGX — Agent Okello│
-│ ☐ Tenant C — 450,000 UGX — Agent Biira │
-│                                         │
-│ [Approve Selected (2)]  [Reject Selected]│
-└─────────────────────────────────────────┘
+AFTER (fixed):
+  ROI → Agent Wallet (cash_in, tagged with partner_id)
+  Withdraw → Agent's user_id + proxy_partner_id → Trigger deducts Agent's wallet → CORRECT
+  Balance shown = SUM(roi credited for partner) - SUM(completed withdrawals for partner)
 ```
 
