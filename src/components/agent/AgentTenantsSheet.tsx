@@ -376,7 +376,10 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
 
                       {/* Name + phone + progress */}
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm truncate">{tenant.full_name}</p>
+                        <p
+                          className="font-semibold text-sm truncate text-primary underline underline-offset-2 cursor-pointer"
+                          onClick={(e) => { e.stopPropagation(); setProfileTenantId(tenant.id); }}
+                        >{tenant.full_name}</p>
                         <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                           <Phone className="h-2.5 w-2.5" />
                           {tenant.phone}
