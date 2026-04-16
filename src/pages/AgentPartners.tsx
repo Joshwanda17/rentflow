@@ -472,6 +472,12 @@ export default function AgentPartners() {
       <AgentAngelPoolInvestDialog open={angelPoolOpen} onOpenChange={setAngelPoolOpen} onSuccess={fetchPartners} />
       <PromissoryNoteDialog open={promissoryNoteOpen} onOpenChange={setPromissoryNoteOpen} />
       <AgentPromissoryNotesList open={promissoryListOpen} onOpenChange={setPromissoryListOpen} />
+      <ProxyPartnerDepositDialog
+        open={!!depositPartner}
+        onOpenChange={(open) => { if (!open) setDepositPartner(null); }}
+        partner={depositPartner}
+        onSuccess={fetchPartners}
+      />
     </div>
   );
 }
