@@ -648,6 +648,11 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           fetchTenants();
         }}
       />
+      <TenantBehaviorCard
+        open={behaviorCardOpen}
+        onOpenChange={setBehaviorCardOpen}
+        data={behaviorData}
+      />
     </Sheet>
   );
 }
