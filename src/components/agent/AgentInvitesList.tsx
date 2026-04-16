@@ -25,6 +25,7 @@ interface UserInvite {
   temp_password: string;
   created_at: string;
   activated_at: string | null;
+  activated_user_id: string | null;
 }
 
 const roleConfig: Record<string, { label: string; icon: React.ElementType; color: string; emoji: string }> = {
