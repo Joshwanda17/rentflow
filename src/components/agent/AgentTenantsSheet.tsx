@@ -71,7 +71,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
 
   useEffect(() => {
     if (open && user) fetchTenants();
-    if (!open) setExpandedTenantId(null);
+    if (!open) { setExpandedTenantId(null); setProfileTenantId(null); }
   }, [open, user]);
 
   const fetchTenants = async () => {
