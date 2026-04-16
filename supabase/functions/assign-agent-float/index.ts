@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
     }
 
     const assignedAt = new Date().toISOString();
-    const desc = description || `Float assignment to ${agentProfile.full_name} for landlord delivery`;
+    const desc = description || `Operations float from Welile Finance`;
 
     // Create balanced ledger entries
     const { data: txnGroupId, error: ledgerErr } = await admin.rpc("create_ledger_transaction", {
@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
           direction: "cash_out",
           category: "agent_float_assignment",
           ledger_scope: "wallet",
-          description: `Float assigned to ${agentProfile.full_name}`,
+          description: `Operations float sent to ${agentProfile.full_name}`,
           currency: "UGX",
           source_table: "agent_float_funding",
           transaction_date: assignedAt,
@@ -126,8 +126,8 @@ Deno.serve(async (req) => {
           currency: "UGX",
           source_table: "agent_float_funding",
           transaction_date: assignedAt,
-          linked_party: user.id,
-          metadata: JSON.stringify({ assigned_at: assignedAt, assigned_by: user.id }),
+          linked_party: "platform",
+          metadata: JSON.stringify({ assigned_at: assignedAt, assigned_by: user.id, source: "Welile Finance" }),
         },
       ],
     });
