@@ -20,6 +20,7 @@ import { AgentInvestForPartnerDialog } from '@/components/agent/AgentInvestForPa
 import { AgentAngelPoolInvestDialog } from '@/components/agent/AgentAngelPoolInvestDialog';
 import { PromissoryNoteDialog } from '@/components/agent/PromissoryNoteDialog';
 import { AgentPromissoryNotesList } from '@/components/agent/AgentPromissoryNotesList';
+import { ProxyPartnerDepositDialog } from '@/components/agent/ProxyPartnerDepositDialog';
 
 interface PartnerItem {
   id: string;
