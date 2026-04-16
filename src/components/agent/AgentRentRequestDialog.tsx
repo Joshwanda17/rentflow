@@ -1284,11 +1284,26 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
               <GuarantorConsentCheckbox checked={guarantorConsent} onCheckedChange={setGuarantorConsent} />
 
+              {/* Validation Error Summary */}
+              {validationErrors.length > 0 && (
+                <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 space-y-1">
+                  <p className="text-xs font-semibold text-destructive flex items-center gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    Please fix the following:
+                  </p>
+                  <ul className="list-disc list-inside space-y-0.5">
+                    {validationErrors.map((err, i) => (
+                      <li key={i} className="text-[11px] text-destructive">{err}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               <div className="flex gap-3 pt-2">
                 <Button 
                   type="button" 
                   variant="outline" 
-                  onClick={() => setStep('type')}
+                  onClick={() => { setStep('type'); setValidationErrors([]); }}
                   className="flex-1"
                 >
                   Back
@@ -1296,7 +1311,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 <Button 
                   onClick={handleSubmit} 
                   className="flex-1"
-                  disabled={loading || !amount || amount < 50000 || !guarantorConsent}
+                  disabled={loading || !amount || amount < 50000}
                 >
                   {loading ? (
                     <>
