@@ -44,38 +44,27 @@ export function AgentProxyWithdrawalDialog({
     if (!user || !isValid) return;
     setLoading(true);
     try {
+      // Insert with agent's user_id so the deduction trigger hits the AGENT's wallet
+      // (where ROI funds actually sit), and tag the partner via proxy_partner_id
       const { error } = await supabase.from('withdrawal_requests').insert({
-        user_id: funderId,
+        user_id: user.id,
         amount,
         status: 'pending' as const,
         reason: `[Agent proxy: ${user.id}] ${reason.trim()}`,
+        proxy_partner_id: funderId,
       } as any);
       if (error) throw error;
 
-      // Pre-deduct wallet via ledger
+      // Get the newly created withdrawal request ID for audit
       const { data: newRow } = await supabase
         .from('withdrawal_requests')
         .select('id')
-        .eq('user_id', funderId)
+        .eq('user_id', user.id)
+        .eq('proxy_partner_id', funderId)
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
-
-      if (newRow) {
-        await supabase.from('general_ledger').insert({
-          user_id: funderId,
-          amount,
-          direction: 'cash_out',
-          category: 'withdrawal_pending',
-          description: `Proxy withdrawal by agent ${user.id} – funds held pending approval`,
-          currency: 'UGX',
-          transaction_group_id: `wallet-withdraw-${newRow.id}`,
-          source_table: 'withdrawal_requests',
-          source_id: newRow.id,
-          ledger_scope: 'platform',
-        } as any);
-      }
 
       // Audit log
       await supabase.from('audit_logs').insert({

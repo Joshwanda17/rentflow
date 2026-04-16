@@ -10174,6 +10174,7 @@ export type Database = {
           priority_level: string | null
           processed_at: string | null
           processed_by: string | null
+          proxy_partner_id: string | null
           reason: string | null
           rejection_reason: string | null
           status: string
@@ -10217,6 +10218,7 @@ export type Database = {
           priority_level?: string | null
           processed_at?: string | null
           processed_by?: string | null
+          proxy_partner_id?: string | null
           reason?: string | null
           rejection_reason?: string | null
           status?: string
@@ -10260,6 +10262,7 @@ export type Database = {
           priority_level?: string | null
           processed_at?: string | null
           processed_by?: string | null
+          proxy_partner_id?: string | null
           reason?: string | null
           rejection_reason?: string | null
           status?: string
@@ -10723,6 +10726,10 @@ export type Database = {
           total_count: number
           with_gps: number
         }[]
+      }
+      get_proxy_partner_balance: {
+        Args: { p_agent_id: string; p_partner_id: string }
+        Returns: number
       }
       get_rent_requests_summary: { Args: never; Returns: Json }
       get_shadow_match_rate: {

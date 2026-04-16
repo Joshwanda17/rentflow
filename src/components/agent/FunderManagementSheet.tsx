@@ -81,24 +81,23 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
         for (const f of data) {
           const bid = (f as any).beneficiary?.id;
           if (!bid) continue;
-          const [portfoliosRes, walletRes] = await Promise.all([
+          const [portfoliosRes, balanceRes] = await Promise.all([
             supabase
               .from('investor_portfolios')
               .select('investment_amount, total_roi_earned, status')
               .eq('investor_id', bid)
               .in('status', ['active', 'matured']),
-            supabase
-              .from('wallets')
-              .select('balance')
-              .eq('user_id', bid)
-              .maybeSingle(),
+            supabase.rpc('get_proxy_partner_balance', {
+              p_agent_id: user.id,
+              p_partner_id: bid,
+            }),
           ]);
           const portfolios = portfoliosRes.data || [];
           statsMap[bid] = {
             totalInvested: portfolios.reduce((s: number, p: any) => s + (p.investment_amount || 0), 0),
             totalROI: portfolios.reduce((s: number, p: any) => s + (p.total_roi_earned || 0), 0),
             activeCount: portfolios.filter((p: any) => p.status === 'active').length,
-            walletBalance: walletRes.data?.balance || 0,
+            walletBalance: Number(balanceRes.data) || 0,
           };
         }
         setFunderStats(statsMap);
