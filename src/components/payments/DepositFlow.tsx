@@ -5,7 +5,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Loader2, CheckCircle2, Phone, Calendar, Clock, Hash, AlertCircle, History, Building2, Banknote, Upload, Receipt, Copy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -17,6 +16,15 @@ interface DepositFlowProps {
 }
 
 type DepositChannel = 'momo' | 'bank' | 'agent_cash' | 'cash';
+type DepositPurpose = 'operational_float' | 'personal_deposit' | 'partnership_deposit' | 'personal_rent_repayment' | 'other';
+
+const DEPOSIT_PURPOSES: { id: DepositPurpose; label: string; emoji: string; desc: string }[] = [
+  { id: 'operational_float', emoji: '🏘️', label: 'Operational Float', desc: 'Cash collected from tenants in the field' },
+  { id: 'personal_deposit', emoji: '💰', label: 'Personal Deposit', desc: 'Your own money top-up' },
+  { id: 'partnership_deposit', emoji: '🤝', label: 'Partnership Deposit', desc: 'Money from or for a supporter/partner' },
+  { id: 'personal_rent_repayment', emoji: '🏠', label: 'Personal Rent Repayment', desc: 'Paying your own rent' },
+  { id: 'other', emoji: '📝', label: 'Other', desc: 'Specify your own reason' },
+];
 
 const MERCHANT_CODES = {
   mtn: '090777',
@@ -48,6 +56,7 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
   const [transactionDate, setTransactionDate] = useState('');
   const [transactionTime, setTransactionTime] = useState('');
   const [reason, setReason] = useState('');
+  const [depositPurpose, setDepositPurpose] = useState<DepositPurpose | ''>('');
   const [bankSlipFile, setBankSlipFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tidError, setTidError] = useState('');
@@ -110,7 +119,8 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
     }
     if (!transactionDate) { toast.error('Select the transaction date'); return false; }
     if (!transactionTime) { toast.error('Enter the transaction time'); return false; }
-    if (!reason.trim()) { toast.error('Enter the reason for this deposit'); return false; }
+    if (!depositPurpose) { toast.error('Select the deposit purpose'); return false; }
+    if (depositPurpose === 'other' && !reason.trim()) { toast.error('Enter the reason for this deposit'); return false; }
 
     const txDate = new Date(`${transactionDate}T${transactionTime}`);
     const now = new Date();
@@ -159,8 +169,10 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
       }
 
       const providerValue = channel === 'momo' ? momoProvider : channel === 'bank' ? 'bank_transfer' : channel === 'cash' ? 'cash_deposit' : 'agent_cash';
+      const purposeLabel = DEPOSIT_PURPOSES.find(p => p.id === depositPurpose)?.label || depositPurpose;
       const notes = [
-        reason.trim(),
+        `Purpose: ${purposeLabel}`,
+        reason.trim() ? reason.trim() : '',
         channel === 'agent_cash' ? `Agent: ${agentName.trim()}` : '',
         bankSlipUrl ? `Bank slip: ${bankSlipUrl}` : '',
       ].filter(Boolean).join(' | ');
@@ -175,6 +187,7 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
           transaction_id: normalizedRef,
           transaction_date: txDateTime.toISOString(),
           notes,
+          deposit_purpose: depositPurpose,
         } as any);
 
       if (depositError) throw depositError;
@@ -201,6 +214,7 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
     setTransactionDate('');
     setTransactionTime('');
     setReason('');
+    setDepositPurpose('');
     setBankSlipFile(null);
     onOpenChange(false);
   };
@@ -530,10 +544,44 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
               </div>
             </div>
 
-            {/* ─── Reason ─── */}
-            <div className="space-y-1.5">
-              <Label className="text-xs flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" /> Reason *</Label>
-              <Input placeholder="e.g. Rent repayment, Wallet top-up" value={reason} onChange={(e) => setReason(e.target.value)} className="h-10 text-sm" />
+            {/* ─── Deposit Purpose ─── */}
+            <div className="space-y-2">
+              <Label className="text-xs flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" /> Deposit Purpose *</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {DEPOSIT_PURPOSES.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => {
+                      setDepositPurpose(p.id);
+                      if (p.id !== 'other') setReason(p.label);
+                      else setReason('');
+                    }}
+                    className={`flex items-center gap-2 p-2.5 rounded-xl border-2 text-left transition-all text-xs ${
+                      depositPurpose === p.id
+                        ? 'border-primary bg-primary/10 shadow-sm'
+                        : 'border-border hover:border-primary/40'
+                    }`}
+                  >
+                    <span className="text-base">{p.emoji}</span>
+                    <div className="min-w-0">
+                      <p className="font-semibold truncate">{p.label}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">{p.desc}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              {depositPurpose === 'operational_float' && (
+                <div className="flex items-start gap-2 p-2 bg-primary/5 rounded-lg border border-primary/20">
+                  <AlertCircle className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                  <p className="text-[10px] text-muted-foreground">
+                    This deposit will be credited as <span className="font-semibold text-primary">Company Operations Float</span> — restricted to landlord disbursements only. Not withdrawable as personal funds.
+                  </p>
+                </div>
+              )}
+              {depositPurpose === 'other' && (
+                <Input placeholder="Specify your reason..." value={reason} onChange={(e) => setReason(e.target.value)} className="h-10 text-sm" />
+              )}
             </div>
 
             {/* ─── Warning ─── */}
