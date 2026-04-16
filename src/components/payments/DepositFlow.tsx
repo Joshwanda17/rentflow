@@ -9,7 +9,6 @@ import { Loader2, CheckCircle2, Phone, Calendar, Clock, Hash, AlertCircle, Histo
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
-import { toast } from 'sonner';
 
 interface DepositFlowProps {
   open: boolean;
