@@ -55,13 +55,15 @@ export async function fetchUserRoles(
       setRoles(userRoles);
       setCachedRoles(userRoles);
       
-      // Check user's preferred default role first
+      // Check user's preferred default role first, then last-used role
       const preferred = getPreferredDefaultRole();
       const intendedRole = authUser?.user_metadata?.intended_role as AppRole | undefined;
+      let lastUsedRole: AppRole | null = null;
+      try { lastUsedRole = localStorage.getItem('welile_last_role') as AppRole | null; } catch {}
       const defaultForUser = 
         (preferred !== 'auto' && userRoles.includes(preferred as AppRole)) ? preferred as AppRole
+        : (lastUsedRole && userRoles.includes(lastUsedRole)) ? lastUsedRole
         : (intendedRole && userRoles.includes(intendedRole)) ? intendedRole
-        : userRoles.includes('supporter') ? 'supporter'
         : userRoles[0];
       if (!currentRole || !userRoles.includes(currentRole)) {
         setRole(defaultForUser);
