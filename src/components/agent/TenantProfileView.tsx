@@ -10,13 +10,15 @@ import {
   Loader2, ArrowLeft, Phone, Mail, MapPin, Home, User, Shield, Calendar,
   CreditCard, TrendingUp, Copy, CheckCircle2, Wallet, Banknote, History,
   UserCheck, Star, AlertTriangle, ChevronDown, ChevronUp, Navigation, Share2, Smartphone,
-  MessageCircle, Pencil,
+  MessageCircle, Pencil, UsersRound, Zap, Bot,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useGeoLocation } from '@/hooks/useGeoLocation';
 import { createShortLink } from '@/lib/createShortLink';
 import { AgentTenantCollectDialog } from './AgentTenantCollectDialog';
 import { shareTenantProfileWhatsApp, type TenantProfilePdfData } from '@/lib/tenantProfilePdf';
+import { UserAvatar } from '@/components/UserAvatar';
+import { RegisterSubAgentDialog } from './RegisterSubAgentDialog';
 
 interface TenantProfileViewProps {
   tenantId: string;
@@ -32,6 +34,7 @@ interface TenantProfile {
   monthly_rent: number | null;
   verified: boolean;
   national_id: string | null;
+  avatar_url: string | null;
 }
 
 interface RentRequestRow {
@@ -86,6 +89,16 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
   const [sharingLink, setSharingLink] = useState(false);
   const [sharingProfile, setSharingProfile] = useState(false);
 
+  // User roles
+  const [userRoles, setUserRoles] = useState<string[]>([]);
+  const [addingRole, setAddingRole] = useState(false);
+
+  // Sub-agent dialog
+  const [subAgentDialogOpen, setSubAgentDialogOpen] = useState(false);
+
+  // Auto-collect
+  const [autoCollecting, setAutoCollecting] = useState(false);
+
   const aiId = generateWelileAiId(tenantId);
 
   useEffect(() => {
@@ -95,10 +108,10 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
   const loadFullProfile = async () => {
     setLoading(true);
     try {
-      const [profileRes, rentRes, repaymentRes, walletRes, portfolioRes, ledgerRes] = await Promise.all([
+      const [profileRes, rentRes, repaymentRes, walletRes, portfolioRes, ledgerRes, rolesRes] = await Promise.all([
         supabase
           .from('profiles')
-          .select('id, full_name, phone, email, created_at, monthly_rent, verified, national_id')
+          .select('id, full_name, phone, email, created_at, monthly_rent, verified, national_id, avatar_url')
           .eq('id', tenantId)
           .single(),
         supabase
@@ -129,6 +142,10 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
           .eq('user_id', tenantId)
           .eq('ledger_scope', 'wallet')
           .limit(200),
+        supabase
+          .from('user_roles')
+          .select('role, enabled')
+          .eq('user_id', tenantId),
       ]);
 
       if (profileRes.data) {
@@ -149,6 +166,12 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
 
       const pAmount = (portfolioRes.data || []).reduce((s: number, p: any) => s + (p.investment_amount || 0), 0);
       setPartnershipAmount(pAmount);
+
+      // Set user roles
+      const enabledRoles = ((rolesRes.data || []) as any[])
+        .filter(r => r.enabled === null || r.enabled === true)
+        .map(r => r.role as string);
+      setUserRoles(enabledRoles);
     } catch (err) {
       console.error('Failed to load tenant profile:', err);
     } finally {
@@ -277,10 +300,83 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
     }
   };
 
+  const handleAddRole = async (role: string) => {
+    if (!profile) return;
+    setAddingRole(true);
+    try {
+      // Check if role already exists (even disabled)
+      const typedRole = role as 'agent' | 'supporter' | 'landlord' | 'tenant';
+      const { data: existing } = await supabase
+        .from('user_roles')
+        .select('id, enabled')
+        .eq('user_id', tenantId)
+        .eq('role', typedRole)
+        .maybeSingle();
+
+      if (existing) {
+        if (existing.enabled === false) {
+          await supabase.from('user_roles').update({ enabled: true }).eq('id', existing.id);
+          toast({ title: `✅ ${role} role re-enabled for ${profile.full_name}` });
+        } else {
+          toast({ title: `Already has ${role} role`, variant: 'default' });
+        }
+      } else {
+        const { error } = await supabase.from('user_roles').insert([{
+          user_id: tenantId,
+          role: typedRole,
+          enabled: true,
+        }]);
+        if (error) throw error;
+        toast({ title: `✅ ${role} role added to ${profile.full_name}` });
+      }
+      // Refresh roles
+      const { data: rolesData } = await supabase
+        .from('user_roles')
+        .select('role, enabled')
+        .eq('user_id', tenantId);
+      const enabled = ((rolesData || []) as any[])
+        .filter(r => r.enabled === null || r.enabled === true)
+        .map(r => r.role as string);
+      setUserRoles(enabled);
+    } catch (err: any) {
+      toast({ title: 'Failed to add role', description: err.message, variant: 'destructive' });
+    } finally {
+      setAddingRole(false);
+    }
+  };
+
+  const handleAutoCollectFromWallet = async () => {
+    if (!profile || !summary.activeRequest || !walletData) return;
+    const collectAmount = Math.min(walletData.balance, summary.currentOutstanding);
+    if (collectAmount <= 0) {
+      toast({ title: 'No funds available', description: 'Tenant wallet is empty', variant: 'destructive' });
+      return;
+    }
+    setAutoCollecting(true);
+    try {
+      const { error } = await supabase.functions.invoke('tenant-pay-rent', {
+        body: {
+          tenant_id: tenantId,
+          rent_request_id: summary.activeRequest.id,
+          amount: collectAmount,
+        },
+      });
+      if (error) throw error;
+      toast({ title: `✅ Auto-collected ${formatUGX(collectAmount)}`, description: 'From tenant wallet' });
+      loadFullProfile();
+    } catch (err: any) {
+      toast({ title: 'Auto-collect failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setAutoCollecting(false);
+    }
+  };
+
   const progressPct = summary.totalFunded > 0 ? Math.min(100, Math.round((summary.totalRepaid / summary.totalFunded) * 100)) : 0;
 
   const visibleRepayments = showAllRepayments ? repayments : repayments.slice(0, PAGE_SIZE);
   const visibleRequests = showAllRequests ? requests : requests.slice(0, PAGE_SIZE);
+
+  const availableRolesToAdd = ['agent', 'supporter', 'landlord'].filter(r => !userRoles.includes(r));
 
   if (loading) {
     return (
@@ -303,12 +399,13 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
 
   return (
     <div className="flex flex-col h-full">
-      {/* Sticky header */}
+      {/* Sticky header with avatar */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b border-border/50 px-4 py-3 flex items-center gap-3">
         <Button variant="ghost" size="default" onClick={onBack} className="h-11 px-3 rounded-xl shrink-0 gap-1.5 text-base font-semibold">
           <ArrowLeft className="h-5 w-5" />
           Back
         </Button>
+        <UserAvatar avatarUrl={profile.avatar_url} fullName={profile.full_name} size="md" />
         <div className="min-w-0 flex-1">
           <p className="font-bold text-base truncate">{profile.full_name}</p>
           <p className="text-sm text-muted-foreground">Tenant Profile</p>
@@ -346,19 +443,108 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
           </div>
         </div>
 
-        {/* Roles & Verification */}
+        {/* Roles & Verification — with Add Role */}
         <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
           <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
             <UserCheck className="h-4 w-4" /> Roles & Verification
           </h3>
           <div className="flex flex-wrap gap-1.5">
-            <Badge variant="outline" className="capitalize text-xs">Tenant</Badge>
+            {userRoles.map(role => (
+              <Badge key={role} variant="outline" className="capitalize text-xs">{role}</Badge>
+            ))}
+            {userRoles.length === 0 && <Badge variant="outline" className="capitalize text-xs">Tenant</Badge>}
             {profile.verified && <Badge className="bg-success/15 text-success border-0 text-xs">✓ Verified</Badge>}
             {profile.national_id && <Badge className="bg-primary/10 text-primary border-0 text-xs">ID on file</Badge>}
             {!profile.verified && <Badge className="bg-warning/15 text-warning border-0 text-xs">⏳ Unverified</Badge>}
           </div>
+
+          {/* Add role buttons */}
+          {availableRolesToAdd.length > 0 && (
+            <div className="pt-2 border-t border-border/40">
+              <p className="text-xs text-muted-foreground mb-2">Add role to this user:</p>
+              <div className="flex flex-wrap gap-2">
+                {availableRolesToAdd.map(role => (
+                  <Button
+                    key={role}
+                    variant="outline"
+                    size="sm"
+                    className="capitalize gap-1.5 text-sm"
+                    onClick={() => handleAddRole(role)}
+                    disabled={addingRole}
+                  >
+                    {addingRole ? <Loader2 className="h-3 w-3 animate-spin" /> : <Shield className="h-3 w-3" />}
+                    + {role}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="text-sm text-muted-foreground">
             Joined {format(new Date(profile.created_at), 'dd MMM yyyy')}
+          </div>
+        </div>
+
+        {/* Quick Actions — Make Sub-Agent, Send Dashboard, Auto-Collect */}
+        <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            <Zap className="h-4 w-4" /> Quick Actions
+          </h3>
+          <div className="grid grid-cols-2 gap-2">
+            {/* Make Sub-Agent */}
+            <Button
+              variant="outline"
+              size="lg"
+              className="gap-2 text-sm h-auto py-3 flex-col items-center"
+              onClick={() => setSubAgentDialogOpen(true)}
+            >
+              <UsersRound className="h-5 w-5 text-warning" />
+              Make Sub-Agent
+            </Button>
+
+            {/* Send Dashboard Link */}
+            <Button
+              variant="outline"
+              size="lg"
+              className="gap-2 text-sm h-auto py-3 flex-col items-center"
+              onClick={handleSendDashboardLink}
+              disabled={sharingLink}
+            >
+              {sharingLink ? <Loader2 className="h-5 w-5 animate-spin" /> : <Smartphone className="h-5 w-5 text-primary" />}
+              Dashboard Link
+            </Button>
+
+            {/* Auto-Collect from Tenant Wallet */}
+            {summary.activeRequest && walletData && walletData.balance > 0 && (
+              <Button
+                variant="outline"
+                size="lg"
+                className="gap-2 text-sm h-auto py-3 flex-col items-center col-span-2 border-success/30 bg-success/5"
+                onClick={handleAutoCollectFromWallet}
+                disabled={autoCollecting}
+              >
+                {autoCollecting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Bot className="h-5 w-5 text-success" />}
+                <span>Auto-Collect from Wallet</span>
+                <span className="text-xs text-muted-foreground font-mono">
+                  {formatUGX(Math.min(walletData.balance, summary.currentOutstanding))}
+                </span>
+              </Button>
+            )}
+
+            {/* Pay from Agent Float */}
+            {summary.activeRequest && (
+              <Button
+                variant="success"
+                size="lg"
+                className="gap-2 text-sm h-auto py-3 flex-col items-center col-span-2"
+                onClick={() => setCollectDialogOpen(true)}
+                disabled={summary.currentOutstanding <= 0}
+              >
+                <Banknote className="h-5 w-5" />
+                <span>Pay from My Float</span>
+                <span className="text-xs font-mono opacity-80">{formatUGX(summary.currentOutstanding)}</span>
+              </Button>
+            )}
           </div>
         </div>
 
@@ -493,18 +679,6 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
               <p className="text-xs text-destructive">{gpsError}</p>
             )}
           </div>
-
-          {/* Send Dashboard Link */}
-          <Button
-            variant="soft"
-            size="lg"
-            className="w-full gap-2 text-base"
-            onClick={handleSendDashboardLink}
-            disabled={sharingLink}
-          >
-            {sharingLink ? <Loader2 className="h-4 w-4 animate-spin" /> : <Smartphone className="h-4 w-4" />}
-            Send Dashboard Link
-          </Button>
         </div>
 
         {/* Wallet Usage Behavior */}
@@ -747,6 +921,13 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
           }}
         />
       )}
+
+      {/* Sub-Agent Registration Dialog — pre-filled with tenant info */}
+      <RegisterSubAgentDialog
+        open={subAgentDialogOpen}
+        onOpenChange={setSubAgentDialogOpen}
+        onSuccess={loadFullProfile}
+      />
     </div>
   );
 }
