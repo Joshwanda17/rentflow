@@ -825,13 +825,13 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
 
             <Button
               onClick={() => setCollectDialogOpen(true)}
-              disabled={summary.currentOutstanding <= 0 || agentFloatBalance < 100}
+              disabled={floatLoading || summary.currentOutstanding <= 0 || agentFloatBalance < 100}
               className="w-full gap-2 text-base"
               variant="success"
               size="xl"
             >
-              <Banknote className="h-5 w-5" />
-              Pay from Operations Float — {formatUGX(Math.min(summary.currentOutstanding, agentFloatBalance))}
+              {floatLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Banknote className="h-5 w-5" />}
+              {floatLoading ? 'Loading float...' : `Pay from Operations Float — ${formatUGX(Math.min(summary.currentOutstanding, agentFloatBalance))}`}
             </Button>
           </div>
         )}
