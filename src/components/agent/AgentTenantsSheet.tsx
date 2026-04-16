@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import AgentRentRequestDialog from './AgentRentRequestDialog';
 import { AgentTenantCollectDialog } from './AgentTenantCollectDialog';
 import { TenantBehaviorCard } from './TenantBehaviorCard';
+import { TenantProfileView } from './TenantProfileView';
 
 interface Tenant {
   id: string;
