@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const results = { processed: 0, collected: 0, still_pending: 0, debt_recorded: 0, total_collected: 0, total_debt: 0, errors: [] as string[] };
+    const results = { processed: 0, debt_recorded: 0, total_debt: 0, errors: [] as string[] };
 
     for (const charge of dueCharges) {
       try {
@@ -44,96 +44,10 @@ Deno.serve(async (req) => {
         const tenantName = tenantProfile?.full_name || "Unknown Tenant";
         const tenantPhone = tenantProfile?.phone || "";
 
-        const nextChargeDate = new Date(charge.next_charge_date + "T00:00:00Z");
-        const hoursSinceDue = (now.getTime() - nextChargeDate.getTime()) / 3600000;
-
-        const { data: agentWallet, error: awErr } = await supabase.from("wallets").select("balance").eq("user_id", charge.agent_id).single();
-
-        if (awErr || !agentWallet) {
-          if (hoursSinceDue >= 24) {
-            await recordDebtAndAdvance(supabase, charge, chargeAmount, tenantName, tenantPhone, today, now);
-            results.debt_recorded++; results.total_debt += chargeAmount;
-          } else { results.still_pending++; }
-          continue;
-        }
-
-        const agentBalance = Number(agentWallet.balance);
-
-        if (agentBalance >= chargeAmount) {
-          // Balanced RPC: wallet cash_out + platform cash_in
-          const { error: rpcErr } = await supabase.rpc('create_ledger_transaction', {
-            entries: [
-              {
-                user_id: charge.agent_id, ledger_scope: 'wallet', direction: 'cash_out',
-                amount: chargeAmount, category: 'agent_float_used_for_rent',
-                source_table: 'subscription_charges', source_id: charge.id,
-                description: `No-smartphone tenant charge (retry): ${tenantName} (${tenantPhone})`,
-                currency: 'UGX', transaction_date: now.toISOString(),
-              },
-              {
-                ledger_scope: 'platform', direction: 'cash_in',
-                amount: chargeAmount, category: 'agent_repayment',
-                source_table: 'subscription_charges', source_id: charge.id,
-                description: `Agent payment for no-smartphone tenant ${tenantName}`,
-                currency: 'UGX', transaction_date: now.toISOString(),
-              },
-            ],
-          });
-
-          if (rpcErr) {
-            console.error(`[retry-no-smartphone] RPC error:`, rpcErr);
-            results.errors.push(`${charge.id}: RPC failed`);
-            continue;
-          }
-
-          // Advance schedule
-          const todayDate = new Date(today + "T00:00:00Z");
-          let nextDate: Date;
-          if (charge.frequency === "daily") { nextDate = new Date(todayDate); nextDate.setUTCDate(nextDate.getUTCDate() + 1); }
-          else if (charge.frequency === "weekly") { nextDate = new Date(todayDate); nextDate.setUTCDate(nextDate.getUTCDate() + 7); }
-          else { nextDate = new Date(todayDate); nextDate.setUTCMonth(nextDate.getUTCMonth() + 1); }
-
-          const newChargesRemaining = Math.max(0, charge.charges_remaining - 1);
-          const isComplete = newChargesRemaining <= 0;
-
-          await supabase.from("subscription_charges").update({
-            total_charged: Number(charge.total_charged) + chargeAmount,
-            charges_completed: charge.charges_completed + 1,
-            charges_remaining: newChargesRemaining,
-            agent_charged_amount: Number(charge.agent_charged_amount || 0) + chargeAmount,
-            agent_charge_count: (charge.agent_charge_count || 0) + 1,
-            next_charge_date: isComplete ? charge.next_charge_date : nextDate.toISOString().split("T")[0],
-            status: isComplete ? "completed" : "active",
-          }).eq("id", charge.id);
-
-          await supabase.from("subscription_charge_logs").insert({
-            subscription_id: charge.id, tenant_id: charge.tenant_id,
-            charge_amount: chargeAmount, amount_deducted: 0, debt_added: 0,
-            wallet_balance_before: agentBalance, wallet_balance_after: agentBalance - chargeAmount,
-            status: "agent_retry_success_no_smartphone", charge_date: today,
-          });
-
-          if (charge.rent_request_id) {
-            await supabase.rpc("record_rent_request_repayment", { p_tenant_id: charge.tenant_id, p_amount: chargeAmount });
-            await supabase.rpc("credit_agent_rent_commission", {
-              p_rent_request_id: charge.rent_request_id, p_repayment_amount: chargeAmount,
-              p_tenant_id: charge.tenant_id, p_event_reference_id: `retry-nophone-${charge.id}-${today}`,
-            });
-          }
-
-          await supabase.from("notifications").insert({
-            user_id: charge.agent_id, title: "✅ Retry Successful — Tenant Rent Collected",
-            message: `UGX ${chargeAmount.toLocaleString()} deducted for ${tenantName} (${tenantPhone})`,
-            type: "info", metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, amount: chargeAmount },
-          });
-
-          results.collected++; results.total_collected += chargeAmount;
-        } else {
-          if (hoursSinceDue >= 24) {
-            await recordDebtAndAdvance(supabase, charge, chargeAmount, tenantName, tenantPhone, today, now);
-            results.debt_recorded++; results.total_debt += chargeAmount;
-          } else { results.still_pending++; }
-        }
+        // Record as debt — agents are no longer charged for tenant defaults
+        await recordDebtAndAdvance(supabase, charge, chargeAmount, tenantName, tenantPhone, today, now);
+        results.debt_recorded++;
+        results.total_debt += chargeAmount;
       } catch (err: unknown) {
         results.errors.push(`${charge.id}: ${err instanceof Error ? err.message : String(err)}`);
       }
@@ -172,13 +86,13 @@ async function recordDebtAndAdvance(
     subscription_id: charge.id, tenant_id: charge.tenant_id,
     charge_amount: chargeAmount, amount_deducted: 0, debt_added: chargeAmount,
     wallet_balance_before: 0, wallet_balance_after: 0,
-    status: "agent_insufficient_24h_debt_no_smartphone", charge_date: today,
+    status: "debt_recorded_no_smartphone", charge_date: today,
   });
 
   if (charge.agent_id) {
     await supabase.from("notifications").insert({
-      user_id: charge.agent_id, title: "🚨 24h Retry Failed — Debt Recorded",
-      message: `After retries, UGX ${chargeAmount.toLocaleString()} for ${tenantName} (${tenantPhone}) recorded as debt.`,
+      user_id: charge.agent_id, title: "📋 No-Smartphone Tenant — Debt Recorded",
+      message: `UGX ${chargeAmount.toLocaleString()} for ${tenantName} (${tenantPhone}) recorded as tenant debt. Please collect from the tenant.`,
       type: "warning", metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, debt: chargeAmount },
     });
   }
