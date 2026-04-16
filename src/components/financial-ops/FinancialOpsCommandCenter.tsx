@@ -66,24 +66,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
     );
   }
 
-  // Sub-view: Portfolio Top-Up Verification
-  if (view === 'portfolio-topups') {
-    return (
-      <div className="space-y-4">
-        <button onClick={() => setView('home')} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="h-4 w-4" /> Back
-        </button>
-        <h2 className="text-lg font-bold flex items-center gap-2">
-          <Briefcase className="h-5 w-5 text-blue-600" />
-          Portfolio Top-Up Verification
-        </h2>
-        <p className="text-xs text-muted-foreground -mt-2">
-          Review and approve portfolio capital injections submitted by Partner Operations.
-        </p>
-        <PortfolioTopUpVerification />
-      </div>
-    );
-  }
+
 
   // Sub-view: Active tool
   if (activeTool) {
