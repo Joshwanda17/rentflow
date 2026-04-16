@@ -10620,6 +10620,18 @@ export type Database = {
         }[]
       }
       get_my_ai_id_summary: { Args: never; Returns: Json }
+      get_outstanding_agent_float: {
+        Args: never
+        Returns: {
+          age_hours: number
+          agent_id: string
+          agent_name: string
+          oldest_unsettled_at: string
+          outstanding: number
+          total_assigned: number
+          total_settled: number
+        }[]
+      }
       get_paginated_transactions: {
         Args: {
           p_category?: string
