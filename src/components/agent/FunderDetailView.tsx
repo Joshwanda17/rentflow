@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { AgentProxyWithdrawalDialog } from './AgentProxyWithdrawalDialog';
-import { AgentDepositDialog } from './AgentDepositDialog';
+import { ProxyPartnerDepositDialog } from './ProxyPartnerDepositDialog';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import {
@@ -564,10 +564,10 @@ export function FunderDetailView({
               onRefresh();
             }}
           />
-          <AgentDepositDialog
+          <ProxyPartnerDepositDialog
             open={depositDialogOpen}
             onOpenChange={setDepositDialogOpen}
-            prefillPhone={depositPhone}
+            partner={funder.beneficiary}
             onSuccess={() => {
               fetchAllData();
               onRefresh();
