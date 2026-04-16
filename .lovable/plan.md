@@ -1,41 +1,35 @@
 
 
-# Fix: Agent Rent Request "Submit" Button Not Working for Some Users
+# Add "Withdrawals" Tab to Partner Operations Dashboard
 
-## Problem Identified
+## Problem
+Completed partner payouts are buried inside the Portfolios tab (via COOPartnersPage). Partners Ops staff must navigate into Portfolios → tap "Partner Withdrawals" card to see them. This makes tracking payout completion harder than it should be.
 
-From the screenshot and code analysis, several issues cause the Submit button to appear functional but silently fail:
+## What Changes
 
-1. **Strict phone validation blocks submission silently** — The regex `^0[3-9][0-9]{8}$` requires exactly 10 digits. The screenshot shows "0789 999" (7 digits) which would fail. The toast error may be missed on mobile (small, auto-dismissing).
+Add a **"Withdrawals"** tab to the Partner Operations tab bar that combines both views:
+1. The existing **pending queue** (`PartnerOpsWithdrawalQueue` — currently shown above the tabs as section D)
+2. The **completed/approved list** (`ApprovedPartnerWithdrawals` — currently hidden inside Portfolios)
 
-2. **LC1 phone is validated even when incomplete** — If an agent types a partial LC1 phone (e.g. "0789 999"), it passes the `lc1Phone.trim()` check but fails `isValidUgPhone`, blocking submission with only a brief toast.
+This gives Partner Ops a single tab with full withdrawal lifecycle visibility.
 
-3. **GPS timeout blocks some devices** — `enableHighAccuracy: true` with 20s timeout can hang on older phones. While GPS capture is separate from submit, agents on slow devices may experience UI freezes.
+## Steps
 
-4. **No inline validation feedback** — All validation errors are toast-only. On mobile, toasts can be obscured by the keyboard or dismissed too quickly, making it seem like "nothing happens."
+### 1. Add `'withdrawals'` tab to `PartnersOpsDashboard.tsx`
+- Extend `Tab` type: `'portfolios' | 'capital' | 'roi' | 'topups' | 'activity' | 'promissory' | 'withdrawals'`
+- Add to `tabs` array: `{ key: 'withdrawals', label: 'Withdrawals', icon: Banknote }`
 
-## Plan
+### 2. Move the withdrawal queue into the tab content
+- Remove `<PartnerOpsWithdrawalQueue />` from its current always-visible position (line 212)
+- In `renderTabContent()`, add a `case 'withdrawals'` that renders both:
+  - `<PartnerOpsWithdrawalQueue />` (pending approvals at top)
+  - `<ApprovedPartnerWithdrawals onBack={() => setTab('portfolios')} />` (completed payouts below)
+- Wrap both in a single `<div className="space-y-4">` so they stack cleanly
 
-### Step 1: Add inline validation indicators on the confirm step
-- Show red border + helper text below each invalid field (tenant phone, landlord phone, LC1 phone) instead of relying solely on toasts.
-- Highlight which specific field is blocking submission.
+### 3. Remove the "Partner Withdrawals" card from COOPartnersPage
+- Remove the `showApprovedWithdrawals` state toggle and the `SummaryCard` button (lines ~1505-1544) since this view now lives in its own dedicated tab — no need to duplicate it
 
-### Step 2: Make LC1 phone validation more lenient
-- Allow LC1 phone to be empty OR valid 10-digit format. Don't block on partial input — if the agent typed something but it's incomplete, show a warning but allow submission (LC1 phone is supplementary data).
-
-### Step 3: Add a visible error summary before submit
-- When `handleSubmit` detects validation failures, display a persistent red alert box at the top of the confirm step listing all issues, so the agent can see exactly what needs fixing.
-
-### Step 4: Prevent double-tap / loading state edge case
-- Ensure the `loading` state is set immediately at the top of `handleSubmit` (before async operations) and cleared properly in all error paths to prevent the button from appearing stuck.
-
-### Technical Details
-
-**File**: `src/components/agent/AgentRentRequestDialog.tsx`
-
-- Add `validationErrors` state array that gets populated by `handleSubmit` before returning early
-- Render errors as a red alert box above the submit button
-- Change LC1 phone validation: if `lc1Phone.trim()` has content but isn't valid, show warning but don't block
-- Add red `border-destructive` class to inputs that failed validation
-- Move `setLoading(true)` above all validation so the button shows "Submitting..." immediately, then `setLoading(false)` on validation failure
+**Files modified:** 
+- `src/components/executive/PartnersOpsDashboard.tsx`
+- `src/components/coo/COOPartnersPage.tsx` (remove duplicate entry point)
 
