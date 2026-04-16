@@ -220,6 +220,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     housePhotos.forEach(p => URL.revokeObjectURL(p.preview));
     setHousePhotos([]);
     setGuarantorConsent(false);
+    setValidationErrors([]);
     setSuccess(false);
     setActivationLink(null);
     setStep('type');
