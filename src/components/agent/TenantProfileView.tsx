@@ -199,17 +199,6 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
                 </div>
               </div>
             )}
-            {profile.location && (
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                  <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="text-[10px] text-muted-foreground">Location</p>
-                  <p className="text-sm font-semibold">{profile.location}</p>
-                </div>
-              </div>
-            )}
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
                 <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
