@@ -151,7 +151,7 @@ Deno.serve(async (req) => {
 
     // ── 2. Deduct from wallet immediately ──
     const { error: deductErr } = await supabase.rpc("create_ledger_transaction", {
-      p_entries: JSON.stringify([
+      entries: JSON.stringify([
         {
           user_id: walletOwnerId,
           amount: topupAmount,
