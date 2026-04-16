@@ -48,6 +48,8 @@ export default function AgentPartners() {
   const { user } = useAuth();
   const [partners, setPartners] = useState<PartnerItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const PAGE_SIZE = 15;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<TabFilter>('invited');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -178,6 +180,14 @@ export default function AgentPartners() {
     }
     return list;
   }, [partners, activeTab, search]);
+
+  // Reset pagination when filter changes
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [activeTab, search]);
+
+  const paginatedPartners = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
+  const hasMore = visibleCount < filtered.length;
 
   // KPIs
   const kpis = useMemo(() => ({
@@ -321,7 +331,7 @@ export default function AgentPartners() {
                 </div>
               </div>
             ) : (
-              filtered.map(partner => {
+              paginatedPartners.map(partner => {
                 const sc = statusConfig[partner.status] || statusConfig.pending;
                 const isExpanded = expandedId === partner.id;
                 return (
@@ -421,6 +431,19 @@ export default function AgentPartners() {
                   </div>
                 );
               })
+            )}
+            {hasMore && (
+              <button
+                onClick={() => setVisibleCount(prev => prev + PAGE_SIZE)}
+                className="w-full py-3 rounded-xl bg-muted/50 text-sm font-semibold text-primary active:scale-[0.98] transition-transform mt-2"
+              >
+                Load More ({filtered.length - visibleCount} remaining)
+              </button>
+            )}
+            {!loading && filtered.length > 0 && (
+              <p className="text-center text-[10px] text-muted-foreground pt-1">
+                Showing {Math.min(visibleCount, filtered.length)} of {filtered.length}
+              </p>
             )}
           </div>
         </div>
