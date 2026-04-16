@@ -42,6 +42,7 @@ import { AgentPerformanceRankings } from '@/components/cfo/AgentPerformanceRanki
 import { AgentFloatManagement } from '@/components/cfo/AgentFloatManagement';
 import { LedgerHealthPanel } from '@/components/cfo/LedgerHealthPanel';
 import { FieldCashExposureCard } from '@/components/cfo/FieldCashExposureCard';
+import { CFOAgentOpsFloatSender } from '@/components/cfo/CFOAgentOpsFloatSender';
 
 export default function CFODashboardPage() {
   const { currency, setCurrency, getCurrencyByCode } = useCurrency();
@@ -162,6 +163,7 @@ export default function CFODashboardPage() {
       case 'float-management':
         return (
           <div className="space-y-6">
+            <CFOAgentOpsFloatSender />
             <AgentFloatManagement />
             <FieldCashExposureCard />
           </div>

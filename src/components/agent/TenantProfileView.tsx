@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { generateWelileAiId, getRiskTierLabel } from '@/lib/welileAiId';
 import { formatUGX } from '@/lib/rentCalculations';
+import { useAgentBalances } from '@/hooks/useAgentBalances';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -68,6 +69,7 @@ const PAGE_SIZE = 5;
 export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) {
   const { toast } = useToast();
   const { user } = useAuth();
+  const { floatBalance: agentFloatBalance, refetch: refetchFloat } = useAgentBalances();
   const [profile, setProfile] = useState<TenantProfile | null>(null);
   const [requests, setRequests] = useState<RentRequestRow[]>([]);
   const [repayments, setRepayments] = useState<RepaymentRow[]>([]);
@@ -485,6 +487,47 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
           </div>
         </div>
 
+        {/* ── Pay from Operations Float — PROMINENT ── */}
+        {summary.activeRequest && summary.currentOutstanding > 0 && (
+          <div className="rounded-2xl border-2 border-success/40 bg-gradient-to-br from-success/10 to-success/5 p-4 space-y-3">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-success flex items-center gap-1.5">
+              <Wallet className="h-4 w-4" /> Pay from Operations Float
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Use your operations float to pay this tenant's rent directly. The amount will be deducted from your float balance.
+            </p>
+            <div className="grid grid-cols-2 gap-2 text-center">
+              <div className="bg-success/10 rounded-xl p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Outstanding</p>
+                <p className="text-lg font-black font-mono text-destructive">{formatUGX(summary.currentOutstanding)}</p>
+              </div>
+              <div className="bg-success/10 rounded-xl p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Your Float</p>
+                <p className="text-lg font-black font-mono text-success">{formatUGX(agentFloatBalance)}</p>
+              </div>
+            </div>
+            {agentFloatBalance < 500 && (
+              <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/20 rounded-xl p-3">
+                <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+                <p className="text-xs text-destructive font-medium">Insufficient float. Deposit to your operations float first or ask CFO to top up.</p>
+              </div>
+            )}
+            <Button
+              onClick={() => setCollectDialogOpen(true)}
+              className="w-full gap-2 text-base h-14 font-bold rounded-xl shadow-lg"
+              variant="success"
+              size="xl"
+              disabled={agentFloatBalance < 500}
+            >
+              <Banknote className="h-6 w-6" />
+              Pay {formatUGX(Math.min(summary.currentOutstanding, agentFloatBalance))} from Float
+            </Button>
+            <p className="text-[10px] text-center text-muted-foreground">
+              💡 You earn <span className="font-bold text-success">10% commission</span> on every float payment
+            </p>
+          </div>
+        )}
+
         {/* Quick Actions — Make Sub-Agent, Send Dashboard, Auto-Collect */}
         <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
           <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
@@ -528,21 +571,6 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
                 <span className="text-xs text-muted-foreground font-mono">
                   {formatUGX(Math.min(walletData.balance, summary.currentOutstanding))}
                 </span>
-              </Button>
-            )}
-
-            {/* Pay from Agent Float */}
-            {summary.activeRequest && (
-              <Button
-                variant="success"
-                size="lg"
-                className="gap-2 text-sm h-auto py-3 flex-col items-center col-span-2"
-                onClick={() => setCollectDialogOpen(true)}
-                disabled={summary.currentOutstanding <= 0}
-              >
-                <Banknote className="h-5 w-5" />
-                <span>Pay from My Float</span>
-                <span className="text-xs font-mono opacity-80">{formatUGX(summary.currentOutstanding)}</span>
               </Button>
             )}
           </div>
@@ -780,13 +808,13 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
 
             <Button
               onClick={() => setCollectDialogOpen(true)}
-              disabled={summary.currentOutstanding <= 0}
+              disabled={summary.currentOutstanding <= 0 || agentFloatBalance < 500}
               className="w-full gap-2 text-base"
               variant="success"
               size="xl"
             >
               <Banknote className="h-5 w-5" />
-              Pay from Float — {formatUGX(summary.currentOutstanding)}
+              Pay from Operations Float — {formatUGX(Math.min(summary.currentOutstanding, agentFloatBalance))}
             </Button>
           </div>
         )}
@@ -918,6 +946,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
           onSuccess={() => {
             setCollectDialogOpen(false);
             loadFullProfile();
+            refetchFloat();
           }}
         />
       )}
