@@ -48,6 +48,8 @@ export default function AgentPartners() {
   const { user } = useAuth();
   const [partners, setPartners] = useState<PartnerItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const PAGE_SIZE = 15;
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<TabFilter>('invited');
   const [expandedId, setExpandedId] = useState<string | null>(null);
