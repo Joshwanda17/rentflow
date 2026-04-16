@@ -433,18 +433,30 @@ export default function AgentPartners() {
                 );
               })
             )}
-            {hasMore && (
-              <button
-                onClick={() => setVisibleCount(prev => prev + PAGE_SIZE)}
-                className="w-full py-3 rounded-xl bg-muted/50 text-sm font-semibold text-primary active:scale-[0.98] transition-transform mt-2"
-              >
-                Load More ({filtered.length - visibleCount} remaining)
-              </button>
-            )}
-            {!loading && filtered.length > 0 && (
-              <p className="text-center text-[10px] text-muted-foreground pt-1">
-                Showing {Math.min(visibleCount, filtered.length)} of {filtered.length}
-              </p>
+            {filtered.length > 0 && (
+              <div className="flex items-center justify-between mt-3 gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === 0}
+                  onClick={() => setCurrentPage(p => p - 1)}
+                  className="flex-1 rounded-xl h-10"
+                >
+                  ← Previous
+                </Button>
+                <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
+                  {currentPage + 1} / {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage >= totalPages - 1}
+                  onClick={() => setCurrentPage(p => p + 1)}
+                  className="flex-1 rounded-xl h-10"
+                >
+                  Next →
+                </Button>
+              </div>
             )}
           </div>
         </div>
