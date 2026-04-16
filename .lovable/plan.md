@@ -1,55 +1,48 @@
 
 
-# Agent Wallet Segmentation: Advance → Commission & Float-Gated Withdrawals
+# Agent Wallet: Permission-Based Compartments (Not Float-Gated)
 
-## Current State
+## The Problem with Current Implementation
 
-- **`get_agent_split_balances` RPC** calculates Commission from specific categories (`agent_commission_earned`, `agent_bonus`, `referral_bonus`, etc.). Everything else = Float (total − commission).
-- **Agent advance disbursement** (CFO pays advance) uses `wallet_deposit` category → currently falls into **Float** section.
-- **Withdrawals** are already gated to commission balance only (approve-withdrawal edge function checks `commission_balance`).
+We just added float-gating: "commission only withdrawable when float > 0". Your message clarifies this is wrong. The correct model:
 
-## What Needs to Change
+- **Commission = agent's money → always withdrawable, no conditions**
+- **Float = company money → NEVER withdrawable, only usable for landlord delivery**
 
-### 1. New Ledger Category for Agent Advances
-Instead of reusing `wallet_deposit`, agent advance disbursements should use a dedicated category: **`agent_advance_credit`**.
+## Changes Required
 
-- **Add to `LOCKED_CATEGORIES`** in `ledgerConstants.ts`
-- **Add to `validate_ledger_category`** DB function via migration
-- **Update `CFOAdvanceRequestPayments.tsx`** — change the wallet leg from `wallet_deposit` to `agent_advance_credit`
+### 1. Remove Float-Gating from Withdrawal Approval
+**File:** `supabase/functions/approve-withdrawal/index.ts`
+- Remove the `floatBalance <= 0` block (lines 158-165)
+- Keep the commission cap: `withdrawableBalance = Math.min(effectiveBalance, commissionBalance)` — this already prevents float from being withdrawn
 
-### 2. Update Split Balances RPC
-Modify `get_agent_split_balances` to include `agent_advance_credit` as a **commission category** (cash_in), so advance money appears in the Commission section, not Float.
+### 2. Update AgentFloatBalanceCard UI
+**File:** `src/components/agent/AgentFloatBalanceCard.tsx`
+- Withdrawable = commission balance (always, no float condition)
+- Remove the "Withdrawals locked" warning
+- Float shown as "Company Funds" with no withdraw option
 
-### 3. Float-Gated Withdrawal Rule
-Add a check: **commission is only withdrawable when the agent has positive float** (meaning they've received rent money for landlord payment). 
+### 3. Update AgentWalletHeroCard UI
+**File:** `src/components/agent/AgentWalletHeroCard.tsx`
+- "Withdraw" button only draws from commission, label it "Withdraw Commission"
+- Remove any float withdrawal path
+- Add a separate "Pay Landlord" action button that operates on float
 
-- **Update `approve-withdrawal` edge function**: After computing `commissionBalance`, also check `floatBalance > 0`. If float is zero or negative, block withdrawal with message: "Withdrawals require active landlord payment funds (float)."
-- **Update `AgentFloatBalanceCard.tsx`**: Reflect the new rule in the UI — show "Withdrawable" as 0 when float ≤ 0, with a note explaining why.
+### 4. Update Agent Withdrawal Edge Function
+**File:** `supabase/functions/agent-withdrawal/index.ts`
+- When processing agent's own withdrawal, cap at commission balance (not total wallet)
 
-## Files to Change
+### 5. Save Memory
+Update `mem://business-model/agent-wallet-segmentation` with the corrected rule:
+- Commission: freely withdrawable, no restrictions
+- Float: never withdrawable, only assignable for landlord delivery
+- No float-gating on commission withdrawals
 
-| File | Change |
-|------|--------|
-| `src/lib/ledgerConstants.ts` | Add `agent_advance_credit` to `LOCKED_CATEGORIES` |
-| **DB Migration** | Add `agent_advance_credit` to `validate_ledger_category` allowlist + update `get_agent_split_balances` RPC |
-| `src/components/cfo/CFOAdvanceRequestPayments.tsx` | Change wallet leg category from `wallet_deposit` to `agent_advance_credit` |
-| `supabase/functions/approve-withdrawal/index.ts` | Add float > 0 check before allowing agent withdrawals |
-| `src/components/agent/AgentFloatBalanceCard.tsx` | Show withdrawable as 0 when float ≤ 0, add explanatory text |
+## Summary of Rule Set
 
-## Updated RPC Logic (Summary)
-
-```text
-Commission categories (cash_in):
-  agent_commission_earned, agent_commission, agent_bonus,
-  referral_bonus, proxy_investment_commission,
-  agent_advance_credit  ← NEW
-
-Commission categories (cash_out):
-  agent_commission_withdrawal, agent_commission_used_for_rent,
-  tenant_default_charge
-
-Float = Total Balance − Commission Balance (unchanged formula)
-
-Withdrawable = commission > 0 AND float > 0 ? commission : 0
-```
+| Action | Allowed | Source |
+|--------|---------|--------|
+| Withdraw Commission | Always ✅ | Commission balance |
+| Use Float for Landlord Payment | ✅ | Float balance |
+| Withdraw Float | ❌ Never | — |
 
