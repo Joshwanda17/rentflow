@@ -27,7 +27,6 @@ interface TenantProfile {
   monthly_rent: number | null;
   verified: boolean;
   national_id: string | null;
-  role: string | null;
 }
 
 interface RentRequestRow {
