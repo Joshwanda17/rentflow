@@ -544,10 +544,44 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
               </div>
             </div>
 
-            {/* ─── Reason ─── */}
-            <div className="space-y-1.5">
-              <Label className="text-xs flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" /> Reason *</Label>
-              <Input placeholder="e.g. Rent repayment, Wallet top-up" value={reason} onChange={(e) => setReason(e.target.value)} className="h-10 text-sm" />
+            {/* ─── Deposit Purpose ─── */}
+            <div className="space-y-2">
+              <Label className="text-xs flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" /> Deposit Purpose *</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {DEPOSIT_PURPOSES.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => {
+                      setDepositPurpose(p.id);
+                      if (p.id !== 'other') setReason(p.label);
+                      else setReason('');
+                    }}
+                    className={`flex items-center gap-2 p-2.5 rounded-xl border-2 text-left transition-all text-xs ${
+                      depositPurpose === p.id
+                        ? 'border-primary bg-primary/10 shadow-sm'
+                        : 'border-border hover:border-primary/40'
+                    }`}
+                  >
+                    <span className="text-base">{p.emoji}</span>
+                    <div className="min-w-0">
+                      <p className="font-semibold truncate">{p.label}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">{p.desc}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              {depositPurpose === 'operational_float' && (
+                <div className="flex items-start gap-2 p-2 bg-primary/5 rounded-lg border border-primary/20">
+                  <AlertCircle className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                  <p className="text-[10px] text-muted-foreground">
+                    This deposit will be credited as <span className="font-semibold text-primary">Company Operations Float</span> — restricted to landlord disbursements only. Not withdrawable as personal funds.
+                  </p>
+                </div>
+              )}
+              {depositPurpose === 'other' && (
+                <Input placeholder="Specify your reason..." value={reason} onChange={(e) => setReason(e.target.value)} className="h-10 text-sm" />
+              )}
             </div>
 
             {/* ─── Warning ─── */}
