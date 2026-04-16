@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useGeoLocation } from '@/hooks/useGeoLocation';
 import { createShortLink } from '@/lib/createShortLink';
 import { AgentTenantCollectDialog } from './AgentTenantCollectDialog';
+import { shareTenantProfileWhatsApp, type TenantProfilePdfData } from '@/lib/tenantProfilePdf';
 
 interface TenantProfileViewProps {
   tenantId: string;
@@ -82,6 +83,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
 
   // Dashboard link sharing
   const [sharingLink, setSharingLink] = useState(false);
+  const [sharingProfile, setSharingProfile] = useState(false);
 
   const aiId = generateWelileAiId(tenantId);
 
@@ -228,6 +230,52 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
     }
   };
 
+  const handleShareProfile = async () => {
+    if (!profile) return;
+    setSharingProfile(true);
+    try {
+      const pdfData: TenantProfilePdfData = {
+        aiId,
+        fullName: profile.full_name,
+        phone: profile.phone,
+        email: profile.email,
+        nationalId: profile.national_id,
+        verified: profile.verified,
+        memberSince: profile.created_at,
+        monthlyRent: profile.monthly_rent,
+        riskLabel: riskTier.label,
+        completionRate: summary.completionRate,
+        earningLabel: earningRating.label,
+        earningStars: earningRating.stars,
+        totalRequests: summary.totalRequests,
+        totalRepaid: summary.totalRepaid,
+        totalOwing: summary.totalOwing,
+        currentOutstanding: summary.currentOutstanding,
+        walletBalance: walletData?.balance ?? 0,
+        landlordName: summary.latestLandlord,
+        propertyAddress: summary.latestAddress,
+        houseType: summary.latestHouseType,
+        rentPlans: requests.map(r => ({
+          date: r.created_at,
+          rentAmount: r.rent_amount,
+          totalRepayment: r.total_repayment,
+          amountRepaid: r.amount_repaid,
+          status: r.status || 'unknown',
+        })),
+        latitude: gpsLocation?.latitude,
+        longitude: gpsLocation?.longitude,
+      };
+      await shareTenantProfileWhatsApp(pdfData);
+      toast({ title: '📄 Profile shared' });
+    } catch (err: any) {
+      if (err.name !== 'AbortError') {
+        toast({ title: 'Failed to share profile', variant: 'destructive' });
+      }
+    } finally {
+      setSharingProfile(false);
+    }
+  };
+
   const progressPct = summary.totalFunded > 0 ? Math.min(100, Math.round((summary.totalRepaid / summary.totalFunded) * 100)) : 0;
 
   const visibleRepayments = showAllRepayments ? repayments : repayments.slice(0, PAGE_SIZE);
@@ -264,6 +312,15 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
           <p className="font-bold text-base truncate">{profile.full_name}</p>
           <p className="text-sm text-muted-foreground">Tenant Profile</p>
         </div>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={handleShareProfile}
+          disabled={sharingProfile}
+          className="h-11 w-11 rounded-xl shrink-0"
+        >
+          {sharingProfile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
+        </Button>
         {profile.verified && (
           <Badge className="bg-success/15 text-success border-0 text-xs">Verified ✓</Badge>
         )}
