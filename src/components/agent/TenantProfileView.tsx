@@ -55,7 +55,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
       const [profileRes, rentRes] = await Promise.all([
         supabase
           .from('profiles')
-          .select('id, full_name, phone, email, created_at, monthly_rent, verified, national_id, location')
+          .select('id, full_name, phone, email, created_at, monthly_rent, verified, national_id')
           .eq('id', tenantId)
           .single(),
         supabase
