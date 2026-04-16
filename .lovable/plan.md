@@ -1,67 +1,91 @@
 
-Goal: make the tenant-profile “Pay from Operations Float” buttons work for Lolem.
 
-What I found:
-- The disabled state is controlled entirely in `src/components/agent/TenantProfileView.tsx`:
-  - one button disables when `floatLoading || agentFloatBalance < 500`
-  - another disables when `floatLoading || summary.currentOutstanding <= 0 || agentFloatBalance < 100`
-- Both buttons get their balance from `useAgentBalances()`.
-- `useAgentBalances()` currently:
-  - depends on `useAuth().user.id`
-  - silently converts any RPC error into `{ floatBalance: 0, commissionBalance: 0 }`
-  - exposes no error state to the UI
-- I checked the backend data for Lolem (`e4f07815-7991-422f-946f-7f351b38e954`):
-  - wallet balance = UGX 490,000
-  - `get_agent_split_balances(...)` returns float = UGX 484,500 and commission = UGX 5,500
-- That means the backend is correct. The problem is the frontend still treating her float as unavailable.
+# Enforce User ↔ Wallet Database Linkage
 
-Plan:
-1. Refactor the balance hook so it can fetch by an explicit agent ID
-   - Change `useAgentBalances()` to accept an optional `agentId`
-   - Use `agentId ?? user?.id` as the effective ID
-   - Return `error` and `effectiveAgentId` in addition to balances/loading
-   - Stop masking RPC failures as a fake zero balance; keep safe fallbacks for display, but surface the failure
+## Current State (Already in Place)
+| Constraint | Status |
+|---|---|
+| `wallets.id` UUID primary key | ✅ Exists |
+| `wallets.user_id → auth.users.id` FK with CASCADE | ✅ Exists |
+| `UNIQUE(user_id)` on wallets | ✅ Exists (1 wallet per user) |
+| `balance >= 0` check | ✅ Exists |
+| `profiles.wallet_id` column | ❌ Does not exist |
+| `general_ledger.wallet_id` column | ❌ Does not exist |
 
-2. Make the tenant profile use a profile-specific float fetch
-   - Update `TenantProfileView` to use the explicit agent ID for the logged-in agent
-   - Add a forced refetch when the tenant profile opens/mounts, not just on window focus
-   - Ensure both pay buttons read from the same resolved float state
+All 5,871 profiles already have a matching wallet. The core FK and uniqueness constraints are already solid.
 
-3. Replace the misleading disabled-zero behavior with actionable UI
-   - If balance is loading: show loading state only
-   - If the balance query errors: show a visible “Couldn’t load Operations Float” message with retry
-   - Only show “Insufficient float” when a successful fetch confirms the balance is actually below threshold
-   - This prevents “greyed out forever” when the real issue is fetch failure, not lack of money
+## What Needs to Be Added
 
-4. Align the dialog with the same source of truth
-   - Update `AgentTenantCollectDialog` to use the same parameterized hook / effective agent ID
-   - Keep its validation and quick amounts tied to the resolved float, not an implicit auth-only fetch
-   - Refetch balances after a successful allocation and on dialog open
+### Migration 1: Add `wallet_id` to `general_ledger`
+Add a direct `wallet_id` reference so every ledger entry can trace to a specific wallet, not just a user.
 
-5. Clean up duplicate/confusing button logic
-   - Review the two pay buttons in `TenantProfileView`
-   - Keep thresholds consistent and make sure they don’t conflict visually
-   - If both are needed, ensure they behave identically from the same float/error/loading state
+```sql
+ALTER TABLE public.general_ledger
+  ADD COLUMN wallet_id uuid REFERENCES public.wallets(id);
 
-6. Verify end-to-end
-   - Test with Lolem’s login on My Tenants → individual tenant profile
-   - Confirm the float displays around UGX 484,500
-   - Confirm the button enables
-   - Complete a small allocation and confirm:
-     - tenant outstanding reduces
-     - float reduces
-     - commission credits correctly
-     - UI refreshes immediately
+CREATE INDEX idx_general_ledger_wallet_id
+  ON public.general_ledger(wallet_id);
 
-Technical details:
-- No database migration looks necessary.
-- The backend RPC is already returning the correct numbers.
-- The main fix is frontend state handling:
-  - parameterized balance fetching
-  - explicit error state
-  - no silent “0 float” fallback for failed reads
+-- Backfill existing rows from user_id → wallets lookup
+UPDATE public.general_ledger gl
+SET wallet_id = w.id
+FROM public.wallets w
+WHERE w.user_id = gl.user_id
+  AND gl.wallet_id IS NULL;
+```
 
-Expected outcome:
-- Lolem will see her real Operations Float on tenant profiles.
-- The pay buttons will enable when she has sufficient float.
-- If balance loading fails, the UI will clearly say so instead of pretending she has zero.
+### Migration 2: Add `wallet_id` to `profiles` (bidirectional link)
+Optional but explicit — allows direct profile-to-wallet resolution without a join through `user_id`.
+
+```sql
+ALTER TABLE public.profiles
+  ADD COLUMN wallet_id uuid REFERENCES public.wallets(id);
+
+CREATE UNIQUE INDEX idx_profiles_wallet_id
+  ON public.profiles(wallet_id);
+
+-- Backfill
+UPDATE public.profiles p
+SET wallet_id = w.id
+FROM public.wallets w
+WHERE w.user_id = p.id
+  AND p.wallet_id IS NULL;
+```
+
+### Migration 3: Update `create_ledger_transaction` RPC
+Inside the RPC, auto-resolve `wallet_id` from `user_id` when writing entries:
+
+```sql
+-- After extracting user_id from the entry JSON:
+SELECT id INTO v_wallet_id
+FROM public.wallets
+WHERE user_id = v_user_id;
+
+-- Set wallet_id on the inserted ledger row
+```
+
+This ensures all future ledger entries automatically carry the wallet link.
+
+## What Is NOT Changed
+- No new identity systems — UUID chain preserved
+- No balance duplication — balance stays only in `wallets.balance`
+- No changes to wallet triggers or RLS policies
+- The existing FK, PK, and UNIQUE constraints remain untouched
+
+## Example Resolution Query
+```sql
+SELECT
+  p.id AS user_id,
+  p.full_name,
+  p.phone,
+  w.id AS wallet_id,
+  w.balance,
+  w.currency
+FROM profiles p
+JOIN wallets w ON w.user_id = p.id
+WHERE p.id = 'some-uuid';
+```
+
+## Summary
+Three small migrations: two `ADD COLUMN` with backfills, one RPC patch. No schema redesign, no balance duplication, pure enforcement.
+
