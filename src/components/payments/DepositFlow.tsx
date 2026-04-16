@@ -169,8 +169,10 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
       }
 
       const providerValue = channel === 'momo' ? momoProvider : channel === 'bank' ? 'bank_transfer' : channel === 'cash' ? 'cash_deposit' : 'agent_cash';
+      const purposeLabel = DEPOSIT_PURPOSES.find(p => p.id === depositPurpose)?.label || depositPurpose;
       const notes = [
-        reason.trim(),
+        `Purpose: ${purposeLabel}`,
+        reason.trim() ? reason.trim() : '',
         channel === 'agent_cash' ? `Agent: ${agentName.trim()}` : '',
         bankSlipUrl ? `Bank slip: ${bankSlipUrl}` : '',
       ].filter(Boolean).join(' | ');
@@ -185,6 +187,7 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
           transaction_id: normalizedRef,
           transaction_date: txDateTime.toISOString(),
           notes,
+          deposit_purpose: depositPurpose,
         } as any);
 
       if (depositError) throw depositError;
