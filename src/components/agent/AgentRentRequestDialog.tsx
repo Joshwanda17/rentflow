@@ -509,7 +509,12 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       onSuccess?.();
     } catch (error: any) {
       console.error('Submission error:', error);
-      toast.error(error.message || 'Failed to submit request');
+      const msg = error.message || 'Failed to submit request';
+      if (msg.includes('row-level security') || msg.includes('RLS')) {
+        toast.error('Permission denied — your session may have expired. Please log out and log in again.');
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setLoading(false);
     }
