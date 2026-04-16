@@ -20,6 +20,7 @@ import { AgentInvestForPartnerDialog } from '@/components/agent/AgentInvestForPa
 import { AgentAngelPoolInvestDialog } from '@/components/agent/AgentAngelPoolInvestDialog';
 import { PromissoryNoteDialog } from '@/components/agent/PromissoryNoteDialog';
 import { AgentPromissoryNotesList } from '@/components/agent/AgentPromissoryNotesList';
+import { ProxyPartnerDepositDialog } from '@/components/agent/ProxyPartnerDepositDialog';
 
 interface PartnerItem {
   id: string;
@@ -59,6 +60,7 @@ export default function AgentPartners() {
   const [angelPoolOpen, setAngelPoolOpen] = useState(false);
   const [promissoryNoteOpen, setPromissoryNoteOpen] = useState(false);
   const [promissoryListOpen, setPromissoryListOpen] = useState(false);
+  const [depositPartner, setDepositPartner] = useState<{ id: string; full_name: string; phone: string } | null>(null);
 
   const fetchPartners = useCallback(async () => {
     if (!user) return;
@@ -378,7 +380,11 @@ export default function AgentPartners() {
                           onClick={() => {
                             hapticTap();
                             if (partner.userId) {
-                              navigate(`/agent/deposit?for=${partner.userId}&name=${encodeURIComponent(partner.name)}`);
+                              setDepositPartner({
+                                id: partner.userId,
+                                full_name: partner.name,
+                                phone: partner.phone,
+                              });
                             }
                           }}
                           disabled={!partner.userId}
@@ -466,6 +472,12 @@ export default function AgentPartners() {
       <AgentAngelPoolInvestDialog open={angelPoolOpen} onOpenChange={setAngelPoolOpen} onSuccess={fetchPartners} />
       <PromissoryNoteDialog open={promissoryNoteOpen} onOpenChange={setPromissoryNoteOpen} />
       <AgentPromissoryNotesList open={promissoryListOpen} onOpenChange={setPromissoryListOpen} />
+      <ProxyPartnerDepositDialog
+        open={!!depositPartner}
+        onOpenChange={(open) => { if (!open) setDepositPartner(null); }}
+        partner={depositPartner}
+        onSuccess={fetchPartners}
+      />
     </div>
   );
 }
