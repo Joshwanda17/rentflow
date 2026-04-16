@@ -10,6 +10,7 @@ import {
   Loader2, ArrowLeft, Phone, Mail, MapPin, Home, User, Shield, Calendar,
   CreditCard, TrendingUp, Copy, CheckCircle2, Wallet, Banknote, History,
   UserCheck, Star, AlertTriangle, ChevronDown, ChevronUp, Navigation, Share2, Smartphone,
+  MessageCircle, Pencil,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useGeoLocation } from '@/hooks/useGeoLocation';
@@ -385,22 +386,66 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
         <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
           <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Contact Details</h3>
           <div className="space-y-2.5">
+            {/* Phone row with WhatsApp */}
             <div className="flex items-center gap-3">
               <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0"><Phone className="h-4 w-4 text-muted-foreground" /></div>
-              <div>
-                <p className="text-xs text-muted-foreground">Phone</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  Phone
+                  <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-success bg-success/10 rounded-full px-1.5 py-0.5">
+                    <MessageCircle className="h-2.5 w-2.5" /> WhatsApp
+                  </span>
+                </p>
                 <a href={`tel:${profile.phone}`} className="text-base font-semibold text-primary">{profile.phone}</a>
               </div>
-            </div>
-            {profile.email && (
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0"><Mail className="h-4 w-4 text-muted-foreground" /></div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Email</p>
-                  <p className="text-base font-semibold truncate">{profile.email}</p>
-                </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <a
+                  href={`https://wa.me/${profile.phone.replace(/^0/, '256').replace(/[^0-9]/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="h-11 w-11 rounded-xl bg-success/15 flex items-center justify-center active:scale-90 transition-transform"
+                  style={{ touchAction: 'manipulation' }}
+                >
+                  <MessageCircle className="h-5 w-5 text-success" />
+                </a>
+                <button
+                  onClick={() => {
+                    const msg = encodeURIComponent(
+                      `Hi ${profile.full_name}, this is your Welile agent. Please update your phone number in the Welile app. Go to Settings > Profile to make changes. Thank you!`
+                    );
+                    window.open(`https://wa.me/${profile.phone.replace(/^0/, '256').replace(/[^0-9]/g, '')}?text=${msg}`, '_blank');
+                  }}
+                  className="h-11 w-11 rounded-xl bg-warning/15 flex items-center justify-center active:scale-90 transition-transform"
+                  style={{ touchAction: 'manipulation' }}
+                  title="Request phone edit"
+                >
+                  <Pencil className="h-4 w-4 text-warning" />
+                </button>
               </div>
-            )}
+            </div>
+
+            {/* Email row with edit request */}
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0"><Mail className="h-4 w-4 text-muted-foreground" /></div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground">Email</p>
+                <p className="text-base font-semibold truncate">{profile.email || 'Not set'}</p>
+              </div>
+              <button
+                onClick={() => {
+                  const msg = encodeURIComponent(
+                    `Hi ${profile.full_name}, this is your Welile agent. Please update your email address in the Welile app. Go to Settings > Profile to make changes. Thank you!`
+                  );
+                  window.open(`https://wa.me/${profile.phone.replace(/^0/, '256').replace(/[^0-9]/g, '')}?text=${msg}`, '_blank');
+                }}
+                className="h-11 w-11 rounded-xl bg-warning/15 flex items-center justify-center active:scale-90 transition-transform shrink-0"
+                style={{ touchAction: 'manipulation' }}
+                title="Request email edit"
+              >
+                <Pencil className="h-4 w-4 text-warning" />
+              </button>
+            </div>
+
             {profile.national_id && (
               <div className="flex items-center gap-3">
                 <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0"><CreditCard className="h-4 w-4 text-muted-foreground" /></div>
