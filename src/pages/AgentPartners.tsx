@@ -380,7 +380,11 @@ export default function AgentPartners() {
                           onClick={() => {
                             hapticTap();
                             if (partner.userId) {
-                              navigate(`/agent/deposit?for=${partner.userId}&name=${encodeURIComponent(partner.name)}`);
+                              setDepositPartner({
+                                id: partner.userId,
+                                full_name: partner.name,
+                                phone: partner.phone,
+                              });
                             }
                           }}
                           disabled={!partner.userId}
