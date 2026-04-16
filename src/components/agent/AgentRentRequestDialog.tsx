@@ -121,6 +121,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [gpsLoading, setGpsLoading] = useState(false);
   const [housePhotos, setHousePhotos] = useState<{ file: File; preview: string }[]>([]);
   const [guarantorConsent, setGuarantorConsent] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   // FIX #9: house category for outstanding flow
   const [outstandingHouseCategory, setOutstandingHouseCategory] = useState('');
@@ -219,6 +220,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     housePhotos.forEach(p => URL.revokeObjectURL(p.preview));
     setHousePhotos([]);
     setGuarantorConsent(false);
+    setValidationErrors([]);
     setSuccess(false);
     setActivationLink(null);
     setStep('type');
@@ -275,79 +277,68 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const fees = calculateFees();
 
   // ===== FIX #1: Phone validation helper =====
-  const validatePhones = (isOutstanding: boolean): boolean => {
+  const collectValidationErrors = (isOutstanding: boolean): string[] => {
+    const errors: string[] = [];
     const cleanTenantPhone = tenantPhone.replace(/\s/g, '');
     const cleanLandlordPhone = landlordPhone.replace(/\s/g, '');
 
-    if (!isValidUgPhone(cleanTenantPhone)) {
-      toast.error('Tenant phone must be a valid Ugandan number (e.g. 0783 123 456)');
-      return false;
+    if (!guarantorConsent) errors.push('Please accept guarantor responsibility');
+    if (!tenantName.trim()) errors.push('Tenant name is required');
+    if (!tenantPhone.trim()) errors.push('Tenant phone is required');
+    else if (!isValidUgPhone(cleanTenantPhone)) errors.push('Tenant phone must be a valid Ugandan number (e.g. 0783 123 456)');
+
+    const cleanNationalId = tenantNationalId.trim().toUpperCase();
+    if (!cleanNationalId || cleanNationalId.length < 10 || cleanNationalId.length > 14 || !/^[A-Z0-9]+$/.test(cleanNationalId)) {
+      errors.push('National ID is required (10-14 alphanumeric characters)');
     }
-    if (!isValidUgPhone(cleanLandlordPhone)) {
-      toast.error('Landlord phone must be a valid Ugandan number (e.g. 0700 123 456)');
-      return false;
-    }
-    if (!isOutstanding && lc1Phone.trim()) {
-      const cleanLc1 = lc1Phone.replace(/\s/g, '');
-      if (!isValidUgPhone(cleanLc1)) {
-        toast.error('LC1 phone must be a valid Ugandan number');
-        return false;
+
+    if (!landlordName.trim()) errors.push('Landlord name is required');
+    if (!landlordPhone.trim()) errors.push('Landlord phone is required');
+    else if (!isValidUgPhone(cleanLandlordPhone)) errors.push('Landlord phone must be a valid Ugandan number (e.g. 0700 123 456)');
+
+    if (isOutstanding && !lc1Village.trim()) errors.push('Village/Cell location is required');
+
+    if (!isOutstanding) {
+      if (!propertyAddress.trim()) errors.push('Property address is required');
+      if (!lc1Name.trim()) errors.push('LC1 name is required');
+      if (!lc1Phone.trim()) errors.push('LC1 phone is required');
+      else {
+        const cleanLc1 = lc1Phone.replace(/\s/g, '');
+        if (!isValidUgPhone(cleanLc1)) errors.push('LC1 phone must be a valid Ugandan number');
+      }
+      if (!lc1Village.trim()) errors.push('LC1 village is required');
+      if (!houseCategory) errors.push('House category is required');
+    } else {
+      // LC1 phone is optional for outstanding — warn but don't block
+      if (lc1Phone.trim()) {
+        const cleanLc1 = lc1Phone.replace(/\s/g, '');
+        if (!isValidUgPhone(cleanLc1)) {
+          // Don't block, just silently ignore partial LC1 phone for outstanding
+        }
       }
     }
-    return true;
+
+    return errors;
+  };
+
+  // Helper to check if a specific field has an error
+  const hasFieldError = (fieldName: string): boolean => {
+    return validationErrors.some(e => e.toLowerCase().includes(fieldName.toLowerCase()));
   };
 
   const handleSubmit = async () => {
     if (!user || !fees) return;
 
-    if (!guarantorConsent) {
-      toast.error('Please accept guarantor responsibility before submitting');
-      return;
-    }
-
-    if (!tenantName.trim() || !tenantPhone.trim()) {
-      toast.error('Please provide tenant name and phone');
-      return;
-    }
-
-    // Validate National ID (10-14 alphanumeric characters)
-    const cleanNationalId = tenantNationalId.trim().toUpperCase();
-    if (!cleanNationalId || cleanNationalId.length < 10 || cleanNationalId.length > 14 || !/^[A-Z0-9]+$/.test(cleanNationalId)) {
-      toast.error('National ID is required (10-14 alphanumeric characters)');
-      return;
-    }
-
     const isOutstanding = incomeType === 'outstanding';
+    const errors = collectValidationErrors(isOutstanding);
 
-    if (!landlordName.trim() || !landlordPhone.trim()) {
-      toast.error('Please provide landlord name and phone');
+    if (errors.length > 0) {
+      setValidationErrors(errors);
+      toast.error(errors[0]);
       return;
     }
 
-    // FIX #1: Validate phone formats
-    if (!validatePhones(isOutstanding)) return;
-
-    // FIX #8: Village required for outstanding flow
-    if (isOutstanding && !lc1Village.trim()) {
-      toast.error('Please provide the Village/Cell location');
-      return;
-    }
-
-    if (!isOutstanding && !propertyAddress.trim()) {
-      toast.error('Please fill in property address');
-      return;
-    }
-
-    if (!isOutstanding && (!lc1Name.trim() || !lc1Phone.trim() || !lc1Village.trim())) {
-      toast.error('Please fill in all LC1 details');
-      return;
-    }
-
-    if (!isOutstanding && !houseCategory) {
-      toast.error('Please select a house category');
-      return;
-    }
-
+    setValidationErrors([]);
     setLoading(true);
 
     try {
@@ -897,12 +888,27 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   {/* FIX #2: Add GuarantorConsentCheckbox to outstanding flow */}
                   <GuarantorConsentCheckbox checked={guarantorConsent} onCheckedChange={setGuarantorConsent} />
 
+                  {/* Validation Error Summary */}
+                  {validationErrors.length > 0 && (
+                    <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 space-y-1">
+                      <p className="text-xs font-semibold text-destructive flex items-center gap-1.5">
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        Please fix the following:
+                      </p>
+                      <ul className="list-disc list-inside space-y-0.5">
+                        {validationErrors.map((err, i) => (
+                          <li key={i} className="text-[11px] text-destructive">{err}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
                   {/* Submit button for outstanding mode */}
                   <div className="flex gap-3 pt-2">
                     <Button 
                       type="button" 
                       variant="outline" 
-                      onClick={() => setStep('type')}
+                      onClick={() => { setStep('type'); setValidationErrors([]); }}
                       className="flex-1"
                     >
                       Back
@@ -910,7 +916,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <Button 
                       onClick={handleSubmit} 
                       className="flex-1 text-white hover:opacity-90" style={{ backgroundColor: '#7C3BED' }}
-                      disabled={loading || amount < outstandingMinAmount || !guarantorConsent}
+                      disabled={loading || amount < outstandingMinAmount}
                     >
                       {loading ? (
                         <>
@@ -1056,7 +1062,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       value={tenantPhone}
                       onChange={(e) => setTenantPhone(formatPhoneInput(e.target.value))}
                       placeholder="0783 123 456"
-                      className="h-10"
+                      className={`h-10 ${hasFieldError('tenant phone') ? 'border-destructive border-2' : ''}`}
                       maxLength={12}
                       required
                     />
@@ -1130,7 +1136,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       value={landlordPhone}
                       onChange={(e) => setLandlordPhone(formatPhoneInput(e.target.value))}
                       placeholder="0700 123 456"
-                      className="h-10"
+                      className={`h-10 ${hasFieldError('landlord phone') ? 'border-destructive border-2' : ''}`}
                       maxLength={12}
                       required
                     />
@@ -1259,7 +1265,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       value={lc1Phone}
                       onChange={(e) => setLc1Phone(formatPhoneInput(e.target.value))}
                       placeholder="0700 123 456"
-                      className="h-10"
+                      className={`h-10 ${hasFieldError('lc1 phone') ? 'border-destructive border-2' : ''}`}
                       maxLength={12}
                       required
                     />
@@ -1279,11 +1285,26 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
               <GuarantorConsentCheckbox checked={guarantorConsent} onCheckedChange={setGuarantorConsent} />
 
+              {/* Validation Error Summary */}
+              {validationErrors.length > 0 && (
+                <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 space-y-1">
+                  <p className="text-xs font-semibold text-destructive flex items-center gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    Please fix the following:
+                  </p>
+                  <ul className="list-disc list-inside space-y-0.5">
+                    {validationErrors.map((err, i) => (
+                      <li key={i} className="text-[11px] text-destructive">{err}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               <div className="flex gap-3 pt-2">
                 <Button 
                   type="button" 
                   variant="outline" 
-                  onClick={() => setStep('type')}
+                  onClick={() => { setStep('type'); setValidationErrors([]); }}
                   className="flex-1"
                 >
                   Back
@@ -1291,7 +1312,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                 <Button 
                   onClick={handleSubmit} 
                   className="flex-1"
-                  disabled={loading || !amount || amount < 50000 || !guarantorConsent}
+                  disabled={loading || !amount || amount < 50000}
                 >
                   {loading ? (
                     <>
