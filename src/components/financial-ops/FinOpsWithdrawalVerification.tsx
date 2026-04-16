@@ -199,6 +199,7 @@ export function FinOpsWithdrawalVerification() {
     }
   };
 
+  const getPayoutLabel = (req: WithdrawalRequest) => {
     const method = req.payout_method || 'mobile_money';
     if (method === 'bank_transfer') return `🏦 ${req.bank_name || 'Bank'} · ${req.bank_account_number || '—'}`;
     if (method === 'cash') return `💵 Cash at: ${req.agent_location || 'Agent'}`;
