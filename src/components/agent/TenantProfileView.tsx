@@ -823,7 +823,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
 
             <Button
               onClick={() => setCollectDialogOpen(true)}
-              disabled={summary.currentOutstanding <= 0 || agentFloatBalance < 500}
+              disabled={summary.currentOutstanding <= 0 || agentFloatBalance < 100}
               className="w-full gap-2 text-base"
               variant="success"
               size="xl"
