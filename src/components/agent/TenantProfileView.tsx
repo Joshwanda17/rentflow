@@ -312,6 +312,15 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
           <p className="font-bold text-base truncate">{profile.full_name}</p>
           <p className="text-sm text-muted-foreground">Tenant Profile</p>
         </div>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={handleShareProfile}
+          disabled={sharingProfile}
+          className="h-11 w-11 rounded-xl shrink-0"
+        >
+          {sharingProfile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
+        </Button>
         {profile.verified && (
           <Badge className="bg-success/15 text-success border-0 text-xs">Verified ✓</Badge>
         )}
