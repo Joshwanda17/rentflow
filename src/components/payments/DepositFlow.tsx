@@ -56,6 +56,7 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
   const [transactionDate, setTransactionDate] = useState('');
   const [transactionTime, setTransactionTime] = useState('');
   const [reason, setReason] = useState('');
+  const [depositPurpose, setDepositPurpose] = useState<DepositPurpose | ''>('');
   const [bankSlipFile, setBankSlipFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tidError, setTidError] = useState('');
