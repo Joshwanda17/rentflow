@@ -432,6 +432,19 @@ export default function AgentPartners() {
                 );
               })
             )}
+            {hasMore && (
+              <button
+                onClick={() => setVisibleCount(prev => prev + PAGE_SIZE)}
+                className="w-full py-3 rounded-xl bg-muted/50 text-sm font-semibold text-primary active:scale-[0.98] transition-transform mt-2"
+              >
+                Load More ({filtered.length - visibleCount} remaining)
+              </button>
+            )}
+            {!loading && filtered.length > 0 && (
+              <p className="text-center text-[10px] text-muted-foreground pt-1">
+                Showing {Math.min(visibleCount, filtered.length)} of {filtered.length}
+              </p>
+            )}
           </div>
         </div>
       </div>
