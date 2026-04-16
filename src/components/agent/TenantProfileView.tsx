@@ -808,13 +808,13 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
 
             <Button
               onClick={() => setCollectDialogOpen(true)}
-              disabled={summary.currentOutstanding <= 0}
+              disabled={summary.currentOutstanding <= 0 || agentFloatBalance < 500}
               className="w-full gap-2 text-base"
               variant="success"
               size="xl"
             >
               <Banknote className="h-5 w-5" />
-              Pay from Float — {formatUGX(summary.currentOutstanding)}
+              Pay from Operations Float — {formatUGX(Math.min(summary.currentOutstanding, agentFloatBalance))}
             </Button>
           </div>
         )}
