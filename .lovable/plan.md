@@ -1,62 +1,43 @@
 
 
-# Enhanced Photo Upload for Property Listings
+## Plan: 2% Partner Commission on Proxy Agent Deposits
 
-## Problem
-Agents can only take new photos during listing creation. They cannot reuse older gallery photos or pull existing images from other listings at the same location, causing friction especially in low-connectivity areas.
+### What Changes
 
-## What Changes
+When a proxy agent successfully deposits/tops-up a partner's wallet, the agent automatically earns a **2% commission** on that amount. This commission is tagged `partner_commission` in the ledger, is an instant wallet credit (no CFO approval), and is recorded as a platform expense.
 
-### 1. Split "Add Photos" into Three Options
-**File:** `src/components/agent/HouseImageUploader.tsx`
+### Database Migration (single SQL migration)
 
-Replace the single "Add Photos" button with three distinct buttons stacked vertically:
+**1. Add `partner_commission` to the ledger allowlists**
+- Update the `validate_ledger_category()` trigger function to include `partner_commission` in the allowed categories array.
+- Update the `validate_ledger_category(p_category text)` scalar function likewise.
 
-- **Take Photo** — Opens camera directly (`capture="environment"`, no `multiple`)
-- **Upload from Gallery** — Opens file picker without `capture` attribute (allows multi-select from device gallery, including older photos)
-- **Use Existing Photos** — Opens a modal showing images from other `house_listings` at the same region/village/district
+**2. Update `get_agent_split_balances` RPC**
+- Add `partner_commission` to the commission `cash_in` categories so the 2% is counted as agent commission (withdrawable money, not float).
 
-Currently the single `<input capture="environment">` forces camera on mobile. Splitting into two inputs (one with `capture`, one without) gives agents both options.
+**3. Update `agent_deposit_to_partner` RPC**
+After the existing wallet transfer legs, add three new operations:
 
-### 2. Create "Existing Property Photos" Picker Modal
-**New file:** `src/components/agent/ExistingPropertyPhotosDialog.tsx`
+- **Commission calculation**: `v_commission := p_amount * 0.02`
+- **Leg 3 — Agent commission credit** (wallet scope): `cash_in`, category `partner_commission`, credits agent wallet
+- **Leg 4 — Platform expense** (platform scope): `cash_out`, category `partner_commission`, records platform expense (reduces "Money We Have", increases "Money We Owe")
+- **Wallet update**: `UPDATE wallets SET balance = balance + v_commission WHERE user_id = p_agent_id`
+- **Audit log**: Insert into `system_events` with event_type `partner_commission_earned` including amount, partner_id, tracking_id
+- **Return value**: Add `commission_earned` field to the returned JSON
 
-- Accepts `region` and `village` props from the listing form
-- Queries `house_listings` table for listings matching the same region + village/district that have `image_urls`
-- Displays a grid of selectable thumbnails grouped by listing title
-- Agent taps to select, then confirms
-- Selected images are fetched as blobs, converted to `HouseImageFile` objects, and passed back via `onSelect` callback
-- Shows a confirmation prompt: "Please confirm these photos accurately represent the current state of the property"
+### Frontend Changes
 
-### 3. Pass Location Context to HouseImageUploader
-**File:** `src/components/agent/ListEmptyHouseDialog.tsx`
+**`ProxyPartnerDepositDialog.tsx`** — Update the success screen to show the commission earned:
+- Display a new row: "Commission Earned (2%)" with the commission amount in the result summary
+- Update the transfer preview to show the 2% commission the agent will earn
 
-- Pass `region`, `district`, and `village` from the form state down to `HouseImageUploader` so it can power the "Use Existing Photos" query
+**`ledgerConstants.ts`** — Add `partner_commission` to the `LOCKED_CATEGORIES` array and to `AGENT_COMMISSION_CATEGORIES`.
 
-### 4. Freshness Validation
-**File:** `src/components/agent/HouseImageUploader.tsx`
+### Financial Statement Impact
+- `partner_commission` entries with `ledger_scope = 'platform'` and `direction = 'cash_out'` will flow into platform expense reporting — reducing "Money We Have" and increasing "Money We Owe"
+- The wallet-scope `cash_in` leg credits the agent's commission balance (always withdrawable per existing segmentation rules)
 
-- When images are added via "Use Existing Photos", tag them with `source: 'existing'`
-- If all images come from existing sources, show an amber warning: "At least one recent photo is recommended for verification"
-- Non-blocking — agent can proceed but is prompted
-
-## Technical Details
-
-**Files created:**
-- `src/components/agent/ExistingPropertyPhotosDialog.tsx`
-
-**Files modified:**
-- `src/components/agent/HouseImageUploader.tsx` — split into 3 buttons, add `region/district/village` props, add freshness warning
-- `src/components/agent/ListEmptyHouseDialog.tsx` — pass location props to uploader
-
-**Database query for existing photos:**
-```sql
-SELECT id, title, image_urls FROM house_listings
-WHERE region = :region AND village = :village
-  AND image_urls IS NOT NULL
-  AND array_length(image_urls, 1) > 0
-LIMIT 20
-```
-
-No database migrations needed — reads existing `house_listings.image_urls` column.
+### What This Does NOT Do
+- No CFO approval — instant on successful deposit
+- No new tables — uses existing `general_ledger`, `wallets`, `system_events`
 
