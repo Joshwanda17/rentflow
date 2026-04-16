@@ -440,7 +440,14 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
           </div>
 
           {/* Photos */}
-          <HouseImageUploader images={houseImages} onChange={setHouseImages} maxImages={5} />
+          <HouseImageUploader
+            images={houseImages}
+            onChange={setHouseImages}
+            maxImages={5}
+            region={form.region}
+            district={form.district}
+            village={form.village}
+          />
 
           {/* Location */}
           <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
