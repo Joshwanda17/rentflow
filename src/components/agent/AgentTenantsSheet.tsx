@@ -567,6 +567,28 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         prefillTenantPhone={renewPrefill?.phone}
         prefillRentAmount={renewPrefill?.amount}
       />
+
+      <AgentTenantCollectDialog
+        open={collectDialogOpen}
+        onOpenChange={(open) => {
+          setCollectDialogOpen(open);
+          if (!open) setCollectTarget(null);
+        }}
+        tenant={collectTarget ? { id: collectTarget.tenant.id, full_name: collectTarget.tenant.full_name, phone: collectTarget.tenant.phone } : null}
+        rentRequestId={collectTarget?.reqId || ''}
+        outstandingBalance={collectTarget?.owing || 0}
+        onSuccess={() => {
+          setCollectDialogOpen(false);
+          setCollectTarget(null);
+          // Refresh tenant data to show updated balances
+          setTenantRequests(prev => {
+            const updated = { ...prev };
+            if (collectTarget) delete updated[collectTarget.tenant.id];
+            return updated;
+          });
+          fetchTenants();
+        }}
+      />
     </Sheet>
   );
 }
