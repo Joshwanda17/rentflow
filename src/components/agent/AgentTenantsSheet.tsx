@@ -5,7 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp } from 'lucide-react';
+import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp, ArrowLeft } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfDay } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -265,11 +265,20 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b border-border/50 px-4 pt-4 pb-3 space-y-3">
           <SheetHeader className="pb-0">
             <SheetTitle className="flex items-center justify-between">
-              <span className="flex items-center gap-2 text-base font-bold">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onOpenChange(false)}
+                  className="h-11 px-3 rounded-xl text-base font-semibold gap-1"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                  Back
+                </Button>
                 <Users className="h-5 w-5 text-primary" />
-                My Tenants
-              </span>
-              <Badge variant="outline" className="text-xs font-mono px-2.5 py-0.5">
+                <span className="text-lg font-bold">My Tenants</span>
+              </div>
+              <Badge variant="outline" className="text-sm font-mono px-2.5 py-0.5">
                 {stats.total}
               </Badge>
             </SheetTitle>
@@ -377,11 +386,11 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                       {/* Name + phone + progress */}
                       <div className="flex-1 min-w-0">
                         <p
-                          className="font-semibold text-sm truncate text-primary underline underline-offset-2 cursor-pointer"
+                          className="font-semibold text-base truncate text-primary underline underline-offset-2 cursor-pointer"
                           onClick={(e) => { e.stopPropagation(); setProfileTenantId(tenant.id); }}
                         >{tenant.full_name}</p>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                          <Phone className="h-2.5 w-2.5" />
+                        <p className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <Phone className="h-3 w-3" />
                           {tenant.phone}
                         </p>
                         {totals.total > 0 && (
@@ -394,15 +403,15 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                                 style={{ width: `${progressPct}%` }}
                               />
                             </div>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">{progressPct}% repaid</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{progressPct}% repaid</p>
                           </div>
                         )}
                       </div>
 
                       {/* Amount / status */}
                       <div className="shrink-0 text-right">
-                        {hasDebt ? (
-                          <span className="text-sm font-bold text-destructive font-mono">
+                         {hasDebt ? (
+                          <span className="text-lg font-bold text-destructive font-mono">
                             {formatUGX(balance)}
                           </span>
                         ) : (

@@ -9,9 +9,12 @@ import { Badge } from '@/components/ui/badge';
 import {
   Loader2, ArrowLeft, Phone, Mail, MapPin, Home, User, Shield, Calendar,
   CreditCard, TrendingUp, Copy, CheckCircle2, Wallet, Banknote, History,
-  UserCheck, Star, AlertTriangle, ChevronDown, ChevronUp,
+  UserCheck, Star, AlertTriangle, ChevronDown, ChevronUp, Navigation, Share2, Smartphone,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useGeoLocation } from '@/hooks/useGeoLocation';
+import { createShortLink } from '@/lib/createShortLink';
+import { AgentTenantCollectDialog } from './AgentTenantCollectDialog';
 
 interface TenantProfileViewProps {
   tenantId: string;
@@ -70,7 +73,15 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
   const [copied, setCopied] = useState(false);
   const [showAllRepayments, setShowAllRepayments] = useState(false);
   const [showAllRequests, setShowAllRequests] = useState(false);
-  const [payingRent, setPayingRent] = useState(false);
+
+  // Float payment dialog
+  const [collectDialogOpen, setCollectDialogOpen] = useState(false);
+
+  // GPS capture
+  const { location: gpsLocation, loading: gpsLoading, error: gpsError, captureLocation } = useGeoLocation();
+
+  // Dashboard link sharing
+  const [sharingLink, setSharingLink] = useState(false);
 
   const aiId = generateWelileAiId(tenantId);
 
@@ -124,7 +135,6 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
       setRequests((rentRes.data as unknown as RentRequestRow[]) || []);
       setRepayments((repaymentRes.data as RepaymentRow[]) || []);
 
-      // Wallet summary
       const ledgerEntries = (ledgerRes.data || []) as any[];
       const totalIn = ledgerEntries.filter(e => e.direction === 'cash_in').reduce((s: number, e: any) => s + (e.amount || 0), 0);
       const totalOut = ledgerEntries.filter(e => e.direction === 'cash_out').reduce((s: number, e: any) => s + (e.amount || 0), 0);
@@ -134,7 +144,6 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
         total_out: totalOut,
       });
 
-      // Partnership amount
       const pAmount = (portfolioRes.data || []).reduce((s: number, p: any) => s + (p.investment_amount || 0), 0);
       setPartnershipAmount(pAmount);
     } catch (err) {
@@ -144,7 +153,6 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
     }
   };
 
-  // Computed summaries
   const summary = useMemo(() => {
     const totalFunded = requests.reduce((s, r) => s + (r.total_repayment || 0), 0);
     const totalRepaid = requests.reduce((s, r) => s + (r.amount_repaid || 0), 0);
@@ -168,7 +176,6 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
     };
   }, [requests]);
 
-  // Earning rating based on completion & repayment consistency
   const earningRating = useMemo(() => {
     if (summary.totalRequests === 0) return { stars: 0, label: 'New User' };
     const rate = summary.completionRate;
@@ -189,29 +196,35 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handlePayRent = async () => {
-    if (!summary.activeRequest || !user) return;
-    setPayingRent(true);
+  const handleCaptureGPS = async () => {
+    const loc = await captureLocation();
+    if (loc) {
+      toast({ title: '📍 GPS Captured', description: `Lat: ${loc.latitude.toFixed(5)}, Lng: ${loc.longitude.toFixed(5)}` });
+    }
+  };
+
+  const handleSendDashboardLink = async () => {
+    if (!user || !profile) return;
+    setSharingLink(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast({ title: 'Session expired', description: 'Please log in again', variant: 'destructive' });
-        return;
+      const shortUrl = await createShortLink(user.id, '/auth', { phone: profile.phone, ref: user.id });
+      
+      if (navigator.share) {
+        await navigator.share({
+          title: 'Welile Dashboard',
+          text: `Hi ${profile.full_name}, access your Welile dashboard here:`,
+          url: shortUrl,
+        });
+      } else {
+        await navigator.clipboard.writeText(shortUrl);
+        toast({ title: '🔗 Link copied', description: 'Share it via WhatsApp or SMS' });
       }
-
-      const { data, error } = await supabase.functions.invoke('tenant-pay-rent', {
-        body: { amount: summary.currentOutstanding },
-      });
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      toast({ title: '✅ Rent payment processed', description: `${formatUGX(data.amount_paid)} paid successfully` });
-      loadFullProfile();
     } catch (err: any) {
-      toast({ title: 'Payment failed', description: err.message || 'Try again', variant: 'destructive' });
+      if (err.name !== 'AbortError') {
+        toast({ title: 'Failed to share link', variant: 'destructive' });
+      }
     } finally {
-      setPayingRent(false);
+      setSharingLink(false);
     }
   };
 
@@ -231,8 +244,8 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
   if (!profile) {
     return (
       <div className="p-4">
-        <Button variant="ghost" size="sm" onClick={onBack} className="mb-4">
-          <ArrowLeft className="h-4 w-4 mr-2" /> Back
+        <Button variant="ghost" size="lg" onClick={onBack} className="mb-4 gap-2 text-base">
+          <ArrowLeft className="h-5 w-5" /> Back
         </Button>
         <p className="text-sm text-muted-foreground text-center">Profile not found</p>
       </div>
@@ -243,22 +256,23 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
     <div className="flex flex-col h-full">
       {/* Sticky header */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b border-border/50 px-4 py-3 flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={onBack} className="h-9 w-9 rounded-xl shrink-0">
+        <Button variant="ghost" size="default" onClick={onBack} className="h-11 px-3 rounded-xl shrink-0 gap-1.5 text-base font-semibold">
           <ArrowLeft className="h-5 w-5" />
+          Back
         </Button>
         <div className="min-w-0 flex-1">
-          <p className="font-bold text-sm truncate">{profile.full_name}</p>
-          <p className="text-xs text-muted-foreground">Tenant Profile</p>
+          <p className="font-bold text-base truncate">{profile.full_name}</p>
+          <p className="text-sm text-muted-foreground">Tenant Profile</p>
         </div>
         {profile.verified && (
-          <Badge className="bg-success/15 text-success border-0 text-[10px]">Verified ✓</Badge>
+          <Badge className="bg-success/15 text-success border-0 text-xs">Verified ✓</Badge>
         )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {/* AI ID Card */}
         <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-2xl p-4 border border-primary/20">
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Welile AI ID</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Welile AI ID</p>
           <div className="flex items-center gap-3">
             <p className="text-2xl font-black font-mono tracking-wider text-primary">{aiId}</p>
             <button onClick={copyAiId} className="p-2 rounded-lg bg-primary/10 active:scale-90 transition-transform">
@@ -267,44 +281,44 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
           </div>
           <div className="flex items-center gap-2 mt-2">
             <Shield className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className={`text-xs font-semibold ${riskTier.color}`}>{riskTier.label}</span>
+            <span className={`text-sm font-semibold ${riskTier.color}`}>{riskTier.label}</span>
             {summary.totalRequests > 0 && (
-              <span className="text-[10px] text-muted-foreground ml-1">• {summary.completionRate}% completion rate</span>
+              <span className="text-xs text-muted-foreground ml-1">• {summary.completionRate}% completion rate</span>
             )}
           </div>
         </div>
 
         {/* Roles & Verification */}
         <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-            <UserCheck className="h-3.5 w-3.5" /> Roles & Verification
+          <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            <UserCheck className="h-4 w-4" /> Roles & Verification
           </h3>
           <div className="flex flex-wrap gap-1.5">
-            <Badge variant="outline" className="capitalize text-[10px]">Tenant</Badge>
-            {profile.verified && <Badge className="bg-success/15 text-success border-0 text-[10px]">✓ Verified</Badge>}
-            {profile.national_id && <Badge className="bg-primary/10 text-primary border-0 text-[10px]">ID on file</Badge>}
-            {!profile.verified && <Badge className="bg-warning/15 text-warning border-0 text-[10px]">⏳ Unverified</Badge>}
+            <Badge variant="outline" className="capitalize text-xs">Tenant</Badge>
+            {profile.verified && <Badge className="bg-success/15 text-success border-0 text-xs">✓ Verified</Badge>}
+            {profile.national_id && <Badge className="bg-primary/10 text-primary border-0 text-xs">ID on file</Badge>}
+            {!profile.verified && <Badge className="bg-warning/15 text-warning border-0 text-xs">⏳ Unverified</Badge>}
           </div>
-          <div className="text-xs text-muted-foreground">
+          <div className="text-sm text-muted-foreground">
             Joined {format(new Date(profile.created_at), 'dd MMM yyyy')}
           </div>
         </div>
 
         {/* Earning Rating */}
         <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-2">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-            <Star className="h-3.5 w-3.5" /> Earning Rating
+          <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            <Star className="h-4 w-4" /> Earning Rating
           </h3>
           <div className="flex items-center gap-2">
             <div className="flex gap-0.5">
               {[1, 2, 3, 4, 5].map(i => (
-                <Star key={i} className={`h-4 w-4 ${i <= earningRating.stars ? 'text-warning fill-warning' : 'text-muted-foreground/30'}`} />
+                <Star key={i} className={`h-5 w-5 ${i <= earningRating.stars ? 'text-warning fill-warning' : 'text-muted-foreground/30'}`} />
               ))}
             </div>
-            <span className="text-sm font-semibold">{earningRating.label}</span>
+            <span className="text-base font-semibold">{earningRating.label}</span>
           </div>
           {partnershipAmount > 0 && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               Partnership investment: <span className="font-bold text-primary font-mono">{formatUGX(partnershipAmount)}</span>
             </p>
           )}
@@ -312,61 +326,103 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
 
         {/* Contact Details */}
         <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Contact Details</h3>
+          <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Contact Details</h3>
           <div className="space-y-2.5">
             <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0"><Phone className="h-3.5 w-3.5 text-muted-foreground" /></div>
+              <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0"><Phone className="h-4 w-4 text-muted-foreground" /></div>
               <div>
-                <p className="text-[10px] text-muted-foreground">Phone</p>
-                <a href={`tel:${profile.phone}`} className="text-sm font-semibold text-primary">{profile.phone}</a>
+                <p className="text-xs text-muted-foreground">Phone</p>
+                <a href={`tel:${profile.phone}`} className="text-base font-semibold text-primary">{profile.phone}</a>
               </div>
             </div>
             {profile.email && (
               <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0"><Mail className="h-3.5 w-3.5 text-muted-foreground" /></div>
+                <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0"><Mail className="h-4 w-4 text-muted-foreground" /></div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground">Email</p>
-                  <p className="text-sm font-semibold truncate">{profile.email}</p>
+                  <p className="text-xs text-muted-foreground">Email</p>
+                  <p className="text-base font-semibold truncate">{profile.email}</p>
                 </div>
               </div>
             )}
             {profile.national_id && (
               <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0"><CreditCard className="h-3.5 w-3.5 text-muted-foreground" /></div>
+                <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0"><CreditCard className="h-4 w-4 text-muted-foreground" /></div>
                 <div>
-                  <p className="text-[10px] text-muted-foreground">National ID</p>
-                  <p className="text-sm font-semibold font-mono">{profile.national_id}</p>
+                  <p className="text-xs text-muted-foreground">National ID</p>
+                  <p className="text-base font-semibold font-mono">{profile.national_id}</p>
                 </div>
               </div>
             )}
             <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0"><Calendar className="h-3.5 w-3.5 text-muted-foreground" /></div>
+              <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0"><Calendar className="h-4 w-4 text-muted-foreground" /></div>
               <div>
-                <p className="text-[10px] text-muted-foreground">Member Since</p>
-                <p className="text-sm font-semibold">{format(new Date(profile.created_at), 'dd MMM yyyy')}</p>
+                <p className="text-xs text-muted-foreground">Member Since</p>
+                <p className="text-base font-semibold">{format(new Date(profile.created_at), 'dd MMM yyyy')}</p>
               </div>
             </div>
           </div>
+
+          {/* GPS Capture */}
+          <div className="pt-2 border-t border-border/40 space-y-2">
+            <Button
+              variant="outline"
+              size="lg"
+              className="w-full gap-2 text-base"
+              onClick={handleCaptureGPS}
+              disabled={gpsLoading}
+            >
+              {gpsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Navigation className="h-4 w-4" />}
+              Capture GPS Location
+            </Button>
+            {gpsLocation && (
+              <div className="bg-muted/30 rounded-xl p-3 flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-success shrink-0" />
+                <div className="text-sm">
+                  <span className="font-mono font-semibold">{gpsLocation.latitude.toFixed(5)}</span>
+                  <span className="text-muted-foreground mx-1">,</span>
+                  <span className="font-mono font-semibold">{gpsLocation.longitude.toFixed(5)}</span>
+                  {gpsLocation.accuracy && (
+                    <span className="text-xs text-muted-foreground ml-2">±{Math.round(gpsLocation.accuracy)}m</span>
+                  )}
+                </div>
+              </div>
+            )}
+            {gpsError && (
+              <p className="text-xs text-destructive">{gpsError}</p>
+            )}
+          </div>
+
+          {/* Send Dashboard Link */}
+          <Button
+            variant="soft"
+            size="lg"
+            className="w-full gap-2 text-base"
+            onClick={handleSendDashboardLink}
+            disabled={sharingLink}
+          >
+            {sharingLink ? <Loader2 className="h-4 w-4 animate-spin" /> : <Smartphone className="h-4 w-4" />}
+            Send Dashboard Link
+          </Button>
         </div>
 
         {/* Wallet Usage Behavior */}
         {walletData && (
           <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <Wallet className="h-3.5 w-3.5" /> Wallet Usage
+            <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <Wallet className="h-4 w-4" /> Wallet Usage
             </h3>
             <div className="grid grid-cols-3 gap-2">
               <div className="bg-muted/30 rounded-xl p-3 text-center">
-                <p className="text-[10px] text-muted-foreground">Balance</p>
-                <p className="text-sm font-bold font-mono text-primary">{formatUGX(walletData.balance)}</p>
+                <p className="text-xs text-muted-foreground">Balance</p>
+                <p className="text-base font-bold font-mono text-primary">{formatUGX(walletData.balance)}</p>
               </div>
               <div className="bg-muted/30 rounded-xl p-3 text-center">
-                <p className="text-[10px] text-muted-foreground">Total In</p>
-                <p className="text-sm font-bold font-mono text-success">{formatUGX(walletData.total_in)}</p>
+                <p className="text-xs text-muted-foreground">Total In</p>
+                <p className="text-base font-bold font-mono text-success">{formatUGX(walletData.total_in)}</p>
               </div>
               <div className="bg-muted/30 rounded-xl p-3 text-center">
-                <p className="text-[10px] text-muted-foreground">Total Out</p>
-                <p className="text-sm font-bold font-mono text-destructive">{formatUGX(walletData.total_out)}</p>
+                <p className="text-xs text-muted-foreground">Total Out</p>
+                <p className="text-base font-bold font-mono text-destructive">{formatUGX(walletData.total_out)}</p>
               </div>
             </div>
           </div>
@@ -375,28 +431,28 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
         {/* Current Property */}
         {summary.latestLandlord && (
           <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Current Property</h3>
+            <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Current Property</h3>
             <div className="grid grid-cols-2 gap-2">
               <div className="bg-muted/30 rounded-xl p-3 flex items-start gap-2">
-                <User className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                <User className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-[10px] text-muted-foreground">Landlord</p>
-                  <p className="text-xs font-bold truncate">{summary.latestLandlord}</p>
+                  <p className="text-xs text-muted-foreground">Landlord</p>
+                  <p className="text-sm font-bold truncate">{summary.latestLandlord}</p>
                 </div>
               </div>
               <div className="bg-muted/30 rounded-xl p-3 flex items-start gap-2">
-                <Home className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                <Home className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-[10px] text-muted-foreground">House Type</p>
-                  <p className="text-xs font-bold truncate">{summary.latestHouseType || 'N/A'}</p>
+                  <p className="text-xs text-muted-foreground">House Type</p>
+                  <p className="text-sm font-bold truncate">{summary.latestHouseType || 'N/A'}</p>
                 </div>
               </div>
               {summary.latestAddress && (
                 <div className="bg-muted/30 rounded-xl p-3 flex items-start gap-2 col-span-2">
-                  <MapPin className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                  <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                   <div className="min-w-0">
-                    <p className="text-[10px] text-muted-foreground">Address</p>
-                    <p className="text-xs font-bold">{summary.latestAddress}</p>
+                    <p className="text-xs text-muted-foreground">Address</p>
+                    <p className="text-sm font-bold">{summary.latestAddress}</p>
                   </div>
                 </div>
               )}
@@ -404,35 +460,35 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
           </div>
         )}
 
-        {/* Outstanding Balance + Pay Rent Button */}
+        {/* Outstanding Balance + Pay from Float Button */}
         {summary.activeRequest && (
           <div className="rounded-2xl border-2 border-destructive/30 bg-destructive/[0.04] p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-destructive flex items-center gap-1.5">
-                <AlertTriangle className="h-3.5 w-3.5" /> Outstanding Balance
+              <h3 className="text-sm font-bold uppercase tracking-wider text-destructive flex items-center gap-1.5">
+                <AlertTriangle className="h-4 w-4" /> Outstanding Balance
               </h3>
-              <Badge variant="destructive" className="text-xs font-mono">
+              <Badge variant="destructive" className="text-sm font-mono">
                 {formatUGX(summary.currentOutstanding)}
               </Badge>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 text-center text-[10px]">
+            <div className="grid grid-cols-3 gap-2 text-center text-xs">
               <div>
                 <p className="text-muted-foreground">Rent Amount</p>
-                <p className="font-bold font-mono text-xs">{formatUGX(summary.activeRequest.rent_amount)}</p>
+                <p className="font-bold font-mono text-sm">{formatUGX(summary.activeRequest.rent_amount)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Total Due</p>
-                <p className="font-bold font-mono text-xs">{formatUGX(summary.activeRequest.total_repayment)}</p>
+                <p className="font-bold font-mono text-sm">{formatUGX(summary.activeRequest.total_repayment)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Repaid</p>
-                <p className="font-bold font-mono text-xs text-success">{formatUGX(summary.activeRequest.amount_repaid)}</p>
+                <p className="font-bold font-mono text-sm text-success">{formatUGX(summary.activeRequest.amount_repaid)}</p>
               </div>
             </div>
 
             <div>
-              <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+              <div className="flex justify-between text-xs text-muted-foreground mb-1">
                 <span>Repayment progress</span>
                 <span className="font-bold">
                   {Math.round((summary.activeRequest.amount_repaid / summary.activeRequest.total_repayment) * 100)}%
@@ -447,40 +503,41 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
             </div>
 
             <Button
-              onClick={handlePayRent}
-              disabled={payingRent || summary.currentOutstanding <= 0}
-              className="w-full gap-2"
-              size="lg"
+              onClick={() => setCollectDialogOpen(true)}
+              disabled={summary.currentOutstanding <= 0}
+              className="w-full gap-2 text-base"
+              variant="success"
+              size="xl"
             >
-              {payingRent ? <Loader2 className="h-4 w-4 animate-spin" /> : <Banknote className="h-4 w-4" />}
-              Pay Rent — {formatUGX(summary.currentOutstanding)}
+              <Banknote className="h-5 w-5" />
+              Pay from Float — {formatUGX(summary.currentOutstanding)}
             </Button>
           </div>
         )}
 
         {/* Repayment Behavior Summary */}
         <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-            <TrendingUp className="h-3.5 w-3.5" /> Rent Payment Behavior
+          <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            <TrendingUp className="h-4 w-4" /> Rent Payment Behavior
           </h3>
           <div className="grid grid-cols-2 gap-2">
             <div className="bg-muted/30 rounded-xl p-3 text-center">
-              <p className="text-[10px] text-muted-foreground">Rent Plans</p>
-              <p className="text-lg font-black font-mono">{summary.totalRequests}</p>
+              <p className="text-xs text-muted-foreground">Rent Plans</p>
+              <p className="text-xl font-black font-mono">{summary.totalRequests}</p>
             </div>
             <div className="bg-muted/30 rounded-xl p-3 text-center">
-              <p className="text-[10px] text-muted-foreground">Completion Rate</p>
-              <p className={`text-lg font-black font-mono ${summary.completionRate >= 80 ? 'text-success' : summary.completionRate >= 50 ? 'text-primary' : 'text-destructive'}`}>
+              <p className="text-xs text-muted-foreground">Completion Rate</p>
+              <p className={`text-xl font-black font-mono ${summary.completionRate >= 80 ? 'text-success' : summary.completionRate >= 50 ? 'text-primary' : 'text-destructive'}`}>
                 {summary.completionRate}%
               </p>
             </div>
             <div className="bg-muted/30 rounded-xl p-3 text-center">
-              <p className="text-[10px] text-muted-foreground">Total Repaid</p>
-              <p className="text-sm font-bold text-success font-mono">{formatUGX(summary.totalRepaid)}</p>
+              <p className="text-xs text-muted-foreground">Total Repaid</p>
+              <p className="text-base font-bold text-success font-mono">{formatUGX(summary.totalRepaid)}</p>
             </div>
             <div className="bg-muted/30 rounded-xl p-3 text-center">
-              <p className="text-[10px] text-muted-foreground">Total Owing</p>
-              <p className={`text-sm font-bold font-mono ${summary.totalOwing > 0 ? 'text-destructive' : 'text-success'}`}>
+              <p className="text-xs text-muted-foreground">Total Owing</p>
+              <p className={`text-base font-bold font-mono ${summary.totalOwing > 0 ? 'text-destructive' : 'text-success'}`}>
                 {summary.totalOwing > 0 ? formatUGX(summary.totalOwing) : 'Clear ✓'}
               </p>
             </div>
@@ -488,7 +545,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
 
           {summary.totalFunded > 0 && (
             <div>
-              <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+              <div className="flex justify-between text-xs text-muted-foreground mb-1">
                 <span>Overall repayment</span>
                 <span className="font-bold">{progressPct}%</span>
               </div>
@@ -505,8 +562,8 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
         {/* Rent Request History */}
         {requests.length > 0 && (
           <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <Home className="h-3.5 w-3.5" /> Rent Plan History ({requests.length})
+            <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <Home className="h-4 w-4" /> Rent Plan History ({requests.length})
             </h3>
             <div className="space-y-2">
               {visibleRequests.map(req => {
@@ -515,10 +572,10 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
                 return (
                   <div key={req.id} className="bg-muted/30 rounded-xl p-3 space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold">{format(new Date(req.created_at), 'dd MMM yyyy')}</span>
-                      <Badge variant="outline" className="text-[10px] capitalize">{req.status}</Badge>
+                      <span className="text-sm font-semibold">{format(new Date(req.created_at), 'dd MMM yyyy')}</span>
+                      <Badge variant="outline" className="text-xs capitalize">{req.status}</Badge>
                     </div>
-                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                    <div className="flex justify-between text-xs text-muted-foreground">
                       <span>Rent: <span className="font-bold text-foreground font-mono">{formatUGX(req.rent_amount)}</span></span>
                       <span>Owing: <span className={`font-bold font-mono ${owing > 0 ? 'text-destructive' : 'text-success'}`}>{owing > 0 ? formatUGX(owing) : 'Cleared'}</span></span>
                     </div>
@@ -526,14 +583,14 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
                       <div className={`h-full rounded-full ${pct >= 100 ? 'bg-success' : 'bg-primary'}`} style={{ width: `${pct}%` }} />
                     </div>
                     {req.landlord?.name && (
-                      <p className="text-[10px] text-muted-foreground">📍 {req.landlord.name} — {req.landlord.property_address || 'N/A'}</p>
+                      <p className="text-xs text-muted-foreground">📍 {req.landlord.name} — {req.landlord.property_address || 'N/A'}</p>
                     )}
                   </div>
                 );
               })}
             </div>
             {requests.length > PAGE_SIZE && (
-              <Button variant="ghost" size="sm" className="w-full text-xs gap-1" onClick={() => setShowAllRequests(!showAllRequests)}>
+              <Button variant="ghost" size="sm" className="w-full text-sm gap-1" onClick={() => setShowAllRequests(!showAllRequests)}>
                 {showAllRequests ? <><ChevronUp className="h-3 w-3" /> Show Less</> : <><ChevronDown className="h-3 w-3" /> Show All ({requests.length})</>}
               </Button>
             )}
@@ -543,22 +600,22 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
         {/* Repayment History */}
         {repayments.length > 0 && (
           <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <History className="h-3.5 w-3.5" /> Repayment History ({repayments.length})
+            <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <History className="h-4 w-4" /> Repayment History ({repayments.length})
             </h3>
             <div className="space-y-1.5">
               {visibleRepayments.map(r => (
                 <div key={r.id} className="flex items-center justify-between py-2 px-3 bg-muted/30 rounded-xl">
                   <div>
-                    <p className="text-xs font-semibold font-mono text-success">{formatUGX(r.amount)}</p>
-                    <p className="text-[10px] text-muted-foreground">{format(new Date(r.created_at), 'dd MMM yyyy, HH:mm')}</p>
+                    <p className="text-sm font-semibold font-mono text-success">{formatUGX(r.amount)}</p>
+                    <p className="text-xs text-muted-foreground">{format(new Date(r.created_at), 'dd MMM yyyy, HH:mm')}</p>
                   </div>
                   <CheckCircle2 className="h-4 w-4 text-success/60" />
                 </div>
               ))}
             </div>
             {repayments.length > PAGE_SIZE && (
-              <Button variant="ghost" size="sm" className="w-full text-xs gap-1" onClick={() => setShowAllRepayments(!showAllRepayments)}>
+              <Button variant="ghost" size="sm" className="w-full text-sm gap-1" onClick={() => setShowAllRepayments(!showAllRepayments)}>
                 {showAllRepayments ? <><ChevronUp className="h-3 w-3" /> Show Less</> : <><ChevronDown className="h-3 w-3" /> Show All ({repayments.length})</>}
               </Button>
             )}
@@ -568,11 +625,26 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
         {/* Monthly Rent */}
         {profile.monthly_rent && profile.monthly_rent > 0 && (
           <div className="rounded-2xl border border-border/60 bg-card p-4">
-            <p className="text-[10px] text-muted-foreground">Monthly Rent</p>
+            <p className="text-xs text-muted-foreground">Monthly Rent</p>
             <p className="text-xl font-black font-mono text-primary">{formatUGX(profile.monthly_rent)}</p>
           </div>
         )}
       </div>
+
+      {/* Float payment dialog */}
+      {summary.activeRequest && profile && (
+        <AgentTenantCollectDialog
+          open={collectDialogOpen}
+          onOpenChange={setCollectDialogOpen}
+          tenant={{ id: profile.id, full_name: profile.full_name, phone: profile.phone }}
+          rentRequestId={summary.activeRequest.id}
+          outstandingBalance={summary.currentOutstanding}
+          onSuccess={() => {
+            setCollectDialogOpen(false);
+            loadFullProfile();
+          }}
+        />
+      )}
     </div>
   );
 }
