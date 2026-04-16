@@ -185,7 +185,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
     const totalFunded = requests.reduce((s, r) => s + (r.total_repayment || 0), 0);
     const totalRepaid = requests.reduce((s, r) => s + (r.amount_repaid || 0), 0);
     const completedCount = requests.filter(r => r.status === 'completed').length;
-    const activeRequest = requests.find(r => ['funded', 'disbursed', 'repaying'].includes(r.status || ''));
+    const activeRequest = requests.find(r => ['approved', 'funded', 'disbursed', 'repaying'].includes(r.status || ''));
     const outstanding = activeRequest ? (activeRequest.total_repayment - activeRequest.amount_repaid) : 0;
     const latest = requests[0];
 
