@@ -140,6 +140,13 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
+  // Landlord verification checklist state
+  const [landlordCalled, setLandlordCalled] = useState(false);
+  const [landlordAcknowledged, setLandlordAcknowledged] = useState(false);
+  const [landlordVerificationMethod, setLandlordVerificationMethod] = useState('');
+  const [landlordCallNotes, setLandlordCallNotes] = useState('');
+  // COO bulk approval state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const startEditing = useCallback((field: string, currentValue: any) => {
     setEditingField(field);
