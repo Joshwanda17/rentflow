@@ -1,31 +1,55 @@
 
 
-# Fix Service Centre Submit Button — Spinning Forever
+# Agent Wallet Segmentation: Advance → Commission & Float-Gated Withdrawals
 
-## Problem
-The submit button spins indefinitely because phone camera photos (often 5-10MB) are uploaded raw to storage over slow mobile networks. The `supabase.storage.upload()` call hangs without any timeout or progress indicator, making it appear frozen.
+## Current State
 
-## Solution
+- **`get_agent_split_balances` RPC** calculates Commission from specific categories (`agent_commission_earned`, `agent_bonus`, `referral_bonus`, etc.). Everything else = Float (total − commission).
+- **Agent advance disbursement** (CFO pays advance) uses `wallet_deposit` category → currently falls into **Float** section.
+- **Withdrawals** are already gated to commission balance only (approve-withdrawal edge function checks `commission_balance`).
 
-### 1. Compress photos before upload
-Use the existing Canvas API image optimization pattern (already used elsewhere in the platform) to resize and compress photos to max 1200px width, WebP/JPEG format, ~80% quality. This reduces file size from 5-10MB to ~100-300KB.
+## What Needs to Change
 
-### 2. Add upload timeout
-Wrap the storage upload in a `Promise.race` with a 30-second timeout so the button never spins forever. If it times out, show a clear error message.
+### 1. New Ledger Category for Agent Advances
+Instead of reusing `wallet_deposit`, agent advance disbursements should use a dedicated category: **`agent_advance_credit`**.
 
-### 3. Add progress feedback
-Replace the generic spinner with step-by-step status text:
-- "Compressing photo..." → "Uploading..." → "Saving..." → Done
-This gives users on slow connections confidence that something is happening.
+- **Add to `LOCKED_CATEGORIES`** in `ledgerConstants.ts`
+- **Add to `validate_ledger_category`** DB function via migration
+- **Update `CFOAdvanceRequestPayments.tsx`** — change the wallet leg from `wallet_deposit` to `agent_advance_credit`
 
-### 4. Add retry guidance on failure
-If upload fails, show a toast with actionable advice: "Upload failed. Check your connection and try again."
+### 2. Update Split Balances RPC
+Modify `get_agent_split_balances` to include `agent_advance_credit` as a **commission category** (cash_in), so advance money appears in the Commission section, not Float.
 
-## Files to Edit
-- **`src/components/agent/ServiceCentreSubmissionForm.tsx`** — Add image compression (Canvas API resize to 1200px, JPEG 0.8 quality), upload timeout wrapper, and step-by-step status text in the submit button.
+### 3. Float-Gated Withdrawal Rule
+Add a check: **commission is only withdrawable when the agent has positive float** (meaning they've received rent money for landlord payment). 
 
-## Technical Details
-- Reuse the platform's established Canvas API pattern: `drawImage` → `toBlob('image/jpeg', 0.8)` with max 1200px dimension
-- Timeout: `Promise.race([upload, new Promise((_, reject) => setTimeout(() => reject(new Error('Upload timed out')), 30000))])`
-- Status states: `'compressing' | 'uploading' | 'saving' | null` displayed in the button label
+- **Update `approve-withdrawal` edge function**: After computing `commissionBalance`, also check `floatBalance > 0`. If float is zero or negative, block withdrawal with message: "Withdrawals require active landlord payment funds (float)."
+- **Update `AgentFloatBalanceCard.tsx`**: Reflect the new rule in the UI — show "Withdrawable" as 0 when float ≤ 0, with a note explaining why.
+
+## Files to Change
+
+| File | Change |
+|------|--------|
+| `src/lib/ledgerConstants.ts` | Add `agent_advance_credit` to `LOCKED_CATEGORIES` |
+| **DB Migration** | Add `agent_advance_credit` to `validate_ledger_category` allowlist + update `get_agent_split_balances` RPC |
+| `src/components/cfo/CFOAdvanceRequestPayments.tsx` | Change wallet leg category from `wallet_deposit` to `agent_advance_credit` |
+| `supabase/functions/approve-withdrawal/index.ts` | Add float > 0 check before allowing agent withdrawals |
+| `src/components/agent/AgentFloatBalanceCard.tsx` | Show withdrawable as 0 when float ≤ 0, add explanatory text |
+
+## Updated RPC Logic (Summary)
+
+```text
+Commission categories (cash_in):
+  agent_commission_earned, agent_commission, agent_bonus,
+  referral_bonus, proxy_investment_commission,
+  agent_advance_credit  ← NEW
+
+Commission categories (cash_out):
+  agent_commission_withdrawal, agent_commission_used_for_rent,
+  tenant_default_charge
+
+Float = Total Balance − Commission Balance (unchanged formula)
+
+Withdrawable = commission > 0 AND float > 0 ? commission : 0
+```
 
