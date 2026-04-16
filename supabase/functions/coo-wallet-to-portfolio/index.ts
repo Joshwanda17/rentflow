@@ -152,9 +152,9 @@ Deno.serve(async (req) => {
       return jsonRes({ error: "Failed to record wallet transaction" }, 500);
     }
 
-    // ── 2. Deduct from wallet immediately via ledger ──
+    // ── 2. Deduct from wallet immediately via ledger (FATAL on failure) ──
     const { error: ledgerErr } = await supabase.rpc("create_ledger_transaction", {
-      p_entries: JSON.stringify([
+      entries: [
         {
           user_id: walletOwnerId,
           amount: topupAmount,
@@ -175,11 +175,12 @@ Deno.serve(async (req) => {
           source_id: portfolio_id,
           linked_party: walletOwnerId,
         },
-      ]),
+      ],
     });
 
     if (ledgerErr) {
-      console.error("[coo-wallet-to-portfolio] ledger error:", ledgerErr);
+      console.error("[coo-wallet-to-portfolio] LEDGER FAILURE — aborting:", ledgerErr);
+      return jsonRes({ error: `Wallet deduction failed: ${ledgerErr.message}. Top-up cancelled.` }, 500);
     }
 
     // ── 3. Record pre-approved pending top-up (applied at maturity) ──
