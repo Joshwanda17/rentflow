@@ -331,7 +331,7 @@ export default function AgentPartners() {
                 </div>
               </div>
             ) : (
-              filtered.map(partner => {
+              paginatedPartners.map(partner => {
                 const sc = statusConfig[partner.status] || statusConfig.pending;
                 const isExpanded = expandedId === partner.id;
                 return (
