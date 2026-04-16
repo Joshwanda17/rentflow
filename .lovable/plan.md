@@ -1,65 +1,62 @@
 
 
-# Enhance Agent "My Tenants" Page for Field Operations
+# Enhanced Photo Upload for Property Listings
 
-## What This Solves
+## Problem
+Agents can only take new photos during listing creation. They cannot reuse older gallery photos or pull existing images from other listings at the same location, causing friction especially in low-connectivity areas.
 
-Agents managing 100+ tenants (many without smartphones) need:
-- Easy back navigation throughout the flow
-- Bigger, readable fonts for small screens
-- Ability to pay any amount from operations float (not just full outstanding)
-- GPS capture on tenant profiles
-- A shareable signup link so tenants can create their own dashboard when they get a smartphone
+## What Changes
 
-## Changes
+### 1. Split "Add Photos" into Three Options
+**File:** `src/components/agent/HouseImageUploader.tsx`
 
-### 1. Add Back Button to My Tenants Sheet Header
-**File:** `AgentTenantsSheet.tsx`
-- Add a visible "← Back" button in the sticky header next to "My Tenants" title that closes the sheet (`onOpenChange(false)`)
+Replace the single "Add Photos" button with three distinct buttons stacked vertically:
 
-### 2. Increase Font Sizes for Small Smartphones
-**Files:** `AgentTenantsSheet.tsx`, `TenantProfileView.tsx`
-- Tenant name: `text-sm` → `text-base`
-- Phone numbers: `text-xs` → `text-sm`
-- Balance amounts: `text-sm` → `text-lg`
-- Section headers: `text-xs` → `text-sm`
-- All `text-[10px]` labels → `text-xs`
-- All `text-[9px]` → `text-[11px]`
-- Touch targets already meet 44px minimum — no changes needed there
+- **Take Photo** — Opens camera directly (`capture="environment"`, no `multiple`)
+- **Upload from Gallery** — Opens file picker without `capture` attribute (allows multi-select from device gallery, including older photos)
+- **Use Existing Photos** — Opens a modal showing images from other `house_listings` at the same region/village/district
 
-### 3. Add "Pay from Float" Button on Tenant Profile
-**File:** `TenantProfileView.tsx`
-- Replace the current "Pay Rent" button (which calls `tenant-pay-rent` edge function using the tenant's own wallet) with a button that opens the `AgentTenantCollectDialog`
-- Import and wire up `AgentTenantCollectDialog` inside `TenantProfileView`
-- The dialog already supports any amount (min 500 UGX), quick-amount buttons, and shows float balance — no changes needed to the dialog itself
+Currently the single `<input capture="environment">` forces camera on mobile. Splitting into two inputs (one with `capture`, one without) gives agents both options.
 
-### 4. Add GPS Capture on Tenant Profile
-**File:** `TenantProfileView.tsx`
-- Add a "Capture GPS Location" button in the Contact Details section
-- Use the existing `useGeoLocation` hook
-- On capture, display lat/lng coordinates inline
-- Store will be display-only for now (agent can reference when visiting tenant)
+### 2. Create "Existing Property Photos" Picker Modal
+**New file:** `src/components/agent/ExistingPropertyPhotosDialog.tsx`
 
-### 5. Add "Send Dashboard Link" Button on Tenant Profile
-**File:** `TenantProfileView.tsx`
-- Add a button below the contact section: "Send Dashboard Link"
-- Uses `createShortLink` to generate a signup/login link with the tenant's phone pre-filled: `/auth?phone={tenant.phone}&ref={agent.id}`
-- Triggers `navigator.share()` (or copies to clipboard as fallback) so agent can send via WhatsApp/SMS
-- This lets tenants who later buy smartphones access their own dashboard
+- Accepts `region` and `village` props from the listing form
+- Queries `house_listings` table for listings matching the same region + village/district that have `image_urls`
+- Displays a grid of selectable thumbnails grouped by listing title
+- Agent taps to select, then confirms
+- Selected images are fetched as blobs, converted to `HouseImageFile` objects, and passed back via `onSelect` callback
+- Shows a confirmation prompt: "Please confirm these photos accurately represent the current state of the property"
 
-### 6. Improve Navigation in Tenant Profile Header
-**File:** `TenantProfileView.tsx`
-- Make the back button larger (`h-11 w-11`) with a text label "← Back" instead of icon-only
-- Make tenant name in header `text-base font-bold` (currently `text-sm`)
+### 3. Pass Location Context to HouseImageUploader
+**File:** `src/components/agent/ListEmptyHouseDialog.tsx`
+
+- Pass `region`, `district`, and `village` from the form state down to `HouseImageUploader` so it can power the "Use Existing Photos" query
+
+### 4. Freshness Validation
+**File:** `src/components/agent/HouseImageUploader.tsx`
+
+- When images are added via "Use Existing Photos", tag them with `source: 'existing'`
+- If all images come from existing sources, show an amber warning: "At least one recent photo is recommended for verification"
+- Non-blocking — agent can proceed but is prompted
 
 ## Technical Details
 
-**Files modified:**
-- `src/components/agent/AgentTenantsSheet.tsx` — back button, font scaling
-- `src/components/agent/TenantProfileView.tsx` — font scaling, float payment integration, GPS capture, dashboard link sharing
+**Files created:**
+- `src/components/agent/ExistingPropertyPhotosDialog.tsx`
 
-**Existing components reused (no modifications):**
-- `AgentTenantCollectDialog` — already handles partial amounts from float
-- `useGeoLocation` hook — already built
-- `createShortLink` — already built
+**Files modified:**
+- `src/components/agent/HouseImageUploader.tsx` — split into 3 buttons, add `region/district/village` props, add freshness warning
+- `src/components/agent/ListEmptyHouseDialog.tsx` — pass location props to uploader
+
+**Database query for existing photos:**
+```sql
+SELECT id, title, image_urls FROM house_listings
+WHERE region = :region AND village = :village
+  AND image_urls IS NOT NULL
+  AND array_length(image_urls, 1) > 0
+LIMIT 20
+```
+
+No database migrations needed — reads existing `house_listings.image_urls` column.
 
