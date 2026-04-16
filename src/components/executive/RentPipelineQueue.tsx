@@ -451,6 +451,14 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
           updateData.assigned_agent_id = assignedAgentId;
         }
 
+        // Save landlord verification checklist
+        if (stage === 'agent_verified') {
+          updateData.landlord_called = landlordCalled;
+          updateData.landlord_acknowledged = landlordAcknowledged;
+          updateData.landlord_verification_method = landlordVerificationMethod || 'phone_call';
+          updateData.landlord_call_notes = landlordCallNotes || null;
+        }
+
         const { error } = await supabase
           .from('rent_requests')
           .update(updateData)
