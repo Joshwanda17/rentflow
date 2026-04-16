@@ -35,11 +35,11 @@ export function DebtRecoveryPanel() {
   const fetchCases = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('debt_recovery_cases')
+      const { data, error } = await (supabase
+        .from('debt_recovery_cases' as any)
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(200);
+        .limit(200) as any);
 
       if (error) throw error;
 
@@ -71,10 +71,10 @@ export function DebtRecoveryPanel() {
     const newStatus = caseItem.status === 'paused' ? 'active' : 'paused';
     setUpdating(caseItem.id);
     try {
-      const { error } = await supabase
-        .from('debt_recovery_cases')
-        .update({ status: newStatus })
-        .eq('id', caseItem.id);
+      const { error } = await (supabase
+        .from('debt_recovery_cases' as any)
+        .update({ status: newStatus } as any)
+        .eq('id', caseItem.id) as any);
       if (error) throw error;
       setCases(prev => prev.map(c => c.id === caseItem.id ? { ...c, status: newStatus } : c));
       toast.success(`Recovery ${newStatus === 'paused' ? 'paused' : 'resumed'}`);
@@ -88,10 +88,10 @@ export function DebtRecoveryPanel() {
   const updatePercentage = async (caseId: string, pct: number) => {
     setUpdating(caseId);
     try {
-      const { error } = await supabase
-        .from('debt_recovery_cases')
-        .update({ recovery_percentage: pct })
-        .eq('id', caseId);
+      const { error } = await (supabase
+        .from('debt_recovery_cases' as any)
+        .update({ recovery_percentage: pct } as any)
+        .eq('id', caseId) as any);
       if (error) throw error;
       setCases(prev => prev.map(c => c.id === caseId ? { ...c, recovery_percentage: pct } : c));
       toast.success(`Recovery percentage updated to ${pct}%`);
