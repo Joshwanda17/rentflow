@@ -183,11 +183,12 @@ export default function AgentPartners() {
 
   // Reset pagination when filter changes
   useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
+  useEffect(() => {
+    setCurrentPage(0);
   }, [activeTab, search]);
 
-  const paginatedPartners = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
-  const hasMore = visibleCount < filtered.length;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginatedPartners = useMemo(() => filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE), [filtered, currentPage]);
 
   // KPIs
   const kpis = useMemo(() => ({
