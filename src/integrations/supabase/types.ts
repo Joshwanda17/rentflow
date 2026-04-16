@@ -3414,6 +3414,7 @@ export type Database = {
           auto_approved: boolean | null
           batch_run_id: string | null
           created_at: string
+          deposit_purpose: Database["public"]["Enums"]["deposit_purpose"]
           id: string
           notes: string | null
           processed_by: string | null
@@ -3434,6 +3435,7 @@ export type Database = {
           auto_approved?: boolean | null
           batch_run_id?: string | null
           created_at?: string
+          deposit_purpose?: Database["public"]["Enums"]["deposit_purpose"]
           id?: string
           notes?: string | null
           processed_by?: string | null
@@ -3454,6 +3456,7 @@ export type Database = {
           auto_approved?: boolean | null
           batch_run_id?: string | null
           created_at?: string
+          deposit_purpose?: Database["public"]["Enums"]["deposit_purpose"]
           id?: string
           notes?: string | null
           processed_by?: string | null
@@ -11035,6 +11038,12 @@ export type Database = {
         | "apply_late_fee"
         | "restrict_access"
       collection_payment_method: "mobile_money" | "cash" | "in_app_wallet"
+      deposit_purpose:
+        | "operational_float"
+        | "personal_deposit"
+        | "partnership_deposit"
+        | "personal_rent_repayment"
+        | "other"
       disciplinary_action_type:
         | "verbal_warning"
         | "written_warning"
@@ -11252,6 +11261,13 @@ export const Constants = {
         "restrict_access",
       ],
       collection_payment_method: ["mobile_money", "cash", "in_app_wallet"],
+      deposit_purpose: [
+        "operational_float",
+        "personal_deposit",
+        "partnership_deposit",
+        "personal_rent_repayment",
+        "other",
+      ],
       disciplinary_action_type: [
         "verbal_warning",
         "written_warning",
