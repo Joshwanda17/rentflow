@@ -464,6 +464,21 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                                     </div>
                                   </div>
 
+                                  {/* Collect button — prominent if owing */}
+                                  {owing > 0 && (
+                                    <button
+                                      onClick={() => {
+                                        setCollectTarget({ tenant, reqId: req.id, owing });
+                                        setCollectDialogOpen(true);
+                                      }}
+                                      className="flex items-center justify-center gap-2 h-12 rounded-xl bg-success text-success-foreground font-bold text-sm active:scale-95 transition-transform w-full shadow-sm"
+                                      style={{ touchAction: 'manipulation' }}
+                                    >
+                                      <Banknote className="h-5 w-5" />
+                                      Collect Payment — {formatUGX(owing)}
+                                    </button>
+                                  )}
+
                                   {/* 2×2 Action Buttons */}
                                   <div className="grid grid-cols-2 gap-2">
                                     <a
