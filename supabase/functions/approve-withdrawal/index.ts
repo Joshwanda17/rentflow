@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
 
     // Parse body
     const body = await req.json();
-    const { withdrawal_id, reference, payment_method } = body;
+    const { withdrawal_id, reference, payment_method, recovery_mode, recovery_percentage } = body;
 
     if (!withdrawal_id || typeof withdrawal_id !== "string") {
       return new Response(JSON.stringify({ error: "withdrawal_id is required" }), {
@@ -74,17 +74,21 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    if (!reference || typeof reference !== "string" || reference.trim().length < 3) {
-      return new Response(JSON.stringify({ error: "reference (TID/bank ref) must be at least 3 characters" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    if (!payment_method || typeof payment_method !== "string") {
-      return new Response(JSON.stringify({ error: "payment_method is required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+
+    // Recovery mode only needs withdrawal_id
+    if (!recovery_mode) {
+      if (!reference || typeof reference !== "string" || reference.trim().length < 3) {
+        return new Response(JSON.stringify({ error: "reference (TID/bank ref) must be at least 3 characters" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (!payment_method || typeof payment_method !== "string") {
+        return new Response(JSON.stringify({ error: "payment_method is required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // Fetch withdrawal request (fresh from DB — never trust cache)
