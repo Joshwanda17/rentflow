@@ -74,6 +74,8 @@ export const LOCKED_CATEGORIES = [
   'equipment_expense',
   // Partner commission
   'partner_commission',
+  // Debt recovery
+  'debt_recovery',
 ] as const;
 
 export type LockedCategory = typeof LOCKED_CATEGORIES[number];
