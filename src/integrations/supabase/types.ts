@@ -10360,6 +10360,15 @@ export type Database = {
         }
         Returns: Json
       }
+      agent_deposit_to_partner: {
+        Args: {
+          p_agent_id: string
+          p_amount: number
+          p_notes?: string
+          p_partner_id: string
+        }
+        Returns: Json
+      }
       apply_welile_homes_monthly_interest: { Args: never; Returns: number }
       auto_dispatch_withdrawals: {
         Args: { p_batch_size?: number }
