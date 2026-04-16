@@ -5,7 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote } from 'lucide-react';
+import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfDay } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -14,6 +14,7 @@ import { downloadRentStatement } from '@/lib/receiptPdf';
 import { useToast } from '@/hooks/use-toast';
 import AgentRentRequestDialog from './AgentRentRequestDialog';
 import { AgentTenantCollectDialog } from './AgentTenantCollectDialog';
+import { TenantBehaviorCard } from './TenantBehaviorCard';
 
 interface Tenant {
   id: string;
@@ -36,7 +37,7 @@ interface TenantRentRequest {
   created_at: string;
   disbursed_at: string | null;
   registration_type: string | null;
-  landlord?: { name: string; property_address: string } | null;
+  landlord?: { name: string; property_address: string; house_category?: string; latitude?: number; longitude?: number } | null;
 }
 
 interface AgentTenantsSheetProps {
@@ -63,6 +64,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [renewPrefill, setRenewPrefill] = useState<{ name: string; phone: string; amount: string } | null>(null);
   const [collectDialogOpen, setCollectDialogOpen] = useState(false);
   const [collectTarget, setCollectTarget] = useState<{ tenant: Tenant; reqId: string; owing: number } | null>(null);
+  const [behaviorCardOpen, setBehaviorCardOpen] = useState(false);
+  const [behaviorData, setBehaviorData] = useState<any>(null);
 
   useEffect(() => {
     if (open && user) fetchTenants();
@@ -141,7 +144,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     try {
       const { data, error } = await supabase
         .from('rent_requests')
-        .select('id, rent_amount, total_repayment, duration_days, daily_repayment, amount_repaid, status, created_at, disbursed_at, registration_type, landlord:landlords(name, property_address)')
+        .select('id, rent_amount, total_repayment, duration_days, daily_repayment, amount_repaid, status, created_at, disbursed_at, registration_type, landlord:landlords(name, property_address, house_category, latitude, longitude)')
         .eq('tenant_id', tenantId)
         .in('status', ['pending', 'approved', 'disbursed', 'repaying', 'completed'])
         .order('created_at', { ascending: false })
@@ -426,6 +429,33 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
 
                               return (
                                 <div key={req.id} className="bg-muted/30 rounded-xl p-3 space-y-3">
+                                  {/* Landlord & Location Info */}
+                                  {req.landlord && (
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div className="bg-background rounded-lg p-2 flex items-start gap-1.5">
+                                        <User className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
+                                        <div className="min-w-0">
+                                          <p className="text-[9px] text-muted-foreground">Landlord</p>
+                                          <p className="text-xs font-semibold truncate">{req.landlord.name}</p>
+                                        </div>
+                                      </div>
+                                      <div className="bg-background rounded-lg p-2 flex items-start gap-1.5">
+                                        <Home className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
+                                        <div className="min-w-0">
+                                          <p className="text-[9px] text-muted-foreground">House Type</p>
+                                          <p className="text-xs font-semibold truncate">{req.landlord.house_category || 'N/A'}</p>
+                                        </div>
+                                      </div>
+                                      <div className="bg-background rounded-lg p-2 flex items-start gap-1.5 col-span-2">
+                                        <MapPin className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
+                                        <div className="min-w-0">
+                                          <p className="text-[9px] text-muted-foreground">Location</p>
+                                          <p className="text-xs font-semibold truncate">{req.landlord.property_address || 'N/A'}</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+
                                   {/* 2×2 Financial summary */}
                                   <div className="grid grid-cols-2 gap-2">
                                     <div className="bg-background rounded-lg p-2.5 text-center">
@@ -536,7 +566,36 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                                         Receipt
                                       </button>
                                     )}
-                                  </div>
+                                  {/* Behavior Card button */}
+                                  <button
+                                    onClick={() => {
+                                      const totalPayments = req.duration_days;
+                                      const paidDays = req.daily_repayment > 0 ? Math.floor(req.amount_repaid / req.daily_repayment) : 0;
+                                      setBehaviorData({
+                                        tenantName: tenant.full_name,
+                                        tenantPhone: tenant.phone,
+                                        landlordName: req.landlord?.name || 'N/A',
+                                        propertyAddress: req.landlord?.property_address || 'N/A',
+                                        houseCategory: req.landlord?.house_category || '',
+                                        rentAmount: req.rent_amount,
+                                        totalRepayment: req.total_repayment,
+                                        amountRepaid: req.amount_repaid,
+                                        durationDays: req.duration_days,
+                                        status: req.status || 'approved',
+                                        createdAt: req.created_at,
+                                        onTimePayments: paidDays,
+                                        latePayments: 0,
+                                        missedPayments: Math.max(0, totalPayments - paidDays),
+                                      });
+                                      setBehaviorCardOpen(true);
+                                    }}
+                                    className="flex items-center justify-center gap-2 h-10 rounded-xl bg-primary/10 text-primary font-semibold text-xs active:scale-95 transition-transform w-full"
+                                    style={{ touchAction: 'manipulation' }}
+                                  >
+                                    <TrendingUp className="h-4 w-4" />
+                                    Share Behavior Card
+                                  </button>
+                                </div>
                                 </div>
                               );
                             })
@@ -588,6 +647,11 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           });
           fetchTenants();
         }}
+      />
+      <TenantBehaviorCard
+        open={behaviorCardOpen}
+        onOpenChange={setBehaviorCardOpen}
+        data={behaviorData}
       />
     </Sheet>
   );
