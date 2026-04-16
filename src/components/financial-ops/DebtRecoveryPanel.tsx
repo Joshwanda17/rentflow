@@ -44,7 +44,7 @@ export function DebtRecoveryPanel() {
       if (error) throw error;
 
       if (data && data.length > 0) {
-        const userIds = [...new Set(data.map((c: any) => c.user_id))];
+        const userIds = [...new Set(data.map((c: any) => c.user_id))] as string[];
         const { data: profiles } = await supabase
           .from('profiles')
           .select('id, full_name, phone')
