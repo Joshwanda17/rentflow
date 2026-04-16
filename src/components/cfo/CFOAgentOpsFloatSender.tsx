@@ -42,7 +42,7 @@ export function CFOAgentOpsFloatSender() {
     },
     onSuccess: (data) => {
       setLastResult(data);
-      toast.success(`Operations float sent to ${pickedAgent?.full_name}`);
+      toast.success(`Operations float sent to ${pickedAgent?.full_name} from Welile Finance`);
       qc.invalidateQueries({ queryKey: ['agent-float-balances'] });
       setAmount('');
       setDescription('');
