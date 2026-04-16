@@ -10,10 +10,11 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { CheckCircle2, XCircle, Clock, MapPin, User, UserCheck, Home, Banknote, ArrowRight, Loader2, Search, MessageCircle, Phone, Pencil, Check, X } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, MapPin, User, UserCheck, Home, Banknote, ArrowRight, Loader2, Search, MessageCircle, Phone, Pencil, Check, X, PhoneCall, ShieldCheck } from 'lucide-react';
 import { calculateRentRepayment } from '@/lib/rentCalculations';
 import { toast as sonnerToast } from 'sonner';
 import { format } from 'date-fns';
@@ -139,6 +140,13 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
+  // Landlord verification checklist state
+  const [landlordCalled, setLandlordCalled] = useState(false);
+  const [landlordAcknowledged, setLandlordAcknowledged] = useState(false);
+  const [landlordVerificationMethod, setLandlordVerificationMethod] = useState('');
+  const [landlordCallNotes, setLandlordCallNotes] = useState('');
+  // COO bulk approval state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const startEditing = useCallback((field: string, currentValue: any) => {
     setEditingField(field);
@@ -278,6 +286,13 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
       setSelectedRequest(req);
       return;
     }
+    // For Landlord Ops stage — enforce checklist
+    if (stage === 'agent_verified') {
+      if (!landlordCalled || !landlordAcknowledged) {
+        toast({ title: 'Complete the landlord verification checklist first', variant: 'destructive' });
+        return;
+      }
+    }
     setQuickProcessingId(req.id);
     try {
       const updateData: any = {
@@ -288,6 +303,10 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
       };
 
       if (stage === 'agent_verified') {
+        updateData.landlord_called = true;
+        updateData.landlord_acknowledged = true;
+        updateData.landlord_verification_method = landlordVerificationMethod || 'phone_call';
+        updateData.landlord_call_notes = landlordCallNotes || null;
         try {
           await supabase.functions.invoke('credit-landlord-verification-bonus', {
             body: { rent_request_id: req.id },
@@ -393,6 +412,12 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
       return;
     }
 
+    // Landlord Ops must complete checklist
+    if (stage === 'agent_verified' && (!landlordCalled || !landlordAcknowledged)) {
+      toast({ title: 'Complete the landlord verification checklist first', variant: 'destructive' });
+      return;
+    }
+
     // TID is mandatory for CFO approval (audit compliance)
     if (stage === 'coo_approved' && !payoutRef.trim()) {
       toast({ title: 'Transaction ID is required for audit compliance', variant: 'destructive' });
@@ -424,6 +449,14 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
 
         if (config.showAgentSelector && assignedAgentId) {
           updateData.assigned_agent_id = assignedAgentId;
+        }
+
+        // Save landlord verification checklist
+        if (stage === 'agent_verified') {
+          updateData.landlord_called = landlordCalled;
+          updateData.landlord_acknowledged = landlordAcknowledged;
+          updateData.landlord_verification_method = landlordVerificationMethod || 'phone_call';
+          updateData.landlord_call_notes = landlordCallNotes || null;
         }
 
         const { error } = await supabase
@@ -491,6 +524,51 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
 
   const fmt = (n: number) => Number(n || 0).toLocaleString();
 
+  const handleBulkApprove = async () => {
+    if (!user || selectedIds.size === 0) return;
+    setProcessing(true);
+    try {
+      const ids = [...selectedIds];
+      for (const id of ids) {
+        const { error } = await supabase
+          .from('rent_requests')
+          .update({
+            status: config.nextStatus,
+            [config.reviewerColumn]: user.id,
+            [config.reviewerAtColumn]: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', id);
+        if (error) throw error;
+      }
+      toast({ title: `✅ ${ids.length} requests approved` });
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ['rent-pipeline'] });
+    } catch (err: any) {
+      toast({ title: 'Bulk approval error', description: err.message, variant: 'destructive' });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map(r => r.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const isCooStage = stage === 'landlord_ops_approved';
+
   return (
     <Card className="border border-border">
       <CardHeader className="pb-3">
@@ -500,6 +578,29 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
             {rows.length} pending
           </Badge>
         </div>
+        {/* COO Bulk Approve Controls */}
+        {isCooStage && filtered.length > 0 && (
+          <div className="flex items-center justify-between gap-2 mt-2 p-2 rounded-lg bg-muted/50 border">
+            <label className="flex items-center gap-2 cursor-pointer text-sm">
+              <Checkbox
+                checked={selectedIds.size === filtered.length && filtered.length > 0}
+                onCheckedChange={toggleSelectAll}
+              />
+              Select All ({filtered.length})
+            </label>
+            {selectedIds.size > 0 && (
+              <Button
+                size="sm"
+                className="h-8 text-xs gap-1"
+                disabled={processing}
+                onClick={handleBulkApprove}
+              >
+                {processing ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
+                Approve Selected ({selectedIds.size})
+              </Button>
+            )}
+          </div>
+        )}
         <div className="relative mt-2">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -526,6 +627,14 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                 key={req.id}
                 className="w-full text-left px-4 py-3 hover:bg-muted/40 transition-colors flex items-center gap-2"
               >
+                {/* COO bulk select checkbox */}
+                {isCooStage && (
+                  <Checkbox
+                    checked={selectedIds.has(req.id)}
+                    onCheckedChange={() => toggleSelect(req.id)}
+                    className="shrink-0"
+                  />
+                )}
                 <button
                   onClick={() => setSelectedRequest(req)}
                   className="min-w-0 flex-1 text-left"
@@ -600,7 +709,7 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
       </CardContent>
 
       {/* Tenant Detail Sheet */}
-      <Sheet open={!!selectedRequest} onOpenChange={(open) => { if (!open) { setSelectedRequest(null); setComment(''); setAssignedAgentId(null); setPayoutRef(''); } }}>
+      <Sheet open={!!selectedRequest} onOpenChange={(open) => { if (!open) { setSelectedRequest(null); setComment(''); setAssignedAgentId(null); setPayoutRef(''); setLandlordCalled(false); setLandlordAcknowledged(false); setLandlordVerificationMethod(''); setLandlordCallNotes(''); } }}>
         <SheetContent side="bottom" className="h-[85vh] rounded-t-2xl">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2 text-base">
@@ -714,6 +823,69 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                   onSelect={setAssignedAgentId}
                   selectedAgentId={assignedAgentId}
                 />
+              )}
+
+              {/* Landlord Verification Checklist - only for Landlord Ops */}
+              {stage === 'agent_verified' && (
+                <div className="space-y-3 rounded-xl border-2 border-purple-500/30 p-3 bg-purple-500/5">
+                  <h4 className="text-sm font-bold flex items-center gap-2">
+                    <PhoneCall className="h-4 w-4 text-purple-600" />
+                    Landlord Verification Checklist
+                  </h4>
+                  <p className="text-[10px] text-muted-foreground">
+                    Call the landlord at <span className="font-mono font-bold">{selectedRequest.landlord_phone || selectedRequest.landlord_momo}</span> and complete this checklist before approving.
+                  </p>
+
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox
+                        checked={landlordCalled}
+                        onCheckedChange={(v) => setLandlordCalled(!!v)}
+                      />
+                      <span className="text-sm">I have called the landlord</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox
+                        checked={landlordAcknowledged}
+                        onCheckedChange={(v) => setLandlordAcknowledged(!!v)}
+                      />
+                      <span className="text-sm">Landlord acknowledges Welile as the payer</span>
+                    </label>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">Verification Method</label>
+                    <Select value={landlordVerificationMethod} onValueChange={setLandlordVerificationMethod}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="How was the landlord verified?" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="phone_call">Phone Call</SelectItem>
+                        <SelectItem value="physical_visit">Physical Visit</SelectItem>
+                        <SelectItem value="lc1_confirmation">LC1 Confirmation</SelectItem>
+                        <SelectItem value="video_call">Video Call</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1 block">Call Notes</label>
+                    <Textarea
+                      placeholder="Notes from the landlord call..."
+                      value={landlordCallNotes}
+                      onChange={e => setLandlordCallNotes(e.target.value)}
+                      rows={2}
+                    />
+                  </div>
+
+                  {(!landlordCalled || !landlordAcknowledged) && (
+                    <p className="text-[10px] text-destructive flex items-center gap-1">
+                      <ShieldCheck className="h-3 w-3" />
+                      Both checkboxes must be checked to approve
+                    </p>
+                  )}
+                </div>
               )}
 
               {/* Payout Fields - only for CFO */}

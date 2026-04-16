@@ -1,8 +1,9 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useGeoLocation } from '@/hooks/useGeoLocation';
+import { useLandlordOtp } from '@/hooks/useLandlordOtp';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,11 +12,12 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import {
   Landmark, Loader2, CheckCircle2, Phone, ArrowRight,
-  Clock, User2, Home, Banknote, Upload, Camera, MapPin, Hash
+  Clock, User2, Home, Banknote, Upload, Camera, MapPin, Hash, ShieldCheck, RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -25,19 +27,30 @@ interface AgentFloatPayoutWizardProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type Step = 'select' | 'pay' | 'done';
+type Step = 'select' | 'otp' | 'pay' | 'done';
 
 export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutWizardProps) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const geo = useGeoLocation();
+  const landlordOtp = useLandlordOtp();
   const [step, setStep] = useState<Step>('select');
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [provider, setProvider] = useState('');
   const [tid, setTid] = useState('');
   const [notes, setNotes] = useState('');
   const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
+  const [otpCode, setOtpCode] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const cooldownRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      cooldownRef.current = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+    }
+    return () => clearTimeout(cooldownRef.current);
+  }, [resendCooldown]);
 
   const { data: floatBalance = 0 } = useQuery({
     queryKey: ['agent-landlord-float', user?.id],
@@ -93,6 +106,9 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
     setTid('');
     setNotes('');
     setReceiptFiles([]);
+    setOtpCode('');
+    setResendCooldown(0);
+    landlordOtp.resetOtp();
   };
 
   const handleClose = () => { resetForm(); onOpenChange(false); };
@@ -102,11 +118,47 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
     setReceiptFiles(prev => [...prev, ...Array.from(files)].slice(0, 3));
   };
 
+  const landlordPhone = selectedRequest?.landlord?.mobile_money_number || selectedRequest?.landlord?.phone || '';
+
+  const handleSendOtp = async () => {
+    if (!landlordPhone) {
+      toast.error('No landlord phone number available');
+      return;
+    }
+    const sent = await landlordOtp.sendOtp(landlordPhone);
+    if (sent) {
+      setResendCooldown(60);
+      toast.success('OTP sent to landlord\'s phone');
+    }
+  };
+
+  const handleVerifyOtp = async (code: string) => {
+    setOtpCode(code);
+    if (code.length === 6) {
+      const verified = await landlordOtp.verifyOtp(landlordPhone, code);
+      if (verified) {
+        toast.success('Landlord phone verified! Proceed to payment.');
+        setStep('pay');
+      }
+    }
+  };
+
+  const handleResendOtp = () => {
+    setOtpCode('');
+    handleSendOtp();
+  };
+
+  const handleSelectRequest = (r: any) => {
+    setSelectedRequest(r);
+    setStep('otp');
+  };
+
   const submitPayout = useMutation({
     mutationFn: async () => {
       if (!user || !selectedRequest) throw new Error('Missing data');
       if (!provider) throw new Error('Select a payment mode');
       if (!tid.trim()) throw new Error('Enter the Transaction ID (TID) from your MoMo payment');
+      if (!landlordOtp.otpVerified) throw new Error('Landlord OTP verification is required');
 
       const req = selectedRequest;
       if (req.rent_amount > floatBalance) throw new Error('Insufficient landlord float balance');
@@ -122,14 +174,14 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
       const propLng = req.landlord?.longitude;
 
       if (propLat && propLng) {
-        const R = 6371000; // Earth radius in meters
+        const R = 6371000;
         const dLat = (propLat - loc.latitude) * Math.PI / 180;
         const dLon = (propLng - loc.longitude) * Math.PI / 180;
         const a = Math.sin(dLat / 2) ** 2 +
           Math.cos(loc.latitude * Math.PI / 180) * Math.cos(propLat * Math.PI / 180) *
           Math.sin(dLon / 2) ** 2;
         gpsDistanceMeters = Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
-        gpsMatch = gpsDistanceMeters <= 500; // 500m threshold
+        gpsMatch = gpsDistanceMeters <= 500;
       }
 
       // Deduct from float
@@ -166,7 +218,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
         }
       }
 
-      // Create withdrawal record with TID, GPS, and receipt
+      // Create withdrawal record with OTP verification flag
       const { error } = await supabase.from('agent_float_withdrawals').insert({
         agent_id: user.id,
         rent_request_id: req.id,
@@ -186,6 +238,8 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
         property_longitude: propLng ?? null,
         gps_distance_meters: gpsDistanceMeters,
         gps_match: gpsMatch,
+        landlord_otp_verified: true,
+        landlord_otp_verified_at: new Date().toISOString(),
         status: 'pending_agent_ops',
       } as any);
 
@@ -200,6 +254,20 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
           } as any)
           .eq('agent_id', user.id);
         throw error;
+      }
+
+      // Send confirmation SMS to landlord
+      try {
+        const tenantName = req.tenant?.full_name || 'your tenant';
+        await supabase.functions.invoke('sms-otp', {
+          body: {
+            action: 'send_custom',
+            phone: landlordPhone,
+            message: `Welile has paid UGX ${req.rent_amount.toLocaleString()} rent for ${tenantName} to your number. If you did not receive this, call 0800-000-000.`,
+          },
+        });
+      } catch {
+        // Non-critical — don't fail the payout
       }
     },
     onSuccess: () => {
@@ -245,7 +313,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
                     <Card
                       key={r.id}
                       className={`cursor-pointer transition-colors ${canAfford ? 'hover:border-chart-4/50' : 'opacity-60 cursor-not-allowed'}`}
-                      onClick={() => { if (canAfford) { setSelectedRequest(r); setStep('pay'); } }}
+                      onClick={() => { if (canAfford) handleSelectRequest(r); }}
                     >
                       <CardContent className="p-3 space-y-1">
                         <div className="flex items-center justify-between">
@@ -272,8 +340,109 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
             </motion.div>
           )}
 
+          {/* OTP Step — Verify landlord phone before payment */}
+          {step === 'otp' && req && (
+            <motion.div key="otp" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+              <div className="p-4 rounded-xl bg-chart-4/5 border border-chart-4/20 space-y-2">
+                <h3 className="font-bold text-sm text-chart-4 flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4" />
+                  Verify Landlord Identity
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  An SMS code will be sent to <span className="font-bold text-foreground">{req.landlord?.name}</span>'s phone.
+                  Ask the landlord to read you the 6-digit code.
+                </p>
+                <div className="flex items-center gap-2 text-xs font-mono bg-muted/50 p-2 rounded-lg">
+                  <Phone className="h-3.5 w-3.5 text-chart-4" />
+                  {landlordPhone || 'No phone number'}
+                </div>
+              </div>
+
+              {!landlordOtp.otpSent ? (
+                <Button
+                  type="button"
+                  onClick={handleSendOtp}
+                  disabled={landlordOtp.otpLoading || !landlordPhone}
+                  className="w-full gap-2 h-12 rounded-xl"
+                >
+                  {landlordOtp.otpLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ShieldCheck className="h-4 w-4" />
+                  )}
+                  Send OTP to Landlord's Phone
+                </Button>
+              ) : (
+                <div className="space-y-3">
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground">
+                      Enter the 6-digit code from <span className="font-medium text-foreground">{req.landlord?.name}</span>'s phone
+                    </p>
+                  </div>
+
+                  <div className="flex justify-center">
+                    <InputOTP maxLength={6} value={otpCode} onChange={handleVerifyOtp}>
+                      <InputOTPGroup>
+                        <InputOTPSlot index={0} />
+                        <InputOTPSlot index={1} />
+                        <InputOTPSlot index={2} />
+                        <InputOTPSlot index={3} />
+                        <InputOTPSlot index={4} />
+                        <InputOTPSlot index={5} />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </div>
+
+                  {landlordOtp.otpLoading && (
+                    <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Verifying...
+                    </div>
+                  )}
+
+                  {landlordOtp.otpError && (
+                    <p className="text-sm text-destructive text-center">{landlordOtp.otpError}</p>
+                  )}
+
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      onClick={handleResendOtp}
+                      disabled={resendCooldown > 0 || landlordOtp.otpLoading}
+                      className="text-xs text-primary hover:underline disabled:text-muted-foreground disabled:no-underline"
+                    >
+                      {resendCooldown > 0 ? (
+                        <span className="flex items-center gap-1 justify-center">
+                          <RefreshCw className="h-3 w-3" />
+                          Resend in {resendCooldown}s
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 justify-center">
+                          <RefreshCw className="h-3 w-3" />
+                          Resend code
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <Button variant="ghost" size="sm" className="w-full" onClick={() => { resetForm(); }}>
+                ← Back to list
+              </Button>
+            </motion.div>
+          )}
+
           {step === 'pay' && req && (
             <motion.div key="pay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+              {/* OTP verified badge */}
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">
+                  Landlord identity verified via SMS OTP
+                </span>
+              </div>
+
               {/* Landlord details */}
               <div className="p-4 rounded-xl bg-chart-4/5 border border-chart-4/20 space-y-2">
                 <h3 className="font-bold text-sm text-chart-4">Pay This Landlord</h3>
@@ -376,7 +545,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
                 Submit Payment + Receipt
               </Button>
 
-              <Button variant="ghost" size="sm" className="w-full" onClick={() => { setSelectedRequest(null); setStep('select'); }}>
+              <Button variant="ghost" size="sm" className="w-full" onClick={() => { setStep('otp'); }}>
                 ← Back
               </Button>
             </motion.div>
