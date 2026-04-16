@@ -13,7 +13,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import {
   Landmark, CheckCircle2, XCircle, Loader2,
-  Phone, User2, Clock, Hash, AlertCircle, Upload, Camera, Banknote, MapPin
+  Phone, User2, Clock, Hash, AlertCircle, Upload, Camera, Banknote, MapPin, ShieldCheck
 } from 'lucide-react';
 import { toast } from 'sonner';
 
