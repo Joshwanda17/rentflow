@@ -305,11 +305,12 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
     setAddingRole(true);
     try {
       // Check if role already exists (even disabled)
+      const typedRole = role as 'agent' | 'supporter' | 'landlord' | 'tenant';
       const { data: existing } = await supabase
         .from('user_roles')
         .select('id, enabled')
         .eq('user_id', tenantId)
-        .eq('role', role)
+        .eq('role', typedRole)
         .maybeSingle();
 
       if (existing) {
@@ -320,11 +321,11 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
           toast({ title: `Already has ${role} role`, variant: 'default' });
         }
       } else {
-        const { error } = await supabase.from('user_roles').insert({
+        const { error } = await supabase.from('user_roles').insert([{
           user_id: tenantId,
-          role,
+          role: typedRole,
           enabled: true,
-        });
+        }]);
         if (error) throw error;
         toast({ title: `✅ ${role} role added to ${profile.full_name}` });
       }
