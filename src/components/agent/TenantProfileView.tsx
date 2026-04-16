@@ -83,6 +83,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
 
   // Dashboard link sharing
   const [sharingLink, setSharingLink] = useState(false);
+  const [sharingProfile, setSharingProfile] = useState(false);
 
   const aiId = generateWelileAiId(tenantId);
 
