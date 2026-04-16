@@ -34,10 +34,15 @@ export function AgentFloatBalanceCard() {
           {formatUGX(totalBalance)}
         </p>
         <p className="text-xs text-muted-foreground mt-1">
-          Withdrawable: <span className="font-medium text-emerald-600">{formatUGX(realWithdrawableBalance)}</span>
+          Withdrawable: <span className={`font-medium ${realWithdrawableBalance > 0 ? 'text-emerald-600' : 'text-destructive'}`}>{formatUGX(realWithdrawableBalance)}</span>
           {' · '}
-          Locked: <span className="font-medium text-primary">{formatUGX(floatBalance)}</span>
+          Float: <span className="font-medium text-primary">{formatUGX(floatBalance)}</span>
         </p>
+        {floatBalance <= 0 && commissionBalance > 0 && (
+          <p className="text-xs text-amber-600 mt-1">
+            ⚠ Withdrawals locked — receive landlord payment funds first
+          </p>
+        )}
       </CardContent>
     </Card>
   );
