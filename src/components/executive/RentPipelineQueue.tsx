@@ -627,6 +627,14 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                 key={req.id}
                 className="w-full text-left px-4 py-3 hover:bg-muted/40 transition-colors flex items-center gap-2"
               >
+                {/* COO bulk select checkbox */}
+                {isCooStage && (
+                  <Checkbox
+                    checked={selectedIds.has(req.id)}
+                    onCheckedChange={() => toggleSelect(req.id)}
+                    className="shrink-0"
+                  />
+                )}
                 <button
                   onClick={() => setSelectedRequest(req)}
                   className="min-w-0 flex-1 text-left"
