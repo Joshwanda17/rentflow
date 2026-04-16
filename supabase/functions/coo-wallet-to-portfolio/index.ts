@@ -159,7 +159,7 @@ Deno.serve(async (req) => {
           user_id: walletOwnerId,
           amount: topupAmount,
           direction: "cash_out",
-          category: "portfolio_topup_deduction",
+          category: "wallet_deduction",
           description: `Wallet deduction for ${accountLabel} top-up`,
           source_table: "investor_portfolios",
           source_id: portfolio_id,
