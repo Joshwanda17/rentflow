@@ -8,10 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Check, Share2, Users, Building2, Clock, CheckCircle2, RefreshCw, ChevronRight, HandCoins } from 'lucide-react';
+import { Copy, Check, Share2, Users, Building2, Clock, CheckCircle2, RefreshCw, ChevronRight, HandCoins, Banknote } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { hapticSuccess } from '@/lib/haptics';
 import { playSuccessSound } from '@/lib/notificationSound';
+import { ProxyPartnerDepositDialog } from './ProxyPartnerDepositDialog';
 
 interface UserInvite {
   id: string;
