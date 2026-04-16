@@ -37,7 +37,7 @@ interface TenantRentRequest {
   created_at: string;
   disbursed_at: string | null;
   registration_type: string | null;
-  landlord?: { name: string; property_address: string } | null;
+  landlord?: { name: string; property_address: string; house_category?: string; latitude?: number; longitude?: number } | null;
 }
 
 interface AgentTenantsSheetProps {
