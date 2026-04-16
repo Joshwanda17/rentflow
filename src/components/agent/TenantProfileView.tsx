@@ -69,7 +69,7 @@ const PAGE_SIZE = 5;
 export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) {
   const { toast } = useToast();
   const { user } = useAuth();
-  const { floatBalance: agentFloatBalance, isLoading: floatLoading, refetch: refetchFloat } = useAgentBalances();
+  const { floatBalance: agentFloatBalance, isLoading: floatLoading, error: floatError, refetch: refetchFloat } = useAgentBalances(user?.id);
   const [profile, setProfile] = useState<TenantProfile | null>(null);
   const [requests, setRequests] = useState<RentRequestRow[]>([]);
   const [repayments, setRepayments] = useState<RepaymentRow[]>([]);
@@ -105,6 +105,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
 
   useEffect(() => {
     loadFullProfile();
+    refetchFloat();
   }, [tenantId]);
 
   const loadFullProfile = async () => {
@@ -508,7 +509,19 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
               </div>
             </div>
 
-            {!floatLoading && agentFloatBalance < 500 && (
+            {!floatLoading && floatError && (
+              <div className="flex items-center gap-2 bg-warning/10 border border-warning/20 rounded-xl p-3">
+                <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
+                <div className="flex-1">
+                  <p className="text-xs text-warning font-medium">Couldn't load your Operations Float.</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => refetchFloat()} className="shrink-0 text-xs h-7">
+                  Retry
+                </Button>
+              </div>
+            )}
+
+            {!floatLoading && !floatError && agentFloatBalance < 500 && (
               <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/20 rounded-xl p-3">
                 <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
                 <p className="text-xs text-destructive font-medium">Insufficient float. Deposit to your operations float first or ask CFO to top up.</p>
@@ -531,7 +544,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
                 className="w-full gap-2 text-base h-14 font-bold rounded-xl shadow-lg active:scale-[0.96] transition-transform"
                 variant="success"
                 size="xl"
-                disabled={floatLoading || agentFloatBalance < 500}
+                disabled={floatLoading || !!floatError || agentFloatBalance < 500}
               >
                 {floatLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Banknote className="h-6 w-6" />}
                 {floatLoading ? 'Loading float...' : `Pay ${formatUGX(Math.min(summary.currentOutstanding, agentFloatBalance))} from Float`}
