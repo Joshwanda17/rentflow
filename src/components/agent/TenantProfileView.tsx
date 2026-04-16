@@ -946,6 +946,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
           onSuccess={() => {
             setCollectDialogOpen(false);
             loadFullProfile();
+            refetchFloat();
           }}
         />
       )}
