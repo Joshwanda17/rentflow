@@ -277,6 +277,14 @@ Just click the link and enter your password to get started!`;
       )}
     </CardContent>
     </Card>
+
+    <ProxyPartnerDepositDialog
+      open={!!depositPartner}
+      onOpenChange={(open) => { if (!open) setDepositPartner(null); }}
+      partner={depositPartner}
+      onSuccess={fetchInvites}
+    />
+    </>
   );
 }
 
