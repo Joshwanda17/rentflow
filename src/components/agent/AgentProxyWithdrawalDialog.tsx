@@ -55,30 +55,16 @@ export function AgentProxyWithdrawalDialog({
       } as any);
       if (error) throw error;
 
-      // Pre-deduct wallet via ledger
+      // Get the newly created withdrawal request ID for audit
       const { data: newRow } = await supabase
         .from('withdrawal_requests')
         .select('id')
-        .eq('user_id', funderId)
+        .eq('user_id', user.id)
+        .eq('proxy_partner_id', funderId)
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
-
-      if (newRow) {
-        await supabase.from('general_ledger').insert({
-          user_id: funderId,
-          amount,
-          direction: 'cash_out',
-          category: 'withdrawal_pending',
-          description: `Proxy withdrawal by agent ${user.id} – funds held pending approval`,
-          currency: 'UGX',
-          transaction_group_id: `wallet-withdraw-${newRow.id}`,
-          source_table: 'withdrawal_requests',
-          source_id: newRow.id,
-          ledger_scope: 'platform',
-        } as any);
-      }
 
       // Audit log
       await supabase.from('audit_logs').insert({
