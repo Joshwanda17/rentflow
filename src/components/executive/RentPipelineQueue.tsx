@@ -412,6 +412,12 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
       return;
     }
 
+    // Landlord Ops must complete checklist
+    if (stage === 'agent_verified' && (!landlordCalled || !landlordAcknowledged)) {
+      toast({ title: 'Complete the landlord verification checklist first', variant: 'destructive' });
+      return;
+    }
+
     // TID is mandatory for CFO approval (audit compliance)
     if (stage === 'coo_approved' && !payoutRef.trim()) {
       toast({ title: 'Transaction ID is required for audit compliance', variant: 'destructive' });
