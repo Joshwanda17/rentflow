@@ -16,7 +16,7 @@ interface AgentDepositCashDialogProps {
   onSuccess?: () => void;
 }
 
-type DepositType = 'float' | 'rent_repayment';
+type DepositType = 'float' | 'operations_float' | 'rent_repayment';
 
 const USSD_DIAL: Record<string, string> = {
   mtn: 'tel:*165*4%23',     // *165*4#
