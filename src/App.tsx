@@ -92,6 +92,7 @@ const RegisterTenantPublic = lazy(() => import('./pages/RegisterTenantPublic'));
 const RegisterPartnerPublic = lazy(() => import('./pages/RegisterPartnerPublic'));
 const ActivatePartner = lazy(() => import('./pages/ActivatePartner'));
 const ResolveShortLink = lazy(() => import('./pages/ResolveShortLink'));
+const TrackedRedirect = lazy(() => import('./pages/TrackedRedirect'));
 const HouseDetail = lazy(() => import('./pages/HouseDetail'));
 const ShopEntry = lazy(() => import('./pages/ShopEntry'));
 const ManagerLogin = lazy(() => import('./pages/ManagerLogin'));
@@ -352,6 +353,8 @@ function AppRoutes() {
           <Route path="/register-partner" element={<RegisterPartnerPublic />} />
           <Route path="/activate" element={<ActivatePartner />} />
           <Route path="/rent-money" element={<RentMoney />} />
+          {/* Bot referral short links: welilereceipts.com/{CODE} — must be last before catch-all */}
+          <Route path="/:code" element={<TrackedRedirect />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
