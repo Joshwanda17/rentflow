@@ -9950,6 +9950,48 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_backup_2026_04_17: {
+        Row: {
+          advance_balance: number | null
+          balance: number | null
+          created_at: string | null
+          currency: string | null
+          float_balance: number | null
+          id: string | null
+          locked_balance: number | null
+          snapshot_at: string | null
+          updated_at: string | null
+          user_id: string | null
+          withdrawable_balance: number | null
+        }
+        Insert: {
+          advance_balance?: number | null
+          balance?: number | null
+          created_at?: string | null
+          currency?: string | null
+          float_balance?: number | null
+          id?: string | null
+          locked_balance?: number | null
+          snapshot_at?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          withdrawable_balance?: number | null
+        }
+        Update: {
+          advance_balance?: number | null
+          balance?: number | null
+          created_at?: string | null
+          currency?: string | null
+          float_balance?: number | null
+          id?: string | null
+          locked_balance?: number | null
+          snapshot_at?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          withdrawable_balance?: number | null
+        }
+        Relationships: []
+      }
       wallet_deductions: {
         Row: {
           amount: number
@@ -10420,6 +10462,18 @@ export type Database = {
           total_rent_requests: number | null
           user_id: string | null
           wallet_balance: number | null
+        }
+        Relationships: []
+      }
+      wallet_ledger_integrity_audit: {
+        Row: {
+          advance_balance: number | null
+          drift: number | null
+          float_balance: number | null
+          ledger_net: number | null
+          user_id: string | null
+          wallet_net: number | null
+          withdrawable_balance: number | null
         }
         Relationships: []
       }
