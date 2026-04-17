@@ -2253,7 +2253,16 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddPortfolioOpen(false)} disabled={addingPortfolio}>Cancel</Button>
-            <Button onClick={handleAddPortfolio} disabled={addingPortfolio}>
+            <Button
+              onClick={handleAddPortfolio}
+              disabled={
+                addingPortfolio ||
+                !addPortfolioAmount ||
+                Number(addPortfolioAmount) < MIN_INVEST ||
+                (addPortfolioFundingSource === 'wallet' && (!detailPartner || Number(addPortfolioAmount) > detailPartner.walletBalance)) ||
+                (addPortfolioFundingSource === 'proxy_agent' && (!proxyAgentInfo || Number(addPortfolioAmount) > proxyAgentInfo.walletBalance))
+              }
+            >
               {addingPortfolio ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating...</> : <><Plus className="h-4 w-4 mr-2" /> Create Portfolio</>}
             </Button>
           </DialogFooter>
