@@ -9,9 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import {
-  CheckCircle2, XCircle, Loader2, Clock, User, Briefcase, MapPin, Banknote,
-} from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, Clock, Briefcase, MapPin, Banknote } from 'lucide-react';
 
 type Stage = 'agent_ops' | 'tenant_ops' | 'landlord_ops' | 'coo' | 'cfo';
 
