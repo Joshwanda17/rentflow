@@ -1182,7 +1182,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       });
     }
     return result;
-  }, [rows, sortKey, sortDir, filterStatus, filterRoiMode, filterContact, payoutDateFrom, payoutDateTo]);
+  }, [rows, sortKey, sortDir, filterStatus, filterRoiMode, filterContact, filterWallet, payoutDateFrom, payoutDateTo]);
 
   // Server-side pagination: use totalCount for page count, display all rows from current page
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
