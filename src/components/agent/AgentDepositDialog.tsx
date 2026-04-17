@@ -6,8 +6,10 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { toast as sonnerToast } from 'sonner';
 import { useProfile } from '@/hooks/useProfile';
 import { Loader2, ArrowDownCircle, Smartphone, AlertCircle, Calendar, Clock, Info, Banknote, Send } from 'lucide-react';
+import { QuickRegisterTenantDialog } from './QuickRegisterTenantDialog';
 
 interface AgentDepositDialogProps {
   open: boolean;
@@ -29,6 +31,7 @@ export function AgentDepositDialog({ open, onOpenChange, onSuccess, prefillPhone
   const [transactionTime, setTransactionTime] = useState('');
   const [narration, setNarration] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showQuickRegister, setShowQuickRegister] = useState(false);
   const [result, setResult] = useState<{
     success: boolean;
     mode: DepositMode;
@@ -195,11 +198,29 @@ export function AgentDepositDialog({ open, onOpenChange, onSuccess, prefillPhone
       }
       onSuccess?.();
     } catch (error: any) {
-      toast({ 
-        title: 'Deposit failed', 
-        description: error.message || 'Please try again',
-        variant: 'destructive' 
-      });
+      const msg = (error.message || '').toLowerCase();
+      const isNotFound =
+        msg.includes('user not found') ||
+        msg.includes('no customer found') ||
+        msg.includes('not registered') ||
+        msg.includes('must be registered');
+
+      if (isNotFound) {
+        sonnerToast.error('Tenant not found', {
+          description: `No tenant on the platform uses ${phone.trim()}. Add them now to continue.`,
+          duration: 10000,
+          action: {
+            label: 'Add tenant',
+            onClick: () => setShowQuickRegister(true),
+          },
+        });
+      } else {
+        toast({
+          title: 'Deposit failed',
+          description: error.message || 'Please try again',
+          variant: 'destructive',
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -219,51 +240,64 @@ export function AgentDepositDialog({ open, onOpenChange, onSuccess, prefillPhone
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ArrowDownCircle className="h-5 w-5 text-success" />
-            Process Customer Deposit
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={handleClose}>
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowDownCircle className="h-5 w-5 text-success" />
+              Process Customer Deposit
+            </DialogTitle>
+          </DialogHeader>
 
-        {/* Success View */}
-        {result?.success ? (
-          <DepositSuccessView 
-            result={result} 
-            formatCurrency={formatCurrency} 
-            onClose={handleClose} 
-          />
-        ) : !mode ? (
-          /* Mode Selection */
-          <ModeSelector onSelect={setMode} />
-        ) : (
-          /* Deposit Form */
-          <DepositForm
-            mode={mode}
-            phone={phone}
-            amount={amount}
-            provider={provider}
-            transactionId={transactionId}
-            transactionDate={transactionDate}
-            transactionTime={transactionTime}
-            narration={narration}
-            loading={loading}
-            onPhoneChange={setPhone}
-            onAmountChange={setAmount}
-            onProviderChange={setProvider}
-            onTransactionIdChange={setTransactionId}
-            onTransactionDateChange={setTransactionDate}
-            onTransactionTimeChange={setTransactionTime}
-            onNarrationChange={setNarration}
-            onSubmit={handleSubmit}
-            onBack={() => setMode(null)}
-            onClose={handleClose}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
+          {/* Success View */}
+          {result?.success ? (
+            <DepositSuccessView 
+              result={result} 
+              formatCurrency={formatCurrency} 
+              onClose={handleClose} 
+            />
+          ) : !mode ? (
+            /* Mode Selection */
+            <ModeSelector onSelect={setMode} />
+          ) : (
+            /* Deposit Form */
+            <DepositForm
+              mode={mode}
+              phone={phone}
+              amount={amount}
+              provider={provider}
+              transactionId={transactionId}
+              transactionDate={transactionDate}
+              transactionTime={transactionTime}
+              narration={narration}
+              loading={loading}
+              onPhoneChange={setPhone}
+              onAmountChange={setAmount}
+              onProviderChange={setProvider}
+              onTransactionIdChange={setTransactionId}
+              onTransactionDateChange={setTransactionDate}
+              onTransactionTimeChange={setTransactionTime}
+              onNarrationChange={setNarration}
+              onSubmit={handleSubmit}
+              onBack={() => setMode(null)}
+              onClose={handleClose}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <QuickRegisterTenantDialog
+        open={showQuickRegister}
+        onOpenChange={setShowQuickRegister}
+        prefillPhone={phone}
+        onRegistered={(p) => {
+          setPhone(p);
+          setShowQuickRegister(false);
+          sonnerToast.success('Tenant added — you can now process the payment');
+        }}
+      />
+    </>
   );
 }
 
