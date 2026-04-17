@@ -152,6 +152,14 @@ export function AgentCashPayoutsTab() {
 
   return (
     <div className="space-y-4">
+      {/* Role identity banner */}
+      <div className="flex items-start gap-2 p-2.5 rounded-lg bg-primary/5 border border-primary/20">
+        <Banknote className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+        <div className="text-[11px] text-foreground/80 leading-snug">
+          You are operating as a <span className="font-semibold text-primary">Financial Ops Cash-Out Agent</span> (assigned by the CFO). Your only authorised action here is to process withdrawal payouts on behalf of Financial Ops.
+        </div>
+      </div>
+
       {/* Live status banner */}
       {totalPending > 0 && (
         <div className="flex items-center gap-2 p-2 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-700 dark:text-orange-400">

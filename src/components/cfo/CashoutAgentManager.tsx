@@ -99,10 +99,15 @@ export function CashoutAgentManager() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h2 className="text-lg font-bold flex items-center gap-2">
-          <Banknote className="h-5 w-5 text-primary" />
-          Cash-Out Agents
-        </h2>
+        <div>
+          <h2 className="text-lg font-bold flex items-center gap-2">
+            <Banknote className="h-5 w-5 text-primary" />
+            Cash-Out Agents
+          </h2>
+          <p className="text-[11px] text-muted-foreground mt-0.5 max-w-md">
+            Field extension of <span className="font-semibold text-foreground">Financial Ops</span>. Assigned agents can ONLY process withdrawal payouts (cash &amp; bank) on behalf of the CFO — no other Financial Ops privileges are granted.
+          </p>
+        </div>
         <Dialog open={showAssign} onOpenChange={v => { setShowAssign(v); if (!v) setPickedAgent(null); }}>
           <DialogTrigger asChild>
             <Button size="sm" className="gap-1.5"><UserPlus className="h-4 w-4" /> Assign Agent</Button>
@@ -110,7 +115,7 @@ export function CashoutAgentManager() {
           <DialogContent className="max-w-sm overflow-visible" onInteractOutside={e => e.preventDefault()} onPointerDownOutside={e => e.preventDefault()}>
             <DialogHeader><DialogTitle>Assign Cash-Out Agent</DialogTitle></DialogHeader>
             <p className="text-xs text-muted-foreground">
-              This agent will handle cash and/or bank withdrawal payouts at their location.
+              This agent becomes a field extension of Financial Ops, authorised <span className="font-semibold">only</span> to complete withdrawal payouts (cash and/or bank). They get no other Financial Ops permissions.
             </p>
             <div className="space-y-3">
               <UserSearchPicker
