@@ -7,9 +7,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
-import { Loader2, Wallet, Search, User, TrendingUp, ArrowLeft } from 'lucide-react';
+import { Loader2, Wallet, Search, User, TrendingUp, ArrowLeft, UserPlus } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import ConfirmSummaryCard from '@/components/payments/ConfirmSummaryCard';
+import { QuickRegisterTenantDialog } from './QuickRegisterTenantDialog';
 
 interface AgentTopUpTenantDialogProps {
   open: boolean;
