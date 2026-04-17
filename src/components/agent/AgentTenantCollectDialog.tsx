@@ -149,6 +149,15 @@ export function AgentTenantCollectDialog({
                   <p className="text-[10px] text-muted-foreground mt-0.5">10% instantly credited to your commission wallet</p>
                 </div>
               )}
+              {result.commission_balance !== undefined && (
+                <div className="border-t border-border/40 pt-2 mt-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground text-xs">🔒 Commission Untouched</span>
+                    <span className="font-mono text-xs text-muted-foreground">{formatUGX(result.commission_balance)}</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Float-only deduction — commission compartment preserved.</p>
+                </div>
+              )}
             </div>
 
             <Button onClick={handleClose} className="w-full h-12 font-bold">Done</Button>
