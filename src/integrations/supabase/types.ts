@@ -10656,6 +10656,38 @@ export type Database = {
       generate_portfolio_code: { Args: never; Returns: string }
       generate_short_code: { Args: never; Returns: string }
       generate_welile_ai_id: { Args: { user_uuid: string }; Returns: string }
+      get_agent_ops_balances: {
+        Args: {
+          _limit?: number
+          _offset?: number
+          _search?: string
+          _sort?: string
+        }
+        Returns: {
+          advance: number
+          float_balance: number
+          full_name: string
+          phone: string
+          territory: string
+          total: number
+          total_matched: number
+          user_id: string
+          withdrawable: number
+        }[]
+      }
+      get_agent_ops_totals: {
+        Args: never
+        Returns: {
+          total_advance: number
+          total_count: number
+          total_float: number
+          total_held: number
+          total_withdrawable: number
+          with_advance: number
+          with_float: number
+          with_withdrawable: number
+        }[]
+      }
       get_agent_split_balances: {
         Args: { p_agent_id: string }
         Returns: {
