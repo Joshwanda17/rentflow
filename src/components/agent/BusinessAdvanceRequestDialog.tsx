@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import { Briefcase, Loader2, MapPin, Navigation, AlertTriangle, CheckCircle2, Copy, Share2, Smartphone, MessageCircle } from 'lucide-react';
+import { Briefcase, Loader2, Navigation, AlertTriangle, CheckCircle2, Copy, Smartphone, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { BUSINESS_TYPES, projectOutstanding, formatUGX } from '@/lib/businessAdvanceCalculations';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
@@ -152,7 +152,7 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
       const activation = `${getPublicOrigin()}/activate?phone=${encodeURIComponent(cleanPhone)}&type=business`;
 
       // 3. Create the business advance
-      const { data: advance, error: advErr } = await supabase
+      const { error: advErr } = await supabase
         .from('business_advances')
         .insert({
           tenant_id: tenantId,
