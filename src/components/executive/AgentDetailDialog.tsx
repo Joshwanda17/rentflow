@@ -9,8 +9,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import {
   Wallet, ArrowUpFromLine, Banknote, CreditCard, Phone, Mail, MapPin, Calendar,
-  CheckCircle2, XCircle, AlertTriangle, Building2, TrendingUp, TrendingDown,
-  Users, Receipt, ClipboardList, Award, Activity,
+  CheckCircle2, XCircle, AlertTriangle, Receipt, Award, Activity,
 } from 'lucide-react';
 
 type Props = {
