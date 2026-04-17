@@ -11,7 +11,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import {
   Banknote, QrCode, Search, CheckCircle2, Loader2, Building2,
-  Smartphone, Wallet, Bell,
+  Smartphone, Wallet, Bell, TrendingUp, Clock, Hash,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
