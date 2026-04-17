@@ -11,7 +11,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import {
   Banknote, QrCode, Search, CheckCircle2, Loader2, Building2,
-  Smartphone, Wallet, Bell,
+  Smartphone, Wallet, Bell, TrendingUp, Clock, Hash,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
@@ -66,6 +66,51 @@ export function AgentCashPayoutsTab() {
     enabled: !!isCashoutAgent,
     staleTime: 30_000,
     refetchOnWindowFocus: true,
+  });
+
+  // Daily stats: codes verified + cash withdrawals completed by this agent today
+  const { data: dailyStats } = useQuery({
+    queryKey: ['cashout-agent-daily-stats', user?.id],
+    queryFn: async () => {
+      if (!user) return { codesCount: 0, totalAmount: 0, avgMinutes: 0 };
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const startIso = startOfDay.toISOString();
+
+      // Payout codes paid by this agent today
+      const { data: codes } = await supabase
+        .from('payout_codes')
+        .select('amount, created_at, paid_at')
+        .eq('paid_by', user.id)
+        .eq('status', 'paid')
+        .gte('paid_at', startIso);
+
+      // Withdrawal requests completed by this agent today (via approve-withdrawal)
+      const { data: wreqs } = await supabase
+        .from('withdrawal_requests')
+        .select('amount, created_at, processed_at')
+        .eq('processed_by', user.id)
+        .in('status', ['approved', 'completed'])
+        .gte('processed_at', startIso);
+
+      const codeRows = codes || [];
+      const wreqRows = wreqs || [];
+      const allRows = [
+        ...codeRows.map((r: any) => ({ amount: Number(r.amount || 0), created_at: r.created_at, finished_at: r.paid_at })),
+        ...wreqRows.map((r: any) => ({ amount: Number(r.amount || 0), created_at: r.created_at, finished_at: r.processed_at })),
+      ];
+
+      const codesCount = allRows.length;
+      const totalAmount = allRows.reduce((sum, r) => sum + r.amount, 0);
+      const durations = allRows
+        .filter(r => r.created_at && r.finished_at)
+        .map(r => (new Date(r.finished_at).getTime() - new Date(r.created_at).getTime()) / 60000);
+      const avgMinutes = durations.length ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
+
+      return { codesCount, totalAmount, avgMinutes };
+    },
+    enabled: !!user && !!isCashoutAgent,
+    staleTime: 60_000,
   });
 
   // Realtime subscription
@@ -175,6 +220,37 @@ export function AgentCashPayoutsTab() {
           You are operating as a <span className="font-semibold text-primary">Financial Ops Cash-Out Agent</span>. Your only authorised action here is to process wallet withdrawal payouts on behalf of Financial Ops.
         </div>
       </div>
+
+      {/* Daily summary */}
+      <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            Today's Performance
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-3 gap-2 pt-0">
+          <div className="space-y-1">
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <Hash className="h-3 w-3" /> Codes verified
+            </div>
+            <div className="text-lg font-bold text-foreground">{dailyStats?.codesCount ?? 0}</div>
+          </div>
+          <div className="space-y-1">
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <TrendingUp className="h-3 w-3" /> Amount paid
+            </div>
+            <div className="text-lg font-bold text-primary">{formatUGX(dailyStats?.totalAmount ?? 0)}</div>
+          </div>
+          <div className="space-y-1">
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <Clock className="h-3 w-3" /> Avg time
+            </div>
+            <div className="text-lg font-bold text-foreground">
+              {dailyStats?.avgMinutes ? `${Math.round(dailyStats.avgMinutes)}m` : '—'}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Live status banner */}
       {totalPending > 0 && (
