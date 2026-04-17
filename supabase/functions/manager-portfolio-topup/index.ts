@@ -150,6 +150,9 @@ Deno.serve(async (req) => {
     }
 
     // ── 2. Deduct from wallet immediately (FATAL on failure — no silent leaks) ──
+    // CRITICAL: The credit (cash_in) MUST be platform-scope. If it stays at the default
+    // wallet scope and the partner == wallet owner, the two entries net-zero and the
+    // wallet never reduces. Money has left the user's wallet → it now sits with the platform.
     const { error: deductErr } = await supabase.rpc("create_ledger_transaction", {
       entries: [
         {
@@ -157,20 +160,26 @@ Deno.serve(async (req) => {
           amount: topupAmount,
           direction: "cash_out",
           category: "wallet_deduction",
+          ledger_scope: "wallet",
           description: `Wallet deduction for ${accountLabel} top-up`,
           source_table: "investor_portfolios",
           source_id: portfolio_id,
           linked_party: "platform",
+          currency: "UGX",
+          transaction_date: new Date().toISOString(),
         },
         {
           user_id: partnerId,
           amount: topupAmount,
           direction: "cash_in",
           category: "pending_portfolio_topup",
+          ledger_scope: "platform",
           description: `Pending capital for ${accountLabel} — applied at maturity`,
           source_table: "investor_portfolios",
           source_id: portfolio_id,
           linked_party: walletOwnerId,
+          currency: "UGX",
+          transaction_date: new Date().toISOString(),
         },
       ],
     });
@@ -178,6 +187,18 @@ Deno.serve(async (req) => {
     if (deductErr) {
       console.error("[manager-portfolio-topup] LEDGER FAILURE — aborting:", deductErr);
       return jsonRes({ error: `Wallet deduction failed: ${deductErr.message}. Top-up cancelled.` }, 500);
+    }
+
+    // ── 2b. Verify wallet actually decreased (guard against silent net-zero bugs) ──
+    const { data: postWallet } = await supabase
+      .from("wallets")
+      .select("balance")
+      .eq("user_id", walletOwnerId)
+      .single();
+    const postBalance = Number(postWallet?.balance ?? walletBalance);
+    if (postBalance >= walletBalance) {
+      console.error(`[manager-portfolio-topup] WALLET DID NOT DECREASE — before=${walletBalance} after=${postBalance}`);
+      return jsonRes({ error: "Wallet did not decrease. Top-up aborted." }, 500);
     }
 
     // ── 3. Record pre-approved pending operation (for maturity merge) ──
