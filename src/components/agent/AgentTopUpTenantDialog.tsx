@@ -7,9 +7,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
-import { Loader2, Wallet, Search, User, TrendingUp, ArrowLeft } from 'lucide-react';
+import { Loader2, Wallet, Search, User, TrendingUp, ArrowLeft, UserPlus } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import ConfirmSummaryCard from '@/components/payments/ConfirmSummaryCard';
+import { QuickRegisterTenantDialog } from './QuickRegisterTenantDialog';
 
 interface AgentTopUpTenantDialogProps {
   open: boolean;
@@ -31,6 +32,7 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
   const [agentBalance, setAgentBalance] = useState<number | null>(null);
   const [tenantRentBalance, setTenantRentBalance] = useState<number | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [showQuickRegister, setShowQuickRegister] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -73,7 +75,7 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
       const { data, error } = await query.limit(8);
       if (error) throw error;
       if (!data || data.length === 0) {
-        toast({ title: 'No tenant found', description: `No user matching "${q}"`, variant: 'destructive' });
+        setShowQuickRegister(true);
         return;
       }
       if (data.length === 1) {
@@ -147,7 +149,18 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
       toast({ title: `${formatUGX(amountNum)} deposited to ${tenantInfo.full_name}'s wallet` });
       onSuccess?.();
     } catch (err: any) {
-      toast({ title: 'Top-up failed', description: err.message, variant: 'destructive' });
+      const msg = (err?.message || '').toLowerCase();
+      const isNotFound =
+        msg.includes('user not found') ||
+        msg.includes('no customer found') ||
+        msg.includes('not registered') ||
+        msg.includes('must be registered');
+
+      if (isNotFound) {
+        setShowQuickRegister(true);
+      } else {
+        toast({ title: 'Top-up failed', description: err.message, variant: 'destructive' });
+      }
     } finally {
       setLoading(false);
     }
@@ -166,6 +179,7 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -370,5 +384,31 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
         )}
       </DialogContent>
     </Dialog>
+
+    <QuickRegisterTenantDialog
+      open={showQuickRegister}
+      onOpenChange={setShowQuickRegister}
+      prefillPhone={/^\+?\d{7,}$/.test(searchQuery.replace(/\s/g, '')) ? searchQuery.trim() : tenantInfo?.phone}
+      onRegistered={(p) => {
+        setShowQuickRegister(false);
+        setSearchQuery(p);
+        setTenantInfo(null);
+        setSearchResults([]);
+        // auto-search the newly registered tenant
+        setTimeout(() => {
+          (async () => {
+            const normalized = p.replace(/^\+?256/, '0');
+            const { data } = await supabase
+              .from('profiles')
+              .select('id, full_name, phone')
+              .or(`phone.eq.${normalized},phone.eq.+256${normalized.slice(1)},phone.eq.${p}`)
+              .limit(1)
+              .maybeSingle();
+            if (data) selectTenant(data);
+          })();
+        }, 100);
+      }}
+    />
+    </>
   );
 }
