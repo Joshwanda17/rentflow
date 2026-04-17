@@ -3,7 +3,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
 export interface AgentSplitBalances {
+  withdrawableBalance: number;
   floatBalance: number;
+  advanceBalance: number;
+  /** @deprecated Use withdrawableBalance. Kept for backward compatibility. */
   commissionBalance: number;
   totalBalance: number;
 }
@@ -17,25 +20,28 @@ export function useAgentBalances(agentId?: string) {
     queryFn: async (): Promise<AgentSplitBalances> => {
       if (!effectiveId) throw new Error('No agent ID available');
 
-      const { data: result, error } = await supabase.rpc('get_agent_split_balances', {
-        p_agent_id: effectiveId,
-      });
+      // Read directly from wallets table (3-bucket model)
+      const { data: wallet, error } = await supabase
+        .from('wallets')
+        .select('withdrawable_balance, float_balance, advance_balance, balance')
+        .eq('user_id', effectiveId)
+        .maybeSingle();
 
       if (error) {
-        console.error('[useAgentBalances] RPC error:', error);
+        console.error('[useAgentBalances] error:', error);
         throw error;
       }
 
-      const row = Array.isArray(result) ? result[0] : result;
-      const floatBalance = Number(row?.float_balance ?? 0);
-      const commissionBalance = Number(row?.commission_balance ?? 0);
-
-      console.log('[useAgentBalances] fetched:', { floatBalance, commissionBalance, effectiveId });
+      const withdrawableBalance = Number((wallet as any)?.withdrawable_balance ?? 0);
+      const floatBalance = Number((wallet as any)?.float_balance ?? 0);
+      const advanceBalance = Number((wallet as any)?.advance_balance ?? 0);
 
       return {
+        withdrawableBalance,
         floatBalance,
-        commissionBalance,
-        totalBalance: floatBalance + commissionBalance,
+        advanceBalance,
+        commissionBalance: withdrawableBalance, // legacy alias
+        totalBalance: withdrawableBalance + floatBalance,
       };
     },
     enabled: !!effectiveId,
@@ -46,7 +52,9 @@ export function useAgentBalances(agentId?: string) {
   });
 
   return {
+    withdrawableBalance: data?.withdrawableBalance ?? 0,
     floatBalance: data?.floatBalance ?? 0,
+    advanceBalance: data?.advanceBalance ?? 0,
     commissionBalance: data?.commissionBalance ?? 0,
     totalBalance: data?.totalBalance ?? 0,
     isLoading,

@@ -128,16 +128,14 @@ Deno.serve(async (req) => {
       `submitter=${wr.user_id}, debiting=${fundingUserId}, beneficiary=${beneficiaryUserId}, amount=${amount}`
     );
 
-    // Check wallet balance (from wallets table, which is derived from ledger)
+    // 3-BUCKET WALLET MODEL: withdrawals can ONLY draw from withdrawable_balance.
     const { data: wallet } = await admin
       .from("wallets")
-      .select("balance")
+      .select("balance, withdrawable_balance, float_balance, advance_balance")
       .eq("user_id", fundingUserId)
       .single();
 
-    // Check if there's already a pending hold (pre-deduction) for this withdrawal
-    // This happens when agents submit proxy withdrawals — they pre-deduct via a
-    // 'withdrawal_pending' ledger entry. We must credit that back before re-checking.
+    // Reverse any pre-existing 'withdrawal_pending' holds for this request before re-checking.
     const { data: pendingHolds } = await admin
       .from("general_ledger")
       .select("id, amount")
@@ -147,62 +145,22 @@ Deno.serve(async (req) => {
       .eq("direction", "cash_out");
 
     const totalPendingHold = (pendingHolds || []).reduce((sum: number, h: any) => sum + Number(h.amount), 0);
-    const effectiveBalance = (wallet?.balance || 0) + totalPendingHold;
 
-    // For direct agent withdrawals, check commission-aware withdrawable balance.
-    // Skip this for proxy payouts because they are partner funds routed through the agent wallet.
-    const { data: agentRole } = isProxyPayout
-      ? { data: null as any }
-      : await admin
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", fundingUserId)
-          .eq("role", "agent")
-          .maybeSingle();
+    // For proxy payouts, funds are partner funds routed through the agent's wallet —
+    // historically these went through the float pool, so accept either bucket.
+    const withdrawable = Number((wallet as any)?.withdrawable_balance ?? 0) + totalPendingHold;
+    const totalSpendable = isProxyPayout
+      ? Number(wallet?.balance ?? 0) + totalPendingHold
+      : withdrawable;
+    const effectiveBalance = totalSpendable;
 
-    let withdrawableBalance = effectiveBalance;
-
-    if (agentRole) {
-      // Use split balance RPC to get the withdrawable (commission) portion.
-      // This is derived from the ledger and includes CFO direct transfers — it is
-      // the source of truth, not the (possibly stale) wallets.balance cache.
-      const { data: splitBalances } = await admin.rpc("get_agent_split_balances", {
-        p_agent_id: fundingUserId,
-      });
-      const balRow = Array.isArray(splitBalances) ? splitBalances[0] : splitBalances;
-      const commissionBalance = Number(balRow?.commission_balance ?? 0);
-
-      // Trust the ledger-derived withdrawable balance directly (do NOT cap with the
-      // stale wallets.balance cache, which can lag behind direct ledger inserts).
-      withdrawableBalance = commissionBalance + totalPendingHold;
-
-      // Soft check: if agent has high outstanding float, warn but allow
-      const { data: outstandingRows } = await admin.rpc("get_outstanding_agent_float");
-      const agentFloat = (outstandingRows || []).find((r: any) => r.agent_id === fundingUserId);
-      const outstandingFloat = Number(agentFloat?.outstanding ?? 0);
-      const ageHours = Number(agentFloat?.age_hours ?? 0);
-
-      // If agent has overdue float (>72h), block commission withdrawal entirely
-      if (outstandingFloat > 0 && ageHours > 72) {
-        return new Response(
-          JSON.stringify({
-            error: `Commission withdrawal blocked: you have UGX ${outstandingFloat.toLocaleString()} in unsettled float outstanding for ${Math.floor(ageHours)}h. Please settle landlord deliveries first.`,
-          }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-    }
-
-    if (!wallet || withdrawableBalance < amount) {
-      const errorMsg = agentRole
-        ? `Cannot approve: agent's withdrawable commission is only UGX ${withdrawableBalance.toLocaleString()}, but they requested UGX ${amount.toLocaleString()}. The remaining balance is company float (locked) and cannot be withdrawn. Please reject this request.`
-        : `Insufficient wallet balance. Available: UGX ${withdrawableBalance.toLocaleString()}, requested: UGX ${amount.toLocaleString()}.`;
+    if (!wallet || totalSpendable < amount) {
       return new Response(
-        JSON.stringify({ error: errorMsg, code: "INSUFFICIENT_WITHDRAWABLE" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        JSON.stringify({
+          error: `Insufficient withdrawable balance. Available: UGX ${withdrawable.toLocaleString()}, requested: UGX ${amount.toLocaleString()}.`,
+          code: "INSUFFICIENT_WITHDRAWABLE",
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
