@@ -627,6 +627,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <NearbyTenantsSheet open={nearbyTenantsOpen} onOpenChange={setNearbyTenantsOpen} />
       <MySubAgentsSheet open={subAgentsSheetOpen} onOpenChange={setSubAgentsSheetOpen} />
       <QuickShareSubAgentSheet open={shareLinkOpen} onOpenChange={setShareLinkOpen} />
+      <ShareLandlordLinkDialog open={shareLandlordOpen} onOpenChange={setShareLandlordOpen} />
       <FunderManagementSheet open={funderSheetOpen} onOpenChange={setFunderSheetOpen} />
       <AgentPartnerDashboardSheet open={partnerDashboardOpen} onOpenChange={setPartnerDashboardOpen} />
       <FinancialAgentSection open={requisitionOpen} onOpenChange={setRequisitionOpen} />
