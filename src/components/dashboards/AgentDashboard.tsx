@@ -381,6 +381,22 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             </div>
           </div>
 
+          {/* BUSINESS ADVANCE — prominent CTA between rows */}
+          <button
+            onClick={() => { hapticTap(); setBusinessAdvanceOpen(true); }}
+            className="w-full flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-primary/15 via-primary/10 to-primary/5 ring-1 ring-primary/30 active:scale-[0.98] transition-all touch-manipulation"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
+          >
+            <div className="p-2.5 rounded-xl bg-primary text-primary-foreground shadow-md">
+              <Briefcase className="h-5 w-5" strokeWidth={2.2} />
+            </div>
+            <div className="flex-1 text-left">
+              <div className="font-bold text-sm text-foreground">BUSINESS ADVANCE</div>
+              <div className="text-[11px] text-muted-foreground">Request advance for tenant's business · Earn 0.5% on every repayment</div>
+            </div>
+            <span className="text-xs font-bold text-primary">→</span>
+          </button>
+
           {/* Row 2: Share & grow */}
           <div>
             <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-1 mb-2 flex items-center gap-1">
