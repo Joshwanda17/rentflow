@@ -68,6 +68,51 @@ export function AgentCashPayoutsTab() {
     refetchOnWindowFocus: true,
   });
 
+  // Daily stats: codes verified + cash withdrawals completed by this agent today
+  const { data: dailyStats } = useQuery({
+    queryKey: ['cashout-agent-daily-stats', user?.id],
+    queryFn: async () => {
+      if (!user) return { codesCount: 0, totalAmount: 0, avgMinutes: 0 };
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const startIso = startOfDay.toISOString();
+
+      // Payout codes paid by this agent today
+      const { data: codes } = await supabase
+        .from('payout_codes')
+        .select('amount, created_at, paid_at')
+        .eq('paid_by', user.id)
+        .eq('status', 'paid')
+        .gte('paid_at', startIso);
+
+      // Withdrawal requests completed by this agent today (via approve-withdrawal)
+      const { data: wreqs } = await supabase
+        .from('withdrawal_requests')
+        .select('amount, created_at, processed_at')
+        .eq('processed_by', user.id)
+        .in('status', ['approved', 'completed'])
+        .gte('processed_at', startIso);
+
+      const codeRows = codes || [];
+      const wreqRows = wreqs || [];
+      const allRows = [
+        ...codeRows.map((r: any) => ({ amount: Number(r.amount || 0), created_at: r.created_at, finished_at: r.paid_at })),
+        ...wreqRows.map((r: any) => ({ amount: Number(r.amount || 0), created_at: r.created_at, finished_at: r.processed_at })),
+      ];
+
+      const codesCount = allRows.length;
+      const totalAmount = allRows.reduce((sum, r) => sum + r.amount, 0);
+      const durations = allRows
+        .filter(r => r.created_at && r.finished_at)
+        .map(r => (new Date(r.finished_at).getTime() - new Date(r.created_at).getTime()) / 60000);
+      const avgMinutes = durations.length ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
+
+      return { codesCount, totalAmount, avgMinutes };
+    },
+    enabled: !!user && !!isCashoutAgent,
+    staleTime: 60_000,
+  });
+
   // Realtime subscription
   useEffect(() => {
     if (!isCashoutAgent) return;
