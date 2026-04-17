@@ -31,16 +31,27 @@ export function AgentBalancesPanel() {
   const { data, isLoading } = useQuery({
     queryKey: ['agent-ops-balances'],
     queryFn: async (): Promise<AgentBalanceRow[]> => {
-      // 1. Get agent user_ids
-      const { data: roles, error: rolesErr } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'agent');
-      if (rolesErr) throw rolesErr;
-      const ids = [...new Set((roles || []).map((r) => r.user_id))];
+      // 1. Get ALL agent user_ids using range pagination (PostgREST caps each request at 1000 rows)
+      const ROLE_PAGE = 1000;
+      const allRoleRows: { user_id: string }[] = [];
+      let from = 0;
+      // Hard cap of 50k agents to prevent runaway loops
+      while (from < 50000) {
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('user_id')
+          .eq('role', 'agent')
+          .range(from, from + ROLE_PAGE - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        allRoleRows.push(...data);
+        if (data.length < ROLE_PAGE) break;
+        from += ROLE_PAGE;
+      }
+      const ids = [...new Set(allRoleRows.map((r) => r.user_id))];
       if (ids.length === 0) return [];
 
-      // 2. Batch fetch wallets + profiles (50 at a time to stay under PostgREST IN limits)
+      // 2. Batch fetch wallets + profiles (100 at a time to stay under PostgREST IN limits)
       const BATCH = 100;
       const wallets: any[] = [];
       const profiles: any[] = [];
