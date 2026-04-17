@@ -1,45 +1,37 @@
 
 
-The user wants:
-- A single referral link for the chatbot to share
-- Format: `domain/{code}` (no `/r/` prefix — just `welilereceipts.com/WLEQ`)
-- Tracks every click (so we know which users came via the bot)
-- I should generate the link and give it to them
+User is on `/admin/financial-ops` but the actual "Cash-Out Agents" section lives in CFO Dashboard via `CashoutAgentManager.tsx`. Each agent card currently has only Eye (view) + X (deactivate). They want a new "Cashout" button that opens **all current pending withdrawal requests** so the operator can see what each cash-out agent could be working on.
 
-Existing setup uses `/r/:code`. They specifically want `domain/{code}` directly. That means a new top-level route that doesn't collide with existing routes.
+The list of pending withdrawals already exists in `AgentCashPayoutsTab.tsx` (logged-in agent view). I'll reuse the same query and present a read-only view in a dialog, with a contextual hint about which cash-out agent it's tied to.
 
-Keep this minimal — they declined the big plan. No dashboard, no per-source tagging UI, just: one link + click tracking.
+## Plan — Add "Cashout" button to each Cash-Out Agent card
 
-## Plan — Single Bot Referral Link with Click Tracking
+### What I'll add
 
-### What I'll build
+**1. New button on each agent card** (`src/components/cfo/CashoutAgentManager.tsx`)
+- Add a `<Banknote/>` "Cashout" button next to Eye + X
+- Clicking opens a new dialog showing all currently pending withdrawal requests
 
-**1. DB migration (minimal)**
-- Add `click_count int default 0` and `last_clicked_at timestamptz` to existing `short_links`
-- New table `short_link_clicks` (id, code, clicked_at, user_agent, referrer) — one row per visit
-- New RPC `record_short_link_click(p_code, p_user_agent, p_referrer)` — increments counter + inserts row, callable by anon
+**2. New dialog component** `CashoutPendingWithdrawalsDialog.tsx` (in `src/components/cfo/`)
+- Fetches `withdrawal_requests` where status in `pending, requested, manager_approved, cfo_approved, fin_ops_approved, approved` (same filter as AgentCashPayoutsTab)
+- Joins `profiles:user_id(full_name, phone)`
+- Tabs: All / MoMo / Bank / Cash (same split logic)
+- Per-row card shows: recipient name+phone, amount, payout method+details (bank/MoMo/cash), status badge, time, claim status (assigned_cashout_agent_id), reason
+- Banner at top: "Pending withdrawals — visible to all cash-out agents. {Agent name} can claim from their app."
+- Realtime: subscribes to `withdrawal_requests` changes and refreshes
+- **Read-only here** — no claim/complete actions (those happen in the agent's own app via `AgentCashPayoutsTab`)
 
-**2. New route `/:code` (top-level, format `welilereceipts.com/WLEQ`)**
-- New page `TrackedRedirect.tsx` — looks up code in `short_links`, fires click-tracking RPC, redirects to target
-- Added in `App.tsx` as the LAST route (after all named routes) so it only catches unknown 4–8 char paths
-- Guard: only treat path as a code if it matches `/^[A-Za-z0-9]{4,8}$/` and isn't a known route — otherwise fall through to NotFound
-
-**3. Generate the actual bot link (one-time)**
-- After migration runs, I'll insert one `short_links` row with `target_path='/auth'`, `target_params={source:'bot'}`, owned by your account
-- Then output the final URL like `https://welilereceipts.com/WLEQ7p` for you to give to the bot
-
-**4. Tiny click stats query helper**
-- Add a one-line readonly view so you can later check `select code, click_count, last_clicked_at from short_links` to see how many bot visitors came in
+**3. Reuse, don't duplicate**
+- Extract the existing `WithdrawalPayoutCard` from `AgentCashPayoutsTab.tsx` into a shared `src/components/withdrawals/WithdrawalPayoutCard.tsx` with optional `readOnly` prop
+- Both `AgentCashPayoutsTab` and the new dialog import it
 
 ### Files
-- `supabase/migrations/<new>.sql` — columns, clicks table, RPC, RLS
-- `src/pages/TrackedRedirect.tsx` — new
-- `src/App.tsx` — add catch-route at end
-- One DB insert to mint your bot's link
+- `src/components/cfo/CashoutAgentManager.tsx` — add Cashout button + state + render dialog
+- `src/components/cfo/CashoutPendingWithdrawalsDialog.tsx` — new
+- `src/components/withdrawals/WithdrawalPayoutCard.tsx` — extracted, with `readOnly` prop
+- `src/components/agent/AgentCashPayoutsTab.tsx` — import shared card, remove inline copy
 
-### Format
-`https://welilereceipts.com/{CODE}` — exactly as you asked. No `/r/`.
-
-### After implementation
-I'll reply with the actual generated link (e.g. `https://welilereceipts.com/Kx9Mq2`) ready for the bot.
+### Out of scope
+- Letting CFO claim/complete withdrawals on behalf of an agent (current model: only the agent themselves claims via their dashboard)
+- Any DB changes (none needed)
 
