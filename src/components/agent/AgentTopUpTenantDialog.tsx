@@ -384,5 +384,31 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
         )}
       </DialogContent>
     </Dialog>
+
+    <QuickRegisterTenantDialog
+      open={showQuickRegister}
+      onOpenChange={setShowQuickRegister}
+      prefillPhone={/^\+?\d{7,}$/.test(searchQuery.replace(/\s/g, '')) ? searchQuery.trim() : tenantInfo?.phone}
+      onRegistered={(p) => {
+        setShowQuickRegister(false);
+        setSearchQuery(p);
+        setTenantInfo(null);
+        setSearchResults([]);
+        // auto-search the newly registered tenant
+        setTimeout(() => {
+          (async () => {
+            const normalized = p.replace(/^\+?256/, '0');
+            const { data } = await supabase
+              .from('profiles')
+              .select('id, full_name, phone')
+              .or(`phone.eq.${normalized},phone.eq.+256${normalized.slice(1)},phone.eq.${p}`)
+              .limit(1)
+              .maybeSingle();
+            if (data) selectTenant(data);
+          })();
+        }, 100);
+      }}
+    />
+    </>
   );
 }
