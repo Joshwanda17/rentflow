@@ -31,65 +31,19 @@ export function AgentBalancesPanel() {
   const { data, isLoading } = useQuery({
     queryKey: ['agent-ops-balances'],
     queryFn: async (): Promise<AgentBalanceRow[]> => {
-      // 1. Get ALL agent user_ids using range pagination (PostgREST caps each request at 1000 rows)
-      const ROLE_PAGE = 1000;
-      const allRoleRows: { user_id: string }[] = [];
-      let from = 0;
-      // Hard cap of 50k agents to prevent runaway loops
-      while (from < 50000) {
-        const { data, error } = await supabase
-          .from('user_roles')
-          .select('user_id')
-          .eq('role', 'agent')
-          .range(from, from + ROLE_PAGE - 1);
-        if (error) throw error;
-        if (!data || data.length === 0) break;
-        allRoleRows.push(...data);
-        if (data.length < ROLE_PAGE) break;
-        from += ROLE_PAGE;
-      }
-      const ids = [...new Set(allRoleRows.map((r) => r.user_id))];
-      if (ids.length === 0) return [];
+      const { data, error } = await supabase.functions.invoke('agent-ops-balances');
+      if (error) throw error;
+      return (data?.rows || []) as AgentBalanceRow[];
+    },
+    staleTime: 60_000,
+  });
 
-      // 2. Batch fetch wallets + profiles (100 at a time to stay under PostgREST IN limits)
-      const BATCH = 100;
-      const wallets: any[] = [];
-      const profiles: any[] = [];
-      for (let i = 0; i < ids.length; i += BATCH) {
-        const slice = ids.slice(i, i + BATCH);
-        const [wRes, pRes] = await Promise.all([
-          supabase
-            .from('wallets')
-            .select('user_id, withdrawable_balance, float_balance, advance_balance, balance')
-            .in('user_id', slice),
-          supabase
-            .from('profiles')
-            .select('id, full_name, phone, territory')
-            .in('id', slice),
-        ]);
-        if (wRes.data) wallets.push(...wRes.data);
-        if (pRes.data) profiles.push(...pRes.data);
-      }
-
-      const profileMap = new Map(profiles.map((p) => [p.id, p]));
-      const rows: AgentBalanceRow[] = ids.map((id) => {
-        const w = wallets.find((x) => x.user_id === id);
-        const p = profileMap.get(id);
-        const withdrawable = Number(w?.withdrawable_balance ?? 0);
-        const floatBal = Number(w?.float_balance ?? 0);
-        const advance = Number(w?.advance_balance ?? 0);
-        return {
-          user_id: id,
-          full_name: p?.full_name ?? null,
-          phone: p?.phone ?? null,
-          territory: p?.territory ?? null,
-          withdrawable,
-          float: floatBal,
-          advance,
-          total: withdrawable + floatBal + advance,
-        };
-      });
-      return rows;
+  const { data: totalsData } = useQuery({
+    queryKey: ['agent-ops-balances-totals'],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke('agent-ops-balances');
+      if (error) throw error;
+      return data?.totals || { withdrawable: 0, float: 0, advance: 0, total: 0, count: 0, withFloat: 0, withWithdrawable: 0, withAdvance: 0 };
     },
     staleTime: 60_000,
   });
@@ -112,21 +66,16 @@ export function AgentBalancesPanel() {
     return rows;
   }, [data, search, sortKey]);
 
-  const totals = useMemo(() => {
-    const base = { withdrawable: 0, float: 0, advance: 0, total: 0, count: 0, withFloat: 0, withWithdrawable: 0, withAdvance: 0 };
-    if (!data) return base;
-    for (const r of data) {
-      base.withdrawable += r.withdrawable;
-      base.float += r.float;
-      base.advance += r.advance;
-      base.total += r.total;
-      base.count += 1;
-      if (r.float > 0) base.withFloat += 1;
-      if (r.withdrawable > 0) base.withWithdrawable += 1;
-      if (r.advance > 0) base.withAdvance += 1;
-    }
-    return base;
-  }, [data]);
+  const totals = totalsData || {
+    withdrawable: 0,
+    float: 0,
+    advance: 0,
+    total: 0,
+    count: 0,
+    withFloat: 0,
+    withWithdrawable: 0,
+    withAdvance: 0,
+  };
 
   return (
     <div className="space-y-3">
