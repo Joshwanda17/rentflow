@@ -5,6 +5,7 @@ import { Wallet, ArrowUpFromLine, Banknote, CreditCard, Search, TrendingUp } fro
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { AgentDetailDialog } from './AgentDetailDialog';
 
 type AgentBalanceRow = {
   user_id: string;
