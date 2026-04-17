@@ -4939,6 +4939,7 @@ export type Database = {
           tenant_id: string | null
           tin: string | null
           town_council: string | null
+          updated_at: string
           verification_pin_1: string | null
           verification_pin_2: string | null
           verified: boolean | null
@@ -4990,6 +4991,7 @@ export type Database = {
           tenant_id?: string | null
           tin?: string | null
           town_council?: string | null
+          updated_at?: string
           verification_pin_1?: string | null
           verification_pin_2?: string | null
           verified?: boolean | null
@@ -5041,6 +5043,7 @@ export type Database = {
           tenant_id?: string | null
           tin?: string | null
           town_council?: string | null
+          updated_at?: string
           verification_pin_1?: string | null
           verification_pin_2?: string | null
           verified?: boolean | null
