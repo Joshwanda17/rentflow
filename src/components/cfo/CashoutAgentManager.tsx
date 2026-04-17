@@ -228,7 +228,7 @@ export function CashoutAgentManager() {
                           {py.payout_method?.replace(/_/g, ' ') || 'cash'}
                         </Badge>
                         <Badge variant="outline" className="text-[10px] gap-1">
-                          <CheckCircle2 className="h-2.5 w-2.5 text-green-600" /> {py.status}
+                          <CheckCircle2 className="h-2.5 w-2.5" /> {py.status}
                         </Badge>
                       </div>
                       <span className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
