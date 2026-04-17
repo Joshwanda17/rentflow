@@ -18,11 +18,12 @@ import { ServiceCentreVerificationQueue } from './ServiceCentreVerificationQueue
 import { SubAgentVerificationQueue } from './SubAgentVerificationQueue';
 import { TenantToSubAgentPanel } from './TenantToSubAgentPanel';
 import { AgentOpsFloatPayoutReview } from '@/components/agent/AgentOpsFloatPayoutReview';
+import { AgentBalancesPanel } from './AgentBalancesPanel';
 import { UserProfileDialog } from '@/components/supporter/UserProfileDialog';
 import { 
   Users, Banknote, DollarSign, Search, UserPlus, Trophy, BarChart3, 
   ClipboardList, AlertTriangle, Building2, Wallet, Bell, ArrowLeftRight,
-  ChevronLeft, Briefcase, TrendingUp, UsersRound
+  ChevronLeft, Briefcase, TrendingUp, UsersRound, PiggyBank
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { format } from 'date-fns';
