@@ -221,6 +221,37 @@ export function AgentCashPayoutsTab() {
         </div>
       </div>
 
+      {/* Daily summary */}
+      <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            Today's Performance
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-3 gap-2 pt-0">
+          <div className="space-y-1">
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <Hash className="h-3 w-3" /> Codes verified
+            </div>
+            <div className="text-lg font-bold text-foreground">{dailyStats?.codesCount ?? 0}</div>
+          </div>
+          <div className="space-y-1">
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <TrendingUp className="h-3 w-3" /> Amount paid
+            </div>
+            <div className="text-lg font-bold text-primary">{formatUGX(dailyStats?.totalAmount ?? 0)}</div>
+          </div>
+          <div className="space-y-1">
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <Clock className="h-3 w-3" /> Avg time
+            </div>
+            <div className="text-lg font-bold text-foreground">
+              {dailyStats?.avgMinutes ? `${Math.round(dailyStats.avgMinutes)}m` : '—'}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Live status banner */}
       {totalPending > 0 && (
         <div className="flex items-center gap-2 p-2 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-700 dark:text-orange-400">
