@@ -28,25 +28,29 @@ export function AgentBalancesPanel() {
   const [sortKey, setSortKey] = useState<SortKey>('total');
   const [openAgentId, setOpenAgentId] = useState<string | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data: balancesData, isLoading } = useQuery({
     queryKey: ['agent-ops-balances'],
-    queryFn: async (): Promise<AgentBalanceRow[]> => {
+    queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('agent-ops-balances');
       if (error) throw error;
-      return (data?.rows || []) as AgentBalanceRow[];
+      return {
+        rows: (data?.rows || []) as AgentBalanceRow[],
+        totals: data?.totals || {
+          withdrawable: 0,
+          float: 0,
+          advance: 0,
+          total: 0,
+          count: 0,
+          withFloat: 0,
+          withWithdrawable: 0,
+          withAdvance: 0,
+        },
+      };
     },
     staleTime: 60_000,
   });
 
-  const { data: totalsData } = useQuery({
-    queryKey: ['agent-ops-balances-totals'],
-    queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke('agent-ops-balances');
-      if (error) throw error;
-      return data?.totals || { withdrawable: 0, float: 0, advance: 0, total: 0, count: 0, withFloat: 0, withWithdrawable: 0, withAdvance: 0 };
-    },
-    staleTime: 60_000,
-  });
+  const data = balancesData?.rows || [];
 
   const filtered = useMemo(() => {
     if (!data) return [];
@@ -66,7 +70,7 @@ export function AgentBalancesPanel() {
     return rows;
   }, [data, search, sortKey]);
 
-  const totals = totalsData || {
+  const totals = balancesData?.totals || {
     withdrawable: 0,
     float: 0,
     advance: 0,
