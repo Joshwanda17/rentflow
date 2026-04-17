@@ -39,8 +39,16 @@ export function AgentTenantCollectDialog({
     }
   }, [open]);
 
-  const maxAllowable = Math.min(outstandingBalance, floatBalance);
-  const isValid = amount >= 100 && amount <= outstandingBalance && amount <= floatBalance;
+  const maxAllowable = Math.max(0, Math.min(outstandingBalance, floatBalance));
+  const canAllocate = floatBalance >= 100 && outstandingBalance >= 100;
+  const isValid = amount >= 100 && amount <= maxAllowable;
+
+  // Auto-suggest amount when dialog opens and float is available
+  useEffect(() => {
+    if (open && amount === 0 && maxAllowable >= 100) {
+      setAmount(maxAllowable);
+    }
+  }, [open, maxAllowable]);
 
   const handleAllocate = async () => {
     if (!user || !isValid || !tenant) return;
@@ -163,10 +171,19 @@ export function AgentTenantCollectDialog({
               <p className="text-xl font-bold text-destructive font-mono">{formatUGX(outstandingBalance)}</p>
             </div>
 
-            {floatBalance < 500 && (
+            {!canAllocate && floatBalance < 100 && (
               <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/20 rounded-xl p-3">
                 <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
-                <p className="text-xs text-destructive">Insufficient float. Deposit to your operations float first.</p>
+                <p className="text-xs text-destructive">Your operations float is empty. Top it up before paying tenant rent.</p>
+              </div>
+            )}
+
+            {canAllocate && floatBalance < outstandingBalance && (
+              <div className="flex items-start gap-2 bg-warning/10 border border-warning/30 rounded-xl p-3">
+                <AlertCircle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                <p className="text-xs text-warning-foreground">
+                  You can pay up to <span className="font-mono font-bold">{formatUGX(maxAllowable)}</span> right now (limited by your float). The tenant will still owe the rest.
+                </p>
               </div>
             )}
 
@@ -207,10 +224,16 @@ export function AgentTenantCollectDialog({
               )}
             </div>
 
-            {/* Quick amount buttons */}
+            {/* Quick amount buttons — always clamped to maxAllowable */}
             <div className="flex gap-2 flex-wrap">
-              {[outstandingBalance, Math.ceil(outstandingBalance / 2), 10000, 20000, 50000]
-                .filter((v, i, arr) => v > 0 && v <= maxAllowable && arr.indexOf(v) === i)
+              {Array.from(new Set([
+                maxAllowable,
+                Math.min(maxAllowable, Math.ceil(outstandingBalance / 2)),
+                Math.min(maxAllowable, 10000),
+                Math.min(maxAllowable, 20000),
+                Math.min(maxAllowable, 50000),
+              ]))
+                .filter(v => v >= 100)
                 .slice(0, 4)
                 .map(val => (
                   <button
@@ -221,7 +244,7 @@ export function AgentTenantCollectDialog({
                     }`}
                     style={{ touchAction: 'manipulation', minHeight: '36px' }}
                   >
-                    {val === outstandingBalance ? 'Full' : formatUGX(val)}
+                    {val === maxAllowable && val < outstandingBalance ? `Max ${formatUGX(val)}` : val === outstandingBalance ? 'Full' : formatUGX(val)}
                   </button>
                 ))}
             </div>
