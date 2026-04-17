@@ -28,11 +28,18 @@ Deno.serve(async (req) => {
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // COO/Manager guard
-    const { data: managerRole } = await adminClient
-      .from("user_roles").select("id")
-      .eq("user_id", caller.id).in("role", ["manager", "coo", "super_admin"]).maybeSingle();
-    if (!managerRole) return json({ error: "Only Welile Operations can perform this action" }, 403);
+    // COO/Manager guard — use limit(1) instead of maybeSingle() to handle users with multiple roles
+    const { data: managerRoles, error: roleErr } = await adminClient
+      .from("user_roles").select("role")
+      .eq("user_id", caller.id).in("role", ["manager", "coo", "super_admin", "cto"]);
+    if (roleErr) {
+      console.error("[coo-create-portfolio] Role lookup error:", roleErr.message);
+      return json({ error: `Role check failed: ${roleErr.message}` }, 500);
+    }
+    if (!managerRoles || managerRoles.length === 0) {
+      console.warn(`[coo-create-portfolio] Caller ${caller.id} blocked — no manager/coo/super_admin/cto role`);
+      return json({ error: "Only Welile Operations (COO, Manager, Super Admin) can perform this action" }, 403);
+    }
 
     const body = await req.json() as {
       partner_id: string;
