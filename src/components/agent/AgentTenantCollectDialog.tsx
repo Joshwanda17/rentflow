@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentBalances } from '@/hooks/useAgentBalances';
 import { formatUGX } from '@/lib/rentCalculations';
+import { CommissionCelebration } from './CommissionCelebration';
 
 interface AgentTenantCollectDialogProps {
   open: boolean;
@@ -29,6 +30,8 @@ export function AgentTenantCollectDialog({
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [celebrationOpen, setCelebrationOpen] = useState(false);
+  const [celebrationData, setCelebrationData] = useState<{ commission: number; amount: number } | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -73,6 +76,16 @@ export function AgentTenantCollectDialog({
 
       setResult(res);
       refetchBalances();
+
+      // 🎉 Trigger commission celebration — pure UI, no DB calls
+      // Source priority: API response → fallback to client-side 10% estimate
+      const earnedCommission = Number(res?.commission?.credited_commission)
+        || Math.round(amount * 0.10);
+      if (earnedCommission > 0) {
+        setCelebrationData({ commission: earnedCommission, amount });
+        setCelebrationOpen(true);
+      }
+
       toast.success('Payment allocated!', {
         description: `${formatUGX(amount)} moved from float for ${tenant.full_name}`,
       });
