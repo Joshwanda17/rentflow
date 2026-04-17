@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { RentPipelineQueue } from './RentPipelineQueue';
 import { AdvanceRequestsQueue } from '@/components/ops/AdvanceRequestsQueue';
+import { BusinessAdvanceQueue } from '@/components/ops/BusinessAdvanceQueue';
 import { LandlordOpsPayoutReview } from '@/components/cfo/LandlordOpsPayoutReview';
 import { KPICard } from './KPICard';
 import {
@@ -1301,10 +1302,11 @@ export function LandlordOpsDashboard() {
   // ─── ADVANCE REQUESTS VIEW ───
   if (view === 'advance-requests') {
     return (
-      <div className="space-y-3">
+      <div className="space-y-6">
         <BackButton />
         <h2 className="text-lg font-bold">Agent Advance Requests</h2>
         <AdvanceRequestsQueue stage="landlord_ops" />
+        <BusinessAdvanceQueue stage="landlord_ops" />
       </div>
     );
   }

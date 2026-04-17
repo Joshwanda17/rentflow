@@ -46,6 +46,8 @@ import { UnifiedRegistrationDialog } from '@/components/agent/UnifiedRegistratio
 import { RegisterSubAgentDialog } from '@/components/agent/RegisterSubAgentDialog';
 import AgentRentRequestDialog from '@/components/agent/AgentRentRequestDialog';
 import BusinessAdvanceRequestDialog from '@/components/agent/BusinessAdvanceRequestDialog';
+import { CommissionCelebrationModal } from '@/components/agent/CommissionCelebrationModal';
+import { useBusinessAdvanceCommissionListener } from '@/hooks/useBusinessAdvanceCommissionListener';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 
@@ -154,6 +156,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   
   const [topUpTenantOpen, setTopUpTenantOpen] = useState(false);
   const [businessAdvanceOpen, setBusinessAdvanceOpen] = useState(false);
+  const { event: commissionEvent, dismiss: dismissCommission } = useBusinessAdvanceCommissionListener();
   const [tenantsSheetOpen, setTenantsSheetOpen] = useState(false);
   const [investForPartnerOpen, setInvestForPartnerOpen] = useState(false);
   const [proxyHistoryOpen, setProxyHistoryOpen] = useState(false);
@@ -619,6 +622,13 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         open={businessAdvanceOpen}
         onOpenChange={setBusinessAdvanceOpen}
         onSuccess={() => refreshOfflineData()}
+      />
+      <CommissionCelebrationModal
+        open={!!commissionEvent}
+        onClose={dismissCommission}
+        amount={commissionEvent?.amount || 0}
+        businessName={commissionEvent?.businessName}
+        repaymentAmount={commissionEvent?.repaymentAmount}
       />
       <EarningsRankSystemSheet open={earningsRankOpen} onOpenChange={setEarningsRankOpen} />
       <AgentManagedPropertyDialog open={managedPropertyOpen} onOpenChange={setManagedPropertyOpen} onSuccess={refreshOfflineData} />

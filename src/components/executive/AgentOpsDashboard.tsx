@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AdvanceRequestsQueue } from '@/components/ops/AdvanceRequestsQueue';
+import { BusinessAdvanceQueue } from '@/components/ops/BusinessAdvanceQueue';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
@@ -164,7 +165,12 @@ export function AgentOpsDashboard() {
       case 'promote-tenant': return <TenantToSubAgentPanel />;
       case 'float-payouts': return <AgentOpsFloatPayoutReview />;
       case 'balances': return <AgentBalancesPanel />;
-      case 'advance-requests': return <AdvanceRequestsQueue stage="agent_ops" />;
+      case 'advance-requests': return (
+        <div className="space-y-6">
+          <AdvanceRequestsQueue stage="agent_ops" />
+          <BusinessAdvanceQueue stage="agent_ops" />
+        </div>
+      );
       case 'alerts': return <AgentAlertFeed />;
       case 'transfers': return (
         <div className="rounded-2xl border border-border bg-card p-3">

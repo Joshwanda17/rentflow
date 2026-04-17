@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AdvanceRequestsQueue } from '@/components/ops/AdvanceRequestsQueue';
+import { BusinessAdvanceQueue } from '@/components/ops/BusinessAdvanceQueue';
 import ExecutiveDashboardLayout from '@/components/layout/ExecutiveDashboardLayout';
 import { COOWithdrawalApprovals } from '@/components/coo/COOWithdrawalApprovals';
 import { COOPartnerWithdrawalApprovals } from '@/components/coo/COOPartnerWithdrawalApprovals';
@@ -223,11 +224,12 @@ export default function COODashboardPage() {
         );
       case 'advance-requests':
         return (
-          <div className="space-y-3">
+          <div className="space-y-6">
             {isMobile && renderBackButton('Overview')}
             {renderSectionHeader('Agent Advance Approvals', Banknote)}
             <p className="text-sm text-muted-foreground -mt-2">Final operational approval before CFO payment.</p>
             <AdvanceRequestsQueue stage="coo" />
+            <BusinessAdvanceQueue stage="coo" />
           </div>
         );
       default:
