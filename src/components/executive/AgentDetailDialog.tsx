@@ -330,7 +330,7 @@ function FloatLimitsCard({ limits }: any) {
   );
 }
 
-function FloatFundingList({ items }: any[]) {
+function FloatFundingList({ items }: any) {
   if (!items?.length) return <Section title="Float Funding History"><Empty text="No funding records" /></Section>;
   return (
     <Section title={`Float Funding History (${items.length})`}>
