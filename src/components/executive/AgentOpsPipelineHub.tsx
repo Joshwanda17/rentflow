@@ -6,10 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Users, UserCheck, FileText, Home, Phone, MapPin, Search, Calendar } from 'lucide-react';
+import { Users, FileText, Home, Phone, MapPin, Search, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 import { RentPipelineQueue } from './RentPipelineQueue';
-import { SubAgentVerificationQueue } from './SubAgentVerificationQueue';
 import { PromissoryNotesQueue } from './PromissoryNotesQueue';
 
 function LandlordsPipeline() {
@@ -172,16 +171,14 @@ export function AgentOpsPipelineHub() {
   const { data: counts } = useQuery({
     queryKey: ['pipeline-counts'],
     queryFn: async () => {
-      const [tenants, subAgents, notes, landlordsData] = await Promise.all([
+      const [tenants, notes, landlordsData] = await Promise.all([
         supabase.from('rent_requests').select('id', { count: 'exact', head: true }).eq('status', 'tenant_ops_approved'),
-        supabase.from('agent_subagents').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('promissory_notes').select('id', { count: 'exact', head: true }).in('status', ['pending', 'activated']),
         supabase.from('rent_requests').select('landlord_id').not('status', 'in', '("funded","rejected","cancelled")').not('landlord_id', 'is', null),
       ]);
       const uniqueLandlords = new Set(landlordsData.data?.map((r: any) => r.landlord_id)).size;
       return {
         tenants: tenants.count || 0,
-        subAgents: subAgents.count || 0,
         notes: notes.count || 0,
         landlords: uniqueLandlords,
       };
@@ -190,7 +187,6 @@ export function AgentOpsPipelineHub() {
 
   const tabs = [
     { value: 'tenants', label: 'Tenants', icon: Users, count: counts?.tenants },
-    { value: 'sub-agents', label: 'Sub-Agents', icon: UserCheck, count: counts?.subAgents },
     { value: 'notes', label: 'Promissory Notes', icon: FileText, count: counts?.notes },
     { value: 'landlords', label: 'Landlords', icon: Home, count: counts?.landlords },
   ];
@@ -212,7 +208,6 @@ export function AgentOpsPipelineHub() {
       </div>
 
       <TabsContent value="tenants"><RentPipelineQueue stage="tenant_ops_approved" /></TabsContent>
-      <TabsContent value="sub-agents"><SubAgentVerificationQueue /></TabsContent>
       <TabsContent value="notes"><PromissoryNotesQueue /></TabsContent>
       <TabsContent value="landlords"><LandlordsPipeline /></TabsContent>
     </Tabs>
