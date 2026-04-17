@@ -86,6 +86,7 @@ import { NearbyTenantsSheet } from '@/components/agent/NearbyTenantsSheet';
 import { MySubAgentsSheet } from '@/components/agent/MySubAgentsSheet';
 import { RecruitSubAgentCTA } from '@/components/agent/RecruitSubAgentCTA';
 import { QuickShareSubAgentSheet } from '@/components/agent/QuickShareSubAgentSheet';
+import { ShareLandlordLinkDialog } from '@/components/agent/ShareLandlordLinkDialog';
 import { FunderManagementSheet } from '@/components/agent/FunderManagementSheet';
 import { AgentPartnerDashboardSheet } from '@/components/agent/AgentPartnerDashboardSheet';
 import { Card, CardContent } from '@/components/ui/card';
@@ -182,6 +183,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [promissoryNoteOpen, setPromissoryNoteOpen] = useState(false);
   const [promissoryListOpen, setPromissoryListOpen] = useState(false);
   const [advanceRequestOpen, setAdvanceRequestOpen] = useState(false);
+  const [shareLandlordOpen, setShareLandlordOpen] = useState(false);
 
   const [showQuickDeposit, setShowQuickDeposit] = useState(false);
   const [showQuickWithdraw, setShowQuickWithdraw] = useState(false);
@@ -204,23 +206,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     },
   });
 
-  const handleShareLandlordSignup = async () => {
-    try {
-      const { toast } = await import('sonner');
-      toast.info('Generating landlord signup link...');
-      const { createShortLink } = await import('@/lib/createShortLink');
-      const landlordLink = await createShortLink(user.id, '/landlord-signup', { ref: user.id });
-      const shareText = `🏠 Guarantee your rent for 12 months with Welile! No more chasing tenants. Sign up here: ${landlordLink}`;
-      if (navigator.share) {
-        navigator.share({ title: 'Welile Landlord Signup', text: shareText, url: landlordLink }).catch(() => {});
-      } else {
-        await navigator.clipboard.writeText(landlordLink);
-        toast.success('Landlord signup link copied!');
-      }
-    } catch (err: any) {
-      const { toast } = await import('sonner');
-      toast.error(err.message || 'Failed to generate link');
-    }
+  const handleShareLandlordSignup = () => {
+    hapticTap();
+    setShareLandlordOpen(true);
   };
 
   const handleApplyToSell = async () => {
@@ -639,6 +627,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <NearbyTenantsSheet open={nearbyTenantsOpen} onOpenChange={setNearbyTenantsOpen} />
       <MySubAgentsSheet open={subAgentsSheetOpen} onOpenChange={setSubAgentsSheetOpen} />
       <QuickShareSubAgentSheet open={shareLinkOpen} onOpenChange={setShareLinkOpen} />
+      <ShareLandlordLinkDialog open={shareLandlordOpen} onOpenChange={setShareLandlordOpen} />
       <FunderManagementSheet open={funderSheetOpen} onOpenChange={setFunderSheetOpen} />
       <AgentPartnerDashboardSheet open={partnerDashboardOpen} onOpenChange={setPartnerDashboardOpen} />
       <FinancialAgentSection open={requisitionOpen} onOpenChange={setRequisitionOpen} />
