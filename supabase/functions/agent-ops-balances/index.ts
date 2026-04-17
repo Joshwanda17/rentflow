@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
-        .in("role", ["manager", "coo", "super_admin", "cto", "agent_ops", "agent-ops"]),
+        .in("role", ["manager", "coo", "super_admin", "cto"]),
       adminClient
         .from("staff_permissions")
         .select("permitted_dashboard")
