@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 import NotFound from './NotFound';
@@ -8,15 +8,11 @@ const CODE_RE = /^[A-Za-z0-9]{4,8}$/;
 
 export default function TrackedRedirect() {
   const { code } = useParams<{ code: string }>();
-  const navigate = useNavigate();
   const [notFound, setNotFound] = useState(false);
-
-  // If the path doesn't look like a code, render NotFound directly.
-  if (!code || !CODE_RE.test(code)) {
-    return <NotFound />;
-  }
+  const isValidCode = !!code && CODE_RE.test(code);
 
   useEffect(() => {
+    if (!isValidCode || !code) return;
     let cancelled = false;
 
     (async () => {
@@ -34,14 +30,15 @@ export default function TrackedRedirect() {
       }
 
       // Fire-and-forget click tracking — don't block the redirect
-      supabase
-        .rpc('record_short_link_click', {
+      try {
+        await supabase.rpc('record_short_link_click', {
           p_code: code,
           p_user_agent: navigator.userAgent ?? null,
           p_referrer: document.referrer ?? null,
-        })
-        .then(() => {})
-        .catch(() => {});
+        });
+      } catch {
+        // ignore tracking errors
+      }
 
       const params = new URLSearchParams();
       const tp = (data.target_params ?? {}) as Record<string, string>;
@@ -54,9 +51,9 @@ export default function TrackedRedirect() {
     return () => {
       cancelled = true;
     };
-  }, [code]);
+  }, [code, isValidCode]);
 
-  if (notFound) return <NotFound />;
+  if (!isValidCode || notFound) return <NotFound />;
 
   return (
     <div className="min-h-screen flex items-center justify-center">
