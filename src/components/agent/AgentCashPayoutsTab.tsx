@@ -41,16 +41,27 @@ export function AgentCashPayoutsTab() {
   });
 
   // ALL pending/approved withdrawal requests
+  // NOTE: no FK exists between withdrawal_requests.user_id and profiles.id,
+  // so we cannot use a PostgREST embed. We fetch profiles separately and join client-side.
   const { data: allWithdrawals = [], isLoading: loadingAll } = useQuery({
     queryKey: ['cashout-agent-all-withdrawals'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('withdrawal_requests')
-        .select('*, profiles:user_id(full_name, phone)')
+        .select('*')
         .in('status', ['pending', 'requested', 'manager_approved', 'cfo_approved', 'approved', 'fin_ops_approved'])
         .order('created_at', { ascending: true });
       if (error) throw error;
-      return data || [];
+      const rows = data || [];
+      if (rows.length === 0) return rows;
+
+      const userIds = Array.from(new Set(rows.map((r: any) => r.user_id).filter(Boolean)));
+      const { data: profs } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone')
+        .in('id', userIds);
+      const map = new Map((profs || []).map((p: any) => [p.id, p]));
+      return rows.map((r: any) => ({ ...r, profiles: map.get(r.user_id) || null }));
     },
     enabled: !!isCashoutAgent,
     staleTime: 30_000,
