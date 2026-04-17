@@ -211,6 +211,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'suspended'>('all');
   const [filterRoiMode, setFilterRoiMode] = useState<'all' | 'monthly_payout' | 'monthly_compounding'>('all');
   const [filterContact, setFilterContact] = useState<'all' | 'has_phone' | 'no_phone' | 'has_email' | 'no_email'>('all');
+  const [filterWallet, setFilterWallet] = useState<'all' | 'has_balance' | 'empty'>('all');
   const [payoutDateFrom, setPayoutDateFrom] = useState<Date | undefined>(undefined);
   const [payoutDateTo, setPayoutDateTo] = useState<Date | undefined>(undefined);
 
@@ -1156,6 +1157,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     else if (filterContact === 'no_phone') result = result.filter(r => !r.phone || r.phone.includes('@'));
     else if (filterContact === 'has_email') result = result.filter(r => r.email && !r.email.includes('placeholder'));
     else if (filterContact === 'no_email') result = result.filter(r => !r.email || r.email.includes('placeholder'));
+    if (filterWallet === 'has_balance') result = result.filter(r => (r.walletBalance || 0) > 0);
+    else if (filterWallet === 'empty') result = result.filter(r => (r.walletBalance || 0) <= 0);
     if (payoutDateFrom || payoutDateTo) {
       result = result.filter(r => {
         const portfolioData = (r as any).nextRoiDate;
@@ -1179,7 +1182,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       });
     }
     return result;
-  }, [rows, sortKey, sortDir, filterStatus, filterRoiMode, filterContact, payoutDateFrom, payoutDateTo]);
+  }, [rows, sortKey, sortDir, filterStatus, filterRoiMode, filterContact, filterWallet, payoutDateFrom, payoutDateTo]);
 
   // Server-side pagination: use totalCount for page count, display all rows from current page
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
@@ -1545,11 +1548,13 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           <input type="text" value={search} onChange={e => { setSearch(e.target.value); setPage(0); }}
             placeholder="Search by name or phone…"
             className="h-9 w-full rounded-lg border border-border bg-background pl-8 pr-8 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors" />
-          {search && (
+          {isSearching ? (
+            <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-primary animate-spin" />
+          ) : search ? (
             <button onClick={() => { setSearch(''); setPage(0); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted">
               <X className="h-3 w-3 text-muted-foreground" />
             </button>
-          )}
+          ) : null}
         </div>
         <Select value={filterStatus} onValueChange={(v: any) => { setFilterStatus(v); setPage(0); }}>
           <SelectTrigger className="w-[120px] h-9 text-xs"><Filter className="h-3 w-3 mr-1 text-muted-foreground" /><SelectValue /></SelectTrigger>
@@ -1575,6 +1580,14 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             <SelectItem value="no_phone">No Phone</SelectItem>
             <SelectItem value="has_email">Has Email</SelectItem>
             <SelectItem value="no_email">No Email</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterWallet} onValueChange={(v: any) => { setFilterWallet(v); setPage(0); }}>
+          <SelectTrigger className="w-[140px] h-9 text-xs"><Wallet className="h-3 w-3 mr-1 text-muted-foreground" /><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Wallets</SelectItem>
+            <SelectItem value="has_balance">Has Balance</SelectItem>
+            <SelectItem value="empty">Empty</SelectItem>
           </SelectContent>
         </Select>
         {/* Payment Date Range Filter */}
@@ -1634,12 +1647,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       </div>
 
       {/* Table */}
-      <div className={cn("rounded-xl border border-border bg-card shadow-sm overflow-hidden relative", isSearching && "opacity-60 pointer-events-none")}>
-        {isSearching && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/30">
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
-          </div>
-        )}
+      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-xs sm:text-sm min-w-[640px]">
             <thead>
