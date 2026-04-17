@@ -1,6 +1,6 @@
 // Tenant pays down their business advance from their wallet.
 // 1% daily compounding has already been applied to outstanding_balance by the cron.
-// On every repayment, the originating agent earns 0.5% as a platform expense.
+// On every repayment, the originating agent earns 4% as a platform expense.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { checkTreasuryGuard } from '../_shared/treasuryGuard.ts';
 
@@ -9,7 +9,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const COMMISSION_RATE = 0.005; // 0.5%
+const COMMISSION_RATE = 0.04; // 4%
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
     });
     if (rpcErr) throw rpcErr;
 
-    // 4) Pay 0.5% commission to the originating agent (platform expense)
+    // 4) Pay 4% commission to the originating agent (platform expense)
     if (commission > 0 && adv.agent_id) {
       const { error: comErr } = await service.rpc('create_ledger_transaction', {
         entries: [
@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
             category: 'agent_commission_earned',
             source_table: 'business_advance_repayments',
             source_id: advance_id,
-            description: `0.5% commission on business advance repayment (${adv.business_name})`,
+            description: `4% commission on business advance repayment (${adv.business_name})`,
             currency: 'UGX',
             transaction_date: nowIso,
           },

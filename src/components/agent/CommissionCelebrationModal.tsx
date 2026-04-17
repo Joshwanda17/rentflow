@@ -94,7 +94,7 @@ export function CommissionCelebrationModal({ open, onClose, amount, businessName
           )}
 
           <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-            <Sparkles className="h-3 w-3" /> 0.5% of every business advance repayment is yours.
+            <Sparkles className="h-3 w-3" /> 4% of every business advance repayment is yours.
           </p>
 
           <Button onClick={onClose} className="w-full bg-emerald-600 hover:bg-emerald-700">

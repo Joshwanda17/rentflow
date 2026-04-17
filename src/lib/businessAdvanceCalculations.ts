@@ -2,12 +2,12 @@
  * Business Advance — 1% per day compounding on outstanding balance.
  * Open-ended: tenant pays whatever, whenever; interest compounds daily.
  *
- * Daily commission: 0.5% of every repayment, paid to the originating agent
+ * Daily commission: 4% of every repayment, paid to the originating agent
  * as a platform expense (general_admin_expense).
  */
 
 export const BUSINESS_ADVANCE_DAILY_RATE = 0.01; // 1% per day
-export const AGENT_COMMISSION_RATE = 0.005; // 0.5% per repayment
+export const AGENT_COMMISSION_RATE = 0.04; // 4% per repayment
 
 import { formatDynamic } from '@/lib/currencyFormat';
 

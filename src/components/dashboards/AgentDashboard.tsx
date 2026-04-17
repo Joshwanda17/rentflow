@@ -395,7 +395,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             </div>
             <div className="flex-1 text-left">
               <div className="font-bold text-sm text-foreground">BUSINESS ADVANCE</div>
-              <div className="text-[11px] text-muted-foreground">Request advance for tenant's business · Earn 0.5% on every repayment</div>
+              <div className="text-[11px] text-muted-foreground">Request advance for tenant's business · Earn 4% on every repayment</div>
             </div>
             <span className="text-xs font-bold text-primary">→</span>
           </button>
