@@ -348,12 +348,28 @@ Deno.serve(async (req) => {
               email,
               phone,
               verified: true,
+              // Stamp parent agent as referrer for sub-agent fast-track so the
+              // sub-agent appears under the parent agent's roster.
+              ...(isSubAgentAutoActivate ? { referrer_id: user.id } : {}),
             }, { onConflict: 'id' });
 
-          // Add user role
+          // Add user role (auto-approved for sub-agent fast-track)
           await adminClient
             .from("user_roles")
-            .upsert({ user_id: authData.user.id, role }, { onConflict: 'user_id,role' });
+            .upsert(
+              { user_id: authData.user.id, role, enabled: true },
+              { onConflict: 'user_id,role' }
+            );
+
+          // Record parent-agent relationship in the referrals table too
+          if (isSubAgentAutoActivate) {
+            await adminClient
+              .from("referrals")
+              .upsert(
+                { referrer_id: user.id, referred_id: authData.user.id },
+                { onConflict: 'referrer_id,referred_id' }
+              );
+          }
 
           // If landlord, create landlord record
           if (role === 'landlord') {
