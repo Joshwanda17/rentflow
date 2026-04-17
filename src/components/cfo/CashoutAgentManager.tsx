@@ -105,7 +105,7 @@ export function CashoutAgentManager() {
             Cash-Out Agents
           </h2>
           <p className="text-[11px] text-muted-foreground mt-0.5 max-w-md">
-            Field extension of <span className="font-semibold text-foreground">Financial Ops</span>. Assigned agents can ONLY process withdrawal payouts (cash &amp; bank) on behalf of the CFO — no other Financial Ops privileges are granted.
+            Field extension of <span className="font-semibold text-foreground">Financial Ops</span>. Assigned agents can ONLY process wallet withdrawal payouts (cash &amp; bank) on behalf of Financial Ops — no other Financial Ops privileges are granted.
           </p>
         </div>
         <Dialog open={showAssign} onOpenChange={v => { setShowAssign(v); if (!v) setPickedAgent(null); }}>
