@@ -320,6 +320,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [addPortfolioDuration, setAddPortfolioDuration] = useState('12');
   const [addPortfolioPayoutDay, setAddPortfolioPayoutDay] = useState('15');
   const [addPortfolioDate, setAddPortfolioDate] = useState('');
+  const [addPortfolioFundingSource, setAddPortfolioFundingSource] = useState<'wallet' | 'proxy_agent'>('wallet');
   const [addingPortfolio, setAddingPortfolio] = useState(false);
 
   // Compound from portfolio view
@@ -967,7 +968,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     }
   }
 
-  /* ─── Add New Portfolio ─── */
+  /* ─── Add New Portfolio (deducts from selected wallet) ─── */
   async function handleAddPortfolio() {
     if (!detailPartner) return;
     const amt = Number(addPortfolioAmount);
@@ -978,79 +979,48 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     if (isNaN(roi) || roi <= 0 || roi > 100) { toast.error('ROI must be between 1 and 100'); return; }
     if (isNaN(duration) || duration < 1 || duration > 60) { toast.error('Duration must be 1-60 months'); return; }
 
+    // Funding-source validation
+    const partnerId = detailPartner.profile.id;
+    const sourceBalance = addPortfolioFundingSource === 'wallet'
+      ? detailPartner.walletBalance
+      : proxyAgentInfo?.walletBalance ?? 0;
+    const sourceUserId = addPortfolioFundingSource === 'wallet'
+      ? partnerId
+      : proxyAgentInfo?.agentId;
+
+    if (addPortfolioFundingSource === 'proxy_agent' && !proxyAgentInfo) {
+      toast.error('No proxy agent assigned to this partner');
+      return;
+    }
+    if (!sourceUserId) { toast.error('Funding source unavailable'); return; }
+    if (amt > sourceBalance) {
+      toast.error(`Insufficient funds. Available: ${formatUGX(sourceBalance)} in ${addPortfolioFundingSource === 'wallet' ? 'partner wallet' : `${proxyAgentInfo?.agentName}'s wallet`}`);
+      return;
+    }
+
     setAddingPortfolio(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      const partnerId = detailPartner.profile.id;
-      const portfolioCode = `WIP${new Date().toISOString().slice(2, 10).replace(/-/g, '')}${Math.floor(1000 + Math.random() * 9000)}`;
-      const createdAt = addPortfolioDate ? dateOnlyToUtcMiddayIso(addPortfolioDate) : new Date().toISOString();
-      const contributionDate = addPortfolioDate ? dateOnlyToLocalDate(addPortfolioDate) : new Date();
-      const payoutDay = Math.min(contributionDate.getDate(), 28);
-      const maturityDate = new Date(contributionDate);
-      maturityDate.setMonth(maturityDate.getMonth() + duration);
-
-      // next_roi_date = exactly one month from contribution date
-      const nextRoiDate = new Date(contributionDate);
-      nextRoiDate.setMonth(nextRoiDate.getMonth() + 1);
-
-      const { data: newPortfolio, error: insertErr } = await supabase
-        .from('investor_portfolios')
-        .insert({
-          investor_id: partnerId,
-          agent_id: partnerId,
-          investment_amount: amt,
-          roi_percentage: roi,
-          roi_mode: addPortfolioRoiMode,
-          duration_months: duration,
-          payout_day: payoutDay,
-          portfolio_code: portfolioCode,
-          portfolio_pin: String(Math.floor(1000 + Math.random() * 9000)),
-          activation_token: crypto.randomUUID(),
-          status: 'active',
-          created_at: createdAt,
-          maturity_date: formatLocalDateOnly(maturityDate),
-          next_roi_date: formatLocalDateOnly(nextRoiDate),
-        })
-        .select('id')
-        .single();
-
-      if (insertErr) throw insertErr;
-
-      const refId = Math.floor(1000000000000 + Math.random() * 9000000000000).toString();
-      await supabase.from('general_ledger').insert({
-        user_id: partnerId,
-        amount: amt,
-        direction: 'cash_out',
-        category: 'coo_manual_portfolio',
-        source_table: 'investor_portfolios',
-        source_id: newPortfolio.id,
-        reference_id: refId,
-        description: `Manual portfolio created by Welile Operations for ${detailPartner.profile.full_name}`,
-          currency: 'UGX',
-        linked_party: 'Rent Management Pool',
-        transaction_date: createdAt,
-      });
-
-      await supabase.from('audit_logs').insert({
-        user_id: user.id,
-        action_type: 'create_manual_portfolio',
-        table_name: 'investor_portfolios',
-        record_id: newPortfolio.id,
-        metadata: {
+      const { data: result, error } = await supabase.functions.invoke('coo-create-portfolio', {
+        body: {
           partner_id: partnerId,
-          partner_name: detailPartner.profile.full_name,
-          investment_amount: amt,
+          amount: amt,
           roi_percentage: roi,
           roi_mode: addPortfolioRoiMode,
           duration_months: duration,
-          portfolio_code: portfolioCode,
-          reference_id: refId,
+          contribution_date: addPortfolioDate || null,
+          payment_method: addPortfolioFundingSource,
+          source_wallet_user_id: sourceUserId,
         },
       });
+      if (error) throw new Error(typeof result === 'object' && result?.error ? result.error : error.message);
+      if (result?.error) throw new Error(result.error);
 
-      toast.success(`Portfolio ${portfolioCode} created`, { description: `${formatUGX(amt)} · ${roi}% ROI · ${duration}mo` });
+      const sourceLabel = addPortfolioFundingSource === 'wallet'
+        ? 'partner wallet'
+        : `${proxyAgentInfo?.agentName}'s proxy-agent wallet`;
+      toast.success(`Portfolio ${result.portfolio_code} created`, {
+        description: `${formatUGX(amt)} debited from ${sourceLabel} · ${roi}% ROI · ${duration}mo`,
+      });
 
       setAddPortfolioOpen(false);
       setAddPortfolioAmount('');
@@ -1059,6 +1029,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       setAddPortfolioDuration('12');
       setAddPortfolioPayoutDay('15');
       setAddPortfolioDate('');
+      setAddPortfolioFundingSource('wallet');
+      setProxyAgentInfo(null);
       await openPartnerDetail(partnerId);
       refreshInBackground();
     } catch (e: any) {
@@ -1767,7 +1739,12 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                       <Button
                         size="sm"
                         className="h-7 px-3 text-[10px] gap-1"
-                        onClick={() => setAddPortfolioOpen(true)}
+                        onClick={() => {
+                          setAddPortfolioFundingSource('wallet');
+                          setProxyAgentInfo(null);
+                          if (detailPartner?.profile?.id) fetchProxyAgentForPartner(detailPartner.profile.id);
+                          setAddPortfolioOpen(true);
+                        }}
                       >
                         <Plus className="h-3 w-3" /> Add Portfolio
                       </Button>
@@ -2145,10 +2122,62 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
               <Plus className="h-5 w-5 text-primary" /> Add Investment Portfolio
             </DialogTitle>
             <DialogDescription>
-              Create a new portfolio for {detailPartner?.profile.full_name}. No wallet balance required.
+              Create a new portfolio for {detailPartner?.profile.full_name}. Funds are deducted from the selected wallet immediately.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Funding Source Selector */}
+            <div className="space-y-2">
+              <Label>Funding Source *</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAddPortfolioFundingSource('wallet')}
+                  className={`p-3 rounded-lg border text-left transition-colors ${
+                    addPortfolioFundingSource === 'wallet'
+                      ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                      : 'border-border hover:bg-muted/40'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 text-xs font-semibold">
+                    <Wallet className="h-3.5 w-3.5 text-primary" /> Partner Wallet
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1 truncate">{detailPartner?.profile.full_name}</p>
+                  <p className="text-sm font-bold mt-1">{detailPartner ? formatUGX(detailPartner.walletBalance) : '—'}</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => proxyAgentInfo && setAddPortfolioFundingSource('proxy_agent')}
+                  disabled={!proxyAgentInfo && !loadingProxyAgent}
+                  className={`p-3 rounded-lg border text-left transition-colors ${
+                    addPortfolioFundingSource === 'proxy_agent'
+                      ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                      : 'border-border hover:bg-muted/40'
+                  } ${!proxyAgentInfo ? 'opacity-60 cursor-not-allowed' : ''}`}
+                >
+                  <div className="flex items-center gap-2 text-xs font-semibold">
+                    <Users className="h-3.5 w-3.5 text-primary" /> Proxy Agent Wallet
+                  </div>
+                  {loadingProxyAgent ? (
+                    <p className="text-[11px] text-muted-foreground mt-1">Checking...</p>
+                  ) : proxyAgentInfo ? (
+                    <>
+                      <p className="text-[11px] text-muted-foreground mt-1 truncate">{proxyAgentInfo.agentName}</p>
+                      <p className="text-sm font-bold mt-1">{formatUGX(proxyAgentInfo.walletBalance)}</p>
+                    </>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground mt-1">No proxy agent assigned</p>
+                  )}
+                </button>
+              </div>
+              {addPortfolioFundingSource === 'proxy_agent' && proxyAgentInfo && Number(addPortfolioAmount) > proxyAgentInfo.walletBalance && (
+                <p className="text-[11px] text-destructive">⚠ Amount exceeds proxy agent wallet balance</p>
+              )}
+              {addPortfolioFundingSource === 'wallet' && detailPartner && Number(addPortfolioAmount) > detailPartner.walletBalance && (
+                <p className="text-[11px] text-destructive">⚠ Amount exceeds partner wallet balance</p>
+              )}
+            </div>
+
             <div className="space-y-2">
               <Label>Investment Amount (UGX) *</Label>
               <Input
@@ -2224,7 +2253,16 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddPortfolioOpen(false)} disabled={addingPortfolio}>Cancel</Button>
-            <Button onClick={handleAddPortfolio} disabled={addingPortfolio}>
+            <Button
+              onClick={handleAddPortfolio}
+              disabled={
+                addingPortfolio ||
+                !addPortfolioAmount ||
+                Number(addPortfolioAmount) < MIN_INVEST ||
+                (addPortfolioFundingSource === 'wallet' && (!detailPartner || Number(addPortfolioAmount) > detailPartner.walletBalance)) ||
+                (addPortfolioFundingSource === 'proxy_agent' && (!proxyAgentInfo || Number(addPortfolioAmount) > proxyAgentInfo.walletBalance))
+              }
+            >
               {addingPortfolio ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating...</> : <><Plus className="h-4 w-4 mr-2" /> Create Portfolio</>}
             </Button>
           </DialogFooter>
