@@ -324,11 +324,11 @@ export const CurrencyProvider: React.FC<{ children: ReactNode }> = ({ children }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-set currency based on user's phone number after login
+  // Auto-set currency based on user's phone number after login.
+  // 🇺🇬 RULE: Any user with a Ugandan phone (+256) is ALWAYS shown UGX,
+  // overriding browser timezone, locale, or any previously stored preference.
   useEffect(() => {
     const checkPhoneCurrency = async () => {
-      if (localStorage.getItem(PHONE_CURRENCY_SET_KEY)) return;
-
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user?.id) return;
 
@@ -342,6 +342,17 @@ export const CurrencyProvider: React.FC<{ children: ReactNode }> = ({ children }
 
       const phone = profile.phone.replace(/\s/g, '');
       const normalizedPhone = phone.startsWith('0') ? '+256' + phone.slice(1) : phone;
+
+      // Force UGX for Ugandan users — non-negotiable
+      if (normalizedPhone.startsWith('+256')) {
+        const ugx = currencies.find(c => c.code === 'UGX');
+        if (ugx) setCurrency(ugx);
+        localStorage.setItem(PHONE_CURRENCY_SET_KEY, 'true');
+        return;
+      }
+
+      // Other countries: only auto-set on first login (don't override user choice)
+      if (localStorage.getItem(PHONE_CURRENCY_SET_KEY)) return;
 
       for (const [prefix, code] of Object.entries(phonePrefixToCurrency)) {
         if (normalizedPhone.startsWith(prefix)) {
