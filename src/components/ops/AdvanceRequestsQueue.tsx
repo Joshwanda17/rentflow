@@ -60,8 +60,16 @@ export function AdvanceRequestsQueue({ stage }: AdvanceRequestsQueueProps) {
         updateData[config.reviewerCol] = user.id;
         updateData[config.reviewedAtCol] = new Date().toISOString();
       }
-      const { error } = await supabase.from('agent_advance_requests').update(updateData).eq('id', id);
+      const { data, error } = await supabase
+        .from('agent_advance_requests')
+        .update(updateData)
+        .eq('id', id)
+        .select('id')
+        .maybeSingle();
       if (error) throw error;
+      if (!data) {
+        throw new Error('Approval blocked — your role may not have permission, or the request has already moved to a later stage.');
+      }
     },
     onSuccess: (_, { approve }) => {
       toast.success(approve ? 'Request approved' : 'Request rejected');
