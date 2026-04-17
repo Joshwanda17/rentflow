@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Users, ArrowUpRight, Clock, CheckCircle2, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useWallet } from '@/hooks/useWallet';
 import { useCurrency } from '@/hooks/useCurrency';
 import { WithdrawRequestDialog } from '@/components/wallet/WithdrawRequestDialog';
 import { toast } from 'sonner';
@@ -57,6 +58,7 @@ const ACTIVE_PROXY_WITHDRAWAL_STATUSES = [
 
 export function ProxyPartnerFunds() {
   const { user } = useAuth();
+  const { wallet } = useWallet();
   const { formatAmount } = useCurrency();
   const [loading, setLoading] = useState(true);
   const [approvedOps, setApprovedOps] = useState<PwoEntry[]>([]);
@@ -662,6 +664,7 @@ export function ProxyPartnerFunds() {
       <WithdrawRequestDialog
         open={withdrawOpen}
         onOpenChange={setWithdrawOpen}
+        walletBalance={wallet?.balance || 0}
         onSuccess={handleWithdrawSuccess}
         prefillAmount={prefillAmount}
         prefillReason={prefillReason}
