@@ -372,6 +372,7 @@ Deno.serve(async (req) => {
         new_balance: effectiveBalance - amount,
         target_user: targetName,
         txn_group_id: txnGroupId,
+        cashout_commission: cashoutCommission,
       }),
       {
         status: 200,
