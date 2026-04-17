@@ -47,6 +47,18 @@ export function WithdrawalPayoutCard({
   const recipientName = withdrawal.profiles?.full_name || 'Unknown';
   const recipientPhone = withdrawal.profiles?.phone || '—';
 
+  // Has it been claimed by SOMEONE (me or other) and not yet completed?
+  const isAwaitingPayment =
+    !!withdrawal.assigned_cashout_agent_id &&
+    withdrawal.status !== 'completed' &&
+    withdrawal.status !== 'approved';
+
+  // How long ago was it claimed? (for stale-claim warning)
+  const claimedMinutesAgo = withdrawal.dispatched_at
+    ? Math.floor((Date.now() - new Date(withdrawal.dispatched_at).getTime()) / 60000)
+    : null;
+  const isStale = claimedMinutesAgo !== null && claimedMinutesAgo >= 10;
+
   return (
     <Card className={isClaimedByOther && !readOnly ? 'opacity-50' : ''}>
       <Collapsible open={open} onOpenChange={setOpen}>
@@ -63,15 +75,25 @@ export function WithdrawalPayoutCard({
                   <MethodIcon className="h-2.5 w-2.5" />
                   {methodLabel}
                 </Badge>
-                {isClaimed && !readOnly && (
-                  <Badge className="text-[9px] h-4 px-1.5 bg-warning text-warning-foreground hover:bg-warning gap-1">
+                {/* AWAITING PAYMENT — shown to claiming agent AND to read-only viewers (CFO)
+                    so a stuck/sitting claim is always visible, no matter how long ago. */}
+                {isAwaitingPayment && (
+                  <Badge
+                    className={`text-[9px] h-4 px-1.5 gap-1 ${
+                      isStale
+                        ? 'bg-destructive text-destructive-foreground hover:bg-destructive'
+                        : 'bg-warning text-warning-foreground hover:bg-warning'
+                    }`}
+                  >
                     <Clock className="h-2.5 w-2.5" />
-                    AWAITING PAYMENT
+                    {isStale && claimedMinutesAgo !== null
+                      ? `AWAITING PAYMENT · ${claimedMinutesAgo}m`
+                      : 'AWAITING PAYMENT'}
                   </Badge>
                 )}
-                {isClaimedByOther && (
+                {isClaimedByOther && !readOnly && (
                   <Badge variant="outline" className="text-[9px] h-4 px-1.5 text-muted-foreground">
-                    {readOnly ? 'Claimed' : 'Taken'}
+                    Taken
                   </Badge>
                 )}
               </div>
