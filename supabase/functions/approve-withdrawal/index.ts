@@ -150,13 +150,16 @@ Deno.serve(async (req) => {
     const effectiveBalance = (wallet?.balance || 0) + totalPendingHold;
 
     // For agents, check commission-aware withdrawable balance
-    // Commission is earned money that IS withdrawable, even if float is low
-    const { data: agentRole } = await admin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", targetUserId)
-      .eq("role", "agent")
-      .maybeSingle();
+    // Commission is earned money that IS withdrawable, even if float is low.
+    // Skip this for proxy payouts — funds belong to the partner, not agent commission.
+    const { data: agentRole } = isProxyPayout
+      ? { data: null as any }
+      : await admin
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", targetUserId)
+          .eq("role", "agent")
+          .maybeSingle();
 
     let withdrawableBalance = effectiveBalance;
 
