@@ -30,6 +30,7 @@ const FeatureFlagsProvider = lazy(() => import("@/contexts/FeatureFlagsContext")
 
 // Lazy load optional UI components
 const Toaster = lazy(() => import("@/components/ui/toaster").then(m => ({ default: m.Toaster })));
+import MaintenanceBanner from "@/components/MaintenanceBanner";
 
 const DeferredExtras = lazy(() => import("@/components/DeferredExtras"));
 const FloatingToolbar = lazy(() => import("@/components/FloatingToolbar"));
