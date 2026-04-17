@@ -32,8 +32,8 @@ Deno.serve(async (req) => {
     const [{ data: managerRoles, error: roleErr }, { data: staffPerms, error: permErr }] = await Promise.all([
       adminClient.from("user_roles").select("role")
         .eq("user_id", caller.id).in("role", ["manager", "coo", "super_admin", "cto"]),
-      adminClient.from("staff_permissions").select("permission_key")
-        .eq("user_id", caller.id).eq("permission_key", "partner-ops").eq("is_active", true),
+      adminClient.from("staff_permissions").select("permitted_dashboard")
+        .eq("user_id", caller.id).eq("permitted_dashboard", "partner-ops"),
     ]);
     if (roleErr) {
       console.error("[coo-create-portfolio] Role lookup error:", roleErr.message);
