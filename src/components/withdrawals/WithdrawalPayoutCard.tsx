@@ -64,7 +64,7 @@ export function WithdrawalPayoutCard({
                   {methodLabel}
                 </Badge>
                 {isClaimed && !readOnly && (
-                  <Badge className="text-[9px] h-4 px-1.5 bg-amber-500 text-white hover:bg-amber-500 gap-1">
+                  <Badge className="text-[9px] h-4 px-1.5 bg-warning text-warning-foreground hover:bg-warning gap-1">
                     <Clock className="h-2.5 w-2.5" />
                     AWAITING PAYMENT
                   </Badge>
