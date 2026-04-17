@@ -179,6 +179,7 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
