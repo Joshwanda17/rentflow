@@ -86,16 +86,24 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
 
       if (refErr) throw refErr;
       const referredTenants = referredData || [];
+      const referredIds = new Set(referredTenants.map(t => t.id));
+
+      // Also include tenants linked through the referrals table (historical
+      // registrations where profiles.referrer_id was not stamped).
+      const { data: referralRows } = await supabase
+        .from('referrals')
+        .select('referred_id')
+        .eq('referrer_id', user.id);
 
       const { data: agentRequests } = await supabase
         .from('rent_requests')
         .select('tenant_id')
         .eq('agent_id', user.id);
 
-      const referredIds = new Set(referredTenants.map(t => t.id));
-      const extraTenantIds = (agentRequests || [])
-        .map(r => r.tenant_id)
-        .filter(id => !referredIds.has(id));
+      const extraTenantIds = [
+        ...(referralRows || []).map(r => r.referred_id),
+        ...(agentRequests || []).map(r => r.tenant_id),
+      ].filter(id => id && !referredIds.has(id));
 
       let extraTenants: Tenant[] = [];
       if (extraTenantIds.length > 0) {
