@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Wallet, ArrowUpFromLine, Banknote, CreditCard, Search, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
