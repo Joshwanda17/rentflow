@@ -169,7 +169,44 @@ export function SubAgentsList() {
   }, [user]);
 
   useEffect(() => {
-    if (user) fetchSubAgents();
+    if (!user) return;
+    fetchSubAgents();
+
+    // Realtime: instantly pick up new sub-agents the moment they're registered.
+    const channel = supabase
+      .channel(`subagents-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'agent_subagents',
+          filter: `parent_agent_id=eq.${user.id}`,
+        },
+        () => fetchSubAgents(),
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'referrals',
+          filter: `referrer_id=eq.${user.id}`,
+        },
+        () => fetchSubAgents(),
+      )
+      .subscribe();
+
+    // Refetch when the tab becomes visible (returning from registration flow)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') fetchSubAgents();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      supabase.removeChannel(channel);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [user, fetchSubAgents]);
 
   const handleRefresh = () => {
