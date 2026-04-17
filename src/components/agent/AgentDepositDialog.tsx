@@ -31,6 +31,7 @@ export function AgentDepositDialog({ open, onOpenChange, onSuccess, prefillPhone
   const [transactionTime, setTransactionTime] = useState('');
   const [narration, setNarration] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showQuickRegister, setShowQuickRegister] = useState(false);
   const [result, setResult] = useState<{
     success: boolean;
     mode: DepositMode;
