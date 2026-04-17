@@ -75,7 +75,7 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
       const { data, error } = await query.limit(8);
       if (error) throw error;
       if (!data || data.length === 0) {
-        toast({ title: 'No tenant found', description: `No user matching "${q}"`, variant: 'destructive' });
+        setShowQuickRegister(true);
         return;
       }
       if (data.length === 1) {
