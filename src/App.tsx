@@ -422,6 +422,7 @@ const App = () => (
                   <LanguageProvider>
                     <CurrencyProvider>
                       <DeferredProviders>
+                        <MaintenanceBanner />
                         <AppRoutes />
                       </DeferredProviders>
                       <Suspense fallback={null}>
