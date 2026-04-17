@@ -224,10 +224,16 @@ export function AgentTenantCollectDialog({
               )}
             </div>
 
-            {/* Quick amount buttons */}
+            {/* Quick amount buttons — always clamped to maxAllowable */}
             <div className="flex gap-2 flex-wrap">
-              {[outstandingBalance, Math.ceil(outstandingBalance / 2), 10000, 20000, 50000]
-                .filter((v, i, arr) => v > 0 && v <= maxAllowable && arr.indexOf(v) === i)
+              {Array.from(new Set([
+                maxAllowable,
+                Math.min(maxAllowable, Math.ceil(outstandingBalance / 2)),
+                Math.min(maxAllowable, 10000),
+                Math.min(maxAllowable, 20000),
+                Math.min(maxAllowable, 50000),
+              ]))
+                .filter(v => v >= 100)
                 .slice(0, 4)
                 .map(val => (
                   <button
@@ -238,7 +244,7 @@ export function AgentTenantCollectDialog({
                     }`}
                     style={{ touchAction: 'manipulation', minHeight: '36px' }}
                   >
-                    {val === outstandingBalance ? 'Full' : formatUGX(val)}
+                    {val === maxAllowable && val < outstandingBalance ? `Max ${formatUGX(val)}` : val === outstandingBalance ? 'Full' : formatUGX(val)}
                   </button>
                 ))}
             </div>
