@@ -62,12 +62,16 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
     setTenantRentBalance(null);
 
     try {
-      const isPhone = /^\+?\d{7,}$/.test(q.replace(/\s/g, ''));
+      const cleaned = q.replace(/\s/g, '');
+      const isPhone = /^\+?\d{7,}$/.test(cleaned);
       let query = supabase.from('profiles').select('id, full_name, phone');
 
       if (isPhone) {
-        const normalized = q.replace(/^\+?256/, '0');
-        query = query.or(`phone.eq.${normalized},phone.eq.+256${normalized.slice(1)}`);
+        // Normalize all common Uganda formats: +2567XXXXXXXX, 2567XXXXXXXX, 07XXXXXXXX, 7XXXXXXXX
+        const local = cleaned.replace(/^\+?256/, '0').replace(/^([1-9]\d{8})$/, '0$1');
+        const intl = '+256' + local.replace(/^0/, '');
+        const intlNoPlus = '256' + local.replace(/^0/, '');
+        query = query.or(`phone.eq.${local},phone.eq.${intl},phone.eq.${intlNoPlus}`);
       } else {
         query = query.ilike('full_name', `%${q}%`);
       }
@@ -75,7 +79,11 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
       const { data, error } = await query.limit(8);
       if (error) throw error;
       if (!data || data.length === 0) {
-        setShowQuickRegister(true);
+        if (isPhone) {
+          setShowQuickRegister(true);
+        } else {
+          toast({ title: 'No tenant found', description: `No user matching "${q}"`, variant: 'destructive' });
+        }
         return;
       }
       if (data.length === 1) {
