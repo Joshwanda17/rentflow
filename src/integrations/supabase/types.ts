@@ -9501,6 +9501,7 @@ export type Database = {
           strict_mode: boolean | null
           updated_at: string
           updated_by: string | null
+          value: string | null
         }
         Insert: {
           control_key: string
@@ -9509,6 +9510,7 @@ export type Database = {
           strict_mode?: boolean | null
           updated_at?: string
           updated_by?: string | null
+          value?: string | null
         }
         Update: {
           control_key?: string
@@ -9517,6 +9519,7 @@ export type Database = {
           strict_mode?: boolean | null
           updated_at?: string
           updated_by?: string | null
+          value?: string | null
         }
         Relationships: []
       }
