@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Wallet, ArrowUpFromLine, Banknote, CreditCard, Search, TrendingUp } from 'lucide-react';
+import { Wallet, ArrowUpFromLine, Banknote, CreditCard, Search, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -20,99 +20,75 @@ type AgentBalanceRow = {
 
 type SortKey = 'total' | 'withdrawable' | 'float' | 'advance' | 'name';
 
+const PAGE_SIZE = 50;
+
 const fmt = (n: number) =>
   n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(0)}K` : Math.round(n).toLocaleString();
 
 export function AgentBalancesPanel() {
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('total');
+  const [page, setPage] = useState(0);
   const [openAgentId, setOpenAgentId] = useState<string | null>(null);
 
-  const { data: balancesData, isLoading } = useQuery({
-    queryKey: ['agent-ops-balances'],
+  // Debounce search
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(0);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  // Reset page when sort changes
+  useEffect(() => {
+    setPage(0);
+  }, [sortKey]);
+
+  const { data: balancesData, isLoading, isFetching } = useQuery({
+    queryKey: ['agent-ops-balances', search, sortKey, page],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke('agent-ops-balances');
+      const { data, error } = await supabase.functions.invoke('agent-ops-balances', {
+        body: {
+          search,
+          sort: sortKey,
+          limit: PAGE_SIZE,
+          offset: page * PAGE_SIZE,
+        },
+      });
       if (error) throw error;
       return {
         rows: (data?.rows || []) as AgentBalanceRow[],
         totals: data?.totals || {
-          withdrawable: 0,
-          float: 0,
-          advance: 0,
-          total: 0,
-          count: 0,
-          withFloat: 0,
-          withWithdrawable: 0,
-          withAdvance: 0,
+          withdrawable: 0, float: 0, advance: 0, total: 0,
+          count: 0, withFloat: 0, withWithdrawable: 0, withAdvance: 0,
         },
+        totalMatched: data?.totalMatched ?? 0,
       };
     },
     staleTime: 60_000,
+    placeholderData: keepPreviousData,
   });
 
-  const data = balancesData?.rows || [];
-
-  const filtered = useMemo(() => {
-    if (!data) return [];
-    const q = search.trim().toLowerCase();
-    let rows = q
-      ? data.filter(
-          (r) =>
-            (r.full_name || '').toLowerCase().includes(q) ||
-            (r.phone || '').toLowerCase().includes(q) ||
-            (r.territory || '').toLowerCase().includes(q),
-        )
-      : data;
-    rows = [...rows].sort((a, b) => {
-      if (sortKey === 'name') return (a.full_name || '').localeCompare(b.full_name || '');
-      return (b[sortKey] as number) - (a[sortKey] as number);
-    });
-    return rows;
-  }, [data, search, sortKey]);
-
+  const rows = balancesData?.rows || [];
   const totals = balancesData?.totals || {
-    withdrawable: 0,
-    float: 0,
-    advance: 0,
-    total: 0,
-    count: 0,
-    withFloat: 0,
-    withWithdrawable: 0,
-    withAdvance: 0,
+    withdrawable: 0, float: 0, advance: 0, total: 0,
+    count: 0, withFloat: 0, withWithdrawable: 0, withAdvance: 0,
   };
+  const totalMatched = balancesData?.totalMatched ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalMatched / PAGE_SIZE));
+  const showingFrom = totalMatched === 0 ? 0 : page * PAGE_SIZE + 1;
+  const showingTo = Math.min(totalMatched, (page + 1) * PAGE_SIZE);
 
   return (
     <div className="space-y-3">
-      {/* Aggregate breakdown */}
+      {/* Aggregate breakdown — always reflects ALL agents, not the page */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <SummaryCard
-          label="Total Held"
-          value={fmt(totals.total)}
-          sub={`${totals.count} agents`}
-          icon={Wallet}
-          tone="bg-primary/10 text-primary"
-        />
-        <SummaryCard
-          label="Withdrawable"
-          value={fmt(totals.withdrawable)}
-          sub={`${totals.withWithdrawable} agents > 0`}
-          icon={ArrowUpFromLine}
-          tone="bg-emerald-500/10 text-emerald-600"
-        />
-        <SummaryCard
-          label="Float (Ops)"
-          value={fmt(totals.float)}
-          sub={`${totals.withFloat} agents > 0`}
-          icon={Banknote}
-          tone="bg-blue-500/10 text-blue-600"
-        />
-        <SummaryCard
-          label="Advance"
-          value={fmt(totals.advance)}
-          sub={`${totals.withAdvance} agents > 0`}
-          icon={CreditCard}
-          tone="bg-amber-500/10 text-amber-700"
-        />
+        <SummaryCard label="Total Held" value={fmt(totals.total)} sub={`${totals.count.toLocaleString()} agents`} icon={Wallet} tone="bg-primary/10 text-primary" />
+        <SummaryCard label="Withdrawable" value={fmt(totals.withdrawable)} sub={`${totals.withWithdrawable.toLocaleString()} agents > 0`} icon={ArrowUpFromLine} tone="bg-emerald-500/10 text-emerald-600" />
+        <SummaryCard label="Float (Ops)" value={fmt(totals.float)} sub={`${totals.withFloat.toLocaleString()} agents > 0`} icon={Banknote} tone="bg-blue-500/10 text-blue-600" />
+        <SummaryCard label="Advance" value={fmt(totals.advance)} sub={`${totals.withAdvance.toLocaleString()} agents > 0`} icon={CreditCard} tone="bg-amber-500/10 text-amber-700" />
       </div>
 
       {/* Filters */}
@@ -121,8 +97,8 @@ export function AgentBalancesPanel() {
           <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search agent by name, phone, or territory…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             className="pl-9"
           />
         </div>
@@ -152,7 +128,7 @@ export function AgentBalancesPanel() {
               <Skeleton key={i} className="h-14 w-full" />
             ))}
           </div>
-        ) : filtered.length === 0 ? (
+        ) : rows.length === 0 ? (
           <div className="p-8 text-center text-sm text-muted-foreground">No agents match your search.</div>
         ) : (
           <>
@@ -169,7 +145,7 @@ export function AgentBalancesPanel() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {filtered.map((r) => (
+                  {rows.map((r) => (
                     <tr key={r.user_id} onClick={() => setOpenAgentId(r.user_id)} className="hover:bg-muted/30 transition-colors cursor-pointer">
                       <td className="px-4 py-2.5">
                         <div className="font-medium text-foreground hover:text-primary">{r.full_name || '—'}</div>
@@ -178,15 +154,9 @@ export function AgentBalancesPanel() {
                           {r.territory ? ` · ${r.territory}` : ''}
                         </div>
                       </td>
-                      <td className="px-3 py-2.5 text-right tabular-nums text-emerald-700">
-                        {fmt(r.withdrawable)}
-                      </td>
-                      <td className="px-3 py-2.5 text-right tabular-nums text-blue-700">
-                        {fmt(r.float)}
-                      </td>
-                      <td className="px-3 py-2.5 text-right tabular-nums text-amber-700">
-                        {fmt(r.advance)}
-                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-emerald-700">{fmt(r.withdrawable)}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-blue-700">{fmt(r.float)}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-amber-700">{fmt(r.advance)}</td>
                       <td className="px-4 py-2.5 text-right tabular-nums font-bold">{fmt(r.total)}</td>
                     </tr>
                   ))}
@@ -196,7 +166,7 @@ export function AgentBalancesPanel() {
 
             {/* Mobile cards */}
             <div className="md:hidden divide-y divide-border">
-              {filtered.map((r) => (
+              {rows.map((r) => (
                 <div key={r.user_id} onClick={() => setOpenAgentId(r.user_id)} className="p-3 space-y-2 active:bg-muted/40 cursor-pointer transition-colors">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
@@ -223,9 +193,40 @@ export function AgentBalancesPanel() {
         )}
       </div>
 
+      {/* Pagination */}
+      {totalMatched > 0 && (
+        <div className="flex items-center justify-between gap-2 px-1">
+          <p className="text-[11px] text-muted-foreground">
+            {showingFrom.toLocaleString()}–{showingTo.toLocaleString()} of {totalMatched.toLocaleString()}
+            {isFetching && <span className="ml-2 italic opacity-70">updating…</span>}
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={page === 0 || isFetching}
+              className="p-1.5 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              aria-label="Previous page"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="text-[11px] font-semibold tabular-nums px-2">
+              {page + 1} / {totalPages.toLocaleString()}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={page >= totalPages - 1 || isFetching}
+              className="p-1.5 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              aria-label="Next page"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       <p className="text-[11px] text-muted-foreground flex items-center gap-1.5 px-1">
         <TrendingUp className="h-3 w-3" />
-        Tap any agent to see full 360° profile. Balances reflect cached wallet buckets.
+        Tap any agent to see full 360° profile. Totals reflect ALL agents, not just this page.
       </p>
 
       <AgentDetailDialog
@@ -238,27 +239,15 @@ export function AgentBalancesPanel() {
 }
 
 function SummaryCard({
-  label,
-  value,
-  sub,
-  icon: Icon,
-  tone,
-}: {
-  label: string;
-  value: string;
-  sub: string;
-  icon: any;
-  tone: string;
-}) {
+  label, value, sub, icon: Icon, tone,
+}: { label: string; value: string; sub: string; icon: any; tone: string }) {
   return (
     <div className="rounded-xl border border-border bg-card p-3">
       <div className="flex items-center gap-2 mb-1.5">
         <div className={cn('p-1.5 rounded-lg', tone)}>
           <Icon className="h-3.5 w-3.5" />
         </div>
-        <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
-          {label}
-        </span>
+        <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">{label}</span>
       </div>
       <div className="text-lg font-bold tabular-nums leading-tight">{value}</div>
       <div className="text-[10px] text-muted-foreground mt-0.5">{sub}</div>

@@ -5,17 +5,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-type AgentBalanceRow = {
-  user_id: string;
-  full_name: string | null;
-  phone: string | null;
-  territory: string | null;
-  withdrawable: number;
-  float: number;
-  advance: number;
-  total: number;
-};
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -56,86 +45,72 @@ Deno.serve(async (req) => {
       return json({ error: "Insufficient permissions" }, 403);
     }
 
-    const ROLE_PAGE = 1000;
-    const allRoleRows: { user_id: string }[] = [];
-    for (let from = 0; from < 50000; from += ROLE_PAGE) {
-      const { data, error } = await adminClient
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "agent")
-        .range(from, from + ROLE_PAGE - 1);
+    // Parse query params (support both GET and POST body)
+    const url = new URL(req.url);
+    let search = url.searchParams.get("search") ?? "";
+    let sort = url.searchParams.get("sort") ?? "total";
+    let limit = Number(url.searchParams.get("limit") ?? 50);
+    let offset = Number(url.searchParams.get("offset") ?? 0);
 
-      if (error) return json({ error: error.message }, 500);
-      if (!data?.length) break;
-      allRoleRows.push(...data);
-      if (data.length < ROLE_PAGE) break;
+    if (req.method === "POST") {
+      try {
+        const body = await req.json();
+        if (body && typeof body === "object") {
+          if (typeof body.search === "string") search = body.search;
+          if (typeof body.sort === "string") sort = body.sort;
+          if (typeof body.limit === "number") limit = body.limit;
+          if (typeof body.offset === "number") offset = body.offset;
+        }
+      } catch (_) {
+        // no body, ignore
+      }
     }
 
-    const ids = [...new Set(allRoleRows.map((r) => r.user_id))];
-    if (!ids.length) {
-      return json({ rows: [], totals: { withdrawable: 0, float: 0, advance: 0, total: 0, count: 0, withFloat: 0, withWithdrawable: 0, withAdvance: 0 } }, 200);
-    }
+    const allowedSorts = new Set(["total", "withdrawable", "float", "advance", "name"]);
+    if (!allowedSorts.has(sort)) sort = "total";
+    limit = Math.max(1, Math.min(200, Math.floor(limit) || 50));
+    offset = Math.max(0, Math.floor(offset) || 0);
 
-    const BATCH = 50;
-    const wallets: any[] = [];
-    const profiles: any[] = [];
+    // Run totals + paginated rows in parallel — both server-computed, no row transfer for totals
+    const [totalsRes, rowsRes] = await Promise.all([
+      adminClient.rpc("get_agent_ops_totals"),
+      adminClient.rpc("get_agent_ops_balances", {
+        _search: search || null,
+        _sort: sort,
+        _limit: limit,
+        _offset: offset,
+      }),
+    ]);
 
-    for (let i = 0; i < ids.length; i += BATCH) {
-      const slice = ids.slice(i, i + BATCH);
-      const [walletRes, profileRes] = await Promise.all([
-        adminClient
-          .from("wallets")
-          .select("user_id, withdrawable_balance, float_balance, advance_balance, balance")
-          .in("user_id", slice),
-        adminClient
-          .from("profiles")
-          .select("id, full_name, phone, territory")
-          .in("id", slice),
-      ]);
+    if (totalsRes.error) return json({ error: totalsRes.error.message }, 500);
+    if (rowsRes.error) return json({ error: rowsRes.error.message }, 500);
 
-      if (walletRes.error) return json({ error: walletRes.error.message }, 500);
-      if (profileRes.error) return json({ error: profileRes.error.message }, 500);
-      if (walletRes.data) wallets.push(...walletRes.data);
-      if (profileRes.data) profiles.push(...profileRes.data);
-    }
+    const t = (totalsRes.data && totalsRes.data[0]) || {};
+    const totals = {
+      withdrawable: Number(t.total_withdrawable ?? 0),
+      float: Number(t.total_float ?? 0),
+      advance: Number(t.total_advance ?? 0),
+      total: Number(t.total_held ?? 0),
+      count: Number(t.total_count ?? 0),
+      withFloat: Number(t.with_float ?? 0),
+      withWithdrawable: Number(t.with_withdrawable ?? 0),
+      withAdvance: Number(t.with_advance ?? 0),
+    };
 
-    const walletMap = new Map(wallets.map((w) => [w.user_id, w]));
-    const profileMap = new Map(profiles.map((p) => [p.id, p]));
+    const rawRows = (rowsRes.data ?? []) as any[];
+    const totalMatched = rawRows.length > 0 ? Number(rawRows[0].total_matched ?? 0) : 0;
+    const rows = rawRows.map((r) => ({
+      user_id: r.user_id,
+      full_name: r.full_name ?? null,
+      phone: r.phone ?? null,
+      territory: r.territory ?? null,
+      withdrawable: Number(r.withdrawable ?? 0),
+      float: Number(r.float_balance ?? 0),
+      advance: Number(r.advance ?? 0),
+      total: Number(r.total ?? 0),
+    }));
 
-    const rows: AgentBalanceRow[] = ids.map((id) => {
-      const w = walletMap.get(id);
-      const p = profileMap.get(id);
-      const withdrawable = Number(w?.withdrawable_balance ?? 0);
-      const floatBal = Number(w?.float_balance ?? 0);
-      const advance = Number(w?.advance_balance ?? 0);
-      return {
-        user_id: id,
-        full_name: p?.full_name ?? null,
-        phone: p?.phone ?? null,
-        territory: p?.territory ?? null,
-        withdrawable,
-        float: floatBal,
-        advance,
-        total: withdrawable + floatBal + advance,
-      };
-    });
-
-    const totals = rows.reduce(
-      (acc, row) => {
-        acc.withdrawable += row.withdrawable;
-        acc.float += row.float;
-        acc.advance += row.advance;
-        acc.total += row.total;
-        acc.count += 1;
-        if (row.float > 0) acc.withFloat += 1;
-        if (row.withdrawable > 0) acc.withWithdrawable += 1;
-        if (row.advance > 0) acc.withAdvance += 1;
-        return acc;
-      },
-      { withdrawable: 0, float: 0, advance: 0, total: 0, count: 0, withFloat: 0, withWithdrawable: 0, withAdvance: 0 },
-    );
-
-    return json({ rows, totals }, 200);
+    return json({ rows, totals, totalMatched, limit, offset }, 200);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return json({ error: message }, 500);
