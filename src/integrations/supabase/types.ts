@@ -8391,27 +8391,68 @@ export type Database = {
         }
         Relationships: []
       }
+      short_link_clicks: {
+        Row: {
+          clicked_at: string
+          code: string
+          id: string
+          referrer: string | null
+          short_link_id: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          clicked_at?: string
+          code: string
+          id?: string
+          referrer?: string | null
+          short_link_id?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          clicked_at?: string
+          code?: string
+          id?: string
+          referrer?: string | null
+          short_link_id?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "short_link_clicks_short_link_id_fkey"
+            columns: ["short_link_id"]
+            isOneToOne: false
+            referencedRelation: "short_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       short_links: {
         Row: {
+          click_count: number
           code: string
           created_at: string
           id: string
+          last_clicked_at: string | null
           target_params: Json
           target_path: string
           user_id: string
         }
         Insert: {
+          click_count?: number
           code?: string
           created_at?: string
           id?: string
+          last_clicked_at?: string | null
           target_params?: Json
           target_path: string
           user_id: string
         }
         Update: {
+          click_count?: number
           code?: string
           created_at?: string
           id?: string
+          last_clicked_at?: string | null
           target_params?: Json
           target_path?: string
           user_id?: string
@@ -10922,6 +10963,10 @@ export type Database = {
           p_tenant_id: string
           p_transaction_group_id?: string
         }
+        Returns: undefined
+      }
+      record_short_link_click: {
+        Args: { p_code: string; p_referrer?: string; p_user_agent?: string }
         Returns: undefined
       }
       refresh_financial_summaries: { Args: never; Returns: undefined }
