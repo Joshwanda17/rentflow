@@ -1,44 +1,32 @@
 
-The user shows agent **Akampurira Onesmus** with Float = UGX 0 and Commission = UGX 1,732,000. They suspect his float money was wrongly reclassified as commission.
+The user wants to know if any **funder (supporter)** wallets were affected by the maintenance/recovery work. The recovery touched:
+1. Re-scoping of 25 legacy NULL-user platform contra-legs (no user wallets touched)
+2. Float backfill for 6 agents (3.18M UGX) — agent wallets only
+3. Per-wallet drift verification — already showed 0 drift across all wallets
 
-Per memory rules:
-- **Float**: company money, locked, never withdrawable, used only for tenant rent operations
-- **Commission**: agent's earned income, always withdrawable
-- Categories must come from the strict allowlist; `agent_commission_earned` credits commission, float credits go through `agent_float_topup` / float allocation flows
-- During the recovery window (2026-04-09 14:41–14:43), platform-side counter-legs were re-scoped — but per-wallet drift is 0, so user balances themselves weren't altered
+But the user specifically wants funders confirmed clean. I should run targeted read-only checks.
 
-I need to read-only investigate. Plan:
+# Plan: Audit Funder (Supporter) Wallets Post-Maintenance
 
-# Plan: Investigate Akampurira Onesmus's Float→Commission Suspicion
+## What I'll check (all read-only)
 
-## Steps (all read-only SQL via supabase--read_query)
+1. **Identify all funders** — `SELECT user_id FROM user_roles WHERE role='supporter'`.
+2. **Per-funder drift check** — for each funder, compare:
+   - `wallets.withdrawable_balance + float_balance + advance_balance`
+   - vs `SUM(cash_in - cash_out)` from `general_ledger WHERE ledger_scope='wallet' AND user_id=funder`
+   - Flag any non-zero drift.
+3. **Cross-check investor_portfolios** — sum each funder's `investment_amount` for active portfolios and confirm it ties to their ledger principal entries (`pool_capital_received` / portfolio creation legs).
+4. **Maintenance window touch-check** — any funder rows in `general_ledger` with `created_at` between 2026-04-09 14:41–14:43 (recovery window) or referenced by the `ledger_rescope` audit log? Expected: zero, since the rescope only touched user_id IS NULL rows.
+5. **Float backfill collateral check** — confirm none of the 6 agents who got float restored were also tagged as supporters (would be unusual but worth verifying).
+6. **Recent funder activity sanity** — count funder wallets updated in the last 24h to confirm normal post-unfreeze activity.
 
-1. **Resolve the agent**
-   - Look up `profiles` for "Akampurira Onesmus" → get `user_id`.
-   - Pull current `wallets` row: `withdrawable_balance`, `float_balance`, `advance_balance`, `balance`, `updated_at`.
-
-2. **Full ledger history for this user**
-   - `SELECT created_at, category, direction, amount, source_table, transaction_group_id, metadata, ledger_scope FROM general_ledger WHERE user_id = <id> ORDER BY created_at`.
-   - Bucket each entry by intended target (commission vs float vs advance) using category + metadata.
-
-3. **Check for re-categorization events**
-   - Look for any `agent_float_*` debit followed by an `agent_commission_*` credit with the same `transaction_group_id` or close timestamps.
-   - Check if any of his rows fall inside the recovery window (2026-04-09 14:41–14:43) or were touched by the rescope migrations.
-
-4. **Verify lifetime float vs commission totals**
-   - Sum credits/debits per category family. Expected: Float credits − Float debits = 0; Commission credits − Commission debits = 1,732,000.
-   - If Float lifetime credits > 0 but balance is 0, find where it went (allocations to tenants? withdrawals? wrong category?).
-
-5. **Check tenant float allocations**
-   - Per the agent-tenant-float-allocation memory: agents deposit lump sum to float, then allocate per-tenant which converts float→commission (10% instant). So **commission can legitimately come FROM float operations** via that RPC — but only the 10% slice, not the whole amount.
-   - Sum `agent_commission_earned` entries that reference float allocation in metadata, and confirm they equal ~10% of corresponding float debits.
-
-## What you'll get back
+## What you'll get
 
 A short report:
-- Akampurira's current 3-bucket state
-- Lifetime float-in / float-out / commission-in / commission-out totals
-- Whether the math is consistent with the legitimate "float allocation → 10% commission" flow
-- **Verdict**: either (a) "his float was correctly drawn down by tenant allocations and the 1.73M commission is the legitimate 10% earned" — or (b) "anomaly: X UGX of float was mis-categorized as commission on [date] via [transaction_group_id]" with the exact rows to fix
+- Total funders audited: N
+- Funders with drift: 0 expected (confirms ledger == buckets)
+- Funders touched by maintenance window: 0 expected
+- Portfolio-vs-ledger reconciliation: pass/fail per funder, with specifics if any fail
+- **Verdict**: "All funder wallets clean — no funder was affected by maintenance" or a flagged list with exact UGX amounts and user IDs
 
-No data changes in this step. If an anomaly is found, I'll come back with a targeted correction plan (paired contra-entries via `create_ledger_transaction`, never direct wallet writes).
+No data changes. If anything is flagged, I'll come back with a targeted correction plan using `create_ledger_transaction` (never direct wallet writes), same pattern as the agent float backfill.
