@@ -295,6 +295,17 @@ export function AgentTenantCollectDialog({
           </div>
         )}
       </DialogContent>
+
+      {/* 🎉 Commission Celebration — pure UI, no DB calls */}
+      {celebrationData && (
+        <CommissionCelebration
+          open={celebrationOpen}
+          onOpenChange={setCelebrationOpen}
+          commissionAmount={celebrationData.commission}
+          paymentAmount={celebrationData.amount}
+          tenantName={tenant.full_name}
+        />
+      )}
     </Dialog>
   );
 }
