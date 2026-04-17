@@ -31,32 +31,36 @@ export function AgentDetailDialog({ agentId, open, onOpenChange }: Props) {
     enabled: !!agentId && open,
     queryFn: async () => {
       if (!agentId) return null;
+      const sb: any = supabase;
+      const queries = [
+        sb.from('profiles').select('id, full_name, phone, email, avatar_url, verified, created_at, territory, city, country, national_id, mobile_money_number, mobile_money_provider, agent_type, is_frozen, frozen_reason').eq('id', agentId).maybeSingle(),
+        sb.from('wallets').select('balance, withdrawable_balance, float_balance, advance_balance, updated_at').eq('user_id', agentId).maybeSingle(),
+        sb.from('user_roles').select('role, enabled, created_at').eq('user_id', agentId),
+        sb.from('agent_float_limits').select('*').eq('agent_id', agentId).maybeSingle(),
+        sb.from('agent_float_funding').select('id, amount, status, created_at, bank_name, bank_reference, notes').eq('agent_id', agentId).order('created_at', { ascending: false }).limit(20),
+        sb.from('agent_collections').select('id, amount, payment_method, created_at, momo_payer_name, momo_phone, location_name, notes').eq('agent_id', agentId).order('created_at', { ascending: false }).limit(20),
+        sb.from('agent_earnings').select('id, amount, earning_type, description, created_at').eq('agent_id', agentId).order('created_at', { ascending: false }).limit(20),
+        sb.from('agent_advances').select('id, principal, outstanding_balance, status, monthly_rate, issued_at, expires_at, cycle_days').eq('agent_id', agentId).order('created_at', { ascending: false }).limit(10),
+        sb.from('agent_commission_payouts').select('id, amount, status, requested_at, processed_at, mobile_money_number, mobile_money_provider, rejection_reason').eq('agent_id', agentId).order('created_at', { ascending: false }).limit(10),
+        sb.from('agent_escalations').select('id, title, severity, status, escalation_type, created_at, resolved_at').eq('agent_id', agentId).order('created_at', { ascending: false }).limit(15),
+        sb.from('agent_tasks').select('id, title, status, priority, due_date, created_at').eq('assigned_to', agentId).order('created_at', { ascending: false }).limit(15),
+        sb.from('agent_landlord_assignments').select('id, status, assigned_at, landlord_id').eq('agent_id', agentId).order('assigned_at', { ascending: false }).limit(50),
+        sb.from('general_ledger').select('id, amount, direction, category, description, created_at').eq('user_id', agentId).order('created_at', { ascending: false }).limit(30),
+        sb.from('agent_collection_streaks').select('current_streak, longest_streak, last_collection_date, total_badges, streak_multiplier').eq('agent_id', agentId).maybeSingle(),
+        sb.from('agent_goals').select('goal_month, target_registrations, target_activations, notes').eq('agent_id', agentId).order('goal_month', { ascending: false }).limit(3),
+      ];
+      const results: any[] = await Promise.all(queries);
       const [
         profileRes, walletRes, rolesRes, floatLimitsRes, floatFundingRes,
         collectionsRes, earningsRes, advancesRes, commissionsRes,
         escalationsRes, tasksRes, landlordsRes, ledgerRes, streakRes, goalsRes,
-      ] = await Promise.all([
-        supabase.from('profiles').select('id, full_name, phone, email, avatar_url, verified, created_at, territory, city, country, national_id, mobile_money_number, mobile_money_provider, agent_type, is_frozen, frozen_reason').eq('id', agentId).maybeSingle(),
-        supabase.from('wallets').select('balance, withdrawable_balance, float_balance, advance_balance, updated_at').eq('user_id', agentId).maybeSingle(),
-        supabase.from('user_roles').select('role, enabled, created_at').eq('user_id', agentId),
-        supabase.from('agent_float_limits').select('*').eq('agent_id', agentId).maybeSingle(),
-        supabase.from('agent_float_funding').select('id, amount, status, created_at, bank_name, bank_reference, notes').eq('agent_id', agentId).order('created_at', { ascending: false }).limit(20),
-        supabase.from('agent_collections').select('id, amount, payment_method, created_at, momo_payer_name, momo_phone, location_name, notes').eq('agent_id', agentId).order('created_at', { ascending: false }).limit(20),
-        supabase.from('agent_earnings').select('id, amount, earning_type, description, created_at').eq('agent_id', agentId).order('created_at', { ascending: false }).limit(20),
-        supabase.from('agent_advances').select('id, principal, outstanding_balance, status, monthly_rate, issued_at, expires_at, cycle_days').eq('agent_id', agentId).order('created_at', { ascending: false }).limit(10),
-        supabase.from('agent_commission_payouts').select('id, amount, status, requested_at, processed_at, mobile_money_number, mobile_money_provider, rejection_reason').eq('agent_id', agentId).order('created_at', { ascending: false }).limit(10),
-        supabase.from('agent_escalations').select('id, title, severity, status, escalation_type, created_at, resolved_at').eq('agent_id', agentId).order('created_at', { ascending: false }).limit(15),
-        supabase.from('agent_tasks').select('id, title, status, priority, due_date, created_at').eq('assigned_to', agentId).order('created_at', { ascending: false }).limit(15),
-        supabase.from('agent_landlord_assignments').select('id, status, assigned_at, landlord_id').eq('agent_id', agentId).order('assigned_at', { ascending: false }).limit(50),
-        supabase.from('agent_collection_streaks').select('current_streak, longest_streak, last_collection_date, total_badges, streak_multiplier').eq('agent_id', agentId).maybeSingle(),
-        supabase.from('agent_goals').select('goal_month, target_registrations, target_activations, notes').eq('agent_id', agentId).order('goal_month', { ascending: false }).limit(3),
-      ]);
+      ] = results;
 
       // Resolve landlord names
       const landlordIds = (landlordsRes.data || []).map((l: any) => l.landlord_id).filter(Boolean);
-      let landlordMap: Record<string, any> = {};
+      const landlordMap: Record<string, any> = {};
       if (landlordIds.length > 0) {
-        const { data: lls } = await supabase.from('landlords').select('id, name, phone, property_address').in('id', landlordIds);
+        const { data: lls } = await sb.from('landlords').select('id, name, phone, property_address').in('id', landlordIds);
         for (const l of lls || []) landlordMap[l.id] = l;
       }
       const assignments = (landlordsRes.data || []).map((a: any) => ({
