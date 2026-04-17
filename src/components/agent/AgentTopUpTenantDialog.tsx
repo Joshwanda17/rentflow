@@ -32,6 +32,7 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
   const [agentBalance, setAgentBalance] = useState<number | null>(null);
   const [tenantRentBalance, setTenantRentBalance] = useState<number | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [showQuickRegister, setShowQuickRegister] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
