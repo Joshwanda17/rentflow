@@ -89,12 +89,17 @@ export function AgentCashPayoutsTab() {
         .eq('status', 'paid')
         .gte('paid_at', startIso);
 
+      // Only count withdrawals this agent has actually CONFIRMED PAID
+      // (status='completed' + processed_by=self + processed_at set today).
+      // A "claim" only sets assigned_cashout_agent_id/dispatched_at — it must NEVER count here.
       const { data: wreqs } = await supabase
         .from('withdrawal_requests')
-        .select('amount, created_at, processed_at, payout_method')
+        .select('amount, created_at, processed_at, payout_method, status, processed_by')
         .eq('assigned_cashout_agent_id', isCashoutAgent.id)
-        .in('status', ['approved', 'completed'])
+        .eq('processed_by', user.id)
+        .eq('status', 'completed')
         .in('payout_method', ['cash', 'cash_pickup'])
+        .not('processed_at', 'is', null)
         .gte('processed_at', startIso);
 
       const rows = [
