@@ -1157,6 +1157,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     else if (filterContact === 'no_phone') result = result.filter(r => !r.phone || r.phone.includes('@'));
     else if (filterContact === 'has_email') result = result.filter(r => r.email && !r.email.includes('placeholder'));
     else if (filterContact === 'no_email') result = result.filter(r => !r.email || r.email.includes('placeholder'));
+    if (filterWallet === 'has_balance') result = result.filter(r => (r.walletBalance || 0) > 0);
+    else if (filterWallet === 'empty') result = result.filter(r => (r.walletBalance || 0) <= 0);
     if (payoutDateFrom || payoutDateTo) {
       result = result.filter(r => {
         const portfolioData = (r as any).nextRoiDate;
