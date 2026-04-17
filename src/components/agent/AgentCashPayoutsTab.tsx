@@ -156,7 +156,7 @@ export function AgentCashPayoutsTab() {
       <div className="flex items-start gap-2 p-2.5 rounded-lg bg-primary/5 border border-primary/20">
         <Banknote className="h-4 w-4 text-primary shrink-0 mt-0.5" />
         <div className="text-[11px] text-foreground/80 leading-snug">
-          You are operating as a <span className="font-semibold text-primary">Financial Ops Cash-Out Agent</span> (assigned by the CFO). Your only authorised action here is to process withdrawal payouts on behalf of Financial Ops.
+          You are operating as a <span className="font-semibold text-primary">Financial Ops Cash-Out Agent</span>. Your only authorised action here is to process wallet withdrawal payouts on behalf of Financial Ops.
         </div>
       </div>
 
