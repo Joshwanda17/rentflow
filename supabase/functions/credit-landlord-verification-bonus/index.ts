@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -26,6 +27,10 @@ Deno.serve(async (req) => {
     if (authErr || !user) throw new Error('Unauthorized')
 
     const serviceClient = createClient(supabaseUrl, serviceKey)
+
+    // Treasury guard: bonus credits agent wallet — block when paused
+    const guardBlock = await checkTreasuryGuard(serviceClient, "credit");
+    if (guardBlock) return guardBlock;
 
     // Verify caller has appropriate role
     const { data: roles } = await serviceClient

@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { runShadowAudit } from "../_shared/shadowLogger.ts";
 import { shadowValidateCfoAdjustment } from "../_shared/shadowValidation.ts";
 import { fetchShadowConfig, shouldSample } from "../_shared/shadowConfig.ts";
+import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,6 +16,10 @@ Deno.serve(async (req) => {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
   const adminClient = createClient(supabaseUrl, serviceKey);
+
+  // Treasury guard: block any money movement when paused
+  const guardBlock = await checkTreasuryGuard(adminClient, "any");
+  if (guardBlock) return guardBlock;
 
   // Fetch shadow config once (cached 60s)
   const shadowConfig = await fetchShadowConfig(adminClient);

@@ -78,6 +78,10 @@ Deno.serve(async (req) => {
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Treasury guard: block credits when paused (deposits credit user wallets)
+    const guardBlock = await checkTreasuryGuard(supabaseAdmin, "credit");
+    if (guardBlock) return guardBlock;
+
     const { data: isManagerRole } = await supabaseAdmin
       .from("user_roles")
       .select("role")

@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -39,6 +40,10 @@ Deno.serve(async (req) => {
     const userId = claimsData.claims.sub as string;
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Treasury guard: wallet operations move money — block when paused
+    const guardBlock = await checkTreasuryGuard(adminClient, "any");
+    if (guardBlock) return guardBlock;
 
     // Verify authorized role
     const allowedRoles = ['manager', 'coo', 'cfo', 'cto', 'super_admin'];

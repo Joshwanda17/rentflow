@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
+import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,6 +16,10 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
+
+    // Treasury guard: cron deductions must respect maintenance freeze
+    const guardBlock = await checkTreasuryGuard(supabaseAdmin, "any");
+    if (guardBlock) return guardBlock;
 
     const today = new Date().toISOString().split('T')[0];
 

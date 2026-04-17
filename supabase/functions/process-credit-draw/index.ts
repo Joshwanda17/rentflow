@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,6 +17,10 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, serviceKey);
+
+    // Treasury guard: credit draws move money to user wallet
+    const guardBlock = await checkTreasuryGuard(supabase, "credit");
+    if (guardBlock) return guardBlock;
 
     const authHeader = req.headers.get('Authorization');
     const anonClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!);
