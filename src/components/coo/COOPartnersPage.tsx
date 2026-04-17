@@ -1647,12 +1647,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       </div>
 
       {/* Table */}
-      <div className={cn("rounded-xl border border-border bg-card shadow-sm overflow-hidden relative", isSearching && "opacity-60 pointer-events-none")}>
-        {isSearching && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/30">
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
-          </div>
-        )}
+      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-xs sm:text-sm min-w-[640px]">
             <thead>
