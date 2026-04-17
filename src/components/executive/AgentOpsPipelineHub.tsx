@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Users, UserCheck, FileText, Home, Phone, MapPin, Search, Calendar } from 'lucide-react';
+import { Users, FileText, Home, Phone, MapPin, Search, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 import { RentPipelineQueue } from './RentPipelineQueue';
 import { PromissoryNotesQueue } from './PromissoryNotesQueue';
