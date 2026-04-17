@@ -259,6 +259,13 @@ export function CashoutAgentManager() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Pending Withdrawals Dialog */}
+      <CashoutPendingWithdrawalsDialog
+        open={!!cashoutAgent}
+        onOpenChange={v => { if (!v) setCashoutAgent(null); }}
+        agent={cashoutAgent}
+      />
     </div>
   );
 }
