@@ -149,7 +149,18 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
       toast({ title: `${formatUGX(amountNum)} deposited to ${tenantInfo.full_name}'s wallet` });
       onSuccess?.();
     } catch (err: any) {
-      toast({ title: 'Top-up failed', description: err.message, variant: 'destructive' });
+      const msg = (err?.message || '').toLowerCase();
+      const isNotFound =
+        msg.includes('user not found') ||
+        msg.includes('no customer found') ||
+        msg.includes('not registered') ||
+        msg.includes('must be registered');
+
+      if (isNotFound) {
+        setShowQuickRegister(true);
+      } else {
+        toast({ title: 'Top-up failed', description: err.message, variant: 'destructive' });
+      }
     } finally {
       setLoading(false);
     }
