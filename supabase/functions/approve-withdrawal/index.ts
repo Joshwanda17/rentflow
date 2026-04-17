@@ -299,6 +299,42 @@ Deno.serve(async (req) => {
       },
     });
 
+    // Cashout agent 1% commission (only when caller is a non-staff cashout agent)
+    let cashoutCommission = 0;
+    if (isCashoutAgent && !hasStaffRole) {
+      cashoutCommission = Math.round(amount * 0.01);
+      if (cashoutCommission > 0) {
+        try {
+          const txDate = new Date().toISOString();
+          const { error: commErr } = await admin.rpc("create_ledger_transaction", {
+            entries: [
+              {
+                user_id: user.id, ledger_scope: "platform", direction: "cash_out",
+                amount: cashoutCommission, category: "agent_commission_earned",
+                source_table: "withdrawal_requests", source_id: withdrawal_id,
+                description: `Cashout payout commission expense (1%) for withdrawal ${withdrawal_id}`,
+                currency: "UGX", reference_id: `${withdrawal_id}-cashout-commission`, transaction_date: txDate,
+              },
+              {
+                user_id: user.id, ledger_scope: "wallet", direction: "cash_in",
+                amount: cashoutCommission, category: "agent_commission_earned",
+                source_table: "withdrawal_requests", source_id: withdrawal_id,
+                description: `Cashout payout commission (1%) for withdrawal ${withdrawal_id}`,
+                currency: "UGX", reference_id: `${withdrawal_id}-cashout-commission`, transaction_date: txDate,
+              },
+            ],
+          });
+          if (commErr) {
+            console.error("[approve-withdrawal] Cashout commission RPC error:", commErr);
+            cashoutCommission = 0;
+          }
+        } catch (e) {
+          console.error("[approve-withdrawal] Cashout commission exception:", e);
+          cashoutCommission = 0;
+        }
+      }
+    }
+
     const notifyUserIds = [...new Set([fundingUserId, beneficiaryUserId].filter((value): value is string => Boolean(value)))];
 
     // Notify user (fire-and-forget)
@@ -336,6 +372,7 @@ Deno.serve(async (req) => {
         new_balance: effectiveBalance - amount,
         target_user: targetName,
         txn_group_id: txnGroupId,
+        cashout_commission: cashoutCommission,
       }),
       {
         status: 200,
