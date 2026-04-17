@@ -14,6 +14,7 @@ import {
   Smartphone, Wallet, Bell,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { WithdrawalPayoutCard } from '@/components/withdrawals/WithdrawalPayoutCard';
 
 export function AgentCashPayoutsTab() {
@@ -97,8 +98,10 @@ export function AgentCashPayoutsTab() {
       const { data, error } = await supabase.functions.invoke('approve-withdrawal', {
         body: { withdrawal_id: id, reference: reference.trim(), payment_method: method },
       });
-      if (error) throw new Error(error.message || 'Failed to process withdrawal');
-      if (data?.error) throw new Error(data.error);
+      if (error || data?.error) {
+        const msg = await extractEdgeFunctionError({ data, error }, 'Failed to process withdrawal');
+        throw new Error(msg);
+      }
       return data;
     },
     onSuccess: (data) => {

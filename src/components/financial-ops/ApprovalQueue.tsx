@@ -15,7 +15,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { differenceInHours } from 'date-fns';
 import { Search, CheckCircle2, XCircle, Clock, Banknote, Wallet, Loader2, ArrowUpDown } from 'lucide-react';
 import { toast } from 'sonner';
-import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
+import { extractFromErrorObject, extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { RequestDetailSheet } from './RequestDetailSheet';
 
 type QueueType = 'wallet_withdrawals' | 'wallet_ops';
@@ -271,8 +271,9 @@ export function ApprovalQueue() {
               },
             });
             if (approveErr || approveData?.error) {
-              console.error(`[ApprovalQueue] approve-withdrawal failed for ${id}:`, approveErr || approveData?.error);
-              toast.warning(`Failed to approve ${id.slice(0, 8)}: ${approveData?.error || 'unknown error'}`);
+              const realMsg = await extractFromErrorObject(approveErr || new Error(approveData?.error || 'unknown'), approveData?.error || 'unknown error');
+              console.error(`[ApprovalQueue] approve-withdrawal failed for ${id}:`, realMsg);
+              toast.warning(`Failed to approve ${id.slice(0, 8)}: ${realMsg}`);
             } else {
               approvalResults.push(id);
             }

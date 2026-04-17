@@ -18,6 +18,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { UserAvatar } from '@/components/UserAvatar';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
+import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 
 interface WithdrawalRequest {
   id: string;
@@ -126,8 +127,10 @@ export function FinOpsWithdrawalVerification() {
           payment_method: paymentMethod,
         },
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (error || data?.error) {
+        const msg = await extractEdgeFunctionError({ data, error }, 'Failed to approve');
+        throw new Error(msg);
+      }
 
       toast.success('Withdrawal approved & completed!');
       setPendingRequests(prev => prev.filter(r => r.id !== selected.id));
@@ -150,7 +153,10 @@ export function FinOpsWithdrawalVerification() {
       const { data, error: rejectErr } = await supabase.functions.invoke('reject-withdrawal', {
         body: { withdrawal_ids: [selected.id], reason: rejectionReason.trim(), withdrawal_type: 'wallet' },
       });
-      if (rejectErr) throw rejectErr;
+      if (rejectErr) {
+        const msg = await extractEdgeFunctionError({ data, error: rejectErr }, 'Failed to reject');
+        throw new Error(msg);
+      }
 
       const result = data?.results?.find((r: any) => r.id === selected.id);
       if (result?.status !== 'rejected') {
