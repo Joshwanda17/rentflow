@@ -198,11 +198,29 @@ export function AgentDepositDialog({ open, onOpenChange, onSuccess, prefillPhone
       }
       onSuccess?.();
     } catch (error: any) {
-      toast({ 
-        title: 'Deposit failed', 
-        description: error.message || 'Please try again',
-        variant: 'destructive' 
-      });
+      const msg = (error.message || '').toLowerCase();
+      const isNotFound =
+        msg.includes('user not found') ||
+        msg.includes('no customer found') ||
+        msg.includes('not registered') ||
+        msg.includes('must be registered');
+
+      if (isNotFound) {
+        sonnerToast.error('Tenant not found', {
+          description: `No tenant on the platform uses ${phone.trim()}. Add them now to continue.`,
+          duration: 10000,
+          action: {
+            label: 'Add tenant',
+            onClick: () => setShowQuickRegister(true),
+          },
+        });
+      } else {
+        toast({
+          title: 'Deposit failed',
+          description: error.message || 'Please try again',
+          variant: 'destructive',
+        });
+      }
     } finally {
       setLoading(false);
     }
