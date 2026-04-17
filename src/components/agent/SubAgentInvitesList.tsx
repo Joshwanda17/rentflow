@@ -188,20 +188,9 @@ Just click the link and enter your password to get started!`;
   const pendingCount = pendingInvites.length;
   const activatedCount = invites.filter(i => i.status === 'activated').length;
 
-  if (loading) {
-    return (
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-6 w-40" />
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {[1, 2].map(i => (
-            <Skeleton key={i} className="h-20 w-full" />
-          ))}
-        </CardContent>
-      </Card>
-    );
-  }
+  // Sub-agents are now auto-activated, so no "pending invite" UI is needed.
+  // Only render this section if legacy pending invites still exist.
+  if (loading || pendingCount === 0) return null;
 
   return (
     <Card className="border-primary/20">
