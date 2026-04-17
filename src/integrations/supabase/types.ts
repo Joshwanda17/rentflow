@@ -10096,31 +10096,40 @@ export type Database = {
       }
       wallets: {
         Row: {
+          advance_balance: number
           balance: number
           created_at: string
           currency: string
+          float_balance: number
           id: string
           locked_balance: number
           updated_at: string
           user_id: string
+          withdrawable_balance: number
         }
         Insert: {
+          advance_balance?: number
           balance?: number
           created_at?: string
           currency?: string
+          float_balance?: number
           id?: string
           locked_balance?: number
           updated_at?: string
           user_id: string
+          withdrawable_balance?: number
         }
         Update: {
+          advance_balance?: number
           balance?: number
           created_at?: string
           currency?: string
+          float_balance?: number
           id?: string
           locked_balance?: number
           updated_at?: string
           user_id?: string
+          withdrawable_balance?: number
         }
         Relationships: []
       }
@@ -10435,6 +10444,15 @@ export type Database = {
         }
         Returns: Json
       }
+      apply_wallet_movement: {
+        Args: {
+          p_amount: number
+          p_category: string
+          p_direction: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       apply_welile_homes_monthly_interest: { Args: never; Returns: number }
       auto_dispatch_withdrawals: {
         Args: { p_batch_size?: number }
@@ -10584,8 +10602,10 @@ export type Database = {
       get_agent_split_balances: {
         Args: { p_agent_id: string }
         Returns: {
+          advance_balance: number
           commission_balance: number
           float_balance: number
+          withdrawable_balance: number
         }[]
       }
       get_agent_workload_summary: { Args: never; Returns: Json }
@@ -10937,6 +10957,14 @@ export type Database = {
         }[]
       }
       recalculate_credit_limit: { Args: { p_user_id: string }; Returns: number }
+      recompute_wallet_buckets: {
+        Args: { p_user_id: string }
+        Returns: {
+          advance: number
+          float_bal: number
+          withdrawable: number
+        }[]
+      }
       reconcile_wallet_from_ledger: {
         Args: { p_user_id: string }
         Returns: number
@@ -11109,6 +11137,13 @@ export type Database = {
       void_ledger_entry: {
         Args: { p_ledger_id: string; p_reason: string }
         Returns: undefined
+      }
+      wallet_route_for_category: {
+        Args: { p_category: string; p_direction: string }
+        Returns: {
+          bucket: string
+          sign: number
+        }[]
       }
     }
     Enums: {
