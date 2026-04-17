@@ -53,7 +53,7 @@ export function CashoutAgentManager() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('withdrawal_requests')
-        .select('id, amount, payout_method, status, created_at, processed_at, fin_ops_reference, assigned_cashout_agent_id, user_id, beneficiary_name, beneficiary_phone')
+        .select('id, amount, payout_method, status, created_at, processed_at, fin_ops_reference, assigned_cashout_agent_id, user_id, mobile_money_name, mobile_money_number')
         .in('status', COMPLETED_STATUSES)
         .not('assigned_cashout_agent_id', 'is', null)
         .order('processed_at', { ascending: false })

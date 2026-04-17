@@ -1,11 +1,11 @@
 import { useAgentBalances } from '@/hooks/useAgentBalances';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Loader2, Wallet, Lock } from 'lucide-react';
+import { Loader2, Wallet, Lock, AlertTriangle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export function AgentFloatBalanceCard() {
-  const { floatBalance, commissionBalance, totalBalance, isLoading } = useAgentBalances();
+  const { withdrawableBalance, floatBalance, advanceBalance, isLoading } = useAgentBalances();
 
   if (isLoading) {
     return (
@@ -17,45 +17,63 @@ export function AgentFloatBalanceCard() {
     );
   }
 
-  if (totalBalance === 0) return null;
+  if (withdrawableBalance === 0 && floatBalance === 0 && advanceBalance === 0) return null;
 
   return (
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
-          <Wallet className="h-4 w-4 text-emerald-600" /> Withdrawable Earnings
+          <Wallet className="h-4 w-4 text-emerald-600" /> Available Balance
         </CardTitle>
       </CardHeader>
       <CardContent>
-        {/* Lead with the ACTUAL withdrawable amount (commission only) */}
-        <p className={`font-bold text-2xl ${commissionBalance > 0 ? 'text-emerald-600' : 'text-muted-foreground'}`}>
-          {formatUGX(commissionBalance)}
+        {/* PRIMARY: withdrawable */}
+        <p className={`font-bold text-2xl ${withdrawableBalance > 0 ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+          {formatUGX(withdrawableBalance)}
         </p>
-        <p className="text-[11px] text-muted-foreground mt-0.5">Your commission — available to cash out</p>
+        <p className="text-[11px] text-muted-foreground mt-0.5">Available to withdraw</p>
 
-        {/* Locked float shown as secondary, clearly non-withdrawable */}
-        <div className="mt-3 pt-3 border-t border-dashed flex items-center justify-between gap-2">
-          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-            <Lock className="h-3 w-3" />
-            Company Float (locked)
-            <TooltipProvider delayDuration={200}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="cursor-help underline decoration-dotted underline-offset-2">why?</span>
-                </TooltipTrigger>
-                <TooltipContent side="top" className="max-w-[240px] text-xs">
-                  Float is company money for paying tenants & landlords. It cannot be withdrawn — only your commission can.
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </span>
-          <span className="text-xs font-medium text-foreground/80 tabular-nums">{formatUGX(floatBalance)}</span>
-        </div>
+        {/* Outstanding advance (liability) */}
+        {advanceBalance > 0 && (
+          <div className="mt-3 pt-3 border-t border-dashed flex items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1 text-xs text-destructive">
+              <AlertTriangle className="h-3 w-3" />
+              Outstanding Advance
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="cursor-help underline decoration-dotted underline-offset-2">why?</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[240px] text-xs">
+                    Money owed back to the platform. Future salary or commission will pay this down automatically.
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </span>
+            <span className="text-xs font-semibold text-destructive tabular-nums">{formatUGX(advanceBalance)}</span>
+          </div>
+        )}
 
-        <div className="mt-2 flex items-center justify-between text-[10px] uppercase tracking-wider text-muted-foreground/70">
-          <span>Total in wallet</span>
-          <span className="tabular-nums">{formatUGX(totalBalance)}</span>
-        </div>
+        {/* Locked float (company money) */}
+        {floatBalance > 0 && (
+          <div className="mt-3 pt-3 border-t border-dashed flex items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+              <Lock className="h-3 w-3" />
+              Company Float (locked)
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="cursor-help underline decoration-dotted underline-offset-2">why?</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[240px] text-xs">
+                    Float is company money for paying tenants & landlords. It cannot be withdrawn.
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </span>
+            <span className="text-xs font-medium text-foreground/80 tabular-nums">{formatUGX(floatBalance)}</span>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
