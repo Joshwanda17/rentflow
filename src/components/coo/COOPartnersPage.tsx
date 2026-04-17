@@ -1548,11 +1548,13 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           <input type="text" value={search} onChange={e => { setSearch(e.target.value); setPage(0); }}
             placeholder="Search by name or phone…"
             className="h-9 w-full rounded-lg border border-border bg-background pl-8 pr-8 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors" />
-          {search && (
+          {isSearching ? (
+            <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-primary animate-spin" />
+          ) : search ? (
             <button onClick={() => { setSearch(''); setPage(0); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted">
               <X className="h-3 w-3 text-muted-foreground" />
             </button>
-          )}
+          ) : null}
         </div>
         <Select value={filterStatus} onValueChange={(v: any) => { setFilterStatus(v); setPage(0); }}>
           <SelectTrigger className="w-[120px] h-9 text-xs"><Filter className="h-3 w-3 mr-1 text-muted-foreground" /><SelectValue /></SelectTrigger>
