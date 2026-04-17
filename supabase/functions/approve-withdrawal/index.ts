@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,6 +38,10 @@ Deno.serve(async (req) => {
 
     // Check caller role (staff OR active cashout agent)
     const admin = createClient(supabaseUrl, serviceKey);
+
+    // Treasury guard: block withdrawals when paused
+    const guardBlock = await checkTreasuryGuard(admin, "debit");
+    if (guardBlock) return guardBlock;
     const { data: roles } = await admin
       .from("user_roles")
       .select("role")
