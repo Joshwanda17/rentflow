@@ -970,8 +970,16 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
   /* ─── Add New Portfolio (deducts from selected wallet) ─── */
   async function handleAddPortfolio() {
-    if (!detailPartner) return;
-    const amt = Number(addPortfolioAmount);
+    console.log('[handleAddPortfolio] click', {
+      hasDetailPartner: !!detailPartner,
+      addPortfolioAmount,
+      addPortfolioRoi,
+      addPortfolioDuration,
+      addPortfolioFundingSource,
+      proxyAgentInfo,
+    });
+    if (!detailPartner) { toast.error('No partner selected'); return; }
+    const amt = Number(String(addPortfolioAmount).replace(/[^\d.]/g, ''));
     const roi = Number(addPortfolioRoi);
     const duration = Number(addPortfolioDuration);
 
@@ -997,6 +1005,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       toast.error(`Insufficient funds. Available: ${formatUGX(sourceBalance)} in ${addPortfolioFundingSource === 'wallet' ? 'partner wallet' : `${proxyAgentInfo?.agentName}'s wallet`}`);
       return;
     }
+
 
     setAddingPortfolio(true);
     try {
@@ -2254,14 +2263,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddPortfolioOpen(false)} disabled={addingPortfolio}>Cancel</Button>
             <Button
+              type="button"
               onClick={handleAddPortfolio}
-              disabled={
-                addingPortfolio ||
-                !addPortfolioAmount ||
-                Number(addPortfolioAmount) < MIN_INVEST ||
-                (addPortfolioFundingSource === 'wallet' && (!detailPartner || Number(addPortfolioAmount) > detailPartner.walletBalance)) ||
-                (addPortfolioFundingSource === 'proxy_agent' && (!proxyAgentInfo || Number(addPortfolioAmount) > proxyAgentInfo.walletBalance))
-              }
+              disabled={addingPortfolio}
             >
               {addingPortfolio ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating...</> : <><Plus className="h-4 w-4 mr-2" /> Create Portfolio</>}
             </Button>
