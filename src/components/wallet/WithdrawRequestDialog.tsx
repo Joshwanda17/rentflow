@@ -144,9 +144,10 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
     return true;
   };
 
-  const MIN_BALANCE = 5000;
+  // 100% of available wallet balance (incl. all commission earnings) is withdrawable.
+  // Only constraint: telco-imposed UGX 500 minimum per transaction.
   const availableBalance = Math.max(0, walletBalance - pendingAmount);
-  const meetsMinBalance = walletBalance >= MIN_BALANCE;
+  const meetsMinBalance = availableBalance >= 500;
   const isFormValid = meetsMinBalance && amount >= 500 && amount <= availableBalance && isPayoutValid() && reason.trim().length >= 10 && workingHoursStatus.isOpen;
 
   const handleSubmit = async () => {
@@ -154,7 +155,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
     const currentStatus = checkWorkingHours();
     if (!currentStatus.isOpen) { toast.error(currentStatus.message); setWorkingHoursStatus(currentStatus); return; }
     
-    if (!meetsMinBalance) { toast.error('Wallet balance must be at least UGX 5,000'); return; }
+    if (availableBalance < 500) { toast.error('Available balance must be at least UGX 500'); return; }
     if (amount < 500) { toast.error('Minimum withdrawal is UGX 500'); return; }
     if (amount > availableBalance) { toast.error(`Insufficient available balance. You have UGX ${pendingAmount.toLocaleString()} in pending withdrawals.`); return; }
     if (!isPayoutValid()) { toast.error('Please complete payout details'); return; }
@@ -324,8 +325,8 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
                 <div className="flex items-start gap-3 p-4 rounded-2xl bg-destructive/10 border border-destructive/20">
                   <TrendingDown className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-bold text-foreground">Minimum balance required</p>
-                    <p className="text-xs text-muted-foreground">You need at least <strong>UGX 5,000</strong> to withdraw</p>
+                    <p className="text-sm font-bold text-foreground">Insufficient available balance</p>
+                    <p className="text-xs text-muted-foreground">You need at least <strong>UGX 500</strong> available to withdraw</p>
                   </div>
                 </div>
               )}
