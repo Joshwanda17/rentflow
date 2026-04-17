@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
       return json({ rows: [], totals: { withdrawable: 0, float: 0, advance: 0, total: 0, count: 0, withFloat: 0, withWithdrawable: 0, withAdvance: 0 } }, 200);
     }
 
-    const BATCH = 500;
+    const BATCH = 100;
     const wallets: any[] = [];
     const profiles: any[] = [];
 
