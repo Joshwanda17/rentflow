@@ -111,11 +111,22 @@ Deno.serve(async (req) => {
       });
     }
 
-    const targetUserId = wr.user_id;
+    // For proxy-partner payouts, the agent submits the withdrawal under their own user_id
+    // but the funds belong to the partner (stored in `linked_party`). Debit the partner's
+    // wallet, not the agent's commission.
+    const isProxyPayout =
+      typeof wr.reason === "string" &&
+      wr.reason.startsWith("Proxy payout delivery for") &&
+      wr.linked_party &&
+      wr.linked_party !== wr.user_id;
+
+    const targetUserId = isProxyPayout ? wr.linked_party : wr.user_id;
     const amount = Number(wr.amount);
 
-
-
+    console.log(
+      `[approve-withdrawal] withdrawal ${withdrawal_id}: isProxyPayout=${isProxyPayout}, ` +
+      `submitter=${wr.user_id}, debiting=${targetUserId}, amount=${amount}`
+    );
 
     // Check wallet balance (from wallets table, which is derived from ledger)
     const { data: wallet } = await admin
