@@ -179,9 +179,9 @@ export function AgentTenantCollectDialog({
             )}
 
             {canAllocate && floatBalance < outstandingBalance && (
-              <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-xl p-3">
-                <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                <p className="text-xs text-amber-700 dark:text-amber-400">
+              <div className="flex items-start gap-2 bg-warning/10 border border-warning/30 rounded-xl p-3">
+                <AlertCircle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                <p className="text-xs text-warning-foreground">
                   You can pay up to <span className="font-mono font-bold">{formatUGX(maxAllowable)}</span> right now (limited by your float). The tenant will still owe the rest.
                 </p>
               </div>
