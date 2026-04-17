@@ -970,8 +970,16 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
 
   /* ─── Add New Portfolio (deducts from selected wallet) ─── */
   async function handleAddPortfolio() {
-    if (!detailPartner) return;
-    const amt = Number(addPortfolioAmount);
+    console.log('[handleAddPortfolio] click', {
+      hasDetailPartner: !!detailPartner,
+      addPortfolioAmount,
+      addPortfolioRoi,
+      addPortfolioDuration,
+      addPortfolioFundingSource,
+      proxyAgentInfo,
+    });
+    if (!detailPartner) { toast.error('No partner selected'); return; }
+    const amt = Number(String(addPortfolioAmount).replace(/[^\d.]/g, ''));
     const roi = Number(addPortfolioRoi);
     const duration = Number(addPortfolioDuration);
 
@@ -997,6 +1005,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       toast.error(`Insufficient funds. Available: ${formatUGX(sourceBalance)} in ${addPortfolioFundingSource === 'wallet' ? 'partner wallet' : `${proxyAgentInfo?.agentName}'s wallet`}`);
       return;
     }
+
 
     setAddingPortfolio(true);
     try {
