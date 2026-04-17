@@ -476,7 +476,7 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
               </div>
               <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">Your commission</span>
-                <span>0.5% of every repayment</span>
+                <span>4% of every repayment</span>
               </div>
             </div>
 
