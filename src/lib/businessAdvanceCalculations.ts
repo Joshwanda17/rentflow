@@ -7,7 +7,7 @@
  */
 
 export const BUSINESS_ADVANCE_DAILY_RATE = 0.01; // 1% per day
-export const AGENT_COMMISSION_RATE = 0.005; // 0.5% per repayment
+export const AGENT_COMMISSION_RATE = 0.04; // 4% per repayment
 
 import { formatDynamic } from '@/lib/currencyFormat';
 
