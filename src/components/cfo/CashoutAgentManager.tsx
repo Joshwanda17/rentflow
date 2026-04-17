@@ -10,8 +10,9 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Banknote, UserPlus, Loader2, XCircle, Building2, Smartphone, Eye, Phone, Mail, MapPin, CreditCard, Calendar, Shield } from 'lucide-react';
+import { Banknote, UserPlus, Loader2, XCircle, Building2, Smartphone, Eye, Phone, Mail, MapPin, CreditCard, Calendar, Shield, Wallet } from 'lucide-react';
 import { UserSearchPicker } from './UserSearchPicker';
+import { CashoutPendingWithdrawalsDialog } from './CashoutPendingWithdrawalsDialog';
 
 export function CashoutAgentManager() {
   const { user } = useAuth();
@@ -23,6 +24,7 @@ export function CashoutAgentManager() {
   const [handlesBank, setHandlesBank] = useState(true);
   const [label, setLabel] = useState('');
   const [viewAgent, setViewAgent] = useState<any>(null);
+  const [cashoutAgent, setCashoutAgent] = useState<any>(null);
 
   const { data: agents = [], isLoading } = useQuery({
     queryKey: ['cashout-agents'],
@@ -157,6 +159,9 @@ export function CashoutAgentManager() {
                     <p className="text-xs text-muted-foreground">{a.profiles?.phone}</p>
                   </div>
                   <div className="flex items-center gap-1">
+                    <Button size="sm" variant="ghost" onClick={() => setCashoutAgent(a)} title="View pending withdrawals">
+                      <Wallet className="h-4 w-4 text-orange-600" />
+                    </Button>
                     <Button size="sm" variant="ghost" onClick={() => setViewAgent(a)} title="View profile">
                       <Eye className="h-4 w-4 text-primary" />
                     </Button>
