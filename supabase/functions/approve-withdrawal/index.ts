@@ -111,28 +111,28 @@ Deno.serve(async (req) => {
       });
     }
 
-    // For proxy-partner payouts, the agent submits the withdrawal under their own user_id
-    // but the funds belong to the partner (stored in `linked_party`). Debit the partner's
-    // wallet, not the agent's commission.
+    // Proxy payouts are requested by the agent and funded from the agent wallet.
+    // `linked_party` identifies the partner receiving the external payout.
     const isProxyPayout =
       typeof wr.reason === "string" &&
       wr.reason.startsWith("Proxy payout delivery for") &&
       wr.linked_party &&
       wr.linked_party !== wr.user_id;
 
-    const targetUserId = isProxyPayout ? wr.linked_party : wr.user_id;
+    const fundingUserId = wr.user_id;
+    const beneficiaryUserId = isProxyPayout ? wr.linked_party : wr.user_id;
     const amount = Number(wr.amount);
 
     console.log(
       `[approve-withdrawal] withdrawal ${withdrawal_id}: isProxyPayout=${isProxyPayout}, ` +
-      `submitter=${wr.user_id}, debiting=${targetUserId}, amount=${amount}`
+      `submitter=${wr.user_id}, debiting=${fundingUserId}, beneficiary=${beneficiaryUserId}, amount=${amount}`
     );
 
     // Check wallet balance (from wallets table, which is derived from ledger)
     const { data: wallet } = await admin
       .from("wallets")
       .select("balance")
-      .eq("user_id", targetUserId)
+      .eq("user_id", fundingUserId)
       .single();
 
     // Check if there's already a pending hold (pre-deduction) for this withdrawal
@@ -149,15 +149,14 @@ Deno.serve(async (req) => {
     const totalPendingHold = (pendingHolds || []).reduce((sum: number, h: any) => sum + Number(h.amount), 0);
     const effectiveBalance = (wallet?.balance || 0) + totalPendingHold;
 
-    // For agents, check commission-aware withdrawable balance
-    // Commission is earned money that IS withdrawable, even if float is low.
-    // Skip this for proxy payouts — funds belong to the partner, not agent commission.
+    // For direct agent withdrawals, check commission-aware withdrawable balance.
+    // Skip this for proxy payouts because they are partner funds routed through the agent wallet.
     const { data: agentRole } = isProxyPayout
       ? { data: null as any }
       : await admin
           .from("user_roles")
           .select("role")
-          .eq("user_id", targetUserId)
+          .eq("user_id", fundingUserId)
           .eq("role", "agent")
           .maybeSingle();
 
@@ -166,7 +165,7 @@ Deno.serve(async (req) => {
     if (agentRole) {
       // Use split balance RPC to get commission (withdrawable) portion
       const { data: splitBalances } = await admin.rpc("get_agent_split_balances", {
-        p_agent_id: targetUserId,
+        p_agent_id: fundingUserId,
       });
       const balRow = Array.isArray(splitBalances) ? splitBalances[0] : splitBalances;
       const commissionBalance = Number(balRow?.commission_balance ?? 0);
@@ -177,7 +176,7 @@ Deno.serve(async (req) => {
       // Soft check: if agent has high outstanding float, warn but allow
       // (Future: configurable threshold from treasury_controls)
       const { data: outstandingRows } = await admin.rpc("get_outstanding_agent_float");
-      const agentFloat = (outstandingRows || []).find((r: any) => r.agent_id === targetUserId);
+      const agentFloat = (outstandingRows || []).find((r: any) => r.agent_id === fundingUserId);
       const outstandingFloat = Number(agentFloat?.outstanding ?? 0);
       const ageHours = Number(agentFloat?.age_hours ?? 0);
 
@@ -212,11 +211,11 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Get target user profile for audit
+    // Get beneficiary profile for audit / notifications
     const { data: profile } = await admin
       .from("profiles")
       .select("full_name, phone")
-      .eq("id", targetUserId)
+      .eq("id", beneficiaryUserId)
       .single();
     const targetName = profile?.full_name || "Unknown";
 
@@ -225,7 +224,7 @@ Deno.serve(async (req) => {
     const { data: txnGroupId, error: ledgerErr } = await admin.rpc("create_ledger_transaction", {
       entries: [
         {
-          user_id: targetUserId,
+          user_id: fundingUserId,
           amount,
           direction: "cash_out",
           category: "wallet_withdrawal",
@@ -289,7 +288,7 @@ Deno.serve(async (req) => {
       table_name: "withdrawal_requests",
       metadata: {
         amount,
-        target_user: targetUserId,
+        target_user: beneficiaryUserId,
         target_user_name: targetName,
         reference: reference.trim().toUpperCase(),
         payment_method,
@@ -300,12 +299,14 @@ Deno.serve(async (req) => {
       },
     });
 
+    const notifyUserIds = [...new Set([fundingUserId, beneficiaryUserId].filter((value): value is string => Boolean(value)))];
+
     // Notify user (fire-and-forget)
     fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
       body: JSON.stringify({
-        userIds: [targetUserId],
+        userIds: notifyUserIds,
         payload: {
           title: "✅ Withdrawal Approved",
           body: `UGX ${amount.toLocaleString()} has been sent to you via ${payment_method}`,
