@@ -159,6 +159,7 @@ export function AgentOpsDashboard() {
       case 'escalations': return <AgentEscalationQueue />;
       case 'service-centres': return <ServiceCentreVerificationQueue />;
       case 'sub-agents': return <SubAgentVerificationQueue />;
+      case 'promote-tenant': return <TenantToSubAgentPanel />;
       case 'float-payouts': return <AgentOpsFloatPayoutReview />;
       case 'advance-requests': return <AdvanceRequestsQueue stage="agent_ops" />;
       case 'alerts': return <AgentAlertFeed />;
