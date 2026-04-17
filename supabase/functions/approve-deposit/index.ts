@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { logSystemEvent } from "../_shared/eventLogger.ts";
+import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -76,6 +77,10 @@ Deno.serve(async (req) => {
     const safeRejectionReason = typeof rejection_reason === 'string' ? rejection_reason.trim().slice(0, 1000) : undefined;
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Treasury guard: block credits when paused (deposits credit user wallets)
+    const guardBlock = await checkTreasuryGuard(supabaseAdmin, "credit");
+    if (guardBlock) return guardBlock;
 
     const { data: isManagerRole } = await supabaseAdmin
       .from("user_roles")

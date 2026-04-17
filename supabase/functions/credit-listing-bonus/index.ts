@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -44,6 +45,10 @@ serve(async (req) => {
     }
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Treasury guard: bonus credits user wallet — block when paused
+    const guardBlock = await checkTreasuryGuard(adminClient, "credit");
+    if (guardBlock) return guardBlock;
 
     // Verify Landlord Ops / manager role
     const { data: roleCheck, error: roleErr } = await adminClient

@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { logSystemEvent } from "../_shared/eventLogger.ts";
+import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -221,6 +222,10 @@ Deno.serve(async (req) => {
     console.log(`[agent-deposit] Agent ${agentId} processing deposit for user ${userId || userPhone}, amount: ${amount}`);
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Treasury guard: agent deposits credit user wallets — block when paused
+    const guardBlock = await checkTreasuryGuard(adminClient, "credit");
+    if (guardBlock) return guardBlock;
 
     // Verify agent role
     const { data: agentRole } = await adminClient

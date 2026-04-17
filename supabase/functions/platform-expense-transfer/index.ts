@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { logSystemEvent } from "../_shared/eventLogger.ts";
+import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -30,6 +31,10 @@ serve(async (req) => {
     }
 
     const adminClient = createClient(supabaseUrl, serviceKey);
+
+    // Treasury guard: platform-to-agent transfers move money — block when paused
+    const guardBlock = await checkTreasuryGuard(adminClient, "any");
+    if (guardBlock) return guardBlock;
 
     const { data: roles } = await adminClient.from('user_roles').select('role').eq('user_id', user.id);
     const allowedRoles = ['manager', 'cfo', 'coo', 'super_admin'];
