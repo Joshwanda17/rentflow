@@ -2512,6 +2512,241 @@ export type Database = {
         }
         Relationships: []
       }
+      business_advance_daily_accruals: {
+        Row: {
+          accrual_date: string
+          advance_id: string
+          closing_balance: number
+          created_at: string
+          daily_rate: number
+          id: string
+          interest_accrued: number
+          opening_balance: number
+        }
+        Insert: {
+          accrual_date: string
+          advance_id: string
+          closing_balance: number
+          created_at?: string
+          daily_rate: number
+          id?: string
+          interest_accrued: number
+          opening_balance: number
+        }
+        Update: {
+          accrual_date?: string
+          advance_id?: string
+          closing_balance?: number
+          created_at?: string
+          daily_rate?: number
+          id?: string
+          interest_accrued?: number
+          opening_balance?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_advance_daily_accruals_advance_id_fkey"
+            columns: ["advance_id"]
+            isOneToOne: false
+            referencedRelation: "business_advances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      business_advance_repayments: {
+        Row: {
+          advance_id: string
+          agent_commission: number
+          agent_id: string | null
+          amount: number
+          created_at: string
+          id: string
+          notes: string | null
+          outstanding_after: number
+          outstanding_before: number
+          payment_method: string
+          reference: string | null
+          tenant_id: string
+        }
+        Insert: {
+          advance_id: string
+          agent_commission?: number
+          agent_id?: string | null
+          amount: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          outstanding_after: number
+          outstanding_before: number
+          payment_method?: string
+          reference?: string | null
+          tenant_id: string
+        }
+        Update: {
+          advance_id?: string
+          agent_commission?: number
+          agent_id?: string | null
+          amount?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          outstanding_after?: number
+          outstanding_before?: number
+          payment_method?: string
+          reference?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_advance_repayments_advance_id_fkey"
+            columns: ["advance_id"]
+            isOneToOne: false
+            referencedRelation: "business_advances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      business_advances: {
+        Row: {
+          agent_id: string
+          agent_ops_notes: string | null
+          agent_ops_reviewed_at: string | null
+          agent_ops_reviewed_by: string | null
+          business_address: string
+          business_city: string | null
+          business_latitude: number | null
+          business_longitude: number | null
+          business_name: string
+          business_photo_urls: string[] | null
+          business_type: string
+          cfo_disbursed_at: string | null
+          cfo_disbursed_by: string | null
+          cfo_notes: string | null
+          completed_at: string | null
+          coo_approved_at: string | null
+          coo_approved_by: string | null
+          coo_notes: string | null
+          created_at: string
+          daily_rate: number
+          disbursed_at: string | null
+          id: string
+          landlord_ops_notes: string | null
+          landlord_ops_reviewed_at: string | null
+          landlord_ops_reviewed_by: string | null
+          last_compounded_date: string | null
+          monthly_revenue: number | null
+          notes: string | null
+          outstanding_balance: number
+          principal: number
+          reason: string | null
+          rejection_reason: string | null
+          status: Database["public"]["Enums"]["business_advance_status"]
+          tenant_has_smartphone: boolean
+          tenant_id: string
+          tenant_onboarding_method: string
+          tenant_ops_notes: string | null
+          tenant_ops_reviewed_at: string | null
+          tenant_ops_reviewed_by: string | null
+          tenant_signup_link: string | null
+          total_interest_accrued: number
+          total_repaid: number
+          updated_at: string
+          years_in_business: number | null
+        }
+        Insert: {
+          agent_id: string
+          agent_ops_notes?: string | null
+          agent_ops_reviewed_at?: string | null
+          agent_ops_reviewed_by?: string | null
+          business_address: string
+          business_city?: string | null
+          business_latitude?: number | null
+          business_longitude?: number | null
+          business_name: string
+          business_photo_urls?: string[] | null
+          business_type: string
+          cfo_disbursed_at?: string | null
+          cfo_disbursed_by?: string | null
+          cfo_notes?: string | null
+          completed_at?: string | null
+          coo_approved_at?: string | null
+          coo_approved_by?: string | null
+          coo_notes?: string | null
+          created_at?: string
+          daily_rate?: number
+          disbursed_at?: string | null
+          id?: string
+          landlord_ops_notes?: string | null
+          landlord_ops_reviewed_at?: string | null
+          landlord_ops_reviewed_by?: string | null
+          last_compounded_date?: string | null
+          monthly_revenue?: number | null
+          notes?: string | null
+          outstanding_balance?: number
+          principal: number
+          reason?: string | null
+          rejection_reason?: string | null
+          status?: Database["public"]["Enums"]["business_advance_status"]
+          tenant_has_smartphone?: boolean
+          tenant_id: string
+          tenant_onboarding_method?: string
+          tenant_ops_notes?: string | null
+          tenant_ops_reviewed_at?: string | null
+          tenant_ops_reviewed_by?: string | null
+          tenant_signup_link?: string | null
+          total_interest_accrued?: number
+          total_repaid?: number
+          updated_at?: string
+          years_in_business?: number | null
+        }
+        Update: {
+          agent_id?: string
+          agent_ops_notes?: string | null
+          agent_ops_reviewed_at?: string | null
+          agent_ops_reviewed_by?: string | null
+          business_address?: string
+          business_city?: string | null
+          business_latitude?: number | null
+          business_longitude?: number | null
+          business_name?: string
+          business_photo_urls?: string[] | null
+          business_type?: string
+          cfo_disbursed_at?: string | null
+          cfo_disbursed_by?: string | null
+          cfo_notes?: string | null
+          completed_at?: string | null
+          coo_approved_at?: string | null
+          coo_approved_by?: string | null
+          coo_notes?: string | null
+          created_at?: string
+          daily_rate?: number
+          disbursed_at?: string | null
+          id?: string
+          landlord_ops_notes?: string | null
+          landlord_ops_reviewed_at?: string | null
+          landlord_ops_reviewed_by?: string | null
+          last_compounded_date?: string | null
+          monthly_revenue?: number | null
+          notes?: string | null
+          outstanding_balance?: number
+          principal?: number
+          reason?: string | null
+          rejection_reason?: string | null
+          status?: Database["public"]["Enums"]["business_advance_status"]
+          tenant_has_smartphone?: boolean
+          tenant_id?: string
+          tenant_onboarding_method?: string
+          tenant_ops_notes?: string | null
+          tenant_ops_reviewed_at?: string | null
+          tenant_ops_reviewed_by?: string | null
+          tenant_signup_link?: string | null
+          total_interest_accrued?: number
+          total_repaid?: number
+          updated_at?: string
+          years_in_business?: number | null
+        }
+        Relationships: []
+      }
       cart_items: {
         Row: {
           created_at: string
@@ -10977,6 +11212,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_business_advance_ops: { Args: { _uid: string }; Returns: boolean }
       is_conversation_participant: {
         Args: { _conversation_id: string; _user_id: string }
         Returns: boolean
@@ -11269,6 +11505,17 @@ export type Database = {
         | "escalate_to_manager"
         | "apply_late_fee"
         | "restrict_access"
+      business_advance_status:
+        | "pending"
+        | "agent_ops_approved"
+        | "tenant_ops_approved"
+        | "landlord_ops_approved"
+        | "coo_approved"
+        | "cfo_disbursed"
+        | "active"
+        | "completed"
+        | "rejected"
+        | "defaulted"
       collection_payment_method: "mobile_money" | "cash" | "in_app_wallet"
       deposit_purpose:
         | "operational_float"
@@ -11491,6 +11738,18 @@ export const Constants = {
         "escalate_to_manager",
         "apply_late_fee",
         "restrict_access",
+      ],
+      business_advance_status: [
+        "pending",
+        "agent_ops_approved",
+        "tenant_ops_approved",
+        "landlord_ops_approved",
+        "coo_approved",
+        "cfo_disbursed",
+        "active",
+        "completed",
+        "rejected",
+        "defaulted",
       ],
       collection_payment_method: ["mobile_money", "cash", "in_app_wallet"],
       deposit_purpose: [

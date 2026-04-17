@@ -26,6 +26,7 @@ import {
   ArrowUpFromLine,
   ArrowLeftRight,
   Building2,
+  Briefcase,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -44,6 +45,7 @@ import { AgentDepositDialog } from '@/components/agent/AgentDepositDialog';
 import { UnifiedRegistrationDialog } from '@/components/agent/UnifiedRegistrationDialog';
 import { RegisterSubAgentDialog } from '@/components/agent/RegisterSubAgentDialog';
 import AgentRentRequestDialog from '@/components/agent/AgentRentRequestDialog';
+import BusinessAdvanceRequestDialog from '@/components/agent/BusinessAdvanceRequestDialog';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 
@@ -151,6 +153,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [myRentRequestsOpen, setMyRentRequestsOpen] = useState(false);
   
   const [topUpTenantOpen, setTopUpTenantOpen] = useState(false);
+  const [businessAdvanceOpen, setBusinessAdvanceOpen] = useState(false);
   const [tenantsSheetOpen, setTenantsSheetOpen] = useState(false);
   const [investForPartnerOpen, setInvestForPartnerOpen] = useState(false);
   const [proxyHistoryOpen, setProxyHistoryOpen] = useState(false);
@@ -378,6 +381,22 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             </div>
           </div>
 
+          {/* BUSINESS ADVANCE — prominent CTA between rows */}
+          <button
+            onClick={() => { hapticTap(); setBusinessAdvanceOpen(true); }}
+            className="w-full flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-primary/15 via-primary/10 to-primary/5 ring-1 ring-primary/30 active:scale-[0.98] transition-all touch-manipulation"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
+          >
+            <div className="p-2.5 rounded-xl bg-primary text-primary-foreground shadow-md">
+              <Briefcase className="h-5 w-5" strokeWidth={2.2} />
+            </div>
+            <div className="flex-1 text-left">
+              <div className="font-bold text-sm text-foreground">BUSINESS ADVANCE</div>
+              <div className="text-[11px] text-muted-foreground">Request advance for tenant's business · Earn 0.5% on every repayment</div>
+            </div>
+            <span className="text-xs font-bold text-primary">→</span>
+          </button>
+
           {/* Row 2: Share & grow */}
           <div>
             <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-1 mb-2 flex items-center gap-1">
@@ -595,6 +614,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         open={rentRequestOpen} 
         onOpenChange={setRentRequestOpen} 
         onSuccess={() => setRentRequestOpen(false)}
+      />
+      <BusinessAdvanceRequestDialog
+        open={businessAdvanceOpen}
+        onOpenChange={setBusinessAdvanceOpen}
+        onSuccess={() => refreshOfflineData()}
       />
       <EarningsRankSystemSheet open={earningsRankOpen} onOpenChange={setEarningsRankOpen} />
       <AgentManagedPropertyDialog open={managedPropertyOpen} onOpenChange={setManagedPropertyOpen} onSuccess={refreshOfflineData} />
