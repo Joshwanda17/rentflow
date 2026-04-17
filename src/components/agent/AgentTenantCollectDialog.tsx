@@ -39,8 +39,16 @@ export function AgentTenantCollectDialog({
     }
   }, [open]);
 
-  const maxAllowable = Math.min(outstandingBalance, floatBalance);
-  const isValid = amount >= 100 && amount <= outstandingBalance && amount <= floatBalance;
+  const maxAllowable = Math.max(0, Math.min(outstandingBalance, floatBalance));
+  const canAllocate = floatBalance >= 100 && outstandingBalance >= 100;
+  const isValid = amount >= 100 && amount <= maxAllowable;
+
+  // Auto-suggest amount when dialog opens and float is available
+  useEffect(() => {
+    if (open && amount === 0 && maxAllowable >= 100) {
+      setAmount(maxAllowable);
+    }
+  }, [open, maxAllowable]);
 
   const handleAllocate = async () => {
     if (!user || !isValid || !tenant) return;
