@@ -28,17 +28,26 @@ Deno.serve(async (req) => {
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // COO/Manager guard — use limit(1) instead of maybeSingle() to handle users with multiple roles
-    const { data: managerRoles, error: roleErr } = await adminClient
-      .from("user_roles").select("role")
-      .eq("user_id", caller.id).in("role", ["manager", "coo", "super_admin", "cto"]);
+    // COO/Manager/Partner-Ops guard
+    const [{ data: managerRoles, error: roleErr }, { data: staffPerms, error: permErr }] = await Promise.all([
+      adminClient.from("user_roles").select("role")
+        .eq("user_id", caller.id).in("role", ["manager", "coo", "super_admin", "cto"]),
+      adminClient.from("staff_permissions").select("permission_key")
+        .eq("user_id", caller.id).eq("permission_key", "partner-ops").eq("is_active", true),
+    ]);
     if (roleErr) {
       console.error("[coo-create-portfolio] Role lookup error:", roleErr.message);
       return json({ error: `Role check failed: ${roleErr.message}` }, 500);
     }
-    if (!managerRoles || managerRoles.length === 0) {
-      console.warn(`[coo-create-portfolio] Caller ${caller.id} blocked — no manager/coo/super_admin/cto role`);
-      return json({ error: "Only Welile Operations (COO, Manager, Super Admin) can perform this action" }, 403);
+    if (permErr) {
+      console.error("[coo-create-portfolio] Staff permission lookup error:", permErr.message);
+      return json({ error: `Permission check failed: ${permErr.message}` }, 500);
+    }
+    const hasRole = (managerRoles?.length ?? 0) > 0;
+    const hasPartnerOps = (staffPerms?.length ?? 0) > 0;
+    if (!hasRole && !hasPartnerOps) {
+      console.warn(`[coo-create-portfolio] Caller ${caller.id} blocked — no manager/coo/super_admin/cto role and no partner-ops permission`);
+      return json({ error: "Only Welile Operations (COO, Manager, Super Admin, Partner Ops) can perform this action" }, 403);
     }
 
     const body = await req.json() as {
