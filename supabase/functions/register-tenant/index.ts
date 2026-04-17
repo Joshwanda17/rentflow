@@ -187,10 +187,12 @@ Deno.serve(async (req) => {
     const userId = authData.user.id;
     console.log("[register-tenant] Created auth user:", userId);
 
-    // Update profile (trigger should have created it)
+    // Update profile (trigger should have created it).
+    // Also stamp referrer_id so the agent who registered this tenant can see them
+    // under "My Tenants" (which filters by profiles.referrer_id).
     const { error: profileErr } = await supabaseAdmin
       .from("profiles")
-      .update({ full_name, phone: cleanPhone, national_id })
+      .update({ full_name, phone: cleanPhone, national_id, referrer_id: callingUser.id })
       .eq("id", userId);
     
     if (profileErr) {
