@@ -23,31 +23,39 @@ export function AgentFloatBalanceCard() {
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
-          <Wallet className="h-4 w-4 text-primary" /> Agent Wallet
+          <Wallet className="h-4 w-4 text-emerald-600" /> Withdrawable Earnings
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <p className={`font-bold text-lg ${totalBalance < 0 ? 'text-destructive' : 'text-foreground'}`}>
-          {formatUGX(totalBalance)}
+        {/* Lead with the ACTUAL withdrawable amount (commission only) */}
+        <p className={`font-bold text-2xl ${commissionBalance > 0 ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+          {formatUGX(commissionBalance)}
         </p>
-        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1 flex-wrap">
-          <span className="inline-flex items-center gap-0.5">
-            Withdrawable
+        <p className="text-[11px] text-muted-foreground mt-0.5">Your commission — available to cash out</p>
+
+        {/* Locked float shown as secondary, clearly non-withdrawable */}
+        <div className="mt-3 pt-3 border-t border-dashed flex items-center justify-between gap-2">
+          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+            <Lock className="h-3 w-3" />
+            Company Float (locked)
             <TooltipProvider delayDuration={200}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Lock className="h-2.5 w-2.5 text-muted-foreground/70 cursor-help" />
+                  <span className="cursor-help underline decoration-dotted underline-offset-2">why?</span>
                 </TooltipTrigger>
-                <TooltipContent side="top" className="max-w-[220px] text-xs">
-                  Commission cannot be used for tenant payments — float only.
+                <TooltipContent side="top" className="max-w-[240px] text-xs">
+                  Float is company money for paying tenants & landlords. It cannot be withdrawn — only your commission can.
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            : <span className={`font-medium ${commissionBalance > 0 ? 'text-emerald-600' : 'text-muted-foreground'}`}>{formatUGX(commissionBalance)}</span>
           </span>
-          <span>·</span>
-          <span>Company Float: <span className="font-medium text-primary">{formatUGX(floatBalance)}</span></span>
-        </p>
+          <span className="text-xs font-medium text-foreground/80 tabular-nums">{formatUGX(floatBalance)}</span>
+        </div>
+
+        <div className="mt-2 flex items-center justify-between text-[10px] uppercase tracking-wider text-muted-foreground/70">
+          <span>Total in wallet</span>
+          <span className="tabular-nums">{formatUGX(totalBalance)}</span>
+        </div>
       </CardContent>
     </Card>
   );
