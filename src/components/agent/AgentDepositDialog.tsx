@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { toast as sonnerToast } from 'sonner';
 import { useProfile } from '@/hooks/useProfile';
-import { Loader2, ArrowDownCircle, Smartphone, AlertCircle, Calendar, Clock, Info, Banknote, Send, UserPlus } from 'lucide-react';
+import { Loader2, ArrowDownCircle, Smartphone, AlertCircle, Calendar, Clock, Info, Banknote, Send } from 'lucide-react';
 import { QuickRegisterTenantDialog } from './QuickRegisterTenantDialog';
 
 interface AgentDepositDialogProps {
