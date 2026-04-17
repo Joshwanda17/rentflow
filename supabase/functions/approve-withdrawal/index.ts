@@ -192,11 +192,11 @@ Deno.serve(async (req) => {
     }
 
     if (!wallet || withdrawableBalance < amount) {
-      const label = agentRole ? "commission" : "balance";
+      const errorMsg = agentRole
+        ? `Cannot approve: agent's withdrawable commission is only UGX ${withdrawableBalance.toLocaleString()}, but they requested UGX ${amount.toLocaleString()}. The remaining balance is company float (locked) and cannot be withdrawn. Please reject this request.`
+        : `Insufficient wallet balance. Available: UGX ${withdrawableBalance.toLocaleString()}, requested: UGX ${amount.toLocaleString()}.`;
       return new Response(
-        JSON.stringify({
-          error: `Insufficient ${label}. Withdrawable: UGX ${withdrawableBalance.toLocaleString()}, requested: UGX ${amount.toLocaleString()}`,
-        }),
+        JSON.stringify({ error: errorMsg, code: "INSUFFICIENT_WITHDRAWABLE" }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
