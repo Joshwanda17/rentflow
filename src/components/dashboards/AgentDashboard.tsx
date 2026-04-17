@@ -634,14 +634,16 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
       {/* Cash Payouts Dialog - only rendered for cashout agents */}
       <Dialog open={cashPayoutsOpen} onOpenChange={setCashPayoutsOpen}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Banknote className="h-5 w-5 text-orange-500" />
-              Cash & Bank Payouts
+        <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-w-lg p-0 gap-0 max-h-[90vh] sm:max-h-[85vh] flex flex-col overflow-hidden">
+          <DialogHeader className="p-4 pb-3 border-b shrink-0">
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg pr-6">
+              <Banknote className="h-5 w-5 text-orange-500 shrink-0" />
+              <span className="truncate">Cash & Bank Payouts</span>
             </DialogTitle>
           </DialogHeader>
-          <AgentCashPayoutsTab />
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4">
+            <AgentCashPayoutsTab />
+          </div>
         </DialogContent>
       </Dialog>
 

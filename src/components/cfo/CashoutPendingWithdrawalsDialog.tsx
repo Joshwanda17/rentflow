@@ -63,68 +63,70 @@ export function CashoutPendingWithdrawalsDialog({ open, onOpenChange, agent }: P
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Banknote className="h-5 w-5 text-primary" />
-            Pending Withdrawals
+      <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-w-2xl p-0 gap-0 max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader className="p-4 pb-3 border-b shrink-0">
+          <DialogTitle className="flex items-center gap-2 text-base sm:text-lg pr-6">
+            <Banknote className="h-5 w-5 text-primary shrink-0" />
+            <span className="truncate">Pending Withdrawals</span>
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-xs sm:text-sm">
             All pending withdrawals visible to cash-out agents. <span className="font-semibold">{agentName}</span> can claim &amp; complete these from their own dashboard.
           </DialogDescription>
         </DialogHeader>
 
-        {totalPending > 0 && (
-          <div className="flex items-center gap-2 p-2 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-700 dark:text-orange-400">
-            <Bell className="h-4 w-4 animate-pulse" />
-            <span className="text-xs font-medium">{totalPending} pending withdrawal{totalPending !== 1 ? 's' : ''} — Live</span>
-          </div>
-        )}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 space-y-3">
+          {totalPending > 0 && (
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-700 dark:text-orange-400">
+              <Bell className="h-4 w-4 animate-pulse shrink-0" />
+              <span className="text-xs font-medium">{totalPending} pending withdrawal{totalPending !== 1 ? 's' : ''} — Live</span>
+            </div>
+          )}
 
-        <Tabs defaultValue="all">
-          <TabsList className="w-full">
-            <TabsTrigger value="all" className="flex-1 gap-1">
-              <Wallet className="h-3.5 w-3.5" /> All
-              {totalPending > 0 && <Badge variant="destructive" className="h-4 px-1 text-[10px]">{totalPending}</Badge>}
-            </TabsTrigger>
-            <TabsTrigger value="momo" className="flex-1 gap-1">
-              <Smartphone className="h-3.5 w-3.5" /> MoMo
-              {momoWithdrawals.length > 0 && <Badge variant="destructive" className="h-4 px-1 text-[10px]">{momoWithdrawals.length}</Badge>}
-            </TabsTrigger>
-            <TabsTrigger value="bank" className="flex-1 gap-1">
-              <Building2 className="h-3.5 w-3.5" /> Bank
-              {bankWithdrawals.length > 0 && <Badge variant="destructive" className="h-4 px-1 text-[10px]">{bankWithdrawals.length}</Badge>}
-            </TabsTrigger>
-            <TabsTrigger value="cash" className="flex-1 gap-1">
-              <Banknote className="h-3.5 w-3.5" /> Cash
-              {cashWithdrawals.length > 0 && <Badge variant="destructive" className="h-4 px-1 text-[10px]">{cashWithdrawals.length}</Badge>}
-            </TabsTrigger>
-          </TabsList>
+          <Tabs defaultValue="all">
+            <TabsList className="w-full h-auto p-1 grid grid-cols-4 gap-1">
+              <TabsTrigger value="all" className="flex-col sm:flex-row gap-0.5 sm:gap-1 text-[10px] sm:text-xs px-1 py-1.5 h-auto">
+                <Wallet className="h-3.5 w-3.5" />
+                <span className="flex items-center gap-1">All {totalPending > 0 && <Badge variant="destructive" className="h-3.5 px-1 text-[9px]">{totalPending}</Badge>}</span>
+              </TabsTrigger>
+              <TabsTrigger value="momo" className="flex-col sm:flex-row gap-0.5 sm:gap-1 text-[10px] sm:text-xs px-1 py-1.5 h-auto">
+                <Smartphone className="h-3.5 w-3.5" />
+                <span className="flex items-center gap-1">MoMo {momoWithdrawals.length > 0 && <Badge variant="destructive" className="h-3.5 px-1 text-[9px]">{momoWithdrawals.length}</Badge>}</span>
+              </TabsTrigger>
+              <TabsTrigger value="bank" className="flex-col sm:flex-row gap-0.5 sm:gap-1 text-[10px] sm:text-xs px-1 py-1.5 h-auto">
+                <Building2 className="h-3.5 w-3.5" />
+                <span className="flex items-center gap-1">Bank {bankWithdrawals.length > 0 && <Badge variant="destructive" className="h-3.5 px-1 text-[9px]">{bankWithdrawals.length}</Badge>}</span>
+              </TabsTrigger>
+              <TabsTrigger value="cash" className="flex-col sm:flex-row gap-0.5 sm:gap-1 text-[10px] sm:text-xs px-1 py-1.5 h-auto">
+                <Banknote className="h-3.5 w-3.5" />
+                <span className="flex items-center gap-1">Cash {cashWithdrawals.length > 0 && <Badge variant="destructive" className="h-3.5 px-1 text-[9px]">{cashWithdrawals.length}</Badge>}</span>
+              </TabsTrigger>
+            </TabsList>
 
-          {(['all', 'momo', 'bank', 'cash'] as const).map(tab => {
-            const items = tab === 'all' ? allWithdrawals : tab === 'momo' ? momoWithdrawals : tab === 'bank' ? bankWithdrawals : cashWithdrawals;
-            const emptyMsg = tab === 'all' ? 'No pending withdrawals' : `No pending ${tab} payouts`;
-            return (
-              <TabsContent key={tab} value={tab} className="space-y-2 mt-3">
-                {isLoading ? (
-                  <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
-                ) : items.length === 0 ? (
-                  <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">{emptyMsg}</CardContent></Card>
-                ) : (
-                  items.map((w: any) => (
-                    <WithdrawalPayoutCard
-                      key={w.id}
-                      withdrawal={w}
-                      readOnly
-                      isClaimed={cashoutAgentRowId && w.assigned_cashout_agent_id === cashoutAgentRowId}
-                      isClaimedByOther={!!w.assigned_cashout_agent_id && w.assigned_cashout_agent_id !== cashoutAgentRowId}
-                    />
-                  ))
-                )}
-              </TabsContent>
-            );
-          })}
-        </Tabs>
+            {(['all', 'momo', 'bank', 'cash'] as const).map(tab => {
+              const items = tab === 'all' ? allWithdrawals : tab === 'momo' ? momoWithdrawals : tab === 'bank' ? bankWithdrawals : cashWithdrawals;
+              const emptyMsg = tab === 'all' ? 'No pending withdrawals' : `No pending ${tab} payouts`;
+              return (
+                <TabsContent key={tab} value={tab} className="space-y-2 mt-3">
+                  {isLoading ? (
+                    <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+                  ) : items.length === 0 ? (
+                    <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">{emptyMsg}</CardContent></Card>
+                  ) : (
+                    items.map((w: any) => (
+                      <WithdrawalPayoutCard
+                        key={w.id}
+                        withdrawal={w}
+                        readOnly
+                        isClaimed={cashoutAgentRowId && w.assigned_cashout_agent_id === cashoutAgentRowId}
+                        isClaimedByOther={!!w.assigned_cashout_agent_id && w.assigned_cashout_agent_id !== cashoutAgentRowId}
+                      />
+                    ))
+                  )}
+                </TabsContent>
+              );
+            })}
+          </Tabs>
+        </div>
       </DialogContent>
     </Dialog>
   );
