@@ -11046,6 +11046,14 @@ export type Database = {
         Args: { p_password: string; p_user_id: string }
         Returns: Json
       }
+      verify_subagent: {
+        Args: {
+          _action: string
+          _record_id: string
+          _rejection_reason?: string
+        }
+        Returns: Json
+      }
       void_ledger_entry: {
         Args: { p_ledger_id: string; p_reason: string }
         Returns: undefined
