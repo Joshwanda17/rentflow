@@ -16,6 +16,7 @@ import { AgentTaskManager } from './AgentTaskManager';
 import { AgentEscalationQueue } from './AgentEscalationQueue';
 import { ServiceCentreVerificationQueue } from './ServiceCentreVerificationQueue';
 import { SubAgentVerificationQueue } from './SubAgentVerificationQueue';
+import { TenantToSubAgentPanel } from './TenantToSubAgentPanel';
 import { AgentOpsFloatPayoutReview } from '@/components/agent/AgentOpsFloatPayoutReview';
 import { UserProfileDialog } from '@/components/supporter/UserProfileDialog';
 import { 
@@ -28,12 +29,13 @@ import { format } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 
-type ActiveView = null | 'pipeline' | 'brief' | 'directory' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sub-agents' | 'float-payouts' | 'alerts' | 'leaderboard' | 'earnings' | 'transfers' | 'advance-requests';
+type ActiveView = null | 'pipeline' | 'brief' | 'directory' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'alerts' | 'leaderboard' | 'earnings' | 'transfers' | 'advance-requests';
 
 const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; priority?: boolean }[] = [
   { key: 'pipeline', icon: Briefcase, label: 'Pipeline', color: 'bg-primary', priority: true },
   { key: 'service-centres', icon: Building2, label: 'Service Centres', color: 'bg-orange-500', priority: true },
   { key: 'sub-agents', icon: UsersRound, label: 'Sub-Agents', color: 'bg-amber-600', priority: true },
+  { key: 'promote-tenant', icon: ArrowLeftRight, label: 'Tenant → Sub-Agent', color: 'bg-fuchsia-600', priority: true },
   { key: 'directory', icon: Search, label: 'Agents', color: 'bg-blue-500', priority: true },
   { key: 'tasks', icon: ClipboardList, label: 'Tasks', color: 'bg-emerald-500', priority: true },
   { key: 'escalations', icon: AlertTriangle, label: 'Escalations', color: 'bg-red-500' },
@@ -157,6 +159,7 @@ export function AgentOpsDashboard() {
       case 'escalations': return <AgentEscalationQueue />;
       case 'service-centres': return <ServiceCentreVerificationQueue />;
       case 'sub-agents': return <SubAgentVerificationQueue />;
+      case 'promote-tenant': return <TenantToSubAgentPanel />;
       case 'float-payouts': return <AgentOpsFloatPayoutReview />;
       case 'advance-requests': return <AdvanceRequestsQueue stage="agent_ops" />;
       case 'alerts': return <AgentAlertFeed />;
