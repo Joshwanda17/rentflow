@@ -177,6 +177,10 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Treasury guard: cron auto-charges debit user wallets — block when paused
+    const guardBlock = await checkTreasuryGuard(supabase, "any");
+    if (guardBlock) return guardBlock;
+
     const today = new Date().toISOString().split("T")[0];
     const now = new Date();
 
