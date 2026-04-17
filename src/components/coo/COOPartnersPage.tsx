@@ -1582,6 +1582,14 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             <SelectItem value="no_email">No Email</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={filterWallet} onValueChange={(v: any) => { setFilterWallet(v); setPage(0); }}>
+          <SelectTrigger className="w-[140px] h-9 text-xs"><Wallet className="h-3 w-3 mr-1 text-muted-foreground" /><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Wallets</SelectItem>
+            <SelectItem value="has_balance">Has Balance</SelectItem>
+            <SelectItem value="empty">Empty</SelectItem>
+          </SelectContent>
+        </Select>
         {/* Payment Date Range Filter */}
         <Popover>
           <PopoverTrigger asChild>
