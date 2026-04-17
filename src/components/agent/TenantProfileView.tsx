@@ -20,6 +20,7 @@ import { AgentTenantCollectDialog } from './AgentTenantCollectDialog';
 import { shareTenantProfileWhatsApp, type TenantProfilePdfData } from '@/lib/tenantProfilePdf';
 import { UserAvatar } from '@/components/UserAvatar';
 import { RegisterSubAgentDialog } from './RegisterSubAgentDialog';
+import { EditTenantDialog } from './EditTenantDialog';
 
 interface TenantProfileViewProps {
   tenantId: string;
@@ -100,6 +101,9 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
 
   // Auto-collect
   const [autoCollecting, setAutoCollecting] = useState(false);
+
+  // Edit tenant dialog
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const aiId = generateWelileAiId(tenantId);
 
@@ -416,6 +420,15 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
         <Button
           variant="outline"
           size="icon"
+          onClick={() => setEditDialogOpen(true)}
+          className="h-11 w-11 rounded-xl shrink-0"
+          title="Edit tenant details"
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
           onClick={handleShareProfile}
           disabled={sharingProfile}
           className="h-11 w-11 rounded-xl shrink-0"
@@ -426,6 +439,22 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
           <Badge className="bg-success/15 text-success border-0 text-xs">Verified ✓</Badge>
         )}
       </div>
+
+      {/* Edit Tenant Dialog */}
+      <EditTenantDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        tenant={{
+          id: profile.id,
+          full_name: profile.full_name,
+          phone: profile.phone,
+          email: profile.email,
+          national_id: profile.national_id,
+        }}
+        onSaved={(updated) => {
+          setProfile(prev => prev ? { ...prev, ...updated } : prev);
+        }}
+      />
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {/* AI ID Card */}
