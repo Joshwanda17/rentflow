@@ -361,13 +361,28 @@ Deno.serve(async (req) => {
               { onConflict: 'user_id,role' }
             );
 
-          // Record parent-agent relationship in the referrals table too
+          // Record parent-agent relationship in the referrals table and create
+          // the agent_subagents record (auto-verified — no approval needed).
           if (isSubAgentAutoActivate) {
             await adminClient
               .from("referrals")
               .upsert(
                 { referrer_id: user.id, referred_id: authData.user.id },
                 { onConflict: 'referrer_id,referred_id' }
+              );
+
+            await adminClient
+              .from("agent_subagents")
+              .upsert(
+                {
+                  parent_agent_id: user.id,
+                  sub_agent_id: authData.user.id,
+                  source: 'agent_invite',
+                  status: 'verified',
+                  verified_by: user.id,
+                  verified_at: new Date().toISOString(),
+                },
+                { onConflict: 'sub_agent_id' }
               );
           }
 
