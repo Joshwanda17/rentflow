@@ -64,7 +64,10 @@ export function WithdrawalPayoutCard({
                   {methodLabel}
                 </Badge>
                 {isClaimed && !readOnly && (
-                  <Badge variant="secondary" className="text-[9px] h-4 px-1.5">Claimed</Badge>
+                  <Badge className="text-[9px] h-4 px-1.5 bg-warning text-warning-foreground hover:bg-warning gap-1">
+                    <Clock className="h-2.5 w-2.5" />
+                    AWAITING PAYMENT
+                  </Badge>
                 )}
                 {isClaimedByOther && (
                   <Badge variant="outline" className="text-[9px] h-4 px-1.5 text-muted-foreground">
@@ -146,6 +149,10 @@ export function WithdrawalPayoutCard({
               </Button>
             ) : (
               <div className="space-y-2 pt-2 border-t border-border/50">
+                <div className="rounded-md bg-warning/10 border border-warning/30 px-2 py-1.5 text-[10px] font-semibold text-warning flex items-start gap-1">
+                  <Clock className="h-3 w-3 mt-0.5 shrink-0" />
+                  <span>NOT PAID YET — money has not been sent. You must enter the {isBank ? 'bank reference' : isMoMo ? 'MoMo TID' : 'voucher number'} and press <strong>Confirm Paid</strong> below.</span>
+                </div>
                 <p className="text-[10px] font-semibold text-primary flex items-start gap-1">
                   <ArrowRight className="h-3 w-3 mt-0.5 shrink-0" />
                   <span>{isBank ? 'Enter bank transfer reference after depositing' : isMoMo ? 'Enter MoMo TID after sending' : 'Enter cash voucher / receipt number'}</span>
