@@ -163,18 +163,20 @@ Deno.serve(async (req) => {
     let withdrawableBalance = effectiveBalance;
 
     if (agentRole) {
-      // Use split balance RPC to get commission (withdrawable) portion
+      // Use split balance RPC to get the withdrawable (commission) portion.
+      // This is derived from the ledger and includes CFO direct transfers — it is
+      // the source of truth, not the (possibly stale) wallets.balance cache.
       const { data: splitBalances } = await admin.rpc("get_agent_split_balances", {
         p_agent_id: fundingUserId,
       });
       const balRow = Array.isArray(splitBalances) ? splitBalances[0] : splitBalances;
       const commissionBalance = Number(balRow?.commission_balance ?? 0);
 
-      // Commission is always freely withdrawable; float (company money) is never withdrawable
-      withdrawableBalance = Math.min(effectiveBalance, commissionBalance);
+      // Trust the ledger-derived withdrawable balance directly (do NOT cap with the
+      // stale wallets.balance cache, which can lag behind direct ledger inserts).
+      withdrawableBalance = commissionBalance + totalPendingHold;
 
       // Soft check: if agent has high outstanding float, warn but allow
-      // (Future: configurable threshold from treasury_controls)
       const { data: outstandingRows } = await admin.rpc("get_outstanding_agent_float");
       const agentFloat = (outstandingRows || []).find((r: any) => r.agent_id === fundingUserId);
       const outstandingFloat = Number(agentFloat?.outstanding ?? 0);

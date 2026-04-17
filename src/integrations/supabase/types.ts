@@ -10937,6 +10937,10 @@ export type Database = {
         }[]
       }
       recalculate_credit_limit: { Args: { p_user_id: string }; Returns: number }
+      reconcile_wallet_from_ledger: {
+        Args: { p_user_id: string }
+        Returns: number
+      }
       record_double_entry: {
         Args: {
           p_amount: number
