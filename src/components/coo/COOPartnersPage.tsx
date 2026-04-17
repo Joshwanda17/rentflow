@@ -2122,7 +2122,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
               <Plus className="h-5 w-5 text-primary" /> Add Investment Portfolio
             </DialogTitle>
             <DialogDescription>
-              Create a new portfolio for {detailPartner?.profile.full_name}. No wallet balance required.
+              Create a new portfolio for {detailPartner?.profile.full_name}. Funds are deducted from the selected wallet immediately.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
