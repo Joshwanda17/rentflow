@@ -2126,6 +2126,58 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Funding Source Selector */}
+            <div className="space-y-2">
+              <Label>Funding Source *</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAddPortfolioFundingSource('wallet')}
+                  className={`p-3 rounded-lg border text-left transition-colors ${
+                    addPortfolioFundingSource === 'wallet'
+                      ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                      : 'border-border hover:bg-muted/40'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 text-xs font-semibold">
+                    <Wallet className="h-3.5 w-3.5 text-primary" /> Partner Wallet
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1 truncate">{detailPartner?.profile.full_name}</p>
+                  <p className="text-sm font-bold mt-1">{detailPartner ? formatUGX(detailPartner.walletBalance) : '—'}</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => proxyAgentInfo && setAddPortfolioFundingSource('proxy_agent')}
+                  disabled={!proxyAgentInfo && !loadingProxyAgent}
+                  className={`p-3 rounded-lg border text-left transition-colors ${
+                    addPortfolioFundingSource === 'proxy_agent'
+                      ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                      : 'border-border hover:bg-muted/40'
+                  } ${!proxyAgentInfo ? 'opacity-60 cursor-not-allowed' : ''}`}
+                >
+                  <div className="flex items-center gap-2 text-xs font-semibold">
+                    <Users className="h-3.5 w-3.5 text-primary" /> Proxy Agent Wallet
+                  </div>
+                  {loadingProxyAgent ? (
+                    <p className="text-[11px] text-muted-foreground mt-1">Checking...</p>
+                  ) : proxyAgentInfo ? (
+                    <>
+                      <p className="text-[11px] text-muted-foreground mt-1 truncate">{proxyAgentInfo.agentName}</p>
+                      <p className="text-sm font-bold mt-1">{formatUGX(proxyAgentInfo.walletBalance)}</p>
+                    </>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground mt-1">No proxy agent assigned</p>
+                  )}
+                </button>
+              </div>
+              {addPortfolioFundingSource === 'proxy_agent' && proxyAgentInfo && Number(addPortfolioAmount) > proxyAgentInfo.walletBalance && (
+                <p className="text-[11px] text-destructive">⚠ Amount exceeds proxy agent wallet balance</p>
+              )}
+              {addPortfolioFundingSource === 'wallet' && detailPartner && Number(addPortfolioAmount) > detailPartner.walletBalance && (
+                <p className="text-[11px] text-destructive">⚠ Amount exceeds partner wallet balance</p>
+              )}
+            </div>
+
             <div className="space-y-2">
               <Label>Investment Amount (UGX) *</Label>
               <Input
