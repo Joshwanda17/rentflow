@@ -615,6 +615,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onOpenChange={setRentRequestOpen} 
         onSuccess={() => setRentRequestOpen(false)}
       />
+      <BusinessAdvanceRequestDialog
+        open={businessAdvanceOpen}
+        onOpenChange={setBusinessAdvanceOpen}
+        onSuccess={() => refreshOfflineData()}
+      />
       <EarningsRankSystemSheet open={earningsRankOpen} onOpenChange={setEarningsRankOpen} />
       <AgentManagedPropertyDialog open={managedPropertyOpen} onOpenChange={setManagedPropertyOpen} onSuccess={refreshOfflineData} />
       <AgentManagedPropertiesSheet open={managedPropertiesSheetOpen} onOpenChange={setManagedPropertiesSheetOpen} onRequestPayout={(p) => { setPayoutProperty(p); setPayoutDialogOpen(true); }} />
