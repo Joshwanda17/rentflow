@@ -79,14 +79,10 @@ export function SubAgentVerificationQueue() {
     if (!user?.id) return;
     setProcessingId(id);
     try {
-      const { error } = await supabase
-        .from('agent_subagents' as any)
-        .update({
-          status: 'verified',
-          verified_by: user.id,
-          verified_at: new Date().toISOString(),
-        } as any)
-        .eq('id', id);
+      const { error } = await supabase.rpc('verify_subagent' as any, {
+        _record_id: id,
+        _action: 'verify',
+      });
       if (error) throw error;
       toast.success('Sub-agent verified! Commission credited to parent agent.');
       queryClient.invalidateQueries({ queryKey: ['subagent-verification-queue'] });
@@ -104,13 +100,11 @@ export function SubAgentVerificationQueue() {
     }
     setProcessingId(id);
     try {
-      const { error } = await supabase
-        .from('agent_subagents' as any)
-        .update({
-          status: 'rejected',
-          rejection_reason: rejectionReason.trim(),
-        } as any)
-        .eq('id', id);
+      const { error } = await supabase.rpc('verify_subagent' as any, {
+        _record_id: id,
+        _action: 'reject',
+        _rejection_reason: rejectionReason.trim(),
+      });
       if (error) throw error;
       toast.success('Sub-agent registration rejected.');
       setRejectingId(null);
