@@ -153,6 +153,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [myRentRequestsOpen, setMyRentRequestsOpen] = useState(false);
   
   const [topUpTenantOpen, setTopUpTenantOpen] = useState(false);
+  const [businessAdvanceOpen, setBusinessAdvanceOpen] = useState(false);
   const [tenantsSheetOpen, setTenantsSheetOpen] = useState(false);
   const [investForPartnerOpen, setInvestForPartnerOpen] = useState(false);
   const [proxyHistoryOpen, setProxyHistoryOpen] = useState(false);
