@@ -219,14 +219,21 @@ export function AgentCashPayoutsTab() {
 
   if (!isCashoutAgent) return null;
 
+  // Hide withdrawals claimed by OTHER cash-out agents — they have 10 min to pay
+  // before the cron auto-releases them back into the queue. This prevents
+  // double-handling and keeps each agent's queue focused on actionable items.
+  const visibleWithdrawals = allWithdrawals.filter(
+    (w: any) => !w.assigned_cashout_agent_id || w.assigned_cashout_agent_id === isCashoutAgent?.id,
+  );
+
   // Split by method
-  const momoWithdrawals = allWithdrawals.filter((w: any) => ['mobile_money', 'mtn_mobile_money', 'airtel_money'].includes(w.payout_method));
-  const bankWithdrawals = allWithdrawals.filter((w: any) => w.payout_method === 'bank_transfer');
-  const cashWithdrawals = allWithdrawals.filter((w: any) => ['cash', 'cash_pickup'].includes(w.payout_method) || !w.payout_method);
+  const momoWithdrawals = visibleWithdrawals.filter((w: any) => ['mobile_money', 'mtn_mobile_money', 'airtel_money'].includes(w.payout_method));
+  const bankWithdrawals = visibleWithdrawals.filter((w: any) => w.payout_method === 'bank_transfer');
+  const cashWithdrawals = visibleWithdrawals.filter((w: any) => ['cash', 'cash_pickup'].includes(w.payout_method) || !w.payout_method);
 
   // My claimed vs unclaimed
-  const myClaimedIds = new Set(allWithdrawals.filter((w: any) => w.assigned_cashout_agent_id === isCashoutAgent?.id).map((w: any) => w.id));
-  const totalPending = allWithdrawals.length;
+  const myClaimedIds = new Set(visibleWithdrawals.filter((w: any) => w.assigned_cashout_agent_id === isCashoutAgent?.id).map((w: any) => w.id));
+  const totalPending = visibleWithdrawals.length;
 
   return (
     <div className="space-y-4">
@@ -343,7 +350,7 @@ export function AgentCashPayoutsTab() {
         </TabsList>
 
         {['all', 'momo', 'bank', 'cash'].map(tab => {
-          const items = tab === 'all' ? allWithdrawals : tab === 'momo' ? momoWithdrawals : tab === 'bank' ? bankWithdrawals : cashWithdrawals;
+          const items = tab === 'all' ? visibleWithdrawals : tab === 'momo' ? momoWithdrawals : tab === 'bank' ? bankWithdrawals : cashWithdrawals;
           const emptyMsg = tab === 'all' ? 'No pending withdrawals' : `No pending ${tab} payouts`;
           return (
             <TabsContent key={tab} value={tab} className="space-y-2 mt-3">
