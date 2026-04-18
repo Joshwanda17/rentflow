@@ -80,18 +80,25 @@ export function AssignNearbyAgentDialog({
     enabled: open && search.trim().length >= 2,
     queryFn: async () => {
       const term = `%${search.trim()}%`;
+      // Two-step: get agent ids, then fetch matching profiles
+      const { data: agentRoles } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'agent');
+      const agentIds = (agentRoles || []).map((r: any) => r.user_id);
+      if (agentIds.length === 0) return [];
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, phone, user_roles!inner(role)')
+        .select('id, full_name, phone')
+        .in('id', agentIds)
         .or(`full_name.ilike.${term},phone.ilike.${term}`)
-        .eq('user_roles.role', 'agent')
         .limit(10);
       if (error) throw error;
       return (data || []).map((p: any) => ({
         agent_id: p.id,
         full_name: p.full_name,
         phone: p.phone,
-        distance_km: null,
+        distance_km: null as number | null,
       }));
     },
   });
