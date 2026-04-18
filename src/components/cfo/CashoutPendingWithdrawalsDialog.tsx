@@ -106,7 +106,7 @@ export function CashoutPendingWithdrawalsDialog({ open, onOpenChange, agent }: P
             </TabsList>
 
             {(['all', 'momo', 'bank', 'cash'] as const).map(tab => {
-              const items = tab === 'all' ? allWithdrawals : tab === 'momo' ? momoWithdrawals : tab === 'bank' ? bankWithdrawals : cashWithdrawals;
+              const items = tab === 'all' ? unclaimedWithdrawals : tab === 'momo' ? momoWithdrawals : tab === 'bank' ? bankWithdrawals : cashWithdrawals;
               const emptyMsg = tab === 'all' ? 'No pending withdrawals' : `No pending ${tab} payouts`;
               return (
                 <TabsContent key={tab} value={tab} className="space-y-2 mt-3">
