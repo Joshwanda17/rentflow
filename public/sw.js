@@ -66,6 +66,28 @@ self.addEventListener("fetch", (event) => {
   //    Safari-safe: NEVER serve cached index.html with stale chunk refs
   // ===================================================
   if (request.mode === "navigate") {
+    // Public rent recorder MUST work even fully offline / on flaky networks.
+    if (url.pathname === "/record-rent" || url.pathname.startsWith("/record-rent")) {
+      event.respondWith(
+        fetch(request)
+          .then((res) => {
+            if (res.ok) {
+              const clone = res.clone();
+              caches.open(STATIC_CACHE).then((cache) => cache.put("/record-rent-shell", clone));
+            }
+            return res;
+          })
+          .catch(() =>
+            caches.match("/record-rent-shell").then(
+              (cached) =>
+                cached ||
+                caches.match(OFFLINE_URL).then((r) => r || new Response("Offline", { status: 503 }))
+            )
+          )
+      );
+      return;
+    }
+
     event.respondWith(
       fetch(request).catch(() =>
         caches.match(OFFLINE_URL).then((res) => res || new Response("Offline", { status: 503 }))
