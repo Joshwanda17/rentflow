@@ -13,6 +13,7 @@ import { Loader2, Send, ArrowUpRight, ArrowDownLeft, TrendingUp, TrendingDown, M
 import { UserSearchPicker } from './UserSearchPicker';
 import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 import { RentDisbursementQueue } from './RentDisbursementQueue';
+import { BusinessAdvanceDisbursementQueue } from './BusinessAdvanceDisbursementQueue';
 import { PayoutAutomationToggle } from './PayoutAutomationToggle';
 
 type Operation = 'credit' | 'debit';
@@ -49,6 +50,15 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     id: 'rent_disbursement',
     label: '🏠 Rent Disbursement',
     description: 'Approved rent payouts to landlord wallets or agent float — earns access fees & request fees',
+    impact: 'revenue',
+    walletCategory: 'rent_disbursement',
+    platformCategory: 'rent_disbursement',
+    allowedOps: ['credit'],
+  },
+  {
+    id: 'business_advance',
+    label: '💼 Business Advance',
+    description: 'COO-approved business advances paid into tenant wallets — earns 1% daily compounding interest (4% commission to originating agent)',
     impact: 'revenue',
     walletCategory: 'rent_disbursement',
     platformCategory: 'rent_disbursement',
