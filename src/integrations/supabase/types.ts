@@ -10750,6 +10750,10 @@ export type Database = {
         Args: { p_batch_size?: number }
         Returns: Json
       }
+      calculate_business_advance_limit: {
+        Args: { _tenant_id: string }
+        Returns: Json
+      }
       check_phone_exists: {
         Args: { phone_suffix: string }
         Returns: {
@@ -11271,6 +11275,14 @@ export type Database = {
       notify_landlord_registration_helper: {
         Args: { p_landlord_id: string }
         Returns: undefined
+      }
+      preview_business_advance_limit: {
+        Args: {
+          _avg_monthly_rent: number
+          _distinct_landlords?: number
+          _months_recorded: number
+        }
+        Returns: Json
       }
       process_monthly_referral_rewards: { Args: never; Returns: undefined }
       read_email_batch: {
