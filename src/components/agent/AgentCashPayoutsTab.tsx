@@ -219,21 +219,27 @@ export function AgentCashPayoutsTab() {
 
   if (!isCashoutAgent) return null;
 
-  // Hide withdrawals claimed by OTHER cash-out agents — they have 10 min to pay
-  // before the cron auto-releases them back into the queue. This prevents
-  // double-handling and keeps each agent's queue focused on actionable items.
-  const visibleWithdrawals = allWithdrawals.filter(
-    (w: any) => !w.assigned_cashout_agent_id || w.assigned_cashout_agent_id === isCashoutAgent?.id,
+  // My ACTIVE claims (claimed by me, awaiting my confirmation) — shown separately
+  // at the top so I can complete them. They are EXCLUDED from the main queue and
+  // its pending count to prevent double-payment by me or Financial Ops.
+  const myActiveClaims = allWithdrawals.filter(
+    (w: any) => w.assigned_cashout_agent_id === isCashoutAgent?.id,
   );
 
-  // Split by method
-  const momoWithdrawals = visibleWithdrawals.filter((w: any) => ['mobile_money', 'mtn_mobile_money', 'airtel_money'].includes(w.payout_method));
-  const bankWithdrawals = visibleWithdrawals.filter((w: any) => w.payout_method === 'bank_transfer');
-  const cashWithdrawals = visibleWithdrawals.filter((w: any) => ['cash', 'cash_pickup'].includes(w.payout_method) || !w.payout_method);
+  // Available queue: only UNCLAIMED withdrawals. Items claimed by anyone (me or
+  // another agent) are hidden until either confirmed paid (gone forever) or the
+  // 10-minute cron auto-releases them back here.
+  const availableWithdrawals = allWithdrawals.filter(
+    (w: any) => !w.assigned_cashout_agent_id,
+  );
 
-  // My claimed vs unclaimed
-  const myClaimedIds = new Set(visibleWithdrawals.filter((w: any) => w.assigned_cashout_agent_id === isCashoutAgent?.id).map((w: any) => w.id));
-  const totalPending = visibleWithdrawals.length;
+  // Split by method (queue only)
+  const momoWithdrawals = availableWithdrawals.filter((w: any) => ['mobile_money', 'mtn_mobile_money', 'airtel_money'].includes(w.payout_method));
+  const bankWithdrawals = availableWithdrawals.filter((w: any) => w.payout_method === 'bank_transfer');
+  const cashWithdrawals = availableWithdrawals.filter((w: any) => ['cash', 'cash_pickup'].includes(w.payout_method) || !w.payout_method);
+
+  const myClaimedIds = new Set(myActiveClaims.map((w: any) => w.id));
+  const totalPending = availableWithdrawals.length;
 
   return (
     <div className="space-y-4">
