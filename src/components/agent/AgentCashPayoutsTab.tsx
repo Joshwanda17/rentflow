@@ -356,7 +356,7 @@ export function AgentCashPayoutsTab() {
         </TabsList>
 
         {['all', 'momo', 'bank', 'cash'].map(tab => {
-          const items = tab === 'all' ? visibleWithdrawals : tab === 'momo' ? momoWithdrawals : tab === 'bank' ? bankWithdrawals : cashWithdrawals;
+          const items = tab === 'all' ? availableWithdrawals : tab === 'momo' ? momoWithdrawals : tab === 'bank' ? bankWithdrawals : cashWithdrawals;
           const emptyMsg = tab === 'all' ? 'No pending withdrawals' : `No pending ${tab} payouts`;
           return (
             <TabsContent key={tab} value={tab} className="space-y-2 mt-3">
