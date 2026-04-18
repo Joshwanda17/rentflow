@@ -293,6 +293,13 @@ export function BusinessAdvanceQueue({ stage }: BusinessAdvanceQueueProps) {
           </Card>
         );
       })}
+      {assignDialogFor && (
+        <AssignNearbyAgentDialog
+          open={!!assignDialogFor}
+          onOpenChange={(o) => !o && setAssignDialogFor(null)}
+          advance={assignDialogFor}
+        />
+      )}
     </div>
   );
 }
