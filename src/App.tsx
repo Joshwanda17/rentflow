@@ -74,6 +74,7 @@ const ActivateSupporter = lazy(() => import('./pages/ActivateSupporter'));
 const AgentRegistrations = lazy(() => import('./pages/AgentRegistrations'));
 const SubAgentAnalytics = lazy(() => import('./pages/SubAgentAnalytics'));
 const Join = lazy(() => import('./pages/Join'));
+const RecordRent = lazy(() => import('./pages/RecordRent'));
 const Calculator = lazy(() => import('./pages/Calculator'));
 const UserManagement = lazy(() => import('./pages/UserManagement'));
 const SupporterEarnings = lazy(() => import('./pages/SupporterEarnings'));
@@ -286,6 +287,7 @@ function AppRoutes() {
           <Route path="/sub-agents" element={<SubAgentAnalytics />} />
           <Route path="/agent/partners" element={<AgentPartners />} />
           <Route path="/join" element={<Join />} />
+          <Route path="/record-rent" element={<RecordRent />} />
           <Route path="/calculator" element={<Calculator />} />
           <Route path="/users" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cto']}><AdminUsersPage /></RoleGuard>} />
           <Route path="/platform-users" element={<RoleGuard allowedRoles={['manager', 'cto']}><UserManagement /></RoleGuard>} />
