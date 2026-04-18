@@ -153,7 +153,26 @@ export function ShareRentRecorderCard() {
       </div>
 
       {link && (
-        <p className="mt-2 text-[10px] text-center font-mono text-muted-foreground break-all">{link}</p>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="mt-3 w-full flex items-center gap-2 rounded-xl border border-dashed border-primary/40 bg-primary/5 hover:bg-primary/10 active:bg-primary/15 transition-colors p-2.5 text-left"
+          aria-label="Tap to copy your share link"
+        >
+          {copied ? (
+            <Check className="h-4 w-4 text-success shrink-0" />
+          ) : (
+            <Copy className="h-4 w-4 text-primary shrink-0" />
+          )}
+          <span className="flex-1 min-w-0">
+            <span className="block text-[9px] uppercase tracking-wider font-bold text-primary">
+              {copied ? 'Copied!' : 'Your share link — tap to copy'}
+            </span>
+            <span className="block text-[11px] font-mono text-foreground/80 break-all">
+              {link}
+            </span>
+          </span>
+        </button>
       )}
 
       <div className="mt-3 flex items-start gap-2 rounded-xl bg-primary/5 border border-primary/15 p-2.5">
