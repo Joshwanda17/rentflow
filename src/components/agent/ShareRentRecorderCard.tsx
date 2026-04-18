@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { useShortLink } from '@/hooks/useShortLink';
 import { Button } from '@/components/ui/button';
 import { MessageCircle, Copy, Check, ClipboardList, TrendingUp, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -18,11 +17,12 @@ export function ShareRentRecorderCard() {
   const [copied, setCopied] = useState(false);
   const [submissionCount, setSubmissionCount] = useState<number | null>(null);
 
-  const { shortUrl, isLoading } = useShortLink({
-    targetPath: '/record-rent',
-    targetParams: { a: user?.id || '' },
-    enabled: !!user,
-  });
+  // Permanent, never-expiring direct link. Works offline (no DB resolve needed),
+  // opens on every device, no signup, no short-code lookup. Uses the canonical
+  // production domain so the same link always resolves even if shared from preview.
+  const PUBLIC_BASE = 'https://welilereceipts.com';
+  const shortUrl = user ? `${PUBLIC_BASE}/record-rent?a=${user.id}` : '';
+  const isLoading = !user;
 
   useEffect(() => {
     if (!user) return;
