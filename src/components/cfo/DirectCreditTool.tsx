@@ -424,7 +424,12 @@ export function DirectCreditTool() {
               <option value="">Select a category...</option>
               {availableCategories.map((cat) => {
                 const impactLabel = IMPACT_CONFIG[cat.impact].label;
-                const readySuffix = cat.id === 'rent_disbursement' && rentQueueCount > 0 ? ` • ${rentQueueCount} ready` : '';
+                let readySuffix = '';
+                if (cat.id === 'rent_disbursement' && rentQueueCount > 0) {
+                  readySuffix = ` • ${rentQueueCount} ready`;
+                } else if (cat.id === 'business_advance' && businessAdvanceQueueCount > 0) {
+                  readySuffix = ` • ${businessAdvanceQueueCount} ready`;
+                }
                 return (
                   <option key={cat.id} value={cat.id}>
                     {`${cat.label} — ${impactLabel}${readySuffix}`}
@@ -463,7 +468,7 @@ export function DirectCreditTool() {
 
         {/* Category Impact Explanation */}
 
-        {selectedCategory && impactInfo && ImpactIcon && !isRentDisbursement && !needsSubCategory && (
+        {selectedCategory && impactInfo && ImpactIcon && !isQueueCategory && !needsSubCategory && (
           <div className={`rounded-lg border p-3 text-xs space-y-1.5 ${impactInfo.color}`}>
             <div className="flex items-center gap-2 font-semibold">
               <ImpactIcon className="h-4 w-4" />
@@ -500,8 +505,13 @@ export function DirectCreditTool() {
           <RentDisbursementQueue />
         )}
 
-        {/* ── MANUAL PAYOUT FORM (non-rent categories) ── */}
-        {!isRentDisbursement && selectedCategoryId && !needsSubCategory && (
+        {/* ── BUSINESS ADVANCE DISBURSEMENT QUEUE ── */}
+        {isBusinessAdvance && (
+          <BusinessAdvanceDisbursementQueue />
+        )}
+
+        {/* ── MANUAL PAYOUT FORM (non-queue categories) ── */}
+        {!isQueueCategory && selectedCategoryId && !needsSubCategory && (
           <>
             <UserSearchPicker
               label="Search User"
