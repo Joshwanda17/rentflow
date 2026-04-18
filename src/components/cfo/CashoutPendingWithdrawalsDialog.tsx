@@ -56,10 +56,13 @@ export function CashoutPendingWithdrawalsDialog({ open, onOpenChange, agent }: P
   const cashoutAgentRowId = agent?.id; // cashout_agents.id (FK target for assigned_cashout_agent_id)
   const agentName = agent?.profiles?.full_name || 'Agent';
 
-  const momoWithdrawals = allWithdrawals.filter((w: any) => ['mobile_money', 'mtn_mobile_money', 'airtel_money'].includes(w.payout_method));
-  const bankWithdrawals = allWithdrawals.filter((w: any) => w.payout_method === 'bank_transfer');
-  const cashWithdrawals = allWithdrawals.filter((w: any) => ['cash', 'cash_pickup'].includes(w.payout_method) || !w.payout_method);
-  const totalPending = allWithdrawals.length;
+  // Exclude withdrawals already claimed by ANY cash-out agent — locked for 10 min.
+  const unclaimedWithdrawals = allWithdrawals.filter((w: any) => !w.assigned_cashout_agent_id);
+
+  const momoWithdrawals = unclaimedWithdrawals.filter((w: any) => ['mobile_money', 'mtn_mobile_money', 'airtel_money'].includes(w.payout_method));
+  const bankWithdrawals = unclaimedWithdrawals.filter((w: any) => w.payout_method === 'bank_transfer');
+  const cashWithdrawals = unclaimedWithdrawals.filter((w: any) => ['cash', 'cash_pickup'].includes(w.payout_method) || !w.payout_method);
+  const totalPending = unclaimedWithdrawals.length;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
