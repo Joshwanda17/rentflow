@@ -13,6 +13,7 @@ import { Loader2, Send, ArrowUpRight, ArrowDownLeft, TrendingUp, TrendingDown, M
 import { UserSearchPicker } from './UserSearchPicker';
 import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 import { RentDisbursementQueue } from './RentDisbursementQueue';
+import { BusinessAdvanceDisbursementQueue } from './BusinessAdvanceDisbursementQueue';
 import { PayoutAutomationToggle } from './PayoutAutomationToggle';
 
 type Operation = 'credit' | 'debit';
@@ -49,6 +50,15 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     id: 'rent_disbursement',
     label: '🏠 Rent Disbursement',
     description: 'Approved rent payouts to landlord wallets or agent float — earns access fees & request fees',
+    impact: 'revenue',
+    walletCategory: 'rent_disbursement',
+    platformCategory: 'rent_disbursement',
+    allowedOps: ['credit'],
+  },
+  {
+    id: 'business_advance',
+    label: '💼 Business Advance',
+    description: 'COO-approved business advances paid into tenant wallets — earns 1% daily compounding interest (4% commission to originating agent)',
     impact: 'revenue',
     walletCategory: 'rent_disbursement',
     platformCategory: 'rent_disbursement',
@@ -237,6 +247,19 @@ export function DirectCreditTool() {
     staleTime: 20_000,
   });
 
+  const { data: businessAdvanceQueueCount = 0 } = useQuery({
+    queryKey: ['business-advance-disbursement-queue-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('business_advances')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'coo_approved');
+      if (error) return 0;
+      return count ?? 0;
+    },
+    staleTime: 20_000,
+  });
+
   const availableCategories = useMemo(
     () => PAYOUT_CATEGORIES.filter(c => c.allowedOps.includes(operation)),
     [operation]
@@ -256,6 +279,8 @@ export function DirectCreditTool() {
   );
 
   const isRentDisbursement = selectedCategoryId === 'rent_disbursement';
+  const isBusinessAdvance = selectedCategoryId === 'business_advance';
+  const isQueueCategory = isRentDisbursement || isBusinessAdvance;
 
   const handleOperationChange = (op: Operation) => {
     setOperation(op);
@@ -399,7 +424,12 @@ export function DirectCreditTool() {
               <option value="">Select a category...</option>
               {availableCategories.map((cat) => {
                 const impactLabel = IMPACT_CONFIG[cat.impact].label;
-                const readySuffix = cat.id === 'rent_disbursement' && rentQueueCount > 0 ? ` • ${rentQueueCount} ready` : '';
+                let readySuffix = '';
+                if (cat.id === 'rent_disbursement' && rentQueueCount > 0) {
+                  readySuffix = ` • ${rentQueueCount} ready`;
+                } else if (cat.id === 'business_advance' && businessAdvanceQueueCount > 0) {
+                  readySuffix = ` • ${businessAdvanceQueueCount} ready`;
+                }
                 return (
                   <option key={cat.id} value={cat.id}>
                     {`${cat.label} — ${impactLabel}${readySuffix}`}
@@ -438,7 +468,7 @@ export function DirectCreditTool() {
 
         {/* Category Impact Explanation */}
 
-        {selectedCategory && impactInfo && ImpactIcon && !isRentDisbursement && !needsSubCategory && (
+        {selectedCategory && impactInfo && ImpactIcon && !isQueueCategory && !needsSubCategory && (
           <div className={`rounded-lg border p-3 text-xs space-y-1.5 ${impactInfo.color}`}>
             <div className="flex items-center gap-2 font-semibold">
               <ImpactIcon className="h-4 w-4" />
@@ -475,8 +505,13 @@ export function DirectCreditTool() {
           <RentDisbursementQueue />
         )}
 
-        {/* ── MANUAL PAYOUT FORM (non-rent categories) ── */}
-        {!isRentDisbursement && selectedCategoryId && !needsSubCategory && (
+        {/* ── BUSINESS ADVANCE DISBURSEMENT QUEUE ── */}
+        {isBusinessAdvance && (
+          <BusinessAdvanceDisbursementQueue />
+        )}
+
+        {/* ── MANUAL PAYOUT FORM (non-queue categories) ── */}
+        {!isQueueCategory && selectedCategoryId && !needsSubCategory && (
           <>
             <UserSearchPicker
               label="Search User"
