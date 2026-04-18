@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -9,10 +9,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import { Briefcase, Loader2, Navigation, AlertTriangle, CheckCircle2, Copy, Smartphone, MessageCircle } from 'lucide-react';
+import { Briefcase, Loader2, Navigation, AlertTriangle, CheckCircle2, Copy, Smartphone, MessageCircle, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { BUSINESS_TYPES, projectOutstanding, formatUGX } from '@/lib/businessAdvanceCalculations';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
+import RentHistoryCaptureGrid, { RentHistoryEntry } from './RentHistoryCaptureGrid';
+import AdvanceLimitMarketingCard from './AdvanceLimitMarketingCard';
 
 interface Props {
   open: boolean;
@@ -32,11 +34,19 @@ const formatPhone = (raw: string) => {
   return `${d.slice(0, 4)} ${d.slice(4, 7)} ${d.slice(7)}`;
 };
 
+type Step = 'amount' | 'tenant' | 'business' | 'confirm' | 'success';
+const STEPS: Step[] = ['amount', 'tenant', 'business', 'confirm'];
+
 export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuccess }: Props) {
   const { user } = useAuth();
-  const [step, setStep] = useState<'tenant' | 'business' | 'amount' | 'confirm' | 'success'>('tenant');
+  const [step, setStep] = useState<Step>('amount');
   const [loading, setLoading] = useState(false);
   const [activationLink, setActivationLink] = useState<string | null>(null);
+
+  // Amount + rent history (step 1 — marketing)
+  const [principal, setPrincipal] = useState('');
+  const [reason, setReason] = useState('');
+  const [rentHistory, setRentHistory] = useState<RentHistoryEntry[]>([]);
 
   // Tenant
   const [tenantName, setTenantName] = useState('');
@@ -56,17 +66,13 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
   const [gps, setGps] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
 
-  // Amount
-  const [principal, setPrincipal] = useState('');
-  const [reason, setReason] = useState('');
-
   const reset = () => {
-    setStep('tenant');
+    setStep('amount');
+    setPrincipal(''); setReason(''); setRentHistory([]);
     setTenantName(''); setTenantPhone(''); setTenantNationalId(''); setTenantEmail('');
     setHasSmartphone(true); setOnboardingMethod('signup_link');
     setBusinessName(''); setBusinessType(''); setBusinessAddress(''); setBusinessCity('Kampala');
     setMonthlyRevenue(''); setYearsInBusiness(''); setGps(null);
-    setPrincipal(''); setReason('');
     setActivationLink(null);
   };
 
@@ -87,9 +93,72 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
   }, []);
 
   const principalNum = parseInt(principal.replace(/,/g, '')) || 0;
+
+  // Live limit calculation from captured rent history
+  const limit = useMemo(() => {
+    const validEntries = rentHistory.filter((e) => e.rent_amount > 0);
+    const months = validEntries.length;
+    const avg = months > 0 ? validEntries.reduce((s, e) => s + e.rent_amount, 0) / months : 0;
+    const distinctLandlords = new Set(validEntries.map((e) => e.landlord_phone || e.landlord_name).filter(Boolean)).size || 1;
+    const starter = 50000;
+
+    if (months === 0) {
+      return {
+        total_limit: starter,
+        tier_label: 'Starter',
+        months_recorded: 0,
+        avg_monthly_rent: 0,
+        next_unlock_at_months: 3,
+        next_unlock_amount: 150000,
+      };
+    }
+
+    const cappedMonths = Math.min(months, 12);
+    const base = avg * cappedMonths;
+    const consistencyBonus = cappedMonths >= 6 ? base * 0.20 : 0;
+    const loyaltyBonus = distinctLandlords <= 2 ? base * 0.15 : 0;
+    const tenureBonus = cappedMonths >= 12 ? base * 0.25 : 0;
+    const total = Math.min(Math.max(starter, base + consistencyBonus + loyaltyBonus + tenureBonus), 10_000_000);
+
+    let nextUnlockAtMonths: number | null = null;
+    let nextUnlockAmount: number | null = null;
+    let tierLabel = 'Starter';
+
+    if (cappedMonths >= 12) {
+      tierLabel = 'Welile Trusted';
+    } else if (cappedMonths >= 6) {
+      tierLabel = 'Established';
+      nextUnlockAtMonths = 12;
+      nextUnlockAmount = Math.min(avg * 12 * 1.60, 10_000_000);
+    } else if (cappedMonths >= 3) {
+      tierLabel = 'Building';
+      nextUnlockAtMonths = 6;
+      nextUnlockAmount = Math.min(avg * 6 * 1.20, 10_000_000);
+    } else {
+      nextUnlockAtMonths = 6;
+      nextUnlockAmount = Math.min(avg * 6 * 1.20, 10_000_000);
+    }
+
+    return {
+      total_limit: Math.round(total),
+      tier_label: tierLabel,
+      months_recorded: cappedMonths,
+      avg_monthly_rent: Math.round(avg),
+      next_unlock_at_months: nextUnlockAtMonths,
+      next_unlock_amount: nextUnlockAmount ? Math.round(nextUnlockAmount) : null,
+    };
+  }, [rentHistory]);
+
   const projection30 = projectOutstanding(principalNum, 30);
   const projection60 = projectOutstanding(principalNum, 60);
   const projection90 = projectOutstanding(principalNum, 90);
+
+  const validateAmount = (): string | null => {
+    if (principalNum < 50000) return 'Minimum advance is UGX 50,000';
+    if (principalNum > limit.total_limit) return `Amount exceeds your accessible limit of ${formatUGX(limit.total_limit)}. Record more rent history to unlock more.`;
+    if (!reason.trim() || reason.trim().length < 10) return 'Reason must be at least 10 characters';
+    return null;
+  };
 
   const validateTenant = (): string | null => {
     if (!tenantName.trim()) return 'Tenant name required';
@@ -109,18 +178,10 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
     return null;
   };
 
-  const validateAmount = (): string | null => {
-    if (principalNum < 50000) return 'Minimum advance is UGX 50,000';
-    if (principalNum > 10000000) return 'Maximum advance is UGX 10,000,000';
-    if (!reason.trim() || reason.trim().length < 10) return 'Reason must be at least 10 characters';
-    return null;
-  };
-
   const handleSubmit = async () => {
     if (!user) return toast.error('Not signed in');
     setLoading(true);
     try {
-      // 1. Ensure tenant profile exists (register if not)
       const cleanPhone = tenantPhone.replace(/\s/g, '');
       let tenantId: string | null = null;
 
@@ -133,7 +194,6 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
       if (existing?.id) {
         tenantId = existing.id;
       } else {
-        // Register via edge function
         const { data: regData, error: regErr } = await supabase.functions.invoke('register-tenant', {
           body: {
             full_name: tenantName.trim(),
@@ -148,10 +208,33 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
 
       if (!tenantId) throw new Error('Could not resolve tenant');
 
-      // 2. Build signup/activation link
       const activation = `${getPublicOrigin()}/activate?phone=${encodeURIComponent(cleanPhone)}&type=business`;
 
-      // 3. Create the business advance
+      // Persist rent history records (status pending — back-office will verify)
+      const validHistory = rentHistory.filter(
+        (e) => e.rent_amount > 0 && e.landlord_name.trim() && e.landlord_phone.trim() && e.property_location.trim()
+      );
+      if (validHistory.length > 0) {
+        const { error: histErr } = await supabase
+          .from('rent_history_records')
+          .insert(
+            validHistory.map((e) => ({
+              tenant_id: tenantId!,
+              landlord_name: e.landlord_name.trim(),
+              landlord_phone: e.landlord_phone.trim(),
+              property_location: e.property_location.trim(),
+              rent_amount: e.rent_amount,
+              months_paid: 1,
+              start_date: `${e.monthKey}-01`,
+              status: 'pending',
+            }))
+          );
+        if (histErr) {
+          console.warn('[business-advance] rent history insert failed', histErr);
+          // non-fatal — continue with the advance request
+        }
+      }
+
       const { error: advErr } = await supabase
         .from('business_advances')
         .insert({
@@ -206,6 +289,8 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
     window.open(`https://wa.me/${intl}?text=${msg}`, '_blank');
   };
 
+  const stepIndex = STEPS.indexOf(step as any);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
@@ -215,23 +300,121 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
             Business Advance Request
           </DialogTitle>
           <DialogDescription>
-            Request a business advance on behalf of a tenant who runs a business. 1% daily compounding interest.
+            Unlock business capital for a tenant. The more rent history they record, the more they can access.
           </DialogDescription>
         </DialogHeader>
 
         {/* Stepper */}
-        <div className="flex gap-1 my-2">
-          {(['tenant', 'business', 'amount', 'confirm'] as const).map((s, i) => (
-            <div
-              key={s}
-              className={`h-1 flex-1 rounded ${
-                ['tenant', 'business', 'amount', 'confirm'].indexOf(step) >= i ? 'bg-primary' : 'bg-muted'
-              }`}
-            />
-          ))}
-        </div>
+        {step !== 'success' && (
+          <div className="flex gap-1 my-2">
+            {STEPS.map((s, i) => (
+              <div
+                key={s}
+                className={`h-1 flex-1 rounded ${stepIndex >= i ? 'bg-primary' : 'bg-muted'}`}
+              />
+            ))}
+          </div>
+        )}
 
-        {/* STEP: tenant */}
+        {/* STEP 1: amount + rent history (marketing) */}
+        {step === 'amount' && (
+          <div className="space-y-5">
+            <AdvanceLimitMarketingCard
+              monthsRecorded={limit.months_recorded}
+              totalLimit={limit.total_limit}
+              nextUnlockAmount={limit.next_unlock_amount}
+              nextUnlockAtMonths={limit.next_unlock_at_months}
+              tierLabel={limit.tier_label}
+              avgMonthlyRent={limit.avg_monthly_rent}
+            />
+
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5 text-sm font-bold">
+                <Sparkles className="h-3.5 w-3.5 text-primary" /> Amount needed (UGX)
+              </Label>
+              <Input
+                inputMode="numeric"
+                value={principal}
+                onChange={(e) => setPrincipal(formatCurrency(e.target.value))}
+                placeholder="500,000"
+                className="text-2xl font-black h-14"
+              />
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>Min UGX 50,000</span>
+                <span>Max today: <strong className="text-foreground">{formatUGX(limit.total_limit)}</strong></span>
+              </div>
+              {principalNum > limit.total_limit && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  Exceeds limit. Record more rent history below to unlock more.
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-bold">Reason for the advance</Label>
+              <Textarea
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="What will the business use this advance for?"
+                rows={2}
+              />
+            </div>
+
+            <Separator />
+
+            {/* Rent history capture */}
+            <div className="space-y-3">
+              <div>
+                <h4 className="text-sm font-bold flex items-center gap-1.5">
+                  📅 Rent payment history
+                  <span className="text-[10px] uppercase tracking-wider font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                    Unlocks more
+                  </span>
+                </h4>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Each month recorded raises the limit. We auto-verify with the landlord later.
+                </p>
+              </div>
+              <RentHistoryCaptureGrid entries={rentHistory} onChange={setRentHistory} />
+            </div>
+
+            {principalNum >= 50000 && principalNum <= limit.total_limit && (
+              <div className="rounded-lg bg-muted/50 p-3 space-y-2 text-sm">
+                <div className="flex items-center gap-2 text-xs uppercase font-bold text-muted-foreground">
+                  <AlertTriangle className="h-3 w-3" /> 1% daily compounding projection
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div className="rounded bg-background p-2">
+                    <div className="text-muted-foreground">After 30d</div>
+                    <div className="font-bold">{formatUGX(projection30)}</div>
+                  </div>
+                  <div className="rounded bg-background p-2">
+                    <div className="text-muted-foreground">After 60d</div>
+                    <div className="font-bold">{formatUGX(projection60)}</div>
+                  </div>
+                  <div className="rounded bg-background p-2">
+                    <div className="text-muted-foreground">After 90d</div>
+                    <div className="font-bold">{formatUGX(projection90)}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <Button
+              className="w-full h-11"
+              onClick={() => {
+                const err = validateAmount();
+                if (err) return toast.error(err);
+                setStep('tenant');
+              }}
+            >
+              Next: Tenant details
+            </Button>
+          </div>
+        )}
+
+        {/* STEP 2: tenant */}
         {step === 'tenant' && (
           <div className="space-y-4">
             <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-3 flex gap-2 text-xs">
@@ -311,20 +494,22 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
               </div>
             </div>
 
-            <Button
-              className="w-full"
-              onClick={() => {
-                const err = validateTenant();
-                if (err) return toast.error(err);
-                setStep('business');
-              }}
-            >
-              Next: Business details
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="outline" onClick={() => setStep('amount')}>Back</Button>
+              <Button
+                onClick={() => {
+                  const err = validateTenant();
+                  if (err) return toast.error(err);
+                  setStep('business');
+                }}
+              >
+                Next: Business
+              </Button>
+            </div>
           </div>
         )}
 
-        {/* STEP: business */}
+        {/* STEP 3: business */}
         {step === 'business' && (
           <div className="space-y-4">
             <div className="space-y-2">
@@ -383,74 +568,13 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
               <Button onClick={() => {
                 const err = validateBusiness();
                 if (err) return toast.error(err);
-                setStep('amount');
-              }}>Next: Amount</Button>
-            </div>
-          </div>
-        )}
-
-        {/* STEP: amount */}
-        {step === 'amount' && (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Advance amount (UGX) *</Label>
-              <Input
-                inputMode="numeric"
-                value={principal}
-                onChange={(e) => setPrincipal(formatCurrency(e.target.value))}
-                placeholder="500,000"
-                className="text-lg font-bold"
-              />
-              <p className="text-xs text-muted-foreground">Min UGX 50,000 · Max UGX 10,000,000</p>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Reason for advance *</Label>
-              <Textarea
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder="What will the business use this advance for?"
-                rows={3}
-              />
-            </div>
-
-            {principalNum >= 50000 && (
-              <div className="rounded-lg bg-muted/50 p-3 space-y-2 text-sm">
-                <div className="flex items-center gap-2 text-xs uppercase font-bold text-muted-foreground">
-                  <AlertTriangle className="h-3 w-3" /> 1% daily compounding projection
-                </div>
-                <div className="grid grid-cols-3 gap-2 text-xs">
-                  <div className="rounded bg-background p-2">
-                    <div className="text-muted-foreground">After 30d</div>
-                    <div className="font-bold">{formatUGX(projection30)}</div>
-                  </div>
-                  <div className="rounded bg-background p-2">
-                    <div className="text-muted-foreground">After 60d</div>
-                    <div className="font-bold">{formatUGX(projection60)}</div>
-                  </div>
-                  <div className="rounded bg-background p-2">
-                    <div className="text-muted-foreground">After 90d</div>
-                    <div className="font-bold">{formatUGX(projection90)}</div>
-                  </div>
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Open-ended: tenant pays whatever, whenever. Interest compounds daily on what's left.
-                </p>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-2">
-              <Button variant="outline" onClick={() => setStep('business')}>Back</Button>
-              <Button onClick={() => {
-                const err = validateAmount();
-                if (err) return toast.error(err);
                 setStep('confirm');
               }}>Review</Button>
             </div>
           </div>
         )}
 
-        {/* STEP: confirm */}
+        {/* STEP 4: confirm */}
         {step === 'confirm' && (
           <div className="space-y-4">
             <div className="rounded-lg border border-border p-4 space-y-3 text-sm">
@@ -466,8 +590,14 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
                 <div className="text-xs text-muted-foreground">{businessType} · {businessAddress}, {businessCity}</div>
               </div>
               <Separator />
+              <div>
+                <div className="text-xs uppercase font-bold text-muted-foreground">Rent history captured</div>
+                <div className="text-xs">{rentHistory.filter((r) => r.rent_amount > 0).length} months · Tier: <strong>{limit.tier_label}</strong></div>
+                <div className="text-xs text-muted-foreground">Accessible limit: {formatUGX(limit.total_limit)}</div>
+              </div>
+              <Separator />
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Principal</span>
+                <span className="text-muted-foreground">Principal requested</span>
                 <span className="font-bold text-lg">{formatUGX(principalNum)}</span>
               </div>
               <div className="flex justify-between text-xs">
@@ -485,7 +615,7 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
             </div>
 
             <div className="grid grid-cols-2 gap-2">
-              <Button variant="outline" onClick={() => setStep('amount')} disabled={loading}>Back</Button>
+              <Button variant="outline" onClick={() => setStep('business')} disabled={loading}>Back</Button>
               <Button onClick={handleSubmit} disabled={loading}>
                 {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Submit request
