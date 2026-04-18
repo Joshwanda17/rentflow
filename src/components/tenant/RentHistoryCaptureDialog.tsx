@@ -72,15 +72,31 @@ export default function RentHistoryCaptureDialog({ open, onOpenChange, onSaved }
 
     setSaving(true);
     try {
-      // Replace-and-insert so the dialog acts as a true editor
-      const { error: delErr } = await supabase
+      // Fetch already-saved month keys so we only insert new ones
+      // (tenants can't delete; back-office verifies/edits existing rows).
+      const { data: existing, error: fetchErr } = await supabase
         .from('rent_history_records')
-        .delete()
+        .select('start_date')
         .eq('tenant_id', user.id);
-      if (delErr) throw delErr;
+      if (fetchErr) throw fetchErr;
+
+      const existingKeys = new Set(
+        (existing ?? [])
+          .filter((r) => r.start_date)
+          .map((r) => format(new Date(r.start_date as string), 'yyyy-MM'))
+      );
+
+      const fresh = valid.filter((e) => !existingKeys.has(e.monthKey));
+      if (fresh.length === 0) {
+        toast.info('All entered months are already on file', {
+          description: 'Add a new month or wait for verification.',
+        });
+        setSaving(false);
+        return;
+      }
 
       const { error: insErr } = await supabase.from('rent_history_records').insert(
-        valid.map((e) => ({
+        fresh.map((e) => ({
           tenant_id: user.id,
           landlord_name: e.landlord_name.trim(),
           landlord_phone: e.landlord_phone.trim(),
@@ -93,7 +109,7 @@ export default function RentHistoryCaptureDialog({ open, onOpenChange, onSaved }
       );
       if (insErr) throw insErr;
 
-      toast.success(`Saved ${valid.length} month${valid.length === 1 ? '' : 's'} of rent history`, {
+      toast.success(`Saved ${fresh.length} new month${fresh.length === 1 ? '' : 's'} of rent history`, {
         description: 'Welile will verify your records and unlock your higher limit.',
       });
       onSaved?.();
