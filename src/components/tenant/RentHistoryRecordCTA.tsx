@@ -72,7 +72,7 @@ export default function RentHistoryRecordCTA() {
         aria-label="Record rent payment history"
       >
         {/* Animated gradient backdrop */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary/90 to-purple-600" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary/90 to-accent" />
 
         {/* Shimmer sweep — keeps the button "alive" */}
         <motion.div

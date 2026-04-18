@@ -52,6 +52,7 @@ import { AgentDepositDialog } from '@/components/agent/AgentDepositDialog';
 import { AvailableHousesSheet } from '@/components/tenant/AvailableHousesSheet';
 import { NearbyHousesPreview } from '@/components/tenant/NearbyHousesPreview';
 import { SuggestedHousesCard } from '@/components/tenant/SuggestedHousesCard';
+import RentHistoryRecordCTA from '@/components/tenant/RentHistoryRecordCTA';
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
@@ -275,6 +276,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
 
           {/* Credit Access Limit */}
           <CreditAccessCard userId={user.id} compact />
+
+          {/* Record Rent History — prominent attention-grabbing CTA */}
+          <RentHistoryRecordCTA />
 
           {/* Action Buttons — Clean & Minimal */}
           <div className="space-y-2">
