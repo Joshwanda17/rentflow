@@ -334,7 +334,32 @@ export function AgentCashPayoutsTab() {
         </CardContent>
       </Card>
 
-      {/* Withdrawal Requests by channel */}
+      {myActiveClaims.length > 0 && (
+        <Card className="border-amber-500/40 bg-amber-500/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
+              <Clock className="h-3.5 w-3.5" />
+              My Active Claims · {myActiveClaims.length} · 10 min to confirm
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {myActiveClaims.map((w: any) => (
+              <WithdrawalPayoutCard
+                key={w.id}
+                withdrawal={w}
+                isClaimed
+                isClaimedByOther={false}
+                onClaim={() => claimWithdrawal.mutate(w.id)}
+                onComplete={completeWithdrawal.mutate}
+                isClaimPending={claimWithdrawal.isPending}
+                isCompletePending={completeWithdrawal.isPending}
+              />
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Withdrawal Requests by channel — UNCLAIMED only */}
       <Tabs defaultValue="all">
         <TabsList className="w-full">
           <TabsTrigger value="all" className="flex-1 gap-1">
