@@ -136,6 +136,16 @@ export function AgentCashPayoutsTab() {
     return () => { supabase.removeChannel(channel); };
   }, [isCashoutAgent, qc]);
 
+  // Auto-release stale claims (>10min) — client-side ticker so the UI updates
+  // immediately even between cron runs. Refreshes the list every 30s while open.
+  useEffect(() => {
+    if (!isCashoutAgent) return;
+    const tick = setInterval(() => {
+      qc.invalidateQueries({ queryKey: ['cashout-agent-all-withdrawals'] });
+    }, 30_000);
+    return () => clearInterval(tick);
+  }, [isCashoutAgent, qc]);
+
   // Claim a withdrawal request
   const claimWithdrawal = useMutation({
     mutationFn: async (withdrawalId: string) => {
