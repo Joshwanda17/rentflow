@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AdvanceRequestsQueue } from '@/components/ops/AdvanceRequestsQueue';
 import { BusinessAdvanceQueue } from '@/components/ops/BusinessAdvanceQueue';
+import { RentHistoryVerificationQueue } from '@/components/ops/RentHistoryVerificationQueue';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
