@@ -247,6 +247,19 @@ export function DirectCreditTool() {
     staleTime: 20_000,
   });
 
+  const { data: businessAdvanceQueueCount = 0 } = useQuery({
+    queryKey: ['business-advance-disbursement-queue-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('business_advances')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'coo_approved');
+      if (error) return 0;
+      return count ?? 0;
+    },
+    staleTime: 20_000,
+  });
+
   const availableCategories = useMemo(
     () => PAYOUT_CATEGORIES.filter(c => c.allowedOps.includes(operation)),
     [operation]
@@ -266,6 +279,8 @@ export function DirectCreditTool() {
   );
 
   const isRentDisbursement = selectedCategoryId === 'rent_disbursement';
+  const isBusinessAdvance = selectedCategoryId === 'business_advance';
+  const isQueueCategory = isRentDisbursement || isBusinessAdvance;
 
   const handleOperationChange = (op: Operation) => {
     setOperation(op);
