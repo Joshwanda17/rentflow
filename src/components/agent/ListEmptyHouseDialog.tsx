@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Home, MapPin, Loader2, Shield, UserCheck } from 'lucide-react';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -295,10 +296,13 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
               </div>
               <div>
                 <Label className="text-xs">Landlord Phone</Label>
-                <Input
+                <PhoneInput
                   placeholder="0771234567"
                   value={form.landlord_phone}
-                  onChange={e => setForm(f => ({ ...f, landlord_phone: e.target.value }))}
+                  onChange={(v) => setForm(f => ({ ...f, landlord_phone: v }))}
+                  onContactPicked={({ name }) => {
+                    if (name && !form.landlord_name.trim()) setForm(f => ({ ...f, landlord_name: name }));
+                  }}
                 />
               </div>
             </div>

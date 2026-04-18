@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { Trash2, Plus, Home } from 'lucide-react';
 import { format, subMonths } from 'date-fns';
 
@@ -93,11 +94,13 @@ export default function RentHistoryCaptureGrid({ entries, onChange }: Props) {
                 onChange={(e) => updateEntry(idx, { landlord_name: e.target.value })}
                 className="h-9 text-xs"
               />
-              <Input
+              <PhoneInput
                 placeholder="Landlord phone"
-                inputMode="tel"
                 value={entry.landlord_phone}
-                onChange={(e) => updateEntry(idx, { landlord_phone: e.target.value.replace(/\D/g, '').slice(0, 12) })}
+                onChange={(v) => updateEntry(idx, { landlord_phone: v.replace(/[^\d+]/g, '').slice(0, 13) })}
+                onContactPicked={({ name }) => {
+                  if (name && !entry.landlord_name.trim()) updateEntry(idx, { landlord_name: name });
+                }}
                 className="h-9 text-xs"
               />
             </div>

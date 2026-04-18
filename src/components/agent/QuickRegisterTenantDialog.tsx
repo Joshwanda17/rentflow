@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { Label } from '@/components/ui/label';
 import { Loader2, UserPlus, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -129,12 +130,14 @@ export function QuickRegisterTenantDialog({
 
             <div className="space-y-2">
               <Label htmlFor="qr-phone">Phone Number</Label>
-              <Input
+              <PhoneInput
                 id="qr-phone"
-                type="tel"
                 placeholder="e.g. 0700123456"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(v) => setPhone(v)}
+                onContactPicked={({ name }) => {
+                  if (name && !fullName.trim()) setFullName(name);
+                }}
                 disabled={loading}
                 className="h-12"
               />

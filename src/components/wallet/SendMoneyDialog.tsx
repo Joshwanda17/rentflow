@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useWallet } from '@/hooks/useWallet';
@@ -224,12 +225,11 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                     <Phone className="h-3.5 w-3.5 text-muted-foreground" />
                     Recipient Phone Number
                   </Label>
-                  <Input
+                  <PhoneInput
                     id="phone"
-                    type="tel"
                     placeholder="e.g. 0783673998"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(v) => setPhone(v)}
                     className="bg-background/50 border-border/50 focus:border-primary/50 transition-all"
                     required
                   />
