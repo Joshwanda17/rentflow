@@ -41,29 +41,44 @@ export function ShareRentRecorderCard() {
 
   const link = shortUrl;
 
-  const message = `🏠 Record your rent. Unlock cash later.
+  // SHORT message + link FIRST = maximum compatibility.
+  // Older Android WhatsApp, WhatsApp Business, KaiOS clones and feature phones
+  // truncate long messages, strip emojis, or fail to auto-link URLs that
+  // aren't on the first line. URL-first guarantees it's tappable everywhere.
+  const message = link
+    ? `${link}\n\nRecord your rent with Welile. No signup. Qualify for a rent advance.`
+    : '';
 
-Hi 👋 — I'm a Welile agent. If you've been paying rent, you can qualify for a *rent advance* (cash to cover rent when money is tight).
-
-✨ No signup needed
-✨ Takes 1 minute
-✨ Just tap and tell us the months you paid
-
-👉 Tap here:
-${link}
-
-The more months you record, the bigger your limit. 💰`;
+  // Use api.whatsapp.com (works on more devices than wa.me, including
+  // WhatsApp Business + older Android WebViews) with a navigation fallback
+  // for in-app browsers (Facebook/Instagram) that block window.open popups.
+  const openWhatsApp = (url: string) => {
+    const win = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!win) window.location.href = url;
+  };
 
   const handleWhatsApp = () => {
     if (!link) return;
     hapticTap();
-    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+    openWhatsApp(`https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`);
   };
 
   const handleCopy = async () => {
     if (!link) return;
     hapticTap();
-    await navigator.clipboard.writeText(link);
+    try {
+      await navigator.clipboard.writeText(link);
+    } catch {
+      // Fallback for older browsers / non-secure contexts
+      const ta = document.createElement('textarea');
+      ta.value = link;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch { /* ignore */ }
+      document.body.removeChild(ta);
+    }
     setCopied(true);
     toast.success('Link copied — paste it anywhere!');
     setTimeout(() => setCopied(false), 2000);
@@ -72,12 +87,14 @@ The more months you record, the bigger your limit. 💰`;
   const handleNativeShare = async () => {
     if (!link) return;
     hapticTap();
+    // OS share sheet handles ALL apps (WhatsApp, SMS, Telegram, Messenger,
+    // Signal, email) on every device that supports Web Share API.
     if (navigator.share) {
       try {
         await navigator.share({ title: 'Record your rent — Welile', text: message, url: link });
         return;
       } catch {
-        /* fall through */
+        /* user cancelled or unsupported — fall through */
       }
     }
     handleWhatsApp();
