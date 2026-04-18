@@ -11528,6 +11528,12 @@ export type Database = {
         Returns: undefined
       }
       refresh_financial_summaries: { Args: never; Returns: undefined }
+      release_stale_cashout_claims: {
+        Args: never
+        Returns: {
+          released_count: number
+        }[]
+      }
       reset_agent_float_if_stale: {
         Args: { p_agent_id: string }
         Returns: undefined
