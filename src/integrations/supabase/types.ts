@@ -7708,6 +7708,36 @@ export type Database = {
           },
         ]
       }
+      public_error_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          error_stack: string | null
+          id: string
+          metadata: Json | null
+          pathname: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          error_stack?: string | null
+          id?: string
+          metadata?: Json | null
+          pathname?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          error_stack?: string | null
+          id?: string
+          metadata?: Json | null
+          pathname?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       public_rent_history_submissions: {
         Row: {
           agent_id: string
