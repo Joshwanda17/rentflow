@@ -7708,6 +7708,57 @@ export type Database = {
           },
         ]
       }
+      public_rent_history_submissions: {
+        Row: {
+          agent_id: string
+          created_at: string
+          id: string
+          landlord_name: string
+          landlord_phone: string
+          linked_tenant_id: string | null
+          month_key: string
+          notes: string | null
+          property_location: string
+          rent_amount: number
+          status: string
+          submitter_name: string
+          submitter_phone: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          id?: string
+          landlord_name: string
+          landlord_phone: string
+          linked_tenant_id?: string | null
+          month_key: string
+          notes?: string | null
+          property_location: string
+          rent_amount: number
+          status?: string
+          submitter_name: string
+          submitter_phone: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          id?: string
+          landlord_name?: string
+          landlord_phone?: string
+          linked_tenant_id?: string | null
+          month_key?: string
+          notes?: string | null
+          property_location?: string
+          rent_amount?: number
+          status?: string
+          submitter_name?: string
+          submitter_phone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       push_subscriptions: {
         Row: {
           auth: string

@@ -99,6 +99,7 @@ import { ApprovedRentRequestsWidget } from '@/components/rent/ApprovedRentReques
 import { RecentAutoCharges } from '@/components/wallet/RecentAutoCharges';
 import { AgentTenantRentRequestsList } from '@/components/agent/AgentTenantRentRequestsList';
 import { AgentVerificationOpportunitiesCard } from '@/components/agent/AgentVerificationOpportunitiesCard';
+import { ShareRentRecorderCard } from '@/components/agent/ShareRentRecorderCard';
 import { TodayCollectionsCard } from '@/components/agent/TodayCollectionsCard';
 import { useIsFinancialAgent } from '@/hooks/useIsFinancialAgent';
 import { FinancialAgentSection } from '@/components/agent/FinancialAgentSection';
@@ -432,6 +433,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         </div>
 
         {/* Credit Access moved to Agent Hub → Earnings tab */}
+
+        {/* Share rent recorder via WhatsApp — public, no signup link */}
+        <ShareRentRecorderCard />
 
         {/* Action Insights: Forecast, Streak, Priority Queue (Daily Rent already shown above) */}
         <AgentActionInsights agentId={user.id} hideDailyRent />
