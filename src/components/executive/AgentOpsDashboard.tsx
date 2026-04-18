@@ -169,6 +169,7 @@ export function AgentOpsDashboard() {
         <div className="space-y-6">
           <AdvanceRequestsQueue stage="agent_ops" />
           <BusinessAdvanceQueue stage="agent_ops" />
+          <RentHistoryVerificationQueue dept="agent_ops" />
         </div>
       );
       case 'alerts': return <AgentAlertFeed />;

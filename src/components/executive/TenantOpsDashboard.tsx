@@ -393,6 +393,7 @@ export function TenantOpsDashboard() {
           <div className="space-y-6">
             <AdvanceRequestsQueue stage="tenant_ops" />
             <BusinessAdvanceQueue stage="tenant_ops" />
+            <RentHistoryVerificationQueue dept="tenant_ops" />
           </div>
         );
       default:
