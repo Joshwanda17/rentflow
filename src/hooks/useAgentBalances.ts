@@ -6,7 +6,7 @@ export interface AgentSplitBalances {
   withdrawableBalance: number;
   floatBalance: number;
   advanceBalance: number;
-  /** @deprecated Use withdrawableBalance. Kept for backward compatibility. */
+  /** True commission balance: sum(agent_commission_earned cash_in) − sum(commission cash_out). Always ≥ 0. */
   commissionBalance: number;
   totalBalance: number;
 }
