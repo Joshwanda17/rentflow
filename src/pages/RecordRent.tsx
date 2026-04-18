@@ -50,6 +50,24 @@ export default function RecordRent() {
 
   useEffect(() => {
     document.title = 'Record your rent history — Welile';
+
+    // Force-unregister any stale service workers and clear caches.
+    // This page needs the network anyway and we want a clean slate
+    // on devices that may have an old SW serving broken chunk refs.
+    try {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then((regs) => {
+          regs.forEach((r) => r.unregister());
+        }).catch(() => {});
+      }
+      if ('caches' in window) {
+        caches.keys().then((keys) =>
+          Promise.all(keys.filter((k) => k.startsWith('welile-')).map((k) => caches.delete(k)))
+        ).catch(() => {});
+      }
+    } catch {
+      // ignore — restricted in-app browsers
+    }
   }, []);
 
   const toggleMonth = (key: string) => {

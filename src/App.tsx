@@ -411,7 +411,42 @@ function DeferredProviders({ children }: { children: ReactNode }) {
   );
 }
 
-const App = () => (
+// Lazy-load the public RecordRent shell (no auth, no settings, no realtime)
+const PublicRecordRent = lazy(() => import('./pages/RecordRent'));
+const RecordRentErrorBoundary = lazy(() => import('./components/public/RecordRentErrorBoundary'));
+
+/**
+ * Standalone shell for /record-rent — bypasses AuthProvider, CombinedSettingsProvider,
+ * realtime, theme chain, PWA prompt, etc. This is critical for in-app browsers
+ * (WhatsApp, Instagram, Facebook) where storage access can be restricted and
+ * cause the full app shell to crash.
+ */
+const PublicRecordRentApp = () => (
+  <HelmetProvider>
+    <QueryClientProvider client={queryClient}>
+      <Suspense fallback={<PageLoader />}>
+        <RecordRentErrorBoundary>
+          <BrowserRouter>
+            <PublicRecordRent />
+          </BrowserRouter>
+        </RecordRentErrorBoundary>
+      </Suspense>
+    </QueryClientProvider>
+  </HelmetProvider>
+);
+
+const isPublicRecordRentRoute = () => {
+  if (typeof window === 'undefined') return false;
+  return window.location.pathname === '/record-rent' || window.location.pathname.startsWith('/record-rent/');
+};
+
+const App = () => {
+  // Early exit for public rent recorder — must run before any provider initializes
+  if (isPublicRecordRentRoute()) {
+    return <PublicRecordRentApp />;
+  }
+
+  return (
   <HelmetProvider>
   <ChunkErrorBoundary>
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
@@ -445,5 +480,6 @@ const App = () => (
     </ThemeProvider>
   </ChunkErrorBoundary>
   </HelmetProvider>
-);
+  );
+};
 export default App;
