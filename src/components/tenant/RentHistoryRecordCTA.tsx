@@ -15,7 +15,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { hapticTap } from '@/lib/haptics';
 import { formatUGX } from '@/lib/rentCalculations';
-import RentHistoryCaptureDialog from './RentHistoryCaptureDialog';
+import TenantBusinessAdvanceRequestDialog from './TenantBusinessAdvanceRequestDialog';
 
 interface Tier {
   months: number;
@@ -285,12 +285,12 @@ export default function RentHistoryRecordCTA() {
 
           {/* Social proof microcopy */}
           <p className="text-center text-[10px] opacity-75 pt-1">
-            🇺🇬 Trusted by tenants across Uganda — your records are private &amp; verified by Welile
+            🌍 Trusted by tenants across Africa — your records are private &amp; verified by Welile
           </p>
         </div>
       </motion.button>
 
-      <RentHistoryCaptureDialog open={open} onOpenChange={setOpen} onSaved={refresh} />
+      <TenantBusinessAdvanceRequestDialog open={open} onOpenChange={setOpen} onSuccess={refresh} />
     </>
   );
 }
