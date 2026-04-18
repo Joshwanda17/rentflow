@@ -5130,6 +5130,93 @@ export type Database = {
           },
         ]
       }
+      landlord_physical_verifications: {
+        Row: {
+          assigned_agent_id: string
+          assigned_at: string
+          assigned_by: string
+          business_advance_id: string
+          created_at: string
+          distance_km: number | null
+          field_notes: string | null
+          id: string
+          landlord_confirmed: boolean | null
+          landlord_name: string
+          landlord_phone: string
+          photo_urls: string[] | null
+          property_latitude: number | null
+          property_location: string
+          property_longitude: number | null
+          rent_history_record_id: string | null
+          status: string
+          updated_at: string
+          visit_latitude: number | null
+          visit_longitude: number | null
+          visited_at: string | null
+        }
+        Insert: {
+          assigned_agent_id: string
+          assigned_at?: string
+          assigned_by: string
+          business_advance_id: string
+          created_at?: string
+          distance_km?: number | null
+          field_notes?: string | null
+          id?: string
+          landlord_confirmed?: boolean | null
+          landlord_name: string
+          landlord_phone: string
+          photo_urls?: string[] | null
+          property_latitude?: number | null
+          property_location: string
+          property_longitude?: number | null
+          rent_history_record_id?: string | null
+          status?: string
+          updated_at?: string
+          visit_latitude?: number | null
+          visit_longitude?: number | null
+          visited_at?: string | null
+        }
+        Update: {
+          assigned_agent_id?: string
+          assigned_at?: string
+          assigned_by?: string
+          business_advance_id?: string
+          created_at?: string
+          distance_km?: number | null
+          field_notes?: string | null
+          id?: string
+          landlord_confirmed?: boolean | null
+          landlord_name?: string
+          landlord_phone?: string
+          photo_urls?: string[] | null
+          property_latitude?: number | null
+          property_location?: string
+          property_longitude?: number | null
+          rent_history_record_id?: string | null
+          status?: string
+          updated_at?: string
+          visit_latitude?: number | null
+          visit_longitude?: number | null
+          visited_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "landlord_physical_verifications_business_advance_id_fkey"
+            columns: ["business_advance_id"]
+            isOneToOne: false
+            referencedRelation: "business_advances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "landlord_physical_verifications_rent_history_record_id_fkey"
+            columns: ["rent_history_record_id"]
+            isOneToOne: false
+            referencedRelation: "rent_history_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       landlords: {
         Row: {
           account_number: string | null
@@ -7769,10 +7856,14 @@ export type Database = {
       }
       rent_history_records: {
         Row: {
+          agent_ops_verified_at: string | null
+          agent_ops_verified_by: string | null
           created_at: string
           end_date: string | null
           id: string
           landlord_name: string
+          landlord_ops_verified_at: string | null
+          landlord_ops_verified_by: string | null
           landlord_phone: string
           months_paid: number
           property_location: string
@@ -7781,15 +7872,22 @@ export type Database = {
           start_date: string | null
           status: string
           tenant_id: string
+          tenant_ops_verified_at: string | null
+          tenant_ops_verified_by: string | null
           updated_at: string
+          verification_notes: string | null
           verified_at: string | null
           verified_by: string | null
         }
         Insert: {
+          agent_ops_verified_at?: string | null
+          agent_ops_verified_by?: string | null
           created_at?: string
           end_date?: string | null
           id?: string
           landlord_name: string
+          landlord_ops_verified_at?: string | null
+          landlord_ops_verified_by?: string | null
           landlord_phone: string
           months_paid?: number
           property_location: string
@@ -7798,15 +7896,22 @@ export type Database = {
           start_date?: string | null
           status?: string
           tenant_id: string
+          tenant_ops_verified_at?: string | null
+          tenant_ops_verified_by?: string | null
           updated_at?: string
+          verification_notes?: string | null
           verified_at?: string | null
           verified_by?: string | null
         }
         Update: {
+          agent_ops_verified_at?: string | null
+          agent_ops_verified_by?: string | null
           created_at?: string
           end_date?: string | null
           id?: string
           landlord_name?: string
+          landlord_ops_verified_at?: string | null
+          landlord_ops_verified_by?: string | null
           landlord_phone?: string
           months_paid?: number
           property_location?: string
@@ -7815,7 +7920,10 @@ export type Database = {
           start_date?: string | null
           status?: string
           tenant_id?: string
+          tenant_ops_verified_at?: string | null
+          tenant_ops_verified_by?: string | null
           updated_at?: string
+          verification_notes?: string | null
           verified_at?: string | null
           verified_by?: string | null
         }
@@ -11435,6 +11543,18 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      suggest_nearby_agents: {
+        Args: { _lat: number; _limit?: number; _lng: number }
+        Returns: {
+          agent_id: string
+          distance_km: number
+          full_name: string
+          last_lat: number
+          last_lng: number
+          last_seen_at: string
+          phone: string
+        }[]
+      }
       update_agent_collection_streak: {
         Args: { p_agent_id: string }
         Returns: undefined

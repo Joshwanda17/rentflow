@@ -9,7 +9,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { CheckCircle2, XCircle, Loader2, Clock, Briefcase, MapPin, Banknote } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2, Clock, Briefcase, MapPin, Banknote, UserCheck } from 'lucide-react';
+import { AssignNearbyAgentDialog } from './AssignNearbyAgentDialog';
+import { BusinessAdvanceEconomicsCard, BusinessAdvancePortfolioPanel } from './BusinessAdvanceEconomics';
 
 type Stage = 'agent_ops' | 'tenant_ops' | 'landlord_ops' | 'coo' | 'cfo';
 
@@ -79,6 +81,7 @@ export function BusinessAdvanceQueue({ stage }: BusinessAdvanceQueueProps) {
   const config = STAGE_CONFIG[stage];
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [assignDialogFor, setAssignDialogFor] = useState<any>(null);
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['business-advance-queue', stage],
@@ -154,6 +157,7 @@ export function BusinessAdvanceQueue({ stage }: BusinessAdvanceQueueProps) {
 
   return (
     <div className="space-y-3">
+      {stage === 'cfo' && <BusinessAdvancePortfolioPanel />}
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-bold flex items-center gap-2"><Briefcase className="h-4 w-4 text-primary" />{config.title}</h3>
         <Badge variant="secondary" className="text-xs">{requests.length} pending</Badge>
@@ -241,6 +245,22 @@ export function BusinessAdvanceQueue({ stage }: BusinessAdvanceQueueProps) {
                     </div>
                   )}
 
+                  {stage === 'cfo' && (
+                    <BusinessAdvanceEconomicsCard principal={principal} outstanding={outstanding} />
+                  )}
+
+                  {stage === 'agent_ops' && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setAssignDialogFor(req)}
+                      className="w-full gap-1.5 border-primary/40"
+                    >
+                      <UserCheck className="h-4 w-4 text-primary" />
+                      Dispatch nearby agent to verify landlord
+                    </Button>
+                  )}
+
                   <Textarea
                     placeholder="Notes (optional)..."
                     value={notes[req.id] || ''}
@@ -273,6 +293,13 @@ export function BusinessAdvanceQueue({ stage }: BusinessAdvanceQueueProps) {
           </Card>
         );
       })}
+      {assignDialogFor && (
+        <AssignNearbyAgentDialog
+          open={!!assignDialogFor}
+          onOpenChange={(o) => !o && setAssignDialogFor(null)}
+          advance={assignDialogFor}
+        />
+      )}
     </div>
   );
 }

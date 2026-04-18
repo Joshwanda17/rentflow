@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AdvanceRequestsQueue } from '@/components/ops/AdvanceRequestsQueue';
 import { BusinessAdvanceQueue } from '@/components/ops/BusinessAdvanceQueue';
+import { RentHistoryVerificationQueue } from '@/components/ops/RentHistoryVerificationQueue';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
@@ -393,6 +394,7 @@ export function TenantOpsDashboard() {
           <div className="space-y-6">
             <AdvanceRequestsQueue stage="tenant_ops" />
             <BusinessAdvanceQueue stage="tenant_ops" />
+            <RentHistoryVerificationQueue dept="tenant_ops" />
           </div>
         );
       default:

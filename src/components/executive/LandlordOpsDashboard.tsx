@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { RentPipelineQueue } from './RentPipelineQueue';
 import { AdvanceRequestsQueue } from '@/components/ops/AdvanceRequestsQueue';
 import { BusinessAdvanceQueue } from '@/components/ops/BusinessAdvanceQueue';
+import { RentHistoryVerificationQueue } from '@/components/ops/RentHistoryVerificationQueue';
 import { LandlordOpsPayoutReview } from '@/components/cfo/LandlordOpsPayoutReview';
 import { KPICard } from './KPICard';
 import {
@@ -1307,6 +1308,7 @@ export function LandlordOpsDashboard() {
         <h2 className="text-lg font-bold">Agent Advance Requests</h2>
         <AdvanceRequestsQueue stage="landlord_ops" />
         <BusinessAdvanceQueue stage="landlord_ops" />
+        <RentHistoryVerificationQueue dept="landlord_ops" />
       </div>
     );
   }
