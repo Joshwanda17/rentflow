@@ -20,7 +20,10 @@ import { UserSearchPicker } from './UserSearchPicker';
 import { CashoutPendingWithdrawalsDialog } from './CashoutPendingWithdrawalsDialog';
 import { formatUGX } from '@/lib/rentCalculations';
 
-const COMPLETED_STATUSES = ['approved', 'fin_ops_approved', 'completed'];
+// A payout only counts as "processed" once the Merchant Agent has executed disbursement.
+// `approved` / `cfo_approved` / `manager_approved` are pipeline sign-off stages — NOT execution.
+// Only `fin_ops_approved` and `completed` represent money actually delivered to the user.
+const COMPLETED_STATUSES = ['fin_ops_approved', 'completed'];
 type MethodFilter = 'all' | 'momo' | 'bank' | 'cash';
 type StatusFilter = 'all' | 'active' | 'idle';
 
