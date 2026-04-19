@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Search, UserCog, Wallet, MapPin, Mail, ShieldCheck, ExternalLink, Phone, Plus } from 'lucide-react';
+import { Loader2, Search, UserCog, Wallet, ShieldCheck, ExternalLink, Phone, Plus } from 'lucide-react';
 import ResidenceAddressForm from '@/components/profile/ResidenceAddressForm';
 import EmailEditor from '@/components/profile/EmailEditor';
 import { formatUGX } from '@/lib/rentCalculations';
