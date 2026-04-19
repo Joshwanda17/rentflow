@@ -168,6 +168,7 @@ export function AgentOpsDashboard() {
       case 'promote-tenant': return <TenantToSubAgentPanel />;
       case 'float-payouts': return <AgentOpsFloatPayoutReview />;
       case 'balances': return <AgentBalancesPanel />;
+      case 'lending-agents': return <LendingAgentsPanel />;
       case 'advance-requests': return (
         <div className="space-y-6">
           <AdvanceRequestsQueue stage="agent_ops" />
