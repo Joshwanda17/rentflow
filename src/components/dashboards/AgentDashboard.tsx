@@ -192,6 +192,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [promissoryListOpen, setPromissoryListOpen] = useState(false);
   const [advanceRequestOpen, setAdvanceRequestOpen] = useState(false);
   const [shareLandlordOpen, setShareLandlordOpen] = useState(false);
+  const [lendingAgentOpen, setLendingAgentOpen] = useState(false);
 
   const [showQuickDeposit, setShowQuickDeposit] = useState(false);
   const [showQuickWithdraw, setShowQuickWithdraw] = useState(false);
