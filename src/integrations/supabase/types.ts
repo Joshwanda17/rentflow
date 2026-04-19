@@ -7239,6 +7239,7 @@ export type Database = {
       profiles: {
         Row: {
           agent_type: string | null
+          always_share_location: boolean | null
           avatar_url: string | null
           city: string | null
           country: string | null
@@ -7252,6 +7253,7 @@ export type Database = {
           is_frozen: boolean
           is_seller: boolean
           last_active_at: string | null
+          last_continuous_location_at: string | null
           mobile_money_number: string | null
           mobile_money_provider: string | null
           monthly_rent: number | null
@@ -7270,6 +7272,7 @@ export type Database = {
         }
         Insert: {
           agent_type?: string | null
+          always_share_location?: boolean | null
           avatar_url?: string | null
           city?: string | null
           country?: string | null
@@ -7283,6 +7286,7 @@ export type Database = {
           is_frozen?: boolean
           is_seller?: boolean
           last_active_at?: string | null
+          last_continuous_location_at?: string | null
           mobile_money_number?: string | null
           mobile_money_provider?: string | null
           monthly_rent?: number | null
@@ -7301,6 +7305,7 @@ export type Database = {
         }
         Update: {
           agent_type?: string | null
+          always_share_location?: boolean | null
           avatar_url?: string | null
           city?: string | null
           country?: string | null
@@ -7314,6 +7319,7 @@ export type Database = {
           is_frozen?: boolean
           is_seller?: boolean
           last_active_at?: string | null
+          last_continuous_location_at?: string | null
           mobile_money_number?: string | null
           mobile_money_provider?: string | null
           monthly_rent?: number | null
@@ -10308,6 +10314,54 @@ export type Database = {
           phone?: string | null
           pin?: string | null
           pin_hash?: string | null
+        }
+        Relationships: []
+      }
+      venue_visits: {
+        Row: {
+          accuracy: number | null
+          category: string
+          created_at: string
+          duration_minutes: number | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          paid_with_wallet: boolean | null
+          source: string | null
+          user_id: string
+          venue_name: string | null
+          visited_at: string
+          wallet_amount: number | null
+        }
+        Insert: {
+          accuracy?: number | null
+          category: string
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          paid_with_wallet?: boolean | null
+          source?: string | null
+          user_id: string
+          venue_name?: string | null
+          visited_at?: string
+          wallet_amount?: number | null
+        }
+        Update: {
+          accuracy?: number | null
+          category?: string
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          paid_with_wallet?: boolean | null
+          source?: string | null
+          user_id?: string
+          venue_name?: string | null
+          visited_at?: string
+          wallet_amount?: number | null
         }
         Relationships: []
       }

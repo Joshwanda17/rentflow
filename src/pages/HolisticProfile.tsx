@@ -11,6 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { UserAvatar } from '@/components/UserAvatar';
 import { useTrustProfile } from '@/hooks/useTrustProfile';
 import { TrustScoreCard } from '@/components/ai-id/TrustScoreCard';
+import { TrustBoostSuggestions } from '@/components/ai-id/TrustBoostSuggestions';
+import { CashFlowCapacityCard, MovementBehaviorCard, LandlordListingsCard } from '@/components/ai-id/TrustExpansionCards';
 import { AiIdBadge } from '@/components/ai-id/AiIdBadge';
 import { formatUGX } from '@/lib/rentCalculations';
 import { buildProfileShareUrl, shareProfileOnWhatsApp } from '@/lib/shareTrustProfile';
@@ -184,6 +186,18 @@ export default function HolisticProfile({ publicMode = false }: Props) {
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
           <TrustScoreCard trust={profile.trust} />
         </motion.div>
+
+        {/* Boost Your Trust suggestions (self only) */}
+        <TrustBoostSuggestions profile={profile} />
+
+        {/* Cash flow capacity */}
+        <CashFlowCapacityCard profile={profile} />
+
+        {/* Movement behavior */}
+        <MovementBehaviorCard profile={profile} />
+
+        {/* Landlord listings (only if applicable) */}
+        <LandlordListingsCard profile={profile} />
 
         {/* Behavioral History */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>

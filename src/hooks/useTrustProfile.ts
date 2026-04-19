@@ -21,8 +21,22 @@ export interface TrustProfile {
     tier: string;
     data_points: number;
     borrowing_limit_ugx: number;
-    breakdown: { payment: number; wallet: number; network: number; verification: number };
-    weights: { payment: number; wallet: number; network: number; verification: number };
+    breakdown: {
+      payment: number;
+      wallet: number;
+      network: number;
+      verification: number;
+      behavior: number;
+      landlord: number;
+    };
+    weights: {
+      payment: number;
+      wallet: number;
+      network: number;
+      verification: number;
+      behavior: number;
+      landlord: number;
+    };
   };
   payment_history: {
     total_rent_plans: number;
@@ -38,11 +52,35 @@ export interface TrustProfile {
     total_sent_180d: number;
     transaction_count_180d: number;
   };
+  cash_flow_capacity: {
+    daily_avg: number;
+    weekly_avg: number;
+    monthly_avg: number;
+    inflow_30d?: number;
+    outflow_30d?: number;
+    window_days: number;
+  };
   network: {
     referrals: number;
     sub_agents: number;
+    tenants_onboarded: number;
     portfolio_value: number | null;
-    role_weight: number;
+  };
+  behavior: {
+    visits_total_60d: number;
+    worship_visits?: number;
+    mall_visits?: number;
+    restaurant_visits?: number;
+    hotel_visits?: number;
+    shop_visits?: number;
+    wallet_shopping_count?: number;
+    always_share_location: boolean;
+    location_captures_30d?: number;
+  };
+  landlord_activity: {
+    total_listings: number;
+    verified_listings: number;
+    guaranteed_rent: boolean;
   };
   permissions: {
     is_self: boolean;

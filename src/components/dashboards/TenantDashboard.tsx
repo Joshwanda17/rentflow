@@ -53,6 +53,7 @@ import { AvailableHousesSheet } from '@/components/tenant/AvailableHousesSheet';
 import { NearbyHousesPreview } from '@/components/tenant/NearbyHousesPreview';
 import { SuggestedHousesCard } from '@/components/tenant/SuggestedHousesCard';
 import RentHistoryRecordCTA from '@/components/tenant/RentHistoryRecordCTA';
+import { TrustBoostBanner } from '@/components/ai-id/TrustBoostBanner';
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
@@ -235,6 +236,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
 
           {/* Terms Acceptance Notice */}
           <TenantAgreementNotice onAcceptClick={() => setShowAgreementModal(true)} />
+
+          {/* Welile Trust Score nudge */}
+          <TrustBoostBanner />
 
           {/* Profile Row */}
           <motion.div
