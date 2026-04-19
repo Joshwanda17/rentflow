@@ -164,6 +164,9 @@ export function FloatTransactionHistory({ open, onOpenChange }: Props) {
     enabled: !!user && open,
   });
 
+  const queryClient = useQueryClient();
+  const [reverseTarget, setReverseTarget] = useState<TxEntry | null>(null);
+
   const entries = data?.entries || [];
   const totals = data?.totals || { funded: 0, allocated: 0, paidOut: 0 };
 
@@ -174,6 +177,11 @@ export function FloatTransactionHistory({ open, onOpenChange }: Props) {
     payouts: entries.filter(e => e.kind === 'payout'),
     ledger: entries,
   }), [entries]);
+
+  const handleReversed = () => {
+    queryClient.invalidateQueries({ queryKey: ['agent-wallet-statement', user?.id] });
+    queryClient.invalidateQueries({ queryKey: ['agent-balances'] });
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -208,15 +216,24 @@ export function FloatTransactionHistory({ open, onOpenChange }: Props) {
               <div className="flex justify-center py-12 text-muted-foreground text-sm">Loading statement…</div>
             ) : (
               <>
-                <TabsContent value="all" className="m-0"><EntryList items={filtered.all} /></TabsContent>
-                <TabsContent value="allocations" className="m-0"><EntryList items={filtered.allocations} emptyText="No tenant allocations yet." /></TabsContent>
-                <TabsContent value="funding" className="m-0"><EntryList items={filtered.funding} emptyText="No funding events yet." /></TabsContent>
-                <TabsContent value="payouts" className="m-0"><EntryList items={filtered.payouts} emptyText="No landlord payouts yet." /></TabsContent>
+                <TabsContent value="all" className="m-0"><EntryList items={filtered.all} onReverse={setReverseTarget} /></TabsContent>
+                <TabsContent value="allocations" className="m-0"><EntryList items={filtered.allocations} emptyText="No tenant allocations yet." onReverse={setReverseTarget} /></TabsContent>
+                <TabsContent value="funding" className="m-0"><EntryList items={filtered.funding} emptyText="No funding events yet." onReverse={setReverseTarget} /></TabsContent>
+                <TabsContent value="payouts" className="m-0"><EntryList items={filtered.payouts} emptyText="No landlord payouts yet." onReverse={setReverseTarget} /></TabsContent>
               </>
             )}
           </ScrollArea>
         </Tabs>
       </SheetContent>
+
+      <ReverseAllocationDialog
+        open={!!reverseTarget}
+        onOpenChange={(o) => { if (!o) setReverseTarget(null); }}
+        collectionId={reverseTarget?.collectionId || null}
+        amount={reverseTarget?.amount || 0}
+        tenantName={reverseTarget?.counterparty}
+        onReversed={handleReversed}
+      />
     </Sheet>
   );
 }
@@ -233,7 +250,7 @@ function SummaryPill({ label, amount, tone }: { label: string; amount: number; t
   );
 }
 
-function EntryList({ items, emptyText = 'No transactions yet.' }: { items: TxEntry[]; emptyText?: string }) {
+function EntryList({ items, emptyText = 'No transactions yet.', onReverse }: { items: TxEntry[]; emptyText?: string; onReverse?: (tx: TxEntry) => void }) {
   if (items.length === 0) {
     return <div className="text-center py-12 text-muted-foreground text-sm">{emptyText}</div>;
   }
@@ -252,26 +269,39 @@ function EntryList({ items, emptyText = 'No transactions yet.' }: { items: TxEnt
           : tx.kind === 'funding' ? 'Funding'
           : tx.kind === 'payout' ? 'Payout'
           : tx.category?.replace(/_/g, ' ') || 'Ledger';
+        const canReverse = tx.kind === 'allocation' && !!tx.collectionId && !tx.reversed;
 
         return (
-          <div key={tx.id} className="flex items-start gap-3 p-3 rounded-xl border hover:bg-muted/30 transition-colors">
+          <div key={tx.id} className={`flex items-start gap-3 p-3 rounded-xl border hover:bg-muted/30 transition-colors ${tx.reversed ? 'opacity-60' : ''}`}>
             <div className={`p-2 rounded-lg shrink-0 ${iconBg}`}>
               <Icon className="h-4 w-4" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <Badge variant="outline" className="text-[8px] px-1.5 py-0 capitalize">{kindLabel}</Badge>
+                {tx.reversed && <Badge variant="destructive" className="text-[8px] px-1.5 py-0">Reversed</Badge>}
                 {tx.counterparty && (
                   <span className="text-[11px] font-medium truncate">→ {tx.counterparty}</span>
                 )}
               </div>
-              <p className="text-[11px] text-muted-foreground truncate mt-0.5">{tx.description}</p>
+              <p className={`text-[11px] text-muted-foreground truncate mt-0.5 ${tx.reversed ? 'line-through' : ''}`}>{tx.description}</p>
               <p className="text-[10px] text-muted-foreground/80 mt-0.5">
                 {format(new Date(tx.date), 'dd MMM yy, HH:mm')}
               </p>
+              {canReverse && onReverse && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 mt-1 text-[10px] text-warning hover:text-warning hover:bg-warning/10"
+                  onClick={() => onReverse(tx)}
+                >
+                  <Undo2 className="h-3 w-3 mr-1" />
+                  Reverse
+                </Button>
+              )}
             </div>
             <div className="text-right shrink-0">
-              <p className={`font-bold text-sm ${tx.type === 'credit' ? 'text-success' : 'text-foreground'}`}>
+              <p className={`font-bold text-sm ${tx.reversed ? 'line-through text-muted-foreground' : tx.type === 'credit' ? 'text-success' : 'text-foreground'}`}>
                 {tx.type === 'credit' ? '+' : '-'}{formatUGX(tx.amount)}
               </p>
               {tx.status && (
