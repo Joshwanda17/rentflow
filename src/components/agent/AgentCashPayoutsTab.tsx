@@ -146,23 +146,35 @@ export function AgentCashPayoutsTab() {
     return () => clearInterval(tick);
   }, [isCashoutAgent, qc]);
 
-  // Claim a withdrawal request
+  // Claim a withdrawal request — ATOMIC: only succeeds if no one else has claimed it.
+  // The `.is('assigned_cashout_agent_id', null)` guard makes the UPDATE a single-row
+  // race-safe operation. If two agents click "Claim" at the same instant, only the
+  // first transaction commits; the second matches 0 rows and we surface a clear error.
   const claimWithdrawal = useMutation({
     mutationFn: async (withdrawalId: string) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('withdrawal_requests')
         .update({
           assigned_cashout_agent_id: isCashoutAgent?.id,
           dispatched_at: new Date().toISOString(),
         } as any)
-        .eq('id', withdrawalId);
+        .eq('id', withdrawalId)
+        .is('assigned_cashout_agent_id', null) // race guard
+        .select('id');
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error('Already claimed by another agent — refreshing queue');
+      }
     },
     onSuccess: () => {
       toast.success('✅ Withdrawal claimed — proceed with payout');
       qc.invalidateQueries({ queryKey: ['cashout-agent-all-withdrawals'] });
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => {
+      toast.error(e.message);
+      // Refresh so the lost-race row disappears from this agent's view immediately.
+      qc.invalidateQueries({ queryKey: ['cashout-agent-all-withdrawals'] });
+    },
   });
 
   // Complete withdrawal via edge function (ledger-backed)
