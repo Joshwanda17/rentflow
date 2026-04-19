@@ -135,6 +135,7 @@ export function AgentDetailDialog({ agentId, open, onOpenChange }: Props) {
                 <TabsList className="w-full justify-start overflow-x-auto flex-nowrap h-auto p-1">
                   <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
                   <TabsTrigger value="float" className="text-xs">Float</TabsTrigger>
+                  <TabsTrigger value="allocations" className="text-xs">Allocations</TabsTrigger>
                   <TabsTrigger value="collections" className="text-xs">Collections</TabsTrigger>
                   <TabsTrigger value="earnings" className="text-xs">Earnings</TabsTrigger>
                   <TabsTrigger value="advances" className="text-xs">Advances</TabsTrigger>
@@ -152,6 +153,10 @@ export function AgentDetailDialog({ agentId, open, onOpenChange }: Props) {
                 <TabsContent value="float" className="mt-3 space-y-3">
                   <FloatLimitsCard limits={data.floatLimits} />
                   <FloatFundingList items={data.floatFunding} />
+                </TabsContent>
+
+                <TabsContent value="allocations" className="mt-3">
+                  <AllocationsList items={data.allocations} />
                 </TabsContent>
 
                 <TabsContent value="collections" className="mt-3">
