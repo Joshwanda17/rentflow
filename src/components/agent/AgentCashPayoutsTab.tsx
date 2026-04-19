@@ -255,7 +255,7 @@ export function AgentCashPayoutsTab() {
       <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
         <CardHeader className="pb-2">
           <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            Today's Performance
+            Today's Merchant Payouts
           </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-3 gap-2 pt-0">
@@ -295,9 +295,9 @@ export function AgentCashPayoutsTab() {
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <QrCode className="h-4 w-4 text-primary" />
-            Verify Cash Payout Code
+            Verify Cash Pickup Code (optional)
           </CardTitle>
-          <p className="text-[10px] text-muted-foreground mt-1">Use this when a user shares their WPO-XXXXX code in person for a cash pickup.</p>
+          <p className="text-[10px] text-muted-foreground mt-1">Use this only when a user came in person with a pre-generated WPO-XXXXX cash pickup code. For Mobile Money, Bank, or coordinated cash payouts, claim from the queue below instead.</p>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex gap-2">

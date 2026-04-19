@@ -73,7 +73,7 @@ export function CashoutPendingWithdrawalsDialog({ open, onOpenChange, agent }: P
             <span className="truncate">Pending Withdrawals</span>
           </DialogTitle>
           <DialogDescription className="text-xs sm:text-sm">
-            All pending withdrawals visible to cash-out agents. <span className="font-semibold">{agentName}</span> can claim &amp; complete these from their own dashboard.
+            All pending withdrawals visible to Merchant Agents. <span className="font-semibold">{agentName}</span> can claim &amp; complete these from their own dashboard.
           </DialogDescription>
         </DialogHeader>
 
