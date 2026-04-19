@@ -1040,9 +1040,24 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
             setCollectDialogOpen(false);
             loadFullProfile();
             refetchFloat();
+            loadLastAllocation();
           }}
         />
       )}
+
+      {/* Reverse last allocation dialog */}
+      <ReverseAllocationDialog
+        open={reverseDialogOpen}
+        onOpenChange={setReverseDialogOpen}
+        collectionId={lastAllocation?.id || null}
+        amount={lastAllocation?.amount || 0}
+        tenantName={profile?.full_name}
+        onReversed={() => {
+          loadFullProfile();
+          refetchFloat();
+          loadLastAllocation();
+        }}
+      />
 
       {/* Sub-Agent Registration Dialog — pre-filled with tenant info */}
       <RegisterSubAgentDialog
