@@ -106,6 +106,7 @@ import { FinancialAgentSection } from '@/components/agent/FinancialAgentSection'
 import { PromissoryNoteDialog } from '@/components/agent/PromissoryNoteDialog';
 import { AgentPromissoryNotesList } from '@/components/agent/AgentPromissoryNotesList';
 import { AgentAdvanceRequestForm } from '@/components/agent/AgentAdvanceRequestForm';
+import LendingAgentPortal from '@/components/vouch/agent/LendingAgentPortal';
 
 // New Phase 1 components
 import { AgentDailyOpsCard } from '@/components/agent/AgentDailyOpsCard';
