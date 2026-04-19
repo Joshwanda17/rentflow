@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Shield, TrendingUp, Wallet, Users, BadgeCheck } from 'lucide-react';
+import { Shield, TrendingUp, Wallet, Users, BadgeCheck, MapPin, Home } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatUGX } from '@/lib/rentCalculations';
 import { getRiskTierLabel } from '@/lib/welileAiId';
@@ -130,9 +130,21 @@ export function TrustScoreCard({ trust }: Props) {
           />
           <BreakdownBar
             icon={<BadgeCheck className="h-3 w-3" />}
-            label="Verification"
+            label="Verification & GPS"
             weight={trust.weights.verification}
             score={trust.breakdown.verification}
+          />
+          <BreakdownBar
+            icon={<MapPin className="h-3 w-3" />}
+            label="Movement Behavior"
+            weight={trust.weights.behavior}
+            score={trust.breakdown.behavior}
+          />
+          <BreakdownBar
+            icon={<Home className="h-3 w-3" />}
+            label="Landlord Listings"
+            weight={trust.weights.landlord}
+            score={trust.breakdown.landlord}
           />
         </div>
       </CardContent>
