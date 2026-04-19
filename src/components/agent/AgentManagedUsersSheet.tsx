@@ -98,10 +98,42 @@ export function AgentManagedUsersSheet({ open, onOpenChange, agentId }: Props) {
 
         {!selected ? (
           <div className="mt-4 space-y-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, phone, email…" className="pl-10 h-11 rounded-xl" />
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, phone, email…" className="pl-10 h-11 rounded-xl" />
+              </div>
+              <Button onClick={() => setShowAddPicker(v => !v)} variant={showAddPicker ? 'secondary' : 'default'} className="h-11 rounded-xl gap-1.5 shrink-0">
+                <Plus className="h-4 w-4" /> Add
+              </Button>
             </div>
+
+            {showAddPicker && (
+              <Card className="border-primary/30 bg-primary/5 rounded-2xl">
+                <CardContent className="pt-4 space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pick a user you onboarded to manage</p>
+                  {candidates.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-3">No users available — onboard a user first or all your users are already managed.</p>
+                  ) : (
+                    <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                      {candidates.map(c => (
+                        <button
+                          key={c.id}
+                          onClick={() => flagAsManaged(c.id)}
+                          className="w-full flex items-center justify-between p-2.5 rounded-lg bg-card border border-border/40 hover:border-primary/40 text-left"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold truncate">{c.full_name}</p>
+                            <p className="text-[11px] text-muted-foreground truncate">{c.phone}</p>
+                          </div>
+                          <Plus className="h-4 w-4 text-primary shrink-0" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {isLoading ? (
               <div className="py-12 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
@@ -110,7 +142,7 @@ export function AgentManagedUsersSheet({ open, onOpenChange, agentId }: Props) {
                 <CardContent className="py-10 text-center space-y-2">
                   <UserCog className="h-10 w-10 mx-auto text-muted-foreground/40" />
                   <p className="text-sm font-semibold">No managed users yet</p>
-                  <p className="text-xs text-muted-foreground">When you onboard someone and mark them as managed, they appear here.</p>
+                  <p className="text-xs text-muted-foreground">Tap "Add" above to start managing a user you onboarded.</p>
                 </CardContent>
               </Card>
             ) : (
