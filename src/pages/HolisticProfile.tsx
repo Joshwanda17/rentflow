@@ -32,11 +32,14 @@ export default function HolisticProfile({ publicMode = false }: Props) {
   const { aiId } = useParams<{ aiId: string }>();
   const navigate = useNavigate();
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [showDisclosure, setShowDisclosure] = useState(false);
+  const [pendingShareAction, setPendingShareAction] = useState<null | 'whatsapp' | 'link'>(null);
 
   const cleanAiId = aiId?.toUpperCase();
   const validId = cleanAiId && isValidAiId(cleanAiId);
 
   const { profile, loading, error, refresh } = useTrustProfile(validId ? cleanAiId : undefined, { publicMode });
+  const { hasAcknowledged, acknowledge } = useBorrowerVouchDisclosure();
 
   if (!validId) {
     return (
