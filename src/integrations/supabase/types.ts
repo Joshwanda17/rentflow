@@ -5886,6 +5886,81 @@ export type Database = {
         }
         Relationships: []
       }
+      lending_agent_loans: {
+        Row: {
+          amount_repaid_ugx: number
+          borrower_ai_id: string
+          borrower_display_name: string | null
+          borrower_phone: string | null
+          borrower_trust_score_at_record: number | null
+          borrower_trust_tier_at_record: string | null
+          borrower_user_id: string | null
+          closed_at: string | null
+          created_at: string
+          expected_repayment_date: string | null
+          external_loan_reference: string | null
+          id: string
+          interest_rate_pct: number | null
+          last_repayment_at: string | null
+          lender_agent_id: string
+          lender_trust_score_at_record: number | null
+          loan_purpose: string | null
+          notes: string | null
+          platform_fee_ugx: number
+          principal_ugx: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount_repaid_ugx?: number
+          borrower_ai_id: string
+          borrower_display_name?: string | null
+          borrower_phone?: string | null
+          borrower_trust_score_at_record?: number | null
+          borrower_trust_tier_at_record?: string | null
+          borrower_user_id?: string | null
+          closed_at?: string | null
+          created_at?: string
+          expected_repayment_date?: string | null
+          external_loan_reference?: string | null
+          id?: string
+          interest_rate_pct?: number | null
+          last_repayment_at?: string | null
+          lender_agent_id: string
+          lender_trust_score_at_record?: number | null
+          loan_purpose?: string | null
+          notes?: string | null
+          platform_fee_ugx?: number
+          principal_ugx: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_repaid_ugx?: number
+          borrower_ai_id?: string
+          borrower_display_name?: string | null
+          borrower_phone?: string | null
+          borrower_trust_score_at_record?: number | null
+          borrower_trust_tier_at_record?: string | null
+          borrower_user_id?: string | null
+          closed_at?: string | null
+          created_at?: string
+          expected_repayment_date?: string | null
+          external_loan_reference?: string | null
+          id?: string
+          interest_rate_pct?: number | null
+          last_repayment_at?: string | null
+          lender_agent_id?: string
+          lender_trust_score_at_record?: number | null
+          loan_purpose?: string | null
+          notes?: string | null
+          platform_fee_ugx?: number
+          principal_ugx?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       liquidity_alerts: {
         Row: {
           agent_id: string

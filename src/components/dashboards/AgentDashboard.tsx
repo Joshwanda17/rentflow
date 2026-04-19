@@ -106,6 +106,7 @@ import { FinancialAgentSection } from '@/components/agent/FinancialAgentSection'
 import { PromissoryNoteDialog } from '@/components/agent/PromissoryNoteDialog';
 import { AgentPromissoryNotesList } from '@/components/agent/AgentPromissoryNotesList';
 import { AgentAdvanceRequestForm } from '@/components/agent/AgentAdvanceRequestForm';
+import LendingAgentPortal from '@/components/vouch/agent/LendingAgentPortal';
 
 // New Phase 1 components
 import { AgentDailyOpsCard } from '@/components/agent/AgentDailyOpsCard';
@@ -191,6 +192,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [promissoryListOpen, setPromissoryListOpen] = useState(false);
   const [advanceRequestOpen, setAdvanceRequestOpen] = useState(false);
   const [shareLandlordOpen, setShareLandlordOpen] = useState(false);
+  const [lendingAgentOpen, setLendingAgentOpen] = useState(false);
 
   const [showQuickDeposit, setShowQuickDeposit] = useState(false);
   const [showQuickWithdraw, setShowQuickWithdraw] = useState(false);
@@ -399,6 +401,22 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               <div className="text-[11px] text-muted-foreground">Request advance for tenant's business · Earn 4% on every repayment</div>
             </div>
             <span className="text-xs font-bold text-primary">→</span>
+          </button>
+
+          {/* LENDING AGENT — peer lending portal (gated by Trust Score ≥ 70) */}
+          <button
+            onClick={() => { hapticTap(); setLendingAgentOpen(true); }}
+            className="w-full flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-emerald-500/10 to-primary/5 ring-1 ring-emerald-500/30 active:scale-[0.98] transition-all touch-manipulation"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
+          >
+            <div className="p-2.5 rounded-xl bg-emerald-600 text-white shadow-md">
+              <Banknote className="h-5 w-5" strokeWidth={2.2} />
+            </div>
+            <div className="flex-1 text-left">
+              <div className="font-bold text-sm text-foreground">LENDING AGENT</div>
+              <div className="text-[11px] text-muted-foreground">Lend to Welile users from your wallet · Earn interest</div>
+            </div>
+            <span className="text-xs font-bold text-emerald-700">→</span>
           </button>
 
           {/* Row 2: Share & grow */}
@@ -669,6 +687,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <FunderManagementSheet open={funderSheetOpen} onOpenChange={setFunderSheetOpen} />
       <AgentPartnerDashboardSheet open={partnerDashboardOpen} onOpenChange={setPartnerDashboardOpen} />
       <FinancialAgentSection open={requisitionOpen} onOpenChange={setRequisitionOpen} />
+      <LendingAgentPortal open={lendingAgentOpen} onOpenChange={setLendingAgentOpen} />
 
       {/* Cash Payouts Dialog - only rendered for cashout agents */}
       <Dialog open={cashPayoutsOpen} onOpenChange={setCashPayoutsOpen}>
