@@ -38,7 +38,7 @@ export function AgentDetailDialog({ agentId, open, onOpenChange }: Props) {
         sb.from('user_roles').select('role, enabled, created_at').eq('user_id', agentId),
         sb.from('agent_float_limits').select('*').eq('agent_id', agentId).maybeSingle(),
         sb.from('agent_float_funding').select('id, amount, status, created_at, bank_name, bank_reference, notes').eq('agent_id', agentId).order('created_at', { ascending: false }).limit(20),
-        sb.from('agent_collections').select('id, amount, payment_method, created_at, momo_payer_name, momo_phone, location_name, notes').eq('agent_id', agentId).order('created_at', { ascending: false }).limit(20),
+        sb.from('agent_collections').select('id, amount, payment_method, created_at, momo_payer_name, momo_phone, location_name, notes, tenant_id').eq('agent_id', agentId).order('created_at', { ascending: false }).limit(50),
         sb.from('agent_earnings').select('id, amount, earning_type, description, created_at').eq('agent_id', agentId).order('created_at', { ascending: false }).limit(20),
         sb.from('agent_advances').select('id, principal, outstanding_balance, status, monthly_rate, issued_at, expires_at, cycle_days').eq('agent_id', agentId).order('created_at', { ascending: false }).limit(10),
         sb.from('agent_commission_payouts').select('id, amount, status, requested_at, processed_at, mobile_money_number, mobile_money_provider, rejection_reason').eq('agent_id', agentId).order('created_at', { ascending: false }).limit(10),
@@ -68,13 +68,29 @@ export function AgentDetailDialog({ agentId, open, onOpenChange }: Props) {
         landlord: landlordMap[a.landlord_id] || null,
       }));
 
+      // Resolve tenant names for collections (so float allocations show who got paid)
+      const tenantIds = Array.from(new Set(
+        (collectionsRes.data || []).map((c: any) => c.tenant_id).filter(Boolean)
+      ));
+      const tenantMap: Record<string, any> = {};
+      if (tenantIds.length > 0) {
+        const { data: ts } = await sb.from('profiles').select('id, full_name, phone').in('id', tenantIds);
+        for (const t of ts || []) tenantMap[t.id] = t;
+      }
+      const collectionsEnriched = (collectionsRes.data || []).map((c: any) => ({
+        ...c,
+        tenant: c.tenant_id ? tenantMap[c.tenant_id] : null,
+        is_allocation: (c.notes || '').toLowerCase().includes('float allocation'),
+      }));
+
       return {
         profile: profileRes.data,
         wallet: walletRes.data,
         roles: rolesRes.data || [],
         floatLimits: floatLimitsRes.data,
         floatFunding: floatFundingRes.data || [],
-        collections: collectionsRes.data || [],
+        collections: collectionsEnriched,
+        allocations: collectionsEnriched.filter((c: any) => c.is_allocation),
         earnings: earningsRes.data || [],
         advances: advancesRes.data || [],
         commissions: commissionsRes.data || [],
@@ -119,6 +135,7 @@ export function AgentDetailDialog({ agentId, open, onOpenChange }: Props) {
                 <TabsList className="w-full justify-start overflow-x-auto flex-nowrap h-auto p-1">
                   <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
                   <TabsTrigger value="float" className="text-xs">Float</TabsTrigger>
+                  <TabsTrigger value="allocations" className="text-xs">Allocations</TabsTrigger>
                   <TabsTrigger value="collections" className="text-xs">Collections</TabsTrigger>
                   <TabsTrigger value="earnings" className="text-xs">Earnings</TabsTrigger>
                   <TabsTrigger value="advances" className="text-xs">Advances</TabsTrigger>
@@ -136,6 +153,10 @@ export function AgentDetailDialog({ agentId, open, onOpenChange }: Props) {
                 <TabsContent value="float" className="mt-3 space-y-3">
                   <FloatLimitsCard limits={data.floatLimits} />
                   <FloatFundingList items={data.floatFunding} />
+                </TabsContent>
+
+                <TabsContent value="allocations" className="mt-3">
+                  <AllocationsList items={data.allocations} />
                 </TabsContent>
 
                 <TabsContent value="collections" className="mt-3">
@@ -352,12 +373,46 @@ function CollectionsList({ items }: any) {
   return (
     <Section title={`Recent Collections (${items.length})`}>
       <div className="space-y-1.5 max-h-96 overflow-auto">
-        {items.map((c: any) => (
-          <Row key={c.id}
-            primary={`${fmt(c.amount)} UGX`}
-            secondary={`${c.payment_method || '—'} · ${c.momo_payer_name || c.location_name || '—'}`}
-            meta={format(new Date(c.created_at), 'dd MMM HH:mm')} />
-        ))}
+        {items.map((c: any) => {
+          const who = c.tenant?.full_name || c.momo_payer_name || c.location_name || (c.is_allocation ? 'Tenant payment' : '—');
+          const label = c.is_allocation ? 'Float allocation' : (c.payment_method || '—');
+          return (
+            <Row key={c.id}
+              primary={`${c.is_allocation ? '−' : '+'}${fmt(c.amount)} UGX`}
+              secondary={`${label} · ${who}`}
+              meta={format(new Date(c.created_at), 'dd MMM HH:mm')}
+              badge={c.is_allocation ? 'allocation' : c.payment_method}
+              tone={c.is_allocation ? 'text-blue-700' : 'text-emerald-700'} />
+          );
+        })}
+      </div>
+    </Section>
+  );
+}
+
+function AllocationsList({ items }: any) {
+  if (!items?.length) return <Section title="Float Allocations to Tenants"><Empty text="No allocations yet" /></Section>;
+  const total = items.reduce((s: number, a: any) => s + Number(a.amount), 0);
+  const totalCommission = Math.round(total * 0.10);
+  return (
+    <Section title={`Float Allocations · ${items.length} · Total ${fmtShort(total)} UGX`}>
+      <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-2 mb-2 text-xs text-emerald-800">
+        💰 Estimated commission earned: <strong>+{fmtShort(totalCommission)} UGX</strong> (10% of allocations)
+      </div>
+      <div className="space-y-1.5 max-h-96 overflow-auto">
+        {items.map((a: any) => {
+          const tenantName = a.tenant?.full_name || 'Unknown tenant';
+          const tenantPhone = a.tenant?.phone ? ` · ${a.tenant.phone}` : '';
+          const commission = Math.round(Number(a.amount) * 0.10);
+          return (
+            <Row key={a.id}
+              primary={`${fmt(a.amount)} UGX → ${tenantName}`}
+              secondary={`Commission +${fmt(commission)}${tenantPhone}`}
+              meta={format(new Date(a.created_at), 'dd MMM HH:mm')}
+              badge="paid"
+              tone="text-blue-700" />
+          );
+        })}
       </div>
     </Section>
   );
