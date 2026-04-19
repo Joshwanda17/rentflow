@@ -387,6 +387,14 @@ export default function HolisticProfile({ publicMode = false }: Props) {
           </Button>
         </div>
       </div>
+
+      {/* Borrower vouch disclosure modal — shown before first share */}
+      <BorrowerVouchDisclosureModal
+        isOpen={showDisclosure}
+        onClose={() => { setShowDisclosure(false); setPendingShareAction(null); }}
+        onAcknowledge={handleDisclosureAcknowledge}
+        vouchedAmountText={profile ? formatUGX(profile.trust.borrowing_limit_ugx) : undefined}
+      />
     </div>
   );
 }
