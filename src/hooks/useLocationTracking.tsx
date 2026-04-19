@@ -113,24 +113,34 @@ export function useLocationTracking() {
     }
   }, [user]);
 
-   // Auto-capture periodically (every 12 hours — cost optimized)
+  // Auto-capture: hourly if always-on GPS opt-in, otherwise every 12h
   useEffect(() => {
-    if (user) {
-      // Initial capture after short delay
-      const initialTimer = setTimeout(() => {
-        captureLocation();
-      }, 5000);
+    if (!user) return;
 
-      // Periodic updates every 12 hours
-      const intervalId = setInterval(() => {
-        captureLocation();
-      }, 12 * 60 * 60 * 1000);
+    let intervalMs = 12 * 60 * 60 * 1000;
+    let cancelled = false;
 
-      return () => {
-        clearTimeout(initialTimer);
-        clearInterval(intervalId);
-      };
-    }
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('always_share_location')
+          .eq('id', user.id)
+          .maybeSingle();
+        if (!cancelled && (data as any)?.always_share_location) {
+          intervalMs = 60 * 60 * 1000; // 1h when opted-in
+        }
+      } catch {}
+    })();
+
+    const initialTimer = setTimeout(() => { captureLocation(); }, 5000);
+    const intervalId = setInterval(() => { captureLocation(); }, intervalMs);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(initialTimer);
+      clearInterval(intervalId);
+    };
   }, [user, captureLocation]);
 
   return {
