@@ -61,6 +61,7 @@ import { useWallet } from '@/hooks/useWallet';
 import { useAgentBalances } from '@/hooks/useAgentBalances';
 import { EarningsRankSystemSheet } from '@/components/agent/EarningsRankSystemSheet';
 import { AgentMenuDrawer } from '@/components/agent/AgentMenuDrawer';
+import { AgentHubTabs, type AgentHubTab } from '@/components/agent/AgentHubTabs';
 import { AgentActionInsights } from '@/components/agent/AgentActionInsights';
 import { DailyRentExpectedCard } from '@/components/agent/DailyRentExpectedCard';
 import { AgentManagedPropertyDialog } from '@/components/agent/AgentManagedPropertyDialog';
