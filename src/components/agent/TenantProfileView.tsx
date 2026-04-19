@@ -921,6 +921,18 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
               {floatLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Banknote className="h-5 w-5" />}
               {floatLoading ? 'Loading float...' : `Pay from Operations Float — ${formatUGX(Math.min(summary.currentOutstanding, agentFloatBalance))}`}
             </Button>
+
+            {lastAllocation && (
+              <Button
+                onClick={() => setReverseDialogOpen(true)}
+                variant="outline"
+                size="sm"
+                className="w-full gap-2 text-xs h-9 border-warning/40 text-warning hover:bg-warning/10 hover:text-warning"
+              >
+                <Undo2 className="h-3.5 w-3.5" />
+                Reverse last allocation — {formatUGX(lastAllocation.amount)}
+              </Button>
+            )}
           </div>
         )}
 
