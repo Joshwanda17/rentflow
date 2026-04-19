@@ -11347,6 +11347,10 @@ export type Database = {
         }
         Returns: Json
       }
+      agent_reverse_tenant_allocation: {
+        Args: { p_collection_id: string; p_reason: string }
+        Returns: Json
+      }
       apply_wallet_movement: {
         Args: {
           p_amount: number
