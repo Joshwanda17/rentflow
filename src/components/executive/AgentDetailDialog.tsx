@@ -68,13 +68,29 @@ export function AgentDetailDialog({ agentId, open, onOpenChange }: Props) {
         landlord: landlordMap[a.landlord_id] || null,
       }));
 
+      // Resolve tenant names for collections (so float allocations show who got paid)
+      const tenantIds = Array.from(new Set(
+        (collectionsRes.data || []).map((c: any) => c.tenant_id).filter(Boolean)
+      ));
+      const tenantMap: Record<string, any> = {};
+      if (tenantIds.length > 0) {
+        const { data: ts } = await sb.from('profiles').select('id, full_name, phone').in('id', tenantIds);
+        for (const t of ts || []) tenantMap[t.id] = t;
+      }
+      const collectionsEnriched = (collectionsRes.data || []).map((c: any) => ({
+        ...c,
+        tenant: c.tenant_id ? tenantMap[c.tenant_id] : null,
+        is_allocation: (c.notes || '').toLowerCase().includes('float allocation'),
+      }));
+
       return {
         profile: profileRes.data,
         wallet: walletRes.data,
         roles: rolesRes.data || [],
         floatLimits: floatLimitsRes.data,
         floatFunding: floatFundingRes.data || [],
-        collections: collectionsRes.data || [],
+        collections: collectionsEnriched,
+        allocations: collectionsEnriched.filter((c: any) => c.is_allocation),
         earnings: earningsRes.data || [],
         advances: advancesRes.data || [],
         commissions: commissionsRes.data || [],
