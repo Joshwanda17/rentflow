@@ -247,7 +247,7 @@ export function AgentCashPayoutsTab() {
       <div className="flex items-start gap-2 p-2.5 rounded-lg bg-primary/5 border border-primary/20">
         <Banknote className="h-4 w-4 text-primary shrink-0 mt-0.5" />
         <div className="text-[11px] text-foreground/80 leading-snug">
-          You are operating as a <span className="font-semibold text-primary">Financial Ops Cash-Out Agent</span>. Your only authorised action here is to process wallet withdrawal payouts on behalf of Financial Ops.
+          You are operating as a <span className="font-semibold text-primary">Merchant Agent</span>. You execute user withdrawal payouts via <span className="font-medium">Mobile Money, Bank, or Cash</span> — claim a request, send the money externally, then enter the proof (TID or payout code) to confirm. Financial Ops shares this queue and handles exceptions &amp; high-value payouts.
         </div>
       </div>
 
@@ -261,7 +261,7 @@ export function AgentCashPayoutsTab() {
         <CardContent className="grid grid-cols-3 gap-2 pt-0">
           <div className="space-y-1">
             <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-              <Hash className="h-3 w-3" /> Codes verified
+              <Hash className="h-3 w-3" /> Payouts completed
             </div>
             <div className="text-lg font-bold text-foreground">{dailyStats?.codesCount ?? 0}</div>
           </div>
@@ -290,13 +290,14 @@ export function AgentCashPayoutsTab() {
         </div>
       )}
 
-      {/* Payout Code Verification */}
+      {/* Payout Code Verification — for users who came in person with a WPO code */}
       <Card className="border-2 border-primary/30 bg-primary/5">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <QrCode className="h-4 w-4 text-primary" />
-            Verify Payout Code
+            Verify Cash Payout Code
           </CardTitle>
+          <p className="text-[10px] text-muted-foreground mt-1">Use this when a user shares their WPO-XXXXX code in person for a cash pickup.</p>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex gap-2">
