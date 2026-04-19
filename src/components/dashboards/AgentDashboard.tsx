@@ -194,6 +194,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [advanceRequestOpen, setAdvanceRequestOpen] = useState(false);
   const [shareLandlordOpen, setShareLandlordOpen] = useState(false);
   const [lendingAgentOpen, setLendingAgentOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<AgentHubTab>('home');
 
   const [showQuickDeposit, setShowQuickDeposit] = useState(false);
   const [showQuickWithdraw, setShowQuickWithdraw] = useState(false);
