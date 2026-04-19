@@ -2,11 +2,13 @@ import { useState, lazy, Suspense } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { FileText } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useTenantAgreement } from '@/hooks/useTenantAgreement';
 import { useAgentAgreement } from '@/hooks/useAgentAgreement';
 import { useSupporterAgreement } from '@/hooks/useSupporterAgreement';
 import { useEmployeeAgreement } from '@/hooks/useEmployeeAgreement';
+import { useLenderVouchAgreement } from '@/hooks/useLenderVouchAgreement';
+import { useLendingAgentAgreement } from '@/hooks/useLendingAgentAgreement';
+import { useBorrowerVouchDisclosure } from '@/hooks/useBorrowerVouchDisclosure';
 import type { AppRole } from '@/hooks/useAuth';
 import { STAFF_ROLES } from '@/lib/roleConstants';
 import { EmployeeBadge } from '@/components/employee/EmployeeBadge';
@@ -15,6 +17,9 @@ const TenantAgreementModal = lazy(() => import('@/components/tenant/agreement').
 const AgentAgreementModal = lazy(() => import('@/components/agent/agreement').then(m => ({ default: m.AgentAgreementModal })));
 const SupporterAgreementModal = lazy(() => import('@/components/supporter/agreement').then(m => ({ default: m.SupporterAgreementModal })));
 const EmployeeAgreementModal = lazy(() => import('@/components/employee/EmployeeAgreementModal'));
+const LenderVouchAgreementModal = lazy(() => import('@/components/vouch/lender/LenderVouchAgreementModal'));
+const LendingAgentAgreementModal = lazy(() => import('@/components/vouch/agent/LendingAgentAgreementModal'));
+const BorrowerVouchDisclosureModal = lazy(() => import('@/components/vouch/borrower/BorrowerVouchDisclosureModal'));
 
 function AgreementRow({ label, accepted, acceptedAt, onView, note }: { label: string; accepted: boolean; acceptedAt?: string | null; onView: () => void; note?: string }) {
   return (
@@ -40,13 +45,20 @@ export default function LegalSection({ roles }: { roles: AppRole[] }) {
   const agentAgreement = useAgentAgreement();
   const supporterAgreement = useSupporterAgreement();
   const employeeAgreement = useEmployeeAgreement();
+  const lenderVouch = useLenderVouchAgreement();
+  const lendingAgent = useLendingAgentAgreement();
+  const borrowerDisclosure = useBorrowerVouchDisclosure();
 
   const [showTenantModal, setShowTenantModal] = useState(false);
   const [showAgentModal, setShowAgentModal] = useState(false);
   const [showSupporterModal, setShowSupporterModal] = useState(false);
   const [showEmployeeModal, setShowEmployeeModal] = useState(false);
+  const [showLenderModal, setShowLenderModal] = useState(false);
+  const [showLendingAgentModal, setShowLendingAgentModal] = useState(false);
+  const [showBorrowerDisclosureModal, setShowBorrowerDisclosureModal] = useState(false);
 
   const isStaff = roles.some(r => STAFF_ROLES.includes(r));
+  const isAgent = roles.includes('agent');
 
   return (
     <>
@@ -75,7 +87,7 @@ export default function LegalSection({ roles }: { roles: AppRole[] }) {
               onView={() => setShowTenantModal(true)}
             />
           )}
-          {roles.includes('agent') && (
+          {isAgent && (
             <AgreementRow
               label="Agent Agreement"
               accepted={agentAgreement.isAccepted || false}
@@ -92,6 +104,31 @@ export default function LegalSection({ roles }: { roles: AppRole[] }) {
               note="Implicitly agreed by using the platform"
             />
           )}
+
+          {/* === Welile Vouch Network agreements (visible to all) === */}
+          <AgreementRow
+            label="Borrower Vouch Disclosure"
+            accepted={borrowerDisclosure.hasAcknowledged}
+            acceptedAt={borrowerDisclosure.disclosure?.acknowledged_at}
+            onView={() => setShowBorrowerDisclosureModal(true)}
+            note="What it means when Welile vouches for you"
+          />
+          <AgreementRow
+            label="Lender Vouch Agreement"
+            accepted={lenderVouch.isAccepted}
+            acceptedAt={lenderVouch.acceptance?.accepted_at}
+            onView={() => setShowLenderModal(true)}
+            note="For lenders who lend against Welile Trust Profiles"
+          />
+          {isAgent && (
+            <AgreementRow
+              label="Lending Agent Agreement"
+              accepted={lendingAgent.isAccepted}
+              acceptedAt={lendingAgent.acceptance?.accepted_at}
+              onView={() => setShowLendingAgentModal(true)}
+              note="Required to lend from your wallet to Welile users"
+            />
+          )}
         </CardContent>
       </Card>
 
@@ -102,11 +139,35 @@ export default function LegalSection({ roles }: { roles: AppRole[] }) {
         {roles.includes('tenant') && showTenantModal && (
           <TenantAgreementModal isOpen={showTenantModal} onClose={() => setShowTenantModal(false)} onAccept={tenantAgreement.acceptAgreement} viewOnly={tenantAgreement.isAccepted || false} />
         )}
-        {roles.includes('agent') && showAgentModal && (
+        {isAgent && showAgentModal && (
           <AgentAgreementModal isOpen={showAgentModal} onClose={() => setShowAgentModal(false)} onAccept={async () => true} viewOnly />
         )}
         {roles.includes('supporter') && showSupporterModal && (
           <SupporterAgreementModal open={showSupporterModal} onOpenChange={setShowSupporterModal} onAccept={supporterAgreement.acceptAgreement} />
+        )}
+        {showBorrowerDisclosureModal && (
+          <BorrowerVouchDisclosureModal
+            isOpen={showBorrowerDisclosureModal}
+            onClose={() => setShowBorrowerDisclosureModal(false)}
+            onAcknowledge={borrowerDisclosure.acknowledge}
+            viewOnly={borrowerDisclosure.hasAcknowledged}
+          />
+        )}
+        {showLenderModal && (
+          <LenderVouchAgreementModal
+            isOpen={showLenderModal}
+            onClose={() => setShowLenderModal(false)}
+            onAccept={lenderVouch.acceptAgreement}
+            viewOnly={lenderVouch.isAccepted}
+          />
+        )}
+        {isAgent && showLendingAgentModal && (
+          <LendingAgentAgreementModal
+            isOpen={showLendingAgentModal}
+            onClose={() => setShowLendingAgentModal(false)}
+            onAccept={lendingAgent.acceptAgreement}
+            viewOnly={lendingAgent.isAccepted}
+          />
         )}
       </Suspense>
     </>

@@ -2512,6 +2512,39 @@ export type Database = {
         }
         Relationships: []
       }
+      borrower_vouch_disclosures: {
+        Row: {
+          acknowledged_at: string
+          ai_id: string | null
+          device_info: string | null
+          disclosure_version: string
+          id: string
+          ip_address: string | null
+          user_id: string
+          vouched_limit_at_acknowledgement: number | null
+        }
+        Insert: {
+          acknowledged_at?: string
+          ai_id?: string | null
+          device_info?: string | null
+          disclosure_version: string
+          id?: string
+          ip_address?: string | null
+          user_id: string
+          vouched_limit_at_acknowledgement?: number | null
+        }
+        Update: {
+          acknowledged_at?: string
+          ai_id?: string | null
+          device_info?: string | null
+          disclosure_version?: string
+          id?: string
+          ip_address?: string | null
+          user_id?: string
+          vouched_limit_at_acknowledgement?: number | null
+        }
+        Relationships: []
+      }
       business_advance_daily_accruals: {
         Row: {
           accrual_date: string
@@ -5733,6 +5766,123 @@ export type Database = {
           source_table?: string | null
           transaction_group_id?: string | null
           transaction_id?: string
+        }
+        Relationships: []
+      }
+      lender_partners: {
+        Row: {
+          agreement_accepted: boolean
+          agreement_accepted_at: string | null
+          agreement_version: string | null
+          contact_email: string | null
+          contact_phone: string
+          created_at: string
+          id: string
+          is_active: boolean
+          kyc_status: string
+          legal_name: string
+          notes: string | null
+          partner_type: string
+          registration_number: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agreement_accepted?: boolean
+          agreement_accepted_at?: string | null
+          agreement_version?: string | null
+          contact_email?: string | null
+          contact_phone: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kyc_status?: string
+          legal_name: string
+          notes?: string | null
+          partner_type?: string
+          registration_number?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agreement_accepted?: boolean
+          agreement_accepted_at?: string | null
+          agreement_version?: string | null
+          contact_email?: string | null
+          contact_phone?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kyc_status?: string
+          legal_name?: string
+          notes?: string | null
+          partner_type?: string
+          registration_number?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      lender_vouch_agreement_acceptance: {
+        Row: {
+          accepted_at: string
+          agreement_version: string
+          device_info: string | null
+          id: string
+          ip_address: string | null
+          lender_user_id: string
+          status: string
+        }
+        Insert: {
+          accepted_at?: string
+          agreement_version: string
+          device_info?: string | null
+          id?: string
+          ip_address?: string | null
+          lender_user_id: string
+          status?: string
+        }
+        Update: {
+          accepted_at?: string
+          agreement_version?: string
+          device_info?: string | null
+          id?: string
+          ip_address?: string | null
+          lender_user_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      lending_agent_agreement_acceptance: {
+        Row: {
+          accepted_at: string
+          agent_user_id: string
+          agreement_version: string
+          device_info: string | null
+          id: string
+          ip_address: string | null
+          status: string
+          trust_score_at_acceptance: number | null
+        }
+        Insert: {
+          accepted_at?: string
+          agent_user_id: string
+          agreement_version: string
+          device_info?: string | null
+          id?: string
+          ip_address?: string | null
+          status?: string
+          trust_score_at_acceptance?: number | null
+        }
+        Update: {
+          accepted_at?: string
+          agent_user_id?: string
+          agreement_version?: string
+          device_info?: string | null
+          id?: string
+          ip_address?: string | null
+          status?: string
+          trust_score_at_acceptance?: number | null
         }
         Relationships: []
       }
@@ -10430,6 +10580,89 @@ export type Database = {
           voided_by?: string
         }
         Relationships: []
+      }
+      vouch_claims: {
+        Row: {
+          borrower_ai_id: string
+          borrower_user_id: string
+          claim_paid_amount_ugx: number | null
+          claim_paid_at: string | null
+          created_at: string
+          default_reported_at: string | null
+          disbursement_date: string
+          expected_repayment_date: string | null
+          external_loan_reference: string | null
+          id: string
+          interest_rate_pct: number | null
+          lender_partner_id: string
+          loan_purpose: string | null
+          notes: string | null
+          principal_ugx: number
+          recovered_amount_ugx: number | null
+          recovery_status: string | null
+          status: string
+          trust_score_at_record: number | null
+          trust_tier_at_record: string | null
+          updated_at: string
+          vouched_amount_ugx: number
+        }
+        Insert: {
+          borrower_ai_id: string
+          borrower_user_id: string
+          claim_paid_amount_ugx?: number | null
+          claim_paid_at?: string | null
+          created_at?: string
+          default_reported_at?: string | null
+          disbursement_date?: string
+          expected_repayment_date?: string | null
+          external_loan_reference?: string | null
+          id?: string
+          interest_rate_pct?: number | null
+          lender_partner_id: string
+          loan_purpose?: string | null
+          notes?: string | null
+          principal_ugx: number
+          recovered_amount_ugx?: number | null
+          recovery_status?: string | null
+          status?: string
+          trust_score_at_record?: number | null
+          trust_tier_at_record?: string | null
+          updated_at?: string
+          vouched_amount_ugx: number
+        }
+        Update: {
+          borrower_ai_id?: string
+          borrower_user_id?: string
+          claim_paid_amount_ugx?: number | null
+          claim_paid_at?: string | null
+          created_at?: string
+          default_reported_at?: string | null
+          disbursement_date?: string
+          expected_repayment_date?: string | null
+          external_loan_reference?: string | null
+          id?: string
+          interest_rate_pct?: number | null
+          lender_partner_id?: string
+          loan_purpose?: string | null
+          notes?: string | null
+          principal_ugx?: number
+          recovered_amount_ugx?: number | null
+          recovery_status?: string | null
+          status?: string
+          trust_score_at_record?: number | null
+          trust_tier_at_record?: string | null
+          updated_at?: string
+          vouched_amount_ugx?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vouch_claims_lender_partner_id_fkey"
+            columns: ["lender_partner_id"]
+            isOneToOne: false
+            referencedRelation: "lender_partners"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       wallet_backup_2026_04_17: {
         Row: {

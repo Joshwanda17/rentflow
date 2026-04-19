@@ -14,6 +14,10 @@ import { TrustScoreCard } from '@/components/ai-id/TrustScoreCard';
 import { TrustBoostSuggestions } from '@/components/ai-id/TrustBoostSuggestions';
 import { CashFlowCapacityCard, MovementBehaviorCard, LandlordListingsCard } from '@/components/ai-id/TrustExpansionCards';
 import { AiIdBadge } from '@/components/ai-id/AiIdBadge';
+import LenderRecordLoanCard from '@/components/vouch/lender/LenderRecordLoanCard';
+import MyVouchedLoansCard from '@/components/vouch/borrower/MyVouchedLoansCard';
+import BorrowerVouchDisclosureModal from '@/components/vouch/borrower/BorrowerVouchDisclosureModal';
+import { useBorrowerVouchDisclosure } from '@/hooks/useBorrowerVouchDisclosure';
 import { formatUGX } from '@/lib/rentCalculations';
 import { buildProfileShareUrl, shareProfileOnWhatsApp } from '@/lib/shareTrustProfile';
 import { isValidAiId } from '@/lib/welileAiId';
@@ -28,11 +32,14 @@ export default function HolisticProfile({ publicMode = false }: Props) {
   const { aiId } = useParams<{ aiId: string }>();
   const navigate = useNavigate();
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [showDisclosure, setShowDisclosure] = useState(false);
+  const [pendingShareAction, setPendingShareAction] = useState<null | 'whatsapp' | 'link'>(null);
 
   const cleanAiId = aiId?.toUpperCase();
   const validId = cleanAiId && isValidAiId(cleanAiId);
 
   const { profile, loading, error, refresh } = useTrustProfile(validId ? cleanAiId : undefined, { publicMode });
+  const { hasAcknowledged, acknowledge } = useBorrowerVouchDisclosure();
 
   if (!validId) {
     return (
@@ -76,17 +83,49 @@ export default function HolisticProfile({ publicMode = false }: Props) {
     );
   }
 
+  // Gate share/copy actions behind borrower vouch disclosure (self only)
+  const requireDisclosure = (action: 'whatsapp' | 'link') => {
+    if (profile?.permissions.is_self && !hasAcknowledged) {
+      setPendingShareAction(action);
+      setShowDisclosure(true);
+      return true;
+    }
+    return false;
+  };
+
   const copyLink = () => {
+    if (!profile) return;
+    if (requireDisclosure('link')) return;
     navigator.clipboard.writeText(buildProfileShareUrl(profile.ai_id));
     toast.success('Profile link copied');
   };
 
   const copyId = () => {
+    if (!profile) return;
     navigator.clipboard.writeText(profile.ai_id);
     toast.success('AI ID copied');
   };
 
-  const shareWhatsApp = () => shareProfileOnWhatsApp(profile);
+  const shareWhatsApp = () => {
+    if (!profile) return;
+    if (requireDisclosure('whatsapp')) return;
+    shareProfileOnWhatsApp(profile);
+  };
+
+  const handleDisclosureAcknowledge = async () => {
+    if (!profile) return false;
+    const ok = await acknowledge({ aiId: profile.ai_id, vouchedLimit: profile.trust.borrowing_limit_ugx });
+    if (ok && pendingShareAction) {
+      // Auto-execute the queued share action
+      if (pendingShareAction === 'whatsapp') shareProfileOnWhatsApp(profile);
+      else if (pendingShareAction === 'link') {
+        navigator.clipboard.writeText(buildProfileShareUrl(profile.ai_id));
+        toast.success('Profile link copied');
+      }
+      setPendingShareAction(null);
+    }
+    return ok;
+  };
 
   const downloadPdf = async () => {
     setDownloadingPdf(true);
@@ -304,6 +343,12 @@ export default function HolisticProfile({ publicMode = false }: Props) {
           </Card>
         </motion.div>
 
+        {/* Lender record-loan card (visible to other authenticated users) */}
+        {!profile.permissions.is_self && <LenderRecordLoanCard profile={profile} />}
+
+        {/* Borrower's own vouched loans (self only) */}
+        {profile.permissions.is_self && <MyVouchedLoansCard />}
+
         {/* Disclaimer */}
         <p className="text-[10px] text-muted-foreground text-center px-4 leading-relaxed">
           This is an informational summary only. It does not constitute a credit report, approval for any
@@ -342,6 +387,14 @@ export default function HolisticProfile({ publicMode = false }: Props) {
           </Button>
         </div>
       </div>
+
+      {/* Borrower vouch disclosure modal — shown before first share */}
+      <BorrowerVouchDisclosureModal
+        isOpen={showDisclosure}
+        onClose={() => { setShowDisclosure(false); setPendingShareAction(null); }}
+        onAcknowledge={handleDisclosureAcknowledge}
+        vouchedAmountText={profile ? formatUGX(profile.trust.borrowing_limit_ugx) : undefined}
+      />
     </div>
   );
 }
