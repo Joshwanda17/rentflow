@@ -457,12 +457,23 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
       />
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-        {/* AI ID Card */}
-        <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-2xl p-4 border border-primary/20">
-          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Welile AI ID</p>
+        {/* AI ID Card — tap to open holistic trust profile */}
+        <button
+          type="button"
+          onClick={() => navigate(`/profile/${aiId}`)}
+          className="w-full text-left bg-gradient-to-br from-primary/10 to-primary/5 rounded-2xl p-4 border border-primary/20 hover:border-primary/40 transition-colors active:scale-[0.99]"
+        >
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Welile AI ID — Tap for Trust Profile</p>
+            <span className="text-[10px] text-primary font-medium">View →</span>
+          </div>
           <div className="flex items-center gap-3">
             <p className="text-2xl font-black font-mono tracking-wider text-primary">{aiId}</p>
-            <button onClick={copyAiId} className="p-2 rounded-lg bg-primary/10 active:scale-90 transition-transform">
+            <button
+              onClick={(e) => { e.stopPropagation(); copyAiId(); }}
+              className="p-2 rounded-lg bg-primary/10 active:scale-90 transition-transform"
+              aria-label="Copy AI ID"
+            >
               {copied ? <CheckCircle2 className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4 text-primary" />}
             </button>
           </div>
@@ -473,7 +484,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
               <span className="text-xs text-muted-foreground ml-1">• {summary.completionRate}% completion rate</span>
             )}
           </div>
-        </div>
+        </button>
 
         {/* Roles & Verification — with Add Role */}
         <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
