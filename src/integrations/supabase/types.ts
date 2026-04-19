@@ -11446,6 +11446,37 @@ export type Database = {
       generate_portfolio_code: { Args: never; Returns: string }
       generate_short_code: { Args: never; Returns: string }
       generate_welile_ai_id: { Args: { user_uuid: string }; Returns: string }
+      get_agent_directory_rows: {
+        Args: {
+          _limit?: number
+          _offset?: number
+          _search?: string
+          _sort?: string
+          _verified_only?: boolean
+        }
+        Returns: {
+          avatar_url: string
+          created_at: string
+          email: string
+          full_name: string
+          last_active_at: string
+          phone: string
+          territory: string
+          total_matched: number
+          user_id: string
+          verified: boolean
+        }[]
+      }
+      get_agent_directory_totals: {
+        Args: never
+        Returns: {
+          active_30d: number
+          new_30d: number
+          total_count: number
+          verified_count: number
+          with_territory: number
+        }[]
+      }
       get_agent_ops_balances: {
         Args: {
           _limit?: number
