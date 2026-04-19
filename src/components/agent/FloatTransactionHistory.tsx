@@ -101,7 +101,7 @@ export function FloatTransactionHistory({ open, onOpenChange }: Props) {
       });
 
       (allocations || []).forEach(a => {
-        const isAllocation = (a.notes || '').toLowerCase().includes('float allocation') || a.payment_method === 'float_allocation';
+        const isAllocation = (a.notes || '').toLowerCase().includes('float allocation');
         if (isAllocation) {
           allocated += Number(a.amount);
           entries.push({
