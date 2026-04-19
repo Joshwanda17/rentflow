@@ -68,6 +68,8 @@ export interface TrustProfile {
     daily_avg: number;
     weekly_avg: number;
     monthly_avg: number;
+    wallet_monthly?: number;
+    roi_monthly?: number;
     inflow_30d?: number;
     outflow_30d?: number;
     window_days: number;
