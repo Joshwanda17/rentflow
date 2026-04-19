@@ -385,7 +385,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               <DailyRentExpectedCard userId={user.id} />
             </div>
 
-            {/* Cash Payouts — only for cashout agents */}
+            {/* Merchant Payouts — for merchant agents executing MoMo / Bank / Cash payouts */}
             {isCashoutAgent && (
               <button
                 onClick={() => { hapticTap(); setCashPayoutsOpen(true); }}
@@ -396,9 +396,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                   <Banknote className="h-6 w-6 text-warning" />
                 </div>
                 <div className="flex-1 text-left">
-                  <p className="font-bold text-sm text-warning">Cash Payouts</p>
+                  <p className="font-bold text-sm text-warning">Merchant Payouts</p>
                   <p className="text-[11px] text-muted-foreground">
-                    {isCashoutAgent.handles_cash && isCashoutAgent.handles_bank ? 'Cash & Bank' : isCashoutAgent.handles_cash ? 'Cash Only' : 'Bank Only'} · {isCashoutAgent.label || 'Cashout Agent'}
+                    MoMo · Bank{isCashoutAgent.handles_cash ? ' · Cash' : ''} · {isCashoutAgent.label || 'Merchant Agent'}
                   </p>
                 </div>
                 <span className="text-xl text-warning">›</span>
