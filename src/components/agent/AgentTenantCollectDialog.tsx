@@ -30,6 +30,7 @@ export function AgentTenantCollectDialog({
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [confirming, setConfirming] = useState(false);
   const [celebrationOpen, setCelebrationOpen] = useState(false);
   const [celebrationData, setCelebrationData] = useState<{ commission: number; amount: number } | null>(null);
 
@@ -38,6 +39,7 @@ export function AgentTenantCollectDialog({
       setAmount(0);
       setNotes('');
       setResult(null);
+      setConfirming(false);
       refetchBalances();
     }
   }, [open]);
