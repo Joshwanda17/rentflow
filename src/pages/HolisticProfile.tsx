@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  ArrowLeft, Copy, Share2, FileDown, Loader2, AlertTriangle, BadgeCheck, Phone, Mail,
+  ArrowLeft, Copy, FileDown, Loader2, AlertTriangle, BadgeCheck, Phone, Mail,
   IdCard, Calendar, TrendingUp, Wallet, Users, Banknote, RefreshCw, MessageCircle, Link as LinkIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,7 @@ import { useTrustProfile } from '@/hooks/useTrustProfile';
 import { TrustScoreCard } from '@/components/ai-id/TrustScoreCard';
 import { AiIdBadge } from '@/components/ai-id/AiIdBadge';
 import { formatUGX } from '@/lib/rentCalculations';
-import { buildProfileShareUrl, shareProfileOnWhatsApp, shareProfileNative } from '@/lib/shareTrustProfile';
+import { buildProfileShareUrl, shareProfileOnWhatsApp } from '@/lib/shareTrustProfile';
 import { isValidAiId } from '@/lib/welileAiId';
 import { toast } from 'sonner';
 
@@ -86,11 +86,6 @@ export default function HolisticProfile({ publicMode = false }: Props) {
 
   const shareWhatsApp = () => shareProfileOnWhatsApp(profile);
 
-  const shareNative = async () => {
-    const ok = await shareProfileNative(profile);
-    if (!ok) copyLink();
-  };
-
   const downloadPdf = async () => {
     setDownloadingPdf(true);
     try {
@@ -140,7 +135,7 @@ export default function HolisticProfile({ publicMode = false }: Props) {
             <CardContent className="p-5">
               <div className="flex items-start gap-4">
                 <UserAvatar
-                  name={profile.identity.full_name}
+                  fullName={profile.identity.full_name}
                   avatarUrl={profile.identity.avatar_url || undefined}
                   size="lg"
                 />
