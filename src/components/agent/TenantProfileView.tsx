@@ -132,7 +132,8 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
   useEffect(() => {
     loadFullProfile();
     refetchFloat();
-  }, [tenantId]);
+    loadLastAllocation();
+  }, [tenantId, user?.id]);
 
   const loadFullProfile = async () => {
     setLoading(true);
