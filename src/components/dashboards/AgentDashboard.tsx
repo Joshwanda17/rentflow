@@ -61,6 +61,7 @@ import { useWallet } from '@/hooks/useWallet';
 import { useAgentBalances } from '@/hooks/useAgentBalances';
 import { EarningsRankSystemSheet } from '@/components/agent/EarningsRankSystemSheet';
 import { AgentMenuDrawer } from '@/components/agent/AgentMenuDrawer';
+import { AgentHubTabs, type AgentHubTab } from '@/components/agent/AgentHubTabs';
 import { AgentActionInsights } from '@/components/agent/AgentActionInsights';
 import { DailyRentExpectedCard } from '@/components/agent/DailyRentExpectedCard';
 import { AgentManagedPropertyDialog } from '@/components/agent/AgentManagedPropertyDialog';
@@ -193,6 +194,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [advanceRequestOpen, setAdvanceRequestOpen] = useState(false);
   const [shareLandlordOpen, setShareLandlordOpen] = useState(false);
   const [lendingAgentOpen, setLendingAgentOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<AgentHubTab>('home');
 
   const [showQuickDeposit, setShowQuickDeposit] = useState(false);
   const [showQuickWithdraw, setShowQuickWithdraw] = useState(false);
@@ -303,190 +305,211 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           <AiIdButton variant="compact" />
         </div>
 
-        {/* Wallet Hero Card */}
-         <UnifiedWalletHeroCard
-           balance={floatBalance + commissionBalance}
-           role="agent"
-           floatBalance={floatBalance}
-           commissionBalance={commissionBalance}
-           withdrawableBalance={realWithdrawableBalance}
-           onOpenWallet={() => setShowWallet(true)}
-           quickActions={
-              <div className="flex items-center gap-2.5">
-                <button
-                  onClick={() => { hapticTap(); setShowQuickDeposit(true); }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-white/20 hover:bg-white/10 active:scale-95 transition-all min-h-[44px]"
-                  style={{ WebkitTapHighlightColor: 'transparent' }}
-                >
-                  <ArrowDownToLine className="h-4 w-4 text-white/80" />
-                  <span className="text-[11px] font-bold text-white/80 uppercase tracking-wider">Deposit</span>
-                </button>
-                <button
-                  onClick={() => { hapticTap(); setShowQuickWithdraw(true); }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-white/20 hover:bg-white/10 active:scale-95 transition-all min-h-[44px]"
-                  style={{ WebkitTapHighlightColor: 'transparent' }}
-                >
-                  <ArrowUpFromLine className="h-4 w-4 text-white/80" />
-                  <span className="text-[11px] font-bold text-white/80 uppercase tracking-wider">Withdraw</span>
-                </button>
-                <button
-                  onClick={() => { hapticTap(); setShowQuickTransfer(true); }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-white/20 hover:bg-white/10 active:scale-95 transition-all min-h-[44px]"
-                  style={{ WebkitTapHighlightColor: 'transparent' }}
-                >
-                  <ArrowLeftRight className="h-4 w-4 text-white/80" />
-                  <span className="text-[11px] font-bold text-white/80 uppercase tracking-wider">Transfer</span>
-                </button>
-              </div>
-           }
-         />
-
-        {/* Verification Checklist */}
-        <VerificationChecklist userId={user.id} highlightRole="agent" compact />
-
-        {/* Risk Exposure — guarantor liability visibility */}
-        <AgentRiskExposureCard />
-
-        {/* Daily Rent Expected — top priority visibility */}
-        <div key="daily-rent-card">
-          <DailyRentExpectedCard userId={user.id} />
-        </div>
-
-        {/* Today's Collections — who owes, at a glance */}
-        <TodayCollectionsCard agentId={user.id} onViewTenants={() => setTenantsSheetOpen(true)} />
-
-        {/* Quick Actions — large icons, big touch targets, icon-first for non-readers */}
-        <div className="space-y-3">
-          {/* Row 1: Core daily actions */}
-          <div>
-            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-1 mb-2 flex items-center gap-1">
-              ⚡ Daily Actions
-            </p>
-            <div className="grid grid-cols-4 gap-2.5">
-              {[
-                { icon: Banknote, label: 'Pay Rent', emoji: '💰', onClick: () => setTopUpTenantOpen(true), bg: 'bg-primary/12', iconBg: 'bg-primary', ring: 'ring-primary/20' },
-                { icon: FileText, label: 'New Tenant', emoji: '📝', onClick: () => setRentRequestOpen(true), bg: 'bg-accent/60', iconBg: 'bg-[hsl(var(--chart-3))]', ring: 'ring-[hsl(var(--chart-3))]/20' },
-                { icon: Users, label: 'My Tenants', emoji: '👥', onClick: () => setTenantsSheetOpen(true), bg: 'bg-secondary/80', iconBg: 'bg-[hsl(var(--chart-1))]', ring: 'ring-[hsl(var(--chart-1))]/20' },
-                { icon: Home, label: 'List House', emoji: '🏠', onClick: () => setListHouseOpen(true), bg: 'bg-accent/60', iconBg: 'bg-[hsl(var(--chart-2))]', ring: 'ring-[hsl(var(--chart-2))]/20' },
-              ].map((action) => (
-                <button
-                  key={action.label}
-                  onClick={() => { hapticTap(); action.onClick(); }}
-                  className={cn(
-                    "flex flex-col items-center justify-center gap-1.5 py-4 rounded-2xl ring-1 touch-manipulation active:scale-[0.93] transition-all min-h-[80px]",
-                    action.bg, action.ring
-                  )}
-                  style={{ WebkitTapHighlightColor: 'transparent' }}
-                >
-                  <div className={cn("p-2 rounded-xl text-white shadow-sm", action.iconBg)}>
-                    <action.icon className="h-5 w-5" strokeWidth={2.2} />
-                  </div>
-                  <span className="text-[11px] font-bold text-foreground leading-tight">{action.label}</span>
-                </button>
-              ))}
+        {/* Wallet Hero Card — always visible */}
+        <UnifiedWalletHeroCard
+          balance={floatBalance + commissionBalance}
+          role="agent"
+          floatBalance={floatBalance}
+          commissionBalance={commissionBalance}
+          withdrawableBalance={realWithdrawableBalance}
+          onOpenWallet={() => setShowWallet(true)}
+          quickActions={
+            <div className="flex items-center gap-2.5">
+              <button
+                onClick={() => { hapticTap(); setShowQuickDeposit(true); }}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-white/20 hover:bg-white/10 active:scale-95 transition-all min-h-[44px]"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                <ArrowDownToLine className="h-4 w-4 text-white/80" />
+                <span className="text-[11px] font-bold text-white/80 uppercase tracking-wider">Deposit</span>
+              </button>
+              <button
+                onClick={() => { hapticTap(); setShowQuickWithdraw(true); }}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-white/20 hover:bg-white/10 active:scale-95 transition-all min-h-[44px]"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                <ArrowUpFromLine className="h-4 w-4 text-white/80" />
+                <span className="text-[11px] font-bold text-white/80 uppercase tracking-wider">Withdraw</span>
+              </button>
+              <button
+                onClick={() => { hapticTap(); setShowQuickTransfer(true); }}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-white/20 hover:bg-white/10 active:scale-95 transition-all min-h-[44px]"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                <ArrowLeftRight className="h-4 w-4 text-white/80" />
+                <span className="text-[11px] font-bold text-white/80 uppercase tracking-wider">Transfer</span>
+              </button>
             </div>
-          </div>
-
-          {/* BUSINESS ADVANCE — prominent CTA between rows */}
-          <button
-            onClick={() => { hapticTap(); setBusinessAdvanceOpen(true); }}
-            className="w-full flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-primary/15 via-primary/10 to-primary/5 ring-1 ring-primary/30 active:scale-[0.98] transition-all touch-manipulation"
-            style={{ WebkitTapHighlightColor: 'transparent' }}
-          >
-            <div className="p-2.5 rounded-xl bg-primary text-primary-foreground shadow-md">
-              <Briefcase className="h-5 w-5" strokeWidth={2.2} />
-            </div>
-            <div className="flex-1 text-left">
-              <div className="font-bold text-sm text-foreground">BUSINESS ADVANCE</div>
-              <div className="text-[11px] text-muted-foreground">Request advance for tenant's business · Earn 4% on every repayment</div>
-            </div>
-            <span className="text-xs font-bold text-primary">→</span>
-          </button>
-
-          {/* LENDING AGENT — peer lending portal (gated by Trust Score ≥ 70) */}
-          <button
-            onClick={() => { hapticTap(); setLendingAgentOpen(true); }}
-            className="w-full flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-emerald-500/10 to-primary/5 ring-1 ring-emerald-500/30 active:scale-[0.98] transition-all touch-manipulation"
-            style={{ WebkitTapHighlightColor: 'transparent' }}
-          >
-            <div className="p-2.5 rounded-xl bg-emerald-600 text-white shadow-md">
-              <Banknote className="h-5 w-5" strokeWidth={2.2} />
-            </div>
-            <div className="flex-1 text-left">
-              <div className="font-bold text-sm text-foreground">LENDING AGENT</div>
-              <div className="text-[11px] text-muted-foreground">Lend to Welile users from your wallet · Earn interest</div>
-            </div>
-            <span className="text-xs font-bold text-emerald-700">→</span>
-          </button>
-
-          {/* Row 2: Share & grow */}
-          <div>
-            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-1 mb-2 flex items-center gap-1">
-              📤 Share & Grow
-            </p>
-            <div className="grid grid-cols-4 gap-2.5">
-              {[
-                { icon: Building2, label: 'Landlord', emoji: '🏘', onClick: handleShareLandlordSignup, bg: 'bg-accent/60', iconBg: 'bg-[hsl(var(--chart-4))]', ring: 'ring-[hsl(var(--chart-4))]/20' },
-                { icon: Sparkles, label: 'Partners', emoji: '🤝', onClick: () => navigate('/agent/partners'), bg: 'bg-accent/60', iconBg: 'bg-[hsl(var(--chart-3))]', ring: 'ring-[hsl(var(--chart-3))]/20' },
-                { icon: UserPlus, label: 'Invite', emoji: '🎁', onClick: () => navigate('/referrals'), bg: 'bg-accent/60', iconBg: 'bg-[hsl(var(--chart-2))]', ring: 'ring-[hsl(var(--chart-2))]/20' },
-                { icon: Menu, label: 'All Menu', emoji: '☰', onClick: handleOpenMenu, bg: 'bg-card', iconBg: 'bg-muted-foreground/80', ring: 'ring-border/40' },
-              ].map((action) => (
-                <button
-                  key={action.label}
-                  onClick={() => { hapticTap(); action.onClick(); }}
-                  className={cn(
-                    "flex flex-col items-center justify-center gap-1.5 py-4 rounded-2xl ring-1 touch-manipulation active:scale-[0.93] transition-all min-h-[80px]",
-                    action.bg, action.ring
-                  )}
-                  style={{ WebkitTapHighlightColor: 'transparent' }}
-                >
-                  <div className={cn("p-2 rounded-xl text-white shadow-sm", action.iconBg)}>
-                    <action.icon className="h-5 w-5" strokeWidth={2.2} />
-                  </div>
-                  <span className="text-[11px] font-bold text-foreground leading-tight">{action.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Credit Access moved to Agent Hub → Earnings tab */}
-
-        {/* Share rent recorder via WhatsApp — public, no signup link */}
-        <ShareRentRecorderCard />
-
-        {/* Action Insights: Forecast, Streak, Priority Queue (Daily Rent already shown above) */}
-        <AgentActionInsights agentId={user.id} hideDailyRent />
-
-        {/* Cash Payouts - Only visible for CFO-assigned cashout agents */}
-        {isCashoutAgent && (
-          <button
-            onClick={() => { hapticTap(); setCashPayoutsOpen(true); }}
-            className="w-full flex items-center gap-3 p-4 rounded-2xl border-2 border-warning/40 bg-warning/10 touch-manipulation active:scale-[0.97] transition-all min-h-[64px]"
-            style={{ WebkitTapHighlightColor: 'transparent' }}
-          >
-            <div className="p-3 rounded-xl bg-warning/20">
-              <Banknote className="h-6 w-6 text-warning" />
-            </div>
-            <div className="flex-1 text-left">
-              <p className="font-bold text-sm text-warning">Cash Payouts</p>
-              <p className="text-[11px] text-muted-foreground">
-                {isCashoutAgent.handles_cash && isCashoutAgent.handles_bank ? 'Cash & Bank' : isCashoutAgent.handles_cash ? 'Cash Only' : 'Bank Only'} · {isCashoutAgent.label || 'Cashout Agent'}
-              </p>
-            </div>
-            <span className="text-xl text-warning">›</span>
-          </button>
-        )}
-
-        {/* Landlord Funds — Pay Landlord via MoMo (escrow float) */}
-        <AgentLandlordFloatCard
-          onPayLandlord={() => { hapticTap(); setFloatPayoutOpen(true); }}
-          onOpenRecovery={() => { hapticTap(); setRecoveryLedgerOpen(true); }}
-          onOpenHistory={() => { hapticTap(); setFloatHistoryOpen(true); }}
-          onOpenStatusTracker={() => { hapticTap(); setPayoutStatusOpen(true); }}
+          }
         />
 
-        <RecentAutoCharges />
+        {/* Tab Navigation */}
+        <AgentHubTabs active={activeTab} onChange={setActiveTab} />
+
+        {/* === HOME TAB === Most-used actions, at-a-glance */}
+        {activeTab === 'home' && (
+          <div className="space-y-5 animate-in fade-in duration-200">
+            {/* Prime quick actions — the 4 most-used */}
+            <div className="grid grid-cols-2 gap-2.5">
+              {[
+                { icon: FileText, label: 'New Tenant', sub: 'Rent request', onClick: () => setRentRequestOpen(true), accent: 'bg-primary' },
+                { icon: Users, label: 'My Tenants', sub: 'View list', onClick: () => setTenantsSheetOpen(true), accent: 'bg-[hsl(var(--chart-1))]' },
+                { icon: Briefcase, label: 'Business Advance', sub: 'Earn 4%', onClick: () => setBusinessAdvanceOpen(true), accent: 'bg-[hsl(var(--chart-3))]' },
+                { icon: Banknote, label: 'Lending Agent', sub: 'Earn interest', onClick: () => setLendingAgentOpen(true), accent: 'bg-emerald-600' },
+              ].map((a) => (
+                <button
+                  key={a.label}
+                  onClick={() => { hapticTap(); a.onClick(); }}
+                  className="flex items-center gap-3 p-3.5 rounded-2xl bg-card border border-border/60 active:scale-[0.97] transition-all min-h-[72px] text-left hover:border-border touch-manipulation"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <div className={cn('p-2.5 rounded-xl text-white shadow-sm shrink-0', a.accent)}>
+                    <a.icon className="h-5 w-5" strokeWidth={2.2} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-bold text-[13px] text-foreground leading-tight truncate">{a.label}</div>
+                    <div className="text-[10px] text-muted-foreground truncate">{a.sub}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {/* Today's snapshot */}
+            <TodayCollectionsCard agentId={user.id} onViewTenants={() => setTenantsSheetOpen(true)} />
+
+            {/* Daily rent expected */}
+            <div key="daily-rent-card">
+              <DailyRentExpectedCard userId={user.id} />
+            </div>
+
+            {/* Cash Payouts — only for cashout agents */}
+            {isCashoutAgent && (
+              <button
+                onClick={() => { hapticTap(); setCashPayoutsOpen(true); }}
+                className="w-full flex items-center gap-3 p-4 rounded-2xl border-2 border-warning/40 bg-warning/10 touch-manipulation active:scale-[0.97] transition-all min-h-[64px]"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                <div className="p-3 rounded-xl bg-warning/20">
+                  <Banknote className="h-6 w-6 text-warning" />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className="font-bold text-sm text-warning">Cash Payouts</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {isCashoutAgent.handles_cash && isCashoutAgent.handles_bank ? 'Cash & Bank' : isCashoutAgent.handles_cash ? 'Cash Only' : 'Bank Only'} · {isCashoutAgent.label || 'Cashout Agent'}
+                  </p>
+                </div>
+                <span className="text-xl text-warning">›</span>
+              </button>
+            )}
+
+            {/* All Menu access */}
+            <button
+              onClick={handleOpenMenu}
+              className="w-full flex items-center justify-center gap-2 p-3 rounded-2xl bg-muted/60 active:scale-[0.98] transition-all touch-manipulation"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              <Menu className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs font-semibold text-muted-foreground">All tools & settings</span>
+            </button>
+          </div>
+        )}
+
+        {/* === MONEY TAB === Wallet, advances, payouts, recovery */}
+        {activeTab === 'money' && (
+          <div className="space-y-5 animate-in fade-in duration-200">
+            <AgentRiskExposureCard />
+            <AgentLandlordFloatCard
+              onPayLandlord={() => { hapticTap(); setFloatPayoutOpen(true); }}
+              onOpenRecovery={() => { hapticTap(); setRecoveryLedgerOpen(true); }}
+              onOpenHistory={() => { hapticTap(); setFloatHistoryOpen(true); }}
+              onOpenStatusTracker={() => { hapticTap(); setPayoutStatusOpen(true); }}
+            />
+            <button
+              onClick={() => { hapticTap(); setBusinessAdvanceOpen(true); }}
+              className="w-full flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-primary/15 via-primary/10 to-primary/5 ring-1 ring-primary/30 active:scale-[0.98] transition-all touch-manipulation"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              <div className="p-2.5 rounded-xl bg-primary text-primary-foreground shadow-md">
+                <Briefcase className="h-5 w-5" strokeWidth={2.2} />
+              </div>
+              <div className="flex-1 text-left">
+                <div className="font-bold text-sm text-foreground">Business Advance</div>
+                <div className="text-[11px] text-muted-foreground">Request advance for tenant's business · Earn 4% on every repayment</div>
+              </div>
+              <span className="text-xs font-bold text-primary">→</span>
+            </button>
+            <button
+              onClick={() => { hapticTap(); setLendingAgentOpen(true); }}
+              className="w-full flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-emerald-500/10 to-primary/5 ring-1 ring-emerald-500/30 active:scale-[0.98] transition-all touch-manipulation"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              <div className="p-2.5 rounded-xl bg-emerald-600 text-white shadow-md">
+                <Banknote className="h-5 w-5" strokeWidth={2.2} />
+              </div>
+              <div className="flex-1 text-left">
+                <div className="font-bold text-sm text-foreground">Lending Agent</div>
+                <div className="text-[11px] text-muted-foreground">Lend to Welile users from your wallet · Earn interest</div>
+              </div>
+              <span className="text-xs font-bold text-emerald-700">→</span>
+            </button>
+            <RecentAutoCharges />
+          </div>
+        )}
+
+        {/* === TENANTS TAB === People & properties */}
+        {activeTab === 'tenants' && (
+          <div className="space-y-5 animate-in fade-in duration-200">
+            <div className="grid grid-cols-2 gap-2.5">
+              {[
+                { icon: FileText, label: 'New Tenant', onClick: () => setRentRequestOpen(true) },
+                { icon: Users, label: 'My Tenants', onClick: () => setTenantsSheetOpen(true) },
+                { icon: Banknote, label: 'Pay Rent', onClick: () => setTopUpTenantOpen(true) },
+                { icon: Home, label: 'List House', onClick: () => setListHouseOpen(true) },
+              ].map((a) => (
+                <button
+                  key={a.label}
+                  onClick={() => { hapticTap(); a.onClick(); }}
+                  className="flex items-center gap-3 p-3.5 rounded-2xl bg-card border border-border/60 active:scale-[0.97] transition-all min-h-[64px] text-left touch-manipulation"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <div className="p-2 rounded-xl bg-primary/10 text-primary shrink-0">
+                    <a.icon className="h-4.5 w-4.5" strokeWidth={2.2} />
+                  </div>
+                  <span className="font-semibold text-[13px] text-foreground truncate">{a.label}</span>
+                </button>
+              ))}
+            </div>
+            <VerificationChecklist userId={user.id} highlightRole="agent" compact />
+            <AgentActionInsights agentId={user.id} hideDailyRent />
+          </div>
+        )}
+
+        {/* === GROW TAB === Share, recruit, partners */}
+        {activeTab === 'grow' && (
+          <div className="space-y-5 animate-in fade-in duration-200">
+            <div className="grid grid-cols-2 gap-2.5">
+              {[
+                { icon: Building2, label: 'Share Landlord', onClick: handleShareLandlordSignup },
+                { icon: Sparkles, label: 'Partners', onClick: () => navigate('/agent/partners') },
+                { icon: UserPlus, label: 'Invite & Earn', onClick: () => navigate('/referrals') },
+                { icon: Menu, label: 'All Menu', onClick: handleOpenMenu },
+              ].map((a) => (
+                <button
+                  key={a.label}
+                  onClick={() => { hapticTap(); a.onClick(); }}
+                  className="flex items-center gap-3 p-3.5 rounded-2xl bg-card border border-border/60 active:scale-[0.97] transition-all min-h-[64px] text-left touch-manipulation"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <div className="p-2 rounded-xl bg-accent text-accent-foreground shrink-0">
+                    <a.icon className="h-4.5 w-4.5" strokeWidth={2.2} />
+                  </div>
+                  <span className="font-semibold text-[13px] text-foreground truncate">{a.label}</span>
+                </button>
+              ))}
+            </div>
+            <ShareRentRecorderCard />
+          </div>
+        )}
 
         </main>
       </div>
