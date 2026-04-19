@@ -15,6 +15,7 @@ export interface TrustProfile {
     member_since: string;
     roles: string[];
     primary_role: string;
+    is_supporter?: boolean;
   };
   trust: {
     score: number;
@@ -22,6 +23,7 @@ export interface TrustProfile {
     data_points: number;
     borrowing_limit_ugx: number;
     breakdown: {
+      supporter?: number;
       payment: number;
       wallet: number;
       network: number;
@@ -30,6 +32,7 @@ export interface TrustProfile {
       landlord: number;
     };
     weights: {
+      supporter?: number;
       payment: number;
       wallet: number;
       network: number;
@@ -37,6 +40,15 @@ export interface TrustProfile {
       behavior: number;
       landlord: number;
     };
+  };
+  supporter_activity?: {
+    is_supporter: boolean;
+    portfolio_value: number;
+    active_portfolios: number;
+    total_roi_earned: number;
+    roi_paid_30d: number;
+    roi_paid_180d: number;
+    roi_monthly_avg: number;
   };
   payment_history: {
     total_rent_plans: number;
@@ -56,6 +68,8 @@ export interface TrustProfile {
     daily_avg: number;
     weekly_avg: number;
     monthly_avg: number;
+    wallet_monthly?: number;
+    roi_monthly?: number;
     inflow_30d?: number;
     outflow_30d?: number;
     window_days: number;

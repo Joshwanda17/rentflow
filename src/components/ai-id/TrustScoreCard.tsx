@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Shield, TrendingUp, Wallet, Users, BadgeCheck, MapPin, Home } from 'lucide-react';
+import { Shield, TrendingUp, Wallet, Users, BadgeCheck, MapPin, Home, Sparkles } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatUGX } from '@/lib/rentCalculations';
 import { getRiskTierLabel } from '@/lib/welileAiId';
@@ -110,6 +110,15 @@ export function TrustScoreCard({ trust }: Props) {
         {/* Breakdown bars */}
         <div className="space-y-2 pt-2 border-t border-border/50">
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Score Breakdown</p>
+          {trust.weights.supporter !== undefined && (
+            <BreakdownBar
+              icon={<Sparkles className="h-3 w-3 text-amber-500" />}
+              label="Supporter Portfolio & ROI"
+              weight={trust.weights.supporter}
+              score={trust.breakdown.supporter ?? 0}
+              highlight
+            />
+          )}
           <BreakdownBar
             icon={<TrendingUp className="h-3 w-3" />}
             label="Payment Behavior"
@@ -157,16 +166,18 @@ function BreakdownBar({
   label,
   weight,
   score,
+  highlight = false,
 }: {
   icon: React.ReactNode;
   label: string;
   weight: number;
   score: number;
+  highlight?: boolean;
 }) {
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between text-xs">
-        <div className="flex items-center gap-1.5 text-muted-foreground">
+        <div className={`flex items-center gap-1.5 ${highlight ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}>
           {icon}
           <span>{label}</span>
           <span className="text-[10px] opacity-60">({weight}%)</span>
@@ -176,9 +187,9 @@ function BreakdownBar({
       <div className="h-1.5 bg-muted rounded-full overflow-hidden">
         <motion.div
           initial={{ width: 0 }}
-          animate={{ width: `${score}%` }}
+          animate={{ width: `${(score / weight) * 100}%` }}
           transition={{ duration: 0.8, ease: 'easeOut' }}
-          className="h-full bg-gradient-to-r from-primary to-primary/60 rounded-full"
+          className={`h-full rounded-full ${highlight ? 'bg-gradient-to-r from-amber-500 to-amber-300' : 'bg-gradient-to-r from-primary to-primary/60'}`}
         />
       </div>
     </div>
