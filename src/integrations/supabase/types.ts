@@ -11353,6 +11353,7 @@ export type Database = {
         Args: { p_agent_id: string; p_partner_id: string }
         Returns: number
       }
+      get_public_trust_profile: { Args: { p_ai_id: string }; Returns: Json }
       get_rent_requests_summary: { Args: never; Returns: Json }
       get_shadow_match_rate: {
         Args: { p_hours?: number }
@@ -11382,6 +11383,7 @@ export type Database = {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      get_user_trust_profile: { Args: { p_ai_id: string }; Returns: Json }
       get_wallet_ops_stats: { Args: { p_period?: string }; Returns: Json }
       get_wallet_reconciliation: {
         Args: never
@@ -11542,6 +11544,7 @@ export type Database = {
         Args: { p_reset_by: string; p_user_id: string }
         Returns: boolean
       }
+      resolve_ai_id_to_user: { Args: { p_ai_id: string }; Returns: string }
       resolve_welile_ai_id: { Args: { ai_id: string }; Returns: string }
       search_agents: {
         Args: { result_limit?: number; search_term?: string }
