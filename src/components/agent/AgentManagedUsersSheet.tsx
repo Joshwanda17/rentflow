@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Search, UserCog, Wallet, MapPin, Mail, ShieldCheck, ExternalLink, Phone } from 'lucide-react';
+import { Loader2, Search, UserCog, Wallet, MapPin, Mail, ShieldCheck, ExternalLink, Phone, Plus } from 'lucide-react';
 import ResidenceAddressForm from '@/components/profile/ResidenceAddressForm';
 import EmailEditor from '@/components/profile/EmailEditor';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -31,6 +31,7 @@ interface ManagedUser {
 export function AgentManagedUsersSheet({ open, onOpenChange, agentId }: Props) {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<ManagedUser | null>(null);
+  const [showAddPicker, setShowAddPicker] = useState(false);
 
   const { data: users = [], isLoading, refetch } = useQuery({
     queryKey: ['agent-managed-users', agentId],
@@ -46,6 +47,36 @@ export function AgentManagedUsersSheet({ open, onOpenChange, agentId }: Props) {
       return (data || []) as ManagedUser[];
     },
   });
+
+  // Referred users not yet flagged as managed (candidates to add)
+  const { data: candidates = [], refetch: refetchCandidates } = useQuery({
+    queryKey: ['agent-manageable-candidates', agentId],
+    enabled: open && showAddPicker,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone, email, verified, managed_by_agent, managing_agent_id')
+        .eq('referrer_id', agentId)
+        .eq('managed_by_agent', false)
+        .order('full_name');
+      return (data || []) as ManagedUser[];
+    },
+  });
+
+  const flagAsManaged = async (userId: string) => {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ managed_by_agent: true, managing_agent_id: agentId })
+      .eq('id', userId);
+    if (error) { toast.error('Failed: ' + error.message); return; }
+    await supabase.from('agent_managed_user_actions').insert({
+      agent_id: agentId, user_id: userId, action_type: 'management_started', details: {},
+    });
+    toast.success('User added — you can now manage their profile.');
+    setShowAddPicker(false);
+    refetch();
+    refetchCandidates();
+  };
 
   const filtered = users.filter(u => {
     const q = search.trim().toLowerCase();
