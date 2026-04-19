@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Activity, MapPin, Home, Wallet } from 'lucide-react';
+import { Activity, MapPin, Home } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatUGX } from '@/lib/rentCalculations';

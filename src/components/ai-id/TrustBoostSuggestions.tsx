@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Sparkles, ChevronRight, MapPin, Home, Wallet, Users, IdCard, Activity } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+
 import { useNavigate } from 'react-router-dom';
 import type { TrustProfile } from '@/hooks/useTrustProfile';
 
