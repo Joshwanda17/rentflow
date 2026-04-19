@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Save, User, Phone, Mail, IdCard, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
@@ -129,12 +130,13 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
             <Label className="text-xs flex items-center gap-1.5">
               <Phone className="h-3 w-3" /> Phone Number *
             </Label>
-            <Input
-              type="tel"
+            <PhoneInput
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(v) => setPhone(v)}
+              onContactPicked={({ name }) => {
+                if (name && !fullName.trim()) setFullName(name);
+              }}
               placeholder="+256712345678"
-              inputMode="tel"
             />
             {errors.phone && <p className="text-xs text-destructive mt-1">{errors.phone}</p>}
           </div>
