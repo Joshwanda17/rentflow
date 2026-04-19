@@ -29,6 +29,8 @@ interface TxEntry {
   date: string;
   status?: string;
   category?: string;
+  collectionId?: string;
+  reversed?: boolean;
 }
 
 export function FloatTransactionHistory({ open, onOpenChange }: Props) {
