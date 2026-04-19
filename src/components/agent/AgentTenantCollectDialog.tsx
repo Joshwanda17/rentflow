@@ -77,6 +77,7 @@ export function AgentTenantCollectDialog({
       }
 
       setResult(res);
+      setConfirming(false);
       refetchBalances();
 
       // 🎉 Trigger commission celebration — pure UI, no DB calls
