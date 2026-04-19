@@ -97,3 +97,7 @@ project_id = "wirntoujqoyjobfhyelc"
     verify_jwt = false
   [functions.process-email-queue]
     verify_jwt = true
+  [functions.agent-directory]
+    verify_jwt = false
+  [functions.agent-ops-balances]
+    verify_jwt = false
