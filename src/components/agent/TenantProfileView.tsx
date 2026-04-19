@@ -18,6 +18,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useGeoLocation } from '@/hooks/useGeoLocation';
 import { createShortLink } from '@/lib/createShortLink';
 import { AgentTenantCollectDialog } from './AgentTenantCollectDialog';
+import { ReverseAllocationDialog } from './ReverseAllocationDialog';
+import { Undo2 } from 'lucide-react';
 import { shareTenantProfileWhatsApp, type TenantProfilePdfData } from '@/lib/tenantProfilePdf';
 import { UserAvatar } from '@/components/UserAvatar';
 import { RegisterSubAgentDialog } from './RegisterSubAgentDialog';
@@ -106,13 +108,32 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
   // Edit tenant dialog
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
+  // Last reversible allocation (for inline Reverse button)
+  const [lastAllocation, setLastAllocation] = useState<{ id: string; amount: number; created_at: string } | null>(null);
+  const [reverseDialogOpen, setReverseDialogOpen] = useState(false);
+
+  const loadLastAllocation = async () => {
+    if (!user?.id) return;
+    const { data } = await supabase
+      .from('agent_collections')
+      .select('id, amount, created_at, notes')
+      .eq('agent_id', user.id)
+      .eq('tenant_id', tenantId)
+      .ilike('notes', '%float allocation%')
+      .order('created_at', { ascending: false })
+      .limit(5);
+    const reversible = (data || []).find((r: any) => !(r.notes || '').toLowerCase().includes('[reversed'));
+    setLastAllocation(reversible ? { id: reversible.id, amount: Number(reversible.amount), created_at: reversible.created_at } : null);
+  };
+
   const aiId = generateWelileAiId(tenantId);
   const navigate = useNavigate();
 
   useEffect(() => {
     loadFullProfile();
     refetchFloat();
-  }, [tenantId]);
+    loadLastAllocation();
+  }, [tenantId, user?.id]);
 
   const loadFullProfile = async () => {
     setLoading(true);
@@ -591,6 +612,18 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
                 {floatLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Banknote className="h-6 w-6" />}
                 {floatLoading ? 'Loading float...' : `Pay ${formatUGX(Math.min(summary.currentOutstanding, agentFloatBalance))} from Float`}
               </Button>
+
+              {lastAllocation && (
+                <Button
+                  onClick={() => setReverseDialogOpen(true)}
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-2 text-xs h-9 border-warning/40 text-warning hover:bg-warning/10 hover:text-warning"
+                >
+                  <Undo2 className="h-3.5 w-3.5" />
+                  Reverse last allocation — {formatUGX(lastAllocation.amount)}
+                </Button>
+              )}
             </div>
 
             {/* ── Option 2: Auto-Collect from Tenant Wallet ── */}
@@ -888,6 +921,18 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
               {floatLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Banknote className="h-5 w-5" />}
               {floatLoading ? 'Loading float...' : `Pay from Operations Float — ${formatUGX(Math.min(summary.currentOutstanding, agentFloatBalance))}`}
             </Button>
+
+            {lastAllocation && (
+              <Button
+                onClick={() => setReverseDialogOpen(true)}
+                variant="outline"
+                size="sm"
+                className="w-full gap-2 text-xs h-9 border-warning/40 text-warning hover:bg-warning/10 hover:text-warning"
+              >
+                <Undo2 className="h-3.5 w-3.5" />
+                Reverse last allocation — {formatUGX(lastAllocation.amount)}
+              </Button>
+            )}
           </div>
         )}
 
@@ -1019,9 +1064,24 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
             setCollectDialogOpen(false);
             loadFullProfile();
             refetchFloat();
+            loadLastAllocation();
           }}
         />
       )}
+
+      {/* Reverse last allocation dialog */}
+      <ReverseAllocationDialog
+        open={reverseDialogOpen}
+        onOpenChange={setReverseDialogOpen}
+        collectionId={lastAllocation?.id || null}
+        amount={lastAllocation?.amount || 0}
+        tenantName={profile?.full_name}
+        onReversed={() => {
+          loadFullProfile();
+          refetchFloat();
+          loadLastAllocation();
+        }}
+      />
 
       {/* Sub-Agent Registration Dialog — pre-filled with tenant info */}
       <RegisterSubAgentDialog
