@@ -1884,6 +1884,33 @@ export type Database = {
           },
         ]
       }
+      agent_managed_user_actions: {
+        Row: {
+          action_type: string
+          agent_id: string
+          created_at: string
+          details: Json | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          agent_id: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          agent_id?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       agent_rebalance_records: {
         Row: {
           agent_id: string
@@ -7470,6 +7497,7 @@ export type Database = {
           country: string | null
           country_code: string | null
           created_at: string
+          district: string | null
           email: string
           frozen_at: string | null
           frozen_reason: string | null
@@ -7477,20 +7505,30 @@ export type Database = {
           id: string
           is_frozen: boolean
           is_seller: boolean
+          landmark: string | null
           last_active_at: string | null
           last_continuous_location_at: string | null
+          managed_by_agent: boolean
+          managing_agent_id: string | null
           mobile_money_number: string | null
           mobile_money_provider: string | null
           monthly_rent: number | null
           must_change_password: boolean | null
           national_id: string | null
+          parish: string | null
           phone: string
           referrer_id: string | null
+          region: string | null
           rent_discount_active: boolean
+          residence_lat: number | null
+          residence_lng: number | null
+          residence_updated_at: string | null
           seller_application_status: string | null
+          sub_county: string | null
           territory: string | null
           updated_at: string
           verified: boolean
+          village: string | null
           wallet_id: string | null
           whatsapp_verified: boolean | null
           whatsapp_verified_at: string | null
@@ -7503,6 +7541,7 @@ export type Database = {
           country?: string | null
           country_code?: string | null
           created_at?: string
+          district?: string | null
           email: string
           frozen_at?: string | null
           frozen_reason?: string | null
@@ -7510,20 +7549,30 @@ export type Database = {
           id: string
           is_frozen?: boolean
           is_seller?: boolean
+          landmark?: string | null
           last_active_at?: string | null
           last_continuous_location_at?: string | null
+          managed_by_agent?: boolean
+          managing_agent_id?: string | null
           mobile_money_number?: string | null
           mobile_money_provider?: string | null
           monthly_rent?: number | null
           must_change_password?: boolean | null
           national_id?: string | null
+          parish?: string | null
           phone: string
           referrer_id?: string | null
+          region?: string | null
           rent_discount_active?: boolean
+          residence_lat?: number | null
+          residence_lng?: number | null
+          residence_updated_at?: string | null
           seller_application_status?: string | null
+          sub_county?: string | null
           territory?: string | null
           updated_at?: string
           verified?: boolean
+          village?: string | null
           wallet_id?: string | null
           whatsapp_verified?: boolean | null
           whatsapp_verified_at?: string | null
@@ -7536,6 +7585,7 @@ export type Database = {
           country?: string | null
           country_code?: string | null
           created_at?: string
+          district?: string | null
           email?: string
           frozen_at?: string | null
           frozen_reason?: string | null
@@ -7543,20 +7593,30 @@ export type Database = {
           id?: string
           is_frozen?: boolean
           is_seller?: boolean
+          landmark?: string | null
           last_active_at?: string | null
           last_continuous_location_at?: string | null
+          managed_by_agent?: boolean
+          managing_agent_id?: string | null
           mobile_money_number?: string | null
           mobile_money_provider?: string | null
           monthly_rent?: number | null
           must_change_password?: boolean | null
           national_id?: string | null
+          parish?: string | null
           phone?: string
           referrer_id?: string | null
+          region?: string | null
           rent_discount_active?: boolean
+          residence_lat?: number | null
+          residence_lng?: number | null
+          residence_updated_at?: string | null
           seller_application_status?: string | null
+          sub_county?: string | null
           territory?: string | null
           updated_at?: string
           verified?: boolean
+          village?: string | null
           wallet_id?: string | null
           whatsapp_verified?: boolean | null
           whatsapp_verified_at?: string | null
