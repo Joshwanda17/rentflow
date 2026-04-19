@@ -83,17 +83,49 @@ export default function HolisticProfile({ publicMode = false }: Props) {
     );
   }
 
+  // Gate share/copy actions behind borrower vouch disclosure (self only)
+  const requireDisclosure = (action: 'whatsapp' | 'link') => {
+    if (profile?.permissions.is_self && !hasAcknowledged) {
+      setPendingShareAction(action);
+      setShowDisclosure(true);
+      return true;
+    }
+    return false;
+  };
+
   const copyLink = () => {
+    if (!profile) return;
+    if (requireDisclosure('link')) return;
     navigator.clipboard.writeText(buildProfileShareUrl(profile.ai_id));
     toast.success('Profile link copied');
   };
 
   const copyId = () => {
+    if (!profile) return;
     navigator.clipboard.writeText(profile.ai_id);
     toast.success('AI ID copied');
   };
 
-  const shareWhatsApp = () => shareProfileOnWhatsApp(profile);
+  const shareWhatsApp = () => {
+    if (!profile) return;
+    if (requireDisclosure('whatsapp')) return;
+    shareProfileOnWhatsApp(profile);
+  };
+
+  const handleDisclosureAcknowledge = async () => {
+    if (!profile) return false;
+    const ok = await acknowledge({ aiId: profile.ai_id, vouchedLimit: profile.trust.borrowing_limit_ugx });
+    if (ok && pendingShareAction) {
+      // Auto-execute the queued share action
+      if (pendingShareAction === 'whatsapp') shareProfileOnWhatsApp(profile);
+      else if (pendingShareAction === 'link') {
+        navigator.clipboard.writeText(buildProfileShareUrl(profile.ai_id));
+        toast.success('Profile link copied');
+      }
+      setPendingShareAction(null);
+    }
+    return ok;
+  };
 
   const downloadPdf = async () => {
     setDownloadingPdf(true);
