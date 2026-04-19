@@ -1,14 +1,16 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { format } from 'date-fns';
-import { ArrowDownLeft, ArrowUpRight, History, Users, Wallet, FileText } from 'lucide-react';
-import { useMemo } from 'react';
+import { ArrowDownLeft, ArrowUpRight, History, Users, Wallet, FileText, Undo2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ReverseAllocationDialog } from './ReverseAllocationDialog';
 
 interface Props {
   open: boolean;
