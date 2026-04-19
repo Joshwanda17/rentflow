@@ -343,6 +343,12 @@ export default function HolisticProfile({ publicMode = false }: Props) {
           </Card>
         </motion.div>
 
+        {/* Lender record-loan card (visible to other authenticated users) */}
+        {!profile.permissions.is_self && <LenderRecordLoanCard profile={profile} />}
+
+        {/* Borrower's own vouched loans (self only) */}
+        {profile.permissions.is_self && <MyVouchedLoansCard />}
+
         {/* Disclaimer */}
         <p className="text-[10px] text-muted-foreground text-center px-4 leading-relaxed">
           This is an informational summary only. It does not constitute a credit report, approval for any
