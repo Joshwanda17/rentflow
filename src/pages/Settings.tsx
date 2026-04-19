@@ -30,6 +30,8 @@ const MyLandlordsSection = lazy(() => import('@/components/tenant/MyLandlordsSec
 const MyTenantsSection = lazy(() => import('@/components/landlord/MyTenantsSection'));
 const RentDiscountToggle = lazy(() => import('@/components/tenant/RentDiscountToggle'));
 const StaffAccessCard = lazy(() => import('@/components/settings/StaffAccessCard'));
+const ResidenceAddressForm = lazy(() => import('@/components/profile/ResidenceAddressForm'));
+const EmailEditor = lazy(() => import('@/components/profile/EmailEditor'));
 
 class SectionBoundary extends Component<{ children: ReactNode; name: string }, { hasError: boolean }> {
   state = { hasError: false };
@@ -259,10 +261,7 @@ export default function Settings() {
                       <Label htmlFor="fullName" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Your Name</Label>
                       <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" className="pl-10 h-12 rounded-xl" /></div>
                     </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="email" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email</Label>
-                      <div className="relative"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="email" value={profile?.email || ''} disabled className="pl-10 h-12 rounded-xl bg-muted/50" /></div>
-                    </div>
+                    {/* Email is now editable via dedicated EmailEditor below */}
                     <div className="space-y-1.5">
                       <Label htmlFor="phone" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Phone</Label>
                       <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. 0783673998" className="pl-10 h-12 rounded-xl" /></div>
@@ -298,6 +297,14 @@ export default function Settings() {
                     <Button onClick={handleSave} disabled={saving} className="w-full gap-2 h-12 rounded-xl text-sm font-bold">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save Changes</Button>
                   </CardContent>
                 </Card>
+                {user && profile && (
+                  <LazySection name="EmailEditor">
+                    <EmailEditor mode="self" userId={user.id} currentEmail={profile.email} onSaved={(e) => setProfile({ ...profile, email: e })} />
+                  </LazySection>
+                )}
+                {user && (
+                  <LazySection name="ResidenceAddress"><ResidenceAddressForm userId={user.id} /></LazySection>
+                )}
                 <LazySection name="Wallet"><WalletCard /></LazySection>
               </div>
             )}
