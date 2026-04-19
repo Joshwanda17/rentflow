@@ -107,6 +107,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const aiId = generateWelileAiId(tenantId);
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadFullProfile();
