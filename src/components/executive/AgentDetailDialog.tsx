@@ -373,12 +373,46 @@ function CollectionsList({ items }: any) {
   return (
     <Section title={`Recent Collections (${items.length})`}>
       <div className="space-y-1.5 max-h-96 overflow-auto">
-        {items.map((c: any) => (
-          <Row key={c.id}
-            primary={`${fmt(c.amount)} UGX`}
-            secondary={`${c.payment_method || '—'} · ${c.momo_payer_name || c.location_name || '—'}`}
-            meta={format(new Date(c.created_at), 'dd MMM HH:mm')} />
-        ))}
+        {items.map((c: any) => {
+          const who = c.tenant?.full_name || c.momo_payer_name || c.location_name || (c.is_allocation ? 'Tenant payment' : '—');
+          const label = c.is_allocation ? 'Float allocation' : (c.payment_method || '—');
+          return (
+            <Row key={c.id}
+              primary={`${c.is_allocation ? '−' : '+'}${fmt(c.amount)} UGX`}
+              secondary={`${label} · ${who}`}
+              meta={format(new Date(c.created_at), 'dd MMM HH:mm')}
+              badge={c.is_allocation ? 'allocation' : c.payment_method}
+              tone={c.is_allocation ? 'text-blue-700' : 'text-emerald-700'} />
+          );
+        })}
+      </div>
+    </Section>
+  );
+}
+
+function AllocationsList({ items }: any) {
+  if (!items?.length) return <Section title="Float Allocations to Tenants"><Empty text="No allocations yet" /></Section>;
+  const total = items.reduce((s: number, a: any) => s + Number(a.amount), 0);
+  const totalCommission = Math.round(total * 0.10);
+  return (
+    <Section title={`Float Allocations · ${items.length} · Total ${fmtShort(total)} UGX`}>
+      <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-2 mb-2 text-xs text-emerald-800">
+        💰 Estimated commission earned: <strong>+{fmtShort(totalCommission)} UGX</strong> (10% of allocations)
+      </div>
+      <div className="space-y-1.5 max-h-96 overflow-auto">
+        {items.map((a: any) => {
+          const tenantName = a.tenant?.full_name || 'Unknown tenant';
+          const tenantPhone = a.tenant?.phone ? ` · ${a.tenant.phone}` : '';
+          const commission = Math.round(Number(a.amount) * 0.10);
+          return (
+            <Row key={a.id}
+              primary={`${fmt(a.amount)} UGX → ${tenantName}`}
+              secondary={`Commission +${fmt(commission)}${tenantPhone}`}
+              meta={format(new Date(a.created_at), 'dd MMM HH:mm')}
+              badge="paid"
+              tone="text-blue-700" />
+          );
+        })}
       </div>
     </Section>
   );
