@@ -27,6 +27,7 @@ import {
   ArrowLeftRight,
   Building2,
   Briefcase,
+  UserCog,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -77,6 +78,7 @@ import { VerificationOpportunitiesButton } from '@/components/agent/Verification
 import { CreditVerificationButton } from '@/components/agent/CreditVerificationButton';
 import { AgentMyRentRequestsSheet } from '@/components/agent/AgentMyRentRequestsSheet';
 import { AgentTenantsSheet } from '@/components/agent/AgentTenantsSheet';
+import { AgentManagedUsersSheet } from '@/components/agent/AgentManagedUsersSheet';
 
 import { AgentTopUpTenantDialog } from '@/components/agent/AgentTopUpTenantDialog';
 import { AgentInvestForPartnerDialog } from '@/components/agent/AgentInvestForPartnerDialog';
@@ -178,6 +180,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [applyingToSell, setApplyingToSell] = useState(false);
   const [creditOpen, setCreditOpen] = useState(false);
   const [subAgentsSheetOpen, setSubAgentsSheetOpen] = useState(false);
+  const [managedUsersOpen, setManagedUsersOpen] = useState(false);
   const [shareLinkOpen, setShareLinkOpen] = useState(false);
   const [funderSheetOpen, setFunderSheetOpen] = useState(false);
   const [partnerDashboardOpen, setPartnerDashboardOpen] = useState(false);
@@ -463,6 +466,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               {[
                 { icon: FileText, label: 'New Tenant', onClick: () => setRentRequestOpen(true) },
                 { icon: Users, label: 'My Tenants', onClick: () => setTenantsSheetOpen(true) },
+                { icon: UserCog, label: 'Managed Users', onClick: () => setManagedUsersOpen(true) },
                 { icon: Banknote, label: 'Pay Rent', onClick: () => setTopUpTenantOpen(true) },
                 { icon: Home, label: 'List House', onClick: () => setListHouseOpen(true) },
               ].map((a) => (
