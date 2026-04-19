@@ -105,9 +105,11 @@ export function FloatTransactionHistory({ open, onOpenChange }: Props) {
       });
 
       (allocations || []).forEach(a => {
-        const isAllocation = (a.notes || '').toLowerCase().includes('float allocation');
+        const notesLower = (a.notes || '').toLowerCase();
+        const isAllocation = notesLower.includes('float allocation');
+        const isReversed = notesLower.includes('[reversed');
         if (isAllocation) {
-          allocated += Number(a.amount);
+          if (!isReversed) allocated += Number(a.amount);
           entries.push({
             id: `a-${a.id}`,
             kind: 'allocation',
@@ -116,6 +118,8 @@ export function FloatTransactionHistory({ open, onOpenChange }: Props) {
             description: a.notes || 'Float allocation to tenant',
             counterparty: a.tenant_id ? tenantMap[a.tenant_id] || 'Tenant' : 'Tenant',
             date: a.created_at,
+            collectionId: a.id,
+            reversed: isReversed,
           });
         }
       });
