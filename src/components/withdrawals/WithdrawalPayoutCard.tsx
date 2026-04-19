@@ -173,15 +173,15 @@ export function WithdrawalPayoutCard({
               <div className="space-y-2 pt-2 border-t border-border/50">
                 <div className="rounded-md bg-warning/10 border border-warning/30 px-2 py-1.5 text-[10px] font-semibold text-warning flex items-start gap-1">
                   <Clock className="h-3 w-3 mt-0.5 shrink-0" />
-                  <span>NOT PAID YET — money has not been sent. You must enter the {isBank ? 'bank reference' : isMoMo ? 'MoMo TID' : 'voucher number'} and press <strong>Confirm Paid</strong> below.</span>
+                  <span>NOT PAID YET — execute the payout via <strong>{methodLabel}</strong> first, then enter the {isBank ? 'bank reference / TID' : isMoMo ? 'MoMo Transaction ID' : 'payout code shared by the user'} and press <strong>Confirm Paid</strong>.</span>
                 </div>
                 <p className="text-[10px] font-semibold text-primary flex items-start gap-1">
                   <ArrowRight className="h-3 w-3 mt-0.5 shrink-0" />
-                  <span>{isBank ? 'Enter bank transfer reference after depositing' : isMoMo ? 'Enter MoMo TID after sending' : 'Enter cash voucher / receipt number'}</span>
+                  <span>{isBank ? 'Send bank transfer to the account above, then enter the bank reference / TID' : isMoMo ? 'Send MoMo to the number above, then enter the TID from your confirmation SMS' : 'Coordinate with the user by phone, hand over cash, then enter the payout code they share'}</span>
                 </p>
                 <div className="flex flex-col sm:flex-row gap-2">
                   <Input
-                    placeholder={isBank ? 'Bank reference / TID...' : isMoMo ? 'MoMo Transaction ID...' : 'Cash voucher number...'}
+                    placeholder={isBank ? 'Bank reference / TID...' : isMoMo ? 'MoMo Transaction ID (TID)...' : 'Payout code from user...'}
                     value={reference}
                     onChange={e => setReference(e.target.value)}
                     className="text-xs h-10 font-mono flex-1 min-w-0"

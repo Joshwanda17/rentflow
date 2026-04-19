@@ -18,7 +18,10 @@ export default function AgentCashPayoutsPage() {
           <ArrowLeft className="h-3.5 w-3.5" />
           Back
         </Button>
-        <h1 className="text-lg font-bold">💵 Cash Payouts</h1>
+        <div>
+          <h1 className="text-lg font-bold">💸 Merchant Payouts</h1>
+          <p className="text-[11px] text-muted-foreground mt-0.5">Mobile Money · Bank · Cash — claim, execute, confirm</p>
+        </div>
         <AgentCashPayoutsTab />
       </div>
     </div>
