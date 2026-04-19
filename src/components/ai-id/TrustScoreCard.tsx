@@ -1,0 +1,176 @@
+import { motion } from 'framer-motion';
+import { Shield, TrendingUp, Wallet, Users, BadgeCheck } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { formatUGX } from '@/lib/rentCalculations';
+import { getRiskTierLabel } from '@/lib/welileAiId';
+import type { TrustProfile } from '@/hooks/useTrustProfile';
+
+interface Props {
+  trust: TrustProfile['trust'];
+}
+
+const tierGradient: Record<string, string> = {
+  excellent: 'from-emerald-500 to-emerald-700',
+  good: 'from-green-500 to-green-700',
+  standard: 'from-blue-500 to-blue-700',
+  caution: 'from-amber-500 to-amber-700',
+  high_risk: 'from-red-500 to-red-700',
+  new: 'from-slate-400 to-slate-600',
+};
+
+const tierBg: Record<string, string> = {
+  excellent: 'bg-emerald-500/5 border-emerald-500/20',
+  good: 'bg-green-500/5 border-green-500/20',
+  standard: 'bg-blue-500/5 border-blue-500/20',
+  caution: 'bg-amber-500/5 border-amber-500/20',
+  high_risk: 'bg-red-500/5 border-red-500/20',
+  new: 'bg-muted/40 border-border',
+};
+
+export function TrustScoreCard({ trust }: Props) {
+  const tier = getRiskTierLabel(trust.tier);
+  const score = Math.round(trust.score);
+  const isNew = trust.tier === 'new';
+  const gradient = tierGradient[trust.tier] || tierGradient.standard;
+  const bg = tierBg[trust.tier] || tierBg.standard;
+
+  // Circular progress
+  const radius = 52;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (score / 100) * circumference;
+
+  return (
+    <Card className={`overflow-hidden ${bg}`}>
+      <CardContent className="p-5 space-y-4">
+        {/* Score ring */}
+        <div className="flex items-center gap-5">
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 200, damping: 18 }}
+            className="relative shrink-0"
+          >
+            <svg width="120" height="120" viewBox="0 0 120 120" className="-rotate-90">
+              <circle
+                cx="60"
+                cy="60"
+                r={radius}
+                fill="none"
+                stroke="hsl(var(--muted))"
+                strokeWidth="8"
+              />
+              <motion.circle
+                cx="60"
+                cy="60"
+                r={radius}
+                fill="none"
+                stroke="url(#scoreGrad)"
+                strokeWidth="8"
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                initial={{ strokeDashoffset: circumference }}
+                animate={{ strokeDashoffset: isNew ? circumference : offset }}
+                transition={{ duration: 1.2, ease: 'easeOut' }}
+              />
+              <defs>
+                <linearGradient id="scoreGrad" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor="hsl(var(--primary))" />
+                  <stop offset="100%" stopColor="hsl(var(--primary) / 0.5)" />
+                </linearGradient>
+              </defs>
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-3xl font-bold text-foreground">{isNew ? '–' : score}</span>
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">/ 100</span>
+            </div>
+          </motion.div>
+
+          <div className="flex-1 space-y-2">
+            <div className="flex items-center gap-1.5">
+              <Shield className="h-4 w-4 text-primary" />
+              <span className="text-xs uppercase tracking-wider text-muted-foreground">Welile Trust Score</span>
+            </div>
+            <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-bold text-white bg-gradient-to-r ${gradient}`}>
+              {tier.label}
+            </div>
+            {!isNew && trust.borrowing_limit_ugx > 0 && (
+              <div className="pt-1">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Welile Vouches Up To</p>
+                <p className="font-bold text-emerald-600 text-base">{formatUGX(trust.borrowing_limit_ugx)}</p>
+              </div>
+            )}
+            {isNew && (
+              <p className="text-xs text-muted-foreground">
+                Building trust… need {Math.max(5 - trust.data_points, 1)} more activities
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Breakdown bars */}
+        <div className="space-y-2 pt-2 border-t border-border/50">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Score Breakdown</p>
+          <BreakdownBar
+            icon={<TrendingUp className="h-3 w-3" />}
+            label="Payment Behavior"
+            weight={trust.weights.payment}
+            score={trust.breakdown.payment}
+          />
+          <BreakdownBar
+            icon={<Wallet className="h-3 w-3" />}
+            label="Wallet Activity"
+            weight={trust.weights.wallet}
+            score={trust.breakdown.wallet}
+          />
+          <BreakdownBar
+            icon={<Users className="h-3 w-3" />}
+            label="Network & Contribution"
+            weight={trust.weights.network}
+            score={trust.breakdown.network}
+          />
+          <BreakdownBar
+            icon={<BadgeCheck className="h-3 w-3" />}
+            label="Verification"
+            weight={trust.weights.verification}
+            score={trust.breakdown.verification}
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function BreakdownBar({
+  icon,
+  label,
+  weight,
+  score,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  weight: number;
+  score: number;
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-xs">
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          {icon}
+          <span>{label}</span>
+          <span className="text-[10px] opacity-60">({weight}%)</span>
+        </div>
+        <span className="font-mono font-medium text-foreground">{Math.round(score)}</span>
+      </div>
+      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${score}%` }}
+          transition={{ duration: 0.8, ease: 'easeOut' }}
+          className="h-full bg-gradient-to-r from-primary to-primary/60 rounded-full"
+        />
+      </div>
+    </div>
+  );
+}
+
+export default TrustScoreCard;

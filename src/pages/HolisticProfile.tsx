@@ -1,0 +1,371 @@
+import { useParams, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import {
+  ArrowLeft, Copy, FileDown, Loader2, AlertTriangle, BadgeCheck, Phone, Mail,
+  IdCard, Calendar, TrendingUp, Wallet, Users, Banknote, RefreshCw, MessageCircle, Link as LinkIcon,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { UserAvatar } from '@/components/UserAvatar';
+import { useTrustProfile } from '@/hooks/useTrustProfile';
+import { TrustScoreCard } from '@/components/ai-id/TrustScoreCard';
+import { AiIdBadge } from '@/components/ai-id/AiIdBadge';
+import { formatUGX } from '@/lib/rentCalculations';
+import { buildProfileShareUrl, shareProfileOnWhatsApp } from '@/lib/shareTrustProfile';
+import { isValidAiId } from '@/lib/welileAiId';
+import { toast } from 'sonner';
+
+interface Props {
+  /** When true, uses get_public_trust_profile (PII hidden, no auth required) */
+  publicMode?: boolean;
+}
+
+export default function HolisticProfile({ publicMode = false }: Props) {
+  const { aiId } = useParams<{ aiId: string }>();
+  const navigate = useNavigate();
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  const cleanAiId = aiId?.toUpperCase();
+  const validId = cleanAiId && isValidAiId(cleanAiId);
+
+  const { profile, loading, error, refresh } = useTrustProfile(validId ? cleanAiId : undefined, { publicMode });
+
+  if (!validId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-background">
+        <Card className="max-w-md w-full">
+          <CardContent className="p-6 text-center space-y-3">
+            <AlertTriangle className="h-10 w-10 text-amber-500 mx-auto" />
+            <h2 className="text-lg font-semibold">Invalid Welile AI ID</h2>
+            <p className="text-sm text-muted-foreground">Expected format: WEL-XXXXXX</p>
+            <Button onClick={() => navigate(-1)} variant="outline" size="sm" className="gap-2">
+              <ArrowLeft className="h-4 w-4" /> Go Back
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (loading && !profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error || !profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-background">
+        <Card className="max-w-md w-full">
+          <CardContent className="p-6 text-center space-y-3">
+            <AlertTriangle className="h-10 w-10 text-destructive mx-auto" />
+            <h2 className="text-lg font-semibold">Profile Unavailable</h2>
+            <p className="text-sm text-muted-foreground">{error || 'Could not load this profile.'}</p>
+            <Button onClick={() => navigate(-1)} variant="outline" size="sm" className="gap-2">
+              <ArrowLeft className="h-4 w-4" /> Go Back
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(buildProfileShareUrl(profile.ai_id));
+    toast.success('Profile link copied');
+  };
+
+  const copyId = () => {
+    navigator.clipboard.writeText(profile.ai_id);
+    toast.success('AI ID copied');
+  };
+
+  const shareWhatsApp = () => shareProfileOnWhatsApp(profile);
+
+  const downloadPdf = async () => {
+    setDownloadingPdf(true);
+    try {
+      const { generateTrustProfilePdf } = await import('@/lib/trustProfilePdf');
+      const blob = await generateTrustProfilePdf(profile);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Welile_Profile_${profile.ai_id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('PDF downloaded');
+    } catch (e) {
+      console.error(e);
+      toast.error('Could not generate PDF');
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
+  const memberSince = new Date(profile.identity.member_since).toLocaleDateString('en-UG', {
+    month: 'long',
+    year: 'numeric',
+  });
+
+  return (
+    <div className="min-h-screen bg-background pb-24">
+      {/* Top bar */}
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b border-border/50">
+        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0">
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="font-semibold text-base flex-1 truncate">Welile Trust Profile</h1>
+          <Button variant="ghost" size="icon" onClick={refresh} title="Refresh">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="max-w-2xl mx-auto px-4 py-5 space-y-4">
+        {/* Identity header */}
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex items-start gap-4">
+                <UserAvatar
+                  fullName={profile.identity.full_name}
+                  avatarUrl={profile.identity.avatar_url || undefined}
+                  size="lg"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-xl font-bold truncate">{profile.identity.full_name}</h2>
+                    {profile.identity.verified && (
+                      <BadgeCheck className="h-5 w-5 text-blue-500 shrink-0" />
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                    <AiIdBadge aiId={profile.ai_id} size="sm" staticMode />
+                    <Badge variant="secondary" className="text-[10px] capitalize">
+                      {profile.identity.primary_role}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1.5">
+                    <Calendar className="h-3 w-3" />
+                    Welile member since {memberSince}
+                  </p>
+                </div>
+              </div>
+
+              {/* PII (visible to self/staff only) */}
+              {profile.permissions.can_see_pii && (
+                <div className="mt-4 pt-4 border-t border-border/50 space-y-1.5">
+                  {profile.identity.phone && (
+                    <InfoLine icon={<Phone className="h-3.5 w-3.5" />} value={profile.identity.phone} />
+                  )}
+                  {profile.identity.email && (
+                    <InfoLine icon={<Mail className="h-3.5 w-3.5" />} value={profile.identity.email} />
+                  )}
+                  {profile.identity.national_id_present && (
+                    <InfoLine
+                      icon={<IdCard className="h-3.5 w-3.5" />}
+                      value={profile.identity.national_id || '••• verified'}
+                    />
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Trust Score */}
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+          <TrustScoreCard trust={profile.trust} />
+        </motion.div>
+
+        {/* Behavioral History */}
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                Payment History
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-2">
+              {profile.payment_history.total_rent_plans === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-3">No rent payment activity yet</p>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <Stat label="Rent Plans" value={String(profile.payment_history.total_rent_plans)} />
+                  <Stat label="On-time Rate" value={`${profile.payment_history.on_time_rate}%`} accent />
+                  <Stat label="Total Repaid" value={formatUGX(profile.payment_history.total_repaid)} />
+                  <Stat
+                    label="Outstanding"
+                    value={formatUGX(profile.payment_history.total_owing)}
+                    danger={profile.payment_history.total_owing > 0}
+                  />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Wallet Activity (only if visible) */}
+        {profile.permissions.can_see_pii && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Wallet className="h-4 w-4 text-primary" />
+                  Wallet Activity (180 days)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-2">
+                <div className="grid grid-cols-2 gap-3">
+                  <Stat label="Balance" value={formatUGX(profile.wallet_activity.balance || 0)} accent />
+                  <Stat label="Transactions" value={String(profile.wallet_activity.transaction_count_180d)} />
+                  <Stat label="Received" value={formatUGX(profile.wallet_activity.total_received_180d)} />
+                  <Stat label="Sent" value={formatUGX(profile.wallet_activity.total_sent_180d)} />
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Network */}
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Users className="h-4 w-4 text-primary" />
+                Network & Contribution
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-2">
+              <div className="grid grid-cols-2 gap-3">
+                <Stat label="Referrals" value={String(profile.network.referrals)} />
+                <Stat label="Sub-agents" value={String(profile.network.sub_agents)} />
+                {profile.permissions.can_see_pii && (profile.network.portfolio_value || 0) > 0 && (
+                  <Stat
+                    label="Portfolio"
+                    value={formatUGX(profile.network.portfolio_value || 0)}
+                    accent
+                    span2
+                  />
+                )}
+              </div>
+              {profile.identity.roles.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-border/50">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Roles</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {profile.identity.roles.map((r) => (
+                      <Badge key={r} variant="outline" className="text-[10px] capitalize">
+                        {r.replace(/_/g, ' ')}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Welile Vouches block */}
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+          <Card className="bg-gradient-to-br from-emerald-500/10 to-primary/10 border-emerald-500/20">
+            <CardContent className="p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <Banknote className="h-4 w-4 text-emerald-600" />
+                <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">Welile Vouches</p>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Welile guarantees this member based on their platform behavior, payment history, and network
+                activity. Lenders can rely on this profile to extend credit, with capital protection backed by
+                Welile AI Insurance.
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Disclaimer */}
+        <p className="text-[10px] text-muted-foreground text-center px-4 leading-relaxed">
+          This is an informational summary only. It does not constitute a credit report, approval for any
+          financial product, or financial advice. All data is derived from Welile platform activity.
+        </p>
+      </div>
+
+      {/* Sticky action bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur border-t border-border/50">
+        <div className="max-w-2xl mx-auto px-4 py-3 grid grid-cols-4 gap-2">
+          <Button variant="outline" size="sm" onClick={copyId} className="flex-col h-auto py-2 gap-1">
+            <Copy className="h-4 w-4" />
+            <span className="text-[10px]">Copy ID</span>
+          </Button>
+          <Button variant="outline" size="sm" onClick={copyLink} className="flex-col h-auto py-2 gap-1">
+            <LinkIcon className="h-4 w-4" />
+            <span className="text-[10px]">Copy Link</span>
+          </Button>
+          <Button
+            size="sm"
+            onClick={shareWhatsApp}
+            className="flex-col h-auto py-2 gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+          >
+            <MessageCircle className="h-4 w-4" />
+            <span className="text-[10px]">WhatsApp</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={downloadPdf}
+            disabled={downloadingPdf}
+            className="flex-col h-auto py-2 gap-1"
+          >
+            {downloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+            <span className="text-[10px]">PDF</span>
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InfoLine({ icon, value }: { icon: React.ReactNode; value: string }) {
+  return (
+    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+      {icon}
+      <span className="truncate">{value}</span>
+    </div>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  accent,
+  danger,
+  span2,
+}: {
+  label: string;
+  value: string;
+  accent?: boolean;
+  danger?: boolean;
+  span2?: boolean;
+}) {
+  return (
+    <div
+      className={`p-3 rounded-xl bg-muted/40 border border-border/50 ${span2 ? 'col-span-2' : ''}`}
+    >
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p
+        className={`text-sm font-bold mt-0.5 ${
+          danger ? 'text-destructive' : accent ? 'text-emerald-600' : 'text-foreground'
+        }`}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}

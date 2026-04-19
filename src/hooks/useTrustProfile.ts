@@ -1,0 +1,114 @@
+import { useEffect, useState, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+
+export interface TrustProfile {
+  ai_id: string;
+  user_id: string | null;
+  identity: {
+    full_name: string;
+    phone: string | null;
+    email: string | null;
+    national_id: string | null;
+    national_id_present: boolean;
+    avatar_url: string | null;
+    verified: boolean;
+    member_since: string;
+    roles: string[];
+    primary_role: string;
+  };
+  trust: {
+    score: number;
+    tier: string;
+    data_points: number;
+    borrowing_limit_ugx: number;
+    breakdown: { payment: number; wallet: number; network: number; verification: number };
+    weights: { payment: number; wallet: number; network: number; verification: number };
+  };
+  payment_history: {
+    total_rent_plans: number;
+    total_repaid: number;
+    total_owing: number;
+    on_time_count: number;
+    late_count: number;
+    on_time_rate: number;
+  };
+  wallet_activity: {
+    balance: number | null;
+    total_received_180d: number;
+    total_sent_180d: number;
+    transaction_count_180d: number;
+  };
+  network: {
+    referrals: number;
+    sub_agents: number;
+    portfolio_value: number | null;
+    role_weight: number;
+  };
+  permissions: {
+    is_self: boolean;
+    is_staff_view: boolean;
+    can_see_pii: boolean;
+  };
+  generated_at: string;
+}
+
+const CACHE_PREFIX = 'welile_trust_profile_';
+const CACHE_TTL = 10 * 60 * 1000; // 10 min
+
+interface CacheEntry {
+  data: TrustProfile;
+  cachedAt: number;
+}
+
+/** Fetch holistic trust profile by AI ID (authenticated view) */
+export function useTrustProfile(aiId: string | undefined, opts?: { publicMode?: boolean }) {
+  const [profile, setProfile] = useState<TrustProfile | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const publicMode = opts?.publicMode === true;
+
+  const refresh = useCallback(async () => {
+    if (!aiId) return;
+    setLoading(true);
+    setError(null);
+
+    const rpcName = publicMode ? 'get_public_trust_profile' : 'get_user_trust_profile';
+    const { data, error: rpcErr } = await supabase.rpc(rpcName, { p_ai_id: aiId.trim().toUpperCase() });
+
+    if (rpcErr) {
+      setError(rpcErr.message);
+      setLoading(false);
+      return;
+    }
+
+    const parsed = data as unknown as TrustProfile & { error?: string };
+    if (parsed?.error) {
+      setError(parsed.error === 'AI ID not found' ? 'No Welile member found with this AI ID' : parsed.error);
+    } else {
+      setProfile(parsed);
+      try {
+        const key = CACHE_PREFIX + (publicMode ? 'pub_' : '') + aiId.toUpperCase();
+        localStorage.setItem(key, JSON.stringify({ data: parsed, cachedAt: Date.now() } as CacheEntry));
+      } catch {}
+    }
+    setLoading(false);
+  }, [aiId, publicMode]);
+
+  useEffect(() => {
+    if (!aiId) return;
+    // Hydrate from cache first
+    try {
+      const key = CACHE_PREFIX + (publicMode ? 'pub_' : '') + aiId.toUpperCase();
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const cached: CacheEntry = JSON.parse(raw);
+        if (Date.now() - cached.cachedAt < CACHE_TTL) {
+          setProfile(cached.data);
+        }
+      }
+    } catch {}
+    refresh();
+  }, [aiId, publicMode, refresh]);
+
+  return { profile, loading, error, refresh };
+}
