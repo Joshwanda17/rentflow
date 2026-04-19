@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Shield, TrendingUp, Wallet, Users, BadgeCheck, MapPin, Home } from 'lucide-react';
+import { Shield, TrendingUp, Wallet, Users, BadgeCheck, MapPin, Home, Sparkles } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatUGX } from '@/lib/rentCalculations';
 import { getRiskTierLabel } from '@/lib/welileAiId';
