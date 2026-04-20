@@ -228,6 +228,8 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
 
   const handleSelectRequest = (r: any) => {
     setSelectedRequest(r);
+    setAmountInput(String(r?.rent_amount ?? ''));
+    setPhoneOverride('');
     setStep('otp');
   };
 
