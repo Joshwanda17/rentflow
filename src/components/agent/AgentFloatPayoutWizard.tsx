@@ -182,7 +182,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
           rent_request_id: r.id,
           landlord_id: r.landlord_id,
           tenant_id: r.tenant_id,
-          amount: r.rent_amount,
+          amount: effectiveAmount,
           landlord_phone: landlordPhone,
           landlord_name: r.landlord?.name,
           mobile_money_provider: provider,
