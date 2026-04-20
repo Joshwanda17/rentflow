@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 
 interface PayoutRow {
   id: string;
-  status: "otp_verified" | "disbursing" | "completed" | "failed" | "escalated";
+  status: "otp_verified" | "disbursing" | "pending_finops_disbursement" | "completed" | "failed" | "escalated";
   amount: number;
   attempts: number;
   last_error: string | null;
@@ -49,7 +49,7 @@ export function LandlordPayoutProgress({ payoutId, landlordName, onDone }: Props
         (p) => {
           const next = p.new as PayoutRow;
           setPayout(next);
-          if (["completed", "failed", "escalated"].includes(next.status)) {
+          if (["completed", "failed", "escalated", "pending_finops_disbursement"].includes(next.status)) {
             onDone?.(next.status);
           }
         },
@@ -88,6 +88,7 @@ export function LandlordPayoutProgress({ payoutId, landlordName, onDone }: Props
   const slaProgress = Math.min(100, ((300 - secondsLeft) / 300) * 100);
 
   const isDone = payout.status === "completed";
+  const isPendingFinops = payout.status === "pending_finops_disbursement";
   const isEscalated = payout.status === "escalated" || payout.status === "failed";
   const inFlight = payout.status === "otp_verified" || payout.status === "disbursing";
 
