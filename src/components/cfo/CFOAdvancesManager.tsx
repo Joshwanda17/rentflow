@@ -193,6 +193,15 @@ export function CFOAdvancesManager() {
           >
             <Download className="h-4 w-4" /> {exporting ? 'Exporting...' : 'Export PDFs'}
           </Button>
+          <Button
+            onClick={handleExportPayments}
+            size="sm"
+            variant="outline"
+            className="gap-1"
+            disabled={exportingPayments || filtered.length === 0}
+          >
+            <FileText className="h-4 w-4" /> {exportingPayments ? 'Exporting...' : 'Export All Payments'}
+          </Button>
           <Button onClick={() => setIssueOpen(true)} size="sm" className="gap-1">
             <Plus className="h-4 w-4" /> Issue Advance
           </Button>
