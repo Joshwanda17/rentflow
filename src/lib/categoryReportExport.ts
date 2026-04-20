@@ -261,7 +261,10 @@ export async function exportCategoryReport(
   const autoTableMod: any = await import('jspdf-autotable');
   const autoTable = autoTableMod.default || autoTableMod;
 
-  const entries = await fetchCategoryEntries(category);
+  const [entries, allTime] = await Promise.all([
+    fetchCategoryEntries(category),
+    fetchAllTimeTotal(category),
+  ]);
   const partyIds = entries.flatMap(e => [e.user_id, e.linked_party].filter(Boolean) as string[]);
   const partyMap = await fetchPartyNames(partyIds);
 
@@ -282,7 +285,25 @@ export async function exportCategoryReport(
   doc.text(`Category code: ${category}`, margin, y);
   y += 4;
   doc.text(`Period: Last 30 days (${fmtDate(subDays(new Date(), 29))} – ${fmtDate(new Date())})`, margin, y);
+  y += 4;
+  doc.setFont('helvetica', 'bold');
+  doc.text(`All-time: ${formatUGX(allTime.total)} across ${allTime.count} entries`, margin, y);
+  doc.setFont('helvetica', 'normal');
   y += 6;
+
+  // Plain-English description block
+  const description = CATEGORY_DESCRIPTIONS[category];
+  if (description) {
+    doc.setFillColor(241, 245, 249);
+    const descLines = doc.splitTextToSize(description, pageWidth - margin * 2 - 4);
+    const boxH = 4 + descLines.length * 4;
+    doc.rect(margin, y, pageWidth - margin * 2, boxH, 'F');
+    doc.setFontSize(8);
+    doc.setTextColor(51, 65, 85);
+    doc.text(descLines, margin + 2, y + 4);
+    doc.setTextColor(0, 0, 0);
+    y += boxH + 4;
+  }
 
   await buildCategorySection(doc, autoTable, category, label, entries, partyMap, margin, y);
 
