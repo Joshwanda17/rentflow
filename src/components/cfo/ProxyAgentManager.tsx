@@ -71,18 +71,52 @@ export function ProxyAgentManager() {
     mutationFn: async () => {
       if (!pickedAgent) throw new Error('Please select an agent');
       if (!pickedBeneficiary) throw new Error('Please select a beneficiary');
-      const { error } = await supabase.from('proxy_agent_assignments').insert({
+      const payload = {
         agent_id: pickedAgent.id,
         beneficiary_id: pickedBeneficiary.id,
         beneficiary_role: beneficiaryRole,
         assigned_by: user!.id,
         reason,
         is_managed_account: isManagedAccount,
-      });
+      };
+
+      const { data: existingAssignment, error: existingError } = await supabase
+        .from('proxy_agent_assignments')
+        .select('id, approval_status')
+        .eq('agent_id', pickedAgent.id)
+        .eq('beneficiary_id', pickedBeneficiary.id)
+        .maybeSingle();
+
+      if (existingError) throw existingError;
+
+      if (existingAssignment) {
+        const shouldStayApproved = existingAssignment.approval_status === 'approved';
+        const { error } = await supabase
+          .from('proxy_agent_assignments')
+          .update({
+            beneficiary_role: beneficiaryRole,
+            assigned_by: user!.id,
+            reason,
+            is_managed_account: isManagedAccount,
+            is_active: true,
+            approval_status: shouldStayApproved ? 'approved' : 'pending',
+            rejection_reason: null,
+            approved_by: shouldStayApproved ? undefined : null,
+            approved_at: shouldStayApproved ? undefined : null,
+          })
+          .eq('id', existingAssignment.id);
+
+        if (error) throw error;
+        return { reactivated: true };
+      }
+
+      const { error } = await supabase.from('proxy_agent_assignments').insert(payload);
       if (error) throw error;
+
+      return { reactivated: false };
     },
-    onSuccess: () => {
-      toast({ title: '✅ Proxy agent linked' });
+    onSuccess: (result) => {
+      toast({ title: result?.reactivated ? '✅ Proxy agent re-linked' : '✅ Proxy agent linked' });
       qc.invalidateQueries({ queryKey: ['proxy-assignments'] });
       setShowAssign(false);
       resetForm();
