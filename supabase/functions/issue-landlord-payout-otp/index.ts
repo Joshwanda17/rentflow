@@ -132,8 +132,16 @@ Deno.serve(async (req) => {
       p_amount: amt,
     });
     if (eligErr) return json({ error: eligErr.message }, 400);
-    if (elig && (elig as any).ok === false) {
-      return json({ error: (elig as any).reason ?? "Not eligible for payout" }, 400);
+    if (elig && (elig as any).eligible === false) {
+      const e = elig as any;
+      const reasons: string[] = [];
+      if (e.float_ok === false) {
+        reasons.push(`Insufficient float (have UGX ${Number(e.current_float ?? 0).toLocaleString()}, need UGX ${amt.toLocaleString()})`);
+      }
+      if (e.cutoff_ok === false) reasons.push("Outside payout cutoff window");
+      if (e.landlord_verified === false) reasons.push("Landlord not verified for payouts");
+      const reason = reasons.length ? reasons.join("; ") : (e.reason ?? "Not eligible for payout");
+      return json({ error: reason, details: e }, 400);
     }
 
     // Generate OTP and persist challenge

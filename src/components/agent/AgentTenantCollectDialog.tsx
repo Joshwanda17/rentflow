@@ -8,7 +8,7 @@ import { Loader2, Banknote, AlertCircle, CheckCircle2, Wallet, TrendingUp } from
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useAgentBalances } from '@/hooks/useAgentBalances';
+import { useAgentLandlordFloat } from '@/hooks/useAgentLandlordFloat';
 import { formatUGX } from '@/lib/rentCalculations';
 import { CommissionCelebration } from './CommissionCelebration';
 
@@ -25,7 +25,7 @@ export function AgentTenantCollectDialog({
   open, onOpenChange, tenant, rentRequestId, outstandingBalance, onSuccess,
 }: AgentTenantCollectDialogProps) {
   const { user } = useAuth();
-  const { floatBalance, refetch: refetchBalances } = useAgentBalances(user?.id);
+  const { floatBalance, refetch: refetchBalances } = useAgentLandlordFloat(user?.id);
   const [amount, setAmount] = useState<number>(0);
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
