@@ -318,6 +318,22 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       }
     }
 
+    // ===== Block duplicate phone numbers across roles =====
+    const cleanLc1Phone = lc1Phone.replace(/\s/g, '');
+    const tenantPhoneValid = cleanTenantPhone && isValidUgPhone(cleanTenantPhone);
+    const landlordPhoneValid = cleanLandlordPhone && isValidUgPhone(cleanLandlordPhone);
+    const lc1PhoneValid = cleanLc1Phone && isValidUgPhone(cleanLc1Phone);
+
+    if (tenantPhoneValid && landlordPhoneValid && cleanTenantPhone === cleanLandlordPhone) {
+      errors.push('Tenant and Landlord phone numbers cannot be the same');
+    }
+    if (tenantPhoneValid && lc1PhoneValid && cleanTenantPhone === cleanLc1Phone) {
+      errors.push('Tenant and LC1 phone numbers cannot be the same');
+    }
+    if (landlordPhoneValid && lc1PhoneValid && cleanLandlordPhone === cleanLc1Phone) {
+      errors.push('Landlord and LC1 phone numbers cannot be the same');
+    }
+
     return errors;
   };
 
