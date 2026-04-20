@@ -1174,6 +1174,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     {landlordPhone.replace(/\s/g, '').length >= 10 && !isValidUgPhone(landlordPhone.replace(/\s/g, '')) && (
                       <p className="text-[10px] text-destructive">Invalid Ugandan phone number</p>
                     )}
+                    {landlordPhone.replace(/\s/g, '').length >= 10 &&
+                      tenantPhone.replace(/\s/g, '').length >= 10 &&
+                      landlordPhone.replace(/\s/g, '') === tenantPhone.replace(/\s/g, '') && (
+                        <p className="text-[10px] text-destructive">Cannot be the same as Tenant phone</p>
+                      )}
                   </div>
                 </div>
                 <div className="space-y-1">
