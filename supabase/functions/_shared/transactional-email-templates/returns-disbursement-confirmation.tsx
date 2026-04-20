@@ -495,9 +495,12 @@ export const template = {
     currency: 'UGX',
     date: '20 April 2026',
     payout_method: 'Mobile Money (MTN)',
+    payout_method_last4digit: '•••• 4521',
     company_name: 'Welile',
     logo_url: 'https://welilereceipts.com/welile-logo.png',
     is_managed_by_agent: true,
     agent_name: 'James Okello',
+    unsubscribe_url: 'https://welile.com/unsubscribe',
+    contact_url: 'https://welile.com/contact',
   },
 } satisfies TemplateEntry
