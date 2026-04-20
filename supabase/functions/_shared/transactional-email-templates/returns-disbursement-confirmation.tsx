@@ -246,6 +246,14 @@ export function ReturnsDisbursementConfirmation({
                   </table>
 
                   <Text style={footerCompanyName}>WELILE TECHNOLOGIES LTD</Text>
+                  <Text style={{ margin: '0 0 12px 0', fontSize: '12px', textAlign: 'center' as const }}>
+                    <Link
+                      href="https://www.google.com/maps/search/?api=1&query=Palm+Lane+Kabaale+Entebbe"
+                      style={{ color: BRAND, textDecoration: 'none' }}
+                    >
+                      Palm Lane Kabaale, Entebbe
+                    </Link>
+                  </Text>
                   <Text style={footerDisclaimer}>
                     You are receiving this email because you are a registered partner at {company_name}.<br />
                     This is an automated notification. Please do not reply directly to this email.
