@@ -1,43 +1,47 @@
 
 
-## Plan: Add expense sub-categories to CFO Direct Credit Tool
+## Plan: Per-Category Detailed Export Buttons on CFO Revenue/Expense Dashboard
 
-### File
-`src/components/cfo/DirectCreditTool.tsx` (single file, lines 67–96)
+### Where
+`src/components/cfo/RevenueExpenseDashboard.tsx` — the "Revenue Breakdown" and "Expense Breakdown" cards under `/cfo-dashboard`.
 
-### Changes
+### What
+Below each pie slice, render a clickable list of categories. Each row shows the category name, total amount, and a small **Download** button. Clicking exports a **detailed PDF report** of every `general_ledger` entry under that category for the last 30 days.
 
-**1. Marketing Expenses** — append one entry:
-```ts
-subCategories: [
-  { id: 'marketing_materials', label: 'Marketing Materials' },
-  { id: 'events_exhibition', label: 'Events & Exhibition' },
-]
-```
+### Per-category PDF contents
+1. **Header** — Welile branding, category name, period (last 30 days), generated timestamp
+2. **Summary cards** — total amount, entry count, daily average, top counterparty
+3. **Daily trend mini-table** — date · entry count · daily total
+4. **Detailed transactions table** (sorted by date desc):
+   - Date · Reference ID · Direction · Amount · Linked Party · Description · Account · Classification
+5. **Footer** — page numbers + audit reference
 
-**2. Operational Expenses** — append one entry to the existing list:
-```ts
-{ id: 'eviction_enforcement', label: 'Eviction & Enforcement' }
-```
+### Tech approach
+- New helper `src/lib/categoryReportExport.ts` exporting `exportCategoryReport(category, label, type: 'revenue'|'expense')`
+- Fetches `general_ledger` filtered by `category` + `transaction_date >= 30d ago` + `ledger_scope='platform'`
+- Uses existing `jsPDF` + `jspdf-autotable` (no new deps)
+- Filename: `{revenue|expense}-{category}-{YYYY-MM-DD}.pdf`
+- Audit log: `action_type: 'cfo_category_report_export'`, `record_id: category`
 
-**3. Research & Development** — add a new `subCategories` array (currently has none):
-```ts
-subCategories: [
-  { id: 'software', label: 'Software' },
-  { id: 'welile_dowry', label: 'Welile Dowry' },
-]
-```
+### UX
+- Compact list rows beneath each pie chart with category label, formatted UGX total, and a `Download` icon button
+- Loading spinner per-row while exporting
+- Toast: "Generating {label} report..." → "Downloaded {filename}"
+- Plus a single **"Export All Categories"** button per side (revenue/expense) that bundles all categories into one combined PDF
 
-### Why this is the right place
-`DirectCreditTool` is the CFO's expense-recording form. Subcategories already flow into `general_ledger.description` as `"Parent → Subcategory"` and into `pending_wallet_operations.metadata.sub_category`, so these new options will surface in:
-- CFO Investor Report breakdown
-- Manager Financial Statements
-- Operational subcategory aggregations
+### Files
+**Modified**
+- `src/components/cfo/RevenueExpenseDashboard.tsx` — add category list + export buttons under each pie
 
-No DB schema changes needed — the existing free-form `description` + `metadata.sub_category` columns absorb new ids automatically.
+**New**
+- `src/lib/categoryReportExport.ts` — `exportCategoryReport()` + `exportAllCategoriesReport()` helpers
 
 ### Out of scope
-- No changes to ledger categories (parents stay `marketing_expense`, `general_admin_expense`, `research_development_expense`)
-- No changes to `AgentRequisitionForm` (those are top-level purposes, not subcategories)
-- No migration
+- CSV/Excel format (PDF only, matches existing `agentAdvancePdfExport.ts` pattern)
+- Date range picker (fixed 30d window matching the dashboard)
+- Changing the pie charts themselves
+- Other dashboards (Ledger Health, KPI Breakdown — these already have their own exports)
+
+### Expected outcome
+CFO sees each revenue/expense category listed under the pie with its total and a download button → one click produces a polished PDF audit trail for that single category, ready for board packs or external auditors.
 
