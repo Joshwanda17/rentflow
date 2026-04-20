@@ -133,13 +133,75 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
     }
   };
 
+  const [activePayoutId, setActivePayoutId] = useState<string | null>(null);
+  const [disburseError, setDisburseError] = useState<string | null>(null);
+  const [isDisbursing, setIsDisbursing] = useState(false);
+
+  const startAutoDisburse = async () => {
+    if (!user || !selectedRequest) return;
+    setIsDisbursing(true);
+    setDisburseError(null);
+    try {
+      const loc = await geo.captureLocation();
+      const r = selectedRequest;
+      const propLat = r.landlord?.latitude ?? null;
+      const propLng = r.landlord?.longitude ?? null;
+      let gpsDistanceMeters: number | null = null;
+      let gpsMatch = false;
+      if (loc && propLat && propLng) {
+        const R = 6371000;
+        const dLat = (propLat - loc.latitude) * Math.PI / 180;
+        const dLon = (propLng - loc.longitude) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) ** 2 +
+          Math.cos(loc.latitude * Math.PI / 180) * Math.cos(propLat * Math.PI / 180) *
+          Math.sin(dLon / 2) ** 2;
+        gpsDistanceMeters = Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+        gpsMatch = gpsDistanceMeters <= 500;
+      }
+
+      const provider = (r.landlord?.mobile_money_number || '').toString().startsWith('07')
+        ? 'MTN' : 'MTN'; // default; real classification can be added later
+
+      const { data, error } = await supabase.functions.invoke('landlord-payout-disburse', {
+        body: {
+          rent_request_id: r.id,
+          landlord_id: r.landlord_id,
+          tenant_id: r.tenant_id,
+          amount: r.rent_amount,
+          landlord_phone: landlordPhone,
+          landlord_name: r.landlord?.name,
+          mobile_money_provider: provider,
+          otp_verified_at: new Date().toISOString(),
+          agent_latitude: loc?.latitude ?? null,
+          agent_longitude: loc?.longitude ?? null,
+          property_latitude: propLat,
+          property_longitude: propLng,
+          gps_distance_meters: gpsDistanceMeters,
+          gps_match: gpsMatch,
+        },
+      });
+      if (error) throw error;
+      if (data?.payout_id) {
+        setActivePayoutId(data.payout_id);
+        setStep('disburse');
+      } else {
+        throw new Error(data?.error || 'Disbursement failed to start');
+      }
+    } catch (e: any) {
+      setDisburseError(e?.message || 'Failed to start disbursement');
+      toast.error(e?.message || 'Failed to start disbursement');
+    } finally {
+      setIsDisbursing(false);
+    }
+  };
+
   const handleVerifyOtp = async (code: string) => {
     setOtpCode(code);
     if (code.length === 6) {
       const verified = await landlordOtp.verifyOtp(landlordPhone, code);
       if (verified) {
-        toast.success('Landlord phone verified! Proceed to payment.');
-        setStep('pay');
+        toast.success('OTP verified — auto-disbursing now');
+        await startAutoDisburse();
       }
     }
   };
