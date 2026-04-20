@@ -98,6 +98,46 @@ export function PendingWalletOperationsWidget({ requirePaymentRef = true }: { re
       if (ops.length > 0) {
         const walletDepositIds = ops.filter(d => d.source_table === 'wallet_deposits' && d.source_id).map(d => d.source_id!);
 
+        // Extract portfolio codes from descriptions like "Portfolio top-up: <label> (WIPxxxxxx)"
+        const portfolioCodes = [...new Set(
+          ops
+            .map(o => {
+              const m = (o.description || '').match(/\(([A-Z0-9]+)\)\s*$/i);
+              return m ? m[1] : null;
+            })
+            .filter((c): c is string => !!c)
+        )];
+
+        // Fetch portfolio → investor (owner) name map
+        let portfolioOwnerMap = new Map<string, string>();
+        if (portfolioCodes.length > 0) {
+          const { data: portfolios } = await supabase
+            .from('investor_portfolios')
+            .select('portfolio_code, investor_id')
+            .in('portfolio_code', portfolioCodes);
+          const ownerIds = [...new Set((portfolios || []).map((p: any) => p.investor_id).filter(Boolean))];
+          let ownerNameMap = new Map<string, string>();
+          if (ownerIds.length > 0) {
+            const { data: ownerProfiles } = await supabase.from('profiles').select('id, full_name').in('id', ownerIds);
+            ownerNameMap = new Map((ownerProfiles || []).map((p: any) => [p.id, p.full_name]));
+          }
+          portfolioOwnerMap = new Map(
+            (portfolios || [])
+              .map((p: any) => [p.portfolio_code, ownerNameMap.get(p.investor_id) || ''] as [string, string])
+              .filter(([, name]) => !!name)
+          );
+        }
+
+        const enrichWithPortfolio = (op: PendingOperation): PendingOperation => {
+          const m = (op.description || '').match(/\(([A-Z0-9]+)\)\s*$/i);
+          const code = m ? m[1] : undefined;
+          return {
+            ...op,
+            portfolio_code: code,
+            portfolio_owner_name: code ? portfolioOwnerMap.get(code) : undefined,
+          };
+        };
+
         if (walletDepositIds.length > 0) {
           const { data: depositsData } = await supabase
             .from('wallet_deposits' as any)
@@ -115,10 +155,10 @@ export function PendingWalletOperationsWidget({ requirePaymentRef = true }: { re
 
           setOperations(ops.map(op => {
             const agentId = op.source_id ? depositAgentMap.get(op.source_id) : undefined;
-            return { ...op, agent_name: agentId ? agentNameMap.get(agentId) : undefined };
+            return enrichWithPortfolio({ ...op, agent_name: agentId ? agentNameMap.get(agentId) : undefined });
           }));
         } else {
-          setOperations(ops);
+          setOperations(ops.map(enrichWithPortfolio));
         }
       } else {
         setOperations([]);
