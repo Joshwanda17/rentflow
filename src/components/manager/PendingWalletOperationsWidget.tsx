@@ -369,10 +369,16 @@ export function PendingWalletOperationsWidget({ requirePaymentRef = true }: { re
                     <p className="text-[11px] text-muted-foreground truncate">
                       {(() => {
                         const desc = op.description || op.category || '';
-                        // Transform "Portfolio top-up: <label> (<CODE>)" -> "<CODE> (<PartnerName>)"
                         const m = desc.match(/Portfolio top-up:\s*(.+?)\s*\(([^)]+)\)/i);
-                        if (m && op.user_name) {
-                          return `Portfolio top-up: ${m[2]} (${op.user_name})`;
+                        if (m) {
+                          const code = m[2];
+                          // Prefer the actual portfolio OWNER (not the requester)
+                          const ownerName = op.portfolio_owner_name;
+                          if (ownerName) {
+                            return `Portfolio top-up: ${code} (${ownerName})`;
+                          }
+                          // Fallback: show code only (don't mislead by showing requester)
+                          return `Portfolio top-up: ${code}`;
                         }
                         return desc;
                       })()}
