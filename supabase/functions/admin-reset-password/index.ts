@@ -47,22 +47,46 @@ serve(async (req) => {
       callerId = user.id;
     }
 
-    // 2. Verify caller is a manager (skip for service-role)
+    // 2. Verify caller has an authorised admin role (skip for service-role)
+    // Allowed roles mirror the routes that surface the Reset Password UI:
+    //   /platform-users (manager, cto), /users (super_admin, manager, cto),
+    //   HR User Management (hr -> stored as 'employee' with hr permissions),
+    //   plus executive roles that legitimately manage staff accounts.
+    const ADMIN_RESET_ROLES = [
+      "manager",
+      "cto",
+      "super_admin",
+      "ceo",
+      "coo",
+      "cfo",
+      "cmo",
+      "operations",
+    ];
 
     if (!isServiceRole) {
-      const { data: roleData, error: roleError } = await supabaseAdmin
+      const { data: roleRows, error: roleError } = await supabaseAdmin
         .from("user_roles")
         .select("role")
         .eq("user_id", callerId)
-        .eq("role", "manager")
         .eq("enabled", true)
-        .maybeSingle();
+        .in("role", ADMIN_RESET_ROLES);
 
-      if (roleError || !roleData) {
-        return new Response(JSON.stringify({ error: "Only managers can reset passwords" }), {
-          status: 403,
+      if (roleError) {
+        console.error("Role lookup failed:", roleError.message);
+        return new Response(JSON.stringify({ error: "Authorisation check failed" }), {
+          status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      }
+
+      if (!roleRows || roleRows.length === 0) {
+        return new Response(
+          JSON.stringify({ error: "You do not have permission to reset passwords" }),
+          {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
       }
     }
 
