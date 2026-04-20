@@ -112,6 +112,8 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
     setReceiptFiles([]);
     setOtpCode('');
     setResendCooldown(0);
+    setAmountInput('');
+    setPhoneOverride('');
     landlordOtp.resetOtp();
   };
 
@@ -122,7 +124,17 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
     setReceiptFiles(prev => [...prev, ...Array.from(files)].slice(0, 3));
   };
 
-  const landlordPhone = selectedRequest?.landlord?.mobile_money_number || selectedRequest?.landlord?.phone || '';
+  const defaultLandlordPhone =
+    selectedRequest?.landlord?.mobile_money_number || selectedRequest?.landlord?.phone || '';
+  const landlordPhone = (phoneOverride.trim() || defaultLandlordPhone).trim();
+
+  const parsedAmount = Number((amountInput || '').toString().replace(/[^\d.]/g, ''));
+  const effectiveAmount =
+    Number.isFinite(parsedAmount) && parsedAmount > 0
+      ? parsedAmount
+      : Number(selectedRequest?.rent_amount ?? 0);
+  const amountValid = effectiveAmount > 0 && effectiveAmount <= Number(selectedRequest?.rent_amount ?? 0);
+  const phoneValid = /^(?:\+?256|0)?\d{9}$/.test(landlordPhone.replace(/\s+/g, ''));
 
   const handleSendOtp = async () => {
     if (!landlordPhone) {
