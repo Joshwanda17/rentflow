@@ -1,5 +1,6 @@
 import type { ComponentType } from 'npm:react@18.3.1'
 import { template as testTemplate } from './test-email.tsx'
+import { template as returnsDisbursementTemplate } from './returns-disbursement-confirmation.tsx'
 
 export interface TemplateEntry {
   component: ComponentType<any>
@@ -11,4 +12,5 @@ export interface TemplateEntry {
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
   'test-email': testTemplate,
+  'returns-disbursement-confirmation': returnsDisbursementTemplate,
 }
