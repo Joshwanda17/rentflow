@@ -4637,15 +4637,7 @@ export type Database = {
           user_id?: string | null
           wallet_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "general_ledger_wallet_id_fkey"
-            columns: ["wallet_id"]
-            isOneToOne: false
-            referencedRelation: "wallets"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       house_listings: {
         Row: {
