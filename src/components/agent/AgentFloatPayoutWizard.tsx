@@ -607,7 +607,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
               </motion.div>
               <h3 className="text-lg font-semibold">Payment Sent!</h3>
               <p className="text-muted-foreground text-sm">
-                {req ? formatUGX(req.rent_amount) : ''} delivered to {req?.landlord?.name || 'the landlord'} via Mobile Money.
+                {req ? formatUGX(effectiveAmount) : ''} delivered to {req?.landlord?.name || 'the landlord'} via Mobile Money.
               </p>
               <Button onClick={handleClose}>Done</Button>
             </motion.div>
