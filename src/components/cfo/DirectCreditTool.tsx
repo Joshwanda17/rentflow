@@ -94,6 +94,10 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'research_development_expense',
     platformCategory: 'research_development_expense',
     allowedOps: ['credit'],
+    subCategories: [
+      { id: 'software', label: 'Software' },
+      { id: 'welile_dowry', label: 'Welile Dowry' },
+    ],
   },
   {
     id: 'operational_expense',
