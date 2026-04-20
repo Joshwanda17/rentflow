@@ -13,7 +13,7 @@ interface CategoryEntry {
   transaction_date: string;
   reference_id: string | null;
   user_id: string | null;
-  counterparty_id: string | null;
+  linked_party: string | null;
 }
 
 interface PartyMap {
@@ -59,7 +59,7 @@ async function fetchCategoryEntries(category: string, days = 30): Promise<Catego
   const startDate = startOfDay(subDays(new Date(), days - 1)).toISOString();
   const { data, error } = await supabase
     .from('general_ledger')
-    .select('id, amount, direction, category, description, account, classification, transaction_date, reference_id, user_id, counterparty_id')
+    .select('id, amount, direction, category, description, account, classification, transaction_date, reference_id, user_id, linked_party')
     .eq('category', category)
     .eq('ledger_scope', 'platform')
     .gte('transaction_date', startDate)
@@ -140,7 +140,7 @@ async function buildCategorySection(
   const avg = count > 0 ? total / 30 : 0;
   const counterCounts: Record<string, number> = {};
   entries.forEach(e => {
-    const id = e.counterparty_id || e.user_id || '';
+    const id = e.linked_party || e.user_id || '';
     if (id) counterCounts[id] = (counterCounts[id] || 0) + Number(e.amount || 0);
   });
   const topCounter = Object.entries(counterCounts).sort((a, b) => b[1] - a[1])[0];
@@ -198,7 +198,7 @@ async function buildCategorySection(
     doc.text(`Detailed Transactions (${entries.length})`, margin, y);
     y += 3;
     const txRows = entries.map(e => {
-      const partyId = e.counterparty_id || e.user_id || '';
+      const partyId = e.linked_party || e.user_id || '';
       const party = partyMap[partyId];
       return [
         fmtDateTime(e.transaction_date),
@@ -246,7 +246,7 @@ export async function exportCategoryReport(
   const autoTable = autoTableMod.default || autoTableMod;
 
   const entries = await fetchCategoryEntries(category);
-  const partyIds = entries.flatMap(e => [e.user_id, e.counterparty_id].filter(Boolean) as string[]);
+  const partyIds = entries.flatMap(e => [e.user_id, e.linked_party].filter(Boolean) as string[]);
   const partyMap = await fetchPartyNames(partyIds);
 
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -313,7 +313,7 @@ export async function exportAllCategoriesReport(
   );
 
   const allPartyIds = allData.flatMap(d =>
-    d.entries.flatMap(e => [e.user_id, e.counterparty_id].filter(Boolean) as string[]),
+    d.entries.flatMap(e => [e.user_id, e.linked_party].filter(Boolean) as string[]),
   );
   const partyMap = await fetchPartyNames(allPartyIds);
 
