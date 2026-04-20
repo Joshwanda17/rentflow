@@ -9,6 +9,7 @@ import WithdrawFlow from '@/components/payments/WithdrawFlow';
 interface AgentWalletHeroCardProps {
   floatBalance: number;
   commissionBalance: number;
+  withdrawableBalance?: number;
   tenantsCount: number;
   totalEarnings: number;
   territory?: string;
@@ -17,6 +18,7 @@ interface AgentWalletHeroCardProps {
 export function AgentWalletHeroCard({
   floatBalance,
   commissionBalance,
+  withdrawableBalance = 0,
   tenantsCount,
   totalEarnings,
   territory,
@@ -150,7 +152,7 @@ export function AgentWalletHeroCard({
       </div>
 
       {showWallet && <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />}
-      <WithdrawFlow open={showWithdraw} onOpenChange={setShowWithdraw} availableBalance={commissionBalance} />
+      <WithdrawFlow open={showWithdraw} onOpenChange={setShowWithdraw} availableBalance={withdrawableBalance} />
     </>
   );
 }

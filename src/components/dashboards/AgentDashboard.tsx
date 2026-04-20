@@ -134,7 +134,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const { profile } = useProfile();
   const { refreshEarnings, totalEarnings } = useAgentEarnings();
   const { wallet, refreshWallet } = useWallet();
-  const { floatBalance, commissionBalance, refetch: refreshBalances } = useAgentBalances();
+  const { floatBalance, commissionBalance, withdrawableBalance, refetch: refreshBalances } = useAgentBalances();
   const { isOnline } = useOffline();
   
   const { 
@@ -204,7 +204,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [showQuickTransfer, setShowQuickTransfer] = useState(false);
 
   const { isFinancialAgent } = useIsFinancialAgent();
-  const realWithdrawableBalance = Math.max(0, Math.min(wallet?.balance ?? 0, commissionBalance));
+  const realWithdrawableBalance = Math.max(0, withdrawableBalance);
   // Check if this agent is a CFO-assigned cashout agent
   const { data: isCashoutAgent } = useQuery({
     queryKey: ['is-cashout-agent', user.id],
