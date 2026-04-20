@@ -129,99 +129,39 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Retry loop — auto-disburse with exp backoff
-    let lastErr: string | null = null;
-    let externalRef: string | null = null;
+    // Phase 2: route to Financial Ops queue (no MoMo gateway call here).
+    await adminClient
+      .from("landlord_payouts")
+      .update({ status: "pending_finops_disbursement" })
+      .eq("id", payout.id);
 
-    for (let i = 0; i < RETRY_DELAYS_MS.length; i++) {
-      try {
-        if (i > 0) await sleep(RETRY_DELAYS_MS[i]);
-        const result = await callMoMoGateway(
-          landlord_phone,
-          amount,
-          mobile_money_provider,
-          payout.id,
-        );
-        externalRef = result.reference;
-        lastErr = null;
-        break;
-      } catch (err) {
-        lastErr = err instanceof Error ? err.message : String(err);
-        await adminClient.from("landlord_payouts").update({
-          attempts: i + 1,
-          last_attempt_at: new Date().toISOString(),
-          last_error: lastErr,
-        }).eq("id", payout.id);
-      }
-    }
+    await logSystemEvent(
+      adminClient,
+      "landlord_payout_pending_finops",
+      agentId,
+      "landlord_payout",
+      payout.id,
+      { amount, landlord_id, landlord_phone, mobile_money_provider },
+    );
 
-    if (externalRef) {
-      // SUCCESS
-      await adminClient.from("landlord_payouts").update({
-        status: "completed",
-        disbursed_at: new Date().toISOString(),
-        external_reference: externalRef,
-        last_error: null,
-      }).eq("id", payout.id);
-
-      // Mark rent request as paid (best-effort)
-      try {
-        await adminClient.rpc("record_rent_payment" as any, {
-          p_rent_request_id: rent_request_id,
-          p_amount: amount,
-        });
-      } catch { /* non-blocking */ }
-
-      // SMS landlord (best-effort)
-      try {
-        await adminClient.functions.invoke("sms-otp", {
-          body: {
-            action: "send_custom",
-            phone: landlord_phone,
-            message: `Welile paid UGX ${Number(amount).toLocaleString()} to your ${mobile_money_provider} number. Ref: ${externalRef}`,
-          },
-        });
-      } catch { /* non-blocking */ }
-
-      await logSystemEvent(adminClient, "landlord_payout_completed", agentId, "landlord_payout", payout.id, {
-        amount, external_reference: externalRef,
+    // Notify agent that the request is now with Financial Ops (best-effort)
+    try {
+      await adminClient.from("notifications").insert({
+        user_id: agentId,
+        type: "landlord_payout_pending_finops",
+        title: "Sent to Financial Ops",
+        message: `Your landlord payout of UGX ${Number(amount).toLocaleString()} for ${landlord_name ?? "landlord"} was sent to Financial Ops for disbursement.`,
+        metadata: { payout_id: payout.id, amount },
       });
-
-      return new Response(JSON.stringify({
-        ok: true,
-        payout_id: payout.id,
-        status: "completed",
-        external_reference: externalRef,
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // ALL RETRIES FAILED → escalate + refund
-    await adminClient.rpc("refund_agent_float_for_payout", {
-      p_payout_id: payout.id,
-      p_reason: `AUTO_ESCALATE_REFUND: ${lastErr ?? "gateway failure"}`,
-    });
-
-    await adminClient.from("landlord_payouts").update({
-      status: "escalated",
-      escalated_at: new Date().toISOString(),
-      escalated_reason: lastErr ?? "All retries failed",
-    }).eq("id", payout.id);
-
-    await logSystemEvent(adminClient, "landlord_payout_escalated", agentId, "landlord_payout", payout.id, {
-      amount, last_error: lastErr,
-    });
+    } catch { /* non-blocking */ }
 
     return new Response(JSON.stringify({
-      ok: false,
+      ok: true,
       payout_id: payout.id,
-      status: "escalated",
-      message: "Payout escalated to Financial Ops after retries failed. Float refunded.",
-      last_error: lastErr,
+      status: "pending_finops_disbursement",
+      message: "Sent to Financial Ops for disbursement. You'll be notified when the landlord is paid.",
     }), {
-      status: 202,
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
