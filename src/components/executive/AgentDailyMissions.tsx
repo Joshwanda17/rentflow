@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import {
   Flame, Trophy, Target, IdCard, MapPin, Briefcase,
   CheckCircle2, Home, Users, Sparkles, Crown, Medal, ArrowRight,
+  HandCoins, FileSignature, Building2, Shield,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -111,6 +112,20 @@ export function AgentDailyMissions({ onCaptureClick }: Props) {
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: networkSummary } = useQuery({
+    queryKey: ['agent-network-summary', user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_agent_network_summary', { p_agent_id: user!.id });
+      if (error) throw error;
+      return data as unknown as {
+        counts: { referrals: number; sub_agents: number; tenants: number; partners: number; landlords: number; promissory_notes: number; total: number };
+        points: { referrals: number; sub_agents: number; tenants: number; partners: number; landlords: number; promissory_notes: number; total: number; max: number };
+      };
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
   const tier = TIER_META[stats?.tier || 'starter'];
   const TierIcon = tier.icon;
   const quota = stats?.daily_quota || 10;
@@ -195,7 +210,51 @@ export function AgentDailyMissions({ onCaptureClick }: Props) {
         </div>
       )}
 
-      {/* Mission cards */}
+      {/* Network trust panel — every relationship contributes to your trust score */}
+      <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Shield className="h-5 w-5 text-primary" />
+              Your network builds your trust
+            </CardTitle>
+            <Badge variant="secondary" className="text-xs">
+              +{networkSummary?.points.total?.toFixed(1) ?? '0.0'} / {networkSummary?.points.max ?? 10} pts
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Every tenant, partner, sub-agent, landlord, and promissory note you manage lifts your own Welile Trust Score.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+            {[
+              { key: 'tenants', label: 'Tenants', icon: Users, color: 'text-blue-600' },
+              { key: 'partners', label: 'Partners', icon: HandCoins, color: 'text-emerald-600' },
+              { key: 'sub_agents', label: 'Sub-Agents', icon: Briefcase, color: 'text-violet-600' },
+              { key: 'landlords', label: 'Landlords', icon: Building2, color: 'text-amber-600' },
+              { key: 'promissory_notes', label: 'Promissory', icon: FileSignature, color: 'text-rose-600' },
+              { key: 'referrals', label: 'Referrals', icon: Users, color: 'text-cyan-600' },
+            ].map(({ key, label, icon: Icon, color }) => {
+              const count = networkSummary?.counts?.[key as keyof typeof networkSummary.counts] ?? 0;
+              const pts = networkSummary?.points?.[key as keyof typeof networkSummary.points] ?? 0;
+              return (
+                <div key={key} className="rounded-lg border bg-background/60 p-2.5">
+                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-1">
+                    <Icon className={cn('h-3 w-3', color)} />
+                    <span className="truncate">{label}</span>
+                  </div>
+                  <div className="text-xl font-bold leading-none">{count}</div>
+                  <p className="text-[10px] text-emerald-600 mt-1 font-medium">
+                    +{Number(pts).toFixed(1)} pts
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
