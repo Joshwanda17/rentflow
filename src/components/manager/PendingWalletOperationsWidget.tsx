@@ -325,7 +325,15 @@ export function PendingWalletOperationsWidget({ requirePaymentRef = true }: { re
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-bold truncate">{op.user_name}</p>
                     <p className="text-[11px] text-muted-foreground truncate">
-                      {op.description || op.category}
+                      {(() => {
+                        const desc = op.description || op.category || '';
+                        // Transform "Portfolio top-up: <label> (<CODE>)" -> "<CODE> (<PartnerName>)"
+                        const m = desc.match(/Portfolio top-up:\s*(.+?)\s*\(([^)]+)\)/i);
+                        if (m && op.user_name) {
+                          return `Portfolio top-up: ${m[2]} (${op.user_name})`;
+                        }
+                        return desc;
+                      })()}
                     </p>
                     <p className="text-[10px] text-muted-foreground">{formatTime(op.created_at)}</p>
                   </div>
