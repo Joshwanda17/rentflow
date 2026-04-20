@@ -79,3 +79,78 @@ export const LOCKED_CATEGORIES = [
 ] as const;
 
 export type LockedCategory = typeof LOCKED_CATEGORIES[number];
+
+/**
+ * Canonical REVENUE categories shown on CFO Revenue/Expense dashboards & reports.
+ * Every category here is ALWAYS rendered (even if 0 activity in the period)
+ * so the CFO never silently loses visibility on a revenue stream.
+ */
+export const CFO_REVENUE_CATEGORIES: { category: string; label: string }[] = [
+  { category: 'access_fee_collected', label: 'Access Fees' },
+  { category: 'registration_fee_collected', label: 'Registration Fees' },
+  { category: 'tenant_access_fee', label: 'Tenant Access Fee (legacy)' },
+  { category: 'tenant_request_fee', label: 'Tenant Request Fee (legacy)' },
+  { category: 'platform_service_income', label: 'Platform Service Income' },
+  { category: 'partner_commission', label: 'Partner Commission Revenue' },
+  { category: 'debt_recovery', label: 'Debt Recovery (recovered cash)' },
+  { category: 'share_capital', label: 'Share Capital Inflow' },
+];
+
+/**
+ * Canonical EXPENSE categories shown on CFO Revenue/Expense dashboards & reports.
+ * Includes every GAAP expense bucket so Marketing, R&D, Payroll, Welile Dowry etc.
+ * are always visible — even when zero in the period.
+ */
+export const CFO_EXPENSE_CATEGORIES: { category: string; label: string }[] = [
+  { category: 'marketing_expense', label: 'Marketing & Customer Acquisition' },
+  { category: 'payroll_expense', label: 'Payroll & Salaries' },
+  { category: 'general_admin_expense', label: 'General & Admin (incl. Welile Dowry)' },
+  { category: 'research_development_expense', label: 'Research & Development' },
+  { category: 'tax_expense', label: 'Taxes' },
+  { category: 'interest_expense', label: 'Interest Expense' },
+  { category: 'equipment_expense', label: 'Equipment & Capex' },
+  { category: 'roi_expense', label: 'Supporter ROI Payouts' },
+  { category: 'agent_commission_earned', label: 'Agent Commissions (earned)' },
+  { category: 'agent_commission_withdrawal', label: 'Agent Commission Withdrawals' },
+  { category: 'rent_disbursement', label: 'Rent Facilitation Disbursements' },
+  { category: 'wallet_withdrawal', label: 'Wallet Withdrawals' },
+  { category: 'supporter_platform_rewards', label: 'Supporter Rewards (legacy)' },
+  { category: 'agent_commission_payout', label: 'Agent Commission Payout (legacy)' },
+  { category: 'transaction_platform_expenses', label: 'Transaction & Platform Expenses (legacy)' },
+  { category: 'operational_expenses', label: 'Operational Expenses (legacy)' },
+];
+
+/**
+ * Plain-English description shown at the top of each per-category report.
+ * Helps the CFO understand what a zero-activity category MEANS, not just that it's empty.
+ */
+export const CATEGORY_DESCRIPTIONS: Record<string, string> = {
+  // Revenue
+  access_fee_collected: 'One-time access fees collected when tenants unlock rent facilitation.',
+  registration_fee_collected: 'Registration fees collected from new tenants on first signup.',
+  tenant_access_fee: 'Legacy tenant access fee category — superseded by access_fee_collected.',
+  tenant_request_fee: 'Legacy per-request tenant fee category.',
+  platform_service_income: 'Miscellaneous service income (SMS, premium features, advisory).',
+  partner_commission: 'Proxy-agent commissions earned on partner deposits (2% instant).',
+  debt_recovery: 'Cash recovered from defaulted accounts via wallet deductions.',
+  share_capital: 'Equity injections — share capital paid in by founders/investors.',
+
+  // Expense
+  marketing_expense: 'Customer acquisition costs: ads, campaigns, brand activations, agent referral promos.',
+  payroll_expense: 'Staff salaries, contractor payouts, benefits, statutory contributions.',
+  general_admin_expense: 'Office rent, utilities, legal, insurance, Welile Dowry awards, and other G&A.',
+  research_development_expense: 'Product engineering, AI experiments, infrastructure R&D, prototyping.',
+  tax_expense: 'Corporate tax, VAT remittances, withholding tax, regulatory fees.',
+  interest_expense: 'Cost of borrowed capital — interest paid on credit lines or partner loans.',
+  equipment_expense: 'Hardware, devices, vehicles, agent kits, capex acquisitions.',
+  roi_expense: 'Returns paid to Supporters (Funders) on their facilitation capital.',
+  agent_commission_earned: 'Commissions credited to agents for verified rent collections (platform expense).',
+  agent_commission_withdrawal: 'Cash paid out to agents withdrawing their earned commissions.',
+  rent_disbursement: 'Rent facilitation payouts sent to landlords on behalf of tenants.',
+  wallet_withdrawal: 'User-initiated wallet withdrawals (cash leaving the platform).',
+  supporter_platform_rewards: 'Legacy supporter reward category.',
+  agent_commission_payout: 'Legacy agent commission payout category.',
+  transaction_platform_expenses: 'Legacy transaction/platform fee expenses.',
+  operational_expenses: 'Legacy catch-all operating expenses.',
+};
+
