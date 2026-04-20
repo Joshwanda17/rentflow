@@ -18,6 +18,8 @@ const ALL_CFO_ACTIONS = [
   'cfo_roi_payout_approved', 'cfo_roi_payout_rejected', 'roi_payout',
   // Deposits & withdrawals
   'deposit_approval', 'withdrawal_approval', 'cfo_approve_withdrawal',
+  'withdrawal_approved_ledger', 'withdrawal_rejected', 'proxy_partner_withdrawal',
+  'fin_ops_complete_withdrawal', 'fin_ops_approve_withdrawal', 'bulk_approve_wallet_withdrawals',
   // Commissions & requisitions
   'commission_payout', 'requisition_approved', 'requisition_rejected',
   // Agent float
@@ -49,6 +51,12 @@ const ACTION_ICONS: Record<string, string> = {
   deposit_approval: '✅',
   withdrawal_approval: '💸',
   cfo_approve_withdrawal: '💸',
+  withdrawal_approved_ledger: '💸',
+  withdrawal_rejected: '🚫',
+  proxy_partner_withdrawal: '💸',
+  fin_ops_complete_withdrawal: '💸',
+  fin_ops_approve_withdrawal: '✅',
+  bulk_approve_wallet_withdrawals: '💸',
   commission_payout: '👤',
   requisition_approved: '✅',
   requisition_rejected: '❌',
@@ -79,6 +87,12 @@ const ACTION_LABELS: Record<string, string> = {
   deposit_approval: 'Deposit Approved',
   withdrawal_approval: 'Withdrawal Approved',
   cfo_approve_withdrawal: 'Withdrawal Approved',
+  withdrawal_approved_ledger: 'Withdrawal Paid Out',
+  withdrawal_rejected: 'Withdrawal Rejected',
+  proxy_partner_withdrawal: 'Partner Withdrawal',
+  fin_ops_complete_withdrawal: 'Withdrawal Completed',
+  fin_ops_approve_withdrawal: 'Withdrawal Approved (Ops)',
+  bulk_approve_wallet_withdrawals: 'Bulk Withdrawal Approval',
   commission_payout: 'Commission Payout',
   requisition_approved: 'Requisition Approved',
   requisition_rejected: 'Requisition Rejected',
@@ -103,7 +117,7 @@ const FILTER_GROUPS: { label: string; value: string; actions: string[] }[] = [
   { label: 'All Actions', value: 'all', actions: ALL_CFO_ACTIONS },
   { label: 'Credits & Debits', value: 'credits', actions: ['cfo_direct_credit', 'cfo_direct_debit', 'wallet_deduction'] },
   { label: 'ROI', value: 'roi', actions: ['cfo_roi_payout_approved', 'cfo_roi_payout_rejected', 'roi_payout'] },
-  { label: 'Withdrawals', value: 'withdrawals', actions: ['withdrawal_approval', 'cfo_approve_withdrawal', 'partner_withdrawal_treasury_payout_processed', 'partner_withdrawal_treasury_payout_rejected'] },
+  { label: 'Withdrawals', value: 'withdrawals', actions: ['withdrawal_approved_ledger', 'withdrawal_rejected', 'proxy_partner_withdrawal', 'fin_ops_complete_withdrawal', 'fin_ops_approve_withdrawal', 'bulk_approve_wallet_withdrawals', 'withdrawal_approval', 'cfo_approve_withdrawal', 'partner_withdrawal_treasury_payout_processed', 'partner_withdrawal_treasury_payout_rejected'] },
   { label: 'Requisitions', value: 'requisitions', actions: ['requisition_approved', 'requisition_rejected'] },
   { label: 'Payroll', value: 'payroll', actions: ['cfo_payroll_batch_created', 'cfo_payroll_processed'] },
   { label: 'Payouts', value: 'payouts', actions: ['rent_payout_approved', 'cfo_batch_payout_processed', 'landlord_payout_cfo_approve', 'landlord_payout_cfo_reject', 'cfo_service_centre_payout'] },
@@ -117,6 +131,7 @@ const DEBIT_ACTIONS = new Set([
   'cfo_direct_debit', 'wallet_deduction', 'cfo_roi_payout_rejected',
   'requisition_rejected', 'landlord_payout_cfo_reject', 'landlord_payout_landlord_ops_reject',
   'partner_withdrawal_treasury_payout_rejected', 'cfo_cashout_agent_deactivated', 'cfo_advance_deleted',
+  'withdrawal_approved_ledger', 'proxy_partner_withdrawal', 'fin_ops_complete_withdrawal', 'bulk_approve_wallet_withdrawals',
 ]);
 
 export function CFOActionsLog() {
