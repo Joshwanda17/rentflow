@@ -142,24 +142,49 @@ export function ApprovalQueue() {
         .in('id', userIds.length ? userIds : ['__none__']);
       const pm = new Map(profiles?.map(p => [p.id, p]) || []);
 
-      return data.map(w => {
-        const profile = w.user_id ? pm.get(w.user_id) : null;
-        const ageH = differenceInHours(new Date(), new Date(w.created_at));
-        return {
-          id: w.id,
+      // ── Collapse paired double-entry legs into a single business event ──
+      // For events like portfolio top-ups, the system writes two rows
+      // (cash_in + cash_out) sharing the same source_id, amount, created_at.
+      // We group them so the operator approves/rejects ONE event atomically,
+      // never half-approving the ledger (which would break SUM(cash_in)==SUM(cash_out)).
+      const pairKey = (r: any) => `${r.source_id || 'no-src'}|${r.amount}|${r.created_at}|${r.user_id || 'no-user'}`;
+      const groups = new Map<string, typeof data>();
+      for (const row of data) {
+        const k = pairKey(row);
+        if (!groups.has(k)) groups.set(k, []);
+        groups.get(k)!.push(row);
+      }
+
+      const items: QueueItem[] = [];
+      for (const groupRows of groups.values()) {
+        // Prefer cash_in row as the "primary" face of the event
+        const primary = groupRows.find(r => r.direction === 'cash_in') || groupRows[0];
+        const profile = primary.user_id ? pm.get(primary.user_id) : null;
+        const ageH = differenceInHours(new Date(), new Date(primary.created_at));
+        const isPair = groupRows.length > 1;
+
+        items.push({
+          id: primary.id,
           type: 'wallet_ops' as QueueType,
-          userId: w.user_id,
+          userId: primary.user_id,
           userName: profile?.full_name || 'Pending Activation',
           userPhone: profile?.phone || '',
-          amount: w.amount,
-          description: w.description || w.category,
-          category: w.category,
-          createdAt: w.created_at,
+          amount: primary.amount,
+          description: primary.description || primary.category,
+          category: primary.category,
+          createdAt: primary.created_at,
           ageHours: ageH,
           urgency: ageH < 1 ? 'green' as const : ageH < 4 ? 'amber' as const : 'red' as const,
-          rawData: w,
-        };
-      });
+          rawData: primary,
+          groupedIds: isPair ? groupRows.map(r => r.id) : undefined,
+          pairedLegs: isPair
+            ? groupRows.map(r => ({ id: r.id, direction: r.direction, rawData: r }))
+            : undefined,
+        });
+      }
+      // Stable: oldest first (matches table order)
+      items.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      return items;
     },
     staleTime: 15000,
   });
