@@ -1628,37 +1628,84 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="pt-0 space-y-3">
-                      <p className="text-xs text-muted-foreground">Set a new password for this user. They will use it on their next login.</p>
+                      <p className="text-xs text-muted-foreground">
+                        Set a new password for this user. Common or breached passwords (e.g. <code className="text-[10px] bg-muted px-1 rounded">Welile1234!</code>, <code className="text-[10px] bg-muted px-1 rounded">password123</code>) are blocked. Tap <strong>Generate</strong> for a guaranteed-safe one.
+                      </p>
                       <div className="relative">
                         <Input
                           type={showPassword ? 'text' : 'password'}
                           value={newPassword}
                           onChange={(e) => setNewPassword(e.target.value)}
                           placeholder="Enter new password (min 6 chars)"
-                          className="h-12 text-base pr-10"
+                          className="h-12 text-base pr-20"
                         />
+                        <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
+                          {newPassword && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              title="Copy password"
+                              onClick={async () => {
+                                try {
+                                  await navigator.clipboard.writeText(newPassword);
+                                  toast.success('Password copied');
+                                } catch {
+                                  toast.error('Could not copy');
+                                }
+                              }}
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            title={showPassword ? 'Hide' : 'Show'}
+                            onClick={() => setShowPassword(!showPassword)}
+                          >
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
                         <Button
                           type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
-                          onClick={() => setShowPassword(!showPassword)}
+                          variant="secondary"
+                          className="h-11"
+                          onClick={() => {
+                            // Generate a strong, non-pwned password.
+                            // Format: Welile-XXXX-####  (random letters + digits, ~80 bits entropy)
+                            const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz';
+                            const digits = '23456789';
+                            let chunk = '';
+                            for (let i = 0; i < 4; i++) chunk += letters[Math.floor(Math.random() * letters.length)];
+                            let nums = '';
+                            for (let i = 0; i < 4; i++) nums += digits[Math.floor(Math.random() * digits.length)];
+                            const generated = `Welile-${chunk}-${nums}`;
+                            setNewPassword(generated);
+                            setShowPassword(true);
+                            toast.success('Strong password generated — tap copy then Reset');
+                          }}
                         >
-                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          <RefreshCw className="h-4 w-4 mr-2" /> Generate
+                        </Button>
+                        <Button
+                          onClick={handleResetPassword}
+                          disabled={resettingPassword || !newPassword || newPassword.length < 6}
+                          variant="outline"
+                          className="h-11 border-warning/40 text-warning hover:bg-warning/10"
+                        >
+                          {resettingPassword ? (
+                            <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Resetting...</>
+                          ) : (
+                            <><KeyRound className="h-4 w-4 mr-2" />Reset</>
+                          )}
                         </Button>
                       </div>
-                      <Button
-                        onClick={handleResetPassword}
-                        disabled={resettingPassword || !newPassword || newPassword.length < 6}
-                        variant="outline"
-                        className="w-full h-12 border-warning/40 text-warning hover:bg-warning/10"
-                      >
-                        {resettingPassword ? (
-                          <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Resetting...</>
-                        ) : (
-                          <><KeyRound className="h-4 w-4 mr-2" />Reset Password</>
-                        )}
-                      </Button>
                     </CardContent>
                   </Card>
 
