@@ -426,6 +426,70 @@ Deno.serve(async (req) => {
       }),
     }).catch(() => {});
 
+    // ── Send Returns Disbursement Confirmation email to the PARTNER ──
+    // Covers BOTH paths:
+    //   • Direct funder self-service withdrawal (user_id = partner)
+    //   • Proxy-agent withdrawal on behalf of a partner (proxy_partner_id = partner, user_id = agent)
+    try {
+      const partnerUserId = (wr as any).proxy_partner_id || wr.user_id;
+      if (partnerUserId) {
+        const { data: partnerProfile } = await admin
+          .from("profiles")
+          .select("email, full_name")
+          .eq("id", partnerUserId)
+          .maybeSingle();
+
+        if (partnerProfile?.email) {
+          const isManaged = !!(wr as any).proxy_partner_id && (wr as any).proxy_partner_id !== wr.user_id;
+          let agentName = "";
+          if (isManaged) {
+            const { data: agentProfile } = await admin
+              .from("profiles")
+              .select("full_name")
+              .eq("id", wr.user_id)
+              .maybeSingle();
+            agentName = agentProfile?.full_name || "";
+          }
+
+          const payoutMethodLabel = payment_method
+            ? String(payment_method).replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())
+            : "Wallet Payout";
+          const todayLabel = new Date().toLocaleDateString("en-GB", {
+            day: "2-digit", month: "long", year: "numeric",
+          });
+
+          fetch(`${supabaseUrl}/functions/v1/send-transactional-email`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${serviceKey}`,
+            },
+            body: JSON.stringify({
+              templateName: "returns-disbursement-confirmation",
+              recipientEmail: partnerProfile.email,
+              idempotencyKey: `withdrawal-approved-${withdrawal_id}`,
+              templateData: {
+                partner_name: partnerProfile.full_name || "Partner",
+                transaction_id: reference.trim().toUpperCase(),
+                amount,
+                currency: "UGX",
+                date: todayLabel,
+                payout_method: payoutMethodLabel,
+                company_name: "Welile",
+                logo_url: "https://welilereceipts.com/welile-logo.png",
+                is_managed_by_agent: isManaged,
+                agent_name: agentName,
+              },
+            }),
+          }).catch((e) => console.warn("[approve-withdrawal] email enqueue failed:", e));
+
+          console.log(`[approve-withdrawal] Disbursement email queued for partner ${partnerUserId} (managed=${isManaged})`);
+        }
+      }
+    } catch (emailErr) {
+      console.warn("[approve-withdrawal] Disbursement email block failed:", emailErr);
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
