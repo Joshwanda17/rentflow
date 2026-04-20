@@ -29,24 +29,7 @@ type PayoutMode = 'mtn' | 'airtel' | 'bank' | 'cash';
 const WORKING_HOURS = { start: 8, end: 17, saturdayEnd: 13 };
 
 const checkWorkingHours = (): { isOpen: boolean; message: string; nextOpen: string } => {
-  const now = new Date();
-  const utcOffset = now.getTimezoneOffset() * 60000;
-  const eatOffset = 3 * 60 * 60000;
-  const eatTime = new Date(now.getTime() + utcOffset + eatOffset);
-  const day = eatTime.getDay();
-  const hour = eatTime.getHours();
-
-  if (day === 0) return { isOpen: false, message: 'Withdrawals are not available on Sundays', nextOpen: 'Monday at 8:00 AM' };
-  if (day === 6) {
-    if (hour < WORKING_HOURS.start) return { isOpen: false, message: 'Withdrawals open at 8:00 AM on Saturdays', nextOpen: 'Today at 8:00 AM' };
-    if (hour >= WORKING_HOURS.saturdayEnd) return { isOpen: false, message: 'Saturday withdrawals close at 1:00 PM', nextOpen: 'Monday at 8:00 AM' };
-    return { isOpen: true, message: '', nextOpen: '' };
-  }
-  if (hour < WORKING_HOURS.start) return { isOpen: false, message: 'Withdrawals open at 8:00 AM', nextOpen: 'Today at 8:00 AM' };
-  if (hour >= WORKING_HOURS.end) {
-    const nextDay = day === 5 ? 'Monday' : 'Tomorrow';
-    return { isOpen: false, message: 'Withdrawals close at 5:00 PM', nextOpen: `${nextDay} at 8:00 AM` };
-  }
+  // Withdrawals are now available 24/7
   return { isOpen: true, message: '', nextOpen: '' };
 };
 
