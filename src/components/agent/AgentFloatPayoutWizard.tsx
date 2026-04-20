@@ -43,6 +43,8 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
   const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
   const [otpCode, setOtpCode] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [amountInput, setAmountInput] = useState<string>('');
+  const [phoneOverride, setPhoneOverride] = useState<string>('');
   const fileRef = useRef<HTMLInputElement | null>(null);
   const cooldownRef = useRef<ReturnType<typeof setTimeout>>();
 
@@ -110,6 +112,8 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
     setReceiptFiles([]);
     setOtpCode('');
     setResendCooldown(0);
+    setAmountInput('');
+    setPhoneOverride('');
     landlordOtp.resetOtp();
   };
 
@@ -120,11 +124,29 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
     setReceiptFiles(prev => [...prev, ...Array.from(files)].slice(0, 3));
   };
 
-  const landlordPhone = selectedRequest?.landlord?.mobile_money_number || selectedRequest?.landlord?.phone || '';
+  const defaultLandlordPhone =
+    selectedRequest?.landlord?.mobile_money_number || selectedRequest?.landlord?.phone || '';
+  const landlordPhone = (phoneOverride.trim() || defaultLandlordPhone).trim();
+
+  const parsedAmount = Number((amountInput || '').toString().replace(/[^\d.]/g, ''));
+  const effectiveAmount =
+    Number.isFinite(parsedAmount) && parsedAmount > 0
+      ? parsedAmount
+      : Number(selectedRequest?.rent_amount ?? 0);
+  const amountValid = effectiveAmount > 0 && effectiveAmount <= Number(selectedRequest?.rent_amount ?? 0);
+  const phoneValid = /^(?:\+?256|0)?\d{9}$/.test(landlordPhone.replace(/\s+/g, ''));
 
   const handleSendOtp = async () => {
-    if (!landlordPhone) {
-      toast.error('No landlord phone number available');
+    if (!phoneValid) {
+      toast.error('Enter a valid landlord phone number');
+      return;
+    }
+    if (!amountValid) {
+      toast.error(
+        effectiveAmount <= 0
+          ? 'Enter an amount greater than 0'
+          : `Amount cannot exceed rent due (${formatUGX(Number(selectedRequest?.rent_amount ?? 0))})`,
+      );
       return;
     }
     const sent = await landlordOtp.sendOtp(landlordPhone);
@@ -168,7 +190,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
           rent_request_id: r.id,
           landlord_id: r.landlord_id,
           tenant_id: r.tenant_id,
-          amount: r.rent_amount,
+          amount: effectiveAmount,
           landlord_phone: landlordPhone,
           landlord_name: r.landlord?.name,
           mobile_money_provider: provider,
@@ -214,6 +236,8 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
 
   const handleSelectRequest = (r: any) => {
     setSelectedRequest(r);
+    setAmountInput(String(r?.rent_amount ?? ''));
+    setPhoneOverride('');
     setStep('otp');
   };
 
@@ -225,7 +249,10 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
       if (!landlordOtp.otpVerified) throw new Error('Landlord OTP verification is required');
 
       const req = selectedRequest;
-      if (req.rent_amount > floatBalance) throw new Error('Insufficient landlord float balance');
+      if (effectiveAmount <= 0) throw new Error('Enter an amount greater than 0');
+      if (effectiveAmount > Number(req.rent_amount)) throw new Error('Amount exceeds rent due');
+      if (effectiveAmount > floatBalance) throw new Error('Insufficient landlord float balance');
+      if (!phoneValid) throw new Error('Enter a valid landlord phone number');
 
       // Capture GPS — MANDATORY
       const loc = await geo.captureLocation();
@@ -255,15 +282,15 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
         .eq('agent_id', user.id)
         .single();
 
-      if (!floatData || floatData.balance < req.rent_amount) {
+      if (!floatData || floatData.balance < effectiveAmount) {
         throw new Error('Insufficient float balance');
       }
 
       const { error: floatErr } = await supabase
         .from('agent_landlord_float')
         .update({
-          balance: floatData.balance - req.rent_amount,
-          total_paid_out: (floatData.total_paid_out || 0) + req.rent_amount,
+          balance: floatData.balance - effectiveAmount,
+          total_paid_out: (floatData.total_paid_out || 0) + effectiveAmount,
           updated_at: new Date().toISOString(),
         } as any)
         .eq('agent_id', user.id);
@@ -288,9 +315,9 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
         rent_request_id: req.id,
         landlord_id: req.landlord_id,
         tenant_id: req.tenant_id,
-        amount: req.rent_amount,
+        amount: effectiveAmount,
         landlord_name: req.landlord?.name || 'Unknown',
-        landlord_phone: req.landlord?.mobile_money_number || req.landlord?.phone || '',
+        landlord_phone: landlordPhone,
         mobile_money_provider: provider,
         transaction_id: tid.trim(),
         notes: notes || null,
@@ -327,7 +354,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
           body: {
             action: 'send_custom',
             phone: landlordPhone,
-            message: `Welile has paid UGX ${req.rent_amount.toLocaleString()} rent for ${tenantName} to your number. If you did not receive this, call 0800-000-000.`,
+              message: `Welile has paid UGX ${effectiveAmount.toLocaleString()} rent for ${tenantName} to your number. If you did not receive this, call 0800-000-000.`,
           },
         });
       } catch {
@@ -422,11 +449,59 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
                 </div>
               </div>
 
+              {!landlordOtp.otpSent && (
+                <div className="space-y-3 p-3 rounded-xl border bg-card">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="payout-amount" className="text-xs">
+                      Amount to pay (UGX)
+                    </Label>
+                    <Input
+                      id="payout-amount"
+                      inputMode="numeric"
+                      value={amountInput}
+                      onChange={(e) => setAmountInput(e.target.value.replace(/[^\d]/g, ''))}
+                      placeholder={String(req?.rent_amount ?? '')}
+                      className="h-10 font-mono"
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      Rent due: {formatUGX(Number(req?.rent_amount ?? 0))} · You can pay less for a partial payout.
+                    </p>
+                    {!amountValid && effectiveAmount > 0 && (
+                      <p className="text-[11px] text-destructive">
+                        Amount cannot exceed the rent due.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="payout-phone" className="text-xs">
+                      Landlord MoMo number
+                    </Label>
+                    <Input
+                      id="payout-phone"
+                      inputMode="tel"
+                      value={phoneOverride || defaultLandlordPhone}
+                      onChange={(e) => setPhoneOverride(e.target.value)}
+                      placeholder="07XXXXXXXX"
+                      className="h-10 font-mono"
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      {phoneOverride.trim() && phoneOverride.trim() !== defaultLandlordPhone
+                        ? 'Using overridden number — original on file: ' + (defaultLandlordPhone || 'none')
+                        : 'Edit if the number on file is wrong or out of service.'}
+                    </p>
+                    {!phoneValid && (
+                      <p className="text-[11px] text-destructive">Enter a valid Ugandan phone number.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {!landlordOtp.otpSent ? (
                 <Button
                   type="button"
                   onClick={handleSendOtp}
-                  disabled={landlordOtp.otpLoading || !landlordPhone}
+                  disabled={landlordOtp.otpLoading || !phoneValid || !amountValid}
                   className="w-full gap-2 h-12 rounded-xl"
                 >
                   {landlordOtp.otpLoading ? (
@@ -532,7 +607,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
               </motion.div>
               <h3 className="text-lg font-semibold">Payment Sent!</h3>
               <p className="text-muted-foreground text-sm">
-                {req ? formatUGX(req.rent_amount) : ''} delivered to {req?.landlord?.name || 'the landlord'} via Mobile Money.
+                {req ? formatUGX(effectiveAmount) : ''} delivered to {req?.landlord?.name || 'the landlord'} via Mobile Money.
               </p>
               <Button onClick={handleClose}>Done</Button>
             </motion.div>
