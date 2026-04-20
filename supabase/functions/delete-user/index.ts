@@ -60,6 +60,7 @@ Deno.serve(async (req) => {
       supabaseAdmin.from('wallet_transactions').delete().or(`sender_id.eq.${user_id},recipient_id.eq.${user_id}`),
       supabaseAdmin.from('money_requests').delete().or(`requester_id.eq.${user_id},recipient_id.eq.${user_id}`),
       supabaseAdmin.from('voided_ledger_entries').delete().eq('voided_by', user_id),
+      supabaseAdmin.from('staff_permissions').update({ granted_by: null }).eq('granted_by', user_id),
     ]);
 
     const preCleanupError = preCleanupResults.find((result) => result.error)?.error;

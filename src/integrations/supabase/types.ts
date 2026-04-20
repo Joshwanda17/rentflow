@@ -4637,15 +4637,7 @@ export type Database = {
           user_id?: string | null
           wallet_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "general_ledger_wallet_id_fkey"
-            columns: ["wallet_id"]
-            isOneToOne: false
-            referencedRelation: "wallets"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       house_listings: {
         Row: {
@@ -11201,64 +11193,7 @@ export type Database = {
           reason?: string
           target_user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "wallet_deductions_deducted_by_fkey"
-            columns: ["deducted_by"]
-            isOneToOne: false
-            referencedRelation: "manager_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "wallet_deductions_deducted_by_fkey"
-            columns: ["deducted_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "wallet_deductions_deducted_by_fkey"
-            columns: ["deducted_by"]
-            isOneToOne: false
-            referencedRelation: "referral_leaderboard"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "wallet_deductions_deducted_by_fkey"
-            columns: ["deducted_by"]
-            isOneToOne: false
-            referencedRelation: "user_financial_summaries"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "wallet_deductions_target_user_id_fkey"
-            columns: ["target_user_id"]
-            isOneToOne: false
-            referencedRelation: "manager_profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "wallet_deductions_target_user_id_fkey"
-            columns: ["target_user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "wallet_deductions_target_user_id_fkey"
-            columns: ["target_user_id"]
-            isOneToOne: false
-            referencedRelation: "referral_leaderboard"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "wallet_deductions_target_user_id_fkey"
-            columns: ["target_user_id"]
-            isOneToOne: false
-            referencedRelation: "user_financial_summaries"
-            referencedColumns: ["user_id"]
-          },
-        ]
+        Relationships: []
       }
       wallet_deposits: {
         Row: {
