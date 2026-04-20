@@ -11201,6 +11201,74 @@ export type Database = {
         }
         Relationships: []
       }
+      welile_trust_score_cache: {
+        Row: {
+          ai_id: string
+          borrowing_limit_ugx: number
+          breakdown: Json
+          created_at: string
+          data_points: number
+          is_agent_managed: boolean
+          last_calculated_at: string
+          score: number
+          tier: string
+          user_id: string
+        }
+        Insert: {
+          ai_id: string
+          borrowing_limit_ugx?: number
+          breakdown?: Json
+          created_at?: string
+          data_points?: number
+          is_agent_managed?: boolean
+          last_calculated_at?: string
+          score?: number
+          tier?: string
+          user_id: string
+        }
+        Update: {
+          ai_id?: string
+          borrowing_limit_ugx?: number
+          breakdown?: Json
+          created_at?: string
+          data_points?: number
+          is_agent_managed?: boolean
+          last_calculated_at?: string
+          score?: number
+          tier?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "welile_trust_score_cache_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "welile_trust_score_cache_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "welile_trust_score_cache_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "welile_trust_score_cache_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       wishlists: {
         Row: {
           created_at: string
@@ -11495,6 +11563,19 @@ export type Database = {
         Args: { _tenant_id: string }
         Returns: Json
       }
+      capture_trust_signal: {
+        Args: {
+          p_accuracy?: number
+          p_latitude: number
+          p_longitude: number
+          p_notes?: string
+          p_signal_type: string
+          p_tenant_id: string
+          p_venue_category: string
+          p_venue_name: string
+        }
+        Returns: Json
+      }
       check_landlord_payout_eligibility: {
         Args: { p_agent_id: string; p_amount: number; p_landlord_id: string }
         Returns: Json
@@ -11584,6 +11665,7 @@ export type Database = {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
+      derive_welile_ai_id: { Args: { p_user_id: string }; Returns: string }
       detect_velocity_abuse: {
         Args: { p_threshold?: number; p_window_minutes?: number }
         Returns: {
@@ -11970,6 +12052,7 @@ export type Database = {
           warning_count: number
         }[]
       }
+      get_trust_coverage_stats: { Args: never; Returns: Json }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -12077,6 +12160,11 @@ export type Database = {
         }[]
       }
       recalculate_credit_limit: { Args: { p_user_id: string }; Returns: number }
+      recompute_trust_score: { Args: { p_user_id: string }; Returns: undefined }
+      recompute_trust_scores_batch: {
+        Args: { p_limit?: number }
+        Returns: Json
+      }
       recompute_wallet_buckets: {
         Args: { p_user_id: string }
         Returns: {
