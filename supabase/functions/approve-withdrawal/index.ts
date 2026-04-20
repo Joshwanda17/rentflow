@@ -302,6 +302,25 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (!isProxyPayout) {
+      const nextWithdrawableBalance = Math.max(0, healedWithdrawable - amount);
+      const { error: walletUpdateErr } = await admin
+        .from("wallets")
+        .update({
+          withdrawable_balance: nextWithdrawableBalance,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", fundingUserId);
+
+      if (walletUpdateErr) {
+        console.error("[approve-withdrawal] Failed to decrement withdrawable bucket:", walletUpdateErr);
+        return new Response(JSON.stringify({ error: "Withdrawal recorded but wallet bucket update failed" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // Update withdrawal request status
     const { error: updateErr } = await admin
       .from("withdrawal_requests")
