@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import { useOtpVerification } from '@/hooks/useOtpVerification';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 const VALID_SIGNUP_ROLES = ['tenant', 'agent', 'landlord', 'supporter'] as const;
 
@@ -443,7 +444,41 @@ export default function Auth() {
                   setEmailLoginLoading(true);
                   const safetyTimer = setTimeout(() => setEmailLoginLoading(false), 6000);
                   try {
-                    const { error } = await authSignIn(emailLoginAddress.trim(), password);
+                    const typed = emailLoginAddress.trim();
+                    let { error } = await authSignIn(typed, password);
+
+                    // Fallback: typed email may be the user's contact email (profiles.email)
+                    // but their auth email is a phone-based placeholder (e.g. 256xxx@welile.user).
+                    // Look up the profile by email, then retry with phone-based placeholders.
+                    if (error && error.message.includes('Invalid login credentials')) {
+                      try {
+                        const { data: profileMatch } = await supabase
+                          .from('profiles')
+                          .select('phone')
+                          .ilike('email', typed)
+                          .not('phone', 'is', null)
+                          .limit(1)
+                          .maybeSingle();
+                        const phoneDigits = profileMatch?.phone?.replace(/\D/g, '') || '';
+                        const last9 = phoneDigits.slice(-9);
+                        if (last9) {
+                          const candidates = [
+                            `256${last9}@welile.user`,
+                            `0${last9}@welile.user`,
+                            `${last9}@welile.user`,
+                            `256${last9}@welile.agent`,
+                            `0${last9}@welile.agent`,
+                          ];
+                          for (const candidate of candidates) {
+                            const retry = await authSignIn(candidate, password);
+                            if (!retry.error) { error = null; break; }
+                            error = retry.error;
+                            if (!retry.error.message.includes('Invalid login credentials')) break;
+                          }
+                        }
+                      } catch { /* ignore lookup failure */ }
+                    }
+
                     if (error) {
                       let msg = error.message;
                       if (msg.includes('Invalid login credentials')) {
