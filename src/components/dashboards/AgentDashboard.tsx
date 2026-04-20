@@ -71,6 +71,7 @@ import { AgentLandlordPayoutDialog } from '@/components/agent/AgentLandlordPayou
 import { AgentLandlordPayoutFlow } from '@/components/agent/AgentLandlordPayoutFlow';
 import { AgentLandlordFloatCard } from '@/components/agent/AgentLandlordFloatCard';
 import { AgentFloatPayoutWizard } from '@/components/agent/AgentFloatPayoutWizard';
+import { AgentLandlordFloatAllocationsDialog } from '@/components/agent/AgentLandlordFloatAllocationsDialog';
 import { LandlordRecoveryLedger } from '@/components/agent/LandlordRecoveryLedger';
 import { FloatPayoutStatusTracker } from '@/components/agent/FloatPayoutStatusTracker';
 import { FloatTransactionHistory } from '@/components/agent/FloatTransactionHistory';
@@ -187,6 +188,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [cashPayoutsOpen, setCashPayoutsOpen] = useState(false);
   const [landlordPayoutFlowOpen, setLandlordPayoutFlowOpen] = useState(false);
   const [floatPayoutOpen, setFloatPayoutOpen] = useState(false);
+  const [floatAllocationsOpen, setFloatAllocationsOpen] = useState(false);
   const [recoveryLedgerOpen, setRecoveryLedgerOpen] = useState(false);
   const [payoutStatusOpen, setPayoutStatusOpen] = useState(false);
   const [floatHistoryOpen, setFloatHistoryOpen] = useState(false);
@@ -422,7 +424,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           <div className="space-y-5 animate-in fade-in duration-200">
             <AgentRiskExposureCard />
             <AgentLandlordFloatCard
-              onPayLandlord={() => { hapticTap(); setFloatPayoutOpen(true); }}
+              onPayLandlord={() => { hapticTap(); setFloatAllocationsOpen(true); }}
               onOpenRecovery={() => { hapticTap(); setRecoveryLedgerOpen(true); }}
               onOpenHistory={() => { hapticTap(); setFloatHistoryOpen(true); }}
               onOpenStatusTracker={() => { hapticTap(); setPayoutStatusOpen(true); }}
@@ -685,6 +687,14 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <AgentLandlordPayoutDialog open={payoutDialogOpen} onOpenChange={setPayoutDialogOpen} property={payoutProperty} />
       <AgentLandlordPayoutFlow open={landlordPayoutFlowOpen} onOpenChange={setLandlordPayoutFlowOpen} />
       <AgentFloatPayoutWizard open={floatPayoutOpen} onOpenChange={setFloatPayoutOpen} />
+      <AgentLandlordFloatAllocationsDialog
+        open={floatAllocationsOpen}
+        onOpenChange={setFloatAllocationsOpen}
+        onSelectAllocation={() => {
+          setFloatAllocationsOpen(false);
+          setFloatPayoutOpen(true);
+        }}
+      />
       <LandlordRecoveryLedger open={recoveryLedgerOpen} onOpenChange={setRecoveryLedgerOpen} />
       <FloatPayoutStatusTracker open={payoutStatusOpen} onOpenChange={setPayoutStatusOpen} />
       <FloatTransactionHistory open={floatHistoryOpen} onOpenChange={setFloatHistoryOpen} />
