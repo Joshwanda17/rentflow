@@ -56,8 +56,8 @@ export function RevenueExpenseDashboard() {
         dailyData.push({ date: format(d, 'dd MMM'), revenue: rev, expenses: exp, profit: rev - exp });
       }
 
-      const revPie = Object.entries(revBreakdown).map(([k, v]) => ({ name: formatCategoryLabel(k), value: v }));
-      const expPie = Object.entries(expBreakdown).map(([k, v]) => ({ name: formatCategoryLabel(k), value: v }));
+      const revPie = Object.entries(revBreakdown).map(([k, v]) => ({ name: formatCategoryLabel(k), value: v, category: k }));
+      const expPie = Object.entries(expBreakdown).map(([k, v]) => ({ name: formatCategoryLabel(k), value: v, category: k }));
 
       return { totalRevenue, totalExpenses, netIncome: totalRevenue - totalExpenses, dailyData, revPie, expPie };
     },
@@ -106,38 +106,84 @@ export function RevenueExpenseDashboard() {
 
       {/* Breakdown Pies */}
       <div className="grid sm:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Revenue Breakdown</CardTitle></CardHeader>
-          <CardContent>
-            {data.revPie.length === 0 ? <p className="text-center text-sm text-muted-foreground py-8">No revenue data</p> : (
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie data={data.revPie} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" label={({ name }) => name}>
-                    {data.revPie.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                  </Pie>
-                  <RechartsTooltip formatter={(v: number) => formatUGX(v)} />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Expense Breakdown</CardTitle></CardHeader>
-          <CardContent>
-            {data.expPie.length === 0 ? <p className="text-center text-sm text-muted-foreground py-8">No expense data</p> : (
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie data={data.expPie} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" label={({ name }) => name}>
-                    {data.expPie.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                  </Pie>
-                  <RechartsTooltip formatter={(v: number) => formatUGX(v)} />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
+        <CategoryBreakdownCard title="Revenue Breakdown" items={data.revPie} type="revenue" emptyText="No revenue data" />
+        <CategoryBreakdownCard title="Expense Breakdown" items={data.expPie} type="expense" emptyText="No expense data" />
       </div>
     </div>
+  );
+}
+
+interface BreakdownItem { name: string; value: number; category: string }
+
+function CategoryBreakdownCard({ title, items, type, emptyText }: { title: string; items: BreakdownItem[]; type: 'revenue' | 'expense'; emptyText: string }) {
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const handleExport = async (item: BreakdownItem) => {
+    setBusy(item.category);
+    toast.loading(`Generating ${item.name} report...`, { id: item.category });
+    try {
+      const filename = await exportCategoryReport(item.category, item.name, type);
+      toast.success(`Downloaded ${filename}`, { id: item.category });
+    } catch (e: any) {
+      toast.error(`Export failed: ${e.message || 'Unknown error'}`, { id: item.category });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleExportAll = async () => {
+    setBusy('__all__');
+    toast.loading(`Generating combined ${type} report...`, { id: '__all__' });
+    try {
+      const filename = await exportAllCategoriesReport(items.map(i => ({ category: i.category, label: i.name })), type);
+      toast.success(`Downloaded ${filename}`, { id: '__all__' });
+    } catch (e: any) {
+      toast.error(`Export failed: ${e.message || 'Unknown error'}`, { id: '__all__' });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+        <CardTitle className="text-sm">{title}</CardTitle>
+        {items.length > 0 && (
+          <Button size="sm" variant="outline" onClick={handleExportAll} disabled={busy !== null} className="h-7 text-xs">
+            {busy === '__all__' ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <FileDown className="h-3 w-3 mr-1" />}
+            Export All
+          </Button>
+        )}
+      </CardHeader>
+      <CardContent>
+        {items.length === 0 ? <p className="text-center text-sm text-muted-foreground py-8">{emptyText}</p> : (
+          <>
+            <ResponsiveContainer width="100%" height={200}>
+              <PieChart>
+                <Pie data={items} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" label={({ name }) => name}>
+                  {items.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                </Pie>
+                <RechartsTooltip formatter={(v: number) => formatUGX(v)} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="mt-3 space-y-1.5 border-t pt-3">
+              {items.map((item, i) => (
+                <div key={item.category} className="flex items-center justify-between gap-2 text-xs py-1 px-2 rounded hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
+                    <span className="truncate font-medium">{item.name}</span>
+                  </div>
+                  <span className="font-mono text-muted-foreground tabular-nums">{formatUGX(item.value)}</span>
+                  <Button size="sm" variant="ghost" onClick={() => handleExport(item)} disabled={busy !== null} className="h-6 w-6 p-0" title={`Export ${item.name} report`}>
+                    {busy === item.category ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
