@@ -179,6 +179,20 @@ export function ReturnsDisbursementConfirmation({
                                     </tr></tbody></table>
                                   </td>
                                 </tr>
+                                {is_managed_by_agent && agent_name ? (
+                                  <tr>
+                                    <td style={ledgerRowLast}>
+                                      <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation"><tbody><tr>
+                                        <td className="td-block" width="40%" style={ledgerKey}>Managed By</td>
+                                        <td className="td-block" width="60%" align="right" style={ledgerVal}>
+                                          {agent_name}
+                                          <br />
+                                          <span style={ledgerValSub}>(Proxy Agent)</span>
+                                        </td>
+                                      </tr></tbody></table>
+                                    </td>
+                                  </tr>
+                                ) : null}
                               </tbody>
                             </table>
                           </td>
