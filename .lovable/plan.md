@@ -1,34 +1,39 @@
 
 
-## Block tenant phone == landlord phone (and LC1) on agent forms
+## Fix: CFO Direct Credits Must Land in the Withdrawable Bucket
 
 ### Problem
-When an agent posts a rent request for a tenant, nothing prevents them from entering the **same phone number** for both the tenant and the landlord (a clear data integrity error — one person can't be both). Same risk exists with the LC1 phone.
+When the CFO credits a user (e.g. UGX 50,000 to Joshua Wanda from the Funder dashboard context), the money shows up in the ledger but the **withdrawable bucket stays at UGX 100**. Joshua can see the balance but cannot withdraw it.
 
-### Fix scope
-Add a real-time, blocking validation across the two agent-facing forms that collect both numbers.
+**Root cause**: `cfo-direct-credit` sends the credit with `wallet_category = 'system_balance_correction'` (the default when no category is picked). The wallet bucket router (`wallet_route_for_category`) only routes categories it explicitly recognises. `system_balance_correction` is not in the credit allowlist, so the router returns `bucket='none'` and the money **never lands in withdrawable / float / advance** — it orphans between ledger and buckets.
 
-**1. `src/components/agent/AgentRentRequestDialog.tsx`** (primary form)
-- In `collectValidationErrors(...)`, after the tenant/landlord/LC1 phone format checks, compare the **cleaned** (whitespace-stripped) phone numbers and push hard errors:
-  - If `cleanTenantPhone === cleanLandlordPhone` → "Tenant and Landlord phone numbers cannot be the same"
-  - If `cleanTenantPhone === cleanLc1Phone` → "Tenant and LC1 phone numbers cannot be the same"
-  - If `cleanLandlordPhone === cleanLc1Phone` → "Landlord and LC1 phone numbers cannot be the same"
-  (Only compare when both fields are non-empty and pass format validation.)
-- Add an inline red helper under the **Landlord Phone** input (line ~739) and **LC1 Phone** input that shows live the moment the typed landlord/LC1 phone equals the tenant phone — same pattern already used for "Invalid Ugandan phone number".
-- Keep the existing `hasFieldError(...)` highlighting so the offending field gets the red border.
+Current credit-routing allowlist (withdrawable):
+`wallet_deposit, wallet_transfer, cfo_direct_credit, agent_commission_earned, agent_commission, agent_bonus, partner_commission, referral_bonus, proxy_investment_commission, salary_payout, roi_payout`
 
-**2. `src/components/agent/RegisterTenantDialog.tsx`** (agent's "Register Tenant" form, also collects both)
-- In the validation block (around line 149), add the same tenant-vs-landlord phone comparison (cleaned, case-insensitive) and `toast.error("Tenant and Landlord phone numbers cannot be the same")` returning early.
-- Add a small inline warning under the landlord phone input mirroring the Rent Request dialog.
+`system_balance_correction`, `roi_wallet_credit`, GAAP expense categories → all unrouted.
 
-### Out of scope
-- No DB / RPC / edge function changes — this is a pre-submit guard in the UI. The backend already de-dupes landlords by phone, so blocking at the form is sufficient.
-- No changes to other forms that don't collect both numbers (e.g. tenant-side `RecordRent.tsx`, executive dashboards).
-- Phone normalization stays as-is (whitespace-strip + `isValidUgPhone`); we're just comparing the same cleaned strings.
+### Fix (two layers — both cheap, both needed)
 
-### Acceptance
-- Entering the same phone in Tenant Phone and Landlord Phone on the agent rent request form shows a red inline message under Landlord Phone immediately, and the **Submit** attempt is blocked with toast: *"Tenant and Landlord phone numbers cannot be the same"*.
-- Same rule applies between Tenant↔LC1 and Landlord↔LC1 on the rent request form.
-- Same rule applies on the Register Tenant dialog (Tenant↔Landlord).
-- All other validations (format, required, National ID) continue to work unchanged.
+**1. Router: add `system_balance_correction` + `roi_wallet_credit` to the withdrawable-credit allowlist.**
+Migration to `CREATE OR REPLACE FUNCTION public.wallet_route_for_category(...)` adding those two categories so cash_in lands in `withdrawable_balance`. These are the canonical categories the CFO uses to put spendable money into a user's wallet, so they MUST be withdrawable. (We also add the symmetric `cash_out` route for `system_balance_correction` so CFO debits subtract from withdrawable correctly.)
+
+**2. Backfill Joshua's wallet** to reflect ledger reality.
+Use the existing `recompute_wallet_buckets` / equivalent to rebuild his three buckets from ledger, so his orphaned 50,000 CFO credit finally appears as withdrawable.
+
+### Implementation steps
+1. **Migration**: update `wallet_route_for_category` to add:
+   - cash_in withdrawable: `system_balance_correction`, `roi_wallet_credit`
+   - cash_out withdrawable: `system_balance_correction`
+2. **Data fix**: recompute Joshua's wallet buckets (UUID `cb798acb-68bc-4b4e-a414-a3d374e030b6`) so withdrawable reflects the CFO credit.
+3. **Memory update**: append router category → bucket mapping to `mem://business-model/wallet-three-bucket-model` so future CFO category additions don't silently orphan money.
+
+### What this does NOT change
+- No change to edge function code, RLS, or the ledger itself.
+- Float and advance buckets stay isolated (company money / liabilities).
+- Withdrawal gate in `approve-withdrawal` stays as-is — it's correct; we're just making sure money the CFO *intends* to be withdrawable actually reaches that bucket.
+
+### Verification after fix
+- Joshua's `withdrawable_balance` should equal his ledger net (≈ 50,100).
+- Retrying the UGX 50,000 withdrawal through Funder dashboard should succeed.
+- New CFO credits with default category now route correctly without needing the operator to pick a specific wallet_category.
 
