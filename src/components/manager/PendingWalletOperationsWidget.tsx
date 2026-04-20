@@ -26,6 +26,8 @@ interface PendingOperation {
   linked_party: string | null;
   user_name?: string;
   agent_name?: string;
+  portfolio_owner_name?: string;
+  portfolio_code?: string;
 }
 
 const PAYMENT_METHOD_OPTIONS = [
