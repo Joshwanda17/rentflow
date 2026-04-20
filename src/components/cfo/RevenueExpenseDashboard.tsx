@@ -10,11 +10,19 @@ import { LineChart, Line, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveCo
 import { cn } from '@/lib/utils';
 import { exportCategoryReport, exportAllCategoriesReport } from '@/lib/categoryReportExport';
 import { toast } from 'sonner';
+import { CFO_REVENUE_CATEGORIES, CFO_EXPENSE_CATEGORIES } from '@/lib/ledgerConstants';
 
-const REVENUE_CATEGORIES = ['tenant_access_fee', 'tenant_request_fee', 'platform_service_income', 'access_fee_collected', 'registration_fee_collected'];
-const EXPENSE_CATEGORIES = ['supporter_platform_rewards', 'agent_commission_payout', 'transaction_platform_expenses', 'operational_expenses'];
+const REVENUE_CATEGORY_CODES = CFO_REVENUE_CATEGORIES.map(c => c.category);
+const EXPENSE_CATEGORY_CODES = CFO_EXPENSE_CATEGORIES.map(c => c.category);
+const REVENUE_LABEL_MAP: Record<string, string> = Object.fromEntries(CFO_REVENUE_CATEGORIES.map(c => [c.category, c.label]));
+const EXPENSE_LABEL_MAP: Record<string, string> = Object.fromEntries(CFO_EXPENSE_CATEGORIES.map(c => [c.category, c.label]));
 
-const PIE_COLORS = ['hsl(var(--primary))', 'hsl(var(--success))', 'hsl(142, 76%, 36%)', 'hsl(var(--warning))', 'hsl(var(--destructive))'];
+const PIE_COLORS = [
+  'hsl(var(--primary))', 'hsl(var(--success))', 'hsl(142, 76%, 36%)',
+  'hsl(var(--warning))', 'hsl(var(--destructive))', 'hsl(262, 83%, 58%)',
+  'hsl(31, 92%, 50%)', 'hsl(199, 89%, 48%)', 'hsl(330, 81%, 60%)',
+  'hsl(173, 80%, 40%)', 'hsl(280, 65%, 60%)', 'hsl(45, 93%, 47%)',
+];
 
 export function RevenueExpenseDashboard() {
   const { data, isLoading } = useQuery({
@@ -29,17 +37,17 @@ export function RevenueExpenseDashboard() {
         .eq('ledger_scope', 'platform');
       if (error) throw error;
 
-      // Totals
+      // Totals — accumulate by category, including zero buckets so every canonical category is visible.
       let totalRevenue = 0, totalExpenses = 0;
-      const revBreakdown: Record<string, number> = {};
-      const expBreakdown: Record<string, number> = {};
+      const revBreakdown: Record<string, number> = Object.fromEntries(REVENUE_CATEGORY_CODES.map(c => [c, 0]));
+      const expBreakdown: Record<string, number> = Object.fromEntries(EXPENSE_CATEGORY_CODES.map(c => [c, 0]));
 
       for (const e of ledger || []) {
-        if (REVENUE_CATEGORIES.includes(e.category)) {
+        if (REVENUE_CATEGORY_CODES.includes(e.category)) {
           totalRevenue += e.amount;
           revBreakdown[e.category] = (revBreakdown[e.category] || 0) + e.amount;
         }
-        if (EXPENSE_CATEGORIES.includes(e.category)) {
+        if (EXPENSE_CATEGORY_CODES.includes(e.category)) {
           totalExpenses += e.amount;
           expBreakdown[e.category] = (expBreakdown[e.category] || 0) + e.amount;
         }
@@ -51,13 +59,18 @@ export function RevenueExpenseDashboard() {
         const d = subDays(new Date(), i);
         const dateStr = format(d, 'yyyy-MM-dd');
         const dayEntries = (ledger || []).filter(e => e.transaction_date?.startsWith(dateStr));
-        const rev = dayEntries.filter(e => REVENUE_CATEGORIES.includes(e.category)).reduce((s, e) => s + e.amount, 0);
-        const exp = dayEntries.filter(e => EXPENSE_CATEGORIES.includes(e.category)).reduce((s, e) => s + e.amount, 0);
+        const rev = dayEntries.filter(e => REVENUE_CATEGORY_CODES.includes(e.category)).reduce((s, e) => s + e.amount, 0);
+        const exp = dayEntries.filter(e => EXPENSE_CATEGORY_CODES.includes(e.category)).reduce((s, e) => s + e.amount, 0);
         dailyData.push({ date: format(d, 'dd MMM'), revenue: rev, expenses: exp, profit: rev - exp });
       }
 
-      const revPie = Object.entries(revBreakdown).map(([k, v]) => ({ name: formatCategoryLabel(k), value: v, category: k }));
-      const expPie = Object.entries(expBreakdown).map(([k, v]) => ({ name: formatCategoryLabel(k), value: v, category: k }));
+      // Build full canonical lists (every category, even 0) — sorted by value desc but zeros kept at the bottom.
+      const revPie = REVENUE_CATEGORY_CODES
+        .map(k => ({ name: REVENUE_LABEL_MAP[k] || formatCategoryLabel(k), value: revBreakdown[k] || 0, category: k }))
+        .sort((a, b) => b.value - a.value);
+      const expPie = EXPENSE_CATEGORY_CODES
+        .map(k => ({ name: EXPENSE_LABEL_MAP[k] || formatCategoryLabel(k), value: expBreakdown[k] || 0, category: k }))
+        .sort((a, b) => b.value - a.value);
 
       return { totalRevenue, totalExpenses, netIncome: totalRevenue - totalExpenses, dailyData, revPie, expPie };
     },
@@ -144,10 +157,18 @@ function CategoryBreakdownCard({ title, items, type, emptyText }: { title: strin
     }
   };
 
+  const nonZeroItems = items.filter(i => i.value > 0);
+  const activeCount = nonZeroItems.length;
+
   return (
     <Card>
       <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-        <CardTitle className="text-sm">{title}</CardTitle>
+        <div className="flex flex-col">
+          <CardTitle className="text-sm">{title}</CardTitle>
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            {items.length} categories · {activeCount} active in 30d
+          </p>
+        </div>
         {items.length > 0 && (
           <Button size="sm" variant="outline" onClick={handleExportAll} disabled={busy !== null} className="h-7 text-xs">
             {busy === '__all__' ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <FileDown className="h-3 w-3 mr-1" />}
@@ -156,32 +177,55 @@ function CategoryBreakdownCard({ title, items, type, emptyText }: { title: strin
         )}
       </CardHeader>
       <CardContent>
-        {items.length === 0 ? <p className="text-center text-sm text-muted-foreground py-8">{emptyText}</p> : (
-          <>
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie data={items} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" label={({ name }) => name}>
-                  {items.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                </Pie>
-                <RechartsTooltip formatter={(v: number) => formatUGX(v)} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="mt-3 space-y-1.5 border-t pt-3">
-              {items.map((item, i) => (
-                <div key={item.category} className="flex items-center justify-between gap-2 text-xs py-1 px-2 rounded hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
-                    <span className="truncate font-medium">{item.name}</span>
-                  </div>
-                  <span className="font-mono text-muted-foreground tabular-nums">{formatUGX(item.value)}</span>
-                  <Button size="sm" variant="ghost" onClick={() => handleExport(item)} disabled={busy !== null} className="h-6 w-6 p-0" title={`Export ${item.name} report`}>
-                    {busy === item.category ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </>
+        {nonZeroItems.length === 0 ? (
+          <p className="text-center text-sm text-muted-foreground py-8">{emptyText}</p>
+        ) : (
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie data={nonZeroItems} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" label={({ name }) => name}>
+                {nonZeroItems.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+              </Pie>
+              <RechartsTooltip formatter={(v: number) => formatUGX(v)} />
+            </PieChart>
+          </ResponsiveContainer>
         )}
+        <div className="mt-3 space-y-1 border-t pt-3 max-h-[320px] overflow-y-auto">
+          {items.map((item, i) => {
+            const isZero = item.value <= 0;
+            return (
+              <div
+                key={item.category}
+                className={cn(
+                  'flex items-center justify-between gap-2 text-xs py-1 px-2 rounded transition-colors',
+                  isZero ? 'opacity-60 hover:bg-muted/30' : 'hover:bg-muted/50',
+                )}
+              >
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <span
+                    className="h-2.5 w-2.5 rounded-full flex-shrink-0"
+                    style={{ background: isZero ? 'hsl(var(--muted-foreground) / 0.3)' : PIE_COLORS[i % PIE_COLORS.length] }}
+                  />
+                  <span className={cn('truncate', isZero ? 'text-muted-foreground' : 'font-medium')}>{item.name}</span>
+                </div>
+                {isZero ? (
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">No activity</span>
+                ) : (
+                  <span className="font-mono text-muted-foreground tabular-nums">{formatUGX(item.value)}</span>
+                )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => handleExport(item)}
+                  disabled={busy !== null}
+                  className="h-6 w-6 p-0"
+                  title={`Export ${item.name} report`}
+                >
+                  {busy === item.category ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+                </Button>
+              </div>
+            );
+          })}
+        </div>
       </CardContent>
     </Card>
   );
