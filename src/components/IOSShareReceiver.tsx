@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, forwardRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useIOSCompatibility } from '@/hooks/useIOSCompatibility';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -11,7 +11,7 @@ import { hapticSuccess } from '@/lib/haptics';
  * Handles receiving shared content from iOS Share Sheet
  * When users share links TO the Welile PWA
  */
-export default function IOSShareReceiver() {
+const IOSShareReceiver = forwardRef<HTMLDivElement>(function IOSShareReceiver(_props, _ref) {
   const { isIOS } = useIOSCompatibility();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -132,4 +132,7 @@ export default function IOSShareReceiver() {
       </DialogContent>
     </Dialog>
   );
-}
+});
+
+export default IOSShareReceiver;
+

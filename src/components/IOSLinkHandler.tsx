@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, forwardRef } from 'react';
 import { useIOSCompatibility } from '@/hooks/useIOSCompatibility';
 
 /**
@@ -8,7 +8,7 @@ import { useIOSCompatibility } from '@/hooks/useIOSCompatibility';
  * - Handling external links properly
  * - Ensuring signup links work reliably
  */
-export default function IOSLinkHandler() {
+const IOSLinkHandler = forwardRef<HTMLDivElement>(function IOSLinkHandler(_props, _ref) {
   const { isIOS, isStandalone } = useIOSCompatibility();
 
   // Handle URL parameters preservation across redirects
@@ -135,4 +135,7 @@ export default function IOSLinkHandler() {
   }, [isIOS]);
 
   return null;
-}
+});
+
+export default IOSLinkHandler;
+
