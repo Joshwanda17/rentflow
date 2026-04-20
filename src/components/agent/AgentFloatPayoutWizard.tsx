@@ -137,8 +137,16 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
   const phoneValid = /^(?:\+?256|0)?\d{9}$/.test(landlordPhone.replace(/\s+/g, ''));
 
   const handleSendOtp = async () => {
-    if (!landlordPhone) {
-      toast.error('No landlord phone number available');
+    if (!phoneValid) {
+      toast.error('Enter a valid landlord phone number');
+      return;
+    }
+    if (!amountValid) {
+      toast.error(
+        effectiveAmount <= 0
+          ? 'Enter an amount greater than 0'
+          : `Amount cannot exceed rent due (${formatUGX(Number(selectedRequest?.rent_amount ?? 0))})`,
+      );
       return;
     }
     const sent = await landlordOtp.sendOtp(landlordPhone);
