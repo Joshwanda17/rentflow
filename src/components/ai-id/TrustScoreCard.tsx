@@ -179,13 +179,13 @@ function BreakdownBar({
 }) {
   return (
     <div className="space-y-1">
-      <div className="flex items-center justify-between text-xs">
-        <div className={`flex items-center gap-1.5 ${highlight ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}>
-          {icon}
-          <span>{label}</span>
-          <span className="text-[10px] opacity-60">({weight}%)</span>
+      <div className="flex items-center justify-between gap-2 text-xs">
+        <div className={`flex items-center gap-1.5 min-w-0 flex-1 ${highlight ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}>
+          <span className="shrink-0">{icon}</span>
+          <span className="truncate">{label}</span>
+          <span className="text-[10px] opacity-60 shrink-0">({weight}%)</span>
         </div>
-        <span className="font-mono font-medium text-foreground">{Math.round(score)}</span>
+        <span className="font-mono font-medium text-foreground shrink-0 tabular-nums">{Math.round(score)}</span>
       </div>
       <div className="h-1.5 bg-muted rounded-full overflow-hidden">
         <motion.div
