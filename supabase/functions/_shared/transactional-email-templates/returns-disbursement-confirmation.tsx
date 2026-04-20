@@ -257,280 +257,230 @@ export function ReturnsDisbursementConfirmation({
 }
 
 /* === Styles === */
-const BRAND = '#7C19D6'
-const BRAND_DARK = '#5D12A1'
-const INK = '#0F172A'
-const SUB = '#475569'
-const MUTED = '#94A3B8'
-const BORDER = '#E2E8F0'
-const SURFACE = '#F8FAFC'
+/* === Master Layout Styles (aligned to index.html) === */
+const BRAND = '#7b19d4'
+const BRAND_DEEP = '#5a129e'
+const ACCENT_BG = '#fcf9ff'
+const INK = '#0f172a'
+const BODY = '#475569'
+const SUB = '#64748b'
+const MUTED = '#94a3b8'
+const BORDER = '#e2e8f0'
+const HAIRLINE = '#f1f5f9'
+const PAGE_BG = '#f4f7f9'
+const FONT_STACK =
+  "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'"
+
+const clientOverrides = `
+  body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+  table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+  img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
+  table { border-collapse: collapse !important; }
+  body { height: 100% !important; margin: 0 !important; padding: 0 !important; width: 100% !important; }
+  a { color: ${BRAND}; }
+  a:hover { color: ${BRAND_DEEP}; }
+  @media screen and (max-width: 600px) {
+    .responsive-table { width: 100% !important; max-width: 100% !important; }
+    .padding-mobile { padding: 25px 20px !important; }
+    .td-block { display: block !important; width: 100% !important; text-align: left !important; }
+    .hide-mobile { display: none !important; }
+    .amount-text { font-size: 32px !important; }
+  }
+`
 
 const main: React.CSSProperties = {
-  backgroundColor: '#F1F5F9',
   margin: 0,
-  padding: '24px 0',
-  fontFamily:
-    "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+  padding: 0,
+  backgroundColor: PAGE_BG,
+  fontFamily: FONT_STACK,
   WebkitFontSmoothing: 'antialiased',
 }
 
-const outerContainer: React.CSSProperties = {
-  margin: '0 auto',
-  maxWidth: '600px',
-  width: '100%',
-  padding: '0 12px',
+const bgTable: React.CSSProperties = { backgroundColor: PAGE_BG }
+
+const contentCard: React.CSSProperties = {
+  backgroundColor: '#ffffff',
+  borderRadius: '12px',
+  overflow: 'hidden',
+  boxShadow: '0 4px 15px rgba(0,0,0,0.05)',
 }
 
-const header: React.CSSProperties = {
-  textAlign: 'center',
-  padding: '8px 0 20px',
+const accentBar: React.CSSProperties = {
+  backgroundColor: BRAND,
+  backgroundImage: `linear-gradient(90deg, ${BRAND} 0%, #a855f7 100%)`,
 }
 
-const logo: React.CSSProperties = {
+const headerCell: React.CSSProperties = {
+  padding: '30px 40px',
+  borderBottom: `1px solid ${HAIRLINE}`,
+}
+
+const logoImg: React.CSSProperties = {
+  display: 'block',
+  maxWidth: '130px',
+  height: 'auto',
+}
+
+const secureLabel: React.CSSProperties = {
+  fontSize: '11px',
+  color: MUTED,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '1.5px',
+}
+
+const iconWrap: React.CSSProperties = {
   display: 'inline-block',
-  borderRadius: '10px',
+  width: '64px',
+  height: '64px',
+  backgroundColor: '#f3e8fc',
+  borderRadius: '50%',
+  lineHeight: '64px',
+  textAlign: 'center',
+  marginBottom: '24px',
 }
 
-const brandName: React.CSSProperties = {
-  margin: '8px 0 0',
+const heroH1: React.CSSProperties = {
+  margin: '0 0 15px 0',
+  color: INK,
+  fontSize: '26px',
+  fontWeight: 800,
+  letterSpacing: '-0.5px',
+}
+
+const heroSub: React.CSSProperties = {
+  margin: 0,
+  color: SUB,
+  fontSize: '16px',
+  fontWeight: 500,
+}
+
+const introText: React.CSSProperties = {
+  margin: 0,
+  color: BODY,
+  fontSize: '16px',
+  lineHeight: '26px',
+}
+
+const ledgerCard: React.CSSProperties = {
+  border: `1px solid ${BORDER}`,
+  borderRadius: '12px',
+  overflow: 'hidden',
+}
+
+const ledgerAmountHeader: React.CSSProperties = {
+  backgroundColor: ACCENT_BG,
+  padding: '35px 20px',
+  borderBottom: `1px solid ${BORDER}`,
+}
+
+const ledgerAmountLabel: React.CSSProperties = {
+  margin: '0 0 10px 0',
+  color: SUB,
+  fontSize: '12px',
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '1.5px',
+}
+
+const ledgerAmountValue: React.CSSProperties = {
+  margin: 0,
   color: BRAND,
-  fontSize: '14px',
-  fontWeight: 700,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
+  fontSize: '40px',
+  fontWeight: 800,
+  letterSpacing: '-1px',
 }
 
-const card: React.CSSProperties = {
-  backgroundColor: '#FFFFFF',
-  borderRadius: '14px',
-  border: `1px solid ${BORDER}`,
-  boxShadow: '0 4px 16px rgba(15, 23, 42, 0.06)',
-  overflow: 'hidden',
-  padding: 0,
+const ledgerRow: React.CSSProperties = {
+  padding: '18px 0',
+  borderBottom: `1px dashed ${BORDER}`,
 }
 
-const titleSection: React.CSSProperties = {
-  background: `linear-gradient(135deg, ${BRAND} 0%, ${BRAND_DARK} 100%)`,
-  padding: '28px 32px 24px',
-  textAlign: 'left',
+const ledgerRowLast: React.CSSProperties = {
+  padding: '18px 0',
 }
 
-const eyebrow: React.CSSProperties = {
-  margin: '0 0 6px',
-  color: 'rgba(255,255,255,0.85)',
-  fontSize: '11px',
-  fontWeight: 600,
-  letterSpacing: '0.12em',
-  textTransform: 'uppercase',
-}
-
-const h1: React.CSSProperties = {
-  margin: 0,
-  color: '#FFFFFF',
-  fontSize: '22px',
-  lineHeight: '28px',
-  fontWeight: 700,
-  letterSpacing: '-0.01em',
-}
-
-const bodySection: React.CSSProperties = {
-  padding: '28px 32px 8px',
-}
-
-const greeting: React.CSSProperties = {
-  color: INK,
-  fontSize: '15px',
-  fontWeight: 600,
-  margin: '0 0 12px',
-}
-
-const paragraph: React.CSSProperties = {
+const ledgerKey: React.CSSProperties = {
   color: SUB,
   fontSize: '14px',
-  lineHeight: '22px',
-  margin: '0 0 16px',
-}
-
-const amountHero: React.CSSProperties = {
-  backgroundColor: SURFACE,
-  border: `1px solid ${BORDER}`,
-  borderLeft: `4px solid ${BRAND}`,
-  borderRadius: '10px',
-  padding: '20px 22px',
-  margin: '20px 0 18px',
-  textAlign: 'center',
-}
-
-const amountLabel: React.CSSProperties = {
-  margin: '0 0 6px',
-  color: MUTED,
-  fontSize: '11px',
   fontWeight: 600,
-  letterSpacing: '0.1em',
-  textTransform: 'uppercase',
+  paddingBottom: '6px',
 }
 
-const amountValue: React.CSSProperties = {
-  margin: '0 0 6px',
+const ledgerVal: React.CSSProperties = {
   color: INK,
-  fontSize: '30px',
-  lineHeight: '36px',
-  fontWeight: 700,
-  letterSpacing: '-0.02em',
-  fontVariantNumeric: 'tabular-nums',
-}
-
-const amountSubtle: React.CSSProperties = {
-  margin: 0,
-  color: MUTED,
-  fontSize: '12px',
-}
-
-const detailsCard: React.CSSProperties = {
-  border: `1px solid ${BORDER}`,
-  borderRadius: '10px',
-  overflow: 'hidden',
-  margin: '0 0 18px',
-}
-
-const detailsTable: React.CSSProperties = {
-  borderCollapse: 'collapse',
-}
-
-const detailLabelCell: React.CSSProperties = {
-  padding: '14px 18px',
-  fontSize: '12px',
-  color: MUTED,
+  fontSize: '14px',
   fontWeight: 600,
-  textTransform: 'uppercase',
-  letterSpacing: '0.06em',
-  width: '40%',
-  verticalAlign: 'middle',
 }
 
-const detailValueCellMono: React.CSSProperties = {
-  padding: '14px 18px',
-  fontSize: '13px',
+const ledgerValMono: React.CSSProperties = {
   color: INK,
-  fontWeight: 600,
-  fontFamily:
-    "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-  textAlign: 'right',
-  verticalAlign: 'middle',
-}
-
-const detailLabelCellBordered: React.CSSProperties = {
-  ...detailLabelCell,
-  borderTop: `1px solid ${BORDER}`,
-}
-
-const detailValueCellBordered: React.CSSProperties = {
-  padding: '14px 18px',
-  fontSize: '13px',
-  color: INK,
-  fontWeight: 600,
-  textAlign: 'right',
-  verticalAlign: 'middle',
-  borderTop: `1px solid ${BORDER}`,
-}
-
-const statusPill: React.CSSProperties = {
-  display: 'inline-block',
-  padding: '4px 10px',
-  borderRadius: '999px',
-  backgroundColor: '#DCFCE7',
-  color: '#15803D',
-  fontSize: '11px',
+  fontSize: '14px',
   fontWeight: 700,
-  letterSpacing: '0.04em',
-  textTransform: 'uppercase',
+  fontFamily: "'Courier New', Courier, monospace",
+  letterSpacing: '0.5px',
 }
 
-const helpBox: React.CSSProperties = {
-  backgroundColor: '#FAF5FF',
-  border: `1px solid #E9D5FF`,
-  borderRadius: '10px',
-  padding: '14px 16px',
-  margin: '4px 0 8px',
-}
-
-const helpText: React.CSSProperties = {
-  margin: 0,
-  color: '#5B21B6',
-  fontSize: '13px',
-  lineHeight: '20px',
-}
-
-const helpStrong: React.CSSProperties = {
-  fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-  color: '#4C1D95',
-}
-
-const managedBox: React.CSSProperties = {
-  backgroundColor: '#FFFBEB',
-  border: `1px solid #FDE68A`,
-  borderLeft: `4px solid #F59E0B`,
-  borderRadius: '10px',
-  padding: '14px 16px',
-  margin: '12px 0 8px',
-}
-
-const managedTitle: React.CSSProperties = {
-  margin: '0 0 6px',
-  color: '#92400E',
-  fontSize: '12px',
-  fontWeight: 700,
-  letterSpacing: '0.06em',
-  textTransform: 'uppercase',
-}
-
-const managedText: React.CSSProperties = {
-  margin: 0,
-  color: '#78350F',
-  fontSize: '13px',
-  lineHeight: '20px',
-}
-
-const managedStrong: React.CSSProperties = {
-  color: '#78350F',
-  fontWeight: 700,
-}
-
-const hr: React.CSSProperties = {
-  borderColor: BORDER,
-  margin: '8px 0 0',
-}
-
-const footerSection: React.CSSProperties = {
-  padding: '20px 32px 24px',
-  textAlign: 'center',
-}
-
-const footerCompany: React.CSSProperties = {
-  margin: '0 0 2px',
-  color: INK,
-  fontSize: '13px',
-  fontWeight: 700,
-}
-
-const footerSystem: React.CSSProperties = {
-  margin: '0 0 8px',
+const ledgerValSub: React.CSSProperties = {
   color: SUB,
   fontSize: '12px',
+  fontWeight: 500,
 }
 
-const footerCopy: React.CSSProperties = {
+const outroText: React.CSSProperties = {
+  margin: '0 0 15px 0',
+  color: BODY,
+  fontSize: '14px',
+  lineHeight: '24px',
+}
+
+const supportCell: React.CSSProperties = {
+  paddingTop: '15px',
+  borderTop: `1px solid ${HAIRLINE}`,
+}
+
+const supportText: React.CSSProperties = {
   margin: 0,
-  color: MUTED,
-  fontSize: '11px',
+  color: SUB,
+  fontSize: '14px',
 }
 
-const disclaimer: React.CSSProperties = {
-  textAlign: 'center',
+const supportLink: React.CSSProperties = {
+  color: BRAND,
+  textDecoration: 'none',
+  fontWeight: 700,
+}
+
+const socialIcon: React.CSSProperties = {
+  display: 'block',
+  opacity: 0.8,
+}
+
+const footerCompanyName: React.CSSProperties = {
+  margin: '0 0 12px 0',
   color: MUTED,
-  fontSize: '11px',
-  margin: '16px 0 8px',
-  padding: '0 24px',
+  fontSize: '14px',
+  fontWeight: 700,
+}
+
+const footerDisclaimer: React.CSSProperties = {
+  margin: '0 0 20px 0',
+  color: MUTED,
+  fontSize: '12px',
+  lineHeight: '18px',
+}
+
+const footerLink: React.CSSProperties = {
+  color: MUTED,
+  fontSize: '12px',
+  textDecoration: 'underline',
+  margin: '0 10px',
+}
+
+const footerCopyText: React.CSSProperties = {
+  margin: 0,
+  color: '#cbd5e1',
+  fontSize: '12px',
 }
 
 export const template = {
