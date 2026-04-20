@@ -1,37 +1,35 @@
 
 
 ## Problem
-Top stats on Agent Operations look static because the queries are capped:
-- `agent_earnings` → `.limit(200)` → totalEarnings & uniqueAgents wrong
-- `agent_commission_payouts` → `.limit(100)` → totalCommissions wrong
-- Agents count uses only agents that appear in the last 200 earnings rows, missing all other agents
+In `AgentTenantCollectDialog.tsx`, the **Confirm** button on the "Confirm Payment" step does nothing.
+
+**Root cause:** The confirmation step is rendered as a `fixed inset-0 z-50` overlay **inside** the Radix `<Dialog>`'s `DialogContent`. Radix Dialog uses a focus trap and an outside-pointer-down handler on its content. When the user taps Confirm:
+1. The tap lands on the fixed overlay which is technically *outside* the original `DialogContent` bounds in the layout tree but inside the React tree.
+2. Radix's pointer-down outside detector + the parent `onOpenChange={handleClose}` race the button click — the dialog closes (or the click is swallowed) before `handleAllocate` runs.
+3. Result: button appears dead.
+
+This is the same bug pattern as nesting modals inside Radix dialogs without using a portal/nested Dialog.
 
 ## Fix
-Replace the row-fetched aggregations with proper server-side aggregates so the three KPIs (Agents, Earnings, Commissions) reflect real, full totals and refresh live.
+Convert the inline confirmation overlay into a **proper second `<Dialog>`** (nested, portaled correctly), instead of a hand-rolled `fixed inset-0` div.
 
-### Changes in `src/components/executive/AgentOpsDashboard.tsx`
-1. Add a new `useQuery(['agent-ops-kpis'])` that runs three parallel server-side counts/sums:
-   - **Agents**: `count` of `user_roles` where `role = 'agent'` (head + exact count).
-   - **Earnings**: `sum(amount)` from `agent_earnings` via a lightweight RPC if available, else paginated reduce. Prefer existing RPC pattern (see `get_financial_ops_pulse`). If no RPC exists, fall back to `select amount` with no limit and reduce — acceptable for current scale, but we will add a tiny SQL helper RPC `get_agent_ops_kpis()` returning `{ agents, earnings_total, commissions_total }` to stay aligned with the high-scale ops automation memory.
-   - **Commissions**: `sum(amount)` from `agent_commission_payouts` (status filter: include all paid + pending? — default to all, matches current behavior).
-3. Wire `KPICard` values to the new query (`kpis.agents`, `kpis.earnings_total`, `kpis.commissions_total`) and use that query's `isLoading` for the skeleton.
-4. Keep the existing `earnings`/`commissions` row queries (still used for the Earnings table sub-view) but no longer use them for the KPIs.
-5. Set `staleTime: 60_000` and add a manual refetch on mount so figures stay current without hammering DB.
+### Changes in `src/components/agent/AgentTenantCollectDialog.tsx`
 
-### New RPC (migration)
-Create `public.get_agent_ops_kpis()` returning JSON:
-```
-{ agents: bigint, earnings_total: numeric, commissions_total: numeric }
-```
-- `SECURITY DEFINER`, `SET search_path = public`.
-- Restricted to authenticated roles with staff/exec permissions (mirrors existing exec RPCs).
+1. Move the `confirming` step out of `DialogContent` — render it as its own `<Dialog open={confirming} onOpenChange={(o) => !loading && setConfirming(o)}>` sibling at the bottom of the component (next to `CommissionCelebration`).
+2. Use `<DialogContent className="max-w-sm">` with `DialogHeader` / `DialogTitle` for accessibility (a11y warning fix as a bonus).
+3. Keep the existing summary card (Tenant / Amount / Float after / Tenant still owes / Commission) and the Edit + Confirm buttons.
+4. `Confirm` button calls `handleAllocate` directly — now reliably, since the nested Dialog's portal sits above the parent and owns its own pointer events.
+5. After successful allocation, `handleAllocate` already does `setConfirming(false)` + `setResult(res)` — leave that flow intact; the success view replaces the form in the parent dialog.
+6. Prevent the parent Dialog from closing while the confirm sub-dialog is open or `loading` is true: tighten parent `onOpenChange` to `(o) => { if (!loading && !confirming) handleClose(); }`.
 
-## Out of scope
-- Layout, icons, navigation grid — untouched.
-- Sub-views (Earnings table, Pipeline, etc.) — untouched.
+### Out of scope
+- No backend / RPC changes (`agent_allocate_tenant_payment` stays the same).
+- No layout / copy changes to the form step or success step.
+- No styling changes beyond what's needed to render the nested Dialog.
 
 ## Acceptance
-- Opening Agent Operations shows real totals (not "43…" capped from 200 rows).
-- Agents count equals total agents on the platform, not just recent earners.
-- Numbers update on refetch and reflect new earnings/commissions immediately.
+- Tapping **Confirm** in the "Confirm Payment" sheet triggers the allocation, shows the loader, and on success displays the "Payment Allocated!" view + commission celebration.
+- Tapping **Edit** returns to the form with the amount preserved.
+- Tapping outside or pressing Esc on the confirm sheet returns to the form (does not close the parent dialog).
+- The parent dialog cannot be dismissed while a payment is in flight.
 
