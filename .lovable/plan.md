@@ -1,42 +1,57 @@
 
 
-## Problem
-Withdrawal approvals already write to `audit_logs`, but the **CFO Actions Trail** filters for outdated action types (`withdrawal_approval`, `cfo_approve_withdrawal`) that aren't being written anymore. The actual production action types are missing from the allowlist, so approved withdrawals never appear — making it look like "money owed" never reduces.
+## Plan: Export All Advance Payments as Single Consolidated PDF
 
-## Production action types found (all missing from trail)
+### Where
+Add a second button **"Export All Payments"** next to the existing **"Export PDFs"** in the header of `CFOAdvancesManager.tsx` (Advances tab on CFO Dashboard).
 
-| action_type | Count | Latest | Meaning |
-|---|---|---|---|
-| `withdrawal_approved_ledger` | 18 | today 06:57 | **Final CFO approval that debits the wallet** (the one we care most about) |
-| `withdrawal_rejected` | 18 | today 06:40 | Withdrawal denied |
-| `proxy_partner_withdrawal` | 43 | Apr 17 | Partner withdrawal processed |
-| `fin_ops_complete_withdrawal` | 37 | Apr 10 | FinOps marked withdrawal as paid out |
-| `fin_ops_approve_withdrawal` | 7 | Apr 2 | FinOps stage approval |
-| `bulk_approve_wallet_withdrawals` | 1 | Mar 24 | Bulk approval action |
+### What it does
+Instead of one PDF per agent, generate **ONE consolidated PDF** containing every payment/deduction across all advances in the current filter view — combined into a single chronological table.
 
-Metadata shape on these is rich: `amount`, `target_user_name`, `payment_method`, `reference`, `previous_balance`, `new_balance` — perfect for the trail card.
+### PDF contents
+1. **Header** — Welile branding, "Consolidated Advance Payments Report", generation date, filter applied (`all`/`active`/`completed`/`overdue`)
+2. **Top-line summary**:
+   - Total advances covered
+   - Total agents covered
+   - Total principal issued
+   - Total interest accrued
+   - Total deducted (sum of all `amount_deducted` from `agent_advance_ledger`)
+   - Total outstanding
+3. **Single unified payments table** (sorted by date desc) with columns:
+   - Date
+   - Agent name
+   - Advance ID (short)
+   - Opening balance
+   - Interest accrued
+   - Amount deducted
+   - Closing balance
+   - Status
+4. **Footer** — page numbers, audit reference
 
-## Fix (single file)
+### Tech approach
+- New helper in **`src/lib/agentAdvancePdfExport.ts`**: `exportConsolidatedPayments(advances)` 
+- Reuses existing `jsPDF` + `jspdf-autotable` deps (no new packages)
+- Bulk-fetches `agent_advance_ledger` for all advance IDs via single `.in()` query (already done in existing helper — extract pattern)
+- Joins agent name from `advances[].profiles.full_name`
+- Single download: `advance-payments-consolidated-{filter}-{YYYY-MM-DD}.pdf`
+- Audit log: `action_type: 'cfo_advance_payments_export'`
 
-**File:** `src/components/cfo/CFOActionsLog.tsx`
+### UX
+- Button label: **"Export All Payments"** with `FileText` icon
+- Disabled when `filtered.length === 0` or while exporting
+- Toast: `"Generating consolidated payments report..."` → `"Downloaded {filename}"`
+- Respects current tab filter
 
-1. **`ALL_CFO_ACTIONS`** — add the 6 missing action types; remove the dead `withdrawal_approval` and `cfo_approve_withdrawal` (or keep for backward compat — keep them, harmless).
-2. **`ACTION_ICONS`** — add 💸 for the new debit actions, 🚫 for rejected.
-3. **`ACTION_LABELS`** — friendly names:
-   - `withdrawal_approved_ledger` → "Withdrawal Paid Out"
-   - `withdrawal_rejected` → "Withdrawal Rejected"
-   - `proxy_partner_withdrawal` → "Partner Withdrawal"
-   - `fin_ops_complete_withdrawal` → "Withdrawal Completed"
-   - `fin_ops_approve_withdrawal` → "Withdrawal Approved (Ops)"
-   - `bulk_approve_wallet_withdrawals` → "Bulk Withdrawal Approval"
-4. **`DEBIT_ACTIONS` set** — add `withdrawal_approved_ledger`, `proxy_partner_withdrawal`, `fin_ops_complete_withdrawal`, `bulk_approve_wallet_withdrawals` so they render with red `−` sign (showing money leaving the platform = obligation reduced).
-5. **`FILTER_GROUPS` "Withdrawals" entry** — replace stale list with the real action types.
+### Files
+**Modified**
+- `src/lib/agentAdvancePdfExport.ts` — add `exportConsolidatedPayments()` function (keeps existing `exportAdvanceStatements` untouched)
+- `src/components/cfo/CFOAdvancesManager.tsx` — add second button + handler
 
-## Out of scope
-- No DB schema changes
-- No edge function changes — they're already logging correctly
-- Withdrawal approval flow itself stays untouched
+### Out of scope
+- Excel/CSV export (PDF only, matching existing pattern)
+- Date range picker (always exports full history of filtered advances)
+- Touching the existing per-agent export
 
-## Expected outcome
-Each approved withdrawal (e.g., today's 8 approvals totalling ~UGX 12.7M) will appear in the CFO Actions Trail as a red debit card showing the user, amount, payment method, and approver — making the "money owed" reduction visible in real time.
+### Expected outcome
+CFO clicks **"Export All Payments"** → one PDF downloads showing every deduction ever recorded across all visible advances in a single chronological table — useful for auditing total cash flow recovered from advances at a glance.
 
