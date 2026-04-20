@@ -18,6 +18,8 @@ interface EditTenantDialogProps {
     phone: string;
     email: string | null;
     national_id: string | null;
+    tenant_status?: string | null;
+    evicted_at?: string | null;
   };
   onSaved?: (updated: { full_name: string; phone: string; email: string | null; national_id: string | null }) => void;
 }
@@ -112,7 +114,13 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3 pt-2">
+        {tenant.tenant_status === 'evicted' && (
+          <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+            This tenant is marked <strong>Evicted</strong>{tenant.evicted_at ? ` as of ${new Date(tenant.evicted_at).toLocaleDateString()}` : ''} — record locked for audit. Identity fields cannot be changed.
+          </div>
+        )}
+
+        <fieldset disabled={tenant.tenant_status === 'evicted'} className="space-y-3 pt-2 disabled:opacity-60">
           <div>
             <Label className="text-xs flex items-center gap-1.5">
               <User className="h-3 w-3" /> Full Name *
