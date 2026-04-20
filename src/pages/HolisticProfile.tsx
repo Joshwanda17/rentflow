@@ -423,11 +423,11 @@ function Stat({
 }) {
   return (
     <div
-      className={`p-3 rounded-xl bg-muted/40 border border-border/50 ${span2 ? 'col-span-2' : ''}`}
+      className={`p-3 rounded-xl bg-muted/40 border border-border/50 min-w-0 ${span2 ? 'col-span-2' : ''}`}
     >
-      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground truncate">{label}</p>
       <p
-        className={`text-sm font-bold mt-0.5 ${
+        className={`text-sm font-bold mt-0.5 break-words leading-tight ${
           danger ? 'text-destructive' : accent ? 'text-emerald-600' : 'text-foreground'
         }`}
       >
