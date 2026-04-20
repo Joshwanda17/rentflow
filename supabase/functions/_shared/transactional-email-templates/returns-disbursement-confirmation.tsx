@@ -391,6 +391,36 @@ const helpStrong: React.CSSProperties = {
   color: '#4C1D95',
 }
 
+const managedBox: React.CSSProperties = {
+  backgroundColor: '#FFFBEB',
+  border: `1px solid #FDE68A`,
+  borderLeft: `4px solid #F59E0B`,
+  borderRadius: '10px',
+  padding: '14px 16px',
+  margin: '12px 0 8px',
+}
+
+const managedTitle: React.CSSProperties = {
+  margin: '0 0 6px',
+  color: '#92400E',
+  fontSize: '12px',
+  fontWeight: 700,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+}
+
+const managedText: React.CSSProperties = {
+  margin: 0,
+  color: '#78350F',
+  fontSize: '13px',
+  lineHeight: '20px',
+}
+
+const managedStrong: React.CSSProperties = {
+  color: '#78350F',
+  fontWeight: 700,
+}
+
 const hr: React.CSSProperties = {
   borderColor: BORDER,
   margin: '8px 0 0',
