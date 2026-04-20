@@ -155,21 +155,21 @@ export default function HolisticProfile({ publicMode = false }: Props) {
   });
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-28 sm:pb-24">
       {/* Top bar */}
       <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b border-border/50">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0">
+        <div className="max-w-2xl mx-auto px-3 sm:px-4 py-3 flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0 h-9 w-9">
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="font-semibold text-base flex-1 truncate">Welile Trust Profile</h1>
-          <Button variant="ghost" size="icon" onClick={refresh} title="Refresh">
+          <h1 className="font-semibold text-sm sm:text-base flex-1 truncate">Welile Trust Profile</h1>
+          <Button variant="ghost" size="icon" onClick={refresh} title="Refresh" className="h-9 w-9 shrink-0">
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 py-5 space-y-4">
+      <div className="max-w-2xl mx-auto px-3 sm:px-4 py-4 sm:py-5 space-y-3 sm:space-y-4">
         {/* Identity header */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
           <Card>
