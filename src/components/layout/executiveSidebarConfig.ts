@@ -80,6 +80,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
       title: 'Reports & Audit',
       items: [
         { label: 'Financial Reports', icon: BookOpen, id: 'statements' },
+        { label: 'Revenue & Expenses', icon: TrendingUp, id: 'revenue-expenses' },
         { label: 'Safety Buffer', icon: Shield, id: 'solvency' },
         { label: 'Reconciliation', icon: Scale, id: 'reconciliation' },
         { label: 'Full Ledger', icon: ClipboardList, id: 'ledger' },

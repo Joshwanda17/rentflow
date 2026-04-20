@@ -7,6 +7,7 @@ import { PlatformVsWalletSummary } from '@/components/cfo/PlatformVsWalletSummar
 import { CFOROIRequests } from '@/components/cfo/CFOROIRequests';
 import { CFOOverviewDashboard } from '@/components/cfo/CFOOverviewDashboard';
 import { DirectCreditTool } from '@/components/cfo/DirectCreditTool';
+import { RevenueExpenseDashboard } from '@/components/cfo/RevenueExpenseDashboard';
 
 import { FinancialStatementsPanel } from '@/components/manager/FinancialStatementsPanel';
 import { BufferAccountPanel } from '@/components/manager/BufferAccountPanel';
@@ -172,6 +173,8 @@ export default function CFODashboardPage() {
         );
       case 'ledger-health':
         return <LedgerHealthPanel />;
+      case 'revenue-expenses':
+        return <RevenueExpenseDashboard />;
       default:
         return <CFOOverviewDashboard onTabChange={setActiveTab} />;
     }
