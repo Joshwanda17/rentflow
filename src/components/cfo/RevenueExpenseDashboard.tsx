@@ -157,10 +157,18 @@ function CategoryBreakdownCard({ title, items, type, emptyText }: { title: strin
     }
   };
 
+  const nonZeroItems = items.filter(i => i.value > 0);
+  const activeCount = nonZeroItems.length;
+
   return (
     <Card>
       <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-        <CardTitle className="text-sm">{title}</CardTitle>
+        <div className="flex flex-col">
+          <CardTitle className="text-sm">{title}</CardTitle>
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            {items.length} categories · {activeCount} active in 30d
+          </p>
+        </div>
         {items.length > 0 && (
           <Button size="sm" variant="outline" onClick={handleExportAll} disabled={busy !== null} className="h-7 text-xs">
             {busy === '__all__' ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <FileDown className="h-3 w-3 mr-1" />}
@@ -169,32 +177,55 @@ function CategoryBreakdownCard({ title, items, type, emptyText }: { title: strin
         )}
       </CardHeader>
       <CardContent>
-        {items.length === 0 ? <p className="text-center text-sm text-muted-foreground py-8">{emptyText}</p> : (
-          <>
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie data={items} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" label={({ name }) => name}>
-                  {items.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                </Pie>
-                <RechartsTooltip formatter={(v: number) => formatUGX(v)} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="mt-3 space-y-1.5 border-t pt-3">
-              {items.map((item, i) => (
-                <div key={item.category} className="flex items-center justify-between gap-2 text-xs py-1 px-2 rounded hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
-                    <span className="truncate font-medium">{item.name}</span>
-                  </div>
-                  <span className="font-mono text-muted-foreground tabular-nums">{formatUGX(item.value)}</span>
-                  <Button size="sm" variant="ghost" onClick={() => handleExport(item)} disabled={busy !== null} className="h-6 w-6 p-0" title={`Export ${item.name} report`}>
-                    {busy === item.category ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </>
+        {nonZeroItems.length === 0 ? (
+          <p className="text-center text-sm text-muted-foreground py-8">{emptyText}</p>
+        ) : (
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie data={nonZeroItems} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" label={({ name }) => name}>
+                {nonZeroItems.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+              </Pie>
+              <RechartsTooltip formatter={(v: number) => formatUGX(v)} />
+            </PieChart>
+          </ResponsiveContainer>
         )}
+        <div className="mt-3 space-y-1 border-t pt-3 max-h-[320px] overflow-y-auto">
+          {items.map((item, i) => {
+            const isZero = item.value <= 0;
+            return (
+              <div
+                key={item.category}
+                className={cn(
+                  'flex items-center justify-between gap-2 text-xs py-1 px-2 rounded transition-colors',
+                  isZero ? 'opacity-60 hover:bg-muted/30' : 'hover:bg-muted/50',
+                )}
+              >
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <span
+                    className="h-2.5 w-2.5 rounded-full flex-shrink-0"
+                    style={{ background: isZero ? 'hsl(var(--muted-foreground) / 0.3)' : PIE_COLORS[i % PIE_COLORS.length] }}
+                  />
+                  <span className={cn('truncate', isZero ? 'text-muted-foreground' : 'font-medium')}>{item.name}</span>
+                </div>
+                {isZero ? (
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">No activity</span>
+                ) : (
+                  <span className="font-mono text-muted-foreground tabular-nums">{formatUGX(item.value)}</span>
+                )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => handleExport(item)}
+                  disabled={busy !== null}
+                  className="h-6 w-6 p-0"
+                  title={`Export ${item.name} report`}
+                >
+                  {busy === item.category ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+                </Button>
+              </div>
+            );
+          })}
+        </div>
       </CardContent>
     </Card>
   );
