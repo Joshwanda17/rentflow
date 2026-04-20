@@ -11995,6 +11995,14 @@ export type Database = {
           withdrawable: number
         }[]
       }
+      get_agent_ops_kpis: {
+        Args: never
+        Returns: {
+          agents: number
+          commissions_total: number
+          earnings_total: number
+        }[]
+      }
       get_agent_ops_totals: {
         Args: never
         Returns: {
