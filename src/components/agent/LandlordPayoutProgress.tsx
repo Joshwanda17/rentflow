@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 
 interface PayoutRow {
   id: string;
-  status: "otp_verified" | "disbursing" | "completed" | "failed" | "escalated";
+  status: "otp_verified" | "disbursing" | "pending_finops_disbursement" | "completed" | "failed" | "escalated";
   amount: number;
   attempts: number;
   last_error: string | null;
@@ -41,6 +41,9 @@ export function LandlordPayoutProgress({ payoutId, landlordName, onDone }: Props
       if (active && data) setPayout(data as PayoutRow);
     })();
 
+    // Also fire onDone for initial terminal states
+    // (handled by separate effect below via payout.status)
+
     const channel = supabase
       .channel(`landlord_payout_${payoutId}`)
       .on(
@@ -49,7 +52,7 @@ export function LandlordPayoutProgress({ payoutId, landlordName, onDone }: Props
         (p) => {
           const next = p.new as PayoutRow;
           setPayout(next);
-          if (["completed", "failed", "escalated"].includes(next.status)) {
+          if (["completed", "failed", "escalated", "pending_finops_disbursement"].includes(next.status)) {
             onDone?.(next.status);
           }
         },
@@ -74,6 +77,14 @@ export function LandlordPayoutProgress({ payoutId, landlordName, onDone }: Props
     return () => clearInterval(id);
   }, [payout]);
 
+  // Fire onDone if initial fetch lands in a terminal state
+  useEffect(() => {
+    if (payout && ["completed", "failed", "escalated", "pending_finops_disbursement"].includes(payout.status)) {
+      onDone?.(payout.status);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [payout?.status]);
+
   if (!payout) {
     return (
       <div className="py-12 text-center">
@@ -88,6 +99,7 @@ export function LandlordPayoutProgress({ payoutId, landlordName, onDone }: Props
   const slaProgress = Math.min(100, ((300 - secondsLeft) / 300) * 100);
 
   const isDone = payout.status === "completed";
+  const isPendingFinops = payout.status === "pending_finops_disbursement";
   const isEscalated = payout.status === "escalated" || payout.status === "failed";
   const inFlight = payout.status === "otp_verified" || payout.status === "disbursing";
 
@@ -116,7 +128,7 @@ export function LandlordPayoutProgress({ payoutId, landlordName, onDone }: Props
 
       {/* Status block */}
       <div className="text-center space-y-3">
-        {isDone ? (
+        {isDone || isPendingFinops ? (
           <CheckCircle2 className="h-16 w-16 mx-auto text-emerald-500" />
         ) : isEscalated ? (
           <AlertTriangle className="h-16 w-16 mx-auto text-destructive" />
@@ -132,15 +144,22 @@ export function LandlordPayoutProgress({ payoutId, landlordName, onDone }: Props
           <h3 className="text-xl font-bold">
             {isDone
               ? "Payment Sent ✓"
-              : isEscalated
-                ? "Escalated to Financial Ops"
-                : payout.status === "otp_verified"
-                  ? "OTP Verified — Starting Disbursement"
-                  : `Disbursing (attempt ${payout.attempts}/3)…`}
+              : isPendingFinops
+                ? "Sent to Financial Ops ✓"
+                : isEscalated
+                  ? "Escalated to Financial Ops"
+                  : payout.status === "otp_verified"
+                    ? "OTP Verified — Starting Disbursement"
+                    : `Disbursing (attempt ${payout.attempts}/3)…`}
           </h3>
           <p className="text-sm text-muted-foreground mt-1">
             {formatUGX(payout.amount)} → <span className="font-medium text-foreground">{landlordName}</span>
           </p>
+          {isPendingFinops && (
+            <p className="text-xs text-muted-foreground mt-2 max-w-xs mx-auto">
+              Float deducted. Financial Ops will release the money to the landlord shortly — you'll be notified.
+            </p>
+          )}
         </div>
 
         {payout.external_reference && (
