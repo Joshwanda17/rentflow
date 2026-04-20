@@ -1,30 +1,53 @@
 
 
-User chose **Option A**: collapse paired ledger legs into a single approval card in the Financial Ops queue.
+## Plan: Export Per-Agent Advance Payment History as PDF
 
-## Investigation needed first
-I need to find:
-1. The Financial Ops approval queue component (where the duplicate cards render)
-2. The `pending_wallet_operations` data structure — what field links the deposit + withdrawal legs (likely a shared `reference_id`, `metadata.topup_id`, `idempotency_key`, or `metadata.event_group_id`)
-3. The function that creates the paired rows (so we understand the linkage we can group on)
-4. The approve/reject handlers (so we can make them act atomically on both legs)
+### Where it goes
+Add an **"Export PDFs"** button to the header of `CFOAdvancesManager.tsx` (right next to "Issue Advance"), accessible from CFO Dashboard → Advances tab.
 
-## Approach (UI-only collapse, per Option A)
-- Group `pending_wallet_operations` rows on the client by their pairing key (whichever field reliably links the two legs of a single business event)
-- Render **one merged card** per group showing: business event type (PORTFOLIO TOP-UP), partner, portfolio code, **Source (debit) → Destination (credit)** with both amounts visible
-- Single Approve / Reject pair of buttons that calls the existing approve/reject handler **for both leg IDs in sequence** (or in one batch), sharing the same audit reason
-- Solo (unpaired) operations keep rendering as today
-- No DB schema changes (Option A is the pure UI collapse). If the linkage field doesn't exist, fall back to grouping by `(amount, created_at within 2s, related_entity_id, partner)` heuristic and flag any unpaired half-leg as a warning card
+### What it exports
+For every agent who has at least one advance in the current filter view (`all`/`active`/`completed`/`overdue`), generate **one PDF per agent** containing:
 
-## Files I expect to touch
-- The Financial Ops queue component(s) under `src/components/financial-ops/` or `src/pages/FinancialOps*.tsx` (will locate)
-- The hook/query that fetches `pending_wallet_operations` (add grouping logic)
-- The approve/reject action handler (loop over both leg IDs atomically — both succeed or rollback)
+1. **Header** — Welile branding, "Agent Advance Statement", generation date, CFO export tag
+2. **Agent block** — full name, phone
+3. **Summary table** — totals across all their advances: principal, access fee, fee collected, outstanding, interest accrued, # of advances
+4. **Per-advance section** (one per advance the agent holds), each showing:
+   - Advance metadata: ID, status, issued date, expires, cycle days, monthly rate, principal, access fee, total payable
+   - **Payment history table** from `agent_advance_ledger` (date, opening balance, interest accrued, amount deducted, closing balance, deduction status) — this is the daily deduction record
+   - Top-ups from `agent_advance_topups` if any
+5. **Footer** — page numbers, audit reference
 
-## Out of scope (would be Option B)
-- Changing the edge function that creates the rows
-- Adding a new `event_group_id` column
-- Changing the underlying double-entry ledger logic
+### Output
+- Single agent → opens/downloads one PDF
+- Multiple agents → bundles as a **ZIP** (`agent-advances-export-YYYY-MM-DD.zip`) using `jszip` so the operator gets one file
+- File naming: `advance-statement-{AgentName}-{date}.pdf`
 
-Let me start by locating the Financial Ops queue files and inspecting the data shape.
+### Tech approach
+- Use **jsPDF + jsPDF-autoTable** (lightweight, client-side, already common in the stack — will confirm; if absent, add to deps). Avoids a server roundtrip and the user's request explicitly was a UI export button.
+- Use **jszip** for the multi-agent bundle
+- Group advances by `agent_id`, fetch each advance's `agent_advance_ledger` rows in parallel (`Promise.all`)
+- Show progress toast: "Generating 12 PDFs..." → "Downloaded"
+- Disabled state while generating; respects current tab filter (export only what's visible)
+
+### UX details
+- Button label: **"Export PDFs"** with `Download` icon
+- Disabled when `filtered.length === 0` or while generating
+- Toast: `"Exporting {n} agent statement(s)..."` → `"Downloaded {filename}"`
+- If only one agent in filter → direct PDF download (no zip)
+- Audit log entry written: `action_type: 'cfo_advance_export'`, reason auto-filled with count + filter
+
+### Files
+**Modified**
+- `src/components/cfo/CFOAdvancesManager.tsx` — add button + export handler
+
+**New**
+- `src/lib/agentAdvancePdfExport.ts` — pure helper: `generateAdvancePdf(agent, advances, ledgerByAdvance, topupsByAdvance)` returns a `Blob`; `exportAdvanceStatements(advances)` orchestrates fetch + zip + download
+
+### Out of scope
+- Server-side PDF generation / edge function (not needed at this volume)
+- Email delivery of statements (can be a follow-up suggestion)
+- Customizing date ranges (always exports the full history)
+
+### Expected outcome
+CFO clicks **Export PDFs** in the Advances tab → progress toast → browser downloads either a single PDF (1 agent) or a ZIP of per-agent statements (multiple agents), each with that agent's full daily payment history from `agent_advance_ledger` plus advance summary and any top-ups.
 
