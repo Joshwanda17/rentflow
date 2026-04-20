@@ -124,18 +124,18 @@ export function LandlordListingsCard({ profile }: Props) {
 
 function FlowStat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div className="p-3 rounded-xl bg-muted/40 border border-border/50 text-center">
-      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className={`text-xs font-bold mt-1 ${accent ? 'text-emerald-600' : 'text-foreground'}`}>{value}</p>
+    <div className="p-2.5 sm:p-3 rounded-xl bg-muted/40 border border-border/50 text-center min-w-0">
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground truncate">{label}</p>
+      <p className={`text-[11px] sm:text-xs font-bold mt-1 break-words leading-tight ${accent ? 'text-emerald-600' : 'text-foreground'}`}>{value}</p>
     </div>
   );
 }
 
 function BehaviorStat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div className="p-3 rounded-xl bg-muted/40 border border-border/50">
-      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className={`text-sm font-bold mt-0.5 ${accent ? 'text-emerald-600' : 'text-foreground'}`}>{value}</p>
+    <div className="p-2.5 sm:p-3 rounded-xl bg-muted/40 border border-border/50 min-w-0">
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground truncate">{label}</p>
+      <p className={`text-sm font-bold mt-0.5 break-words leading-tight ${accent ? 'text-emerald-600' : 'text-foreground'}`}>{value}</p>
     </div>
   );
 }
