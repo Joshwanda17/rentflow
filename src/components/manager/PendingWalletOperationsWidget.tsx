@@ -26,6 +26,8 @@ interface PendingOperation {
   linked_party: string | null;
   user_name?: string;
   agent_name?: string;
+  portfolio_owner_name?: string;
+  portfolio_code?: string;
 }
 
 const PAYMENT_METHOD_OPTIONS = [
@@ -96,6 +98,46 @@ export function PendingWalletOperationsWidget({ requirePaymentRef = true }: { re
       if (ops.length > 0) {
         const walletDepositIds = ops.filter(d => d.source_table === 'wallet_deposits' && d.source_id).map(d => d.source_id!);
 
+        // Extract portfolio codes from descriptions like "Portfolio top-up: <label> (WIPxxxxxx)"
+        const portfolioCodes = [...new Set(
+          ops
+            .map(o => {
+              const m = (o.description || '').match(/\(([A-Z0-9]+)\)\s*$/i);
+              return m ? m[1] : null;
+            })
+            .filter((c): c is string => !!c)
+        )];
+
+        // Fetch portfolio → investor (owner) name map
+        let portfolioOwnerMap = new Map<string, string>();
+        if (portfolioCodes.length > 0) {
+          const { data: portfolios } = await supabase
+            .from('investor_portfolios')
+            .select('portfolio_code, investor_id')
+            .in('portfolio_code', portfolioCodes);
+          const ownerIds = [...new Set((portfolios || []).map((p: any) => p.investor_id).filter(Boolean))];
+          let ownerNameMap = new Map<string, string>();
+          if (ownerIds.length > 0) {
+            const { data: ownerProfiles } = await supabase.from('profiles').select('id, full_name').in('id', ownerIds);
+            ownerNameMap = new Map((ownerProfiles || []).map((p: any) => [p.id, p.full_name]));
+          }
+          portfolioOwnerMap = new Map(
+            (portfolios || [])
+              .map((p: any) => [p.portfolio_code, ownerNameMap.get(p.investor_id) || ''] as [string, string])
+              .filter(([, name]) => !!name)
+          );
+        }
+
+        const enrichWithPortfolio = (op: PendingOperation): PendingOperation => {
+          const m = (op.description || '').match(/\(([A-Z0-9]+)\)\s*$/i);
+          const code = m ? m[1] : undefined;
+          return {
+            ...op,
+            portfolio_code: code,
+            portfolio_owner_name: code ? portfolioOwnerMap.get(code) : undefined,
+          };
+        };
+
         if (walletDepositIds.length > 0) {
           const { data: depositsData } = await supabase
             .from('wallet_deposits' as any)
@@ -113,10 +155,10 @@ export function PendingWalletOperationsWidget({ requirePaymentRef = true }: { re
 
           setOperations(ops.map(op => {
             const agentId = op.source_id ? depositAgentMap.get(op.source_id) : undefined;
-            return { ...op, agent_name: agentId ? agentNameMap.get(agentId) : undefined };
+            return enrichWithPortfolio({ ...op, agent_name: agentId ? agentNameMap.get(agentId) : undefined });
           }));
         } else {
-          setOperations(ops);
+          setOperations(ops.map(enrichWithPortfolio));
         }
       } else {
         setOperations([]);
@@ -327,10 +369,16 @@ export function PendingWalletOperationsWidget({ requirePaymentRef = true }: { re
                     <p className="text-[11px] text-muted-foreground truncate">
                       {(() => {
                         const desc = op.description || op.category || '';
-                        // Transform "Portfolio top-up: <label> (<CODE>)" -> "<CODE> (<PartnerName>)"
                         const m = desc.match(/Portfolio top-up:\s*(.+?)\s*\(([^)]+)\)/i);
-                        if (m && op.user_name) {
-                          return `Portfolio top-up: ${m[2]} (${op.user_name})`;
+                        if (m) {
+                          const code = m[2];
+                          // Prefer the actual portfolio OWNER (not the requester)
+                          const ownerName = op.portfolio_owner_name;
+                          if (ownerName) {
+                            return `Portfolio top-up: ${code} (${ownerName})`;
+                          }
+                          // Fallback: show code only (don't mislead by showing requester)
+                          return `Portfolio top-up: ${code}`;
                         }
                         return desc;
                       })()}
