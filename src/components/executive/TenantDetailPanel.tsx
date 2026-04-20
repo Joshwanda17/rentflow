@@ -364,8 +364,10 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                                 Repaid: UGX {Number(req.amount_repaid || 0).toLocaleString()}
                               </span>
                             </div>
-                            <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-                              <span>Agent: {req.agent_name}</span>
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                              <span className="font-medium text-foreground/80">
+                                Agent: <span className="font-normal text-muted-foreground">{req.agent_name}</span>
+                              </span>
                               <span>Landlord: {req.landlord_name}</span>
                               {req.daily_repayment && <span>Daily: UGX {Number(req.daily_repayment).toLocaleString()}</span>}
                               {req.duration_days && <span>{req.duration_days}d</span>}
