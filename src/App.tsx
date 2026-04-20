@@ -96,6 +96,7 @@ const RegisterPartnerPublic = lazy(() => import('./pages/RegisterPartnerPublic')
 const ActivatePartner = lazy(() => import('./pages/ActivatePartner'));
 const ResolveShortLink = lazy(() => import('./pages/ResolveShortLink'));
 const TrackedRedirect = lazy(() => import('./pages/TrackedRedirect'));
+const Unsubscribe = lazy(() => import('./pages/Unsubscribe'));
 const HouseDetail = lazy(() => import('./pages/HouseDetail'));
 const ShopEntry = lazy(() => import('./pages/ShopEntry'));
 const ManagerLogin = lazy(() => import('./pages/ManagerLogin'));
@@ -255,6 +256,7 @@ function AppRoutes() {
           <Route path="/welcome" element={<Landing />} />
            <Route path="/internship" element={<Internship />} />
            <Route path="/auth" element={<Auth />} />
+          <Route path="/unsubscribe" element={<Unsubscribe />} />
           <Route path="/r/:code" element={<ResolveShortLink />} />
           <Route path="/profile/:aiId" element={<HolisticProfile />} />
           <Route path="/id/:aiId" element={<HolisticProfile publicMode />} />
