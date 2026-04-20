@@ -10,11 +10,19 @@ import { LineChart, Line, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveCo
 import { cn } from '@/lib/utils';
 import { exportCategoryReport, exportAllCategoriesReport } from '@/lib/categoryReportExport';
 import { toast } from 'sonner';
+import { CFO_REVENUE_CATEGORIES, CFO_EXPENSE_CATEGORIES } from '@/lib/ledgerConstants';
 
-const REVENUE_CATEGORIES = ['tenant_access_fee', 'tenant_request_fee', 'platform_service_income', 'access_fee_collected', 'registration_fee_collected'];
-const EXPENSE_CATEGORIES = ['supporter_platform_rewards', 'agent_commission_payout', 'transaction_platform_expenses', 'operational_expenses'];
+const REVENUE_CATEGORY_CODES = CFO_REVENUE_CATEGORIES.map(c => c.category);
+const EXPENSE_CATEGORY_CODES = CFO_EXPENSE_CATEGORIES.map(c => c.category);
+const REVENUE_LABEL_MAP: Record<string, string> = Object.fromEntries(CFO_REVENUE_CATEGORIES.map(c => [c.category, c.label]));
+const EXPENSE_LABEL_MAP: Record<string, string> = Object.fromEntries(CFO_EXPENSE_CATEGORIES.map(c => [c.category, c.label]));
 
-const PIE_COLORS = ['hsl(var(--primary))', 'hsl(var(--success))', 'hsl(142, 76%, 36%)', 'hsl(var(--warning))', 'hsl(var(--destructive))'];
+const PIE_COLORS = [
+  'hsl(var(--primary))', 'hsl(var(--success))', 'hsl(142, 76%, 36%)',
+  'hsl(var(--warning))', 'hsl(var(--destructive))', 'hsl(262, 83%, 58%)',
+  'hsl(31, 92%, 50%)', 'hsl(199, 89%, 48%)', 'hsl(330, 81%, 60%)',
+  'hsl(173, 80%, 40%)', 'hsl(280, 65%, 60%)', 'hsl(45, 93%, 47%)',
+];
 
 export function RevenueExpenseDashboard() {
   const { data, isLoading } = useQuery({
