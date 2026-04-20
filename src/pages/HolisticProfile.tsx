@@ -357,33 +357,33 @@ export default function HolisticProfile({ publicMode = false }: Props) {
       </div>
 
       {/* Sticky action bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur border-t border-border/50">
-        <div className="max-w-2xl mx-auto px-4 py-3 grid grid-cols-4 gap-2">
-          <Button variant="outline" size="sm" onClick={copyId} className="flex-col h-auto py-2 gap-1">
+      <div className="fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur border-t border-border/50 pb-[env(safe-area-inset-bottom)]">
+        <div className="max-w-2xl mx-auto px-2 sm:px-4 py-2 sm:py-3 grid grid-cols-4 gap-1.5 sm:gap-2">
+          <Button variant="outline" size="sm" onClick={copyId} className="flex-col h-auto py-2 gap-0.5 sm:gap-1 px-1">
             <Copy className="h-4 w-4" />
-            <span className="text-[10px]">Copy ID</span>
+            <span className="text-[9px] sm:text-[10px]">Copy ID</span>
           </Button>
-          <Button variant="outline" size="sm" onClick={copyLink} className="flex-col h-auto py-2 gap-1">
+          <Button variant="outline" size="sm" onClick={copyLink} className="flex-col h-auto py-2 gap-0.5 sm:gap-1 px-1">
             <LinkIcon className="h-4 w-4" />
-            <span className="text-[10px]">Copy Link</span>
+            <span className="text-[9px] sm:text-[10px]">Copy Link</span>
           </Button>
           <Button
             size="sm"
             onClick={shareWhatsApp}
-            className="flex-col h-auto py-2 gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+            className="flex-col h-auto py-2 gap-0.5 sm:gap-1 px-1 bg-emerald-600 hover:bg-emerald-700 text-white"
           >
             <MessageCircle className="h-4 w-4" />
-            <span className="text-[10px]">WhatsApp</span>
+            <span className="text-[9px] sm:text-[10px]">WhatsApp</span>
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={downloadPdf}
             disabled={downloadingPdf}
-            className="flex-col h-auto py-2 gap-1"
+            className="flex-col h-auto py-2 gap-0.5 sm:gap-1 px-1"
           >
             {downloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-            <span className="text-[10px]">PDF</span>
+            <span className="text-[9px] sm:text-[10px]">PDF</span>
           </Button>
         </div>
       </div>
