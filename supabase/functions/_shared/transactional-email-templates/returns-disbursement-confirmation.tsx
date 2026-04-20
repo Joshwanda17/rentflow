@@ -49,7 +49,7 @@ export function ReturnsDisbursementConfirmation({
   payout_method = 'Wallet',
   payout_method_last4digit = '',
   company_name = 'Welile',
-  logo_url = 'https://welilereceipts.com/welile-logo.png',
+  logo_url = 'https://wirntoujqoyjobfhyelc.supabase.co/storage/v1/object/public/email-assets/welile-logo.png',
   is_managed_by_agent = false,
   agent_name = '',
   unsubscribe_url = 'https://welile.com/unsubscribe',
@@ -98,14 +98,20 @@ export function ReturnsDisbursementConfirmation({
                 {/* Hero Status Section */}
                 <tr>
                   <td align="center" className="padding-mobile" style={{ padding: '40px 40px 20px 40px' }}>
-                    <div style={iconWrap}>
-                      <Img
-                        src="https://img.icons8.com/ios-filled/50/7b19d4/checkmark--v1.png"
-                        alt="Success"
-                        width="32"
-                        style={{ verticalAlign: 'middle', marginTop: '16px' }}
-                      />
-                    </div>
+                    {/* Centered circular icon badge — table-based for email-client reliability */}
+                    <table border={0} cellPadding={0} cellSpacing={0} role="presentation" align="center" style={{ margin: '0 auto 24px auto' }}>
+                      <tbody><tr>
+                        <td align="center" valign="middle" width={64} height={64} style={iconBadgeCell}>
+                          <Img
+                            src="https://wirntoujqoyjobfhyelc.supabase.co/storage/v1/object/public/email-assets/check-icon.png"
+                            alt="Success"
+                            width="32"
+                            height="32"
+                            style={{ display: 'block', margin: '0 auto', border: 0 }}
+                          />
+                        </td>
+                      </tr></tbody>
+                    </table>
                     <Heading style={heroH1}>Disbursement Confirmed</Heading>
                     <Text style={heroSub}>Dear {partner_name},</Text>
                   </td>
@@ -329,15 +335,13 @@ const secureLabel: React.CSSProperties = {
   letterSpacing: '1.5px',
 }
 
-const iconWrap: React.CSSProperties = {
-  display: 'inline-block',
+const iconBadgeCell: React.CSSProperties = {
   width: '64px',
   height: '64px',
   backgroundColor: '#f3e8fc',
   borderRadius: '50%',
-  lineHeight: '64px',
   textAlign: 'center',
-  marginBottom: '24px',
+  verticalAlign: 'middle',
 }
 
 const heroH1: React.CSSProperties = {
