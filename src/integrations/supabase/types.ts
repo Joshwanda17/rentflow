@@ -5226,6 +5226,98 @@ export type Database = {
           },
         ]
       }
+      landlord_payout_otp_challenges: {
+        Row: {
+          agent_id: string
+          agent_latitude: number | null
+          agent_longitude: number | null
+          amount: number
+          attempts: number
+          created_at: string
+          id: string
+          landlord_id: string
+          landlord_name: string
+          landlord_phone: string
+          max_attempts: number
+          metadata: Json | null
+          mobile_money_provider: string
+          otp_expires_at: string
+          otp_hash: string
+          property_latitude: number | null
+          property_longitude: number | null
+          rent_request_id: string | null
+          resulting_payout_id: string | null
+          status: string
+          tenant_id: string | null
+          tenant_name: string | null
+          tenant_phone: string | null
+          updated_at: string
+          verified_at: string | null
+        }
+        Insert: {
+          agent_id: string
+          agent_latitude?: number | null
+          agent_longitude?: number | null
+          amount: number
+          attempts?: number
+          created_at?: string
+          id?: string
+          landlord_id: string
+          landlord_name: string
+          landlord_phone: string
+          max_attempts?: number
+          metadata?: Json | null
+          mobile_money_provider: string
+          otp_expires_at: string
+          otp_hash: string
+          property_latitude?: number | null
+          property_longitude?: number | null
+          rent_request_id?: string | null
+          resulting_payout_id?: string | null
+          status?: string
+          tenant_id?: string | null
+          tenant_name?: string | null
+          tenant_phone?: string | null
+          updated_at?: string
+          verified_at?: string | null
+        }
+        Update: {
+          agent_id?: string
+          agent_latitude?: number | null
+          agent_longitude?: number | null
+          amount?: number
+          attempts?: number
+          created_at?: string
+          id?: string
+          landlord_id?: string
+          landlord_name?: string
+          landlord_phone?: string
+          max_attempts?: number
+          metadata?: Json | null
+          mobile_money_provider?: string
+          otp_expires_at?: string
+          otp_hash?: string
+          property_latitude?: number | null
+          property_longitude?: number | null
+          rent_request_id?: string | null
+          resulting_payout_id?: string | null
+          status?: string
+          tenant_id?: string | null
+          tenant_name?: string | null
+          tenant_phone?: string | null
+          updated_at?: string
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "landlord_payout_otp_challenges_resulting_payout_id_fkey"
+            columns: ["resulting_payout_id"]
+            isOneToOne: false
+            referencedRelation: "landlord_payouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       landlord_payouts: {
         Row: {
           agent_id: string
