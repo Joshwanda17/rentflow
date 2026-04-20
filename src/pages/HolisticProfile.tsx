@@ -155,26 +155,26 @@ export default function HolisticProfile({ publicMode = false }: Props) {
   });
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-28 sm:pb-24">
       {/* Top bar */}
       <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b border-border/50">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0">
+        <div className="max-w-2xl mx-auto px-3 sm:px-4 py-3 flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="shrink-0 h-9 w-9">
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="font-semibold text-base flex-1 truncate">Welile Trust Profile</h1>
-          <Button variant="ghost" size="icon" onClick={refresh} title="Refresh">
+          <h1 className="font-semibold text-sm sm:text-base flex-1 truncate">Welile Trust Profile</h1>
+          <Button variant="ghost" size="icon" onClick={refresh} title="Refresh" className="h-9 w-9 shrink-0">
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 py-5 space-y-4">
+      <div className="max-w-2xl mx-auto px-3 sm:px-4 py-4 sm:py-5 space-y-3 sm:space-y-4">
         {/* Identity header */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
           <Card>
-            <CardContent className="p-5">
-              <div className="flex items-start gap-4">
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex items-start gap-3 sm:gap-4">
                 <UserAvatar
                   fullName={profile.identity.full_name}
                   avatarUrl={profile.identity.avatar_url || undefined}
@@ -182,7 +182,7 @@ export default function HolisticProfile({ publicMode = false }: Props) {
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-xl font-bold truncate">{profile.identity.full_name}</h2>
+                    <h2 className="text-lg sm:text-xl font-bold truncate">{profile.identity.full_name}</h2>
                     {profile.identity.verified && (
                       <BadgeCheck className="h-5 w-5 text-blue-500 shrink-0" />
                     )}
@@ -193,9 +193,9 @@ export default function HolisticProfile({ publicMode = false }: Props) {
                       {profile.identity.primary_role}
                     </Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1.5">
-                    <Calendar className="h-3 w-3" />
-                    Welile member since {memberSince}
+                  <p className="text-[11px] sm:text-xs text-muted-foreground mt-2 flex items-center gap-1.5">
+                    <Calendar className="h-3 w-3 shrink-0" />
+                    <span className="truncate">Welile member since {memberSince}</span>
                   </p>
                 </div>
               </div>
@@ -357,33 +357,33 @@ export default function HolisticProfile({ publicMode = false }: Props) {
       </div>
 
       {/* Sticky action bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur border-t border-border/50">
-        <div className="max-w-2xl mx-auto px-4 py-3 grid grid-cols-4 gap-2">
-          <Button variant="outline" size="sm" onClick={copyId} className="flex-col h-auto py-2 gap-1">
+      <div className="fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur border-t border-border/50 pb-[env(safe-area-inset-bottom)]">
+        <div className="max-w-2xl mx-auto px-2 sm:px-4 py-2 sm:py-3 grid grid-cols-4 gap-1.5 sm:gap-2">
+          <Button variant="outline" size="sm" onClick={copyId} className="flex-col h-auto py-2 gap-0.5 sm:gap-1 px-1">
             <Copy className="h-4 w-4" />
-            <span className="text-[10px]">Copy ID</span>
+            <span className="text-[9px] sm:text-[10px]">Copy ID</span>
           </Button>
-          <Button variant="outline" size="sm" onClick={copyLink} className="flex-col h-auto py-2 gap-1">
+          <Button variant="outline" size="sm" onClick={copyLink} className="flex-col h-auto py-2 gap-0.5 sm:gap-1 px-1">
             <LinkIcon className="h-4 w-4" />
-            <span className="text-[10px]">Copy Link</span>
+            <span className="text-[9px] sm:text-[10px]">Copy Link</span>
           </Button>
           <Button
             size="sm"
             onClick={shareWhatsApp}
-            className="flex-col h-auto py-2 gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+            className="flex-col h-auto py-2 gap-0.5 sm:gap-1 px-1 bg-emerald-600 hover:bg-emerald-700 text-white"
           >
             <MessageCircle className="h-4 w-4" />
-            <span className="text-[10px]">WhatsApp</span>
+            <span className="text-[9px] sm:text-[10px]">WhatsApp</span>
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={downloadPdf}
             disabled={downloadingPdf}
-            className="flex-col h-auto py-2 gap-1"
+            className="flex-col h-auto py-2 gap-0.5 sm:gap-1 px-1"
           >
             {downloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-            <span className="text-[10px]">PDF</span>
+            <span className="text-[9px] sm:text-[10px]">PDF</span>
           </Button>
         </div>
       </div>
@@ -423,11 +423,11 @@ function Stat({
 }) {
   return (
     <div
-      className={`p-3 rounded-xl bg-muted/40 border border-border/50 ${span2 ? 'col-span-2' : ''}`}
+      className={`p-3 rounded-xl bg-muted/40 border border-border/50 min-w-0 ${span2 ? 'col-span-2' : ''}`}
     >
-      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground truncate">{label}</p>
       <p
-        className={`text-sm font-bold mt-0.5 ${
+        className={`text-sm font-bold mt-0.5 break-words leading-tight ${
           danger ? 'text-destructive' : accent ? 'text-emerald-600' : 'text-foreground'
         }`}
       >
