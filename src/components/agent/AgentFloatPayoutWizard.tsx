@@ -496,7 +496,51 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
             </motion.div>
           )}
 
-          {step === 'pay' && req && (
+          {step === 'disburse' && req && activePayoutId && (
+            <motion.div key="disburse" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              <LandlordPayoutProgress
+                payoutId={activePayoutId}
+                landlordName={req.landlord?.name || 'Landlord'}
+                onDone={(status) => {
+                  if (status === 'completed') {
+                    qc.invalidateQueries({ queryKey: ['agent-landlord-float'] });
+                    qc.invalidateQueries({ queryKey: ['agent-float-payout-requests'] });
+                    setTimeout(() => setStep('done'), 1500);
+                  }
+                }}
+              />
+              {disburseError && (
+                <div className="mt-3 flex items-center gap-2 text-xs text-destructive">
+                  <AlertTriangle className="h-3.5 w-3.5" /> {disburseError}
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {isDisbursing && step === 'otp' && (
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Starting auto-disbursement…
+            </div>
+          )}
+
+          {step === 'done' && (
+            <motion.div key="done" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="py-8 text-center space-y-3">
+              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                className="w-16 h-16 mx-auto rounded-full bg-success/20 flex items-center justify-center">
+                <CheckCircle2 className="h-8 w-8 text-success" />
+              </motion.div>
+              <h3 className="text-lg font-semibold">Payment Sent!</h3>
+              <p className="text-muted-foreground text-sm">
+                {req ? formatUGX(req.rent_amount) : ''} delivered to {req?.landlord?.name || 'the landlord'} via Mobile Money.
+              </p>
+              <Button onClick={handleClose}>Done</Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </DialogContent>
+    </Dialog>
+  );
+}
             <motion.div key="pay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
               {/* OTP verified badge */}
               <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
