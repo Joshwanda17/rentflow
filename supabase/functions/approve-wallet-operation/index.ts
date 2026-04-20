@@ -691,6 +691,58 @@ Deno.serve(async (req) => {
           })
           .eq("id", op.id);
 
+        // ── Send Returns Disbursement Confirmation email to PARTNER on ROI payouts ──
+        // Triggered for both direct partner payouts and proxy/managed payouts.
+        // The partner is always op.user_id (managed payouts route money to a proxy
+        // agent's wallet via target_wallet_user_id, but the partner remains op.user_id).
+        if (op.category === 'roi_payout' || op.category === 'supporter_platform_rewards') {
+          try {
+            const { data: partnerProfile } = await adminClient
+              .from("profiles")
+              .select("email, full_name")
+              .eq("id", op.user_id)
+              .maybeSingle();
+
+            if (partnerProfile?.email) {
+              const payoutMethodLabel = isManaged
+                ? "Proxy Agent (Cash Collection)"
+                : (payment_method
+                    ? payment_method.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
+                    : "Wallet Credit");
+              const refId = op.reference_id || payment_reference || op.id;
+              const todayLabel = new Date().toLocaleDateString('en-GB', {
+                day: '2-digit', month: 'long', year: 'numeric',
+              });
+
+              await fetch(`${supabaseUrl}/functions/v1/send-transactional-email`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${supabaseServiceKey}`,
+                },
+                body: JSON.stringify({
+                  templateName: "returns-disbursement-confirmation",
+                  recipientEmail: partnerProfile.email,
+                  idempotencyKey: `roi-payout-${op.id}`,
+                  templateData: {
+                    partner_name: partnerProfile.full_name || "Partner",
+                    transaction_id: refId,
+                    amount: op.amount,
+                    currency: "UGX",
+                    date: todayLabel,
+                    payout_method: payoutMethodLabel,
+                    company_name: "Welile",
+                    logo_url: "https://welilereceipts.com/welile-logo.png",
+                  },
+                }),
+              });
+              console.log(`[approve-wallet-op] Returns disbursement email queued for partner ${op.user_id}`);
+            }
+          } catch (emailErr) {
+            console.warn(`[approve-wallet-op] Returns disbursement email enqueue failed for ${op.id}:`, emailErr);
+          }
+        }
+
         // Notify the correct user(s)
         if (op.category === 'supporter_facilitation_capital' && portfolioInvestorId) {
           // Notify the FUNDER (investor)
