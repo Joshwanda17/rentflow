@@ -5387,6 +5387,10 @@ export type Database = {
           escalated_at: string | null
           escalated_reason: string | null
           external_reference: string | null
+          finops_disbursed_at: string | null
+          finops_disbursed_by: string | null
+          finops_momo_reference: string | null
+          finops_notes: string | null
           gps_distance_meters: number | null
           gps_match: boolean | null
           id: string
@@ -5417,6 +5421,10 @@ export type Database = {
           escalated_at?: string | null
           escalated_reason?: string | null
           external_reference?: string | null
+          finops_disbursed_at?: string | null
+          finops_disbursed_by?: string | null
+          finops_momo_reference?: string | null
+          finops_notes?: string | null
           gps_distance_meters?: number | null
           gps_match?: boolean | null
           id?: string
@@ -5447,6 +5455,10 @@ export type Database = {
           escalated_at?: string | null
           escalated_reason?: string | null
           external_reference?: string | null
+          finops_disbursed_at?: string | null
+          finops_disbursed_by?: string | null
+          finops_momo_reference?: string | null
+          finops_notes?: string | null
           gps_distance_meters?: number | null
           gps_match?: boolean | null
           id?: string
