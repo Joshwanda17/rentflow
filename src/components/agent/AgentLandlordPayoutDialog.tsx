@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -11,7 +11,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -19,14 +18,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Banknote, Loader2, CheckCircle2, Phone } from 'lucide-react';
+import { Banknote, Loader2, Phone, ShieldCheck, Wallet, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion, AnimatePresence } from 'framer-motion';
+import { OtpVerificationStep } from '@/components/auth/OtpVerificationStep';
+import { LandlordPayoutProgress } from './LandlordPayoutProgress';
 
 interface PropertyInfo {
-  id: string;
-  name: string;
+  id: string;            // landlord_id
+  name: string;          // landlord name
   phone: string;
   mobile_money_number: string | null;
   property_address: string;
@@ -40,55 +41,159 @@ interface AgentLandlordPayoutDialogProps {
   onSuccess?: () => void;
 }
 
+type Step = 'form' | 'otp' | 'progress';
+
 export function AgentLandlordPayoutDialog({ open, onOpenChange, property, onSuccess }: AgentLandlordPayoutDialogProps) {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [step, setStep] = useState<Step>('form');
+
+  // form
+  const [landlordName, setLandlordName] = useState('');
+  const [landlordPhone, setLandlordPhone] = useState('');
+  const [tenantName, setTenantName] = useState('');
+  const [tenantPhone, setTenantPhone] = useState('');
   const [amount, setAmount] = useState('');
-  const [provider, setProvider] = useState('');
-  const [notes, setNotes] = useState('');
+  const [provider, setProvider] = useState<'MTN' | 'Airtel' | ''>('');
+  const [floatBalance, setFloatBalance] = useState<number | null>(null);
 
-  const resetForm = () => {
-    setAmount(''); setProvider(''); setNotes(''); setSuccess(false);
+  // OTP
+  const [challengeId, setChallengeId] = useState<string | null>(null);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
+
+  // progress
+  const [payoutId, setPayoutId] = useState<string | null>(null);
+
+  const resetAll = () => {
+    setStep('form');
+    setLandlordName(property?.name ?? '');
+    setLandlordPhone(property?.mobile_money_number ?? property?.phone ?? '');
+    setTenantName('');
+    setTenantPhone('');
+    setAmount(property?.monthly_rent ? String(property.monthly_rent) : '');
+    setProvider('');
+    setChallengeId(null);
+    setOtpSent(false);
+    setOtpVerified(false);
+    setOtpError(null);
+    setPayoutId(null);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user || !property) return;
-
-    if (!amount.trim() || parseInt(amount) <= 0) {
-      toast.error('Enter a valid amount');
-      return;
+  // Pre-fill when opened
+  useEffect(() => {
+    if (open && property) {
+      setLandlordName(property.name ?? '');
+      setLandlordPhone(property.mobile_money_number ?? property.phone ?? '');
+      setAmount(property.monthly_rent ? String(property.monthly_rent) : '');
     }
-    if (!provider) {
-      toast.error('Select mobile money provider');
-      return;
-    }
+  }, [open, property]);
 
-    setLoading(true);
-    try {
-      const paidAmount = parseFloat(amount);
-
-      // Reduce rent balance on the landlord record
-      const { error } = await supabase.rpc('record_rent_payment', {
-        p_landlord_id: property.id,
-        p_amount: paidAmount,
-      });
-
-      if (error) throw error;
-
-      setSuccess(true);
-      toast.success(`Rent balance reduced by ${formatUGX(paidAmount)} for ${property.name}`);
-      onSuccess?.();
-    } catch (err: any) {
-      toast.error(err.message || 'An unexpected error occurred');
-    }
-    setLoading(false);
-  };
+  // Live float balance
+  useEffect(() => {
+    if (!open || !user) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('agent_landlord_float')
+        .select('balance')
+        .eq('agent_id', user.id)
+        .maybeSingle();
+      if (!cancelled) setFloatBalance(data?.balance ?? 0);
+    })();
+    return () => { cancelled = true; };
+  }, [open, user, step]);
 
   const handleOpenChange = (newOpen: boolean) => {
-    if (!newOpen) resetForm();
+    if (!newOpen) resetAll();
     onOpenChange(newOpen);
+  };
+
+  const validateForm = (): string | null => {
+    if (!landlordName.trim()) return 'Landlord name is required';
+    if (!/^\+?\d{9,15}$/.test(landlordPhone.replace(/\s|-/g, ''))) return 'Invalid landlord phone';
+    if (!tenantName.trim()) return 'Tenant name is required';
+    if (!/^\+?\d{9,15}$/.test(tenantPhone.replace(/\s|-/g, ''))) return 'Invalid tenant phone';
+    const amt = parseFloat(amount);
+    if (!Number.isFinite(amt) || amt <= 0) return 'Enter a valid amount';
+    if (floatBalance !== null && amt > floatBalance) {
+      return `Amount exceeds your float balance (${formatUGX(floatBalance)})`;
+    }
+    if (!provider) return 'Select mobile money provider';
+    return null;
+  };
+
+  const handleSendOtp = async () => {
+    const err = validateForm();
+    if (err) { toast.error(err); return; }
+    setOtpLoading(true);
+    setOtpError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('issue-landlord-payout-otp', {
+        body: {
+          landlord_id: property?.id,
+          landlord_name: landlordName,
+          landlord_phone: landlordPhone,
+          tenant_name: tenantName,
+          tenant_phone: tenantPhone,
+          amount: parseFloat(amount),
+          mobile_money_provider: provider,
+        },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      setChallengeId((data as any).challenge_id);
+      setOtpSent(true);
+      setStep('otp');
+      toast.success('OTP sent to landlord');
+    } catch (e: any) {
+      toast.error(e.message ?? 'Could not send OTP');
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (!challengeId) return;
+    setOtpLoading(true);
+    setOtpError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('issue-landlord-payout-otp', {
+        body: { challenge_id: challengeId },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast.success('New OTP sent');
+    } catch (e: any) {
+      toast.error(e.message ?? 'Could not resend OTP');
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (otp: string) => {
+    if (!challengeId) return;
+    setOtpLoading(true);
+    setOtpError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-landlord-payout-otp', {
+        body: { challenge_id: challengeId, otp },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) {
+        setOtpError((data as any).error);
+        return;
+      }
+      setOtpVerified(true);
+      setPayoutId((data as any).payout_id);
+      setStep('progress');
+      onSuccess?.();
+    } catch (e: any) {
+      setOtpError(e.message ?? 'Verification failed');
+    } finally {
+      setOtpLoading(false);
+    }
   };
 
   if (!property) return null;
@@ -98,65 +203,121 @@ export function AgentLandlordPayoutDialog({ open, onOpenChange, property, onSucc
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Banknote className="h-5 w-5 text-success" />
-            Request Landlord Payout
+            {step === 'progress' ? <ShieldCheck className="h-5 w-5 text-primary" /> : <Banknote className="h-5 w-5 text-success" />}
+            {step === 'form' && 'Initiate Rent Payout'}
+            {step === 'otp' && 'Verify Landlord OTP'}
+            {step === 'progress' && 'Disbursement in Progress'}
           </DialogTitle>
           <DialogDescription>
-            Request payment to {property.name} for {property.property_address}
+            {step === 'form' && `Send rent from your float to ${property.name}`}
+            {step === 'otp' && 'Ask the landlord for the 6-digit code we just SMS-ed them'}
+            {step === 'progress' && 'Tracking the live mobile money transfer'}
           </DialogDescription>
         </DialogHeader>
 
         <AnimatePresence mode="wait">
-          {success ? (
-            <motion.div key="success" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="py-8 text-center">
-              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                className="w-16 h-16 mx-auto mb-4 rounded-full bg-success/20 flex items-center justify-center">
-                <CheckCircle2 className="h-8 w-8 text-success" />
-              </motion.div>
-              <h3 className="text-lg font-semibold mb-2">Request Submitted!</h3>
-              <p className="text-muted-foreground text-sm mb-4">
-                A manager will process the payout of {formatUGX(parseInt(amount))} to {property.name}.
-              </p>
-              <Button onClick={() => handleOpenChange(false)}>Done</Button>
-            </motion.div>
-          ) : (
-            <motion.form key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }} onSubmit={handleSubmit} className="space-y-4">
-              {/* Landlord info */}
-              <div className="p-3 rounded-lg bg-muted/50 text-xs space-y-1">
-                <p><span className="text-muted-foreground">Landlord:</span> <span className="font-medium">{property.name}</span></p>
-                <p className="flex items-center gap-1"><Phone className="h-3 w-3" /> {property.mobile_money_number || property.phone}</p>
-                <p><span className="text-muted-foreground">Property:</span> {property.property_address}</p>
-                {property.monthly_rent && (
-                  <p><span className="text-muted-foreground">Monthly Rent:</span> <span className="font-medium text-success">{formatUGX(property.monthly_rent)}</span></p>
-                )}
+          {step === 'form' && (
+            <motion.div key="form" initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }} className="space-y-4">
+              {/* Float */}
+              <div className="flex items-center justify-between p-3 rounded-xl border-2 border-primary/20 bg-primary/5">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Wallet className="h-4 w-4" /> Available float
+                </div>
+                <span className="font-mono font-bold text-primary">
+                  {floatBalance === null ? '…' : formatUGX(floatBalance)}
+                </span>
               </div>
 
-              <div className="space-y-1">
-                <Label className="text-xs">Amount to Pay (UGX) *</Label>
-                <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={String(property.monthly_rent || 500000)} className="h-10" required />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs flex items-center gap-1"><User className="h-3 w-3" /> Landlord Name *</Label>
+                  <Input value={landlordName} onChange={(e) => setLandlordName(e.target.value)} className="h-10" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs flex items-center gap-1"><Phone className="h-3 w-3" /> Landlord Phone *</Label>
+                  <Input value={landlordPhone} onChange={(e) => setLandlordPhone(e.target.value)} placeholder="0772…" className="h-10" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs flex items-center gap-1"><User className="h-3 w-3" /> Tenant Name *</Label>
+                  <Input value={tenantName} onChange={(e) => setTenantName(e.target.value)} className="h-10" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs flex items-center gap-1"><Phone className="h-3 w-3" /> Tenant Phone *</Label>
+                  <Input value={tenantPhone} onChange={(e) => setTenantPhone(e.target.value)} placeholder="0772…" className="h-10" />
+                </div>
               </div>
 
-              <div className="space-y-1">
-                <Label className="text-xs">Mobile Money Provider *</Label>
-                <Select value={provider} onValueChange={setProvider}>
-                  <SelectTrigger className="h-10"><SelectValue placeholder="Select provider" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="MTN">MTN Mobile Money</SelectItem>
-                    <SelectItem value="Airtel">Airtel Money</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Amount (UGX) *</Label>
+                  <Input
+                    type="number"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder={String(property.monthly_rent || 500000)}
+                    className="h-10"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Provider *</Label>
+                  <Select value={provider} onValueChange={(v) => setProvider(v as 'MTN' | 'Airtel')}>
+                    <SelectTrigger className="h-10"><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="MTN">MTN Mobile Money</SelectItem>
+                      <SelectItem value="Airtel">Airtel Money</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
-              <div className="space-y-1">
-                <Label className="text-xs">Notes (optional)</Label>
-                <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="e.g. Rent for February 2026" rows={2} />
-              </div>
-
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Banknote className="h-4 w-4 mr-2" />}
-                Submit Payout Request
+              <Button onClick={handleSendOtp} className="w-full h-12 rounded-xl gap-2" disabled={otpLoading}>
+                {otpLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                Send OTP to Landlord
               </Button>
-            </motion.form>
+              <p className="text-[11px] text-muted-foreground text-center">
+                Funds remain in your float until the landlord shares the OTP with you.
+              </p>
+            </motion.div>
+          )}
+
+          {step === 'otp' && (
+            <motion.div key="otp" initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }} className="space-y-4">
+              <div className="rounded-xl bg-muted/50 p-3 text-xs space-y-1">
+                <p><span className="text-muted-foreground">Paying:</span> <span className="font-semibold">{formatUGX(parseFloat(amount))}</span></p>
+                <p><span className="text-muted-foreground">To:</span> {landlordName} ({landlordPhone})</p>
+                <p><span className="text-muted-foreground">For tenant:</span> {tenantName}</p>
+              </div>
+              <OtpVerificationStep
+                phone={landlordPhone}
+                otpSent={otpSent}
+                otpVerified={otpVerified}
+                otpLoading={otpLoading}
+                otpError={otpError}
+                onSendOtp={handleSendOtp}
+                onVerifyOtp={handleVerifyOtp}
+                onResendOtp={handleResendOtp}
+              />
+              <Button variant="ghost" size="sm" className="w-full" onClick={() => setStep('form')}>
+                ← Back to details
+              </Button>
+            </motion.div>
+          )}
+
+          {step === 'progress' && payoutId && (
+            <motion.div key="progress" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              <LandlordPayoutProgress
+                payoutId={payoutId}
+                landlordName={landlordName}
+                onDone={(status) => {
+                  if (status === 'completed') {
+                    toast.success('Rent paid to landlord');
+                  }
+                }}
+              />
+              <Button onClick={() => handleOpenChange(false)} variant="outline" className="w-full mt-2">
+                Close
+              </Button>
+            </motion.div>
           )}
         </AnimatePresence>
       </DialogContent>
