@@ -185,7 +185,7 @@ export function EditTenantDialog({ open, onOpenChange, tenant, onSaved }: EditTe
               Save Changes
             </Button>
           </div>
-        </div>
+        </fieldset>
       </DialogContent>
     </Dialog>
   );
