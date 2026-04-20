@@ -507,9 +507,16 @@ export function ApprovalQueue() {
                             {isCashOut ? 'Cash Out' : 'Wallet Op'}
                           </span>
                         </div>
-                        <Badge variant={item.urgency === 'red' ? 'destructive' : item.urgency === 'amber' ? 'secondary' : 'outline'} className="text-[9px] h-5 px-1.5">
-                          {ageLabel} ago
-                        </Badge>
+                        <div className="flex items-center gap-1.5">
+                          {item.pairedLegs && item.pairedLegs.length > 1 && (
+                            <Badge variant="outline" className="text-[9px] h-5 px-1.5 gap-1 border-primary/40 bg-primary/5 text-primary">
+                              ⛓ {item.pairedLegs.length} linked legs
+                            </Badge>
+                          )}
+                          <Badge variant={item.urgency === 'red' ? 'destructive' : item.urgency === 'amber' ? 'secondary' : 'outline'} className="text-[9px] h-5 px-1.5">
+                            {ageLabel} ago
+                          </Badge>
+                        </div>
                       </div>
 
                       <div className="p-3 space-y-2" onClick={() => setInspectItem(item)}>
