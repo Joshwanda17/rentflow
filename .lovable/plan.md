@@ -1,41 +1,39 @@
 
 
-## What changed already (from prior partial work)
-- Page title "💸 Merchant Payouts" ✅
-- Role banner says "Merchant Agent" with MoMo/Bank/Cash framing ✅
-- `WithdrawalPayoutCard` already shows method-aware instructions and dynamic placeholders (TID for MoMo/Bank, Payout Code for Cash) ✅
-- Edge function `approve-withdrawal` already accepts `reference` + `payment_method` and writes them to ledger + `withdrawal_requests` ✅
+Looking at `TenantWalletHeroCard.tsx`, the card uses `.portfolio-hero-card` class for the background and hardcoded `text-white` / `text-white/XX` / `bg-white/XX` throughout. When the background token resolves light, white text disappears.
 
-## What's still left
+Need to verify `.portfolio-hero-card` definition and confirm `--primary` is dark so `text-primary-foreground` is the right token.
+<lov-tool-use id="toolu_vrtx_01X97CWTABZ7xg4Kad5gGCVW" name="code--search_files" integration-id="code" data="{\"query\": \"portfolio-hero-card\", \"include_patterns\": \"*.css\"}">
+</lov-tool-use>
 
-The spec is essentially behavior-correct. Three small polish items remain to fully kill the "cash-only mindset":
+<lov-tool-use id="toolu_vrtx_0117CBdJoEQ9anfs7shMNDJe" name="code--search_files" integration-id="code" data="{\"query\": \"portfolio-hero-card\", \"include_patterns\": \"*.css,*.tsx\"}">
+</lov-tool-use>
+The CSS has the dark gradient defined. The screenshot shows white-on-white which means the gradient isn't applying — likely the screenshot is from the `TenantWalletHeroCard` rendering correctly in CSS but the user sees broken theme. Actually since gradient exists, the issue is the user wants `text-white` swapped for semantic tokens regardless.
 
-### 1. `src/components/agent/AgentCashPayoutsTab.tsx`
-- Reframe the standalone **"Verify Cash Payout Code"** card: keep the existing UI, just retitle to **"Verify Cash Pickup Code (optional)"** and update the helper text to: *"Use this only when a user came in person with a pre-generated WPO-XXXXX cash pickup code. For Mobile Money, Bank, or coordinated cash payouts, claim from the queue below instead."*
-- Update the "Today's Performance" card heading from leftover "Cash Payouts" wording to **"Merchant Payouts"** (the metrics now count all confirmed payouts, not just cash).
-- Comments referencing "cash-out agent" stay (internal naming of `cashout_agents` table), but UI labels become "Merchant Agent".
+<lov-plan>
+## Plan: Replace hardcoded `text-white` with semantic tokens in hero cards
 
-### 2. `src/components/cfo/CashoutPendingWithdrawalsDialog.tsx`
-- Update visible copy from "cash-out agents" → **"Merchant Agents"** in the dialog description so CFO sees consistent terminology.
+The `.portfolio-hero-card` CSS sets `color: hsl(var(--primary-foreground))` and a purple gradient background, but the children override with hardcoded `text-white` / `bg-white/*`. When the gradient fails to render (theme/CSS variable conflict), white text becomes invisible on light surfaces.
 
-### 3. `src/components/withdrawals/WithdrawalPayoutCard.tsx`
-- Tiny copy tweak on the "AWAITING PAYMENT" warning so the language is method-neutral (already mostly fine; just ensure the staleness hint says "claim expires in 10 min" instead of any delivery-style phrasing — current text is fine, leaving as-is).
+### Fix
+Swap hardcoded white classes for semantic tokens that resolve correctly against `--primary-foreground`:
+- `text-white` → `text-primary-foreground`
+- `text-white/70`, `text-white/60`, `text-white/50`, `text-white/40` → `text-primary-foreground/70` etc.
+- `bg-white/15`, `bg-white/10`, `bg-white/[0.06]`, `bg-white/[0.04]` → `bg-primary-foreground/15` etc.
+- Keep accent colors (`text-emerald-300`, `text-amber-300`) as-is — those are intentional highlights.
 
-### What we are NOT changing
-- No DB migration needed — `withdrawal_requests` already has `assigned_cashout_agent_id`, `dispatched_at`, `fin_ops_reference`, `fin_ops_payment_method`, `payout_method`.
-- No edge function changes — `approve-withdrawal` already handles method-tagged proof.
-- No queue / claim / 10-min lock rewrite — already in place.
-- The `cashout_agents` table and internal identifiers stay (rename-in-DB would be invasive and risky); only the **user-facing label** becomes "Merchant Agent".
+### Files to update
+1. `src/components/tenant/TenantWalletHeroCard.tsx` (the one in the screenshot)
+2. `src/components/landlord/LandlordWalletHeroCard.tsx`
+3. `src/components/agent/AgentWalletHeroCard.tsx`
+4. `src/components/supporter/PortfolioSummaryCards.tsx`
+5. `src/components/wallet/UnifiedWalletHeroCard.tsx`
+6. `src/pages/AngelPool.tsx` (the inline hero block)
 
-## Files to edit
-1. `src/components/agent/AgentCashPayoutsTab.tsx` — reframe cash-code card title/help text and "Today's Performance" labels.
-2. `src/components/cfo/CashoutPendingWithdrawalsDialog.tsx` — swap "cash-out agents" → "Merchant Agents" in the description.
+### Note on the CSS class itself
+`.portfolio-hero-card` already declares `color: hsl(var(--primary-foreground))` — so even if a future theme tweak changes the gradient, text will stay readable because semantic tokens follow the foreground variable.
 
-Two surgical text edits, no logic, no UI restructuring.
-
-<lov-actions>
-<lov-suggestion message="Apply the plan: reframe the cash-code card and CFO dialog to Merchant Agent terminology.">Apply the plan</lov-suggestion>
-<lov-suggestion message="Test the merchant payout end-to-end: claim a MoMo, Bank and Cash withdrawal, enter TID/payout code and confirm.">Verify it works end-to-end</lov-suggestion>
-<lov-suggestion message="Add a 'Reassign to Financial Ops' button on stale claims (over 10 min) so high-value or stuck payouts can be escalated.">Escalation to Financial Ops</lov-suggestion>
-<lov-suggestion message="Add a high-value threshold (e.g. UGX 1,000,000) that auto-routes withdrawals to Financial Ops only and hides them from Merchant Agents.">High-value routing</lov-suggestion>
-</lov-actions>
+### Out of scope
+- No layout, spacing, or copy changes.
+- No changes to the gradient itself.
+- Decorative `bg-white/*` overlays will be converted too so decorations remain visible on any background.
