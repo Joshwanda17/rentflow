@@ -539,6 +539,25 @@ export function ApprovalQueue() {
                           </div>
                         </div>
 
+                        {item.pairedLegs && item.pairedLegs.length > 1 && (
+                          <div className="p-2.5 rounded-xl bg-primary/5 border border-primary/20 space-y-1.5">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                              Double-entry event · approved as one unit
+                            </p>
+                            {item.pairedLegs.map((leg) => (
+                              <div key={leg.id} className="flex items-center justify-between text-[11px]">
+                                <span className="flex items-center gap-1.5">
+                                  <span className={`inline-block w-1.5 h-1.5 rounded-full ${leg.direction === 'cash_in' ? 'bg-emerald-500' : 'bg-orange-500'}`} />
+                                  <span className="font-semibold uppercase tracking-wider text-muted-foreground">
+                                    {leg.direction === 'cash_in' ? 'Credit (deposit)' : 'Debit (withdrawal)'}
+                                  </span>
+                                </span>
+                                <span className="font-mono text-muted-foreground/70">#{leg.id.slice(0, 8)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
                         {item.payoutDetails && isCashOut && (
                           <div className="p-2.5 rounded-xl bg-orange-500/5 border border-orange-500/20 space-y-1">
                             {item.payoutDetails.method === 'mobile_money' && (
