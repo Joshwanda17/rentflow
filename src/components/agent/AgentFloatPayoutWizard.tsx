@@ -446,11 +446,59 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
                 </div>
               </div>
 
+              {!landlordOtp.otpSent && (
+                <div className="space-y-3 p-3 rounded-xl border bg-card">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="payout-amount" className="text-xs">
+                      Amount to pay (UGX)
+                    </Label>
+                    <Input
+                      id="payout-amount"
+                      inputMode="numeric"
+                      value={amountInput}
+                      onChange={(e) => setAmountInput(e.target.value.replace(/[^\d]/g, ''))}
+                      placeholder={String(req?.rent_amount ?? '')}
+                      className="h-10 font-mono"
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      Rent due: {formatUGX(Number(req?.rent_amount ?? 0))} · You can pay less for a partial payout.
+                    </p>
+                    {!amountValid && effectiveAmount > 0 && (
+                      <p className="text-[11px] text-destructive">
+                        Amount cannot exceed the rent due.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="payout-phone" className="text-xs">
+                      Landlord MoMo number
+                    </Label>
+                    <Input
+                      id="payout-phone"
+                      inputMode="tel"
+                      value={phoneOverride || defaultLandlordPhone}
+                      onChange={(e) => setPhoneOverride(e.target.value)}
+                      placeholder="07XXXXXXXX"
+                      className="h-10 font-mono"
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      {phoneOverride.trim() && phoneOverride.trim() !== defaultLandlordPhone
+                        ? 'Using overridden number — original on file: ' + (defaultLandlordPhone || 'none')
+                        : 'Edit if the number on file is wrong or out of service.'}
+                    </p>
+                    {!phoneValid && (
+                      <p className="text-[11px] text-destructive">Enter a valid Ugandan phone number.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {!landlordOtp.otpSent ? (
                 <Button
                   type="button"
                   onClick={handleSendOtp}
-                  disabled={landlordOtp.otpLoading || !landlordPhone}
+                  disabled={landlordOtp.otpLoading || !phoneValid || !amountValid}
                   className="w-full gap-2 h-12 rounded-xl"
                 >
                   {landlordOtp.otpLoading ? (
