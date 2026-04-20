@@ -798,6 +798,16 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                             className="h-10"
                             maxLength={12}
                           />
+                          {lc1Phone.replace(/\s/g, '').length >= 10 &&
+                            tenantPhone.replace(/\s/g, '').length >= 10 &&
+                            lc1Phone.replace(/\s/g, '') === tenantPhone.replace(/\s/g, '') && (
+                              <p className="text-[10px] text-destructive">Cannot be the same as Tenant phone</p>
+                            )}
+                          {lc1Phone.replace(/\s/g, '').length >= 10 &&
+                            landlordPhone.replace(/\s/g, '').length >= 10 &&
+                            lc1Phone.replace(/\s/g, '') === landlordPhone.replace(/\s/g, '') && (
+                              <p className="text-[10px] text-destructive">Cannot be the same as Landlord phone</p>
+                            )}
                         </div>
                       </div>
                     </div>
