@@ -16,6 +16,7 @@ import type { TemplateEntry } from './types.ts'
 interface ReturnsDisbursementConfirmationProps {
   partner_name?: string
   transaction_id?: string
+  portfolio_code?: string
   amount?: string | number
   currency?: string
   date?: string
@@ -39,6 +40,7 @@ const formatAmount = (amount: string | number | undefined, currency: string) => 
 export function ReturnsDisbursementConfirmation({
   partner_name = 'Partner',
   transaction_id = 'TXN-XXXXXXXX',
+  portfolio_code = '',
   amount = 0,
   currency = 'UGX',
   date = new Date().toLocaleDateString('en-GB', {
@@ -57,6 +59,7 @@ export function ReturnsDisbursementConfirmation({
 }: ReturnsDisbursementConfirmationProps) {
   const year = new Date().getFullYear()
   const formattedAmount = formatAmount(amount, currency)
+  const referenceLabel = portfolio_code || transaction_id
 
   return (
     <Html>
@@ -64,7 +67,7 @@ export function ReturnsDisbursementConfirmation({
         <style>{clientOverrides}</style>
       </Head>
       <Preview>
-        Returns disbursement of {formattedAmount} processed — Ref {transaction_id}
+        Returns disbursement of {formattedAmount} processed — Portfolio {referenceLabel}
       </Preview>
       <Body style={main}>
         {/* Main Background Table */}
