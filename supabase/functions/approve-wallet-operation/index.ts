@@ -714,6 +714,16 @@ Deno.serve(async (req) => {
                 day: '2-digit', month: 'long', year: 'numeric',
               });
 
+              let agentName = '';
+              if (isManaged && op.target_wallet_user_id && op.target_wallet_user_id !== op.user_id) {
+                const { data: agentProfile } = await adminClient
+                  .from("profiles")
+                  .select("full_name")
+                  .eq("id", op.target_wallet_user_id)
+                  .maybeSingle();
+                agentName = agentProfile?.full_name || '';
+              }
+
               await fetch(`${supabaseUrl}/functions/v1/send-transactional-email`, {
                 method: "POST",
                 headers: {
@@ -733,6 +743,8 @@ Deno.serve(async (req) => {
                     payout_method: payoutMethodLabel,
                     company_name: "Welile",
                     logo_url: "https://welilereceipts.com/welile-logo.png",
+                    is_managed_by_agent: isManaged,
+                    agent_name: agentName,
                   },
                 }),
               });

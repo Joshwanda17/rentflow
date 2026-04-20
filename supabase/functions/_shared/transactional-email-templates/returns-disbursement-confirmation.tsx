@@ -22,6 +22,8 @@ interface ReturnsDisbursementConfirmationProps {
   payout_method?: string
   company_name?: string
   logo_url?: string
+  is_managed_by_agent?: boolean
+  agent_name?: string
 }
 
 const formatAmount = (amount: string | number | undefined, currency: string) => {
@@ -44,6 +46,8 @@ export function ReturnsDisbursementConfirmation({
   payout_method = 'Wallet',
   company_name = 'Welile',
   logo_url = 'https://welilereceipts.com/welile-logo.png',
+  is_managed_by_agent = false,
+  agent_name = '',
 }: ReturnsDisbursementConfirmationProps) {
   const year = new Date().getFullYear()
   const formattedAmount = formatAmount(amount, currency)
@@ -135,6 +139,25 @@ export function ReturnsDisbursementConfirmation({
                   assistance.
                 </Text>
               </Section>
+
+              {is_managed_by_agent && (
+                <Section style={managedBox}>
+                  <Text style={managedTitle}>Account Managed by Agent</Text>
+                  <Text style={managedText}>
+                    Your Welile account is managed on your behalf by your
+                    assigned agent
+                    {agent_name ? (
+                      <>
+                        ,{' '}
+                        <strong style={managedStrong}>{agent_name}</strong>
+                      </>
+                    ) : null}
+                    . This disbursement was initiated and will be delivered to
+                    you through your agent. Please coordinate with them to
+                    receive your funds.
+                  </Text>
+                </Section>
+              )}
             </Section>
 
             <Hr style={hr} />
@@ -368,6 +391,36 @@ const helpStrong: React.CSSProperties = {
   color: '#4C1D95',
 }
 
+const managedBox: React.CSSProperties = {
+  backgroundColor: '#FFFBEB',
+  border: `1px solid #FDE68A`,
+  borderLeft: `4px solid #F59E0B`,
+  borderRadius: '10px',
+  padding: '14px 16px',
+  margin: '12px 0 8px',
+}
+
+const managedTitle: React.CSSProperties = {
+  margin: '0 0 6px',
+  color: '#92400E',
+  fontSize: '12px',
+  fontWeight: 700,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+}
+
+const managedText: React.CSSProperties = {
+  margin: 0,
+  color: '#78350F',
+  fontSize: '13px',
+  lineHeight: '20px',
+}
+
+const managedStrong: React.CSSProperties = {
+  color: '#78350F',
+  fontWeight: 700,
+}
+
 const hr: React.CSSProperties = {
   borderColor: BORDER,
   margin: '8px 0 0',
@@ -419,5 +472,7 @@ export const template = {
     payout_method: 'Mobile Money (MTN)',
     company_name: 'Welile',
     logo_url: 'https://welilereceipts.com/welile-logo.png',
+    is_managed_by_agent: true,
+    agent_name: 'James Okello',
   },
 } satisfies TemplateEntry

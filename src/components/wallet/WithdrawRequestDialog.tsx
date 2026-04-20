@@ -191,6 +191,52 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
           await supabase.from('profiles').update({ mobile_money_number: momoNumber.trim(), mobile_money_provider: payoutMode }).eq('id', user.id);
         }
 
+        // ── Proxy-agent withdrawal: notify the partner that returns disbursement is initiated ──
+        if (linkedParty && linkedParty !== user.id) {
+          try {
+            const [{ data: partnerProfile }, { data: agentProfile }] = await Promise.all([
+              supabase.from('profiles').select('email, full_name').eq('id', linkedParty).maybeSingle(),
+              supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle(),
+            ]);
+
+            if (partnerProfile?.email) {
+              const payoutMethodLabel = payoutMode === 'mtn'
+                ? 'Mobile Money (MTN) — via Proxy Agent'
+                : payoutMode === 'airtel'
+                ? 'Mobile Money (Airtel) — via Proxy Agent'
+                : payoutMode === 'bank'
+                ? `Bank Transfer (${bankName || 'Bank'}) — via Proxy Agent`
+                : 'Cash Pickup — via Proxy Agent';
+              const refId = `TXN-${Date.now().toString(36).toUpperCase()}`;
+              const todayLabel = new Date().toLocaleDateString('en-GB', {
+                day: '2-digit', month: 'long', year: 'numeric',
+              });
+
+              await supabase.functions.invoke('send-transactional-email', {
+                body: {
+                  templateName: 'returns-disbursement-confirmation',
+                  recipientEmail: partnerProfile.email,
+                  idempotencyKey: `proxy-roi-request-${linkedParty}-${user.id}-${Date.now()}`,
+                  templateData: {
+                    partner_name: partnerProfile.full_name || 'Partner',
+                    transaction_id: refId,
+                    amount,
+                    currency: 'UGX',
+                    date: todayLabel,
+                    payout_method: payoutMethodLabel,
+                    company_name: 'Welile',
+                    logo_url: 'https://welilereceipts.com/welile-logo.png',
+                    is_managed_by_agent: true,
+                    agent_name: agentProfile?.full_name || '',
+                  },
+                },
+              });
+            }
+          } catch (emailErr) {
+            console.warn('[WithdrawRequestDialog] proxy partner email enqueue failed:', emailErr);
+          }
+        }
+
         setSuccess(true);
         toast.success('Withdrawal request submitted! 🎉');
         onSuccess?.();
