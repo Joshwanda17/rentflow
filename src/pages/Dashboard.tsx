@@ -18,6 +18,7 @@ import { useDeployedCapital } from '@/hooks/useDeployedCapital';
 import { useToast } from '@/hooks/use-toast';
 import { useConfetti } from '@/components/Confetti';
 import { Button } from '@/components/ui/button';
+import InstallAppCard from '@/components/InstallAppCard';
 // Lazy load dashboards for faster initial load
 const TenantDashboard = lazy(() => import('@/components/dashboards/TenantDashboard'));
 const AgentDashboard = lazy(() => import('@/components/dashboards/AgentDashboard'));
@@ -362,6 +363,7 @@ function DashboardContent() {
 
   return (
     <>
+      <InstallAppCard className="fixed top-4 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-md" />
       <Suspense fallback={<DashboardLoadingFallback />}>
         {renderDashboard()}
       </Suspense>
