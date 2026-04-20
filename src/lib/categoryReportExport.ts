@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, subDays, startOfDay } from 'date-fns';
+import { CATEGORY_DESCRIPTIONS } from '@/lib/ledgerConstants';
 
 interface CategoryEntry {
   id: string;
