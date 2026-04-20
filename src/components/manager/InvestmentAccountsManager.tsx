@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { Wallet, Search, Edit2, Check, X, Loader2, ArrowRightLeft, Share2, RefreshCw } from 'lucide-react';
+import { Wallet, Search, Edit2, Check, X, Loader2, ArrowRightLeft, Share2, RefreshCw, Ban } from 'lucide-react';
 import { sharePortfolioViaWhatsApp } from '@/lib/portfolioPdf';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
