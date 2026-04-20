@@ -132,4 +132,7 @@ const IOSShareReceiver = forwardRef<HTMLDivElement>(function IOSShareReceiver(_p
       </DialogContent>
     </Dialog>
   );
-}
+});
+
+export default IOSShareReceiver;
+
