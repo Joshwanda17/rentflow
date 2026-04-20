@@ -18,6 +18,8 @@ const ALL_CFO_ACTIONS = [
   'cfo_roi_payout_approved', 'cfo_roi_payout_rejected', 'roi_payout',
   // Deposits & withdrawals
   'deposit_approval', 'withdrawal_approval', 'cfo_approve_withdrawal',
+  'withdrawal_approved_ledger', 'withdrawal_rejected', 'proxy_partner_withdrawal',
+  'fin_ops_complete_withdrawal', 'fin_ops_approve_withdrawal', 'bulk_approve_wallet_withdrawals',
   // Commissions & requisitions
   'commission_payout', 'requisition_approved', 'requisition_rejected',
   // Agent float
