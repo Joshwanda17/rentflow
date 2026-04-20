@@ -144,8 +144,8 @@ export function ReturnsDisbursementConfirmation({
                 <Section style={managedBox}>
                   <Text style={managedTitle}>Account Managed by Agent</Text>
                   <Text style={managedText}>
-                    Your Welile account is managed on your behalf by your
-                    assigned agent
+                    Your account is currently managed by an authorized proxy
+                    agent on your behalf
                     {agent_name ? (
                       <>
                         ,{' '}
