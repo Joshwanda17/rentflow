@@ -43,6 +43,8 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
   const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
   const [otpCode, setOtpCode] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [amountInput, setAmountInput] = useState<string>('');
+  const [phoneOverride, setPhoneOverride] = useState<string>('');
   const fileRef = useRef<HTMLInputElement | null>(null);
   const cooldownRef = useRef<ReturnType<typeof setTimeout>>();
 
