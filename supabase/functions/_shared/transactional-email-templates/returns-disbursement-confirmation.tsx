@@ -138,26 +138,13 @@ export function ReturnsDisbursementConfirmation({
                   <strong style={helpStrong}>{transaction_id}</strong> for
                   assistance.
                 </Text>
-              </Section>
-
-              {is_managed_by_agent && (
-                <Section style={managedBox}>
-                  <Text style={managedTitle}>Account Managed by Agent</Text>
-                  <Text style={managedText}>
+                {is_managed_by_agent && (
+                  <Text style={{ ...helpText, marginTop: '8px' }}>
                     Your account is currently managed by an authorized proxy
-                    agent on your behalf
-                    {agent_name ? (
-                      <>
-                        ,{' '}
-                        <strong style={managedStrong}>{agent_name}</strong>
-                      </>
-                    ) : null}
-                    . This disbursement was initiated and will be delivered to
-                    you through your agent. Please coordinate with them to
-                    receive your funds.
+                    agent on your behalf.
                   </Text>
-                </Section>
-              )}
+                )}
+              </Section>
             </Section>
 
             <Hr style={hr} />
