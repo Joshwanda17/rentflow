@@ -116,6 +116,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
       { id: 'airtime', label: 'Airtime' },
       { id: 'stationery', label: 'Stationery' },
       { id: 'property_equipment', label: 'Property & Equipment' },
+      { id: 'eviction_enforcement', label: 'Eviction & Enforcement' },
     ],
   },
   {
