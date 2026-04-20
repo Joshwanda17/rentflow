@@ -74,6 +74,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     allowedOps: ['credit'],
     subCategories: [
       { id: 'marketing_materials', label: 'Marketing Materials' },
+      { id: 'events_exhibition', label: 'Events & Exhibition' },
     ],
   },
   {
@@ -93,6 +94,10 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'research_development_expense',
     platformCategory: 'research_development_expense',
     allowedOps: ['credit'],
+    subCategories: [
+      { id: 'software', label: 'Software' },
+      { id: 'welile_dowry', label: 'Welile Dowry' },
+    ],
   },
   {
     id: 'operational_expense',
@@ -111,6 +116,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
       { id: 'airtime', label: 'Airtime' },
       { id: 'stationery', label: 'Stationery' },
       { id: 'property_equipment', label: 'Property & Equipment' },
+      { id: 'eviction_enforcement', label: 'Eviction & Enforcement' },
     ],
   },
   {
