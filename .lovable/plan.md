@@ -1,39 +1,70 @@
 
+## Root cause
 
-Looking at `TenantWalletHeroCard.tsx`, the card uses `.portfolio-hero-card` class for the background and hardcoded `text-white` / `text-white/XX` / `bg-white/XX` throughout. When the background token resolves light, white text disappears.
+The runtime error log shows:
+```
+TypeError: error loading dynamically imported module: .../FeatureFlagsContext.tsx
+```
 
-Need to verify `.portfolio-hero-card` definition and confirm `--primary` is dark so `text-primary-foreground` is the right token.
-<lov-tool-use id="toolu_vrtx_01X97CWTABZ7xg4Kad5gGCVW" name="code--search_files" integration-id="code" data="{\"query\": \"portfolio-hero-card\", \"include_patterns\": \"*.css\"}">
-</lov-tool-use>
+This is a **lazy chunk load failure** — a transient network/cache issue when the browser tries to download a code-split JS chunk (very common after a redeploy, on flaky mobile networks, or with stale service-worker caches). It is NOT a code bug.
 
-<lov-tool-use id="toolu_vrtx_0117CBdJoEQ9anfs7shMNDJe" name="code--search_files" integration-id="code" data="{\"query\": \"portfolio-hero-card\", \"include_patterns\": \"*.css,*.tsx\"}">
-</lov-tool-use>
-The CSS has the dark gradient defined. The screenshot shows white-on-white which means the gradient isn't applying — likely the screenshot is from the `TenantWalletHeroCard` rendering correctly in CSS but the user sees broken theme. Actually since gradient exists, the issue is the user wants `text-white` swapped for semantic tokens regardless.
+`ChunkErrorBoundary` IS catching it, but on this device the thrown error's message/stack doesn't match any of the keyword strings used to classify it as a chunk error, so it falls through to the **generic** "Something went wrong" branch instead of the **auto-recovering "Updating..."** branch. That's why the user sees a dead-end screen with no auto-retry.
 
-<lov-plan>
-## Plan: Replace hardcoded `text-white` with semantic tokens in hero cards
+Secondary issue from console logs: `IOSLinkHandler` and `IOSShareReceiver` are referenced as `forwardRef` targets but are plain function components — noisy warnings, not the crash cause, but worth fixing.
 
-The `.portfolio-hero-card` CSS sets `color: hsl(var(--primary-foreground))` and a purple gradient background, but the children override with hardcoded `text-white` / `bg-white/*`. When the gradient fails to render (theme/CSS variable conflict), white text becomes invisible on light surfaces.
+## Plan
 
-### Fix
-Swap hardcoded white classes for semantic tokens that resolve correctly against `--primary-foreground`:
-- `text-white` → `text-primary-foreground`
-- `text-white/70`, `text-white/60`, `text-white/50`, `text-white/40` → `text-primary-foreground/70` etc.
-- `bg-white/15`, `bg-white/10`, `bg-white/[0.06]`, `bg-white/[0.04]` → `bg-primary-foreground/15` etc.
-- Keep accent colors (`text-emerald-300`, `text-amber-300`) as-is — those are intentional highlights.
+### 1. Make chunk-error detection bulletproof in `ChunkErrorBoundary`
+- Add more match patterns: `"failed to fetch"`, `"importing"`, `"module"`, `".tsx"`, `".js"` chunk hints, plus check `error.name === "TypeError"` combined with empty/short message (typical signature of a fetch failure on iOS Safari).
+- Treat ANY error whose stack mentions a `/src/` or `/assets/` URL with `.js`/`.tsx`/`.css` as a chunk load failure.
+- Add an **auto-retry once** on chunk errors: clear caches + SWs + reload after a 2s delay (only if not already retried — track via `sessionStorage`).
+- Log the raw error to `public_error_logs` (same pattern as `RecordRentErrorBoundary`) so we can see exactly what's failing on real devices.
 
-### Files to update
-1. `src/components/tenant/TenantWalletHeroCard.tsx` (the one in the screenshot)
-2. `src/components/landlord/LandlordWalletHeroCard.tsx`
-3. `src/components/agent/AgentWalletHeroCard.tsx`
-4. `src/components/supporter/PortfolioSummaryCards.tsx`
-5. `src/components/wallet/UnifiedWalletHeroCard.tsx`
-6. `src/pages/AngelPool.tsx` (the inline hero block)
+### 2. Add chunk-load retry at the import site
+Wrap the `lazy(() => import(...))` calls in `App.tsx` (`FeatureFlagsProvider`, `OfflineProvider`, `ComparisonProvider`, etc.) with a `lazyWithRetry` helper that retries the import 2× with backoff before throwing. This catches transient failures BEFORE the boundary ever sees them.
 
-### Note on the CSS class itself
-`.portfolio-hero-card` already declares `color: hsl(var(--primary-foreground))` — so even if a future theme tweak changes the gradient, text will stay readable because semantic tokens follow the foreground variable.
+```ts
+// src/lib/lazyWithRetry.ts
+export function lazyWithRetry<T extends ComponentType<any>>(
+  factory: () => Promise<{ default: T }>,
+  retries = 2
+) {
+  return lazy(async () => {
+    let lastErr: any;
+    for (let i = 0; i <= retries; i++) {
+      try { return await factory(); }
+      catch (e) { lastErr = e; await new Promise(r => setTimeout(r, 400 * (i + 1))); }
+    }
+    throw lastErr;
+  });
+}
+```
 
-### Out of scope
-- No layout, spacing, or copy changes.
-- No changes to the gradient itself.
-- Decorative `bg-white/*` overlays will be converted too so decorations remain visible on any background.
+### 3. Improve the generic fallback UX (defense in depth)
+For non-chunk errors, the current "Something went wrong" screen is a dead end. Add:
+- A **"Go to Home"** button (resets route to `/`) alongside Refresh.
+- The error message in small text (collapsed) for support diagnostics.
+- Best-effort logging to `public_error_logs`.
+
+### 4. Fix the React `forwardRef` warnings
+`IOSLinkHandler` and `IOSShareReceiver` are wrapped in `Suspense` and something passes a `ref`. Convert them to `React.forwardRef` (no-op forward) to silence the warnings — purely cosmetic but reduces console noise that masks real errors.
+
+### 5. Production monitoring guidance (no code, just recommendation)
+Briefly note that `public_error_logs` is your existing lightweight Sentry-equivalent — every boundary catch will land there with userAgent + URL, so you can query it from the CFO/CTO dashboard to see real-world chunk-failure rates per device.
+
+## Files to change
+1. `src/components/ChunkErrorBoundary.tsx` — broader detection, auto-retry once, remote logging, better generic fallback with Home button.
+2. `src/lib/lazyWithRetry.ts` — **new** helper.
+3. `src/App.tsx` — replace bare `lazy(...)` with `lazyWithRetry(...)` for the provider chain (FeatureFlagsProvider, OfflineProvider, ComparisonProvider, and any other top-level lazy providers).
+4. `src/components/IOSLinkHandler.tsx` and `src/components/IOSShareReceiver.tsx` — wrap with `forwardRef` to silence warnings.
+
+## Out of scope
+- No new external services (Sentry SDK install, etc.) — `public_error_logs` already exists and is cheaper.
+- No changes to network-layer retry for Supabase/edge calls — those are handled per-feature and aren't the cause of this screen.
+- No layout/visual redesign of the fallback — keeping current style, just adding the Home button + log id.
+
+## Expected outcome
+- Transient chunk failures self-heal silently via `lazyWithRetry` (2 retries with backoff).
+- If they still fail, `ChunkErrorBoundary` reliably classifies them and shows the "Updating..." auto-recovery UI instead of the dead-end generic screen.
+- True app-code crashes (rare) get a richer fallback with Home + logged error id.
+- Console noise from `forwardRef` warnings goes away.
