@@ -401,16 +401,33 @@ export default function BusinessAdvanceRequestDialog({ open, onOpenChange, onSuc
               </div>
             )}
 
-            <Button
-              className="w-full h-11"
-              onClick={() => {
-                const err = validateAmount();
-                if (err) return toast.error(err);
-                setStep('tenant');
-              }}
-            >
-              Next: Tenant details
-            </Button>
+            {(() => {
+              const err = validateAmount();
+              return (
+                <>
+                  {err && (
+                    <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                      <span>{err}</span>
+                    </div>
+                  )}
+                  <Button
+                    className="w-full h-11"
+                    disabled={!!err}
+                    onClick={() => {
+                      const e2 = validateAmount();
+                      if (e2) {
+                        toast.error(e2);
+                        return;
+                      }
+                      setStep('tenant');
+                    }}
+                  >
+                    Next: Tenant details
+                  </Button>
+                </>
+              );
+            })()}
           </div>
         )}
 
