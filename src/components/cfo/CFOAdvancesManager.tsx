@@ -43,6 +43,27 @@ export function CFOAdvancesManager() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportingPayments, setExportingPayments] = useState(false);
+
+  const handleExportPayments = async () => {
+    if (filtered.length === 0) return;
+    setExportingPayments(true);
+    const toastId = toast.loading('Generating consolidated payments report...');
+    try {
+      const { filename, rowCount } = await exportConsolidatedPayments(filtered, filter);
+      toast.success(`Downloaded ${filename} (${rowCount} payments)`, { id: toastId });
+      await supabase.from('audit_logs').insert({
+        user_id: user?.id,
+        action_type: 'cfo_advance_payments_export',
+        table_name: 'agent_advance_ledger',
+        metadata: { advance_count: filtered.length, payment_count: rowCount, filter, filename },
+      });
+    } catch (e: any) {
+      toast.error(e.message || 'Export failed', { id: toastId });
+    } finally {
+      setExportingPayments(false);
+    }
+  };
 
   const handleExportPdfs = async () => {
     if (filtered.length === 0) return;
