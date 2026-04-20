@@ -723,6 +723,17 @@ Deno.serve(async (req) => {
                 agentName = agentProfile?.full_name || '';
               }
 
+              // Resolve the portfolio code for the partner-facing reference
+              let portfolioCode = '';
+              if (op.source_table === 'investor_portfolios' && op.source_id) {
+                const { data: portfolioRow } = await adminClient
+                  .from("investor_portfolios")
+                  .select("portfolio_code")
+                  .eq("id", op.source_id)
+                  .maybeSingle();
+                portfolioCode = portfolioRow?.portfolio_code || '';
+              }
+
               await fetch(`${supabaseUrl}/functions/v1/send-transactional-email`, {
                 method: "POST",
                 headers: {
@@ -736,6 +747,7 @@ Deno.serve(async (req) => {
                   templateData: {
                     partner_name: partnerProfile.full_name || "Partner",
                     transaction_id: refId,
+                    portfolio_code: portfolioCode,
                     amount: op.amount,
                     currency: "UGX",
                     date: todayLabel,

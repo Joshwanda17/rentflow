@@ -194,9 +194,16 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
         // ── Proxy-agent withdrawal: notify the partner that returns disbursement is initiated ──
         if (linkedParty && linkedParty !== user.id) {
           try {
-            const [{ data: partnerProfile }, { data: agentProfile }] = await Promise.all([
+            const [{ data: partnerProfile }, { data: agentProfile }, { data: partnerPortfolio }] = await Promise.all([
               supabase.from('profiles').select('email, full_name').eq('id', linkedParty).maybeSingle(),
               supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle(),
+              supabase
+                .from('investor_portfolios')
+                .select('portfolio_code')
+                .eq('investor_id', linkedParty)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle(),
             ]);
 
             if (partnerProfile?.email) {
@@ -220,6 +227,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
                   templateData: {
                     partner_name: partnerProfile.full_name || 'Partner',
                     transaction_id: refId,
+                    portfolio_code: partnerPortfolio?.portfolio_code || '',
                     amount,
                     currency: 'UGX',
                     date: todayLabel,

@@ -16,6 +16,7 @@ import type { TemplateEntry } from './types.ts'
 interface ReturnsDisbursementConfirmationProps {
   partner_name?: string
   transaction_id?: string
+  portfolio_code?: string
   amount?: string | number
   currency?: string
   date?: string
@@ -39,6 +40,7 @@ const formatAmount = (amount: string | number | undefined, currency: string) => 
 export function ReturnsDisbursementConfirmation({
   partner_name = 'Partner',
   transaction_id = 'TXN-XXXXXXXX',
+  portfolio_code = '',
   amount = 0,
   currency = 'UGX',
   date = new Date().toLocaleDateString('en-GB', {
@@ -57,6 +59,7 @@ export function ReturnsDisbursementConfirmation({
 }: ReturnsDisbursementConfirmationProps) {
   const year = new Date().getFullYear()
   const formattedAmount = formatAmount(amount, currency)
+  const referenceLabel = portfolio_code || transaction_id
 
   return (
     <Html>
@@ -64,7 +67,7 @@ export function ReturnsDisbursementConfirmation({
         <style>{clientOverrides}</style>
       </Head>
       <Preview>
-        Returns disbursement of {formattedAmount} processed — Ref {transaction_id}
+        Returns disbursement of {formattedAmount} processed — Portfolio {referenceLabel}
       </Preview>
       <Body style={main}>
         {/* Main Background Table */}
@@ -103,7 +106,7 @@ export function ReturnsDisbursementConfirmation({
                       <tbody><tr>
                         <td align="center" valign="middle" width={64} height={64} style={iconBadgeCell}>
                           <Img
-                            src="https://wirntoujqoyjobfhyelc.supabase.co/storage/v1/object/public/email-assets/check-icon.png"
+                            src="https://wirntoujqoyjobfhyelc.supabase.co/storage/v1/object/public/email-assets/check-mark.png"
                             alt="Success"
                             width="32"
                             height="32"
@@ -147,8 +150,8 @@ export function ReturnsDisbursementConfirmation({
                                 <tr>
                                   <td style={ledgerRow}>
                                     <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation"><tbody><tr>
-                                      <td className="td-block" width="40%" style={ledgerKey}>Reference ID</td>
-                                      <td className="td-block" width="60%" align="right" style={ledgerValMono}>{transaction_id}</td>
+                                      <td className="td-block" width="40%" style={ledgerKey}>Portfolio Ref</td>
+                                      <td className="td-block" width="60%" align="right" style={ledgerValMono}>{referenceLabel}</td>
                                     </tr></tbody></table>
                                   </td>
                                 </tr>
@@ -490,11 +493,12 @@ const footerCopyText: React.CSSProperties = {
 export const template = {
   component: ReturnsDisbursementConfirmation,
   subject: (data: Record<string, any>) =>
-    `Returns Disbursement Confirmation — Ref ${data?.transaction_id ?? ''}`.trim(),
+    `Returns Disbursement Confirmation — Portfolio ${data?.portfolio_code ?? data?.transaction_id ?? ''}`.trim(),
   displayName: 'Returns Disbursement Confirmation',
   previewData: {
     partner_name: 'Sarah Nakato',
     transaction_id: 'TXN-2026-04A8F3D2',
+    portfolio_code: 'PRT-2026-0042',
     amount: 1250000,
     currency: 'UGX',
     date: '20 April 2026',
