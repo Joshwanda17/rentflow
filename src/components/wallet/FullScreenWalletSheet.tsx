@@ -53,9 +53,9 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
   const { user, role } = useAuth();
   const { profile } = useProfile();
   const isAgent = role === 'agent';
-  const { commissionBalance, floatBalance } = useAgentBalances();
+  const { commissionBalance, floatBalance, withdrawableBalance } = useAgentBalances();
   const displayBalance = wallet?.balance || 0;
-  const realWithdrawableBalance = Math.max(0, Math.min(displayBalance, commissionBalance));
+  const realWithdrawableBalance = Math.max(0, withdrawableBalance);
   const balanceLabel = 'Total Balance';
   const [sendOpen, setSendOpen] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
