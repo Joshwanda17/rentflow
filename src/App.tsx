@@ -256,6 +256,7 @@ function AppRoutes() {
           <Route path="/welcome" element={<Landing />} />
            <Route path="/internship" element={<Internship />} />
            <Route path="/auth" element={<Auth />} />
+          <Route path="/unsubscribe" element={<Unsubscribe />} />
           <Route path="/r/:code" element={<ResolveShortLink />} />
           <Route path="/profile/:aiId" element={<HolisticProfile />} />
           <Route path="/id/:aiId" element={<HolisticProfile publicMode />} />
