@@ -4,9 +4,9 @@ import {
   Container,
   Head,
   Heading,
-  Hr,
   Html,
   Img,
+  Link,
   Preview,
   Section,
   Text,
@@ -20,10 +20,13 @@ interface ReturnsDisbursementConfirmationProps {
   currency?: string
   date?: string
   payout_method?: string
+  payout_method_last4digit?: string
   company_name?: string
   logo_url?: string
   is_managed_by_agent?: boolean
   agent_name?: string
+  unsubscribe_url?: string
+  contact_url?: string
 }
 
 const formatAmount = (amount: string | number | undefined, currency: string) => {
