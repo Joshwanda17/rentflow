@@ -254,31 +254,23 @@ export async function exportAdvanceStatements(
 
   const dateStr = new Date().toISOString().split('T')[0];
 
-  // Single agent → direct PDF
-  if (agentEntries.length === 1) {
-    const { agent, advances: agentAdvances } = agentEntries[0];
-    onProgress?.(0, 1);
-    const blob = await generateAdvancePdf(agent, agentAdvances, ledgerByAdvance, topupsByAdvance);
-    const filename = `advance-statement-${safeName(agent.full_name)}-${dateStr}.pdf`;
-    downloadBlob(blob, filename);
-    onProgress?.(1, 1);
-    return { filename, agentCount: 1 };
-  }
-
-  // Multiple → ZIP
-  const { default: JSZip } = await import('jszip');
-  const zip = new JSZip();
-
+  // Download one PDF per agent (sequentially, staggered so browsers don't block)
   for (let i = 0; i < agentEntries.length; i++) {
     const { agent, advances: agentAdvances } = agentEntries[i];
     onProgress?.(i, agentEntries.length);
     const blob = await generateAdvancePdf(agent, agentAdvances, ledgerByAdvance, topupsByAdvance);
-    zip.file(`advance-statement-${safeName(agent.full_name)}-${dateStr}.pdf`, blob);
+    const filename = `advance-statement-${safeName(agent.full_name)}-${dateStr}.pdf`;
+    downloadBlob(blob, filename);
+    if (i < agentEntries.length - 1) {
+      await new Promise((r) => setTimeout(r, 350));
+    }
   }
-
-  const zipBlob = await zip.generateAsync({ type: 'blob' });
-  const filename = `agent-advances-export-${dateStr}.zip`;
-  downloadBlob(zipBlob, filename);
   onProgress?.(agentEntries.length, agentEntries.length);
-  return { filename, agentCount: agentEntries.length };
+
+  return {
+    filename: agentEntries.length === 1
+      ? `advance-statement-${safeName(agentEntries[0].agent.full_name)}-${dateStr}.pdf`
+      : `${agentEntries.length} PDFs`,
+    agentCount: agentEntries.length,
+  };
 }
