@@ -33,6 +33,12 @@ interface QueueItem {
   ageHours: number;
   urgency: 'green' | 'amber' | 'red';
   rawData: any;
+  // Paired-leg metadata (for double-entry events like portfolio top-ups).
+  // When present, this item represents the BUSINESS EVENT and groupedIds
+  // contains BOTH ledger leg IDs (cash_in + cash_out) that must be
+  // approved/rejected together.
+  groupedIds?: string[];
+  pairedLegs?: { id: string; direction: string; rawData: any }[];
   payoutDetails?: {
     method: string;
     provider?: string;
