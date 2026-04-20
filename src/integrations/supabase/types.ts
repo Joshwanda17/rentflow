@@ -5404,6 +5404,9 @@ export type Database = {
           otp_verified_at: string
           property_latitude: number | null
           property_longitude: number | null
+          receipt_image_url: string | null
+          receipt_number: string | null
+          receipt_uploaded_at: string | null
           rent_request_id: string | null
           sla_deadline: string
           status: string
@@ -5438,6 +5441,9 @@ export type Database = {
           otp_verified_at?: string
           property_latitude?: number | null
           property_longitude?: number | null
+          receipt_image_url?: string | null
+          receipt_number?: string | null
+          receipt_uploaded_at?: string | null
           rent_request_id?: string | null
           sla_deadline?: string
           status?: string
@@ -5472,6 +5478,9 @@ export type Database = {
           otp_verified_at?: string
           property_latitude?: number | null
           property_longitude?: number | null
+          receipt_image_url?: string | null
+          receipt_number?: string | null
+          receipt_uploaded_at?: string | null
           rent_request_id?: string | null
           sla_deadline?: string
           status?: string
@@ -11756,6 +11765,10 @@ export type Database = {
       calculate_business_advance_limit: {
         Args: { _tenant_id: string }
         Returns: Json
+      }
+      can_read_landlord_payout_receipts: {
+        Args: { _user_id: string }
+        Returns: boolean
       }
       capture_trust_signal: {
         Args: {
