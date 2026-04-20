@@ -62,7 +62,8 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
         .select('balance')
         .eq('agent_id', user.id)
         .maybeSingle();
-      return data?.balance ?? 0;
+      const n = Number(data?.balance ?? 0);
+      return Number.isFinite(n) ? n : 0;
     },
     enabled: !!user && open,
   });

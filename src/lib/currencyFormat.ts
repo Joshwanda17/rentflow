@@ -75,10 +75,14 @@ function convert(amountInUGX: number, code: string, rates: Record<string, number
 /**
  * Format an amount (in UGX) using the user's selected currency.
  */
-export function formatDynamic(amountInUGX: number): string {
+export function formatDynamic(amountInUGX: unknown): string {
+  const safeAmount = Number(amountInUGX);
+  if (!Number.isFinite(safeAmount)) {
+    return getDynamicCurrencySymbol() + '0';
+  }
   const code = getSelectedCode();
   const rates = getRates();
-  const converted = convert(amountInUGX, code, rates);
+  const converted = convert(safeAmount, code, rates);
   const locale = currencyLocales[code] || 'en-US';
   const decimals = ZERO_DECIMAL_CURRENCIES.has(code) ? 0 : 2;
 
@@ -98,10 +102,14 @@ export function formatDynamic(amountInUGX: number): string {
 /**
  * Compact format (K / M / B) using the user's selected currency.
  */
-export function formatDynamicCompact(amountInUGX: number): string {
+export function formatDynamicCompact(amountInUGX: unknown): string {
+  const safeAmount = Number(amountInUGX);
+  if (!Number.isFinite(safeAmount)) {
+    return (currencySymbols[getSelectedCode()] || getSelectedCode()) + '0';
+  }
   const code = getSelectedCode();
   const rates = getRates();
-  const converted = convert(amountInUGX, code, rates);
+  const converted = convert(safeAmount, code, rates);
   const symbol = currencySymbols[code] || code + ' ';
 
   if (converted >= 1_000_000_000) return `${symbol}${(converted / 1_000_000_000).toFixed(1)}B`;
