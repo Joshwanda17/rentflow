@@ -252,8 +252,25 @@ export function ApprovalQueue() {
 
     setProcessing(true);
     try {
-      const ids = Array.from(selected);
+      // Expand any grouped (paired-leg) items into their underlying ledger leg IDs.
+      // This guarantees BOTH halves of a double-entry event are approved/rejected
+      // together — never half-approved (which would break the ledger).
+      const expandIds = (selectedIds: string[]) => {
+        const expanded = new Set<string>();
+        for (const sid of selectedIds) {
+          const item = items.find(i => i.id === sid);
+          if (item?.groupedIds && item.groupedIds.length > 0) {
+            item.groupedIds.forEach(g => expanded.add(g));
+          } else {
+            expanded.add(sid);
+          }
+        }
+        return Array.from(expanded);
+      };
 
+      const ids = activeQueue === 'wallet_ops'
+        ? expandIds(Array.from(selected))
+        : Array.from(selected);
       if (activeQueue === 'wallet_ops') {
         const response = await supabase.functions.invoke('approve-wallet-operation', {
           body: { bulk_ids: ids, action: bulkAction, rejection_reason: bulkAction === 'reject' ? reason : undefined },
