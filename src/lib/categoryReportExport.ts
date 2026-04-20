@@ -70,6 +70,21 @@ async function fetchCategoryEntries(category: string, days = 30): Promise<Catego
   return (data || []) as CategoryEntry[];
 }
 
+/** Returns all-time {count, total} for a category — covers full history since launch. */
+async function fetchAllTimeTotal(category: string): Promise<{ count: number; total: number }> {
+  const { data, error } = await supabase
+    .from('general_ledger')
+    .select('amount')
+    .eq('category', category)
+    .eq('ledger_scope', 'platform')
+    .limit(50000);
+  if (error || !data) return { count: 0, total: 0 };
+  return {
+    count: data.length,
+    total: data.reduce((s: number, r: any) => s + Number(r.amount || 0), 0),
+  };
+}
+
 function drawHeader(doc: any, pageWidth: number, margin: number, title: string, subtitle: string) {
   doc.setFillColor(15, 23, 42);
   doc.rect(0, 0, pageWidth, 22, 'F');
