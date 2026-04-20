@@ -714,12 +714,17 @@ Deno.serve(async (req) => {
                 day: '2-digit', month: 'long', year: 'numeric',
               });
 
-              await adminClient.rpc("enqueue_email" as any, {
-                queue_name: "transactional_emails",
-                payload: {
-                  to: partnerProfile.email,
-                  template_name: "returns-disbursement-confirmation",
-                  template_data: {
+              await fetch(`${supabaseUrl}/functions/v1/send-transactional-email`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${supabaseServiceKey}`,
+                },
+                body: JSON.stringify({
+                  templateName: "returns-disbursement-confirmation",
+                  recipientEmail: partnerProfile.email,
+                  idempotencyKey: `roi-payout-${op.id}`,
+                  templateData: {
                     partner_name: partnerProfile.full_name || "Partner",
                     transaction_id: refId,
                     amount: op.amount,
@@ -729,7 +734,7 @@ Deno.serve(async (req) => {
                     company_name: "Welile",
                     logo_url: "https://welilereceipts.com/welile-logo.png",
                   },
-                },
+                }),
               });
               console.log(`[approve-wallet-op] Returns disbursement email queued for partner ${op.user_id}`);
             }
