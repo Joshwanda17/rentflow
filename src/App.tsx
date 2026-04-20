@@ -356,6 +356,8 @@ function AppRoutes() {
           <Route path="/ai" element={<WelileAIPage />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
+          <Route path="/partners-terms" element={<Terms />} />
+          <Route path="/privacy-policy" element={<Privacy />} />
           <Route path="/share-location" element={<ShareLocation />} />
           <Route path="/investor/portfolio/:token" element={<InvestorPortfolioPublic />} />
           <Route path="/register-tenant" element={<RegisterTenantPublic />} />

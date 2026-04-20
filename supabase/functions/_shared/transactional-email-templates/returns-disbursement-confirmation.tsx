@@ -245,14 +245,14 @@ export function ReturnsDisbursementConfirmation({
                     </tr></tbody>
                   </table>
 
-                  <Text style={footerCompanyName}>{company_name} Financial Services</Text>
+                  <Text style={footerCompanyName}>WELILE TECHNOLOGIES LTD</Text>
                   <Text style={footerDisclaimer}>
                     You are receiving this email because you are a registered partner at {company_name}.<br />
                     This is an automated notification. Please do not reply directly to this email.
                   </Text>
                   <Text style={{ margin: '0 0 15px 0' }}>
-                    <Link href="https://welile.com/company-profile" style={footerLink}>Privacy Policy</Link>
-                    <Link href="https://welile.com/company-profile" style={footerLink}>Terms of Service</Link>
+                    <Link href="https://welilereceipts.com/privacy-policy" style={footerLink}>Privacy Policy</Link>
+                    <Link href="https://welilereceipts.com/partners-terms" style={footerLink}>Terms of Service</Link>
                     <Link href={unsubscribe_url} style={footerLink}>Unsubscribe</Link>
                   </Text>
                   <Text style={footerCopyText}>
