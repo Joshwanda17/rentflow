@@ -13,6 +13,7 @@ import {
   Loader2, Search, AlertTriangle, Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { AgentDailyMissions } from './AgentDailyMissions';
 
 const SIGNAL_TYPES = [
   { key: 'rent_payment', label: 'Rent Payment', icon: Banknote, weight: 'High', color: 'bg-emerald-500' },
@@ -157,6 +158,13 @@ export function TrustCaptureTab() {
 
   return (
     <div className="space-y-4">
+      {/* Daily Missions — gamified to-dos */}
+      <AgentDailyMissions onCaptureClick={() => {
+        const el = document.getElementById('trust-capture-search');
+        el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        (el as HTMLInputElement | null)?.focus();
+      }} />
+
       {/* Quota Card */}
       <div className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 to-emerald-500/10 p-4">
         <div className="flex items-center gap-2 mb-2">
