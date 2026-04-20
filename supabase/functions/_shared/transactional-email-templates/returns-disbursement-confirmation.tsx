@@ -106,7 +106,7 @@ export function ReturnsDisbursementConfirmation({
                       <tbody><tr>
                         <td align="center" valign="middle" width={64} height={64} style={iconBadgeCell}>
                           <Img
-                            src="https://wirntoujqoyjobfhyelc.supabase.co/storage/v1/object/public/email-assets/check-icon.png"
+                            src="https://wirntoujqoyjobfhyelc.supabase.co/storage/v1/object/public/email-assets/check-mark.png"
                             alt="Success"
                             width="32"
                             height="32"
@@ -150,8 +150,8 @@ export function ReturnsDisbursementConfirmation({
                                 <tr>
                                   <td style={ledgerRow}>
                                     <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation"><tbody><tr>
-                                      <td className="td-block" width="40%" style={ledgerKey}>Reference ID</td>
-                                      <td className="td-block" width="60%" align="right" style={ledgerValMono}>{transaction_id}</td>
+                                      <td className="td-block" width="40%" style={ledgerKey}>Portfolio Ref</td>
+                                      <td className="td-block" width="60%" align="right" style={ledgerValMono}>{referenceLabel}</td>
                                     </tr></tbody></table>
                                   </td>
                                 </tr>
