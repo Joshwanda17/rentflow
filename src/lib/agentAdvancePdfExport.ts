@@ -202,6 +202,137 @@ function downloadBlob(blob: Blob, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+export async function exportConsolidatedPayments(
+  advances: any[],
+  filterLabel: string = 'all',
+): Promise<{ filename: string; rowCount: number }> {
+  if (advances.length === 0) throw new Error('No advances to export');
+
+  const { default: jsPDF } = await import('jspdf');
+  const autoTableMod: any = await import('jspdf-autotable');
+  const autoTable = autoTableMod.default || autoTableMod;
+
+  const advanceIds = advances.map((a) => a.id);
+  const agentNameById = new Map<string, string>();
+  advances.forEach((a) => {
+    agentNameById.set(a.id, a.profiles?.full_name || 'Unknown Agent');
+  });
+
+  // Bulk fetch ledger
+  const { data: ledger = [] } = await supabase
+    .from('agent_advance_ledger')
+    .select('*')
+    .in('advance_id', advanceIds)
+    .order('date', { ascending: false });
+
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 14;
+
+  // Header
+  doc.setFillColor(15, 23, 42);
+  doc.rect(0, 0, pageWidth, 22, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text('WELILE', margin, 10);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Consolidated Advance Payments Report', margin, 16);
+  doc.setFontSize(8);
+  doc.text(`Generated: ${new Date().toLocaleString('en-GB')}`, pageWidth - margin, 10, { align: 'right' });
+  doc.text(`Filter: ${filterLabel.toUpperCase()} • CFO Export`, pageWidth - margin, 16, { align: 'right' });
+
+  doc.setTextColor(0, 0, 0);
+  let y = 30;
+
+  // Summary
+  const totalPrincipal = advances.reduce((s, a) => s + Number(a.principal || 0), 0);
+  const totalOutstanding = advances.reduce((s, a) => s + Number(a.outstanding_balance || 0), 0);
+  const totalInterestAdv = advances.reduce(
+    (s, a) => s + Math.max(0, Number(a.outstanding_balance || 0) - Number(a.principal || 0)),
+    0,
+  );
+  const totalDeducted = (ledger as any[]).reduce((s, r) => s + Number(r.amount_deducted || 0), 0);
+  const totalInterestLedger = (ledger as any[]).reduce((s, r) => s + Number(r.interest_accrued || 0), 0);
+  const uniqueAgents = new Set(advances.map((a) => a.agent_id)).size;
+
+  autoTable(doc, {
+    startY: y,
+    head: [['Metric', 'Value']],
+    body: [
+      ['Filter Applied', filterLabel],
+      ['Advances Covered', String(advances.length)],
+      ['Agents Covered', String(uniqueAgents)],
+      ['Payment Entries', String(ledger.length)],
+      ['Total Principal Issued', formatUGX(totalPrincipal)],
+      ['Total Interest Accrued (ledger)', formatUGX(totalInterestLedger)],
+      ['Total Deducted (collected)', formatUGX(totalDeducted)],
+      ['Total Outstanding', formatUGX(totalOutstanding)],
+      ['Accrued Interest (advances)', formatUGX(totalInterestAdv)],
+    ],
+    theme: 'striped',
+    styles: { fontSize: 8 },
+    headStyles: { fillColor: [30, 41, 59], textColor: 255 },
+    margin: { left: margin, right: margin },
+  });
+
+  // Unified payments table
+  let curY = (doc as any).lastAutoTable.finalY + 8;
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`All Payments (${ledger.length})`, margin, curY);
+
+  if (ledger.length === 0) {
+    autoTable(doc, {
+      startY: curY + 2,
+      body: [['No payments recorded across these advances yet.']],
+      theme: 'plain',
+      styles: { fontSize: 9, textColor: [120, 120, 120], fontStyle: 'italic' },
+      margin: { left: margin, right: margin },
+    });
+  } else {
+    autoTable(doc, {
+      startY: curY + 2,
+      head: [['Date', 'Agent', 'Adv ID', 'Opening', 'Interest', 'Deducted', 'Closing', 'Status']],
+      body: (ledger as any[]).map((row) => [
+        fmtDate(row.date),
+        agentNameById.get(row.advance_id) || '—',
+        String(row.advance_id).slice(0, 8),
+        formatUGX(row.opening_balance),
+        formatUGX(row.interest_accrued),
+        formatUGX(row.amount_deducted),
+        formatUGX(row.closing_balance),
+        String(row.deduction_status || '—'),
+      ]),
+      theme: 'striped',
+      styles: { fontSize: 7 },
+      headStyles: { fillColor: [30, 41, 59], textColor: 255 },
+      margin: { left: margin, right: margin },
+    });
+  }
+
+  // Footer
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(7);
+    doc.setTextColor(120, 120, 120);
+    doc.text(
+      `Page ${i} of ${pageCount} • Welile Consolidated Advance Payments • ${filterLabel}`,
+      pageWidth / 2,
+      doc.internal.pageSize.getHeight() - 6,
+      { align: 'center' },
+    );
+  }
+
+  const dateStr = new Date().toISOString().split('T')[0];
+  const filename = `advance-payments-consolidated-${filterLabel}-${dateStr}.pdf`;
+  downloadBlob(doc.output('blob'), filename);
+
+  return { filename, rowCount: ledger.length };
+}
+
 export async function exportAdvanceStatements(
   advances: any[],
   onProgress?: (current: number, total: number) => void,
