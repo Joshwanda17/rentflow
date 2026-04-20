@@ -9,32 +9,33 @@ import { ThemeProvider } from "next-themes";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import ChunkErrorBoundary from "@/components/ChunkErrorBoundary";
 import { PullToRefresh } from "@/components/PullToRefresh";
+import { lazyWithRetry } from "@/lib/lazyWithRetry";
 
 // Critical providers — loaded eagerly for instant auth/routing
 import { AuthProvider } from "@/hooks/useAuth";
 import { CombinedSettingsProvider } from "@/hooks/useCombinedSettings";
 
 // Deferred language/currency — not needed for first paint
-const LanguageProvider = lazy(() => import("@/hooks/useLanguage").then(m => ({ default: m.LanguageProvider })));
-const CurrencyProvider = lazy(() => import("@/hooks/useCurrency").then(m => ({ default: m.CurrencyProvider })));
+const LanguageProvider = lazyWithRetry(() => import("@/hooks/useLanguage").then(m => ({ default: m.LanguageProvider })));
+const CurrencyProvider = lazyWithRetry(() => import("@/hooks/useCurrency").then(m => ({ default: m.CurrencyProvider })));
 
 // Auth providers — deferred since they're not needed for first paint
-const PinAuthProvider = lazy(() => import("@/hooks/usePinAuth").then(m => ({ default: m.PinAuthProvider })));
-const BiometricAuthProvider = lazy(() => import("@/hooks/useBiometricAuth").then(m => ({ default: m.BiometricAuthProvider })));
+const PinAuthProvider = lazyWithRetry(() => import("@/hooks/usePinAuth").then(m => ({ default: m.PinAuthProvider })));
+const BiometricAuthProvider = lazyWithRetry(() => import("@/hooks/useBiometricAuth").then(m => ({ default: m.BiometricAuthProvider })));
 
 // Deferred providers - loaded after first paint
-const CartProvider = lazy(() => import("@/hooks/useCart").then(m => ({ default: m.CartProvider })));
-const ComparisonProvider = lazy(() => import("@/hooks/useProductComparison").then(m => ({ default: m.ComparisonProvider })));
-const OfflineProvider = lazy(() => import("@/contexts/OfflineContext").then(m => ({ default: m.OfflineProvider })));
-const FeatureFlagsProvider = lazy(() => import("@/contexts/FeatureFlagsContext").then(m => ({ default: m.FeatureFlagsProvider })));
+const CartProvider = lazyWithRetry(() => import("@/hooks/useCart").then(m => ({ default: m.CartProvider })));
+const ComparisonProvider = lazyWithRetry(() => import("@/hooks/useProductComparison").then(m => ({ default: m.ComparisonProvider })));
+const OfflineProvider = lazyWithRetry(() => import("@/contexts/OfflineContext").then(m => ({ default: m.OfflineProvider })));
+const FeatureFlagsProvider = lazyWithRetry(() => import("@/contexts/FeatureFlagsContext").then(m => ({ default: m.FeatureFlagsProvider })));
 
 // Lazy load optional UI components
-const Toaster = lazy(() => import("@/components/ui/toaster").then(m => ({ default: m.Toaster })));
+const Toaster = lazyWithRetry(() => import("@/components/ui/toaster").then(m => ({ default: m.Toaster })));
 import MaintenanceBanner from "@/components/MaintenanceBanner";
 
-const DeferredExtras = lazy(() => import("@/components/DeferredExtras"));
-const FloatingToolbar = lazy(() => import("@/components/FloatingToolbar"));
-const PWAInstallPrompt = lazy(() => import("@/components/PWAInstallPrompt"));
+const DeferredExtras = lazyWithRetry(() => import("@/components/DeferredExtras"));
+const FloatingToolbar = lazyWithRetry(() => import("@/components/FloatingToolbar"));
+const PWAInstallPrompt = lazyWithRetry(() => import("@/components/PWAInstallPrompt"));
 
 
 // Index is the entry router — must be eager for instant redirect
