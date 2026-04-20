@@ -64,6 +64,22 @@ export function AgentOpsDashboard() {
   const [selectedAgent, setSelectedAgent] = useState<any>(null);
   const isMobile = useIsMobile();
 
+  const { data: kpis, isLoading: kpisLoading } = useQuery({
+    queryKey: ['agent-ops-kpis'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_agent_ops_kpis');
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      return {
+        agents: Number(row?.agents ?? 0),
+        earnings_total: Number(row?.earnings_total ?? 0),
+        commissions_total: Number(row?.commissions_total ?? 0),
+      };
+    },
+    staleTime: 60_000,
+    refetchOnMount: 'always',
+  });
+
   const { data: earnings, isLoading } = useQuery({
     queryKey: ['exec-agent-earnings'],
     queryFn: async () => {
@@ -121,9 +137,9 @@ export function AgentOpsDashboard() {
     });
   };
 
-  const totalEarnings = (earnings || []).reduce((s, e) => s + e.amount, 0);
-  const totalCommissions = (commissions || []).reduce((s, c) => s + c.amount, 0);
-  const uniqueAgents = new Set((earnings || []).map(e => e.agent_id)).size;
+  const totalEarnings = kpis?.earnings_total ?? 0;
+  const totalCommissions = kpis?.commissions_total ?? 0;
+  const uniqueAgents = kpis?.agents ?? 0;
 
   const agentTotals: Record<string, number> = {};
   (earnings || []).forEach(e => {
@@ -253,9 +269,9 @@ export function AgentOpsDashboard() {
     <div className="space-y-4">
       {/* KPIs — compact on mobile */}
       <div className="grid grid-cols-3 gap-2">
-        <KPICard title="Agents" value={uniqueAgents} icon={Users} loading={isLoading} />
-        <KPICard title="Earnings" value={fmt(totalEarnings)} icon={Banknote} loading={isLoading} color="bg-green-500/10 text-green-600" />
-        <KPICard title="Commissions" value={fmt(totalCommissions)} icon={DollarSign} color="bg-blue-500/10 text-blue-600" />
+        <KPICard title="Agents" value={uniqueAgents} icon={Users} loading={kpisLoading} />
+        <KPICard title="Earnings" value={fmt(totalEarnings)} icon={Banknote} loading={kpisLoading} color="bg-green-500/10 text-green-600" />
+        <KPICard title="Commissions" value={fmt(totalCommissions)} icon={DollarSign} loading={kpisLoading} color="bg-blue-500/10 text-blue-600" />
       </div>
 
       {/* Quick Nav Grid */}
