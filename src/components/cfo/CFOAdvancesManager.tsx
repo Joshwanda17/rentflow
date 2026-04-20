@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Plus, TrendingUp, AlertTriangle, DollarSign, Shield, Percent, Calculator, Receipt, Trash2, RefreshCw, Download } from 'lucide-react';
-import { exportAdvanceStatements } from '@/lib/agentAdvancePdfExport';
+import { Plus, TrendingUp, AlertTriangle, DollarSign, Shield, Percent, Calculator, Receipt, Trash2, RefreshCw, Download, FileText } from 'lucide-react';
+import { exportAdvanceStatements, exportConsolidatedPayments } from '@/lib/agentAdvancePdfExport';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -43,6 +43,27 @@ export function CFOAdvancesManager() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportingPayments, setExportingPayments] = useState(false);
+
+  const handleExportPayments = async () => {
+    if (filtered.length === 0) return;
+    setExportingPayments(true);
+    const toastId = toast.loading('Generating consolidated payments report...');
+    try {
+      const { filename, rowCount } = await exportConsolidatedPayments(filtered, filter);
+      toast.success(`Downloaded ${filename} (${rowCount} payments)`, { id: toastId });
+      await supabase.from('audit_logs').insert({
+        user_id: user?.id,
+        action_type: 'cfo_advance_payments_export',
+        table_name: 'agent_advance_ledger',
+        metadata: { advance_count: filtered.length, payment_count: rowCount, filter, filename },
+      });
+    } catch (e: any) {
+      toast.error(e.message || 'Export failed', { id: toastId });
+    } finally {
+      setExportingPayments(false);
+    }
+  };
 
   const handleExportPdfs = async () => {
     if (filtered.length === 0) return;
@@ -171,6 +192,15 @@ export function CFOAdvancesManager() {
             disabled={exporting || filtered.length === 0}
           >
             <Download className="h-4 w-4" /> {exporting ? 'Exporting...' : 'Export PDFs'}
+          </Button>
+          <Button
+            onClick={handleExportPayments}
+            size="sm"
+            variant="outline"
+            className="gap-1"
+            disabled={exportingPayments || filtered.length === 0}
+          >
+            <FileText className="h-4 w-4" /> {exportingPayments ? 'Exporting...' : 'Export All Payments'}
           </Button>
           <Button onClick={() => setIssueOpen(true)} size="sm" className="gap-1">
             <Plus className="h-4 w-4" /> Issue Advance
