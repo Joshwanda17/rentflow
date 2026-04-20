@@ -10,7 +10,7 @@ import {
   Section,
   Text,
 } from 'npm:@react-email/components@0.0.22'
-import type { TemplateEntry } from './registry.ts'
+import type { TemplateEntry } from './types.ts'
 
 interface TestEmailProps {
   recipientName?: string
