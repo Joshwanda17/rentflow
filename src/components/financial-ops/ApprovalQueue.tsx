@@ -33,6 +33,12 @@ interface QueueItem {
   ageHours: number;
   urgency: 'green' | 'amber' | 'red';
   rawData: any;
+  // Paired-leg metadata (for double-entry events like portfolio top-ups).
+  // When present, this item represents the BUSINESS EVENT and groupedIds
+  // contains BOTH ledger leg IDs (cash_in + cash_out) that must be
+  // approved/rejected together.
+  groupedIds?: string[];
+  pairedLegs?: { id: string; direction: string; rawData: any }[];
   payoutDetails?: {
     method: string;
     provider?: string;
@@ -136,24 +142,49 @@ export function ApprovalQueue() {
         .in('id', userIds.length ? userIds : ['__none__']);
       const pm = new Map(profiles?.map(p => [p.id, p]) || []);
 
-      return data.map(w => {
-        const profile = w.user_id ? pm.get(w.user_id) : null;
-        const ageH = differenceInHours(new Date(), new Date(w.created_at));
-        return {
-          id: w.id,
+      // ── Collapse paired double-entry legs into a single business event ──
+      // For events like portfolio top-ups, the system writes two rows
+      // (cash_in + cash_out) sharing the same source_id, amount, created_at.
+      // We group them so the operator approves/rejects ONE event atomically,
+      // never half-approving the ledger (which would break SUM(cash_in)==SUM(cash_out)).
+      const pairKey = (r: any) => `${r.source_id || 'no-src'}|${r.amount}|${r.created_at}|${r.user_id || 'no-user'}`;
+      const groups = new Map<string, typeof data>();
+      for (const row of data) {
+        const k = pairKey(row);
+        if (!groups.has(k)) groups.set(k, []);
+        groups.get(k)!.push(row);
+      }
+
+      const items: QueueItem[] = [];
+      for (const groupRows of groups.values()) {
+        // Prefer cash_in row as the "primary" face of the event
+        const primary = groupRows.find(r => r.direction === 'cash_in') || groupRows[0];
+        const profile = primary.user_id ? pm.get(primary.user_id) : null;
+        const ageH = differenceInHours(new Date(), new Date(primary.created_at));
+        const isPair = groupRows.length > 1;
+
+        items.push({
+          id: primary.id,
           type: 'wallet_ops' as QueueType,
-          userId: w.user_id,
+          userId: primary.user_id,
           userName: profile?.full_name || 'Pending Activation',
           userPhone: profile?.phone || '',
-          amount: w.amount,
-          description: w.description || w.category,
-          category: w.category,
-          createdAt: w.created_at,
+          amount: primary.amount,
+          description: primary.description || primary.category,
+          category: primary.category,
+          createdAt: primary.created_at,
           ageHours: ageH,
           urgency: ageH < 1 ? 'green' as const : ageH < 4 ? 'amber' as const : 'red' as const,
-          rawData: w,
-        };
-      });
+          rawData: primary,
+          groupedIds: isPair ? groupRows.map(r => r.id) : undefined,
+          pairedLegs: isPair
+            ? groupRows.map(r => ({ id: r.id, direction: r.direction, rawData: r }))
+            : undefined,
+        });
+      }
+      // Stable: oldest first (matches table order)
+      items.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      return items;
     },
     staleTime: 15000,
   });
@@ -221,8 +252,25 @@ export function ApprovalQueue() {
 
     setProcessing(true);
     try {
-      const ids = Array.from(selected);
+      // Expand any grouped (paired-leg) items into their underlying ledger leg IDs.
+      // This guarantees BOTH halves of a double-entry event are approved/rejected
+      // together — never half-approved (which would break the ledger).
+      const expandIds = (selectedIds: string[]) => {
+        const expanded = new Set<string>();
+        for (const sid of selectedIds) {
+          const item = items.find(i => i.id === sid);
+          if (item?.groupedIds && item.groupedIds.length > 0) {
+            item.groupedIds.forEach(g => expanded.add(g));
+          } else {
+            expanded.add(sid);
+          }
+        }
+        return Array.from(expanded);
+      };
 
+      const ids = activeQueue === 'wallet_ops'
+        ? expandIds(Array.from(selected))
+        : Array.from(selected);
       if (activeQueue === 'wallet_ops') {
         const response = await supabase.functions.invoke('approve-wallet-operation', {
           body: { bulk_ids: ids, action: bulkAction, rejection_reason: bulkAction === 'reject' ? reason : undefined },
@@ -459,9 +507,16 @@ export function ApprovalQueue() {
                             {isCashOut ? 'Cash Out' : 'Wallet Op'}
                           </span>
                         </div>
-                        <Badge variant={item.urgency === 'red' ? 'destructive' : item.urgency === 'amber' ? 'secondary' : 'outline'} className="text-[9px] h-5 px-1.5">
-                          {ageLabel} ago
-                        </Badge>
+                        <div className="flex items-center gap-1.5">
+                          {item.pairedLegs && item.pairedLegs.length > 1 && (
+                            <Badge variant="outline" className="text-[9px] h-5 px-1.5 gap-1 border-primary/40 bg-primary/5 text-primary">
+                              ⛓ {item.pairedLegs.length} linked legs
+                            </Badge>
+                          )}
+                          <Badge variant={item.urgency === 'red' ? 'destructive' : item.urgency === 'amber' ? 'secondary' : 'outline'} className="text-[9px] h-5 px-1.5">
+                            {ageLabel} ago
+                          </Badge>
+                        </div>
                       </div>
 
                       <div className="p-3 space-y-2" onClick={() => setInspectItem(item)}>
@@ -483,6 +538,25 @@ export function ApprovalQueue() {
                             </p>
                           </div>
                         </div>
+
+                        {item.pairedLegs && item.pairedLegs.length > 1 && (
+                          <div className="p-2.5 rounded-xl bg-primary/5 border border-primary/20 space-y-1.5">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                              Double-entry event · approved as one unit
+                            </p>
+                            {item.pairedLegs.map((leg) => (
+                              <div key={leg.id} className="flex items-center justify-between text-[11px]">
+                                <span className="flex items-center gap-1.5">
+                                  <span className={`inline-block w-1.5 h-1.5 rounded-full ${leg.direction === 'cash_in' ? 'bg-emerald-500' : 'bg-orange-500'}`} />
+                                  <span className="font-semibold uppercase tracking-wider text-muted-foreground">
+                                    {leg.direction === 'cash_in' ? 'Credit (deposit)' : 'Debit (withdrawal)'}
+                                  </span>
+                                </span>
+                                <span className="font-mono text-muted-foreground/70">#{leg.id.slice(0, 8)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
 
                         {item.payoutDetails && isCashOut && (
                           <div className="p-2.5 rounded-xl bg-orange-500/5 border border-orange-500/20 space-y-1">
