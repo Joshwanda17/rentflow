@@ -41,6 +41,9 @@ export function LandlordPayoutProgress({ payoutId, landlordName, onDone }: Props
       if (active && data) setPayout(data as PayoutRow);
     })();
 
+    // Also fire onDone for initial terminal states
+    // (handled by separate effect below via payout.status)
+
     const channel = supabase
       .channel(`landlord_payout_${payoutId}`)
       .on(
