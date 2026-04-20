@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import {
   Flame, Trophy, Target, IdCard, MapPin, Briefcase,
   CheckCircle2, Home, Users, Sparkles, Crown, Medal, ArrowRight,
+  HandCoins, FileSignature, Building2, Shield,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
