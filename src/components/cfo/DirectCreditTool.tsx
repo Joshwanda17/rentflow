@@ -74,6 +74,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     allowedOps: ['credit'],
     subCategories: [
       { id: 'marketing_materials', label: 'Marketing Materials' },
+      { id: 'events_exhibition', label: 'Events & Exhibition' },
     ],
   },
   {
