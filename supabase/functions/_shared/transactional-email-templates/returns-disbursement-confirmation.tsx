@@ -472,5 +472,7 @@ export const template = {
     payout_method: 'Mobile Money (MTN)',
     company_name: 'Welile',
     logo_url: 'https://welilereceipts.com/welile-logo.png',
+    is_managed_by_agent: true,
+    agent_name: 'James Okello',
   },
 } satisfies TemplateEntry
