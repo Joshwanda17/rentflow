@@ -151,6 +151,13 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
       return;
     }
 
+    const cleanTenantPhone = tenantPhone.replace(/\s/g, '');
+    const cleanLandlordPhone = landlordPhone.replace(/\s/g, '');
+    if (cleanTenantPhone && cleanLandlordPhone && cleanTenantPhone === cleanLandlordPhone) {
+      toast.error('Tenant and Landlord phone numbers cannot be the same');
+      return;
+    }
+
     if (!monthlyRent.trim()) {
       toast.error('Please provide the monthly rent amount');
       return;
@@ -418,6 +425,11 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                       className="h-9"
                       required
                     />
+                    {landlordPhone.replace(/\s/g, '').length >= 9 &&
+                      tenantPhone.replace(/\s/g, '').length >= 9 &&
+                      landlordPhone.replace(/\s/g, '') === tenantPhone.replace(/\s/g, '') && (
+                        <p className="text-[11px] text-destructive font-medium">Cannot be the same as Tenant phone</p>
+                      )}
                   </div>
                 </div>
 

@@ -318,6 +318,22 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       }
     }
 
+    // ===== Block duplicate phone numbers across roles =====
+    const cleanLc1Phone = lc1Phone.replace(/\s/g, '');
+    const tenantPhoneValid = cleanTenantPhone && isValidUgPhone(cleanTenantPhone);
+    const landlordPhoneValid = cleanLandlordPhone && isValidUgPhone(cleanLandlordPhone);
+    const lc1PhoneValid = cleanLc1Phone && isValidUgPhone(cleanLc1Phone);
+
+    if (tenantPhoneValid && landlordPhoneValid && cleanTenantPhone === cleanLandlordPhone) {
+      errors.push('Tenant and Landlord phone numbers cannot be the same');
+    }
+    if (tenantPhoneValid && lc1PhoneValid && cleanTenantPhone === cleanLc1Phone) {
+      errors.push('Tenant and LC1 phone numbers cannot be the same');
+    }
+    if (landlordPhoneValid && lc1PhoneValid && cleanLandlordPhone === cleanLc1Phone) {
+      errors.push('Landlord and LC1 phone numbers cannot be the same');
+    }
+
     return errors;
   };
 
@@ -739,6 +755,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         {landlordPhone.replace(/\s/g, '').length >= 10 && !isValidUgPhone(landlordPhone.replace(/\s/g, '')) && (
                           <p className="text-[10px] text-destructive">Invalid Ugandan phone number</p>
                         )}
+                        {landlordPhone.replace(/\s/g, '').length >= 10 &&
+                          tenantPhone.replace(/\s/g, '').length >= 10 &&
+                          landlordPhone.replace(/\s/g, '') === tenantPhone.replace(/\s/g, '') && (
+                            <p className="text-[10px] text-destructive">Cannot be the same as Tenant phone</p>
+                          )}
                       </div>
                     </div>
                     {/* FIX #8: Village required */}
@@ -777,6 +798,16 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                             className="h-10"
                             maxLength={12}
                           />
+                          {lc1Phone.replace(/\s/g, '').length >= 10 &&
+                            tenantPhone.replace(/\s/g, '').length >= 10 &&
+                            lc1Phone.replace(/\s/g, '') === tenantPhone.replace(/\s/g, '') && (
+                              <p className="text-[10px] text-destructive">Cannot be the same as Tenant phone</p>
+                            )}
+                          {lc1Phone.replace(/\s/g, '').length >= 10 &&
+                            landlordPhone.replace(/\s/g, '').length >= 10 &&
+                            lc1Phone.replace(/\s/g, '') === landlordPhone.replace(/\s/g, '') && (
+                              <p className="text-[10px] text-destructive">Cannot be the same as Landlord phone</p>
+                            )}
                         </div>
                       </div>
                     </div>
@@ -1143,6 +1174,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     {landlordPhone.replace(/\s/g, '').length >= 10 && !isValidUgPhone(landlordPhone.replace(/\s/g, '')) && (
                       <p className="text-[10px] text-destructive">Invalid Ugandan phone number</p>
                     )}
+                    {landlordPhone.replace(/\s/g, '').length >= 10 &&
+                      tenantPhone.replace(/\s/g, '').length >= 10 &&
+                      landlordPhone.replace(/\s/g, '') === tenantPhone.replace(/\s/g, '') && (
+                        <p className="text-[10px] text-destructive">Cannot be the same as Tenant phone</p>
+                      )}
                   </div>
                 </div>
                 <div className="space-y-1">
@@ -1269,6 +1305,16 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       maxLength={12}
                       required
                     />
+                    {lc1Phone.replace(/\s/g, '').length >= 10 &&
+                      tenantPhone.replace(/\s/g, '').length >= 10 &&
+                      lc1Phone.replace(/\s/g, '') === tenantPhone.replace(/\s/g, '') && (
+                        <p className="text-[10px] text-destructive">Cannot be the same as Tenant phone</p>
+                      )}
+                    {lc1Phone.replace(/\s/g, '').length >= 10 &&
+                      landlordPhone.replace(/\s/g, '').length >= 10 &&
+                      lc1Phone.replace(/\s/g, '') === landlordPhone.replace(/\s/g, '') && (
+                        <p className="text-[10px] text-destructive">Cannot be the same as Landlord phone</p>
+                      )}
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Village *</Label>
