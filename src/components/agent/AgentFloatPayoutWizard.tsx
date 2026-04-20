@@ -17,17 +17,18 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import {
   Landmark, Loader2, CheckCircle2, Phone, ArrowRight,
-  Clock, User2, Home, Banknote, Upload, Camera, MapPin, Hash, ShieldCheck, RefreshCw
+  Clock, User2, Home, ShieldCheck, RefreshCw, AlertTriangle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import { LandlordPayoutProgress } from './LandlordPayoutProgress';
 
 interface AgentFloatPayoutWizardProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-type Step = 'select' | 'otp' | 'pay' | 'done';
+type Step = 'select' | 'otp' | 'disburse' | 'done';
 
 export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutWizardProps) {
   const { user } = useAuth();
@@ -132,13 +133,75 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
     }
   };
 
+  const [activePayoutId, setActivePayoutId] = useState<string | null>(null);
+  const [disburseError, setDisburseError] = useState<string | null>(null);
+  const [isDisbursing, setIsDisbursing] = useState(false);
+
+  const startAutoDisburse = async () => {
+    if (!user || !selectedRequest) return;
+    setIsDisbursing(true);
+    setDisburseError(null);
+    try {
+      const loc = await geo.captureLocation();
+      const r = selectedRequest;
+      const propLat = r.landlord?.latitude ?? null;
+      const propLng = r.landlord?.longitude ?? null;
+      let gpsDistanceMeters: number | null = null;
+      let gpsMatch = false;
+      if (loc && propLat && propLng) {
+        const R = 6371000;
+        const dLat = (propLat - loc.latitude) * Math.PI / 180;
+        const dLon = (propLng - loc.longitude) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) ** 2 +
+          Math.cos(loc.latitude * Math.PI / 180) * Math.cos(propLat * Math.PI / 180) *
+          Math.sin(dLon / 2) ** 2;
+        gpsDistanceMeters = Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+        gpsMatch = gpsDistanceMeters <= 500;
+      }
+
+      const provider = (r.landlord?.mobile_money_number || '').toString().startsWith('07')
+        ? 'MTN' : 'MTN'; // default; real classification can be added later
+
+      const { data, error } = await supabase.functions.invoke('landlord-payout-disburse', {
+        body: {
+          rent_request_id: r.id,
+          landlord_id: r.landlord_id,
+          tenant_id: r.tenant_id,
+          amount: r.rent_amount,
+          landlord_phone: landlordPhone,
+          landlord_name: r.landlord?.name,
+          mobile_money_provider: provider,
+          otp_verified_at: new Date().toISOString(),
+          agent_latitude: loc?.latitude ?? null,
+          agent_longitude: loc?.longitude ?? null,
+          property_latitude: propLat,
+          property_longitude: propLng,
+          gps_distance_meters: gpsDistanceMeters,
+          gps_match: gpsMatch,
+        },
+      });
+      if (error) throw error;
+      if (data?.payout_id) {
+        setActivePayoutId(data.payout_id);
+        setStep('disburse');
+      } else {
+        throw new Error(data?.error || 'Disbursement failed to start');
+      }
+    } catch (e: any) {
+      setDisburseError(e?.message || 'Failed to start disbursement');
+      toast.error(e?.message || 'Failed to start disbursement');
+    } finally {
+      setIsDisbursing(false);
+    }
+  };
+
   const handleVerifyOtp = async (code: string) => {
     setOtpCode(code);
     if (code.length === 6) {
       const verified = await landlordOtp.verifyOtp(landlordPhone, code);
       if (verified) {
-        toast.success('Landlord phone verified! Proceed to payment.');
-        setStep('pay');
+        toast.success('OTP verified — auto-disbursing now');
+        await startAutoDisburse();
       }
     }
   };
@@ -433,122 +496,31 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
             </motion.div>
           )}
 
-          {step === 'pay' && req && (
-            <motion.div key="pay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-              {/* OTP verified badge */}
-              <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">
-                  Landlord identity verified via SMS OTP
-                </span>
-              </div>
-
-              {/* Landlord details */}
-              <div className="p-4 rounded-xl bg-chart-4/5 border border-chart-4/20 space-y-2">
-                <h3 className="font-bold text-sm text-chart-4">Pay This Landlord</h3>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div><span className="text-muted-foreground">Landlord:</span> <span className="font-bold">{req.landlord?.name}</span></div>
-                  <div><span className="text-muted-foreground">Amount:</span> <span className="font-bold text-chart-4">{formatUGX(req.rent_amount)}</span></div>
-                  <div className="col-span-2 flex items-center gap-1">
-                    <Phone className="h-3 w-3" />
-                    <span className="font-mono font-bold">{req.landlord?.mobile_money_number || req.landlord?.phone || 'N/A'}</span>
-                  </div>
+          {step === 'disburse' && req && activePayoutId && (
+            <motion.div key="disburse" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              <LandlordPayoutProgress
+                payoutId={activePayoutId}
+                landlordName={req.landlord?.name || 'Landlord'}
+                onDone={(status) => {
+                  if (status === 'completed') {
+                    qc.invalidateQueries({ queryKey: ['agent-landlord-float'] });
+                    qc.invalidateQueries({ queryKey: ['agent-float-payout-requests'] });
+                    setTimeout(() => setStep('done'), 1500);
+                  }
+                }}
+              />
+              {disburseError && (
+                <div className="mt-3 flex items-center gap-2 text-xs text-destructive">
+                  <AlertTriangle className="h-3.5 w-3.5" /> {disburseError}
                 </div>
-                <p className="text-[10px] text-muted-foreground">
-                  Send {formatUGX(req.rent_amount)} to the landlord via MoMo, then enter the TID below.
-                </p>
-              </div>
-
-              {/* Payment Mode */}
-              <div className="space-y-1">
-                <Label className="text-xs font-bold">Payment Mode *</Label>
-                <Select value={provider} onValueChange={setProvider}>
-                  <SelectTrigger><SelectValue placeholder="How did you pay?" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="MTN">MTN Mobile Money</SelectItem>
-                    <SelectItem value="Airtel">Airtel Money</SelectItem>
-                    <SelectItem value="Bank">Bank Transfer</SelectItem>
-                    <SelectItem value="Cash">Cash</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Transaction ID */}
-              <div className="space-y-1">
-                <Label className="text-xs font-bold flex items-center gap-1">
-                  <Hash className="h-3 w-3" /> Transaction ID (TID) *
-                </Label>
-                <Input
-                  value={tid}
-                  onChange={e => setTid(e.target.value)}
-                  placeholder="Enter TID from MoMo confirmation"
-                  className="font-mono text-base h-10 border-2 border-chart-4/30"
-                />
-              </div>
-
-              {/* Receipt Photo */}
-              <div className="space-y-1">
-                <Label className="text-xs font-bold flex items-center gap-1">
-                  <Camera className="h-3 w-3" /> Receipt Photo *
-                </Label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  multiple
-                  className="hidden"
-                  ref={fileRef}
-                  onChange={e => handleFiles(e.target.files)}
-                />
-                <Button variant="outline" size="sm" className="w-full text-xs" onClick={() => fileRef.current?.click()}>
-                  <Upload className="h-3 w-3 mr-1" />
-                  {receiptFiles.length > 0 ? `${receiptFiles.length} photo(s) selected` : 'Take/Upload Receipt Photo'}
-                </Button>
-                {receiptFiles.length > 0 && (
-                  <div className="flex gap-2 mt-2 flex-wrap">
-                    {receiptFiles.map((f, i) => (
-                      <div key={i} className="relative">
-                        <img src={URL.createObjectURL(f)} alt={`Receipt ${i + 1}`} className="h-14 w-14 object-cover rounded border" />
-                        <button
-                          onClick={() => setReceiptFiles(prev => prev.filter((_, idx) => idx !== i))}
-                          className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full w-4 h-4 flex items-center justify-center text-[10px]"
-                        >×</button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* GPS indicator */}
-              <div className="flex items-center gap-2 text-xs text-muted-foreground p-2 rounded-lg bg-muted/50">
-                <MapPin className="h-3.5 w-3.5 text-chart-4" />
-                GPS will be captured automatically on submit
-              </div>
-
-              {/* Notes */}
-              <div className="space-y-1">
-                <Label className="text-xs">Notes (optional)</Label>
-                <Textarea
-                  value={notes}
-                  onChange={e => setNotes(e.target.value)}
-                  placeholder="e.g. Landlord confirmed receipt"
-                  rows={2}
-                />
-              </div>
-
-              <Button
-                className="w-full"
-                disabled={!provider || !tid.trim() || receiptFiles.length === 0 || submitPayout.isPending}
-                onClick={() => submitPayout.mutate()}
-              >
-                {submitPayout.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Banknote className="h-4 w-4 mr-2" />}
-                Submit Payment + Receipt
-              </Button>
-
-              <Button variant="ghost" size="sm" className="w-full" onClick={() => { setStep('otp'); }}>
-                ← Back
-              </Button>
+              )}
             </motion.div>
+          )}
+
+          {isDisbursing && step === 'otp' && (
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Starting auto-disbursement…
+            </div>
           )}
 
           {step === 'done' && (
@@ -557,9 +529,9 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
                 className="w-16 h-16 mx-auto rounded-full bg-success/20 flex items-center justify-center">
                 <CheckCircle2 className="h-8 w-8 text-success" />
               </motion.div>
-              <h3 className="text-lg font-semibold">Payment Submitted!</h3>
+              <h3 className="text-lg font-semibold">Payment Sent!</h3>
               <p className="text-muted-foreground text-sm">
-                Your payment of {req ? formatUGX(req.rent_amount) : ''} to {req?.landlord?.name || 'the landlord'} with TID has been sent for verification.
+                {req ? formatUGX(req.rent_amount) : ''} delivered to {req?.landlord?.name || 'the landlord'} via Mobile Money.
               </p>
               <Button onClick={handleClose}>Done</Button>
             </motion.div>
