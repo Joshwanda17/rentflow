@@ -226,6 +226,57 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
           } catch (emailErr) {
             console.warn('[WithdrawRequestDialog] proxy partner email enqueue failed:', emailErr);
           }
+        } else {
+          // ── Direct funder self-withdrawal: send disbursement email to the partner themselves ──
+          try {
+            const [{ data: partnerProfile }, { data: partnerPortfolio }] = await Promise.all([
+              supabase.from('profiles').select('email, full_name').eq('id', user.id).maybeSingle(),
+              supabase
+                .from('investor_portfolios')
+                .select('portfolio_code')
+                .eq('investor_id', user.id)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle(),
+            ]);
+
+            if (partnerProfile?.email) {
+              const payoutMethodLabel = payoutMode === 'mtn'
+                ? 'Mobile Money (MTN)'
+                : payoutMode === 'airtel'
+                ? 'Mobile Money (Airtel)'
+                : payoutMode === 'bank'
+                ? `Bank Transfer (${bankName || 'Bank'})`
+                : 'Cash Pickup';
+              const refId = `TXN-${Date.now().toString(36).toUpperCase()}`;
+              const todayLabel = new Date().toLocaleDateString('en-GB', {
+                day: '2-digit', month: 'long', year: 'numeric',
+              });
+
+              await supabase.functions.invoke('send-transactional-email', {
+                body: {
+                  templateName: 'returns-disbursement-confirmation',
+                  recipientEmail: partnerProfile.email,
+                  idempotencyKey: `partner-self-withdraw-${user.id}-${Date.now()}`,
+                  templateData: {
+                    partner_name: partnerProfile.full_name || 'Partner',
+                    transaction_id: refId,
+                    portfolio_code: partnerPortfolio?.portfolio_code || '',
+                    amount,
+                    currency: 'UGX',
+                    date: todayLabel,
+                    payout_method: payoutMethodLabel,
+                    company_name: 'Welile',
+                    logo_url: 'https://welilereceipts.com/welile-logo.png',
+                    is_managed_by_agent: false,
+                    agent_name: '',
+                  },
+                },
+              });
+            }
+          } catch (emailErr) {
+            console.warn('[WithdrawRequestDialog] partner self-withdraw email enqueue failed:', emailErr);
+          }
         }
 
         setSuccess(true);
