@@ -22,6 +22,8 @@ interface ReturnsDisbursementConfirmationProps {
   payout_method?: string
   company_name?: string
   logo_url?: string
+  is_managed_by_agent?: boolean
+  agent_name?: string
 }
 
 const formatAmount = (amount: string | number | undefined, currency: string) => {
@@ -44,6 +46,8 @@ export function ReturnsDisbursementConfirmation({
   payout_method = 'Wallet',
   company_name = 'Welile',
   logo_url = 'https://welilereceipts.com/welile-logo.png',
+  is_managed_by_agent = false,
+  agent_name = '',
 }: ReturnsDisbursementConfirmationProps) {
   const year = new Date().getFullYear()
   const formattedAmount = formatAmount(amount, currency)
@@ -135,6 +139,25 @@ export function ReturnsDisbursementConfirmation({
                   assistance.
                 </Text>
               </Section>
+
+              {is_managed_by_agent && (
+                <Section style={managedBox}>
+                  <Text style={managedTitle}>Account Managed by Agent</Text>
+                  <Text style={managedText}>
+                    Your Welile account is managed on your behalf by your
+                    assigned agent
+                    {agent_name ? (
+                      <>
+                        ,{' '}
+                        <strong style={managedStrong}>{agent_name}</strong>
+                      </>
+                    ) : null}
+                    . This disbursement was initiated and will be delivered to
+                    you through your agent. Please coordinate with them to
+                    receive your funds.
+                  </Text>
+                </Section>
+              )}
             </Section>
 
             <Hr style={hr} />
