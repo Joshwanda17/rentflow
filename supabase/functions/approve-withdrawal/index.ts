@@ -151,11 +151,90 @@ Deno.serve(async (req) => {
 
     const totalPendingHold = (pendingHolds || []).reduce((sum: number, h: any) => sum + Number(h.amount), 0);
 
+    const walletBalance = Number(wallet?.balance ?? 0);
+    const walletWithdrawable = Number((wallet as any)?.withdrawable_balance ?? 0);
+    const walletFloat = Number((wallet as any)?.float_balance ?? 0);
+    const walletAdvance = Number((wallet as any)?.advance_balance ?? 0);
+
+    let healedWithdrawable = walletWithdrawable;
+
+    if (!isProxyPayout && walletWithdrawable + totalPendingHold < amount) {
+      const { data: commissionRows, error: commissionErr } = await admin
+        .from("general_ledger")
+        .select("amount, direction, category")
+        .eq("user_id", fundingUserId)
+        .eq("ledger_scope", "wallet")
+        .in("category", [
+          "agent_commission_earned",
+          "agent_commission",
+          "agent_bonus",
+          "partner_commission",
+          "referral_bonus",
+          "proxy_investment_commission",
+          "agent_commission_withdrawal",
+          "agent_commission_used_for_rent",
+        ]);
+
+      if (!commissionErr && commissionRows) {
+        let commissionLedgerBalance = 0;
+        for (const row of commissionRows as any[]) {
+          const rowAmount = Number(row.amount) || 0;
+          const isIn = row.direction === "cash_in" || row.direction === "credit";
+          const isOut = row.direction === "cash_out" || row.direction === "debit";
+
+          if (
+            isIn &&
+            [
+              "agent_commission_earned",
+              "agent_commission",
+              "agent_bonus",
+              "partner_commission",
+              "referral_bonus",
+              "proxy_investment_commission",
+            ].includes(row.category)
+          ) {
+            commissionLedgerBalance += rowAmount;
+          } else if (
+            isOut &&
+            ["agent_commission_withdrawal", "agent_commission_used_for_rent"].includes(row.category)
+          ) {
+            commissionLedgerBalance -= rowAmount;
+          }
+        }
+
+        commissionLedgerBalance = Math.max(0, commissionLedgerBalance);
+        const totalBuckets = walletWithdrawable + walletFloat + walletAdvance;
+        const unallocatedBalance = Math.max(0, walletBalance - totalBuckets);
+        const recoverableGap = Math.max(0, commissionLedgerBalance - walletWithdrawable);
+        const selfHealAmount = Math.min(unallocatedBalance, recoverableGap);
+
+        if (selfHealAmount > 0) {
+          healedWithdrawable = walletWithdrawable + selfHealAmount;
+          const { error: walletFixErr } = await admin
+            .from("wallets")
+            .update({
+              withdrawable_balance: healedWithdrawable,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("user_id", fundingUserId);
+
+          if (walletFixErr) {
+            console.error("[approve-withdrawal] wallet bucket self-heal failed:", walletFixErr);
+            healedWithdrawable = walletWithdrawable;
+          } else {
+            console.log(
+              `[approve-withdrawal] self-healed withdrawable bucket for ${fundingUserId} by ${selfHealAmount}`
+            );
+          }
+        }
+      }
+    }
+
     // For proxy payouts, funds are partner funds routed through the agent's wallet —
     // historically these went through the float pool, so accept either bucket.
-    const withdrawable = Number((wallet as any)?.withdrawable_balance ?? 0) + totalPendingHold;
+    const withdrawable = healedWithdrawable + totalPendingHold;
     const totalSpendable = isProxyPayout
-      ? Number(wallet?.balance ?? 0) + totalPendingHold
+      ? walletBalance + totalPendingHold
       : withdrawable;
     const effectiveBalance = totalSpendable;
 
@@ -221,6 +300,25 @@ Deno.serve(async (req) => {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    if (!isProxyPayout) {
+      const nextWithdrawableBalance = Math.max(0, healedWithdrawable - amount);
+      const { error: walletUpdateErr } = await admin
+        .from("wallets")
+        .update({
+          withdrawable_balance: nextWithdrawableBalance,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", fundingUserId);
+
+      if (walletUpdateErr) {
+        console.error("[approve-withdrawal] Failed to decrement withdrawable bucket:", walletUpdateErr);
+        return new Response(JSON.stringify({ error: "Withdrawal recorded but wallet bucket update failed" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // Update withdrawal request status
