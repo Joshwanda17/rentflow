@@ -6,6 +6,7 @@ import { Users, Building2, Banknote, TrendingUp, Home, DollarSign, UserCheck, Sh
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, LineChart, Line } from 'recharts';
 import { format, subMonths, startOfMonth, startOfDay } from 'date-fns';
 import { Activity, UserPlus, RefreshCw, Share2, ArrowRightLeft } from 'lucide-react';
+import { TrustCoverageSection } from './TrustCoverageSection';
 
 export function CEODashboard() {
   const { data: profiles, isLoading: loadingProfiles } = useQuery({
@@ -161,6 +162,9 @@ export function CEODashboard() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Mission scoreboard — Trust Coverage */}
+      <TrustCoverageSection />
+
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         <KPICard title="Total Users" value={fmt(profiles || 0)} icon={Users} loading={loading} />
