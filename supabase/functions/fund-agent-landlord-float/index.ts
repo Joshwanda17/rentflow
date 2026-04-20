@@ -95,6 +95,26 @@ Deno.serve(async (req) => {
       if (insertErr) throw new Error(`Failed to create agent float: ${insertErr.message}`)
     }
 
+    // ============================================================
+    // Phase 1: create per-tenant allocation row (idempotent RPC)
+    // ============================================================
+    try {
+      const { error: allocErr } = await serviceClient.rpc(
+        'create_landlord_float_allocation' as any,
+        {
+          p_agent_id: bonusAgentId,
+          p_rent_request_id: rent_request_id,
+          p_amount: request.rent_amount,
+          p_source: 'cfo_disbursement',
+        },
+      )
+      if (allocErr) {
+        console.warn('[fund-float] allocation RPC failed (non-fatal):', allocErr.message)
+      }
+    } catch (e) {
+      console.warn('[fund-float] allocation RPC threw (non-fatal):', e)
+    }
+
     // Update rent request status to 'funded'
     const { error: updateErr } = await serviceClient
       .from('rent_requests')
