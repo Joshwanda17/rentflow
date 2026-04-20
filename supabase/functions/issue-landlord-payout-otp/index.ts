@@ -148,8 +148,6 @@ Deno.serve(async (req) => {
     const otp = generateOtp();
     const otp_hash = await sha256(otp);
     const otp_expires_at = new Date(Date.now() + OTP_TTL_SECONDS * 1000).toISOString();
-    // [TEST_ONLY] Remove after simulation — exposes OTP in logs for end-to-end test.
-    console.log(`[TEST_ONLY] issued OTP=${otp} for agent=${agentId} landlord=${landlord_id}`);
 
     const { data: challenge, error: insErr } = await admin
       .from("landlord_payout_otp_challenges")
