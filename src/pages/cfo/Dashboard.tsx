@@ -173,6 +173,8 @@ export default function CFODashboardPage() {
         );
       case 'ledger-health':
         return <LedgerHealthPanel />;
+      case 'revenue-expenses':
+        return <RevenueExpenseDashboard />;
       default:
         return <CFOOverviewDashboard onTabChange={setActiveTab} />;
     }
