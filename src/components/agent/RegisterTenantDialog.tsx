@@ -425,6 +425,11 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                       className="h-9"
                       required
                     />
+                    {landlordPhone.replace(/\s/g, '').length >= 9 &&
+                      tenantPhone.replace(/\s/g, '').length >= 9 &&
+                      landlordPhone.replace(/\s/g, '') === tenantPhone.replace(/\s/g, '') && (
+                        <p className="text-[11px] text-destructive font-medium">Cannot be the same as Tenant phone</p>
+                      )}
                   </div>
                 </div>
 
