@@ -112,6 +112,20 @@ export function AgentDailyMissions({ onCaptureClick }: Props) {
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: networkSummary } = useQuery({
+    queryKey: ['agent-network-summary', user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_agent_network_summary', { p_agent_id: user!.id });
+      if (error) throw error;
+      return data as unknown as {
+        counts: { referrals: number; sub_agents: number; tenants: number; partners: number; landlords: number; promissory_notes: number; total: number };
+        points: { referrals: number; sub_agents: number; tenants: number; partners: number; landlords: number; promissory_notes: number; total: number; max: number };
+      };
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+
   const tier = TIER_META[stats?.tier || 'starter'];
   const TierIcon = tier.icon;
   const quota = stats?.daily_quota || 10;
