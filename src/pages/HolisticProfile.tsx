@@ -173,8 +173,8 @@ export default function HolisticProfile({ publicMode = false }: Props) {
         {/* Identity header */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
           <Card>
-            <CardContent className="p-5">
-              <div className="flex items-start gap-4">
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex items-start gap-3 sm:gap-4">
                 <UserAvatar
                   fullName={profile.identity.full_name}
                   avatarUrl={profile.identity.avatar_url || undefined}
@@ -182,7 +182,7 @@ export default function HolisticProfile({ publicMode = false }: Props) {
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-xl font-bold truncate">{profile.identity.full_name}</h2>
+                    <h2 className="text-lg sm:text-xl font-bold truncate">{profile.identity.full_name}</h2>
                     {profile.identity.verified && (
                       <BadgeCheck className="h-5 w-5 text-blue-500 shrink-0" />
                     )}
@@ -193,9 +193,9 @@ export default function HolisticProfile({ publicMode = false }: Props) {
                       {profile.identity.primary_role}
                     </Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1.5">
-                    <Calendar className="h-3 w-3" />
-                    Welile member since {memberSince}
+                  <p className="text-[11px] sm:text-xs text-muted-foreground mt-2 flex items-center gap-1.5">
+                    <Calendar className="h-3 w-3 shrink-0" />
+                    <span className="truncate">Welile member since {memberSince}</span>
                   </p>
                 </div>
               </div>
