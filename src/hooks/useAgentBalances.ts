@@ -34,10 +34,13 @@ export function useAgentBalances(agentId?: string) {
           .eq('ledger_scope', 'wallet')
           .in('category', [
             'agent_commission_earned',
+            'agent_commission',
+            'agent_bonus',
             'agent_commission_withdrawal',
             'agent_commission_used_for_rent',
             'partner_commission',
             'referral_bonus',
+            'proxy_investment_commission',
           ]),
       ]);
 
@@ -58,7 +61,14 @@ export function useAgentBalances(agentId?: string) {
           const amt = Number(row.amount) || 0;
           const isIn = row.direction === 'cash_in' || row.direction === 'credit';
           const isOut = row.direction === 'cash_out' || row.direction === 'debit';
-          if (isIn && (row.category === 'agent_commission_earned' || row.category === 'partner_commission' || row.category === 'referral_bonus')) {
+          if (isIn && (
+            row.category === 'agent_commission_earned' ||
+            row.category === 'agent_commission' ||
+            row.category === 'agent_bonus' ||
+            row.category === 'partner_commission' ||
+            row.category === 'referral_bonus' ||
+            row.category === 'proxy_investment_commission'
+          )) {
             commissionBalance += amt;
           } else if (isOut && (row.category === 'agent_commission_withdrawal' || row.category === 'agent_commission_used_for_rent')) {
             commissionBalance -= amt;
