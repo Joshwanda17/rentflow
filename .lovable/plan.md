@@ -1,47 +1,34 @@
 
 
-## Pay Rent — deduct from Operational Float (not Landlord Float)
+## Block tenant phone == landlord phone (and LC1) on agent forms
 
-### Investigation result
+### Problem
+When an agent posts a rent request for a tenant, nothing prevents them from entering the **same phone number** for both the tenant and the landlord (a clear data integrity error — one person can't be both). Same risk exists with the LC1 phone.
 
-The **Pay Rent** button on the agent dashboard ("Tenants" tab) opens `AgentTopUpTenantDialog`, which calls the `agent-deposit` edge function.
+### Fix scope
+Add a real-time, blocking validation across the two agent-facing forms that collect both numbers.
 
-Good news: the **backend is already correct**. `agent-deposit` (line 246-265) checks `get_agent_split_balances → float_balance` (the operational/3-bucket float on `wallets.float_balance`) and rejects the request if insufficient. It does NOT touch `agent_landlord_float.balance` (the separate Landlord Float bucket used for landlord payouts).
+**1. `src/components/agent/AgentRentRequestDialog.tsx`** (primary form)
+- In `collectValidationErrors(...)`, after the tenant/landlord/LC1 phone format checks, compare the **cleaned** (whitespace-stripped) phone numbers and push hard errors:
+  - If `cleanTenantPhone === cleanLandlordPhone` → "Tenant and Landlord phone numbers cannot be the same"
+  - If `cleanTenantPhone === cleanLc1Phone` → "Tenant and LC1 phone numbers cannot be the same"
+  - If `cleanLandlordPhone === cleanLc1Phone` → "Landlord and LC1 phone numbers cannot be the same"
+  (Only compare when both fields are non-empty and pass format validation.)
+- Add an inline red helper under the **Landlord Phone** input (line ~739) and **LC1 Phone** input that shows live the moment the typed landlord/LC1 phone equals the tenant phone — same pattern already used for "Invalid Ugandan phone number".
+- Keep the existing `hasFieldError(...)` highlighting so the offending field gets the red border.
 
-**The bug is in the dialog UI**, which is misleading the agent:
-
-- Line 43-48: fetches `wallets.balance` (TOTAL wallet, includes commission + float + advance) and labels it **"Your Wallet Balance"**.
-- Line 117 / 359 / 384: validates the amount against this TOTAL balance, not against the operational float.
-- Result: the agent enters an amount that fits inside their total balance but exceeds their operational float → confusing error, OR they assume the deduction came from the wrong bucket.
-
-The actual ledger deduction always comes from operational float (the strict-mode router enforces `float_balance` for `tenant_repayment` cash_out — per the wallet 3-bucket model memory).
-
-### Fix scope (single file: `src/components/agent/AgentTopUpTenantDialog.tsx`)
-
-1. **Switch the displayed balance from total → operational float**
-   - Replace the `wallets.balance` lookup with the existing `useAgentBalances()` hook (already used by the wallet sheet) to read `floatBalance`.
-   - Re-label the card from "Your Wallet Balance" → **"Operational Float"** with a small subtext "Used for tenant rent payments".
-
-2. **Validate against operational float, not total**
-   - Update the `amountNum > agentBalance` checks (lines 123, 359, 384) to compare against `floatBalance`.
-   - Update the inline warning copy from "Amount exceeds your wallet balance" → **"Amount exceeds your Operational Float"**.
-
-3. **Update the confirm summary**
-   - Change `total.label` (line 245) from "Deducted from Wallet" → **"Deducted from Operational Float"**.
-
-4. **No backend changes**
-   - `agent-deposit` already enforces float-only deduction. No edits to the edge function, no migrations, no RPC changes.
+**2. `src/components/agent/RegisterTenantDialog.tsx`** (agent's "Register Tenant" form, also collects both)
+- In the validation block (around line 149), add the same tenant-vs-landlord phone comparison (cleaned, case-insensitive) and `toast.error("Tenant and Landlord phone numbers cannot be the same")` returning early.
+- Add a small inline warning under the landlord phone input mirroring the Rent Request dialog.
 
 ### Out of scope
-
-- No change to commission flow (still credits 10% to commission bucket).
-- No change to the Landlord Float bucket or `AgentLandlordPayoutFlow`.
-- No change to any other Pay-Rent surface (the menu drawer's "Pay Rent" item already routes to the same dialog).
+- No DB / RPC / edge function changes — this is a pre-submit guard in the UI. The backend already de-dupes landlords by phone, so blocking at the form is sufficient.
+- No changes to other forms that don't collect both numbers (e.g. tenant-side `RecordRent.tsx`, executive dashboards).
+- Phone normalization stays as-is (whitespace-strip + `isValidUgPhone`); we're just comparing the same cleaned strings.
 
 ### Acceptance
-
-- Dialog header card displays the agent's **Operational Float** (from `wallets.float_balance`), not the total wallet balance.
-- Entering an amount greater than operational float disables the "Review Payment" button and shows "Amount exceeds your Operational Float".
-- Successful payment deducts only from operational float; Landlord Float remains untouched (verifiable on the wallet card after the transaction).
-- Commission (10%) still credits to the commission bucket as today.
+- Entering the same phone in Tenant Phone and Landlord Phone on the agent rent request form shows a red inline message under Landlord Phone immediately, and the **Submit** attempt is blocked with toast: *"Tenant and Landlord phone numbers cannot be the same"*.
+- Same rule applies between Tenant↔LC1 and Landlord↔LC1 on the rent request form.
+- Same rule applies on the Register Tenant dialog (Tenant↔Landlord).
+- All other validations (format, required, National ID) continue to work unchanged.
 
