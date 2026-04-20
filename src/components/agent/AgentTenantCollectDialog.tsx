@@ -107,7 +107,7 @@ export function AgentTenantCollectDialog({
   if (!tenant) return null;
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o && !loading && !confirming) handleClose(); }}>
       <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
@@ -295,68 +295,68 @@ export function AgentTenantCollectDialog({
               <Banknote className="h-4 w-4 mr-2" />
               Review {formatUGX(amount || 0)}
             </Button>
-
-            {/* ───── Confirmation Step ───── */}
-            {confirming && (
-              <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 animate-in fade-in">
-                <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm p-5 space-y-4 animate-in slide-in-from-bottom">
-                  <div className="text-center">
-                    <div className="w-12 h-12 mx-auto rounded-full bg-warning/15 flex items-center justify-center mb-2">
-                      <AlertCircle className="h-6 w-6 text-warning" />
-                    </div>
-                    <h3 className="text-lg font-bold">Confirm Payment</h3>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Double-check the amount before allocating. This cannot be undone.
-                    </p>
-                  </div>
-
-                  <div className="bg-muted/40 rounded-xl p-4 space-y-2.5 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Tenant</span>
-                      <span className="font-bold">{tenant.full_name}</span>
-                    </div>
-                    <div className="flex justify-between items-baseline border-t border-border/40 pt-2.5">
-                      <span className="text-muted-foreground">Amount</span>
-                      <span className="font-mono font-black text-2xl text-primary">{formatUGX(amount)}</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Float after</span>
-                      <span className="font-mono">{formatUGX(floatBalance - amount)}</span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-muted-foreground">Tenant still owes</span>
-                      <span className="font-mono">{formatUGX(outstandingBalance - amount)}</span>
-                    </div>
-                    <div className="flex justify-between text-xs border-t border-border/40 pt-2">
-                      <span className="text-success font-semibold">Your commission (10%)</span>
-                      <span className="font-mono font-bold text-success">+{formatUGX(Math.round(amount * 0.10))}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      className="flex-1 h-12"
-                      onClick={() => setConfirming(false)}
-                      disabled={loading}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      className="flex-1 h-12 font-bold"
-                      onClick={handleAllocate}
-                      disabled={loading}
-                    >
-                      {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-                      Confirm
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         )}
       </DialogContent>
+
+      {/* ───── Confirmation Sub-Dialog (nested, properly portaled) ───── */}
+      <Dialog open={confirming} onOpenChange={(o) => { if (!loading) setConfirming(o); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <AlertCircle className="h-5 w-5 text-warning" />
+              Confirm Payment
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-xs text-muted-foreground text-center">
+              Double-check the amount before allocating. This cannot be undone.
+            </p>
+
+            <div className="bg-muted/40 rounded-xl p-4 space-y-2.5 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Tenant</span>
+                <span className="font-bold">{tenant.full_name}</span>
+              </div>
+              <div className="flex justify-between items-baseline border-t border-border/40 pt-2.5">
+                <span className="text-muted-foreground">Amount</span>
+                <span className="font-mono font-black text-2xl text-primary">{formatUGX(amount)}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Float after</span>
+                <span className="font-mono">{formatUGX(floatBalance - amount)}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Tenant still owes</span>
+                <span className="font-mono">{formatUGX(outstandingBalance - amount)}</span>
+              </div>
+              <div className="flex justify-between text-xs border-t border-border/40 pt-2">
+                <span className="text-success font-semibold">Your commission (10%)</span>
+                <span className="font-mono font-bold text-success">+{formatUGX(Math.round(amount * 0.10))}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1 h-12"
+                onClick={() => setConfirming(false)}
+                disabled={loading}
+              >
+                Edit
+              </Button>
+              <Button
+                className="flex-1 h-12 font-bold"
+                onClick={handleAllocate}
+                disabled={loading}
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+                Confirm
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* 🎉 Commission Celebration — pure UI, no DB calls */}
       {celebrationData && (
