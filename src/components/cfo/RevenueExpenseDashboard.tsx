@@ -1,11 +1,15 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Loader2, TrendingUp, TrendingDown, DollarSign, Download, FileDown } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, subDays, startOfDay } from 'date-fns';
 import { LineChart, Line, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { cn } from '@/lib/utils';
+import { exportCategoryReport, exportAllCategoriesReport } from '@/lib/categoryReportExport';
+import { toast } from 'sonner';
 
 const REVENUE_CATEGORIES = ['tenant_access_fee', 'tenant_request_fee', 'platform_service_income', 'access_fee_collected', 'registration_fee_collected'];
 const EXPENSE_CATEGORIES = ['supporter_platform_rewards', 'agent_commission_payout', 'transaction_platform_expenses', 'operational_expenses'];
