@@ -135,4 +135,7 @@ const IOSLinkHandler = forwardRef<HTMLDivElement>(function IOSLinkHandler(_props
   }, [isIOS]);
 
   return null;
-}
+});
+
+export default IOSLinkHandler;
+
