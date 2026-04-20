@@ -13,6 +13,7 @@ import {
   Loader2, Search, AlertTriangle, Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { AgentDailyMissions } from './AgentDailyMissions';
 
 const SIGNAL_TYPES = [
   { key: 'rent_payment', label: 'Rent Payment', icon: Banknote, weight: 'High', color: 'bg-emerald-500' },
