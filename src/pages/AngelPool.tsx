@@ -102,22 +102,22 @@ export default function AngelPool() {
           {/* ═══ PORTFOLIO HERO CARD — Same style as funder ═══ */}
           <div className="portfolio-hero-card rounded-3xl p-5 relative overflow-hidden">
             {/* Decorative elements */}
-            <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-white/[0.06] pointer-events-none" />
-            <div className="absolute -bottom-12 -left-12 w-36 h-36 rounded-full bg-white/[0.04] pointer-events-none" />
-            <div className="absolute top-1/2 right-0 w-64 h-[1px] bg-gradient-to-l from-transparent via-white/10 to-transparent pointer-events-none" />
+            <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-primary-foreground/[0.06] pointer-events-none" />
+            <div className="absolute -bottom-12 -left-12 w-36 h-36 rounded-full bg-primary-foreground/[0.04] pointer-events-none" />
+            <div className="absolute top-1/2 right-0 w-64 h-[1px] bg-gradient-to-l from-transparent via-primary-foreground/10 to-transparent pointer-events-none" />
 
             <div className="relative z-10 space-y-5">
               {/* Top Label */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-white/15 backdrop-blur-sm">
-                    <Shield className="h-3.5 w-3.5 text-white/90" />
+                  <div className="p-1.5 rounded-lg bg-primary-foreground/15 backdrop-blur-sm">
+                    <Shield className="h-3.5 w-3.5 text-primary-foreground/90" />
                   </div>
-                  <span className="text-[11px] font-semibold text-white/70 uppercase tracking-[0.12em]">
+                  <span className="text-[11px] font-semibold text-primary-foreground/70 uppercase tracking-[0.12em]">
                     Portfolio Overview
                   </span>
                 </div>
-                <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/10 backdrop-blur-sm">
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-foreground/10 backdrop-blur-sm">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   <span className="text-[9px] font-bold text-emerald-300 uppercase tracking-wider">Active</span>
                 </div>
@@ -128,12 +128,12 @@ export default function AngelPool() {
                 onClick={() => { hapticTap(); setShowWallet(true); }}
                 className="w-full text-left group"
               >
-                <p className="text-[10px] uppercase tracking-[0.15em] font-semibold text-white/60 mb-1.5 flex items-center gap-1.5">
+                <p className="text-[10px] uppercase tracking-[0.15em] font-semibold text-primary-foreground/60 mb-1.5 flex items-center gap-1.5">
                   <Wallet className="h-3 w-3" />
                   Available Balance
                 </p>
                 <div className="flex items-baseline gap-2">
-                  <p className="text-[clamp(1.5rem,6vw,2.25rem)] font-black tracking-tight leading-none text-white truncate">
+                  <p className="text-[clamp(1.5rem,6vw,2.25rem)] font-black tracking-tight leading-none text-primary-foreground truncate">
                     <span className="sm:hidden">{formatAmountCompact(walletBalance)}</span>
                     <span className="hidden sm:inline">{formatAmount(walletBalance)}</span>
                   </p>
@@ -151,36 +151,36 @@ export default function AngelPool() {
               </button>
 
               {/* Divider */}
-              <div className="h-[1px] bg-white/10" />
+              <div className="h-[1px] bg-primary-foreground/10" />
 
               {/* Stats Grid — 3 columns */}
               <div className="grid grid-cols-3 gap-2">
                 <div className="portfolio-stat-cell-v2 rounded-xl px-2 py-3 text-center">
                   <div className="flex items-center justify-center mb-1.5">
-                    <Home className="h-3.5 w-3.5 text-white/60" />
+                    <Home className="h-3.5 w-3.5 text-primary-foreground/60" />
                   </div>
-                  <p className="text-xl font-black leading-none text-white">{myShares}</p>
-                  <p className="text-[8px] uppercase tracking-[0.14em] font-bold text-white/50 mt-1.5">Shares</p>
+                  <p className="text-xl font-black leading-none text-primary-foreground">{myShares}</p>
+                  <p className="text-[8px] uppercase tracking-[0.14em] font-bold text-primary-foreground/50 mt-1.5">Shares</p>
                 </div>
 
                 <div className="portfolio-stat-cell-v2 rounded-xl px-1.5 py-3 text-center overflow-hidden">
                   <div className="flex items-center justify-center mb-1.5">
                     <TrendingUp className="h-3.5 w-3.5 text-emerald-400/80" />
                   </div>
-                  <p className="text-sm font-black leading-none text-white truncate">
+                  <p className="text-sm font-black leading-none text-primary-foreground truncate">
                     {formatAmountCompact(monthlyReturn)}
                   </p>
-                  <p className="text-[8px] uppercase tracking-[0.14em] font-bold text-white/50 mt-1.5">Return/mo</p>
+                  <p className="text-[8px] uppercase tracking-[0.14em] font-bold text-primary-foreground/50 mt-1.5">Return/mo</p>
                 </div>
 
                 <div className="portfolio-stat-cell-v2 rounded-xl px-1.5 py-3 text-center overflow-hidden">
                   <div className="flex items-center justify-center mb-1.5">
                     <Wallet className="h-3.5 w-3.5 text-amber-400/80" />
                   </div>
-                  <p className="text-sm font-black leading-none text-white truncate">
+                  <p className="text-sm font-black leading-none text-primary-foreground truncate">
                     {formatAmountCompact(myInvestment)}
                   </p>
-                  <p className="text-[8px] uppercase tracking-[0.14em] font-bold text-white/50 mt-1.5 flex items-center justify-center gap-0.5">
+                  <p className="text-[8px] uppercase tracking-[0.14em] font-bold text-primary-foreground/50 mt-1.5 flex items-center justify-center gap-0.5">
                     Deployed
                     <ChevronRight className="h-2.5 w-2.5" />
                   </p>
@@ -190,10 +190,10 @@ export default function AngelPool() {
               {/* Trust Strip */}
               <div className="flex items-center justify-between px-1 pt-1">
                 <div className="flex items-center gap-1.5">
-                  <Shield className="h-3 w-3 text-white/40" />
-                  <span className="text-[9px] text-white/40 font-medium">Capital Protected</span>
+                  <Shield className="h-3 w-3 text-primary-foreground/40" />
+                  <span className="text-[9px] text-primary-foreground/40 font-medium">Capital Protected</span>
                 </div>
-                <span className="text-[9px] text-white/40 font-medium">
+                <span className="text-[9px] text-primary-foreground/40 font-medium">
                   Portfolio: {formatAmountCompact(myInvestment + walletBalance)}
                 </span>
               </div>
