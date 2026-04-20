@@ -18,6 +18,7 @@ import { useDeployedCapital } from '@/hooks/useDeployedCapital';
 import { useToast } from '@/hooks/use-toast';
 import { useConfetti } from '@/components/Confetti';
 import { Button } from '@/components/ui/button';
+import InstallAppCard from '@/components/InstallAppCard';
 // Lazy load dashboards for faster initial load
 const TenantDashboard = lazy(() => import('@/components/dashboards/TenantDashboard'));
 const AgentDashboard = lazy(() => import('@/components/dashboards/AgentDashboard'));
