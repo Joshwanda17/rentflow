@@ -17,17 +17,18 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import {
   Landmark, Loader2, CheckCircle2, Phone, ArrowRight,
-  Clock, User2, Home, Banknote, Upload, Camera, MapPin, Hash, ShieldCheck, RefreshCw
+  Clock, User2, Home, ShieldCheck, RefreshCw, AlertTriangle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import { LandlordPayoutProgress } from './LandlordPayoutProgress';
 
 interface AgentFloatPayoutWizardProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-type Step = 'select' | 'otp' | 'pay' | 'done';
+type Step = 'select' | 'otp' | 'disburse' | 'done';
 
 export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutWizardProps) {
   const { user } = useAuth();
