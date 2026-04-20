@@ -493,11 +493,12 @@ const footerCopyText: React.CSSProperties = {
 export const template = {
   component: ReturnsDisbursementConfirmation,
   subject: (data: Record<string, any>) =>
-    `Returns Disbursement Confirmation — Ref ${data?.transaction_id ?? ''}`.trim(),
+    `Returns Disbursement Confirmation — Portfolio ${data?.portfolio_code ?? data?.transaction_id ?? ''}`.trim(),
   displayName: 'Returns Disbursement Confirmation',
   previewData: {
     partner_name: 'Sarah Nakato',
     transaction_id: 'TXN-2026-04A8F3D2',
+    portfolio_code: 'PRT-2026-0042',
     amount: 1250000,
     currency: 'UGX',
     date: '20 April 2026',
