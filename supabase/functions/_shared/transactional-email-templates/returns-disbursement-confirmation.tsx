@@ -67,7 +67,7 @@ export function ReturnsDisbursementConfirmation({
         <style>{clientOverrides}</style>
       </Head>
       <Preview>
-        Returns disbursement of {formattedAmount} processed — Portfolio {referenceLabel}
+        Returns disbursement of {formattedAmount} processed — Reference {referenceLabel}
       </Preview>
       <Body style={main}>
         {/* Main Background Table */}
@@ -150,7 +150,7 @@ export function ReturnsDisbursementConfirmation({
                                 <tr>
                                   <td style={ledgerRow}>
                                     <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation"><tbody><tr>
-                                      <td className="td-block" width="40%" style={ledgerKey}>Portfolio Ref</td>
+                                      <td className="td-block" width="40%" style={ledgerKey}>Reference ID</td>
                                       <td className="td-block" width="60%" align="right" style={ledgerValMono}>{referenceLabel}</td>
                                     </tr></tbody></table>
                                   </td>
@@ -493,7 +493,7 @@ const footerCopyText: React.CSSProperties = {
 export const template = {
   component: ReturnsDisbursementConfirmation,
   subject: (data: Record<string, any>) =>
-    `Returns Disbursement Confirmation — Portfolio ${data?.portfolio_code ?? data?.transaction_id ?? ''}`.trim(),
+    `Returns Disbursement Confirmation — Ref ${data?.portfolio_code ?? data?.transaction_id ?? ''}`.trim(),
   displayName: 'Returns Disbursement Confirmation',
   previewData: {
     partner_name: 'Sarah Nakato',
