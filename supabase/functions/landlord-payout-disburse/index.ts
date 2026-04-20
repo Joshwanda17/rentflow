@@ -1,4 +1,5 @@
-// Landlord Payout Disbursement Engine — 5-min SLA, OTP-triggered, auto-retry
+// Landlord Payout Disbursement Engine — OTP-triggered, manual via Financial Ops.
+// Phase 2: deduct float and route to Financial Ops queue. No MoMo gateway calls.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { logSystemEvent } from "../_shared/eventLogger.ts";
 
@@ -11,27 +12,7 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-const RETRY_DELAYS_MS = [5_000, 15_000, 45_000]; // total < 90s
 const OTP_FRESHNESS_SECONDS = 120;
-
-function sleep(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-// Stub MoMo gateway: in production this calls Africa's Talking / MTN / Airtel.
-// Returns either { ok: true, reference } or throws.
-async function callMoMoGateway(
-  phone: string,
-  amount: number,
-  provider: string,
-  payoutId: string,
-): Promise<{ ok: true; reference: string }> {
-  // Simulate ~85% success rate per attempt for demo. Replace with real provider call.
-  const ok = Math.random() < 0.85;
-  await sleep(800);
-  if (!ok) throw new Error(`MoMo gateway timeout for ${provider} ${phone}`);
-  return { ok: true, reference: `MOMO-${payoutId.slice(0, 8)}-${Date.now()}` };
-}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
