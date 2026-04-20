@@ -7595,6 +7595,8 @@ export type Database = {
           created_at: string
           district: string | null
           email: string
+          evicted_at: string | null
+          evicted_from_landlord_id: string | null
           frozen_at: string | null
           frozen_reason: string | null
           full_name: string
@@ -7621,6 +7623,7 @@ export type Database = {
           residence_updated_at: string | null
           seller_application_status: string | null
           sub_county: string | null
+          tenant_status: string
           territory: string | null
           updated_at: string
           verified: boolean
@@ -7639,6 +7642,8 @@ export type Database = {
           created_at?: string
           district?: string | null
           email: string
+          evicted_at?: string | null
+          evicted_from_landlord_id?: string | null
           frozen_at?: string | null
           frozen_reason?: string | null
           full_name: string
@@ -7665,6 +7670,7 @@ export type Database = {
           residence_updated_at?: string | null
           seller_application_status?: string | null
           sub_county?: string | null
+          tenant_status?: string
           territory?: string | null
           updated_at?: string
           verified?: boolean
@@ -7683,6 +7689,8 @@ export type Database = {
           created_at?: string
           district?: string | null
           email?: string
+          evicted_at?: string | null
+          evicted_from_landlord_id?: string | null
           frozen_at?: string | null
           frozen_reason?: string | null
           full_name?: string
@@ -7709,6 +7717,7 @@ export type Database = {
           residence_updated_at?: string | null
           seller_application_status?: string | null
           sub_county?: string | null
+          tenant_status?: string
           territory?: string | null
           updated_at?: string
           verified?: boolean
@@ -8514,6 +8523,7 @@ export type Database = {
           manager_verified_by: string | null
           next_roi_due_date: string | null
           number_of_payments: number | null
+          outstanding_at_end: number | null
           payout_method: string | null
           payout_transaction_reference: string | null
           registration_type: string
@@ -8528,6 +8538,9 @@ export type Database = {
           schedule_status: string | null
           status: string | null
           supporter_id: string | null
+          tenancy_end_reason: string | null
+          tenancy_ended_at: string | null
+          tenancy_status: string
           tenant_electricity_meter: string | null
           tenant_id: string
           tenant_no_smartphone: boolean
@@ -8579,6 +8592,7 @@ export type Database = {
           manager_verified_by?: string | null
           next_roi_due_date?: string | null
           number_of_payments?: number | null
+          outstanding_at_end?: number | null
           payout_method?: string | null
           payout_transaction_reference?: string | null
           registration_type?: string
@@ -8593,6 +8607,9 @@ export type Database = {
           schedule_status?: string | null
           status?: string | null
           supporter_id?: string | null
+          tenancy_end_reason?: string | null
+          tenancy_ended_at?: string | null
+          tenancy_status?: string
           tenant_electricity_meter?: string | null
           tenant_id: string
           tenant_no_smartphone?: boolean
@@ -8644,6 +8661,7 @@ export type Database = {
           manager_verified_by?: string | null
           next_roi_due_date?: string | null
           number_of_payments?: number | null
+          outstanding_at_end?: number | null
           payout_method?: string | null
           payout_transaction_reference?: string | null
           registration_type?: string
@@ -8658,6 +8676,9 @@ export type Database = {
           schedule_status?: string | null
           status?: string | null
           supporter_id?: string | null
+          tenancy_end_reason?: string | null
+          tenancy_ended_at?: string | null
+          tenancy_status?: string
           tenant_electricity_meter?: string | null
           tenant_id?: string
           tenant_no_smartphone?: boolean
@@ -10087,8 +10108,11 @@ export type Database = {
       tenant_replacements: {
         Row: {
           created_at: string
+          effective_at: string
+          evicted_by_role: string | null
           id: string
           landlord_id: string
+          new_rent_request_id: string | null
           new_tenant_id: string
           old_tenant_id: string
           outstanding_balance: number
@@ -10098,8 +10122,11 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          effective_at?: string
+          evicted_by_role?: string | null
           id?: string
           landlord_id: string
+          new_rent_request_id?: string | null
           new_tenant_id: string
           old_tenant_id: string
           outstanding_balance?: number
@@ -10109,8 +10136,11 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          effective_at?: string
+          evicted_by_role?: string | null
           id?: string
           landlord_id?: string
+          new_rent_request_id?: string | null
           new_tenant_id?: string
           old_tenant_id?: string
           outstanding_balance?: number
@@ -11974,6 +12004,7 @@ export type Database = {
         Returns: boolean
       }
       is_supporter: { Args: never; Returns: boolean }
+      is_tenant_locked: { Args: { _user_id: string }; Returns: boolean }
       log_system_event:
         | {
             Args: {
@@ -12100,6 +12131,15 @@ export type Database = {
         Returns: {
           released_count: number
         }[]
+      }
+      replace_tenant_at_property: {
+        Args: {
+          p_effective_at?: string
+          p_new_tenant_id: string
+          p_old_rent_request_id: string
+          p_reason: string
+        }
+        Returns: Json
       }
       reset_agent_float_if_stale: {
         Args: { p_agent_id: string }
