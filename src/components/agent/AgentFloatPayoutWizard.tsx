@@ -249,7 +249,10 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
       if (!landlordOtp.otpVerified) throw new Error('Landlord OTP verification is required');
 
       const req = selectedRequest;
-      if (req.rent_amount > floatBalance) throw new Error('Insufficient landlord float balance');
+      if (effectiveAmount <= 0) throw new Error('Enter an amount greater than 0');
+      if (effectiveAmount > Number(req.rent_amount)) throw new Error('Amount exceeds rent due');
+      if (effectiveAmount > floatBalance) throw new Error('Insufficient landlord float balance');
+      if (!phoneValid) throw new Error('Enter a valid landlord phone number');
 
       // Capture GPS — MANDATORY
       const loc = await geo.captureLocation();
@@ -279,15 +282,15 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
         .eq('agent_id', user.id)
         .single();
 
-      if (!floatData || floatData.balance < req.rent_amount) {
+      if (!floatData || floatData.balance < effectiveAmount) {
         throw new Error('Insufficient float balance');
       }
 
       const { error: floatErr } = await supabase
         .from('agent_landlord_float')
         .update({
-          balance: floatData.balance - req.rent_amount,
-          total_paid_out: (floatData.total_paid_out || 0) + req.rent_amount,
+          balance: floatData.balance - effectiveAmount,
+          total_paid_out: (floatData.total_paid_out || 0) + effectiveAmount,
           updated_at: new Date().toISOString(),
         } as any)
         .eq('agent_id', user.id);
@@ -312,9 +315,9 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
         rent_request_id: req.id,
         landlord_id: req.landlord_id,
         tenant_id: req.tenant_id,
-        amount: req.rent_amount,
+        amount: effectiveAmount,
         landlord_name: req.landlord?.name || 'Unknown',
-        landlord_phone: req.landlord?.mobile_money_number || req.landlord?.phone || '',
+        landlord_phone: landlordPhone,
         mobile_money_provider: provider,
         transaction_id: tid.trim(),
         notes: notes || null,
@@ -351,7 +354,7 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
           body: {
             action: 'send_custom',
             phone: landlordPhone,
-            message: `Welile has paid UGX ${req.rent_amount.toLocaleString()} rent for ${tenantName} to your number. If you did not receive this, call 0800-000-000.`,
+              message: `Welile has paid UGX ${effectiveAmount.toLocaleString()} rent for ${tenantName} to your number. If you did not receive this, call 0800-000-000.`,
           },
         });
       } catch {
