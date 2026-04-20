@@ -1706,6 +1706,7 @@ export type Database = {
           balance: number
           created_at: string
           id: string
+          region: string | null
           total_funded: number
           total_paid_out: number
           updated_at: string
@@ -1715,6 +1716,7 @@ export type Database = {
           balance?: number
           created_at?: string
           id?: string
+          region?: string | null
           total_funded?: number
           total_paid_out?: number
           updated_at?: string
@@ -1724,6 +1726,7 @@ export type Database = {
           balance?: number
           created_at?: string
           id?: string
+          region?: string | null
           total_funded?: number
           total_paid_out?: number
           updated_at?: string
@@ -5189,6 +5192,99 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
         ]
+      }
+      landlord_payouts: {
+        Row: {
+          agent_id: string
+          agent_latitude: number | null
+          agent_longitude: number | null
+          amount: number
+          attempts: number
+          created_at: string
+          disbursed_at: string | null
+          escalated_at: string | null
+          escalated_reason: string | null
+          external_reference: string | null
+          gps_distance_meters: number | null
+          gps_match: boolean | null
+          id: string
+          landlord_id: string
+          landlord_name: string
+          landlord_phone: string
+          last_attempt_at: string | null
+          last_error: string | null
+          metadata: Json | null
+          mobile_money_provider: string
+          otp_verified_at: string
+          property_latitude: number | null
+          property_longitude: number | null
+          rent_request_id: string | null
+          sla_deadline: string
+          status: string
+          tenant_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          agent_latitude?: number | null
+          agent_longitude?: number | null
+          amount: number
+          attempts?: number
+          created_at?: string
+          disbursed_at?: string | null
+          escalated_at?: string | null
+          escalated_reason?: string | null
+          external_reference?: string | null
+          gps_distance_meters?: number | null
+          gps_match?: boolean | null
+          id?: string
+          landlord_id: string
+          landlord_name: string
+          landlord_phone: string
+          last_attempt_at?: string | null
+          last_error?: string | null
+          metadata?: Json | null
+          mobile_money_provider: string
+          otp_verified_at?: string
+          property_latitude?: number | null
+          property_longitude?: number | null
+          rent_request_id?: string | null
+          sla_deadline?: string
+          status?: string
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          agent_latitude?: number | null
+          agent_longitude?: number | null
+          amount?: number
+          attempts?: number
+          created_at?: string
+          disbursed_at?: string | null
+          escalated_at?: string | null
+          escalated_reason?: string | null
+          external_reference?: string | null
+          gps_distance_meters?: number | null
+          gps_match?: boolean | null
+          id?: string
+          landlord_id?: string
+          landlord_name?: string
+          landlord_phone?: string
+          last_attempt_at?: string | null
+          last_error?: string | null
+          metadata?: Json | null
+          mobile_money_provider?: string
+          otp_verified_at?: string
+          property_latitude?: number | null
+          property_longitude?: number | null
+          rent_request_id?: string | null
+          sla_deadline?: string
+          status?: string
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       landlord_physical_verifications: {
         Row: {
@@ -11369,6 +11465,10 @@ export type Database = {
         Args: { _tenant_id: string }
         Returns: Json
       }
+      check_landlord_payout_eligibility: {
+        Args: { p_agent_id: string; p_amount: number; p_landlord_id: string }
+        Returns: Json
+      }
       check_phone_exists: {
         Args: { phone_suffix: string }
         Returns: {
@@ -11445,6 +11545,10 @@ export type Database = {
       decrement_rent_requested: {
         Args: { p_amount: number; p_summary_id: string }
         Returns: undefined
+      }
+      deduct_agent_float_for_payout: {
+        Args: { p_payout_id: string }
+        Returns: Json
       }
       delete_email: {
         Args: { message_id: number; queue_name: string }
@@ -11987,6 +12091,10 @@ export type Database = {
         Returns: undefined
       }
       refresh_financial_summaries: { Args: never; Returns: undefined }
+      refund_agent_float_for_payout: {
+        Args: { p_payout_id: string; p_reason: string }
+        Returns: Json
+      }
       release_stale_cashout_claims: {
         Args: never
         Returns: {
