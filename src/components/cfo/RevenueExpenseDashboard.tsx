@@ -37,17 +37,17 @@ export function RevenueExpenseDashboard() {
         .eq('ledger_scope', 'platform');
       if (error) throw error;
 
-      // Totals
+      // Totals — accumulate by category, including zero buckets so every canonical category is visible.
       let totalRevenue = 0, totalExpenses = 0;
-      const revBreakdown: Record<string, number> = {};
-      const expBreakdown: Record<string, number> = {};
+      const revBreakdown: Record<string, number> = Object.fromEntries(REVENUE_CATEGORY_CODES.map(c => [c, 0]));
+      const expBreakdown: Record<string, number> = Object.fromEntries(EXPENSE_CATEGORY_CODES.map(c => [c, 0]));
 
       for (const e of ledger || []) {
-        if (REVENUE_CATEGORIES.includes(e.category)) {
+        if (REVENUE_CATEGORY_CODES.includes(e.category)) {
           totalRevenue += e.amount;
           revBreakdown[e.category] = (revBreakdown[e.category] || 0) + e.amount;
         }
-        if (EXPENSE_CATEGORIES.includes(e.category)) {
+        if (EXPENSE_CATEGORY_CODES.includes(e.category)) {
           totalExpenses += e.amount;
           expBreakdown[e.category] = (expBreakdown[e.category] || 0) + e.amount;
         }
@@ -59,13 +59,18 @@ export function RevenueExpenseDashboard() {
         const d = subDays(new Date(), i);
         const dateStr = format(d, 'yyyy-MM-dd');
         const dayEntries = (ledger || []).filter(e => e.transaction_date?.startsWith(dateStr));
-        const rev = dayEntries.filter(e => REVENUE_CATEGORIES.includes(e.category)).reduce((s, e) => s + e.amount, 0);
-        const exp = dayEntries.filter(e => EXPENSE_CATEGORIES.includes(e.category)).reduce((s, e) => s + e.amount, 0);
+        const rev = dayEntries.filter(e => REVENUE_CATEGORY_CODES.includes(e.category)).reduce((s, e) => s + e.amount, 0);
+        const exp = dayEntries.filter(e => EXPENSE_CATEGORY_CODES.includes(e.category)).reduce((s, e) => s + e.amount, 0);
         dailyData.push({ date: format(d, 'dd MMM'), revenue: rev, expenses: exp, profit: rev - exp });
       }
 
-      const revPie = Object.entries(revBreakdown).map(([k, v]) => ({ name: formatCategoryLabel(k), value: v, category: k }));
-      const expPie = Object.entries(expBreakdown).map(([k, v]) => ({ name: formatCategoryLabel(k), value: v, category: k }));
+      // Build full canonical lists (every category, even 0) — sorted by value desc but zeros kept at the bottom.
+      const revPie = REVENUE_CATEGORY_CODES
+        .map(k => ({ name: REVENUE_LABEL_MAP[k] || formatCategoryLabel(k), value: revBreakdown[k] || 0, category: k }))
+        .sort((a, b) => b.value - a.value);
+      const expPie = EXPENSE_CATEGORY_CODES
+        .map(k => ({ name: EXPENSE_LABEL_MAP[k] || formatCategoryLabel(k), value: expBreakdown[k] || 0, category: k }))
+        .sort((a, b) => b.value - a.value);
 
       return { totalRevenue, totalExpenses, netIncome: totalRevenue - totalExpenses, dailyData, revPie, expPie };
     },
