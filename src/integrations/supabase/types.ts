@@ -1762,6 +1762,63 @@ export type Database = {
           },
         ]
       }
+      agent_landlord_float_allocations: {
+        Row: {
+          agent_id: string
+          allocated_amount: number
+          created_at: string
+          id: string
+          landlord_id: string | null
+          landlord_name: string
+          landlord_phone: string | null
+          mobile_money_provider: string | null
+          notes: string | null
+          paid_out_amount: number
+          remaining_amount: number | null
+          rent_request_id: string | null
+          source: string
+          status: string
+          tenant_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          allocated_amount?: number
+          created_at?: string
+          id?: string
+          landlord_id?: string | null
+          landlord_name?: string
+          landlord_phone?: string | null
+          mobile_money_provider?: string | null
+          notes?: string | null
+          paid_out_amount?: number
+          remaining_amount?: number | null
+          rent_request_id?: string | null
+          source?: string
+          status?: string
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          allocated_amount?: number
+          created_at?: string
+          id?: string
+          landlord_id?: string | null
+          landlord_name?: string
+          landlord_phone?: string | null
+          mobile_money_provider?: string | null
+          notes?: string | null
+          paid_out_amount?: number
+          remaining_amount?: number | null
+          rent_request_id?: string | null
+          source?: string
+          status?: string
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       agent_landlord_payouts: {
         Row: {
           agent_id: string | null
@@ -11717,6 +11774,15 @@ export type Database = {
       compute_daily_stats: { Args: never; Returns: undefined }
       create_direct_conversation: {
         Args: { other_user_id: string }
+        Returns: string
+      }
+      create_landlord_float_allocation: {
+        Args: {
+          p_agent_id: string
+          p_amount: number
+          p_rent_request_id: string
+          p_source?: string
+        }
         Returns: string
       }
       create_ledger_transaction: {
