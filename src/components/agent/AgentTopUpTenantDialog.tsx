@@ -11,6 +11,7 @@ import { Loader2, Wallet, Search, User, TrendingUp, ArrowLeft, UserPlus } from '
 import { formatUGX } from '@/lib/rentCalculations';
 import ConfirmSummaryCard from '@/components/payments/ConfirmSummaryCard';
 import { QuickRegisterTenantDialog } from './QuickRegisterTenantDialog';
+import { useAgentBalances } from '@/hooks/useAgentBalances';
 
 interface AgentTopUpTenantDialogProps {
   open: boolean;
@@ -29,26 +30,17 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
   const [tenantInfo, setTenantInfo] = useState<{ id: string; full_name: string; phone: string } | null>(null);
   const [step, setStep] = useState<DialogStep>('input');
   const [commissionEarned, setCommissionEarned] = useState(0);
-  const [agentBalance, setAgentBalance] = useState<number | null>(null);
   const [tenantRentBalance, setTenantRentBalance] = useState<number | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [showQuickRegister, setShowQuickRegister] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { floatBalance, isLoading: balancesLoading, refetch: refetchBalances } = useAgentBalances();
 
   useEffect(() => {
-    if (!open || !user) return;
-    const fetchBalance = async () => {
-      const { data } = await supabase
-        .from('wallets')
-        .select('balance')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      setAgentBalance(data?.balance ?? 0);
-    };
-    fetchBalance();
-  }, [open, user]);
+    if (open) refetchBalances();
+  }, [open, refetchBalances]);
 
   const searchTenant = async () => {
     const q = searchQuery.trim();
@@ -120,7 +112,7 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
 
   const handleProceedToConfirm = () => {
     if (!tenantInfo || amountNum <= 0) return;
-    if (agentBalance !== null && amountNum > agentBalance) return;
+    if (amountNum > floatBalance) return;
     setConfirmed(false);
     setStep('confirm');
   };
@@ -202,11 +194,14 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
           </DialogTitle>
         </DialogHeader>
 
-        {/* Agent's own wallet balance */}
+        {/* Agent's operational float (the bucket actually deducted) */}
         <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">Your Wallet Balance</span>
+          <div className="flex flex-col">
+            <span className="text-sm font-medium text-foreground">Operational Float</span>
+            <span className="text-[11px] text-muted-foreground">Used for tenant rent payments</span>
+          </div>
           <span className="font-mono font-bold text-primary text-lg">
-            {agentBalance !== null ? formatUGX(agentBalance) : '...'}
+            {balancesLoading ? '...' : formatUGX(floatBalance)}
           </span>
         </div>
 
@@ -242,7 +237,7 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
                 { label: 'Landlord receives', value: formatUGX(landlordPortion) },
                 { label: 'Your commission (10%)', value: formatUGX(commission) },
               ]}
-              total={{ label: 'Deducted from Wallet', value: formatUGX(amountNum) }}
+              total={{ label: 'Deducted from Operational Float', value: formatUGX(amountNum) }}
               confirmText="I confirm this rent payment is correct"
               confirmed={confirmed}
               onConfirmChange={setConfirmed}
@@ -356,9 +351,9 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
                      min="1"
                      className="h-12"
                    />
-                   {agentBalance !== null && amountNum > agentBalance && amountNum > 0 && (
-                     <p className="text-xs text-destructive font-medium">⚠️ Amount exceeds your wallet balance</p>
-                   )}
+                    {amountNum > floatBalance && amountNum > 0 && (
+                      <p className="text-xs text-destructive font-medium">⚠️ Amount exceeds your Operational Float</p>
+                    )}
                  </div>
 
                  {amountNum > 0 && (
@@ -381,7 +376,7 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
                    <Button 
                      onClick={handleProceedToConfirm} 
                      className="flex-1 h-12" 
-                     disabled={!amount || amountNum <= 0 || (agentBalance !== null && amountNum > agentBalance)}
+                      disabled={!amount || amountNum <= 0 || amountNum > floatBalance}
                    >
                      Review Payment
                    </Button>
