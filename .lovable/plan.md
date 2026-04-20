@@ -1,47 +1,67 @@
 
 
-## Plan: Per-Category Detailed Export Buttons on CFO Revenue/Expense Dashboard
+## Plan: Agent Ops "Daily Trust Missions" — Marketing-Style To-Dos
 
-### Where
-`src/components/cfo/RevenueExpenseDashboard.tsx` — the "Revenue Breakdown" and "Expense Breakdown" cards under `/cfo-dashboard`.
+### Goal
+Turn the Agent Ops Dashboard into a **daily mission control** that nudges field agents to harvest trust signals from the profiles they already manage — framed like a marketing/loyalty game (streaks, badges, leaderboards) instead of a chore list.
 
-### What
-Below each pie slice, render a clickable list of categories. Each row shows the category name, total amount, and a small **Download** button. Clicking exports a **detailed PDF report** of every `general_ledger` entry under that category for the last 30 days.
+---
 
-### Per-category PDF contents
-1. **Header** — Welile branding, category name, period (last 30 days), generated timestamp
-2. **Summary cards** — total amount, entry count, daily average, top counterparty
-3. **Daily trend mini-table** — date · entry count · daily total
-4. **Detailed transactions table** (sorted by date desc):
-   - Date · Reference ID · Direction · Amount · Linked Party · Description · Account · Classification
-5. **Footer** — page numbers + audit reference
+### What I'd add to Agent Ops Dashboard (new tab section: "Daily Missions")
 
-### Tech approach
-- New helper `src/lib/categoryReportExport.ts` exporting `exportCategoryReport(category, label, type: 'revenue'|'expense')`
-- Fetches `general_ledger` filtered by `category` + `transaction_date >= 30d ago` + `ledger_scope='platform'`
-- Uses existing `jsPDF` + `jspdf-autotable` (no new deps)
-- Filename: `{revenue|expense}-{category}-{YYYY-MM-DD}.pdf`
-- Audit log: `action_type: 'cfo_category_report_export'`, `record_id: category`
+#### 1. Mission Cards (top of dashboard, refreshes daily at 5am)
+Each card = one bite-sized to-do an agent can complete in <5 min. Auto-generated per agent based on **gaps in their managed users' trust profiles**.
 
-### UX
-- Compact list rows beneath each pie chart with category label, formatted UGX total, and a `Download` icon button
-- Loading spinner per-row while exporting
-- Toast: "Generating {label} report..." → "Downloaded {filename}"
-- Plus a single **"Export All Categories"** button per side (revenue/expense) that bundles all categories into one combined PDF
+| Mission | Trigger logic | Reward (trust score + commission) |
+|---|---|---|
+| **"Snap 5 IDs today"** | Agent has ≥5 managed users with `national_id IS NULL` | +5 pts each user · +UGX 1,000 |
+| **"Geo-tag 10 homes"** | Managed users with no `user_locations` row in 30d | +3 pts · +UGX 500 |
+| **"Confirm 3 rent payments"** | Tenants with rent due today in agent's territory | +10 pts · +UGX 600 |
+| **"Log 5 venue visits"** | Walk with tenant to mall/market/worship → geo-stamp | +4 pts · +UGX 400 |
+| **"Vouch for 2 new users"** | Capture a quick character vouch with photo | +6 pts · +UGX 800 |
+| **"Re-verify 5 stale profiles"** | Profiles not touched in 60 days | +2 pts · +UGX 300 |
+| **"Add salary proof for 3"** | Managed users with no income data | +8 pts · +UGX 1,000 |
 
-### Files
-**Modified**
-- `src/components/cfo/RevenueExpenseDashboard.tsx` — add category list + export buttons under each pie
+#### 2. Marketing-Style Engagement Layer
+- **Streak counter** — "🔥 7-day capture streak — don't break it!"
+- **Daily quota ring** — circular progress like Apple Watch (0/10 signals)
+- **Tier badge** — Bronze/Silver/Gold/Diamond Capturer (weekly leaderboard)
+- **Territory leaderboard** — top 10 agents this week with avatars
+- **Bonus multiplier hours** — "2x points 4–6pm today!" pushes captures to specific windows
+- **"Closest 5 un-scored users"** card — uses agent GPS + `profiles.referrer_id = me`, shows distance + one-tap "Capture Now" button
 
-**New**
-- `src/lib/categoryReportExport.ts` — `exportCategoryReport()` + `exportAllCategoriesReport()` helpers
+#### 3. End-of-Day Summary (auto-shown 6pm)
+- Signals captured today vs quota
+- Estimated commission earned
+- Tomorrow's pre-suggested mission list ("You have 12 tenants with rent due tomorrow")
+- Share-card ("I captured 23 trust signals today on Welile 🇺🇬") for WhatsApp status
 
-### Out of scope
-- CSV/Excel format (PDF only, matches existing `agentAdvancePdfExport.ts` pattern)
-- Date range picker (fixed 30d window matching the dashboard)
-- Changing the pie charts themselves
-- Other dashboards (Ledger Health, KPI Breakdown — these already have their own exports)
+#### 4. Constitution Tie-In
+Every mission completion fires the existing `capture_trust_signal` RPC → guarantees `system_event` + `welile_trust_score_cache` increment, conforming to the Trust Mission core rules already in `mem://index.md`.
 
-### Expected outcome
-CFO sees each revenue/expense category listed under the pie with its total and a download button → one click produces a polished PDF audit trail for that single category, ready for board packs or external auditors.
+---
+
+### Where to build it
+
+**New component**: `src/components/executive/AgentDailyMissions.tsx`
+Renders inside the existing **"Trust Capture"** tab on `AgentOpsDashboard.tsx` (above the current quota/heatmap cards).
+
+**New RPCs**:
+- `get_agent_daily_missions(p_agent_id)` — returns 5–7 personalized mission cards based on gaps in managed users
+- `complete_mission(p_agent_id, p_mission_id, p_signal_payload)` — wraps `capture_trust_signal` + awards bonus commission to `agent_commission_payouts`
+
+**New table** `agent_mission_completions` (agent_id, mission_id, completed_at, signals_captured, commission_awarded) for streak tracking + leaderboard.
+
+**Cron**: `assign-daily-missions` runs 04:30 daily, populates `agent_daily_missions` per active agent for the next 24h.
+
+---
+
+### Out of scope (future)
+- Push notifications (needs FCM setup)
+- Public leaderboard outside Agent Ops (could embed on landing page later)
+- Mission marketplace (custom missions from CEO/CMO)
+- WhatsApp-native mission delivery (telecom integration phase)
+
+### Decision needed
+Want me to **build all 4 layers in one go** (missions + marketing UI + end-of-day + RPCs), or **start with just the mission cards + RPC** and add streaks/leaderboard in a follow-up?
 
