@@ -341,12 +341,15 @@ export async function exportAllCategoriesReport(
   doc.text(`Period: Last 30 days (${fmtDate(subDays(new Date(), 29))} – ${fmtDate(new Date())})`, margin, y);
   y += 8;
 
-  // Fetch all entries up front
+  // Fetch all entries + all-time totals up front (parallel)
   const allData = await Promise.all(
-    categories.map(async c => ({
-      ...c,
-      entries: await fetchCategoryEntries(c.category),
-    })),
+    categories.map(async c => {
+      const [entries, allTime] = await Promise.all([
+        fetchCategoryEntries(c.category),
+        fetchAllTimeTotal(c.category),
+      ]);
+      return { ...c, entries, allTime };
+    }),
   );
 
   const allPartyIds = allData.flatMap(d =>
@@ -354,23 +357,36 @@ export async function exportAllCategoriesReport(
   );
   const partyMap = await fetchPartyNames(allPartyIds);
 
-  // Overall summary
-  const grandTotal = allData.reduce((s, d) => s + d.entries.reduce((ss, e) => ss + Number(e.amount || 0), 0), 0);
+  // Overall summary — EVERY canonical category, with 30d + all-time side-by-side
+  const grandTotal30d = allData.reduce((s, d) => s + d.entries.reduce((ss, e) => ss + Number(e.amount || 0), 0), 0);
+  const grandTotalAllTime = allData.reduce((s, d) => s + d.allTime.total, 0);
   autoTable(doc, {
     startY: y,
-    head: [['Category', 'Entries', 'Total']],
+    head: [['Category', '30d Entries', '30d Total', 'All-time Entries', 'All-time Total']],
     body: [
       ...allData.map(d => {
-        const total = d.entries.reduce((s, e) => s + Number(e.amount || 0), 0);
-        return [d.label, String(d.entries.length), formatUGX(total)];
+        const total30 = d.entries.reduce((s, e) => s + Number(e.amount || 0), 0);
+        return [
+          d.label,
+          String(d.entries.length),
+          total30 > 0 ? formatUGX(total30) : '— no activity —',
+          String(d.allTime.count),
+          formatUGX(d.allTime.total),
+        ];
       }),
-      ['GRAND TOTAL', String(allData.reduce((s, d) => s + d.entries.length, 0)), formatUGX(grandTotal)],
+      [
+        'GRAND TOTAL',
+        String(allData.reduce((s, d) => s + d.entries.length, 0)),
+        formatUGX(grandTotal30d),
+        String(allData.reduce((s, d) => s + d.allTime.count, 0)),
+        formatUGX(grandTotalAllTime),
+      ],
     ],
     theme: 'striped',
     styles: { fontSize: 8 },
     headStyles: { fillColor: [30, 41, 59], textColor: 255 },
     margin: { left: margin, right: margin },
-    columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' } },
+    columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } },
   });
   y = (doc as any).lastAutoTable.finalY + 8;
 
@@ -380,6 +396,27 @@ export async function exportAllCategoriesReport(
       doc.addPage();
       y = 20;
     }
+    // Per-section description block
+    const description = CATEGORY_DESCRIPTIONS[d.category];
+    if (description) {
+      doc.setFillColor(241, 245, 249);
+      const descLines = doc.splitTextToSize(`${d.label} — ${description}`, pageWidth - margin * 2 - 4);
+      const boxH = 4 + descLines.length * 4;
+      doc.rect(margin, y, pageWidth - margin * 2, boxH, 'F');
+      doc.setFontSize(8);
+      doc.setTextColor(51, 65, 85);
+      doc.text(descLines, margin + 2, y + 4);
+      doc.setTextColor(0, 0, 0);
+      y += boxH + 3;
+    }
+    // All-time line
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(80);
+    doc.text(`All-time total: ${formatUGX(d.allTime.total)} (${d.allTime.count} entries)`, margin, y);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'normal');
+    y += 5;
     y = await buildCategorySection(doc, autoTable, d.category, d.label, d.entries, partyMap, margin, y);
   }
 
