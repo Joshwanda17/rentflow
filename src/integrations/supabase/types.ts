@@ -1914,6 +1914,39 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_mission_completions: {
+        Row: {
+          agent_id: string
+          commission_awarded: number
+          completed_at: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          mission_key: string
+          signals_captured: number
+        }
+        Insert: {
+          agent_id: string
+          commission_awarded?: number
+          completed_at?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          mission_key: string
+          signals_captured?: number
+        }
+        Update: {
+          agent_id?: string
+          commission_awarded?: number
+          completed_at?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          mission_key?: string
+          signals_captured?: number
+        }
+        Relationships: []
+      }
       agent_rebalance_records: {
         Row: {
           agent_id: string
@@ -11726,6 +11759,7 @@ export type Database = {
       generate_portfolio_code: { Args: never; Returns: string }
       generate_short_code: { Args: never; Returns: string }
       generate_welile_ai_id: { Args: { user_uuid: string }; Returns: string }
+      get_agent_daily_missions: { Args: { p_agent_id?: string }; Returns: Json }
       get_agent_directory_rows: {
         Args: {
           _limit?: number
@@ -11757,6 +11791,7 @@ export type Database = {
           with_territory: number
         }[]
       }
+      get_agent_mission_stats: { Args: { p_agent_id?: string }; Returns: Json }
       get_agent_ops_balances: {
         Args: {
           _limit?: number
@@ -11938,6 +11973,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_mission_leaderboard: { Args: { p_limit?: number }; Returns: Json }
       get_my_ai_id_summary: { Args: never; Returns: Json }
       get_outstanding_agent_float: {
         Args: never
