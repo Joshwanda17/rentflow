@@ -498,7 +498,7 @@ export const template = {
   previewData: {
     partner_name: 'Sarah Nakato',
     transaction_id: 'TXN-2026-04A8F3D2',
-    portfolio_code: 'PRT-2026-0042',
+    portfolio_code: 'WIP2604029404',
     amount: 1250000,
     currency: 'UGX',
     date: '20 April 2026',
