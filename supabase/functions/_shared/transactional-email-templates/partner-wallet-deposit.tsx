@@ -146,7 +146,7 @@ export function PartnerWalletDeposit({
                                   </td>
                                 </tr>
                                 <tr>
-                                  <td style={funded_by_agent && agent_name ? ledgerRow : ledgerRowLast}>
+                                  <td style={source ? ledgerRow : ledgerRowLast}>
                                     <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation"><tbody><tr>
                                       <td className="td-block" width="40%" style={ledgerKey}>Destination</td>
                                       <td className="td-block" width="60%" align="right" style={ledgerVal}>
@@ -163,24 +163,10 @@ export function PartnerWalletDeposit({
                                 </tr>
                                 {source ? (
                                   <tr>
-                                    <td style={funded_by_agent && agent_name ? ledgerRow : ledgerRowLast}>
+                                    <td style={ledgerRowLast}>
                                       <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation"><tbody><tr>
                                         <td className="td-block" width="40%" style={ledgerKey}>Source</td>
                                         <td className="td-block" width="60%" align="right" style={ledgerVal}>{source}</td>
-                                      </tr></tbody></table>
-                                    </td>
-                                  </tr>
-                                ) : null}
-                                {funded_by_agent && agent_name ? (
-                                  <tr>
-                                    <td style={ledgerRowLast}>
-                                      <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation"><tbody><tr>
-                                        <td className="td-block" width="40%" style={ledgerKey}>Funded By</td>
-                                        <td className="td-block" width="60%" align="right" style={ledgerVal}>
-                                          {agent_name}
-                                          <br />
-                                          <span style={ledgerValSub}>(Proxy Agent)</span>
-                                        </td>
                                       </tr></tbody></table>
                                     </td>
                                   </tr>
