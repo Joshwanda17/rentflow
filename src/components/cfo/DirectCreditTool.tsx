@@ -534,6 +534,11 @@ export function DirectCreditTool() {
           <BusinessAdvanceDisbursementQueue />
         )}
 
+        {/* ── ROI PAYOUT QUEUE ── */}
+        {isROIPayout && (
+          <ROIPayoutQueue />
+        )}
+
         {/* ── MANUAL PAYOUT FORM (non-queue categories) ── */}
         {!isQueueCategory && selectedCategoryId && !needsSubCategory && (
           <>
