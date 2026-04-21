@@ -114,8 +114,8 @@ export function AgentPerformanceReport() {
 
       // 3) tenant_merchant_payments (direct merchant pay-ins by tenant) — attribute via rent_request → agent
       const merchantRaw = (paymentSource === 'all' || paymentSource === 'merchant')
-        ? await fetchAll<{ tenant_id: string | null; rent_request_id: string | null; amount: number; created_at: string }>(() => {
-            let q = supabase.from('tenant_merchant_payments').select('tenant_id, rent_request_id, amount, created_at');
+        ? await fetchAll<{ tenant_id: string | null; agent_id: string | null; amount: number; created_at: string }>(() => {
+            let q = supabase.from('tenant_merchant_payments').select('tenant_id, agent_id, amount, created_at');
             if (startISO) q = q.gte('created_at', startISO);
             return q.lte('created_at', endISO);
           })
@@ -141,15 +141,21 @@ export function AgentPerformanceReport() {
         ? rentReqsAll.filter(r => r.created_at >= startISO && r.created_at <= endISO)
         : rentReqsAll;
 
-      // Build rent_request_id → agent_id map for merchant payment attribution (use ALL requests)
-      const reqAgentMap: Record<string, string> = {};
-      rentReqsAll.forEach(r => { if (r.id && r.agent_id) reqAgentMap[r.id] = r.agent_id; });
+      // Build tenant_id → agent_id map (most-recent rent_request) for merchant payments missing agent_id
+      const tenantAgentMap: Record<string, { agent_id: string; created_at: string }> = {};
+      rentReqsAll.forEach(r => {
+        if (!r.tenant_id || !r.agent_id) return;
+        const cur = tenantAgentMap[r.tenant_id];
+        if (!cur || r.created_at > cur.created_at) {
+          tenantAgentMap[r.tenant_id] = { agent_id: r.agent_id, created_at: r.created_at };
+        }
+      });
 
-      // Resolve merchant payments → attributed agent
+      // Resolve merchant payments → attributed agent (prefer direct agent_id, fall back to tenant→agent map)
       type ResolvedPayment = { agent_id: string; tenant_id: string | null; amount: number };
       const merchantResolved: ResolvedPayment[] = merchantRaw
         .map(m => {
-          const aid = m.rent_request_id ? reqAgentMap[m.rent_request_id] : undefined;
+          const aid = m.agent_id || (m.tenant_id ? tenantAgentMap[m.tenant_id]?.agent_id : undefined);
           return aid ? { agent_id: aid, tenant_id: m.tenant_id, amount: Number(m.amount || 0) } : null;
         })
         .filter((x): x is ResolvedPayment => x !== null);
