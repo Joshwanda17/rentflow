@@ -234,7 +234,7 @@ Deno.serve(async (req) => {
     // historically these went through the float pool, so accept either bucket.
     const withdrawable = healedWithdrawable + totalPendingHold;
     const totalSpendable = isProxyPayout
-      ? walletBalance + totalPendingHold
+      ? Math.max(walletBalance, healedWithdrawable + walletFloat) + totalPendingHold
       : withdrawable;
     const effectiveBalance = totalSpendable;
 
