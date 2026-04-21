@@ -290,6 +290,7 @@ Deno.serve(async (req) => {
                 currency: "UGX",
                 company_name: "Welile",
                 logo_url: "https://welilereceipts.com/welile-logo.png",
+                dashboard_url: "https://welilereceipts.com/auth",
               },
             }),
           }).catch((err) => console.warn("[fund-rent-pool] Partnership agreement email enqueue failed:", err));

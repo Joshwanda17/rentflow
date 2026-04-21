@@ -23,6 +23,7 @@ interface PartnershipAgreementProps {
   company_name?: string
   logo_url?: string
   unsubscribe_url?: string
+  dashboard_url?: string
 }
 
 const formatAmount = (amount: string | number | undefined, currency: string) => {
@@ -54,6 +55,7 @@ export function PartnershipAgreement({
   company_name = 'Welile',
   logo_url = 'https://wirntoujqoyjobfhyelc.supabase.co/storage/v1/object/public/email-assets/welile-logo.png',
   unsubscribe_url = 'https://welile.com/unsubscribe',
+  dashboard_url = 'https://welilereceipts.com/auth',
 }: PartnershipAgreementProps) {
   const year = new Date().getFullYear()
   const formattedAmount = formatAmount(partnership_amount, currency)
@@ -189,6 +191,37 @@ export function PartnershipAgreement({
                                 </tr>
                               </tbody>
                             </table>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td className="padding-mobile" style={{ padding: '0 40px 40px 40px' }}>
+                    <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={ctaCard}>
+                      <tbody>
+                        <tr>
+                          <td align="center" style={ctaInner}>
+                            <Text style={ctaEyebrow}>Your Partner Dashboard Awaits</Text>
+                            <Heading as="h2" style={ctaHeadline}>Track every shilling, in real time.</Heading>
+                            <Text style={ctaSubtext}>
+                              Sign in to monitor your portfolio, watch monthly returns accrue, and download your statements — anytime, from anywhere.
+                            </Text>
+                            <table border={0} cellPadding={0} cellSpacing={0} role="presentation" align="center" style={{ margin: '8px auto 0 auto' }}>
+                              <tbody><tr>
+                                <td align="center" style={ctaButtonCell}>
+                                  <Link href={dashboard_url} style={ctaButton}>
+                                    Access Your Dashboard&nbsp;→
+                                  </Link>
+                                </td>
+                              </tr></tbody>
+                            </table>
+                            <Text style={ctaFinePrint}>
+                              Or paste this into your browser:{' '}
+                              <Link href={dashboard_url} style={ctaFineLink}>{dashboard_url}</Link>
+                            </Text>
                           </td>
                         </tr>
                       </tbody>
@@ -345,6 +378,64 @@ const signatureSub: React.CSSProperties = { fontWeight: 400, color: BODY }
 const taglineCell: React.CSSProperties = { padding: '20px 40px', textAlign: 'center', borderTop: `1px solid #e5e7eb` }
 const taglineText: React.CSSProperties = { margin: 0, color: MUTED, fontSize: '12px', lineHeight: '18px', fontWeight: 500 }
 
+const ctaCard: React.CSSProperties = {
+  borderRadius: '14px',
+  overflow: 'hidden',
+  backgroundColor: BRAND,
+  backgroundImage: `linear-gradient(135deg, #2a0b4d 0%, ${BRAND} 55%, #a855f7 100%)`,
+  boxShadow: '0 8px 24px rgba(123, 25, 212, 0.25)',
+}
+const ctaInner: React.CSSProperties = { padding: '36px 28px' }
+const ctaEyebrow: React.CSSProperties = {
+  margin: '0 0 8px 0',
+  color: '#e9d5ff',
+  fontSize: '11px',
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '2px',
+}
+const ctaHeadline: React.CSSProperties = {
+  margin: '0 0 12px 0',
+  color: '#ffffff',
+  fontSize: '22px',
+  fontWeight: 800,
+  lineHeight: '28px',
+  letterSpacing: '-0.4px',
+}
+const ctaSubtext: React.CSSProperties = {
+  margin: '0 0 22px 0',
+  color: '#f3e8ff',
+  fontSize: '14px',
+  lineHeight: '22px',
+  fontWeight: 400,
+}
+const ctaButtonCell: React.CSSProperties = {
+  borderRadius: '999px',
+  backgroundColor: '#ffffff',
+}
+const ctaButton: React.CSSProperties = {
+  display: 'inline-block',
+  padding: '14px 32px',
+  color: BRAND_DEEP,
+  fontSize: '15px',
+  fontWeight: 700,
+  textDecoration: 'none',
+  letterSpacing: '0.2px',
+  borderRadius: '999px',
+}
+const ctaFinePrint: React.CSSProperties = {
+  margin: '20px 0 0 0',
+  color: '#e9d5ff',
+  fontSize: '12px',
+  lineHeight: '18px',
+}
+const ctaFineLink: React.CSSProperties = {
+  color: '#ffffff',
+  textDecoration: 'underline',
+  fontWeight: 600,
+  wordBreak: 'break-all',
+}
+
 const socialIcon: React.CSSProperties = { display: 'block', opacity: 0.8 }
 const footerCompanyName: React.CSSProperties = { margin: '0 0 12px 0', color: MUTED, fontSize: '14px', fontWeight: 700 }
 const footerDisclaimer: React.CSSProperties = { margin: '0 0 20px 0', color: MUTED, fontSize: '12px', lineHeight: '18px' }
@@ -367,5 +458,6 @@ export const template = {
     company_name: 'Welile',
     logo_url: 'https://welilereceipts.com/welile-logo.png',
     unsubscribe_url: 'https://welile.com/unsubscribe',
+    dashboard_url: 'https://welilereceipts.com/auth',
   },
 } satisfies TemplateEntry
