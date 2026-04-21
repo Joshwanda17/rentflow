@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Download, FileBarChart, Search, X } from 'lucide-react';
+import { Download, FileBarChart, Search, X, Users, HandCoins, TrendingUp, PiggyBank, Percent, Wallet, Info, Calendar } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, subWeeks, startOfMonth, endOfMonth } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -14,7 +14,7 @@ import { generateAgentPerformancePdf, AgentPerfRow, AgentPerfTotals } from '@/li
 
 type RangePreset = 'this-week' | 'last-week' | 'this-month' | 'last-7' | 'last-30' | 'last-90' | 'all';
 type PaymentSource = 'all' | 'agent_collections' | 'repayments' | 'merchant';
-type StatusFilter = 'all' | 'critical' | 'low' | 'moderate' | 'strong';
+type StatusFilter = 'all' | 'critical' | 'low' | 'moderate' | 'good' | 'excellent';
 
 const getRange = (preset: RangePreset): { start: Date | null; end: Date } => {
   const now = new Date();
@@ -45,18 +45,21 @@ const getRange = (preset: RangePreset): { start: Date | null; end: Date } => {
   }
 };
 
-const statusFor = (pctPaid: number): AgentPerfRow['status'] => {
-  if (pctPaid < 25) return 'critical';
-  if (pctPaid < 50) return 'low';
-  if (pctPaid < 75) return 'moderate';
-  return 'strong';
+// Status is derived from EFFICIENCY % (collected ÷ expected weekly)
+const statusForEfficiency = (eff: number): AgentPerfRow['status'] => {
+  if (eff >= 100) return 'excellent';
+  if (eff >= 80) return 'good';
+  if (eff >= 60) return 'moderate';
+  if (eff >= 40) return 'low';
+  return 'critical';
 };
 
-const STATUS_BADGE: Record<AgentPerfRow['status'], { variant: any; label: string; cls: string }> = {
-  critical: { variant: 'destructive', label: 'Critical', cls: 'bg-red-500/10 text-red-600 border-red-500/30' },
-  low:      { variant: 'warning',     label: 'Low',      cls: 'bg-orange-500/10 text-orange-600 border-orange-500/30' },
-  moderate: { variant: 'warning',     label: 'Moderate', cls: 'bg-amber-500/10 text-amber-600 border-amber-500/30' },
-  strong:   { variant: 'success',     label: 'Strong',   cls: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30' },
+const STATUS_BADGE: Record<AgentPerfRow['status'], { label: string; cls: string; dot: string }> = {
+  excellent: { label: 'Excellent', cls: 'bg-emerald-100 text-emerald-700 border-emerald-300', dot: 'bg-emerald-700' },
+  good:      { label: 'Good',      cls: 'bg-emerald-50 text-emerald-600 border-emerald-200',  dot: 'bg-emerald-500' },
+  moderate:  { label: 'Moderate',  cls: 'bg-amber-100 text-amber-700 border-amber-300',       dot: 'bg-amber-500'   },
+  low:       { label: 'Low',       cls: 'bg-orange-100 text-orange-700 border-orange-300',    dot: 'bg-orange-500'  },
+  critical:  { label: 'Critical',  cls: 'bg-red-100 text-red-700 border-red-300',             dot: 'bg-red-500'     },
 };
 
 const fmt = (n: number) => Math.round(n).toLocaleString();
