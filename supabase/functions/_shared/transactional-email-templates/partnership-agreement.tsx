@@ -69,7 +69,7 @@ export function PartnershipAgreement({
       <Head>
         <style>{clientOverrides}</style>
       </Head>
-      <Preview>Investment Partnership Confirmation — {formattedAmount} contribution</Preview>
+      <Preview>Tenant Partnership Confirmation — {formattedAmount} contribution</Preview>
       <Body style={main}>
         <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={bgTable}>
           <tbody><tr><td align="center" style={{ padding: '40px 10px' }}>
@@ -95,7 +95,7 @@ export function PartnershipAgreement({
 
                 <tr>
                   <td align="center" className="padding-mobile" style={{ padding: '40px 40px 20px 40px' }}>
-                    <Heading style={heroH1}>Investment Partnership Confirmation</Heading>
+                    <Heading style={heroH1}>Tenant Partnership Confirmation</Heading>
                   </td>
                 </tr>
 
@@ -444,8 +444,8 @@ const footerCopyText: React.CSSProperties = { margin: 0, color: '#cbd5e1', fontS
 
 export const template = {
   component: PartnershipAgreement,
-  subject: 'Investment Partnership Confirmation — Welile Technologies',
-  displayName: 'Investment Partnership Confirmation',
+  subject: 'Tenant Partnership Confirmation — Welile Technologies',
+  displayName: 'Tenant Partnership Confirmation',
   previewData: {
     partner_name: 'Sarah Nakato',
     partnership_amount: 1000000,
