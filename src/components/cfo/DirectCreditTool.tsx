@@ -14,6 +14,7 @@ import { UserSearchPicker } from './UserSearchPicker';
 import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 import { RentDisbursementQueue } from './RentDisbursementQueue';
 import { BusinessAdvanceDisbursementQueue } from './BusinessAdvanceDisbursementQueue';
+import { ROIPayoutQueue } from './ROIPayoutQueue';
 import { PayoutAutomationToggle } from './PayoutAutomationToggle';
 
 type Operation = 'credit' | 'debit';
