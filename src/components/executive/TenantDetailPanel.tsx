@@ -152,8 +152,8 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   const startEditRequest = (req: typeof requests[0]) => {
     setRequestEdit({
       rent_amount: String(req.rent_amount || 0),
-      daily_repayment: String(req.daily_repayment || 0),
       duration_days: String(req.duration_days || 0),
+      reason: '',
     });
     setEditingRequestId(req.id);
   };
@@ -164,43 +164,71 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
 
   const saveRequest = async (reqId: string) => {
     const amount = Number(requestEdit.rent_amount);
-    const daily = Number(requestEdit.daily_repayment);
     const days = Number(requestEdit.duration_days);
+    const reason = requestEdit.reason.trim();
     if (!amount || amount <= 0) { toast.error('Rent amount must be positive'); return; }
-    if (!daily || daily <= 0) { toast.error('Daily repayment must be positive'); return; }
     if (!days || days <= 0) { toast.error('Duration days must be positive'); return; }
+    if (reason.length < 10) { toast.error('Reason must be at least 10 characters'); return; }
 
     setSavingRequest(true);
     try {
       const originalReq = requests.find(r => r.id === reqId);
-      const changes: Record<string, { from: number; to: number }> = {};
-      if (amount !== Number(originalReq?.rent_amount || 0)) changes.rent_amount = { from: Number(originalReq?.rent_amount || 0), to: amount };
-      if (daily !== Number(originalReq?.daily_repayment || 0)) changes.daily_repayment = { from: Number(originalReq?.daily_repayment || 0), to: daily };
-      if (days !== Number(originalReq?.duration_days || 0)) changes.duration_days = { from: Number(originalReq?.duration_days || 0), to: days };
+      if (!originalReq) throw new Error('Request not found');
 
-      if (Object.keys(changes).length === 0) {
-        setEditingRequestId(null);
+      // Recompute fees from rent_amount + duration_days using the canonical engine
+      const calc = calculateRentRepayment(amount, days);
+      const repaid = Number(originalReq.amount_repaid || 0);
+
+      if (repaid > calc.totalRepayment) {
+        toast.error(`Cannot lower below repaid amount (UGX ${repaid.toLocaleString()}). New total would be UGX ${calc.totalRepayment.toLocaleString()}.`);
+        setSavingRequest(false);
         return;
       }
 
-      const { error } = await supabase.from('rent_requests').update({
+      const before = {
+        rent_amount: Number(originalReq.rent_amount || 0),
+        duration_days: Number(originalReq.duration_days || 0),
+        access_fee: Number((originalReq as any).access_fee || 0),
+        request_fee: Number((originalReq as any).request_fee || 0),
+        total_repayment: Number((originalReq as any).total_repayment || 0),
+        daily_repayment: Number(originalReq.daily_repayment || 0),
+      };
+      const after = {
         rent_amount: amount,
-        daily_repayment: daily,
         duration_days: days,
-      }).eq('id', reqId);
+        access_fee: calc.accessFee,
+        request_fee: calc.requestFee,
+        total_repayment: calc.totalRepayment,
+        daily_repayment: calc.dailyRepayment,
+      };
 
+      const { error } = await supabase.from('rent_requests').update(after).eq('id', reqId);
       if (error) throw error;
 
+      // Sync the active subscription charge (cron). Compute new end_date from created_at + new duration.
+      const startDate = new Date(originalReq.created_at);
+      const newEnd = new Date(startDate);
+      newEnd.setDate(newEnd.getDate() + days);
+      const { error: subErr } = await supabase
+        .from('subscription_charges')
+        .update({ charge_amount: calc.dailyRepayment, end_date: newEnd.toISOString().slice(0, 10) })
+        .eq('rent_request_id', reqId)
+        .in('status', ['active', 'pending']);
+      if (subErr) console.warn('Subscription charge sync warning:', subErr);
+
       await supabase.from('audit_logs').insert({
-        action_type: 'tenant_request_edit',
+        action_type: 'tenant_ops_rent_correction',
         user_id: user?.id || null,
         record_id: reqId,
         table_name: 'rent_requests',
-        metadata: { tenant_id: tenantId, changes },
+        metadata: { tenant_id: tenantId, before, after, reason },
       });
 
       queryClient.invalidateQueries({ queryKey: ['tenant-detail', tenantId] });
-      toast.success('Request updated');
+      queryClient.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
+      queryClient.invalidateQueries({ queryKey: ['coo-tenant-balances'] });
+      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && typeof q.queryKey[0] === 'string' && (q.queryKey[0] as string).startsWith('cfo-') });
+      toast.success(`Rent corrected — daily charge updated to UGX ${calc.dailyRepayment.toLocaleString()}`);
       setEditingRequestId(null);
     } catch (e: any) {
       toast.error(e.message || 'Failed to save');
