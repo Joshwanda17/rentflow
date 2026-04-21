@@ -13,6 +13,7 @@ export interface AgentPerfRow {
   wallet_total: number;
   rate: number;
   status: 'critical' | 'low' | 'moderate' | 'strong';
+  source_breakdown?: { agent_collections: number; repayments: number; merchant: number };
 }
 
 export interface AgentPerfTotals {
