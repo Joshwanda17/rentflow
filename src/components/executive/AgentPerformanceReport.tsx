@@ -319,9 +319,12 @@ export function AgentPerformanceReport() {
         </div>
         <div className="flex gap-2 items-center">
           <Select value={preset} onValueChange={(v) => setPreset(v as RangePreset)}>
-            <SelectTrigger className="w-[150px] h-9"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-[140px] h-9"><SelectValue /></SelectTrigger>
             <SelectContent>
+              <SelectItem value="all">All Time</SelectItem>
               <SelectItem value="last-7">Last 7 Days</SelectItem>
+              <SelectItem value="last-30">Last 30 Days</SelectItem>
+              <SelectItem value="last-90">Last 90 Days</SelectItem>
               <SelectItem value="this-week">This Week</SelectItem>
               <SelectItem value="last-week">Last Week</SelectItem>
               <SelectItem value="this-month">This Month</SelectItem>
@@ -331,6 +334,61 @@ export function AgentPerformanceReport() {
             <Download className="h-4 w-4" />
             <span className="hidden sm:inline">Download PDF</span>
           </Button>
+        </div>
+      </div>
+
+      {/* Filters bar */}
+      <div className="rounded-2xl border border-border bg-card p-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[180px]">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              value={agentSearch}
+              onChange={(e) => setAgentSearch(e.target.value)}
+              placeholder="Search agent…"
+              className="pl-8 h-9 text-sm"
+            />
+          </div>
+          <Select value={paymentSource} onValueChange={(v) => setPaymentSource(v as PaymentSource)}>
+            <SelectTrigger className="w-[170px] h-9"><SelectValue placeholder="Payment source" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Payment Sources</SelectItem>
+              <SelectItem value="agent_collections">Agent Cash Collections</SelectItem>
+              <SelectItem value="repayments">Tenant Repayments</SelectItem>
+              <SelectItem value="merchant">Merchant Pay-ins</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+            <SelectTrigger className="w-[140px] h-9"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="strong">Strong</SelectItem>
+              <SelectItem value="moderate">Moderate</SelectItem>
+              <SelectItem value="low">Low</SelectItem>
+              <SelectItem value="critical">Critical</SelectItem>
+            </SelectContent>
+          </Select>
+          <Input
+            type="number"
+            inputMode="numeric"
+            value={minCollected}
+            onChange={(e) => setMinCollected(e.target.value)}
+            placeholder="Min UGX collected"
+            className="w-[160px] h-9 text-sm"
+          />
+          {activeFilterCount > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-9 gap-1 text-xs"
+              onClick={() => { setPaymentSource('all'); setStatusFilter('all'); setAgentSearch(''); setMinCollected(''); }}
+            >
+              <X className="h-3 w-3" /> Clear ({activeFilterCount})
+            </Button>
+          )}
+          <span className="text-[11px] text-muted-foreground ml-auto">
+            Showing {rows.length} of {rawRows.length} agents
+          </span>
         </div>
       </div>
 
