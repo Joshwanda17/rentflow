@@ -19,8 +19,6 @@ interface PartnerWalletDepositProps {
   date?: string
   wallet_id_last4?: string
   source?: string
-  funded_by_agent?: boolean
-  agent_name?: string
   company_name?: string
   logo_url?: string
   unsubscribe_url?: string
