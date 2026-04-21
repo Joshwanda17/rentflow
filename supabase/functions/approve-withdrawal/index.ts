@@ -241,8 +241,11 @@ Deno.serve(async (req) => {
     if (!wallet || totalSpendable < amount) {
       return new Response(
         JSON.stringify({
-          error: `Insufficient withdrawable balance. Available: UGX ${withdrawable.toLocaleString()}, requested: UGX ${amount.toLocaleString()}.`,
+          error: `Insufficient withdrawable balance. Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. (Wallet total UGX ${Math.round(walletBalance).toLocaleString()} — only the withdrawable bucket can fund payouts.)`,
           code: "INSUFFICIENT_WITHDRAWABLE",
+          available: Math.round(totalSpendable),
+          wallet_total: Math.round(walletBalance),
+          requested: amount,
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
