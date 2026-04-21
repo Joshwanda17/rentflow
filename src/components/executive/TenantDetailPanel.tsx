@@ -361,31 +361,65 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                         </div>
 
                         {isEditing ? (
-                          <div className="space-y-2 pt-1">
-                            <div className="grid grid-cols-3 gap-2">
-                              <div>
-                                <label className="text-[10px] text-muted-foreground">Rent Amount</label>
-                                <Input type="number" value={requestEdit.rent_amount} onChange={e => setRequestEdit(v => ({ ...v, rent_amount: e.target.value }))} className="h-8 text-sm" />
+                          (() => {
+                            const newAmount = Number(requestEdit.rent_amount) || 0;
+                            const newDays = Number(requestEdit.duration_days) || 0;
+                            const canPreview = newAmount > 0 && newDays > 0;
+                            const preview = canPreview ? calculateRentRepayment(newAmount, newDays) : null;
+                            const repaid = Number(req.amount_repaid || 0);
+                            const newOutstanding = preview ? preview.totalRepayment - repaid : 0;
+                            const reasonOk = requestEdit.reason.trim().length >= 10;
+                            const outstandingOk = preview ? preview.totalRepayment >= repaid : false;
+                            const canSave = canPreview && reasonOk && outstandingOk;
+                            return (
+                              <div className="space-y-2 pt-1">
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <label className="text-[10px] text-muted-foreground">Rent Amount (UGX)</label>
+                                    <Input type="number" value={requestEdit.rent_amount} onChange={e => setRequestEdit(v => ({ ...v, rent_amount: e.target.value }))} className="h-8 text-sm" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[10px] text-muted-foreground">Duration (days)</label>
+                                    <Input type="number" value={requestEdit.duration_days} onChange={e => setRequestEdit(v => ({ ...v, duration_days: e.target.value }))} className="h-8 text-sm" />
+                                  </div>
+                                </div>
+                                {preview && (
+                                  <div className="rounded-md bg-muted/50 p-2 text-[11px] space-y-0.5">
+                                    <div className="flex justify-between"><span className="text-muted-foreground">Access Fee</span><span>UGX {preview.accessFee.toLocaleString()}</span></div>
+                                    <div className="flex justify-between"><span className="text-muted-foreground">Request Fee</span><span>UGX {preview.requestFee.toLocaleString()}</span></div>
+                                    <div className="flex justify-between font-semibold"><span>New Total Repayment</span><span>UGX {preview.totalRepayment.toLocaleString()}</span></div>
+                                    <div className="flex justify-between"><span className="text-muted-foreground">New Daily</span><span>UGX {preview.dailyRepayment.toLocaleString()}</span></div>
+                                    <div className={cn('flex justify-between font-semibold pt-1 border-t border-border/40', !outstandingOk && 'text-destructive')}>
+                                      <span>New Outstanding</span>
+                                      <span>UGX {newOutstanding.toLocaleString()}</span>
+                                    </div>
+                                    {!outstandingOk && (
+                                      <p className="text-destructive text-[10px]">New total is below already-repaid (UGX {repaid.toLocaleString()}).</p>
+                                    )}
+                                  </div>
+                                )}
+                                <div>
+                                  <label className="text-[10px] text-muted-foreground">Reason for correction (min 10 chars)</label>
+                                  <Textarea
+                                    value={requestEdit.reason}
+                                    onChange={e => setRequestEdit(v => ({ ...v, reason: e.target.value }))}
+                                    rows={2}
+                                    className="text-sm"
+                                    placeholder="Explain why this rent is being corrected…"
+                                  />
+                                </div>
+                                <div className="flex gap-2 justify-end">
+                                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={cancelEditRequest} disabled={savingRequest}>
+                                    Cancel
+                                  </Button>
+                                  <Button size="sm" className="h-7 text-xs gap-1" onClick={() => saveRequest(req.id)} disabled={savingRequest || !canSave}>
+                                    {savingRequest ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                                    Save
+                                  </Button>
+                                </div>
                               </div>
-                              <div>
-                                <label className="text-[10px] text-muted-foreground">Daily Repay</label>
-                                <Input type="number" value={requestEdit.daily_repayment} onChange={e => setRequestEdit(v => ({ ...v, daily_repayment: e.target.value }))} className="h-8 text-sm" />
-                              </div>
-                              <div>
-                                <label className="text-[10px] text-muted-foreground">Days</label>
-                                <Input type="number" value={requestEdit.duration_days} onChange={e => setRequestEdit(v => ({ ...v, duration_days: e.target.value }))} className="h-8 text-sm" />
-                              </div>
-                            </div>
-                            <div className="flex gap-2 justify-end">
-                              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={cancelEditRequest} disabled={savingRequest}>
-                                Cancel
-                              </Button>
-                              <Button size="sm" className="h-7 text-xs gap-1" onClick={() => saveRequest(req.id)} disabled={savingRequest}>
-                                {savingRequest ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-                                Save
-                              </Button>
-                            </div>
-                          </div>
+                            );
+                          })()
                         ) : (
                           <>
                             <div className="flex items-center justify-between text-sm">
