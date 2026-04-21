@@ -6,7 +6,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Download, FileBarChart, Search, X, Users, HandCoins, TrendingUp, PiggyBank, Percent, Wallet, Info, Calendar } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Download, FileBarChart, Search, X, Users, HandCoins, TrendingUp, PiggyBank, Percent, Wallet, Info, Calendar, Filter } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, subWeeks, startOfMonth, endOfMonth } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -65,12 +68,146 @@ const STATUS_BADGE: Record<AgentPerfRow['status'], { label: string; cls: string;
 const fmt = (n: number) => Math.round(n).toLocaleString();
 const fmtPct = (n: number) => `${n.toFixed(1)}%`;
 
+// ============= Column-header filter helpers =============
+type NumericKey =
+  | 'tenants_total' | 'daily_portfolio' | 'expected_weekly' | 'collected'
+  | 'efficiency' | 'gap' | 'payments' | 'pct_paid'
+  | 'commission' | 'interest' | 'wallet_total';
+type Range = { min?: number; max?: number };
+type StatusKey = AgentPerfRow['status'];
+type ColFilters = {
+  name: string;
+  status: Set<StatusKey>;
+  ranges: Partial<Record<NumericKey, Range>>;
+};
+const EMPTY_FILTERS: ColFilters = { name: '', status: new Set(), ranges: {} };
+
+const isRangeActive = (r?: Range) =>
+  !!r && ((r.min !== undefined && !Number.isNaN(r.min)) || (r.max !== undefined && !Number.isNaN(r.max)));
+
+function HeaderFilter({
+  active,
+  align = 'center',
+  children,
+}: { active: boolean; align?: 'start' | 'center' | 'end'; children: React.ReactNode }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          onClick={(e) => e.stopPropagation()}
+          className={cn(
+            'inline-flex h-5 w-5 items-center justify-center rounded hover:bg-white/20 transition-colors relative',
+            active && 'bg-white/25'
+          )}
+          aria-label="Filter column"
+        >
+          <Filter className="h-3 w-3" />
+          {active && <span className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-yellow-300 ring-1 ring-slate-900" />}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align={align} className="w-60 p-3 space-y-2">
+        {children}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function TextFilter({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="space-y-2">
+      <Label className="text-xs font-semibold">Search agent name</Label>
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Contains…"
+        className="h-8 text-sm"
+        autoFocus
+      />
+      {value && (
+        <Button variant="ghost" size="sm" className="h-7 w-full text-xs" onClick={() => onChange('')}>
+          <X className="h-3 w-3 mr-1" /> Clear
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function NumericRangeFilter({
+  label, value, onChange,
+}: { label: string; value?: Range; onChange: (r?: Range) => void }) {
+  const [min, setMin] = useState<string>(value?.min !== undefined ? String(value.min) : '');
+  const [max, setMax] = useState<string>(value?.max !== undefined ? String(value.max) : '');
+  const apply = () => {
+    const minN = min === '' ? undefined : Number(min);
+    const maxN = max === '' ? undefined : Number(max);
+    if (minN === undefined && maxN === undefined) { onChange(undefined); return; }
+    onChange({ min: minN, max: maxN });
+  };
+  const clear = () => { setMin(''); setMax(''); onChange(undefined); };
+  return (
+    <div className="space-y-2">
+      <Label className="text-xs font-semibold">{label}</Label>
+      <div className="flex items-center gap-1.5">
+        <Input type="number" inputMode="numeric" value={min} onChange={(e) => setMin(e.target.value)}
+          placeholder="Min" className="h-8 text-sm" />
+        <span className="text-muted-foreground text-xs">–</span>
+        <Input type="number" inputMode="numeric" value={max} onChange={(e) => setMax(e.target.value)}
+          placeholder="Max" className="h-8 text-sm" />
+      </div>
+      <div className="flex gap-1.5">
+        <Button size="sm" className="h-7 flex-1 text-xs" onClick={apply}>Apply</Button>
+        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={clear}>Clear</Button>
+      </div>
+    </div>
+  );
+}
+
+function StatusMultiFilter({
+  value, onChange,
+}: { value: Set<StatusKey>; onChange: (next: Set<StatusKey>) => void }) {
+  const options: StatusKey[] = ['excellent', 'good', 'moderate', 'low', 'critical'];
+  const toggle = (k: StatusKey) => {
+    const next = new Set(value);
+    if (next.has(k)) next.delete(k); else next.add(k);
+    onChange(next);
+  };
+  return (
+    <div className="space-y-2">
+      <Label className="text-xs font-semibold">Filter by status</Label>
+      <div className="space-y-1.5">
+        {options.map((k) => (
+          <label key={k} className="flex items-center gap-2 cursor-pointer text-sm">
+            <Checkbox checked={value.has(k)} onCheckedChange={() => toggle(k)} />
+            <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold border', STATUS_BADGE[k].cls)}>
+              {STATUS_BADGE[k].label}
+            </span>
+          </label>
+        ))}
+      </div>
+      {value.size > 0 && (
+        <Button variant="ghost" size="sm" className="h-7 w-full text-xs" onClick={() => onChange(new Set())}>
+          <X className="h-3 w-3 mr-1" /> Clear
+        </Button>
+      )}
+    </div>
+  );
+}
+
 export function AgentPerformanceReport() {
   const [preset, setPreset] = useState<RangePreset>('last-7');
   const [paymentSource, setPaymentSource] = useState<PaymentSource>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [agentSearch, setAgentSearch] = useState('');
   const [minCollected, setMinCollected] = useState('');
+  // Per-column header filters
+  const [colFilters, setColFilters] = useState<ColFilters>(EMPTY_FILTERS);
+  const setRange = (key: NumericKey, range?: Range) =>
+    setColFilters(prev => {
+      const ranges = { ...prev.ranges };
+      if (!range) delete ranges[key]; else ranges[key] = range;
+      return { ...prev, ranges };
+    });
   const range = useMemo(() => getRange(preset), [preset]);
   const startISO = range.start ? range.start.toISOString() : null;
   const endISO = range.end.toISOString();
@@ -315,9 +452,22 @@ export function AgentPerformanceReport() {
     if (statusFilter !== 'all') out = out.filter(r => r.status === statusFilter);
     if (search) out = out.filter(r => r.agent_name.toLowerCase().includes(search));
     if (minColNum > 0) out = out.filter(r => r.collected >= minColNum);
+    // Column-header filters (AND-combined)
+    const nameQ = colFilters.name.trim().toLowerCase();
+    if (nameQ) out = out.filter(r => r.agent_name.toLowerCase().includes(nameQ));
+    if (colFilters.status.size > 0) out = out.filter(r => colFilters.status.has(r.status));
+    for (const [key, rng] of Object.entries(colFilters.ranges) as [NumericKey, Range][]) {
+      if (!isRangeActive(rng)) continue;
+      out = out.filter(r => {
+        const v = Number((r as any)[key] ?? 0);
+        if (rng.min !== undefined && !Number.isNaN(rng.min) && v < rng.min) return false;
+        if (rng.max !== undefined && !Number.isNaN(rng.max) && v > rng.max) return false;
+        return true;
+      });
+    }
     // Re-rank after filtering
     return out.map((r, i) => ({ ...r, rank: i + 1 }));
-  }, [rawRows, statusFilter, search, minColNum]);
+  }, [rawRows, statusFilter, search, minColNum, colFilters]);
   const totals: AgentPerfTotals = useMemo(() => rows.reduce((t, r) => ({
     collected: t.collected + r.collected,
     payments: t.payments + r.payments,
@@ -333,11 +483,17 @@ export function AgentPerformanceReport() {
 
   const overallEfficiency = (totals.expected_weekly || 0) > 0 ? (totals.collected / (totals.expected_weekly || 1)) * 100 : 0;
 
+  const activeColFilterCount =
+    (colFilters.name ? 1 : 0) +
+    (colFilters.status.size > 0 ? 1 : 0) +
+    Object.values(colFilters.ranges).filter(isRangeActive).length;
+
   const activeFilterCount =
     (paymentSource !== 'all' ? 1 : 0) +
     (statusFilter !== 'all' ? 1 : 0) +
     (search ? 1 : 0) +
-    (minColNum > 0 ? 1 : 0);
+    (minColNum > 0 ? 1 : 0) +
+    activeColFilterCount;
 
   const handleDownloadPdf = async () => {
     if (!rows.length) { toast.error('No data to export'); return; }
@@ -435,7 +591,7 @@ export function AgentPerformanceReport() {
               variant="ghost"
               size="sm"
               className="h-9 gap-1 text-xs"
-              onClick={() => { setPaymentSource('all'); setStatusFilter('all'); setAgentSearch(''); setMinCollected(''); }}
+              onClick={() => { setPaymentSource('all'); setStatusFilter('all'); setAgentSearch(''); setMinCollected(''); setColFilters(EMPTY_FILTERS); }}
             >
               <X className="h-3 w-3" /> Clear ({activeFilterCount})
             </Button>
@@ -485,19 +641,97 @@ export function AgentPerformanceReport() {
               {/* Sub-header row */}
               <tr className="text-[11px]">
                 <th className="bg-slate-700 px-2 py-2 text-center font-semibold w-10">#</th>
-                <th className="bg-slate-700 px-2 py-2 text-left font-semibold">Agent Name</th>
-                <th className="bg-blue-600 px-2 py-2 text-center font-semibold">Active<br/>Tenants</th>
-                <th className="bg-blue-600 px-2 py-2 text-right font-semibold">Daily Portfolio<br/>(UGX)</th>
-                <th className="bg-blue-600 px-2 py-2 text-right font-semibold">Expected Weekly<br/>(7 Days) (UGX)</th>
-                <th className="bg-emerald-600 px-2 py-2 text-right font-semibold">Collected<br/>(UGX)</th>
-                <th className="bg-emerald-600 px-2 py-2 text-right font-semibold">Efficiency<br/>(%)</th>
-                <th className="bg-emerald-600 px-2 py-2 text-right font-semibold">Gap<br/>(UGX)</th>
-                <th className="bg-amber-500 px-2 py-2 text-right font-semibold">Payments<br/>(Count)</th>
-                <th className="bg-amber-500 px-2 py-2 text-right font-semibold">% Paid</th>
-                <th className="bg-purple-600 px-2 py-2 text-right font-semibold">10% Commission<br/>(UGX)</th>
-                <th className="bg-purple-600 px-2 py-2 text-right font-semibold">0.5% Interest<br/>(UGX)</th>
-                <th className="bg-purple-600 px-2 py-2 text-right font-semibold">Total Wallet<br/>(UGX)</th>
-                <th className="bg-slate-700 px-2 py-2 text-center font-semibold">&nbsp;</th>
+                <th className="bg-slate-700 px-2 py-2 text-left font-semibold">
+                  <span className="inline-flex items-center gap-1.5">Agent Name
+                    <HeaderFilter active={!!colFilters.name} align="start">
+                      <TextFilter value={colFilters.name} onChange={(v) => setColFilters(p => ({ ...p, name: v }))} />
+                    </HeaderFilter>
+                  </span>
+                </th>
+                <th className="bg-blue-600 px-2 py-2 text-center font-semibold">
+                  <span className="inline-flex items-center gap-1.5">Active<br/>Tenants
+                    <HeaderFilter active={isRangeActive(colFilters.ranges.tenants_total)}>
+                      <NumericRangeFilter label="Active Tenants" value={colFilters.ranges.tenants_total} onChange={(r) => setRange('tenants_total', r)} />
+                    </HeaderFilter>
+                  </span>
+                </th>
+                <th className="bg-blue-600 px-2 py-2 text-right font-semibold">
+                  <span className="inline-flex items-center gap-1.5 justify-end">Daily Portfolio<br/>(UGX)
+                    <HeaderFilter active={isRangeActive(colFilters.ranges.daily_portfolio)} align="end">
+                      <NumericRangeFilter label="Daily Portfolio (UGX)" value={colFilters.ranges.daily_portfolio} onChange={(r) => setRange('daily_portfolio', r)} />
+                    </HeaderFilter>
+                  </span>
+                </th>
+                <th className="bg-blue-600 px-2 py-2 text-right font-semibold">
+                  <span className="inline-flex items-center gap-1.5 justify-end">Expected Weekly<br/>(7 Days) (UGX)
+                    <HeaderFilter active={isRangeActive(colFilters.ranges.expected_weekly)} align="end">
+                      <NumericRangeFilter label="Expected Weekly (UGX)" value={colFilters.ranges.expected_weekly} onChange={(r) => setRange('expected_weekly', r)} />
+                    </HeaderFilter>
+                  </span>
+                </th>
+                <th className="bg-emerald-600 px-2 py-2 text-right font-semibold">
+                  <span className="inline-flex items-center gap-1.5 justify-end">Collected<br/>(UGX)
+                    <HeaderFilter active={isRangeActive(colFilters.ranges.collected)} align="end">
+                      <NumericRangeFilter label="Collected (UGX)" value={colFilters.ranges.collected} onChange={(r) => setRange('collected', r)} />
+                    </HeaderFilter>
+                  </span>
+                </th>
+                <th className="bg-emerald-600 px-2 py-2 text-right font-semibold">
+                  <span className="inline-flex items-center gap-1.5 justify-end">Efficiency<br/>(%)
+                    <HeaderFilter active={isRangeActive(colFilters.ranges.efficiency)} align="end">
+                      <NumericRangeFilter label="Efficiency (%)" value={colFilters.ranges.efficiency} onChange={(r) => setRange('efficiency', r)} />
+                    </HeaderFilter>
+                  </span>
+                </th>
+                <th className="bg-emerald-600 px-2 py-2 text-right font-semibold">
+                  <span className="inline-flex items-center gap-1.5 justify-end">Gap<br/>(UGX)
+                    <HeaderFilter active={isRangeActive(colFilters.ranges.gap)} align="end">
+                      <NumericRangeFilter label="Gap (UGX)" value={colFilters.ranges.gap} onChange={(r) => setRange('gap', r)} />
+                    </HeaderFilter>
+                  </span>
+                </th>
+                <th className="bg-amber-500 px-2 py-2 text-right font-semibold">
+                  <span className="inline-flex items-center gap-1.5 justify-end">Payments<br/>(Count)
+                    <HeaderFilter active={isRangeActive(colFilters.ranges.payments)} align="end">
+                      <NumericRangeFilter label="Payments (Count)" value={colFilters.ranges.payments} onChange={(r) => setRange('payments', r)} />
+                    </HeaderFilter>
+                  </span>
+                </th>
+                <th className="bg-amber-500 px-2 py-2 text-right font-semibold">
+                  <span className="inline-flex items-center gap-1.5 justify-end">% Paid
+                    <HeaderFilter active={isRangeActive(colFilters.ranges.pct_paid)} align="end">
+                      <NumericRangeFilter label="% Paid" value={colFilters.ranges.pct_paid} onChange={(r) => setRange('pct_paid', r)} />
+                    </HeaderFilter>
+                  </span>
+                </th>
+                <th className="bg-purple-600 px-2 py-2 text-right font-semibold">
+                  <span className="inline-flex items-center gap-1.5 justify-end">10% Commission<br/>(UGX)
+                    <HeaderFilter active={isRangeActive(colFilters.ranges.commission)} align="end">
+                      <NumericRangeFilter label="Commission (UGX)" value={colFilters.ranges.commission} onChange={(r) => setRange('commission', r)} />
+                    </HeaderFilter>
+                  </span>
+                </th>
+                <th className="bg-purple-600 px-2 py-2 text-right font-semibold">
+                  <span className="inline-flex items-center gap-1.5 justify-end">0.5% Interest<br/>(UGX)
+                    <HeaderFilter active={isRangeActive(colFilters.ranges.interest)} align="end">
+                      <NumericRangeFilter label="Interest (UGX)" value={colFilters.ranges.interest} onChange={(r) => setRange('interest', r)} />
+                    </HeaderFilter>
+                  </span>
+                </th>
+                <th className="bg-purple-600 px-2 py-2 text-right font-semibold">
+                  <span className="inline-flex items-center gap-1.5 justify-end">Total Wallet<br/>(UGX)
+                    <HeaderFilter active={isRangeActive(colFilters.ranges.wallet_total)} align="end">
+                      <NumericRangeFilter label="Total Wallet (UGX)" value={colFilters.ranges.wallet_total} onChange={(r) => setRange('wallet_total', r)} />
+                    </HeaderFilter>
+                  </span>
+                </th>
+                <th className="bg-slate-700 px-2 py-2 text-center font-semibold">
+                  <span className="inline-flex items-center gap-1.5 justify-center">Status
+                    <HeaderFilter active={colFilters.status.size > 0} align="end">
+                      <StatusMultiFilter value={colFilters.status} onChange={(s) => setColFilters(p => ({ ...p, status: s }))} />
+                    </HeaderFilter>
+                  </span>
+                </th>
               </tr>
             </thead>
             <tbody>
