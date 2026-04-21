@@ -10,6 +10,8 @@ import { Phone, MessageCircle, User, ArrowLeft, MapPin, FileSearch, Pencil, Save
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { calculateRentRepayment } from '@/lib/rentCalculations';
+import { Textarea } from '@/components/ui/textarea';
 
 const statusColor = (s: string) => {
   const m: Record<string, string> = {
@@ -44,14 +46,14 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   // Request edit state — keyed by request id
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
   const [savingRequest, setSavingRequest] = useState(false);
-  const [requestEdit, setRequestEdit] = useState({ rent_amount: '', daily_repayment: '', duration_days: '' });
+  const [requestEdit, setRequestEdit] = useState({ rent_amount: '', duration_days: '', reason: '' });
 
   const { data, isLoading } = useQuery({
     queryKey: ['tenant-detail', tenantId],
     queryFn: async () => {
       const [profileRes, requestsRes, walletRes, collectionsRes] = await Promise.all([
         supabase.from('profiles').select('id, full_name, phone, city, created_at').eq('id', tenantId).maybeSingle(),
-        supabase.from('rent_requests').select('id, status, rent_amount, amount_repaid, daily_repayment, duration_days, created_at, landlord_id, agent_id, assigned_agent_id').eq('tenant_id', tenantId).order('created_at', { ascending: false }),
+        supabase.from('rent_requests').select('id, status, rent_amount, amount_repaid, daily_repayment, duration_days, access_fee, request_fee, total_repayment, created_at, landlord_id, agent_id, assigned_agent_id').eq('tenant_id', tenantId).order('created_at', { ascending: false }),
         supabase.from('wallet_transactions').select('id, amount, type, created_at, description').or(`sender_id.eq.${tenantId},recipient_id.eq.${tenantId}`).order('created_at', { ascending: false }).limit(10),
         supabase.from('agent_collections').select('id, amount, created_at, agent_id, payment_method').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(10),
       ]);
@@ -150,8 +152,8 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   const startEditRequest = (req: typeof requests[0]) => {
     setRequestEdit({
       rent_amount: String(req.rent_amount || 0),
-      daily_repayment: String(req.daily_repayment || 0),
       duration_days: String(req.duration_days || 0),
+      reason: '',
     });
     setEditingRequestId(req.id);
   };
@@ -162,43 +164,71 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
 
   const saveRequest = async (reqId: string) => {
     const amount = Number(requestEdit.rent_amount);
-    const daily = Number(requestEdit.daily_repayment);
     const days = Number(requestEdit.duration_days);
+    const reason = requestEdit.reason.trim();
     if (!amount || amount <= 0) { toast.error('Rent amount must be positive'); return; }
-    if (!daily || daily <= 0) { toast.error('Daily repayment must be positive'); return; }
     if (!days || days <= 0) { toast.error('Duration days must be positive'); return; }
+    if (reason.length < 10) { toast.error('Reason must be at least 10 characters'); return; }
 
     setSavingRequest(true);
     try {
       const originalReq = requests.find(r => r.id === reqId);
-      const changes: Record<string, { from: number; to: number }> = {};
-      if (amount !== Number(originalReq?.rent_amount || 0)) changes.rent_amount = { from: Number(originalReq?.rent_amount || 0), to: amount };
-      if (daily !== Number(originalReq?.daily_repayment || 0)) changes.daily_repayment = { from: Number(originalReq?.daily_repayment || 0), to: daily };
-      if (days !== Number(originalReq?.duration_days || 0)) changes.duration_days = { from: Number(originalReq?.duration_days || 0), to: days };
+      if (!originalReq) throw new Error('Request not found');
 
-      if (Object.keys(changes).length === 0) {
-        setEditingRequestId(null);
+      // Recompute fees from rent_amount + duration_days using the canonical engine
+      const calc = calculateRentRepayment(amount, days);
+      const repaid = Number(originalReq.amount_repaid || 0);
+
+      if (repaid > calc.totalRepayment) {
+        toast.error(`Cannot lower below repaid amount (UGX ${repaid.toLocaleString()}). New total would be UGX ${calc.totalRepayment.toLocaleString()}.`);
+        setSavingRequest(false);
         return;
       }
 
-      const { error } = await supabase.from('rent_requests').update({
+      const before = {
+        rent_amount: Number(originalReq.rent_amount || 0),
+        duration_days: Number(originalReq.duration_days || 0),
+        access_fee: Number((originalReq as any).access_fee || 0),
+        request_fee: Number((originalReq as any).request_fee || 0),
+        total_repayment: Number((originalReq as any).total_repayment || 0),
+        daily_repayment: Number(originalReq.daily_repayment || 0),
+      };
+      const after = {
         rent_amount: amount,
-        daily_repayment: daily,
         duration_days: days,
-      }).eq('id', reqId);
+        access_fee: calc.accessFee,
+        request_fee: calc.requestFee,
+        total_repayment: calc.totalRepayment,
+        daily_repayment: calc.dailyRepayment,
+      };
 
+      const { error } = await supabase.from('rent_requests').update(after).eq('id', reqId);
       if (error) throw error;
 
+      // Sync the active subscription charge (cron). Compute new end_date from created_at + new duration.
+      const startDate = new Date(originalReq.created_at);
+      const newEnd = new Date(startDate);
+      newEnd.setDate(newEnd.getDate() + days);
+      const { error: subErr } = await supabase
+        .from('subscription_charges')
+        .update({ charge_amount: calc.dailyRepayment, end_date: newEnd.toISOString().slice(0, 10) })
+        .eq('rent_request_id', reqId)
+        .in('status', ['active', 'pending']);
+      if (subErr) console.warn('Subscription charge sync warning:', subErr);
+
       await supabase.from('audit_logs').insert({
-        action_type: 'tenant_request_edit',
+        action_type: 'tenant_ops_rent_correction',
         user_id: user?.id || null,
         record_id: reqId,
         table_name: 'rent_requests',
-        metadata: { tenant_id: tenantId, changes },
+        metadata: { tenant_id: tenantId, before, after, reason },
       });
 
       queryClient.invalidateQueries({ queryKey: ['tenant-detail', tenantId] });
-      toast.success('Request updated');
+      queryClient.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
+      queryClient.invalidateQueries({ queryKey: ['coo-tenant-balances'] });
+      queryClient.invalidateQueries({ predicate: (q) => Array.isArray(q.queryKey) && typeof q.queryKey[0] === 'string' && (q.queryKey[0] as string).startsWith('cfo-') });
+      toast.success(`Rent corrected — daily charge updated to UGX ${calc.dailyRepayment.toLocaleString()}`);
       setEditingRequestId(null);
     } catch (e: any) {
       toast.error(e.message || 'Failed to save');
@@ -331,31 +361,65 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
                         </div>
 
                         {isEditing ? (
-                          <div className="space-y-2 pt-1">
-                            <div className="grid grid-cols-3 gap-2">
-                              <div>
-                                <label className="text-[10px] text-muted-foreground">Rent Amount</label>
-                                <Input type="number" value={requestEdit.rent_amount} onChange={e => setRequestEdit(v => ({ ...v, rent_amount: e.target.value }))} className="h-8 text-sm" />
+                          (() => {
+                            const newAmount = Number(requestEdit.rent_amount) || 0;
+                            const newDays = Number(requestEdit.duration_days) || 0;
+                            const canPreview = newAmount > 0 && newDays > 0;
+                            const preview = canPreview ? calculateRentRepayment(newAmount, newDays) : null;
+                            const repaid = Number(req.amount_repaid || 0);
+                            const newOutstanding = preview ? preview.totalRepayment - repaid : 0;
+                            const reasonOk = requestEdit.reason.trim().length >= 10;
+                            const outstandingOk = preview ? preview.totalRepayment >= repaid : false;
+                            const canSave = canPreview && reasonOk && outstandingOk;
+                            return (
+                              <div className="space-y-2 pt-1">
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <label className="text-[10px] text-muted-foreground">Rent Amount (UGX)</label>
+                                    <Input type="number" value={requestEdit.rent_amount} onChange={e => setRequestEdit(v => ({ ...v, rent_amount: e.target.value }))} className="h-8 text-sm" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[10px] text-muted-foreground">Duration (days)</label>
+                                    <Input type="number" value={requestEdit.duration_days} onChange={e => setRequestEdit(v => ({ ...v, duration_days: e.target.value }))} className="h-8 text-sm" />
+                                  </div>
+                                </div>
+                                {preview && (
+                                  <div className="rounded-md bg-muted/50 p-2 text-[11px] space-y-0.5">
+                                    <div className="flex justify-between"><span className="text-muted-foreground">Access Fee</span><span>UGX {preview.accessFee.toLocaleString()}</span></div>
+                                    <div className="flex justify-between"><span className="text-muted-foreground">Request Fee</span><span>UGX {preview.requestFee.toLocaleString()}</span></div>
+                                    <div className="flex justify-between font-semibold"><span>New Total Repayment</span><span>UGX {preview.totalRepayment.toLocaleString()}</span></div>
+                                    <div className="flex justify-between"><span className="text-muted-foreground">New Daily</span><span>UGX {preview.dailyRepayment.toLocaleString()}</span></div>
+                                    <div className={cn('flex justify-between font-semibold pt-1 border-t border-border/40', !outstandingOk && 'text-destructive')}>
+                                      <span>New Outstanding</span>
+                                      <span>UGX {newOutstanding.toLocaleString()}</span>
+                                    </div>
+                                    {!outstandingOk && (
+                                      <p className="text-destructive text-[10px]">New total is below already-repaid (UGX {repaid.toLocaleString()}).</p>
+                                    )}
+                                  </div>
+                                )}
+                                <div>
+                                  <label className="text-[10px] text-muted-foreground">Reason for correction (min 10 chars)</label>
+                                  <Textarea
+                                    value={requestEdit.reason}
+                                    onChange={e => setRequestEdit(v => ({ ...v, reason: e.target.value }))}
+                                    rows={2}
+                                    className="text-sm"
+                                    placeholder="Explain why this rent is being corrected…"
+                                  />
+                                </div>
+                                <div className="flex gap-2 justify-end">
+                                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={cancelEditRequest} disabled={savingRequest}>
+                                    Cancel
+                                  </Button>
+                                  <Button size="sm" className="h-7 text-xs gap-1" onClick={() => saveRequest(req.id)} disabled={savingRequest || !canSave}>
+                                    {savingRequest ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                                    Save
+                                  </Button>
+                                </div>
                               </div>
-                              <div>
-                                <label className="text-[10px] text-muted-foreground">Daily Repay</label>
-                                <Input type="number" value={requestEdit.daily_repayment} onChange={e => setRequestEdit(v => ({ ...v, daily_repayment: e.target.value }))} className="h-8 text-sm" />
-                              </div>
-                              <div>
-                                <label className="text-[10px] text-muted-foreground">Days</label>
-                                <Input type="number" value={requestEdit.duration_days} onChange={e => setRequestEdit(v => ({ ...v, duration_days: e.target.value }))} className="h-8 text-sm" />
-                              </div>
-                            </div>
-                            <div className="flex gap-2 justify-end">
-                              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={cancelEditRequest} disabled={savingRequest}>
-                                Cancel
-                              </Button>
-                              <Button size="sm" className="h-7 text-xs gap-1" onClick={() => saveRequest(req.id)} disabled={savingRequest}>
-                                {savingRequest ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-                                Save
-                              </Button>
-                            </div>
-                          </div>
+                            );
+                          })()
                         ) : (
                           <>
                             <div className="flex items-center justify-between text-sm">
