@@ -72,11 +72,24 @@ export function AgentPerformanceReport() {
         .gte('created_at', startISO)
         .lte('created_at', endISO);
 
-      // Pull rent_requests for tenant counts (assigned tenants)
-      const { data: rentReqs } = await supabase
-        .from('rent_requests')
-        .select('agent_id, tenant_id, amount_repaid, status, created_at')
-        .not('agent_id', 'is', null);
+      // Pull rent_requests for tenant counts (assigned tenants) - paginated to bypass 1000-row cap
+      const rentReqs: { agent_id: string | null; tenant_id: string | null }[] = [];
+      {
+        const PAGE = 1000;
+        let from = 0;
+        // Cap at 20k rows defensively
+        for (let p = 0; p < 20; p++) {
+          const { data, error } = await supabase
+            .from('rent_requests')
+            .select('agent_id, tenant_id')
+            .not('agent_id', 'is', null)
+            .range(from, from + PAGE - 1);
+          if (error || !data || data.length === 0) break;
+          rentReqs.push(...(data as any));
+          if (data.length < PAGE) break;
+          from += PAGE;
+        }
+      }
 
       const agentIds = Array.from(new Set([
         ...(collections || []).map(c => c.agent_id),
@@ -119,16 +132,17 @@ export function AgentPerformanceReport() {
         if (type.includes('interest')) a.interest += Number(e.amount || 0);
         else if (type.includes('commission')) a.commissionEarnings += Number(e.amount || 0);
       });
-      (rentReqs || []).forEach(r => {
+      rentReqs.forEach(r => {
         if (!r.agent_id || !r.tenant_id) return;
-        const a = ensure(r.agent_id as string);
-        a.tenantsTotal.add(r.tenant_id);
-        // "Paid in window" = had a collection in window for this tenant
+        ensure(r.agent_id).tenantsTotal.add(r.tenant_id);
       });
-      // Mark tenants paid based on collections in window
+      // Mark tenants paid from collections in window (regardless of rent_request linkage)
       (collections || []).forEach(c => {
         if (!c.tenant_id) return;
-        ensure(c.agent_id).tenantsPaid.add(c.tenant_id);
+        const a = ensure(c.agent_id);
+        a.tenantsPaid.add(c.tenant_id);
+        // Ensure paid tenants always count toward total (in case rent_request link is missing)
+        a.tenantsTotal.add(c.tenant_id);
       });
 
       const rows: AgentPerfRow[] = Object.entries(agg).map(([id, a]) => {
