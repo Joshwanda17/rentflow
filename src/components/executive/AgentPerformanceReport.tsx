@@ -296,7 +296,10 @@ export function AgentPerformanceReport() {
         wallet_total: t.wallet_total + r.wallet_total,
         tenants_paid: t.tenants_paid + r.tenants_paid,
         tenants_total: t.tenants_total + r.tenants_total,
-      }), { collected: 0, payments: 0, commission: 0, interest: 0, wallet_total: 0, tenants_paid: 0, tenants_total: 0 });
+        daily_portfolio: (t.daily_portfolio || 0) + (r.daily_portfolio || 0),
+        expected_weekly: (t.expected_weekly || 0) + (r.expected_weekly || 0),
+        gap: (t.gap || 0) + (r.gap || 0),
+      }), { collected: 0, payments: 0, commission: 0, interest: 0, wallet_total: 0, tenants_paid: 0, tenants_total: 0, daily_portfolio: 0, expected_weekly: 0, gap: 0 });
 
       return { rows, totals };
     },
@@ -323,7 +326,12 @@ export function AgentPerformanceReport() {
     wallet_total: t.wallet_total + r.wallet_total,
     tenants_paid: t.tenants_paid + r.tenants_paid,
     tenants_total: t.tenants_total + r.tenants_total,
-  }), { collected: 0, payments: 0, commission: 0, interest: 0, wallet_total: 0, tenants_paid: 0, tenants_total: 0 }), [rows]);
+    daily_portfolio: (t.daily_portfolio || 0) + (r.daily_portfolio || 0),
+    expected_weekly: (t.expected_weekly || 0) + (r.expected_weekly || 0),
+    gap: (t.gap || 0) + (r.gap || 0),
+  }), { collected: 0, payments: 0, commission: 0, interest: 0, wallet_total: 0, tenants_paid: 0, tenants_total: 0, daily_portfolio: 0, expected_weekly: 0, gap: 0 }), [rows]);
+
+  const overallEfficiency = (totals.expected_weekly || 0) > 0 ? (totals.collected / (totals.expected_weekly || 1)) * 100 : 0;
 
   const activeFilterCount =
     (paymentSource !== 'all' ? 1 : 0) +
