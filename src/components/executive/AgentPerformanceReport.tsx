@@ -68,6 +68,132 @@ const STATUS_BADGE: Record<AgentPerfRow['status'], { label: string; cls: string;
 const fmt = (n: number) => Math.round(n).toLocaleString();
 const fmtPct = (n: number) => `${n.toFixed(1)}%`;
 
+// ============= Column-header filter helpers =============
+type NumericKey =
+  | 'tenants_total' | 'daily_portfolio' | 'expected_weekly' | 'collected'
+  | 'efficiency' | 'gap' | 'payments' | 'pct_paid'
+  | 'commission' | 'interest' | 'wallet_total';
+type Range = { min?: number; max?: number };
+type StatusKey = AgentPerfRow['status'];
+type ColFilters = {
+  name: string;
+  status: Set<StatusKey>;
+  ranges: Partial<Record<NumericKey, Range>>;
+};
+const EMPTY_FILTERS: ColFilters = { name: '', status: new Set(), ranges: {} };
+
+const isRangeActive = (r?: Range) =>
+  !!r && ((r.min !== undefined && !Number.isNaN(r.min)) || (r.max !== undefined && !Number.isNaN(r.max)));
+
+function HeaderFilter({
+  active,
+  align = 'center',
+  children,
+}: { active: boolean; align?: 'start' | 'center' | 'end'; children: React.ReactNode }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          onClick={(e) => e.stopPropagation()}
+          className={cn(
+            'inline-flex h-5 w-5 items-center justify-center rounded hover:bg-white/20 transition-colors relative',
+            active && 'bg-white/25'
+          )}
+          aria-label="Filter column"
+        >
+          <Filter className="h-3 w-3" />
+          {active && <span className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-yellow-300 ring-1 ring-slate-900" />}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align={align} className="w-60 p-3 space-y-2">
+        {children}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function TextFilter({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="space-y-2">
+      <Label className="text-xs font-semibold">Search agent name</Label>
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Contains…"
+        className="h-8 text-sm"
+        autoFocus
+      />
+      {value && (
+        <Button variant="ghost" size="sm" className="h-7 w-full text-xs" onClick={() => onChange('')}>
+          <X className="h-3 w-3 mr-1" /> Clear
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function NumericRangeFilter({
+  label, value, onChange,
+}: { label: string; value?: Range; onChange: (r?: Range) => void }) {
+  const [min, setMin] = useState<string>(value?.min !== undefined ? String(value.min) : '');
+  const [max, setMax] = useState<string>(value?.max !== undefined ? String(value.max) : '');
+  const apply = () => {
+    const minN = min === '' ? undefined : Number(min);
+    const maxN = max === '' ? undefined : Number(max);
+    if (minN === undefined && maxN === undefined) { onChange(undefined); return; }
+    onChange({ min: minN, max: maxN });
+  };
+  const clear = () => { setMin(''); setMax(''); onChange(undefined); };
+  return (
+    <div className="space-y-2">
+      <Label className="text-xs font-semibold">{label}</Label>
+      <div className="flex items-center gap-1.5">
+        <Input type="number" inputMode="numeric" value={min} onChange={(e) => setMin(e.target.value)}
+          placeholder="Min" className="h-8 text-sm" />
+        <span className="text-muted-foreground text-xs">–</span>
+        <Input type="number" inputMode="numeric" value={max} onChange={(e) => setMax(e.target.value)}
+          placeholder="Max" className="h-8 text-sm" />
+      </div>
+      <div className="flex gap-1.5">
+        <Button size="sm" className="h-7 flex-1 text-xs" onClick={apply}>Apply</Button>
+        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={clear}>Clear</Button>
+      </div>
+    </div>
+  );
+}
+
+function StatusMultiFilter({
+  value, onChange,
+}: { value: Set<StatusKey>; onChange: (next: Set<StatusKey>) => void }) {
+  const options: StatusKey[] = ['excellent', 'good', 'moderate', 'low', 'critical'];
+  const toggle = (k: StatusKey) => {
+    const next = new Set(value);
+    if (next.has(k)) next.delete(k); else next.add(k);
+    onChange(next);
+  };
+  return (
+    <div className="space-y-2">
+      <Label className="text-xs font-semibold">Filter by status</Label>
+      <div className="space-y-1.5">
+        {options.map((k) => (
+          <label key={k} className="flex items-center gap-2 cursor-pointer text-sm">
+            <Checkbox checked={value.has(k)} onCheckedChange={() => toggle(k)} />
+            <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold border', STATUS_BADGE[k].cls)}>
+              {STATUS_BADGE[k].label}
+            </span>
+          </label>
+        ))}
+      </div>
+      {value.size > 0 && (
+        <Button variant="ghost" size="sm" className="h-7 w-full text-xs" onClick={() => onChange(new Set())}>
+          <X className="h-3 w-3 mr-1" /> Clear
+        </Button>
+      )}
+    </div>
+  );
+}
+
 export function AgentPerformanceReport() {
   const [preset, setPreset] = useState<RangePreset>('last-7');
   const [paymentSource, setPaymentSource] = useState<PaymentSource>('all');
