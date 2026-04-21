@@ -211,6 +211,11 @@ Deno.serve(async (req) => {
       tenant_id: userId!,
       rent_request_id: rentReq?.id,
       existing: isExisting,
+      // Auto-sign-in credentials (only present for newly-created tenants).
+      // For existing users we cannot return their password — the client will
+      // show a "you're already registered" message and route them to login.
+      auth_email: createdEmail,
+      auth_password: createdPassword,
     });
 
   } catch (error: any) {
