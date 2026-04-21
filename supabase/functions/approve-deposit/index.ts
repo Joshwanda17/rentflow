@@ -218,32 +218,8 @@ Deno.serve(async (req) => {
               if (sweepLedgerErr) {
                 console.error(`[approve-deposit] Float sweep ledger failed for ${depositRequest.id}:`, sweepLedgerErr.message);
               } else {
-                const { data: existingFloat } = await supabaseAdmin
-                  .from('agent_landlord_float')
-                  .select('id, balance, total_funded')
-                  .eq('agent_id', depositRequest.user_id)
-                  .maybeSingle();
-
-                if (existingFloat) {
-                  await supabaseAdmin
-                    .from('agent_landlord_float')
-                    .update({
-                      balance: Number(existingFloat.balance) + sweepAmount,
-                      total_funded: Number(existingFloat.total_funded) + sweepAmount,
-                      updated_at: new Date().toISOString(),
-                    })
-                    .eq('id', existingFloat.id);
-                } else {
-                  await supabaseAdmin
-                    .from('agent_landlord_float')
-                    .insert({
-                      agent_id: depositRequest.user_id,
-                      balance: sweepAmount,
-                      total_funded: sweepAmount,
-                      total_paid_out: 0,
-                    });
-                }
-
+                // Note: agent_landlord_float is updated automatically by the
+                // general_ledger_route_buckets trigger on agent_float_deposit entries.
                 await supabaseAdmin.from('agent_float_funding').insert({
                   agent_id: depositRequest.user_id,
                   amount: sweepAmount,
