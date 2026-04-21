@@ -221,6 +221,21 @@ Deno.serve(async (req) => {
 
     const verb = op === "credit" ? "credited to" : "debited from";
 
+    // Force wallet bucket reconciliation so CFO-credited funds land in the
+    // withdrawable bucket immediately (no drift between ledger and wallet columns).
+    let newWithdrawableBalance: number | null = null;
+    try {
+      await adminClient.rpc("reconcile_wallet_from_ledger", { p_user_id: target_user_id });
+      const { data: refreshed } = await adminClient
+        .from("wallets")
+        .select("withdrawable_balance")
+        .eq("user_id", target_user_id)
+        .single();
+      newWithdrawableBalance = Number(refreshed?.withdrawable_balance ?? 0);
+    } catch (reconErr) {
+      console.error("[cfo-direct-credit] reconcile_wallet_from_ledger failed:", (reconErr as Error).message);
+    }
+
     // Notify managers (fire-and-forget)
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
       method: "POST",
@@ -242,6 +257,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({
       success: true,
       message: `UGX ${amount.toLocaleString()} ${verb} ${targetProfile.full_name}`,
+      new_withdrawable_balance: newWithdrawableBalance,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
