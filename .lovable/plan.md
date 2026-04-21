@@ -1,39 +1,74 @@
 
 
-## Fix: CFO Direct Credits Must Land in the Withdrawable Bucket
+## Add "Agent Performance & Wallet Earnings" Report to Agent Ops (with PDF export)
 
-### Problem
-When the CFO credits a user (e.g. UGX 50,000 to Joshua Wanda from the Funder dashboard context), the money shows up in the ledger but the **withdrawable bucket stays at UGX 100**. Joshua can see the balance but cannot withdraw it.
+### Goal
+Add a new tab in Agent Ops that produces the table from the uploaded screenshot — per-agent weekly performance with tenants paid, collections, commissions, interest, wallet totals, and a status badge — and exports it as a landscape PDF.
 
-**Root cause**: `cfo-direct-credit` sends the credit with `wallet_category = 'system_balance_correction'` (the default when no category is picked). The wallet bucket router (`wallet_route_for_category`) only routes categories it explicitly recognises. `system_balance_correction` is not in the credit allowlist, so the router returns `bucket='none'` and the money **never lands in withdrawable / float / advance** — it orphans between ledger and buckets.
+### Where it lives
+- **Dashboard**: `src/components/executive/AgentOpsDashboard.tsx`
+- **New nav item** "Performance Report" (icon: `FileBarChart`, color: `bg-teal-600`, priority) added to `NAV_ITEMS`, with `ActiveView` extended to include `'performance-report'`.
+- **New component**: `src/components/executive/AgentPerformanceReport.tsx`
+- **New PDF generator**: `src/lib/agentPerformanceReportPdf.ts`
 
-Current credit-routing allowlist (withdrawable):
-`wallet_deposit, wallet_transfer, cfo_direct_credit, agent_commission_earned, agent_commission, agent_bonus, partner_commission, referral_bonus, proxy_investment_commission, salary_payout, roi_payout`
+### Data sources (existing tables, no migrations)
+For each agent assigned to tenants in the selected week:
 
-`system_balance_correction`, `roi_wallet_credit`, GAAP expense categories → all unrouted.
+| Column | Source |
+|---|---|
+| Agent Name | `profiles.full_name` |
+| Tenants Paid (paid / total) | `rent_requests` where `agent_id = X`, paid = count(distinct tenant_id where amount_repaid > 0 in window), total = count(distinct tenant_id active) |
+| % Paid | paid / total × 100 |
+| Collected | `agent_collections.amount` summed in window |
+| Payments | `agent_collections` row count in window |
+| 5% Commission | Collected × 0.05 (matches existing `agent_incentive_model` 10% rent commission logic — but report uses the gross 5% slice as displayed; see Notes) |
+| 0.5% Interest | `agent_earnings.amount` where `earning_type = 'interest'` (or `wallet_interest`) in window |
+| Total Wallet | Commission + Interest |
+| % Rate | Wallet / Collected × 100 |
+| Status | Critical < 25%, Low < 50%, Moderate < 75%, Strong ≥ 75% (color-coded amber/orange/red/green) |
 
-### Fix (two layers — both cheap, both needed)
+Date range default: **last 7 days** (matches screenshot "Apr 13 – Apr 19"). Date-range picker (presets: This Week, Last Week, This Month, Custom).
 
-**1. Router: add `system_balance_correction` + `roi_wallet_credit` to the withdrawable-credit allowlist.**
-Migration to `CREATE OR REPLACE FUNCTION public.wallet_route_for_category(...)` adding those two categories so cash_in lands in `withdrawable_balance`. These are the canonical categories the CFO uses to put spendable money into a user's wallet, so they MUST be withdrawable. (We also add the symmetric `cash_out` route for `system_balance_correction` so CFO debits subtract from withdrawable correctly.)
+### UI layout
+```text
+┌──────────────────────────────────────────────────────────────────┐
+│ Agent Performance & Wallet Earnings (Apr 13 – Apr 19, 2026)      │
+│ [Date range ▾]                              [⬇ Download PDF]      │
+├──────────────────────────────────────────────────────────────────┤
+│ KPI strip: Total Collected | Total Commission | Total Wallet | … │
+├──────────────────────────────────────────────────────────────────┤
+│ # | Agent | Tenants Paid | % Paid | Collected | Payments | 5%   │
+│   |       |              |        |           |          | Comm.│
+│   |  …    |   38/55      | 69.1%  | 3,672,000 |   92     | …    │
+│ ─ │ TOTALS row at bottom (sums)                                  │
+└──────────────────────────────────────────────────────────────────┘
+```
+- Sticky header, sortable columns, color tints per status (matches screenshot palette).
+- Mobile: switches to stacked card list (one card per agent), TOTALS card at the bottom.
 
-**2. Backfill Joshua's wallet** to reflect ledger reality.
-Use the existing `recompute_wallet_buckets` / equivalent to rebuild his three buckets from ledger, so his orphaned 50,000 CFO credit finally appears as withdrawable.
+### PDF export
+- Library: `jspdf` (already in project, lazy-imported same as `dailyPerformanceReport.ts`).
+- Orientation: **landscape A4** (table is wide).
+- Layout mirrors the screenshot: blue header row, alternating zebra rows, color-coded status text, TOTALS row in bold.
+- Footer: page number + "Generated by Welile · {timestamp}".
+- Filename: `agent_performance_{startDate}_{endDate}.pdf`.
+- Triggered by "Download PDF" button → `toast.success('PDF downloaded')`.
 
 ### Implementation steps
-1. **Migration**: update `wallet_route_for_category` to add:
-   - cash_in withdrawable: `system_balance_correction`, `roi_wallet_credit`
-   - cash_out withdrawable: `system_balance_correction`
-2. **Data fix**: recompute Joshua's wallet buckets (UUID `cb798acb-68bc-4b4e-a414-a3d374e030b6`) so withdrawable reflects the CFO credit.
-3. **Memory update**: append router category → bucket mapping to `mem://business-model/wallet-three-bucket-model` so future CFO category additions don't silently orphan money.
+1. Create `src/lib/agentPerformanceReportPdf.ts` — pure function that takes `{ rows, totals, periodLabel }` and returns a Blob using `jspdf` (no html2canvas — direct draw for crisp output and small file size).
+2. Create `src/components/executive/AgentPerformanceReport.tsx` — fetches data via `useQuery`, renders the table + KPI strip + download button.
+3. Wire into `AgentOpsDashboard.tsx`:
+   - Extend `ActiveView` type with `'performance-report'`
+   - Add nav item near the top of `NAV_ITEMS` (priority: true)
+   - Add `case 'performance-report': return <AgentPerformanceReport />;` in `renderSubView()`.
 
-### What this does NOT change
-- No change to edge function code, RLS, or the ledger itself.
-- Float and advance buckets stay isolated (company money / liabilities).
-- Withdrawal gate in `approve-withdrawal` stays as-is — it's correct; we're just making sure money the CFO *intends* to be withdrawable actually reaches that bucket.
+### Notes / open assumption
+- The screenshot says "5% Commission" and "0.5% Interest". Per `mem://business-model/agent-incentive-model` the canonical rate is **10% rent commission**. The report will display **whatever is actually recorded in `agent_earnings` / `agent_commission_payouts`** for the period (source of truth) and label them "Commission" and "Interest" generically — not hard-code 5% / 0.5% multipliers. The column headers in the screenshot are kept verbatim for visual parity but the values come from the ledger, not a multiplier. If you want strict 5%/0.5% display labels, that stays; only the underlying numbers come from real data.
+- No DB migrations. No RLS changes. Read-only feature.
 
-### Verification after fix
-- Joshua's `withdrawable_balance` should equal his ledger net (≈ 50,100).
-- Retrying the UGX 50,000 withdrawal through Funder dashboard should succeed.
-- New CFO credits with default category now route correctly without needing the operator to pick a specific wallet_category.
+### Verification
+- Open Agent Ops → "Performance Report" tab → table loads with current week data.
+- Change date range → table refreshes.
+- Click Download PDF → landscape PDF matches the screenshot styling.
+- TOTALS row sums match the on-screen KPIs.
 
