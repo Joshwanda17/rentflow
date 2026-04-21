@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -50,7 +50,7 @@ const BANK_DETAILS = {
 
 const QUICK_AMOUNTS = [50000, 100000, 250000, 500000];
 
-export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
+export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowedPurposes, lockPurpose }: DepositFlowProps) {
   const navigate = useNavigate();
   const [step, setStep] = useState<'channel' | 'form' | 'submitting' | 'success'>('channel');
   const [channel, setChannel] = useState<DepositChannel>('momo');
@@ -62,10 +62,21 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
   const [transactionDate, setTransactionDate] = useState('');
   const [transactionTime, setTransactionTime] = useState('');
   const [reason, setReason] = useState('');
-  const [depositPurpose, setDepositPurpose] = useState<DepositPurpose | ''>('');
+  const [depositPurpose, setDepositPurpose] = useState<DepositPurpose | ''>(defaultPurpose ?? '');
+  const [showPurposeGrid, setShowPurposeGrid] = useState<boolean>(!lockPurpose);
   const [bankSlipFile, setBankSlipFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tidError, setTidError] = useState('');
+
+  // Re-apply default when dialog re-opens
+  useEffect(() => {
+    if (open && defaultPurpose) {
+      setDepositPurpose(defaultPurpose);
+      const purposeLabel = DEPOSIT_PURPOSES.find(p => p.id === defaultPurpose)?.label;
+      if (purposeLabel && defaultPurpose !== 'other') setReason(purposeLabel);
+      setShowPurposeGrid(!lockPurpose);
+    }
+  }, [open, defaultPurpose, lockPurpose]);
 
   const validateTid = (value: string, provider?: 'mtn' | 'airtel') => {
     const upper = value.trim().toUpperCase();
