@@ -33,8 +33,20 @@ export default function Referrals() {
   const { toast } = useToast();
   const { snapshot, loading, refresh } = useUserSnapshot(user?.id);
   const [copied, setCopied] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'incomplete'>('all');
 
   const referrals = snapshot.referrals || [];
+  const isReferralIncomplete = (r: any) =>
+    r.referred_profile_missing ||
+    !r.referred_name ||
+    String(r.referred_name).startsWith('Onboarding incomplete');
+  const completedCount = referrals.filter((r: any) => !isReferralIncomplete(r)).length;
+  const incompleteCount = referrals.filter(isReferralIncomplete).length;
+  const filteredReferrals = referrals.filter((r: any) => {
+    if (statusFilter === 'completed') return !isReferralIncomplete(r);
+    if (statusFilter === 'incomplete') return isReferralIncomplete(r);
+    return true;
+  });
   const referralLink = user ? `${getPublicOrigin()}/join?r=${user.id}` : '';
 
   const copyReferralLink = async () => {
@@ -212,6 +224,24 @@ export default function Referrals() {
               </CardTitle>
             </CardHeader>
             <CardContent>
+              <div className="mb-4 flex items-center justify-between gap-2 flex-wrap">
+                <ToggleGroup
+                  type="single"
+                  value={statusFilter}
+                  onValueChange={(v) => v && setStatusFilter(v as any)}
+                  className="bg-muted/30 rounded-lg p-1"
+                >
+                  <ToggleGroupItem value="all" className="text-xs h-8 px-3 data-[state=on]:bg-background">
+                    All ({referrals.length})
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="completed" className="text-xs h-8 px-3 data-[state=on]:bg-background">
+                    Completed ({completedCount})
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="incomplete" className="text-xs h-8 px-3 data-[state=on]:bg-background">
+                    Incomplete ({incompleteCount})
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              </div>
               {referrals.length === 0 ? (
                 <div className="text-center py-8">
                   <Users className="h-12 w-12 mx-auto text-muted-foreground/30 mb-3" />
@@ -220,9 +250,16 @@ export default function Referrals() {
                     Share your link to start earning!
                   </p>
                 </div>
+              ) : filteredReferrals.length === 0 ? (
+                <div className="text-center py-8">
+                  <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground/30 mb-3" />
+                  <p className="text-muted-foreground">
+                    No {statusFilter === 'completed' ? 'completed' : 'incomplete'} referrals
+                  </p>
+                </div>
               ) : (
                 <div className="space-y-3">
-                  {referrals.map((referral: any, index: number) => {
+                  {filteredReferrals.map((referral: any, index: number) => {
                     const isIncomplete =
                       referral.referred_profile_missing ||
                       !referral.referred_name ||
