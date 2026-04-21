@@ -267,6 +267,20 @@ export function DirectCreditTool() {
     staleTime: 20_000,
   });
 
+  const { data: roiPayoutQueueCount = 0 } = useQuery({
+    queryKey: ['roi-payout-queue-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('pending_wallet_operations')
+        .select('id', { count: 'exact', head: true })
+        .eq('category', 'roi_payout')
+        .eq('status', 'coo_approved');
+      if (error) return 0;
+      return count ?? 0;
+    },
+    staleTime: 20_000,
+  });
+
   const availableCategories = useMemo(
     () => PAYOUT_CATEGORIES.filter(c => c.allowedOps.includes(operation)),
     [operation]
