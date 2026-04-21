@@ -9,6 +9,9 @@ import { Loader2, CheckCircle2, Phone, Calendar, Clock, Hash, AlertCircle, Histo
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+type DepositChannel = 'momo' | 'bank' | 'agent_cash' | 'cash';
+type DepositPurpose = 'operational_float' | 'personal_deposit' | 'partnership_deposit' | 'personal_rent_repayment' | 'other';
+
 interface DepositFlowProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -20,9 +23,6 @@ interface DepositFlowProps {
   /** Hide the purpose grid behind a "Change purpose" link. */
   lockPurpose?: boolean;
 }
-
-type DepositChannel = 'momo' | 'bank' | 'agent_cash' | 'cash';
-type DepositPurpose = 'operational_float' | 'personal_deposit' | 'partnership_deposit' | 'personal_rent_repayment' | 'other';
 
 const DEPOSIT_PURPOSES: { id: DepositPurpose; label: string; emoji: string; desc: string }[] = [
   { id: 'operational_float', emoji: '🏘️', label: 'Operational Float', desc: 'Cash collected from tenants in the field' },
