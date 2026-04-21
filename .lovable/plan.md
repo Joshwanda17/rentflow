@@ -1,76 +1,82 @@
 
 
-## New transactional email: Partner Wallet Deposit
+## Send "Partner Wallet Deposit" email when CFO approves an ROI Payout
 
-Add a new React Email template that fires when a partner's wallet receives a deposit, matching the HTML mock you uploaded and styled identically to the existing `returns-disbursement-confirmation` template (same purple brand, same card layout, same footer).
+When the CFO clicks **Approve** on an ROI Payout (Send Money tab), the new `partner-wallet-deposit` template will be sent to the partner with the exact transaction details from the approved row.
 
-### What gets created
+### What changes
 
-**1. `supabase/functions/_shared/transactional-email-templates/partner-wallet-deposit.tsx`** — new React Email template.
+One file: **`supabase/functions/approve-wallet-operation/index.ts`** — the existing ROI-payout email block (lines 693–767) currently sends `returns-disbursement-confirmation`. Swap it to send the new `partner-wallet-deposit` template, and pass the exact data the user requires.
 
-Component name: `PartnerWalletDeposit`. Structure mirrors `returns-disbursement-confirmation.tsx` so the brand stays consistent across all partner emails:
+### Field mapping (locked, no defaults guessed)
 
-- Top purple gradient bar
-- Header with Welile logo (left) + "Secure Notification" tag (right)
-- Hero: circular checkmark icon badge → headline **"Wallet Deposit Successful"** → "Dear {partner_name},"
-- Intro line: *"Great news! The funds have successfully credited to your wallet and are now available for use."*
-- Ledger card with:
-  - **Amount Received** (large purple amount, formatted via shared `formatAmount` pattern)
-  - **Reference ID** (monospace)
-  - **Processing Date**
-  - **Destination** → `WALLET` with `••••{wallet_id_4_digits}` subtext
-  - Optional **Funded By** row when `funded_by_agent = true` and `agent_name` is provided (matches the proxy-agent pattern already used in returns disbursement)
-- Outro: *"You can now log in to your account to view your updated wallet balance and transaction history."* + Contact Support link
-- Standard Welile footer (social icons, address, privacy/terms/unsubscribe, copyright)
+| Email field | Source |
+|---|---|
+| `partner_name` | `profiles.full_name` for `op.user_id` |
+| `transaction_id` (Reference ID) | `op.reference_id` — the same ROI payout reference shown on the queue card. Fallback chain: `op.reference_id → payment_reference → op.id`. **No prefix added.** |
+| `amount` | `op.amount` |
+| `currency` | `'UGX'` |
+| `date` (Processing Date) | `new Date()` formatted `dd Month yyyy` (e.g. `21 April 2026`) — same format the queue card uses |
+| `wallet_id_last4` | Last 4 chars of `wallets.id` for the partner (`op.user_id`). Looked up via `select id from wallets where user_id = op.user_id`. For managed/proxy payouts the partner is still `op.user_id` (the partner owns the credited liability — the proxy agent is just the cash collector), so the partner's own wallet ID is correct. |
+| `source` | `'Platform'` (per your prior directive) |
+| `company_name` / `logo_url` / links | Same defaults already used by the existing email block |
 
-Props interface:
+The template's `funded_by_agent` / `agent_name` props were removed in the previous step — they will not be passed.
 
-```ts
-interface PartnerWalletDepositProps {
-  partner_name?: string
-  transaction_id?: string
-  amount?: string | number
-  currency?: string                 // defaults to 'UGX'
-  date?: string
-  wallet_id_last4?: string          // shown as ••••1234
-  source?: string                   // e.g. 'CFO Direct Credit', 'Mobile Money', 'Agent Cash'
-  funded_by_agent?: boolean
-  agent_name?: string
-  company_name?: string
-  logo_url?: string
-  unsubscribe_url?: string
-  contact_url?: string
-}
-```
+### Idempotency
 
-Exports a `template: TemplateEntry` with:
-- `component: PartnerWalletDeposit`
-- `subject: (data) => 'Wallet deposit of ${formatted} received'`
-- `displayName: 'Partner Wallet Deposit'`
-- `previewData` populated with realistic UGX values so it renders in the preview tool
+Keep the existing `idempotencyKey: \`roi-payout-${op.id}\`` so a re-approval cannot double-send. Update the key prefix to `partner-wallet-deposit-${op.id}` so it is distinct from any prior `roi-payout-${op.id}` send-log entry and the email is allowed to go out once after this change ships.
 
-**2. `supabase/functions/_shared/transactional-email-templates/registry.ts`** — register the new template:
+### Trigger condition (unchanged from current block)
 
 ```ts
-import { template as partnerWalletDepositTemplate } from './partner-wallet-deposit.tsx'
-
-export const TEMPLATES: Record<string, TemplateEntry> = {
-  'test-email': testTemplate,
-  'returns-disbursement-confirmation': returnsDisbursementTemplate,
-  'partner-wallet-deposit': partnerWalletDepositTemplate,
-}
+if (op.category === 'roi_payout' || op.category === 'supporter_platform_rewards') { ... }
 ```
 
-That's all that's needed for the template to appear in the preview endpoint and be sendable via the existing transactional email infrastructure.
+This already fires from the **Send Money → ROI Payout — Expense** Approve button (which calls `approve-wallet-operation` via `ROIPayoutQueue.tsx`) and from the standalone `CFOROIRequests` tab — both surfaces will now send the new template.
 
-### Out of scope (will not be touched in this step)
+### Pseudocode of the swap
 
-- No edge function is wired to *send* this template yet — that's a separate trigger task. This step only ships the template + registry entry so it's available, previewable, and ready to be invoked.
-- No DB or schema changes.
-- The existing `returns-disbursement-confirmation` template is left untouched.
+```ts
+// fetch partner profile (existing)
+const { data: partnerProfile } = await adminClient
+  .from("profiles").select("email, full_name").eq("id", op.user_id).maybeSingle();
+
+// NEW: fetch partner wallet id for last-4
+const { data: partnerWallet } = await adminClient
+  .from("wallets").select("id").eq("user_id", op.user_id).maybeSingle();
+const walletLast4 = partnerWallet?.id ? partnerWallet.id.replace(/-/g, '').slice(-4) : '';
+
+const refId = op.reference_id || payment_reference || op.id;
+const todayLabel = new Date().toLocaleDateString('en-GB', { day:'2-digit', month:'long', year:'numeric' });
+
+await fetch(`${supabaseUrl}/functions/v1/send-transactional-email`, {
+  method: "POST",
+  headers: { "Content-Type":"application/json", "Authorization":`Bearer ${supabaseServiceKey}` },
+  body: JSON.stringify({
+    templateName: "partner-wallet-deposit",
+    recipientEmail: partnerProfile.email,
+    idempotencyKey: `partner-wallet-deposit-${op.id}`,
+    templateData: {
+      partner_name: partnerProfile.full_name || "Partner",
+      transaction_id: refId,           // ← exact ROI payout reference ID
+      amount: op.amount,
+      currency: "UGX",
+      date: todayLabel,
+      wallet_id_last4: walletLast4,    // ← partner's actual wallet UUID, last 4 chars
+      source: "Platform",
+    },
+  }),
+});
+```
+
+### Out of scope
+
+- The template itself (`partner-wallet-deposit.tsx`) and its registry entry — already shipped in the previous step.
+- The `returns-disbursement-confirmation` template stays in the registry but is **no longer sent** for ROI payouts (replaced by `partner-wallet-deposit`). It can be repurposed later for a different event without further changes here.
+- No edge function deploys for any other function, no schema or RLS changes.
 
 ### Files touched
 
-- `supabase/functions/_shared/transactional-email-templates/partner-wallet-deposit.tsx` (new)
-- `supabase/functions/_shared/transactional-email-templates/registry.ts` (one import + one registry line)
+- `supabase/functions/approve-wallet-operation/index.ts` (one block replaced, ~lines 693–767)
 
