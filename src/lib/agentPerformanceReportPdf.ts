@@ -28,6 +28,9 @@ export interface AgentPerfTotals {
   wallet_total: number;
   tenants_paid: number;
   tenants_total: number;
+  daily_portfolio?: number;
+  expected_weekly?: number;
+  gap?: number;
 }
 
 const STATUS_LABEL: Record<AgentPerfRow['status'], string> = {
