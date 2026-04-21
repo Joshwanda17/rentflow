@@ -186,9 +186,8 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     const agentId = existingPortfolio?.agent_id ?? user.id;
-    const isFirstInvestment = !existingPortfolio;
 
-    const { error: portfolioErr } = await adminClient.from("investor_portfolios").insert({
+    const { data: insertedPortfolio, error: portfolioErr } = await adminClient.from("investor_portfolios").insert({
       investor_id: user.id,
       agent_id: agentId,
       investment_amount: amount,
@@ -202,11 +201,14 @@ Deno.serve(async (req) => {
       next_roi_date: firstPayoutDate,
       maturity_date: maturityStr,
       total_roi_earned: 0,
-    });
+    }).select("id").maybeSingle();
 
     if (portfolioErr) {
       console.error("[fund-rent-pool] Portfolio creation failed:", portfolioErr.message);
     }
+
+    const portfolioCreatedThisRun = !portfolioErr && !!insertedPortfolio?.id;
+    const newPortfolioId = insertedPortfolio?.id ?? referenceId;
 
     // Read updated balance after trigger
     const { data: updatedWallet } = await adminClient
@@ -253,8 +255,8 @@ Deno.serve(async (req) => {
       }),
     }).catch(() => {});
 
-    // First-investment Partnership Agreement email (one-time, fire-and-forget)
-    if (isFirstInvestment) {
+    // Partnership Agreement email — sent on every NEW portfolio creation (fire-and-forget)
+    if (portfolioCreatedThisRun) {
       try {
         const { data: profile } = await adminClient
           .from("profiles")
@@ -278,7 +280,7 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
               templateName: "partnership-agreement",
               recipientEmail: profile.email,
-              idempotencyKey: `partnership-agreement-${user.id}-${referenceId}`,
+              idempotencyKey: `partnership-agreement-${user.id}-${newPortfolioId}`,
               templateData: {
                 partner_name: profile.full_name || "Partner",
                 partnership_amount: amount,
