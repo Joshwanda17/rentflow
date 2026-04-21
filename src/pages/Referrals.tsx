@@ -5,6 +5,7 @@ import { useUserSnapshot } from '@/hooks/useUserSnapshot';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { 
   ArrowLeft, 
   Users, 
