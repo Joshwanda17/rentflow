@@ -36,12 +36,9 @@ export default function Referrals() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'incomplete'>('all');
 
   const referrals = snapshot.referrals || [];
-  const isReferralIncomplete = (r: any) =>
-    r.referred_profile_missing ||
-    !r.referred_name ||
-    String(r.referred_name).startsWith('Onboarding incomplete');
-  const completedCount = referrals.filter((r: any) => !isReferralIncomplete(r)).length;
-  const incompleteCount = referrals.filter(isReferralIncomplete).length;
+  const isReferralIncomplete = (r: any) => r.referral_status === 'incomplete';
+  const completedCount = referrals.filter((r: any) => r.referral_status === 'completed').length;
+  const incompleteCount = referrals.filter((r: any) => r.referral_status === 'incomplete').length;
   const filteredReferrals = referrals.filter((r: any) => {
     if (statusFilter === 'completed') return !isReferralIncomplete(r);
     if (statusFilter === 'incomplete') return isReferralIncomplete(r);
@@ -260,10 +257,7 @@ export default function Referrals() {
               ) : (
                 <div className="space-y-3">
                   {filteredReferrals.map((referral: any, index: number) => {
-                    const isIncomplete =
-                      referral.referred_profile_missing ||
-                      !referral.referred_name ||
-                      String(referral.referred_name).startsWith('Onboarding incomplete');
+                    const isIncomplete = referral.referral_status === 'incomplete';
                     const displayName =
                       referral.referred_name ||
                       (referral.referred_id

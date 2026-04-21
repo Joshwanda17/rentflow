@@ -213,17 +213,23 @@ Deno.serve(async (req) => {
         }
       }
 
-      enrichedReferrals = enrichedReferrals.map((r: any) => ({
-        ...r,
-        referred_name:
-          profileMap[r.referred_id]?.full_name ||
-          (r.referred_id
-            ? `Onboarding incomplete · …${String(r.referred_id).slice(-6)}`
-            : 'Onboarding incomplete'),
-        referred_phone: profileMap[r.referred_id]?.phone || null,
-        referred_city: profileMap[r.referred_id]?.city || null,
-        referred_profile_missing: !profileMap[r.referred_id],
-      }));
+      enrichedReferrals = enrichedReferrals.map((r: any) => {
+        const profile = profileMap[r.referred_id];
+        const referralStatus: 'completed' | 'incomplete' = profile
+          ? 'completed'
+          : 'incomplete';
+        return {
+          ...r,
+          referred_name:
+            profile?.full_name ||
+            (r.referred_id
+              ? `Onboarding incomplete · …${String(r.referred_id).slice(-6)}`
+              : 'Onboarding incomplete'),
+          referred_phone: profile?.phone || null,
+          referred_city: profile?.city || null,
+          referral_status: referralStatus,
+        };
+      });
     }
 
     // Build expanded snapshot
