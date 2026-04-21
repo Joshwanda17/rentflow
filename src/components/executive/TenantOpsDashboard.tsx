@@ -17,6 +17,7 @@ import { AgentTenantSearch } from './AgentTenantSearch';
 import { TenantOverviewList } from './TenantOverviewList';
 import { TenantDetailPanel } from './TenantDetailPanel';
 import { TenantRegistrationReview } from './TenantRegistrationReview';
+import { AgentAllocationReport } from './AgentAllocationReport';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -29,13 +30,13 @@ import { toast } from 'sonner';
 import {
   FileCheck, Clock, AlertTriangle, CheckCircle2, Banknote,
   ArrowRight, Activity, ClipboardList, CalendarCheck, CalendarX2,
-  ArrowLeft, History, Table2, Link2, HandCoins, Users, Trash2, Loader2, FileSearch, Printer
+  ArrowLeft, History, Table2, Link2, HandCoins, Users, Trash2, Loader2, FileSearch, Printer, Network
 } from 'lucide-react';
 import { generateTenantOpsReportPdf } from '@/lib/generateTenantOpsReportPdf';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 
-type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests';
+type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations';
 
 interface NavCard {
   id: ActiveView;
