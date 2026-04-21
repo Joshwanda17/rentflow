@@ -176,6 +176,7 @@ export function AgentOpsDashboard() {
   const renderSubView = () => {
     switch (activeView) {
       case 'trust-capture': return <TrustCaptureTab />;
+      case 'performance-report': return <AgentPerformanceReport />;
       case 'pipeline': return <AgentOpsPipelineHub />;
       case 'brief': return <AgentOpsBrief />;
       case 'directory': return <AgentDirectory />;
