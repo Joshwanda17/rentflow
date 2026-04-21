@@ -415,7 +415,8 @@ export function AgentPerformanceReport() {
             <SelectTrigger className="w-[140px] h-9"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="strong">Strong</SelectItem>
+              <SelectItem value="excellent">Excellent</SelectItem>
+              <SelectItem value="good">Good</SelectItem>
               <SelectItem value="moderate">Moderate</SelectItem>
               <SelectItem value="low">Low</SelectItem>
               <SelectItem value="critical">Critical</SelectItem>
