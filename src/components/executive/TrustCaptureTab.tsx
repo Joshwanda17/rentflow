@@ -10,7 +10,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   ShieldCheck, Target, MapPin, Banknote, IdCard, Home, Briefcase, CheckCircle2,
-  Loader2, Search, AlertTriangle, Users,
+  Loader2, Search, AlertTriangle, Users, Share2, Trophy, Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AgentDailyMissions } from './AgentDailyMissions';
