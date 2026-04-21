@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Download, FileBarChart, Search, X } from 'lucide-react';
+import { Download, FileBarChart, Search, X, Users, HandCoins, TrendingUp, PiggyBank, Percent, Wallet, Info, Calendar } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, subWeeks, startOfMonth, endOfMonth } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -14,7 +14,7 @@ import { generateAgentPerformancePdf, AgentPerfRow, AgentPerfTotals } from '@/li
 
 type RangePreset = 'this-week' | 'last-week' | 'this-month' | 'last-7' | 'last-30' | 'last-90' | 'all';
 type PaymentSource = 'all' | 'agent_collections' | 'repayments' | 'merchant';
-type StatusFilter = 'all' | 'critical' | 'low' | 'moderate' | 'strong';
+type StatusFilter = 'all' | 'critical' | 'low' | 'moderate' | 'good' | 'excellent';
 
 const getRange = (preset: RangePreset): { start: Date | null; end: Date } => {
   const now = new Date();
@@ -45,18 +45,21 @@ const getRange = (preset: RangePreset): { start: Date | null; end: Date } => {
   }
 };
 
-const statusFor = (pctPaid: number): AgentPerfRow['status'] => {
-  if (pctPaid < 25) return 'critical';
-  if (pctPaid < 50) return 'low';
-  if (pctPaid < 75) return 'moderate';
-  return 'strong';
+// Status is derived from EFFICIENCY % (collected ÷ expected weekly)
+const statusForEfficiency = (eff: number): AgentPerfRow['status'] => {
+  if (eff >= 100) return 'excellent';
+  if (eff >= 80) return 'good';
+  if (eff >= 60) return 'moderate';
+  if (eff >= 40) return 'low';
+  return 'critical';
 };
 
-const STATUS_BADGE: Record<AgentPerfRow['status'], { variant: any; label: string; cls: string }> = {
-  critical: { variant: 'destructive', label: 'Critical', cls: 'bg-red-500/10 text-red-600 border-red-500/30' },
-  low:      { variant: 'warning',     label: 'Low',      cls: 'bg-orange-500/10 text-orange-600 border-orange-500/30' },
-  moderate: { variant: 'warning',     label: 'Moderate', cls: 'bg-amber-500/10 text-amber-600 border-amber-500/30' },
-  strong:   { variant: 'success',     label: 'Strong',   cls: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30' },
+const STATUS_BADGE: Record<AgentPerfRow['status'], { label: string; cls: string; dot: string }> = {
+  excellent: { label: 'Excellent', cls: 'bg-emerald-100 text-emerald-700 border-emerald-300', dot: 'bg-emerald-700' },
+  good:      { label: 'Good',      cls: 'bg-emerald-50 text-emerald-600 border-emerald-200',  dot: 'bg-emerald-500' },
+  moderate:  { label: 'Moderate',  cls: 'bg-amber-100 text-amber-700 border-amber-300',       dot: 'bg-amber-500'   },
+  low:       { label: 'Low',       cls: 'bg-orange-100 text-orange-700 border-orange-300',    dot: 'bg-orange-500'  },
+  critical:  { label: 'Critical',  cls: 'bg-red-100 text-red-700 border-red-300',             dot: 'bg-red-500'     },
 };
 
 const fmt = (n: number) => Math.round(n).toLocaleString();
@@ -128,14 +131,14 @@ export function AgentPerformanceReport() {
         return q.lte('created_at', endISO);
       });
 
-      // Pull rent_requests for tenant counts.
+      // Pull rent_requests for tenant counts AND daily_portfolio.
       // We need TWO scopes:
       //  - rentReqsAll: ALL-time, used to attribute merchant payments (rent_request_id → agent_id),
       //    because a payment in this range may belong to a request created earlier.
       //  - rentReqsInRange: scoped to the selected date range (by created_at), used for tenants_total
       //    so the "X/Y" denominator reflects the chosen period, not lifetime assignments.
-      const rentReqsAll = await fetchAll<{ id: string; agent_id: string | null; tenant_id: string | null; created_at: string }>(() =>
-        supabase.from('rent_requests').select('id, agent_id, tenant_id, created_at').not('agent_id', 'is', null)
+      const rentReqsAll = await fetchAll<{ id: string; agent_id: string | null; tenant_id: string | null; created_at: string; daily_repayment: number | null; status: string | null; amount_repaid: number | null; total_repayment: number | null }>(() =>
+        supabase.from('rent_requests').select('id, agent_id, tenant_id, created_at, daily_repayment, status, amount_repaid, total_repayment').not('agent_id', 'is', null)
       );
       const rentReqsInRange = startISO
         ? rentReqsAll.filter(r => r.created_at >= startISO && r.created_at <= endISO)
@@ -229,14 +232,38 @@ export function AgentPerformanceReport() {
         ensure(r.agent_id).tenantsTotal.add(r.tenant_id);
       });
 
+      // Compute Daily Portfolio per agent = sum(daily_repayment) of ACTIVE rent requests
+      // Active = not fully_repaid / not cancelled / not defaulted, and outstanding > 0.
+      const ACTIVE_STATUSES = new Set(['funded', 'disbursed', 'repaying', 'tenant_ops_approved', 'agent_verified']);
+      const dailyPortfolioByAgent: Record<string, number> = {};
+      const activeTenantsByAgent: Record<string, Set<string>> = {};
+      rentReqsAll.forEach(r => {
+        if (!r.agent_id) return;
+        const status = (r.status || '').toLowerCase();
+        const outstanding = Number(r.total_repayment || 0) - Number(r.amount_repaid || 0);
+        const isActive = ACTIVE_STATUSES.has(status) && outstanding > 0;
+        if (!isActive) return;
+        dailyPortfolioByAgent[r.agent_id] = (dailyPortfolioByAgent[r.agent_id] || 0) + Number(r.daily_repayment || 0);
+        if (r.tenant_id) {
+          (activeTenantsByAgent[r.agent_id] ??= new Set()).add(r.tenant_id);
+        }
+      });
+      // Make sure every agent with a portfolio is in the agg
+      Object.keys(dailyPortfolioByAgent).forEach(id => ensure(id));
+
       const rows: AgentPerfRow[] = Object.entries(agg).map(([id, a]) => {
         // Use ledger commission if present, else 5% of collected as display fallback
         const commission = a.commissionEarnings > 0 ? a.commissionEarnings : a.collected * 0.10;
         const wallet_total = commission + a.interest;
-        const tenantsTotal = a.tenantsTotal.size || a.tenantsPaid.size;
+        const activeTenantCount = activeTenantsByAgent[id]?.size || 0;
+        const tenantsTotal = activeTenantCount || a.tenantsTotal.size || a.tenantsPaid.size;
         const tenantsPaid = a.tenantsPaid.size;
         const pctPaid = tenantsTotal ? (tenantsPaid / tenantsTotal) * 100 : 0;
         const rate = a.collected ? (wallet_total / a.collected) * 100 : 0;
+        const dailyPortfolio = dailyPortfolioByAgent[id] || 0;
+        const expectedWeekly = dailyPortfolio * 7;
+        const efficiency = expectedWeekly ? (a.collected / expectedWeekly) * 100 : 0;
+        const gap = expectedWeekly - a.collected;
         return {
           rank: 0,
           agent_name: profilesMap[id] || id.slice(0, 8),
@@ -249,12 +276,16 @@ export function AgentPerformanceReport() {
           interest: a.interest,
           wallet_total,
           rate,
-          status: statusFor(pctPaid),
+          status: statusForEfficiency(efficiency),
           source_breakdown: a.bySource,
+          daily_portfolio: dailyPortfolio,
+          expected_weekly: expectedWeekly,
+          efficiency,
+          gap,
         };
       })
-      .filter(r => r.tenants_total > 0)
-      .sort((x, y) => y.collected - x.collected)
+      .filter(r => r.tenants_total > 0 || (r.daily_portfolio || 0) > 0)
+      .sort((x, y) => (y.daily_portfolio || 0) - (x.daily_portfolio || 0) || y.collected - x.collected)
       .map((r, i) => ({ ...r, rank: i + 1 }));
 
       const totals: AgentPerfTotals = rows.reduce((t, r) => ({
@@ -265,7 +296,10 @@ export function AgentPerformanceReport() {
         wallet_total: t.wallet_total + r.wallet_total,
         tenants_paid: t.tenants_paid + r.tenants_paid,
         tenants_total: t.tenants_total + r.tenants_total,
-      }), { collected: 0, payments: 0, commission: 0, interest: 0, wallet_total: 0, tenants_paid: 0, tenants_total: 0 });
+        daily_portfolio: (t.daily_portfolio || 0) + (r.daily_portfolio || 0),
+        expected_weekly: (t.expected_weekly || 0) + (r.expected_weekly || 0),
+        gap: (t.gap || 0) + (r.gap || 0),
+      }), { collected: 0, payments: 0, commission: 0, interest: 0, wallet_total: 0, tenants_paid: 0, tenants_total: 0, daily_portfolio: 0, expected_weekly: 0, gap: 0 });
 
       return { rows, totals };
     },
@@ -292,7 +326,12 @@ export function AgentPerformanceReport() {
     wallet_total: t.wallet_total + r.wallet_total,
     tenants_paid: t.tenants_paid + r.tenants_paid,
     tenants_total: t.tenants_total + r.tenants_total,
-  }), { collected: 0, payments: 0, commission: 0, interest: 0, wallet_total: 0, tenants_paid: 0, tenants_total: 0 }), [rows]);
+    daily_portfolio: (t.daily_portfolio || 0) + (r.daily_portfolio || 0),
+    expected_weekly: (t.expected_weekly || 0) + (r.expected_weekly || 0),
+    gap: (t.gap || 0) + (r.gap || 0),
+  }), { collected: 0, payments: 0, commission: 0, interest: 0, wallet_total: 0, tenants_paid: 0, tenants_total: 0, daily_portfolio: 0, expected_weekly: 0, gap: 0 }), [rows]);
+
+  const overallEfficiency = (totals.expected_weekly || 0) > 0 ? (totals.collected / (totals.expected_weekly || 1)) * 100 : 0;
 
   const activeFilterCount =
     (paymentSource !== 'all' ? 1 : 0) +
@@ -376,7 +415,8 @@ export function AgentPerformanceReport() {
             <SelectTrigger className="w-[140px] h-9"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="strong">Strong</SelectItem>
+              <SelectItem value="excellent">Excellent</SelectItem>
+              <SelectItem value="good">Good</SelectItem>
               <SelectItem value="moderate">Moderate</SelectItem>
               <SelectItem value="low">Low</SelectItem>
               <SelectItem value="critical">Critical</SelectItem>
@@ -406,96 +446,139 @@ export function AgentPerformanceReport() {
         </div>
       </div>
 
-      {/* KPI strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <div className="rounded-xl border border-border bg-card p-3">
-          <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Total Collected</div>
-          <div className="text-lg font-bold mt-1">UGX {fmt(totals.collected)}</div>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-3">
-          <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Commission</div>
-          <div className="text-lg font-bold mt-1 text-emerald-600">UGX {fmt(totals.commission)}</div>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-3">
-          <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Interest</div>
-          <div className="text-lg font-bold mt-1 text-blue-600">UGX {fmt(totals.interest)}</div>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-3">
-          <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Total Wallet</div>
-          <div className="text-lg font-bold mt-1 text-primary">UGX {fmt(totals.wallet_total)}</div>
-        </div>
+      {/* KPI strip — 6 colored summary cards (mimics the reference) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+        {[
+          { icon: Users,       label: 'Total Active Tenants', value: String(totals.tenants_total),                      tint: 'bg-blue-600',    text: 'text-blue-700' },
+          { icon: HandCoins,   label: 'Total Daily Portfolio', value: `UGX ${fmt(totals.daily_portfolio || 0)}`,        tint: 'bg-emerald-600', text: 'text-emerald-700' },
+          { icon: TrendingUp,  label: 'Expected Weekly (7 Days)', value: `UGX ${fmt(totals.expected_weekly || 0)}`,    tint: 'bg-purple-600',  text: 'text-purple-700' },
+          { icon: PiggyBank,   label: 'Total Collected',      value: `UGX ${fmt(totals.collected)}`,                    tint: 'bg-sky-600',     text: 'text-sky-700' },
+          { icon: Percent,     label: 'Overall Efficiency',   value: fmtPct(overallEfficiency),                         tint: 'bg-orange-500',  text: 'text-orange-600' },
+          { icon: Wallet,      label: 'Total Wallet',         value: `UGX ${fmt(totals.wallet_total)}`,                 tint: 'bg-teal-600',    text: 'text-teal-700' },
+        ].map((kpi, idx) => (
+          <div key={idx} className="rounded-xl border border-border bg-card p-3 flex items-center gap-3">
+            <div className={cn('h-10 w-10 rounded-full flex items-center justify-center text-white shrink-0', kpi.tint)}>
+              <kpi.icon className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold leading-tight">{kpi.label}</div>
+              <div className={cn('text-base font-extrabold mt-0.5 truncate', kpi.text)}>{kpi.value}</div>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Table — desktop */}
       <div className="hidden md:block rounded-2xl border border-border bg-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-blue-600 text-white sticky top-0">
-              <tr>
-                <th className="px-3 py-2.5 text-left font-semibold w-10">#</th>
-                <th className="px-3 py-2.5 text-left font-semibold">Agent</th>
-                <th className="px-3 py-2.5 text-center font-semibold">Tenants Paid</th>
-                <th className="px-3 py-2.5 text-right font-semibold">% Paid</th>
-                <th className="px-3 py-2.5 text-right font-semibold">Collected</th>
-                <th className="px-3 py-2.5 text-right font-semibold">Payments</th>
-                <th className="px-3 py-2.5 text-right font-semibold">10% Comm.</th>
-                <th className="px-3 py-2.5 text-right font-semibold">0.5% Int.</th>
-                <th className="px-3 py-2.5 text-right font-semibold">Wallet</th>
-                <th className="px-3 py-2.5 text-right font-semibold">% Rate</th>
-                <th className="px-3 py-2.5 text-center font-semibold">Status</th>
+            <thead className="text-white sticky top-0">
+              {/* Group row */}
+              <tr className="text-[11px] uppercase tracking-wide">
+                <th className="bg-slate-800 px-2 py-2 text-center font-bold border-r border-slate-700" colSpan={2}>&nbsp;</th>
+                <th className="bg-blue-700 px-2 py-2 text-center font-bold border-r border-blue-800" colSpan={3}>Portfolio (What They Manage)</th>
+                <th className="bg-emerald-700 px-2 py-2 text-center font-bold border-r border-emerald-800" colSpan={3}>Collection Performance</th>
+                <th className="bg-amber-600 px-2 py-2 text-center font-bold border-r border-amber-700" colSpan={2}>Activity</th>
+                <th className="bg-purple-700 px-2 py-2 text-center font-bold border-r border-purple-800" colSpan={3}>Earnings</th>
+                <th className="bg-slate-800 px-2 py-2 text-center font-bold">Status<br/><span className="text-[9px] font-normal normal-case opacity-80">(By Efficiency)</span></th>
+              </tr>
+              {/* Sub-header row */}
+              <tr className="text-[11px]">
+                <th className="bg-slate-700 px-2 py-2 text-center font-semibold w-10">#</th>
+                <th className="bg-slate-700 px-2 py-2 text-left font-semibold">Agent Name</th>
+                <th className="bg-blue-600 px-2 py-2 text-center font-semibold">Active<br/>Tenants</th>
+                <th className="bg-blue-600 px-2 py-2 text-right font-semibold">Daily Portfolio<br/>(UGX)</th>
+                <th className="bg-blue-600 px-2 py-2 text-right font-semibold">Expected Weekly<br/>(7 Days) (UGX)</th>
+                <th className="bg-emerald-600 px-2 py-2 text-right font-semibold">Collected<br/>(UGX)</th>
+                <th className="bg-emerald-600 px-2 py-2 text-right font-semibold">Efficiency<br/>(%)</th>
+                <th className="bg-emerald-600 px-2 py-2 text-right font-semibold">Gap<br/>(UGX)</th>
+                <th className="bg-amber-500 px-2 py-2 text-right font-semibold">Payments<br/>(Count)</th>
+                <th className="bg-amber-500 px-2 py-2 text-right font-semibold">% Paid</th>
+                <th className="bg-purple-600 px-2 py-2 text-right font-semibold">10% Commission<br/>(UGX)</th>
+                <th className="bg-purple-600 px-2 py-2 text-right font-semibold">0.5% Interest<br/>(UGX)</th>
+                <th className="bg-purple-600 px-2 py-2 text-right font-semibold">Total Wallet<br/>(UGX)</th>
+                <th className="bg-slate-700 px-2 py-2 text-center font-semibold">&nbsp;</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <tr key={i} className="border-b border-border">
-                    {Array.from({ length: 11 }).map((_, j) => (
+                    {Array.from({ length: 14 }).map((_, j) => (
                       <td key={j} className="px-3 py-2.5"><Skeleton className="h-4 w-full" /></td>
                     ))}
                   </tr>
                 ))
               ) : rows.length === 0 ? (
-                <tr><td colSpan={11} className="px-3 py-12 text-center text-muted-foreground">No agent activity in this period</td></tr>
+                <tr><td colSpan={14} className="px-3 py-12 text-center text-muted-foreground">No agent activity in this period</td></tr>
               ) : (
-                rows.map((r, i) => (
-                  <tr key={i} className={cn('border-b border-border hover:bg-muted/30 transition-colors', i % 2 === 0 && 'bg-muted/20')}>
-                    <td className="px-3 py-2.5 font-medium">{r.rank}</td>
-                    <td className="px-3 py-2.5 font-medium">{r.agent_name}</td>
-                    <td className="px-3 py-2.5 text-center">{r.tenants_paid}/{r.tenants_total}</td>
-                    <td className="px-3 py-2.5 text-right">{fmtPct(r.pct_paid)}</td>
-                    <td className="px-3 py-2.5 text-right font-mono">{fmt(r.collected)}</td>
-                    <td className="px-3 py-2.5 text-right">{r.payments}</td>
-                    <td className="px-3 py-2.5 text-right font-mono text-emerald-600">{fmt(r.commission)}</td>
-                    <td className="px-3 py-2.5 text-right font-mono text-blue-600">{fmt(r.interest)}</td>
-                    <td className="px-3 py-2.5 text-right font-mono font-semibold">{fmt(r.wallet_total)}</td>
-                    <td className="px-3 py-2.5 text-right">{fmtPct(r.rate)}</td>
-                    <td className="px-3 py-2.5 text-center">
-                      <span className={cn('inline-flex px-2 py-0.5 rounded-md text-xs font-semibold border', STATUS_BADGE[r.status].cls)}>
-                        {STATUS_BADGE[r.status].label}
-                      </span>
-                    </td>
-                  </tr>
-                ))
+                rows.map((r, i) => {
+                  const eff = r.efficiency || 0;
+                  const effCls = eff >= 100 ? 'text-emerald-700 font-bold'
+                    : eff >= 80 ? 'text-emerald-600 font-semibold'
+                    : eff >= 60 ? 'text-amber-600 font-semibold'
+                    : eff >= 40 ? 'text-orange-600 font-semibold'
+                    : 'text-red-600 font-semibold';
+                  const gap = r.gap || 0;
+                  const gapCls = gap > 0 ? 'text-red-600' : gap < 0 ? 'text-emerald-600' : 'text-muted-foreground';
+                  const pctPaidCls = r.pct_paid >= 75 ? 'text-emerald-600 font-semibold' : r.pct_paid >= 50 ? 'text-amber-600' : r.pct_paid >= 25 ? 'text-orange-600' : 'text-red-600';
+                  return (
+                    <tr key={i} className={cn('border-b border-border hover:bg-muted/40 transition-colors', i % 2 === 0 ? 'bg-card' : 'bg-muted/20')}>
+                      <td className="px-2 py-2 text-center text-muted-foreground">{r.rank}</td>
+                      <td className="px-2 py-2 font-semibold whitespace-nowrap">{r.agent_name}</td>
+                      <td className="px-2 py-2 text-center font-medium">{r.tenants_total}</td>
+                      <td className="px-2 py-2 text-right font-mono">{fmt(r.daily_portfolio || 0)}</td>
+                      <td className="px-2 py-2 text-right font-mono">{fmt(r.expected_weekly || 0)}</td>
+                      <td className="px-2 py-2 text-right font-mono font-semibold">{fmt(r.collected)}</td>
+                      <td className={cn('px-2 py-2 text-right font-mono', effCls)}>{fmtPct(eff)}</td>
+                      <td className={cn('px-2 py-2 text-right font-mono', gapCls)}>{fmt(gap)}</td>
+                      <td className="px-2 py-2 text-right">{r.payments}</td>
+                      <td className={cn('px-2 py-2 text-right font-mono', pctPaidCls)}>{fmtPct(r.pct_paid)}</td>
+                      <td className="px-2 py-2 text-right font-mono text-emerald-700">{fmt(r.commission)}</td>
+                      <td className="px-2 py-2 text-right font-mono text-blue-600">{fmt(r.interest)}</td>
+                      <td className="px-2 py-2 text-right font-mono font-bold">{fmt(r.wallet_total)}</td>
+                      <td className="px-2 py-2 text-center">
+                        <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold border', STATUS_BADGE[r.status].cls)}>
+                          {STATUS_BADGE[r.status].label}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
             {!isLoading && rows.length > 0 && (
               <tfoot>
-                <tr className="bg-blue-50 dark:bg-blue-950/30 font-bold border-t-2 border-blue-600">
-                  <td className="px-3 py-3" />
-                  <td className="px-3 py-3 text-blue-700 dark:text-blue-400">TOTALS</td>
-                  <td className="px-3 py-3 text-center">{totals.tenants_paid}/{totals.tenants_total}</td>
-                  <td className="px-3 py-3 text-right">{totals.tenants_total ? fmtPct((totals.tenants_paid / totals.tenants_total) * 100) : '0.0%'}</td>
-                  <td className="px-3 py-3 text-right font-mono">{fmt(totals.collected)}</td>
-                  <td className="px-3 py-3 text-right">{totals.payments}</td>
-                  <td className="px-3 py-3 text-right font-mono text-emerald-700">{fmt(totals.commission)}</td>
-                  <td className="px-3 py-3 text-right font-mono text-blue-700">{fmt(totals.interest)}</td>
-                  <td className="px-3 py-3 text-right font-mono">{fmt(totals.wallet_total)}</td>
-                  <td className="px-3 py-3 text-right">{totals.collected ? fmtPct((totals.wallet_total / totals.collected) * 100) : '0.0%'}</td>
-                  <td className="px-3 py-3" />
+                <tr className="bg-slate-800 text-white font-bold">
+                  <td className="px-2 py-3" />
+                  <td className="px-2 py-3">TOTALS</td>
+                  <td className="px-2 py-3 text-center">{totals.tenants_total}</td>
+                  <td className="px-2 py-3 text-right font-mono">{fmt(totals.daily_portfolio || 0)}</td>
+                  <td className="px-2 py-3 text-right font-mono">{fmt(totals.expected_weekly || 0)}</td>
+                  <td className="px-2 py-3 text-right font-mono">{fmt(totals.collected)}</td>
+                  <td className="px-2 py-3 text-right font-mono">{fmtPct(overallEfficiency)}</td>
+                  <td className="px-2 py-3 text-right font-mono">{fmt(totals.gap || 0)}</td>
+                  <td className="px-2 py-3 text-right">{totals.payments}</td>
+                  <td className="px-2 py-3 text-right font-mono">{totals.tenants_total ? fmtPct((totals.tenants_paid / totals.tenants_total) * 100) : '0.0%'}</td>
+                  <td className="px-2 py-3 text-right font-mono">{fmt(totals.commission)}</td>
+                  <td className="px-2 py-3 text-right font-mono">{fmt(totals.interest)}</td>
+                  <td className="px-2 py-3 text-right font-mono">{fmt(totals.wallet_total)}</td>
+                  <td className="px-2 py-3 text-center">—</td>
                 </tr>
               </tfoot>
             )}
           </table>
+        </div>
+        {/* Status Guide footer */}
+        <div className="border-t border-border bg-muted/30 px-4 py-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px]">
+          <span className="font-bold uppercase tracking-wide text-muted-foreground">Status Guide (By Efficiency %)</span>
+          <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-emerald-700" /> Excellent: ≥ 100%</span>
+          <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Good: 80% – 99%</span>
+          <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-amber-500" /> Moderate: 60% – 79%</span>
+          <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-orange-500" /> Low: 40% – 59%</span>
+          <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-500" /> Critical: &lt; 40%</span>
+          <span className="ml-auto flex items-center gap-1.5 text-muted-foreground"><Info className="h-3.5 w-3.5" /> Expected Weekly = Daily Portfolio × 7 · Efficiency = Collected ÷ Expected Weekly · Gap = Expected − Collected</span>
+          <span className="flex items-center gap-1.5 text-muted-foreground"><Calendar className="h-3.5 w-3.5" /> {periodLabel}</span>
         </div>
       </div>
 

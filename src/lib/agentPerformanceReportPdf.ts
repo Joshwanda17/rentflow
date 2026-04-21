@@ -12,8 +12,12 @@ export interface AgentPerfRow {
   interest: number;
   wallet_total: number;
   rate: number;
-  status: 'critical' | 'low' | 'moderate' | 'strong';
+  status: 'critical' | 'low' | 'moderate' | 'good' | 'excellent';
   source_breakdown?: { agent_collections: number; repayments: number; merchant: number };
+  daily_portfolio?: number;
+  expected_weekly?: number;
+  efficiency?: number;
+  gap?: number;
 }
 
 export interface AgentPerfTotals {
@@ -24,19 +28,24 @@ export interface AgentPerfTotals {
   wallet_total: number;
   tenants_paid: number;
   tenants_total: number;
+  daily_portfolio?: number;
+  expected_weekly?: number;
+  gap?: number;
 }
 
 const STATUS_LABEL: Record<AgentPerfRow['status'], string> = {
   critical: 'Critical',
   low: 'Low',
   moderate: 'Moderate',
-  strong: 'Strong',
+  good: 'Good',
+  excellent: 'Excellent',
 };
 const STATUS_COLOR: Record<AgentPerfRow['status'], [number, number, number]> = {
   critical: [220, 38, 38],
   low: [234, 88, 12],
   moderate: [202, 138, 4],
-  strong: [22, 163, 74],
+  good: [22, 163, 74],
+  excellent: [16, 122, 87],
 };
 
 const fmtN = (n: number) => Math.round(n).toLocaleString();
