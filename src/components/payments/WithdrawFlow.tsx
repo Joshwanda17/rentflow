@@ -146,6 +146,47 @@ export default function WithdrawFlow({
       setPaymentStatus('success');
       toast.success('Withdrawal request submitted! Please wait for manager approval before funds are released.');
       onSuccess?.();
+
+      // Fire-and-forget: if this user is a funder/partner, send disbursement confirmation email
+      try {
+        const sb: any = supabase;
+        const profileRes: any = await sb.from('profiles').select('email, full_name').eq('id', user.id).maybeSingle();
+        const portfolioRes: any = await sb.from('investor_portfolios').select('portfolio_code').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+        const roleRes: any = await sb.from('user_roles').select('role').eq('user_id', user.id).eq('role', 'supporter').maybeSingle();
+
+        const email = profileRes.data?.email;
+        const isFunder = !!roleRes.data || !!portfolioRes.data;
+
+        if (email && isFunder) {
+          const payoutMethodLabel =
+            payoutMode === 'mobile_money' ? `${momoProvider} Mobile Money (${momoNumber.trim()})` :
+            payoutMode === 'bank_transfer' ? `${bankName} - ${bankAccountNumber.trim()}` :
+            'Cash Pickup at Office';
+
+          await supabase.functions.invoke('send-transactional-email', {
+            body: {
+              templateName: 'returns-disbursement-confirmation',
+              recipientEmail: email,
+              idempotencyKey: `partner-withdraw-${user.id}-${ref}`,
+              templateData: {
+                partner_name: profileRes.data?.full_name || 'Partner',
+                transaction_id: ref,
+                portfolio_code: portfolioRes.data?.portfolio_code || '',
+                amount,
+                currency: 'UGX',
+                date: new Date().toISOString(),
+                payout_method: payoutMethodLabel,
+                company_name: 'Welile',
+                logo_url: 'https://welilereceipts.com/welile-logo.png',
+                is_managed_by_agent: false,
+                agent_name: '',
+              },
+            },
+          });
+        }
+      } catch (emailErr) {
+        console.warn('[WithdrawFlow] Disbursement email enqueue failed (non-blocking):', emailErr);
+      }
     } catch (error: any) {
       console.error('Withdrawal failed:', error);
       setPaymentStatus('failed');
