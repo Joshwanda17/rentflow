@@ -19,8 +19,6 @@ interface PartnerWalletDepositProps {
   date?: string
   wallet_id_last4?: string
   source?: string
-  funded_by_agent?: boolean
-  agent_name?: string
   company_name?: string
   logo_url?: string
   unsubscribe_url?: string
@@ -45,9 +43,7 @@ export function PartnerWalletDeposit({
     year: 'numeric',
   }),
   wallet_id_last4 = '',
-  source = '',
-  funded_by_agent = false,
-  agent_name = '',
+  source = 'Platform',
   company_name = 'Welile',
   logo_url = 'https://wirntoujqoyjobfhyelc.supabase.co/storage/v1/object/public/email-assets/welile-logo.png',
   unsubscribe_url = 'https://welile.com/unsubscribe',
@@ -150,7 +146,7 @@ export function PartnerWalletDeposit({
                                   </td>
                                 </tr>
                                 <tr>
-                                  <td style={funded_by_agent && agent_name ? ledgerRow : ledgerRowLast}>
+                                  <td style={source ? ledgerRow : ledgerRowLast}>
                                     <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation"><tbody><tr>
                                       <td className="td-block" width="40%" style={ledgerKey}>Destination</td>
                                       <td className="td-block" width="60%" align="right" style={ledgerVal}>
@@ -167,24 +163,10 @@ export function PartnerWalletDeposit({
                                 </tr>
                                 {source ? (
                                   <tr>
-                                    <td style={funded_by_agent && agent_name ? ledgerRow : ledgerRowLast}>
+                                    <td style={ledgerRowLast}>
                                       <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation"><tbody><tr>
                                         <td className="td-block" width="40%" style={ledgerKey}>Source</td>
                                         <td className="td-block" width="60%" align="right" style={ledgerVal}>{source}</td>
-                                      </tr></tbody></table>
-                                    </td>
-                                  </tr>
-                                ) : null}
-                                {funded_by_agent && agent_name ? (
-                                  <tr>
-                                    <td style={ledgerRowLast}>
-                                      <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation"><tbody><tr>
-                                        <td className="td-block" width="40%" style={ledgerKey}>Funded By</td>
-                                        <td className="td-block" width="60%" align="right" style={ledgerVal}>
-                                          {agent_name}
-                                          <br />
-                                          <span style={ledgerValSub}>(Proxy Agent)</span>
-                                        </td>
                                       </tr></tbody></table>
                                     </td>
                                   </tr>
@@ -503,14 +485,12 @@ export const template = {
   displayName: 'Partner Wallet Deposit',
   previewData: {
     partner_name: 'Sarah Nakato',
-    transaction_id: 'TXN-2026-04A8F3D2',
-    amount: 2500000,
+    transaction_id: 'PAY-MO8DYAFP-COT6',
+    amount: 251857,
     currency: 'UGX',
-    date: '21 April 2026',
+    date: '21 Apr 2026, 11:52',
     wallet_id_last4: '4521',
-    source: 'CFO Direct Credit',
-    funded_by_agent: true,
-    agent_name: 'James Okello',
+    source: 'Platform',
     company_name: 'Welile',
     logo_url: 'https://welilereceipts.com/welile-logo.png',
     unsubscribe_url: 'https://welile.com/unsubscribe',
