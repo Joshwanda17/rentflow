@@ -446,24 +446,26 @@ export function AgentPerformanceReport() {
         </div>
       </div>
 
-      {/* KPI strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <div className="rounded-xl border border-border bg-card p-3">
-          <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Total Collected</div>
-          <div className="text-lg font-bold mt-1">UGX {fmt(totals.collected)}</div>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-3">
-          <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Commission</div>
-          <div className="text-lg font-bold mt-1 text-emerald-600">UGX {fmt(totals.commission)}</div>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-3">
-          <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Interest</div>
-          <div className="text-lg font-bold mt-1 text-blue-600">UGX {fmt(totals.interest)}</div>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-3">
-          <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Total Wallet</div>
-          <div className="text-lg font-bold mt-1 text-primary">UGX {fmt(totals.wallet_total)}</div>
-        </div>
+      {/* KPI strip — 6 colored summary cards (mimics the reference) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+        {[
+          { icon: Users,       label: 'Total Active Tenants', value: String(totals.tenants_total),                      tint: 'bg-blue-600',    text: 'text-blue-700' },
+          { icon: HandCoins,   label: 'Total Daily Portfolio', value: `UGX ${fmt(totals.daily_portfolio || 0)}`,        tint: 'bg-emerald-600', text: 'text-emerald-700' },
+          { icon: TrendingUp,  label: 'Expected Weekly (7 Days)', value: `UGX ${fmt(totals.expected_weekly || 0)}`,    tint: 'bg-purple-600',  text: 'text-purple-700' },
+          { icon: PiggyBank,   label: 'Total Collected',      value: `UGX ${fmt(totals.collected)}`,                    tint: 'bg-sky-600',     text: 'text-sky-700' },
+          { icon: Percent,     label: 'Overall Efficiency',   value: fmtPct(overallEfficiency),                         tint: 'bg-orange-500',  text: 'text-orange-600' },
+          { icon: Wallet,      label: 'Total Wallet',         value: `UGX ${fmt(totals.wallet_total)}`,                 tint: 'bg-teal-600',    text: 'text-teal-700' },
+        ].map((kpi, idx) => (
+          <div key={idx} className="rounded-xl border border-border bg-card p-3 flex items-center gap-3">
+            <div className={cn('h-10 w-10 rounded-full flex items-center justify-center text-white shrink-0', kpi.tint)}>
+              <kpi.icon className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold leading-tight">{kpi.label}</div>
+              <div className={cn('text-base font-extrabold mt-0.5 truncate', kpi.text)}>{kpi.value}</div>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Table — desktop */}
