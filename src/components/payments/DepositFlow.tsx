@@ -13,6 +13,12 @@ interface DepositFlowProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   walletBalance?: number;
+  /** Pre-select a deposit purpose (e.g. 'operational_float' for agents). */
+  defaultPurpose?: DepositPurpose;
+  /** Restrict the purpose grid to only these options. */
+  allowedPurposes?: DepositPurpose[];
+  /** Hide the purpose grid behind a "Change purpose" link. */
+  lockPurpose?: boolean;
 }
 
 type DepositChannel = 'momo' | 'bank' | 'agent_cash' | 'cash';
