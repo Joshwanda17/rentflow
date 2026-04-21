@@ -305,12 +305,30 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!isProxyPayout) {
-      const nextWithdrawableBalance = Math.max(0, healedWithdrawable - amount);
+    {
+      // Decrement buckets. For proxy payouts, prefer withdrawable, then float, then leave the
+      // remainder to be absorbed by the unallocated balance pool.
+      let remaining = amount;
+      let nextWithdrawable = healedWithdrawable;
+      let nextFloat = walletFloat;
+
+      if (!isProxyPayout) {
+        nextWithdrawable = Math.max(0, healedWithdrawable - remaining);
+        remaining = 0;
+      } else {
+        const fromWithdrawable = Math.min(nextWithdrawable, remaining);
+        nextWithdrawable -= fromWithdrawable;
+        remaining -= fromWithdrawable;
+        const fromFloat = Math.min(nextFloat, remaining);
+        nextFloat -= fromFloat;
+        remaining -= fromFloat;
+      }
+
       const { error: walletUpdateErr } = await admin
         .from("wallets")
         .update({
-          withdrawable_balance: nextWithdrawableBalance,
+          withdrawable_balance: nextWithdrawable,
+          float_balance: nextFloat,
           updated_at: new Date().toISOString(),
         })
         .eq("user_id", fundingUserId);
