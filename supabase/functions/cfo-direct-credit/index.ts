@@ -103,7 +103,7 @@ Deno.serve(async (req) => {
 
     const { data: targetProfile } = await adminClient
       .from("profiles")
-      .select("id, full_name")
+      .select("id, full_name, email")
       .eq("id", target_user_id)
       .single();
 
@@ -131,6 +131,9 @@ Deno.serve(async (req) => {
 
     const groupId = crypto.randomUUID();
 
+    // Generate trackable PAY- reference (same format COO uses) for every CFO direct credit/debit
+    const refId = `PAY-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+
     if (op === "credit") {
       console.log("[cfo-direct-credit] Creating CREDIT ledger entries for", target_user_id, "amount:", amount);
       const { error: rpcErr } = await adminClient.rpc('create_ledger_transaction', {
@@ -142,6 +145,7 @@ Deno.serve(async (req) => {
             category: walletCat,
             ledger_scope: 'wallet',
             source_table: 'cfo_direct_credit',
+            reference_id: refId,
             description: `Welile Technologies Finance [${category_label || walletCat}]${sub_category ? ' → ' + sub_category : ''}: ${reason}`,
             currency: 'UGX',
             transaction_date: new Date().toISOString(),
@@ -153,6 +157,7 @@ Deno.serve(async (req) => {
             category: platformCat,
             ledger_scope: 'platform',
             source_table: 'cfo_direct_credit',
+            reference_id: refId,
             description: `Welile Technologies Finance → ${targetProfile.full_name} [${impact}]: ${reason}`,
             currency: 'UGX',
             transaction_date: new Date().toISOString(),
@@ -175,6 +180,7 @@ Deno.serve(async (req) => {
             category: walletCat,
             ledger_scope: 'wallet',
             source_table: 'cfo_direct_credit',
+            reference_id: refId,
             description: `CFO Debit [${category_label || walletCat}]: ${reason}`,
             currency: 'UGX',
             transaction_date: new Date().toISOString(),
@@ -186,6 +192,7 @@ Deno.serve(async (req) => {
             category: platformCat,
             ledger_scope: 'platform',
             source_table: 'cfo_direct_credit',
+            reference_id: refId,
             description: `${targetProfile.full_name} → Platform [${impact}]: ${reason}`,
             currency: 'UGX',
             transaction_date: new Date().toISOString(),
@@ -216,6 +223,7 @@ Deno.serve(async (req) => {
         financial_impact: impact,
         category_label: category_label || walletCat,
         sub_category: sub_category || null,
+        reference_id: refId,
       },
     });
 
@@ -253,11 +261,60 @@ Deno.serve(async (req) => {
       }),
     }).catch(() => {});
 
+    // ── Send Partner Wallet Deposit email on ROI payouts (mirrors approve-wallet-operation) ──
+    if (op === "credit" && (walletCat === "roi_wallet_credit" || platformCat === "roi_expense")) {
+      try {
+        if (targetProfile.email) {
+          const { data: partnerWallet } = await adminClient
+            .from("wallets")
+            .select("id")
+            .eq("user_id", target_user_id)
+            .maybeSingle();
+          const walletLast4 = partnerWallet?.id
+            ? partnerWallet.id.replace(/-/g, "").slice(-4)
+            : "";
+
+          const todayLabel = new Date().toLocaleDateString("en-GB", {
+            day: "2-digit", month: "long", year: "numeric",
+          });
+
+          await fetch(`${supabaseUrl}/functions/v1/send-transactional-email`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${serviceKey}`,
+            },
+            body: JSON.stringify({
+              templateName: "partner-wallet-deposit",
+              recipientEmail: targetProfile.email,
+              idempotencyKey: `partner-wallet-deposit-cfo-${groupId}`,
+              templateData: {
+                partner_name: targetProfile.full_name || "Partner",
+                transaction_id: refId,
+                amount,
+                currency: "UGX",
+                date: todayLabel,
+                wallet_id_last4: walletLast4,
+                source: "Platform",
+                company_name: "Welile",
+                logo_url: "https://welilereceipts.com/welile-logo.png",
+              },
+            }),
+          });
+          console.log(`[cfo-direct-credit] Partner wallet deposit email queued for ${target_user_id} ref=${refId}`);
+        } else {
+          console.warn(`[cfo-direct-credit] Skipping partner deposit email - no email for ${target_user_id}`);
+        }
+      } catch (emailErr) {
+        console.warn(`[cfo-direct-credit] Partner deposit email failed:`, (emailErr as Error).message);
+      }
+    }
 
     return new Response(JSON.stringify({
       success: true,
       message: `UGX ${amount.toLocaleString()} ${verb} ${targetProfile.full_name}`,
       new_withdrawable_balance: newWithdrawableBalance,
+      reference_id: refId,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
