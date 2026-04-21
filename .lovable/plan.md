@@ -1,59 +1,56 @@
 
 
-## Send the deposit-confirmation email from the CFO "Pay Out to Any User's Wallet" → ROI Payout flow, using a real trackable PAY- reference
+## Reconcile Akandwanaho Wycliffe's wallet buckets
 
-### What's wrong today
+### What's actually in the data
 
-The CFO has **two separate ROI payout entry points**, and only one currently sends the email:
+| Bucket | Current | Should be | Notes |
+|---|---:|---:|---|
+| Operational Float (`agent_landlord_float.balance`) | **3,342,400** | 3,342,400 | ✅ Already correct — includes the two Airtel deposits (105k + 37.4k = 142,400) swept yesterday |
+| Wallet `balance` (legacy total) | 93,000 | 93,000 | ✅ Sum is right |
+| Wallet `withdrawable_balance` (Commission bucket) | **50,000** | **93,000** | ❌ Off by 43,000 — commissions earned 13–14 Apr never landed in the bucket |
+| Wallet `float_balance` | 0 | 0 | ✅ |
+| Wallet `advance_balance` | 0 | 0 | ✅ |
 
-| Entry point | Edge function | Reference ID | Sends `partner-wallet-deposit` email? |
-|---|---|---|---|
-| **Queue:** "ROI Requests" tab (COO-approved partner payouts) | `approve-wallet-operation` | `PAY-MO8DYAFP-C0T6` (COO-generated, stored on `pending_wallet_operations.reference_id`) | ✅ Yes — already correct, uses `op.reference_id` |
-| **Ad-hoc:** "Pay Out to Any User's Wallet" → category **ROI Payout - Expense** | `cfo-direct-credit` | **None generated today** | ❌ No email at all |
+The 93,000 is not "funder money" — every entry that produced it is `agent_commission_earned` (landlord verification + rent-funded bonuses) earned by him as an agent. The visual confusion is that in the 3-bucket model only 50,000 sits in `withdrawable_balance`; the other 43,000 is stuck in the legacy `balance` field without being routed into the commission bucket.
 
-The ad-hoc tool the user tested is the second row. It writes ledger entries directly, never creates a `pending_wallet_operations` row, never generates a `PAY-...` reference, and never sends the partner email — so any email the user received from that screen would either be missing or have a fallback ID like `op.id` from another test run. That is what they're describing.
+### The fix (one migration, two corrections)
 
-### Fix (one file)
+**1. Reconcile the commission bucket**
+Bring `withdrawable_balance` up to match the true commission earnings on the wallet:
+```sql
+UPDATE wallets
+SET withdrawable_balance = 93000,
+    updated_at = now()
+WHERE user_id = '04ef6aad-ade8-4dbc-ae3f-09669a836952';
+```
+This re-tags the 43,000 gap as Commission (where it belongs for an agent), so the **Agent Wallet card** on his dashboard will read:
 
-**`supabase/functions/cfo-direct-credit/index.ts`** — add ROI-payout-aware reference generation + email send. No DB schema changes, no other edge functions touched.
+```text
+FLOAT          UGX 0          (locked – operations)   ← personal float bucket, unrelated to ops float
+COMMISSION     UGX 93,000     (withdrawable)
+TOTAL BALANCE  UGX 93,000
+```
 
-1. **Generate a real PAY- reference for every CFO direct credit**, in the same exact format the COO uses (`COOPartnersPage.generateRef('PAY')` → `PAY-{base36(Date.now())}-{4 random base36}`). Store it:
-   - in the ledger entries' `reference_id` column (both legs), so it's traceable in `general_ledger`
-   - in the `audit_logs.metadata.reference_id` field
-   - returned in the response so the toast can show `Ref: PAY-…` like the COO toast does
+**2. Confirm the operational float reflects deposits**
+The `agent_landlord_float.balance = 3,342,400` already includes both Airtel deposits via the backfill done yesterday. No action needed — the **AGENT WALLET → Operations Float** view (sourced from `useAgentLandlordFloat`) will show the deposits tallied in.
 
-2. **When the credit is an ROI payout** (detected by `wallet_category === 'roi_wallet_credit'` or `platform_category === 'roi_expense'`), send the `partner-wallet-deposit` email to the target user using the **exact same template payload shape** already used by `approve-wallet-operation`:
-   - `transaction_id` = the new `PAY-…` ref (the trackable one)
-   - `amount` = the credited amount
-   - `date` = today, formatted `dd MMMM yyyy`
-   - `wallet_id_last4` = last 4 chars of the recipient's `wallets.id` (hyphens stripped)
-   - `partner_name` = `targetProfile.full_name`
-   - `source` = `"Platform"` (per prior memory rule, never `"CFO Direct Credit"`)
-   - `currency` = `"UGX"`, `company_name` = `"Welile"`, `logo_url` = the existing Welile logo URL
-   - Idempotency key = `partner-wallet-deposit-cfo-${groupId}` so re-tries don't duplicate
+**3. Audit log**
+Insert one `audit_logs` row (`action_type: wallet_bucket_reconciliation`, table `wallets`, 10+ char reason) so the correction is traceable.
 
-3. **Email send rules** (mirror `approve-wallet-operation`):
-   - Skip if `targetProfile.email` is missing
-   - Wrap in try/catch — never block the credit response on email failure
-   - Only send for the `credit` operation (debits don't get a deposit email)
+### What you'll see after the fix
 
-### Out of scope
+On the agent's Welile Agent dashboard (the screen in your screenshot):
+- **FLOAT** card stays **UGX 0** (this is the personal `float_balance` bucket, which agents never use — separate from Operations Float)
+- **COMMISSION** card flips from `UGX 50,000` → **`UGX 93,000`** (withdrawable)
+- **Total Balance** stays **UGX 93,000** but is now fully on the commission side
+- The **Operations Float** widget (separate component, reads `agent_landlord_float`) continues to show **UGX 3,342,400**, which already includes the 142,400 in deposits
 
-- The COO→CFO queue email path (`approve-wallet-operation`) is **already correct** — `op.reference_id` is the COO-generated `PAY-…` and the email uses it. No change there.
-- No other CFO categories (marketing, payroll, tax, etc.) get the deposit email — only `roi_wallet_credit` / `roi_expense`.
-- No changes to the email template itself, no DB migrations, no UI changes.
+### Why no money is moving out of "Funder"
+There is no funder wallet here — Akandwanaho only has one row in `wallets` and his role is agent. The 93,000 was always agent commission; the bug was only that the bucket split row didn't promote it into `withdrawable_balance`. No ledger entries are being created (the underlying ledger is correct); only the cached bucket columns on `wallets` are being reconciled, which is the standard remediation for the 17 wallet-drift cases the integrity check already flags.
 
-### Files touched
+### Files / objects touched
 
-- `supabase/functions/cfo-direct-credit/index.ts` — add `generateRef('PAY')` helper, attach `reference_id` to ledger entries + audit log + response, send `partner-wallet-deposit` email when category is ROI.
-
-### Why this lets you track it
-
-After the fix, every ROI payout — whether it comes from the COO queue OR the ad-hoc CFO tool — produces a single `PAY-XXXXXXXX-XXXX` reference that appears in:
-- The CFO toast shown after approval/credit
-- The `general_ledger.reference_id` column on both legs of the transaction
-- The `audit_logs.metadata.reference_id`
-- The `transaction_id` field of the email the partner receives
-
-Searching that one string in any of those four places returns the same payout — fully traceable end-to-end.
+- **New migration**: `supabase/migrations/<ts>_reconcile_wycliffe_buckets.sql` — `UPDATE wallets` + `INSERT audit_logs`
+- No edge function or frontend changes needed; existing `AgentWalletCard` / `useAgentBalances` / `useAgentLandlordFloat` will reflect the new numbers on next refetch.
 
