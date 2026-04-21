@@ -27,6 +27,7 @@ export interface TrustProfile {
       payment: number;
       wallet: number;
       network: number;
+      referrals?: number;
       verification: number;
       behavior: number;
       landlord: number;
@@ -76,8 +77,16 @@ export interface TrustProfile {
   };
   network: {
     referrals: number;
+    referrals_score?: number;
+    referrals_max?: number;
+    top_referrer?: boolean;
     sub_agents: number;
+    sub_agents_verified?: number;
     tenants_onboarded: number;
+    partners_managed?: number;
+    landlords_registered?: number;
+    promissory_notes?: number;
+    total_relationships?: number;
     portfolio_value: number | null;
   };
   behavior: {
