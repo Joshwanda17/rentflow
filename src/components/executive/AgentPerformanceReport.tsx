@@ -258,19 +258,44 @@ export function AgentPerformanceReport() {
     staleTime: 60_000,
   });
 
-  const rows = data?.rows || [];
-  const totals = data?.totals || { collected: 0, payments: 0, commission: 0, interest: 0, wallet_total: 0, tenants_paid: 0, tenants_total: 0 };
+  const rawRows = data?.rows || [];
+  // Apply client-side filters
+  const minColNum = Number(minCollected) || 0;
+  const search = agentSearch.trim().toLowerCase();
+  const rows = useMemo(() => {
+    let out = rawRows;
+    if (statusFilter !== 'all') out = out.filter(r => r.status === statusFilter);
+    if (search) out = out.filter(r => r.agent_name.toLowerCase().includes(search));
+    if (minColNum > 0) out = out.filter(r => r.collected >= minColNum);
+    // Re-rank after filtering
+    return out.map((r, i) => ({ ...r, rank: i + 1 }));
+  }, [rawRows, statusFilter, search, minColNum]);
+  const totals: AgentPerfTotals = useMemo(() => rows.reduce((t, r) => ({
+    collected: t.collected + r.collected,
+    payments: t.payments + r.payments,
+    commission: t.commission + r.commission,
+    interest: t.interest + r.interest,
+    wallet_total: t.wallet_total + r.wallet_total,
+    tenants_paid: t.tenants_paid + r.tenants_paid,
+    tenants_total: t.tenants_total + r.tenants_total,
+  }), { collected: 0, payments: 0, commission: 0, interest: 0, wallet_total: 0, tenants_paid: 0, tenants_total: 0 }), [rows]);
+
+  const activeFilterCount =
+    (paymentSource !== 'all' ? 1 : 0) +
+    (statusFilter !== 'all' ? 1 : 0) +
+    (search ? 1 : 0) +
+    (minColNum > 0 ? 1 : 0);
 
   const handleDownloadPdf = async () => {
     if (!rows.length) { toast.error('No data to export'); return; }
     try {
       const blob = await generateAgentPerformancePdf({
-        rows, totals, periodLabel, startDate: range.start, endDate: range.end,
+        rows, totals, periodLabel, startDate: range.start || range.end, endDate: range.end,
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `agent_performance_${format(range.start, 'yyyy-MM-dd')}_${format(range.end, 'yyyy-MM-dd')}.pdf`;
+      a.download = `agent_performance_${range.start ? format(range.start, 'yyyy-MM-dd') + '_' : ''}${format(range.end, 'yyyy-MM-dd')}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
       toast.success('PDF downloaded');
