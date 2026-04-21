@@ -64,51 +64,94 @@ const fmtPct = (n: number) => `${n.toFixed(1)}%`;
 
 export function AgentPerformanceReport() {
   const [preset, setPreset] = useState<RangePreset>('last-7');
+  const [paymentSource, setPaymentSource] = useState<PaymentSource>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [agentSearch, setAgentSearch] = useState('');
+  const [minCollected, setMinCollected] = useState('');
   const range = useMemo(() => getRange(preset), [preset]);
-  const startISO = range.start.toISOString();
+  const startISO = range.start ? range.start.toISOString() : null;
   const endISO = range.end.toISOString();
-  const periodLabel = `${format(range.start, 'MMM d')} – ${format(range.end, 'MMM d, yyyy')}`;
+  const periodLabel = range.start
+    ? `${format(range.start, 'MMM d')} – ${format(range.end, 'MMM d, yyyy')}`
+    : `All time · as of ${format(range.end, 'MMM d, yyyy')}`;
 
   const { data, isLoading } = useQuery({
-    queryKey: ['agent-perf-report', startISO, endISO],
+    queryKey: ['agent-perf-report', startISO, endISO, paymentSource],
     queryFn: async () => {
-      // Pull collections in window
-      const { data: collections } = await supabase
-        .from('agent_collections')
-        .select('agent_id, amount, tenant_id, created_at')
-        .gte('created_at', startISO)
-        .lte('created_at', endISO);
-
-      // Pull earnings in window (for interest)
-      const { data: earnings } = await supabase
-        .from('agent_earnings')
-        .select('agent_id, amount, earning_type, created_at')
-        .gte('created_at', startISO)
-        .lte('created_at', endISO);
-
-      // Pull rent_requests for tenant counts (assigned tenants) - paginated to bypass 1000-row cap
-      const rentReqs: { agent_id: string | null; tenant_id: string | null }[] = [];
-      {
+      // Helper: paginated fetch (up to 20k rows)
+      const fetchAll = async <T,>(builder: () => any): Promise<T[]> => {
         const PAGE = 1000;
+        const out: T[] = [];
         let from = 0;
-        // Cap at 20k rows defensively
         for (let p = 0; p < 20; p++) {
-          const { data, error } = await supabase
-            .from('rent_requests')
-            .select('agent_id, tenant_id')
-            .not('agent_id', 'is', null)
-            .range(from, from + PAGE - 1);
+          const { data, error } = await builder().range(from, from + PAGE - 1);
           if (error || !data || data.length === 0) break;
-          rentReqs.push(...(data as any));
+          out.push(...(data as T[]));
           if (data.length < PAGE) break;
           from += PAGE;
         }
-      }
+        return out;
+      };
+
+      // ============ PULL ALL PAYMENT SOURCES ============
+      // 1) agent_collections (cash collected by agents in field)
+      const collections = (paymentSource === 'all' || paymentSource === 'agent_collections')
+        ? await fetchAll<{ agent_id: string; amount: number; tenant_id: string | null; created_at: string }>(() => {
+            let q = supabase.from('agent_collections').select('agent_id, amount, tenant_id, created_at');
+            if (startISO) q = q.gte('created_at', startISO);
+            return q.lte('created_at', endISO);
+          })
+        : [];
+
+      // 2) repayments (tenant direct payments via merchant — attributed to agent)
+      const repayments = (paymentSource === 'all' || paymentSource === 'repayments')
+        ? await fetchAll<{ agent_id: string | null; tenant_id: string | null; amount: number; created_at: string }>(() => {
+            let q = supabase.from('repayments').select('agent_id, tenant_id, amount, created_at').not('agent_id', 'is', null);
+            if (startISO) q = q.gte('created_at', startISO);
+            return q.lte('created_at', endISO);
+          })
+        : [];
+
+      // 3) tenant_merchant_payments (direct merchant pay-ins by tenant) — attribute via rent_request → agent
+      const merchantRaw = (paymentSource === 'all' || paymentSource === 'merchant')
+        ? await fetchAll<{ tenant_id: string | null; rent_request_id: string | null; amount: number; created_at: string }>(() => {
+            let q = supabase.from('tenant_merchant_payments').select('tenant_id, rent_request_id, amount, created_at');
+            if (startISO) q = q.gte('created_at', startISO);
+            return q.lte('created_at', endISO);
+          })
+        : [];
+
+      // Pull earnings in window (for interest)
+      const earnings = await fetchAll<{ agent_id: string; amount: number; earning_type: string; created_at: string }>(() => {
+        let q = supabase.from('agent_earnings').select('agent_id, amount, earning_type, created_at');
+        if (startISO) q = q.gte('created_at', startISO);
+        return q.lte('created_at', endISO);
+      });
+
+      // Pull rent_requests for tenant counts (assigned tenants) - paginated to bypass 1000-row cap
+      const rentReqs = await fetchAll<{ id: string; agent_id: string | null; tenant_id: string | null }>(() =>
+        supabase.from('rent_requests').select('id, agent_id, tenant_id').not('agent_id', 'is', null)
+      );
+
+      // Build rent_request_id → agent_id map for merchant payment attribution
+      const reqAgentMap: Record<string, string> = {};
+      rentReqs.forEach(r => { if (r.id && r.agent_id) reqAgentMap[r.id] = r.agent_id; });
+
+      // Resolve merchant payments → attributed agent
+      type ResolvedPayment = { agent_id: string; tenant_id: string | null; amount: number };
+      const merchantResolved: ResolvedPayment[] = merchantRaw
+        .map(m => {
+          const aid = m.rent_request_id ? reqAgentMap[m.rent_request_id] : undefined;
+          return aid ? { agent_id: aid, tenant_id: m.tenant_id, amount: Number(m.amount || 0) } : null;
+        })
+        .filter((x): x is ResolvedPayment => x !== null);
 
       const agentIds = Array.from(new Set([
-        ...(collections || []).map(c => c.agent_id),
-        ...(earnings || []).map(e => e.agent_id),
-        ...(rentReqs || []).map(r => r.agent_id as string),
+        ...collections.map(c => c.agent_id),
+        ...repayments.map(r => r.agent_id as string),
+        ...merchantResolved.map(m => m.agent_id),
+        ...earnings.map(e => e.agent_id),
+        ...rentReqs.map(r => r.agent_id as string),
       ].filter(Boolean)));
 
       let profilesMap: Record<string, string> = {};
@@ -128,19 +171,40 @@ export function AgentPerformanceReport() {
         collected: number; payments: number;
         interest: number; commissionEarnings: number;
         tenantsPaid: Set<string>; tenantsTotal: Set<string>;
+        bySource: { agent_collections: number; repayments: number; merchant: number };
       };
       const agg: Record<string, Agg> = {};
       const ensure = (id: string): Agg => agg[id] ??= {
         collected: 0, payments: 0, interest: 0, commissionEarnings: 0,
         tenantsPaid: new Set(), tenantsTotal: new Set(),
+        bySource: { agent_collections: 0, repayments: 0, merchant: 0 },
       };
 
-      (collections || []).forEach(c => {
+      collections.forEach(c => {
         const a = ensure(c.agent_id);
-        a.collected += Number(c.amount || 0);
+        const amt = Number(c.amount || 0);
+        a.collected += amt;
+        a.bySource.agent_collections += amt;
         a.payments += 1;
+        if (c.tenant_id) { a.tenantsPaid.add(c.tenant_id); a.tenantsTotal.add(c.tenant_id); }
       });
-      (earnings || []).forEach(e => {
+      repayments.forEach(r => {
+        if (!r.agent_id) return;
+        const a = ensure(r.agent_id);
+        const amt = Number(r.amount || 0);
+        a.collected += amt;
+        a.bySource.repayments += amt;
+        a.payments += 1;
+        if (r.tenant_id) { a.tenantsPaid.add(r.tenant_id); a.tenantsTotal.add(r.tenant_id); }
+      });
+      merchantResolved.forEach(m => {
+        const a = ensure(m.agent_id);
+        a.collected += m.amount;
+        a.bySource.merchant += m.amount;
+        a.payments += 1;
+        if (m.tenant_id) { a.tenantsPaid.add(m.tenant_id); a.tenantsTotal.add(m.tenant_id); }
+      });
+      earnings.forEach(e => {
         const a = ensure(e.agent_id);
         const type = String(e.earning_type || '').toLowerCase();
         if (type.includes('interest')) a.interest += Number(e.amount || 0);
@@ -149,14 +213,6 @@ export function AgentPerformanceReport() {
       rentReqs.forEach(r => {
         if (!r.agent_id || !r.tenant_id) return;
         ensure(r.agent_id).tenantsTotal.add(r.tenant_id);
-      });
-      // Mark tenants paid from collections in window (regardless of rent_request linkage)
-      (collections || []).forEach(c => {
-        if (!c.tenant_id) return;
-        const a = ensure(c.agent_id);
-        a.tenantsPaid.add(c.tenant_id);
-        // Ensure paid tenants always count toward total (in case rent_request link is missing)
-        a.tenantsTotal.add(c.tenant_id);
       });
 
       const rows: AgentPerfRow[] = Object.entries(agg).map(([id, a]) => {
@@ -180,6 +236,7 @@ export function AgentPerformanceReport() {
           wallet_total,
           rate,
           status: statusFor(pctPaid),
+          source_breakdown: a.bySource,
         };
       })
       .filter(r => r.tenants_total > 0)
