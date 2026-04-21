@@ -186,6 +186,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     const agentId = existingPortfolio?.agent_id ?? user.id;
+    const isFirstInvestment = !existingPortfolio;
 
     const { error: portfolioErr } = await adminClient.from("investor_portfolios").insert({
       investor_id: user.id,
@@ -252,6 +253,51 @@ Deno.serve(async (req) => {
       }),
     }).catch(() => {});
 
+    // First-investment Partnership Agreement email (one-time, fire-and-forget)
+    if (isFirstInvestment) {
+      try {
+        const { data: profile } = await adminClient
+          .from("profiles")
+          .select("email, full_name")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (profile?.email) {
+          const totalProjected = monthlyReward * 12;
+          const formatLongDate = (iso: string) => {
+            const d = new Date(iso);
+            return d.toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
+          };
+
+          fetch(`${supabaseUrl}/functions/v1/send-transactional-email`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${supabaseServiceKey}`,
+            },
+            body: JSON.stringify({
+              templateName: "partnership-agreement",
+              recipientEmail: profile.email,
+              idempotencyKey: `partnership-agreement-${user.id}-${referenceId}`,
+              templateData: {
+                partner_name: profile.full_name || "Partner",
+                partnership_amount: amount,
+                contribution_date: formatLongDate(now.toISOString()),
+                monthly_return_amount: monthlyReward,
+                total_projected_return: totalProjected,
+                first_payment_date: formatLongDate(firstPayoutDate),
+                roi_payment_day: payout_day,
+                currency: "UGX",
+                company_name: "Welile",
+                logo_url: "https://welilereceipts.com/welile-logo.png",
+              },
+            }),
+          }).catch((err) => console.warn("[fund-rent-pool] Partnership agreement email enqueue failed:", err));
+        }
+      } catch (emailErr) {
+        console.warn("[fund-rent-pool] Partnership agreement email lookup failed (non-blocking):", emailErr);
+      }
+    }
 
     return new Response(
       JSON.stringify({
