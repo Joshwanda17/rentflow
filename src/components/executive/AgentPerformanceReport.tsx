@@ -128,14 +128,22 @@ export function AgentPerformanceReport() {
         return q.lte('created_at', endISO);
       });
 
-      // Pull rent_requests for tenant counts (assigned tenants) - paginated to bypass 1000-row cap
-      const rentReqs = await fetchAll<{ id: string; agent_id: string | null; tenant_id: string | null }>(() =>
-        supabase.from('rent_requests').select('id, agent_id, tenant_id').not('agent_id', 'is', null)
+      // Pull rent_requests for tenant counts.
+      // We need TWO scopes:
+      //  - rentReqsAll: ALL-time, used to attribute merchant payments (rent_request_id → agent_id),
+      //    because a payment in this range may belong to a request created earlier.
+      //  - rentReqsInRange: scoped to the selected date range (by created_at), used for tenants_total
+      //    so the "X/Y" denominator reflects the chosen period, not lifetime assignments.
+      const rentReqsAll = await fetchAll<{ id: string; agent_id: string | null; tenant_id: string | null; created_at: string }>(() =>
+        supabase.from('rent_requests').select('id, agent_id, tenant_id, created_at').not('agent_id', 'is', null)
       );
+      const rentReqsInRange = startISO
+        ? rentReqsAll.filter(r => r.created_at >= startISO && r.created_at <= endISO)
+        : rentReqsAll;
 
-      // Build rent_request_id → agent_id map for merchant payment attribution
+      // Build rent_request_id → agent_id map for merchant payment attribution (use ALL requests)
       const reqAgentMap: Record<string, string> = {};
-      rentReqs.forEach(r => { if (r.id && r.agent_id) reqAgentMap[r.id] = r.agent_id; });
+      rentReqsAll.forEach(r => { if (r.id && r.agent_id) reqAgentMap[r.id] = r.agent_id; });
 
       // Resolve merchant payments → attributed agent
       type ResolvedPayment = { agent_id: string; tenant_id: string | null; amount: number };
@@ -151,7 +159,7 @@ export function AgentPerformanceReport() {
         ...repayments.map(r => r.agent_id as string),
         ...merchantResolved.map(m => m.agent_id),
         ...earnings.map(e => e.agent_id),
-        ...rentReqs.map(r => r.agent_id as string),
+        ...rentReqsInRange.map(r => r.agent_id as string),
       ].filter(Boolean)));
 
       let profilesMap: Record<string, string> = {};
@@ -210,7 +218,7 @@ export function AgentPerformanceReport() {
         if (type.includes('interest')) a.interest += Number(e.amount || 0);
         else if (type.includes('commission')) a.commissionEarnings += Number(e.amount || 0);
       });
-      rentReqs.forEach(r => {
+      rentReqsInRange.forEach(r => {
         if (!r.agent_id || !r.tenant_id) return;
         ensure(r.agent_id).tenantsTotal.add(r.tenant_id);
       });
