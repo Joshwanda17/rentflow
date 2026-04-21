@@ -14,6 +14,7 @@ import { UserSearchPicker } from './UserSearchPicker';
 import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 import { RentDisbursementQueue } from './RentDisbursementQueue';
 import { BusinessAdvanceDisbursementQueue } from './BusinessAdvanceDisbursementQueue';
+import { ROIPayoutQueue } from './ROIPayoutQueue';
 import { PayoutAutomationToggle } from './PayoutAutomationToggle';
 
 type Operation = 'credit' | 'debit';
@@ -266,6 +267,20 @@ export function DirectCreditTool() {
     staleTime: 20_000,
   });
 
+  const { data: roiPayoutQueueCount = 0 } = useQuery({
+    queryKey: ['roi-payout-queue-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('pending_wallet_operations')
+        .select('id', { count: 'exact', head: true })
+        .eq('category', 'roi_payout')
+        .eq('status', 'coo_approved');
+      if (error) return 0;
+      return count ?? 0;
+    },
+    staleTime: 20_000,
+  });
+
   const availableCategories = useMemo(
     () => PAYOUT_CATEGORIES.filter(c => c.allowedOps.includes(operation)),
     [operation]
@@ -286,7 +301,8 @@ export function DirectCreditTool() {
 
   const isRentDisbursement = selectedCategoryId === 'rent_disbursement';
   const isBusinessAdvance = selectedCategoryId === 'business_advance';
-  const isQueueCategory = isRentDisbursement || isBusinessAdvance;
+  const isROIPayout = selectedCategoryId === 'roi_payout';
+  const isQueueCategory = isRentDisbursement || isBusinessAdvance || isROIPayout;
 
   const handleOperationChange = (op: Operation) => {
     setOperation(op);
@@ -435,6 +451,8 @@ export function DirectCreditTool() {
                   readySuffix = ` • ${rentQueueCount} ready`;
                 } else if (cat.id === 'business_advance' && businessAdvanceQueueCount > 0) {
                   readySuffix = ` • ${businessAdvanceQueueCount} ready`;
+                } else if (cat.id === 'roi_payout' && roiPayoutQueueCount > 0) {
+                  readySuffix = ` • ${roiPayoutQueueCount} ready`;
                 }
                 return (
                   <option key={cat.id} value={cat.id}>
@@ -514,6 +532,11 @@ export function DirectCreditTool() {
         {/* ── BUSINESS ADVANCE DISBURSEMENT QUEUE ── */}
         {isBusinessAdvance && (
           <BusinessAdvanceDisbursementQueue />
+        )}
+
+        {/* ── ROI PAYOUT QUEUE ── */}
+        {isROIPayout && (
+          <ROIPayoutQueue />
         )}
 
         {/* ── MANUAL PAYOUT FORM (non-queue categories) ── */}
