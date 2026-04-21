@@ -301,7 +301,8 @@ export function DirectCreditTool() {
 
   const isRentDisbursement = selectedCategoryId === 'rent_disbursement';
   const isBusinessAdvance = selectedCategoryId === 'business_advance';
-  const isQueueCategory = isRentDisbursement || isBusinessAdvance;
+  const isROIPayout = selectedCategoryId === 'roi_payout';
+  const isQueueCategory = isRentDisbursement || isBusinessAdvance || isROIPayout;
 
   const handleOperationChange = (op: Operation) => {
     setOperation(op);
@@ -450,6 +451,8 @@ export function DirectCreditTool() {
                   readySuffix = ` • ${rentQueueCount} ready`;
                 } else if (cat.id === 'business_advance' && businessAdvanceQueueCount > 0) {
                   readySuffix = ` • ${businessAdvanceQueueCount} ready`;
+                } else if (cat.id === 'roi_payout' && roiPayoutQueueCount > 0) {
+                  readySuffix = ` • ${roiPayoutQueueCount} ready`;
                 }
                 return (
                   <option key={cat.id} value={cat.id}>
