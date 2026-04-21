@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { runShadowAudit } from "../_shared/shadowLogger.ts";
 import { shadowValidatePoolFunding } from "../_shared/shadowValidation.ts";
 import { fetchShadowConfig, shouldSample } from "../_shared/shadowConfig.ts";
+import { buildPartnershipEmailRequest } from "./partnership-email.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -264,37 +265,27 @@ Deno.serve(async (req) => {
           .eq("id", user.id)
           .maybeSingle();
 
-        if (profile?.email) {
-          const totalProjected = monthlyReward * 12;
-          const formatLongDate = (iso: string) => {
-            const d = new Date(iso);
-            return d.toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
-          };
+        const emailRequest = buildPartnershipEmailRequest({
+          portfolioCreatedThisRun,
+          recipientEmail: profile?.email,
+          userId: user.id,
+          newPortfolioId: String(newPortfolioId),
+          partnerName: profile?.full_name,
+          amount,
+          monthlyReward,
+          contributionDateIso: now.toISOString(),
+          firstPayoutDateIso: firstPayoutDate,
+          payoutDay: payout_day,
+        });
 
+        if (emailRequest) {
           fetch(`${supabaseUrl}/functions/v1/send-transactional-email`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               "Authorization": `Bearer ${supabaseServiceKey}`,
             },
-            body: JSON.stringify({
-              templateName: "partnership-agreement",
-              recipientEmail: profile.email,
-              idempotencyKey: `partnership-agreement-${user.id}-${newPortfolioId}`,
-              templateData: {
-                partner_name: profile.full_name || "Partner",
-                partnership_amount: amount,
-                contribution_date: formatLongDate(now.toISOString()),
-                monthly_return_amount: monthlyReward,
-                total_projected_return: totalProjected,
-                first_payment_date: formatLongDate(firstPayoutDate),
-                roi_payment_day: payout_day,
-                currency: "UGX",
-                company_name: "Welile",
-                logo_url: "https://welilereceipts.com/welile-logo.png",
-                dashboard_url: "https://welilereceipts.com/auth",
-              },
-            }),
+            body: JSON.stringify(emailRequest),
           }).catch((err) => console.warn("[fund-rent-pool] Partnership agreement email enqueue failed:", err));
         }
       } catch (emailErr) {
