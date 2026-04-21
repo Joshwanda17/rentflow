@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,6 +35,7 @@ const ROI_RATE = 0.15;
 
 export default function RegisterPartnerPublic() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const agentId = searchParams.get('agent');
   const token = searchParams.get('token');
 
@@ -135,6 +136,27 @@ export default function RegisterPartnerPublic() {
 
       const { data, error: fnErr } = await supabase.functions.invoke('submit-partner-form', { body: payload });
       if (fnErr || data?.error) throw new Error(data?.error || fnErr?.message || 'Submission failed');
+      // Auto sign-in: backend returns temp credentials for newly-created partners.
+      // Existing users skip sign-in (no password available) — they see the success screen.
+      if (data?.auth_email && data?.auth_password) {
+        try {
+          await supabase.auth.signOut();
+          const { error: signInErr } = await supabase.auth.signInWithPassword({
+            email: data.auth_email,
+            password: data.auth_password,
+          });
+          if (signInErr) {
+            console.warn('[RegisterPartnerPublic] Auto sign-in failed:', signInErr.message);
+            setSubmitted(true);
+            return;
+          }
+          // Persistent session — user stays signed in across browser restarts until explicit sign-out.
+          navigate('/dashboard', { replace: true });
+          return;
+        } catch (signInErr) {
+          console.warn('[RegisterPartnerPublic] Auto sign-in threw:', signInErr);
+        }
+      }
       setSubmitted(true);
     } catch (err: any) {
       setError(err.message || 'Something went wrong. Please try again.');

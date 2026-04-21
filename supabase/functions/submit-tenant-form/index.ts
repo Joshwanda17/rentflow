@@ -100,6 +100,8 @@ Deno.serve(async (req) => {
     let userId: string;
     let isExisting = false;
     let activationToken: string | null = null;
+    let createdEmail: string | null = null;
+    let createdPassword: string | null = null;
 
     if (existingByPhone && existingByPhone.length > 0) {
       userId = existingByPhone[0].id;
@@ -131,8 +133,11 @@ Deno.serve(async (req) => {
         activationToken = crypto.randomUUID();
         await supabaseAdmin.from("supporter_invites").insert({
           full_name, phone: cleanPhone, email: virtualEmail, temp_password: tempPassword,
-          activation_token: activationToken, created_by: agent_id, role: "tenant", status: "pending",
+          activation_token: activationToken, created_by: agent_id, role: "tenant",
+          status: "activated", activated_at: new Date().toISOString(), activated_user_id: userId,
         });
+        createdEmail = virtualEmail;
+        createdPassword = tempPassword;
       }
     }
 
@@ -206,6 +211,11 @@ Deno.serve(async (req) => {
       tenant_id: userId!,
       rent_request_id: rentReq?.id,
       existing: isExisting,
+      // Auto-sign-in credentials (only present for newly-created tenants).
+      // For existing users we cannot return their password — the client will
+      // show a "you're already registered" message and route them to login.
+      auth_email: createdEmail,
+      auth_password: createdPassword,
     });
 
   } catch (error: any) {

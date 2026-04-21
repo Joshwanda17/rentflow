@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -50,6 +50,7 @@ function Branding() {
 
 export default function RegisterTenantPublic() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const agentId = searchParams.get('agent');
   const token = searchParams.get('token');
 
@@ -215,6 +216,29 @@ export default function RegisterTenantPublic() {
 
       if (fnError) throw new Error(fnError.message);
       if (data?.error) throw new Error(data.error);
+      // Auto sign-in: backend returns temp credentials for newly-created tenants.
+      // Existing users skip sign-in (we don't have their password) — they just see the success screen.
+      if (data?.auth_email && data?.auth_password) {
+        try {
+          // Sign out any pre-existing session so the new tenant lands cleanly.
+          await supabase.auth.signOut();
+          const { error: signInErr } = await supabase.auth.signInWithPassword({
+            email: data.auth_email,
+            password: data.auth_password,
+          });
+          if (signInErr) {
+            console.warn('[RegisterTenantPublic] Auto sign-in failed:', signInErr.message);
+            setSubmitted(true);
+            return;
+          }
+          // Persistent session is configured at the client level (localStorage + autoRefresh),
+          // so the user stays signed in across browser restarts until they explicitly sign out.
+          navigate('/dashboard', { replace: true });
+          return;
+        } catch (signInErr) {
+          console.warn('[RegisterTenantPublic] Auto sign-in threw:', signInErr);
+        }
+      }
       setSubmitted(true);
     } catch (err: any) {
       setError(err.message || 'Something went wrong. Please try again.');
