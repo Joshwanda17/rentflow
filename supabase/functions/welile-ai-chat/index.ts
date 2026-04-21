@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -279,7 +278,7 @@ ESCALATION:
 If you cannot resolve an issue, say exactly:
 "Please inbox our tech team on WhatsApp: 0708257899 (WhatsApp only) to report issues or suggest new features."`;
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
