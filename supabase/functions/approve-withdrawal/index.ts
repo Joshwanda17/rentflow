@@ -133,6 +133,15 @@ Deno.serve(async (req) => {
       `submitter=${wr.user_id}, debiting=${fundingUserId}, beneficiary=${beneficiaryUserId}, amount=${amount}`
     );
 
+    // Trust the ledger: reconcile the funding wallet from general_ledger before
+    // gating the withdrawal so CFO credits / corrections aren't blocked by stale
+    // bucket columns.
+    try {
+      await admin.rpc("reconcile_wallet_from_ledger", { p_user_id: fundingUserId });
+    } catch (reconErr) {
+      console.error("[approve-withdrawal] reconcile_wallet_from_ledger failed:", (reconErr as Error).message);
+    }
+
     // 3-BUCKET WALLET MODEL: withdrawals can ONLY draw from withdrawable_balance.
     const { data: wallet } = await admin
       .from("wallets")
