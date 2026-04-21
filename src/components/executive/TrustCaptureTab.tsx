@@ -329,6 +329,93 @@ export function TrustCaptureTab() {
   );
 }
 
+interface ReferralStats {
+  total: number;
+  last7: number;
+  last30: number;
+  score: number;
+  topReferrer: boolean;
+  nextMilestone: number | null;
+}
+
+function ReferralsHeroCard({ stats }: { stats?: ReferralStats }) {
+  const total = stats?.total ?? 0;
+  const score = stats?.score ?? 0;
+  const scorePct = Math.min(100, Math.round((score / 18) * 100));
+  const next = stats?.nextMilestone;
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-500/15 via-primary/10 to-amber-500/10 p-4 shadow-lg">
+      <div className="absolute -right-6 -top-6 opacity-10">
+        <Share2 className="h-32 w-32 text-emerald-600" />
+      </div>
+      <div className="relative space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-lg bg-emerald-500 text-white">
+            <Share2 className="h-4 w-4" />
+          </div>
+          <h3 className="text-sm font-bold uppercase tracking-wide">Your Referrals</h3>
+          {stats?.topReferrer && (
+            <span className="ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-bold">
+              <Trophy className="h-3 w-3" /> TOP REFERRER
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-end gap-2">
+          <span className="text-5xl font-bold leading-none text-foreground">{total}</span>
+          <span className="text-xs text-muted-foreground pb-1">people signed up via your link</span>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2">
+          <div className="rounded-lg bg-background/60 p-2 text-center border border-border/50">
+            <p className="text-[10px] uppercase text-muted-foreground">Last 7d</p>
+            <p className="text-lg font-bold">{stats?.last7 ?? 0}</p>
+          </div>
+          <div className="rounded-lg bg-background/60 p-2 text-center border border-border/50">
+            <p className="text-[10px] uppercase text-muted-foreground">Last 30d</p>
+            <p className="text-lg font-bold">{stats?.last30 ?? 0}</p>
+          </div>
+          <div className="rounded-lg bg-background/60 p-2 text-center border border-border/50">
+            <p className="text-[10px] uppercase text-muted-foreground">Trust Pts</p>
+            <p className="text-lg font-bold text-emerald-600">{score.toFixed(1)}<span className="text-xs text-muted-foreground">/18</span></p>
+          </div>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between text-[11px] mb-1">
+            <span className="text-muted-foreground">Referral score progress</span>
+            <span className="font-semibold">{scorePct}%</span>
+          </div>
+          <div className="h-2.5 bg-muted rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-emerald-500 via-primary to-amber-500 transition-all"
+              style={{ width: `${scorePct}%` }}
+            />
+          </div>
+          {next && (
+            <p className="text-[11px] text-muted-foreground mt-1.5">
+              <Sparkles className="inline h-3 w-3 text-amber-500 mr-1" />
+              <span className="font-semibold text-foreground">{next - total} more</span> referrals to reach the next milestone ({next})
+              {next === 25 && ' — unlock the Top Referrer badge'}
+              {next === 30 && ' — unlock max referral score (18/18)'}
+            </p>
+          )}
+          {!next && (
+            <p className="text-[11px] text-emerald-600 font-semibold mt-1.5">
+              🏆 Maxed out — you've earned every referral trust point available.
+            </p>
+          )}
+        </div>
+
+        <p className="text-[11px] text-muted-foreground border-t border-border/40 pt-2">
+          Every link sign-up directly raises your <span className="font-bold text-foreground">Welile Trust Score</span> — referrals are now a top-tier factor (up to 18 of 100 points). Share your agent link from the dashboard to keep climbing.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 interface CaptureSheetProps {
   open: boolean;
   onOpenChange: (v: boolean) => void;
