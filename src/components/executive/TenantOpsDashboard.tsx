@@ -264,6 +264,13 @@ export function TenantOpsDashboard() {
       icon: Banknote,
       color: 'bg-purple-500/10 text-purple-600 border-purple-200',
     },
+    {
+      id: 'agent-allocations' as ActiveView,
+      label: 'Agent Allocations',
+      description: 'Holistic per-agent tenant repayment view',
+      icon: Network,
+      color: 'bg-indigo-500/10 text-indigo-600 border-indigo-200',
+    },
   ];
 
   const goBack = () => {
@@ -398,6 +405,8 @@ export function TenantOpsDashboard() {
             <RentHistoryVerificationQueue dept="tenant_ops" />
           </div>
         );
+      case 'agent-allocations':
+        return <AgentAllocationReport />;
       default:
         return null;
     }
