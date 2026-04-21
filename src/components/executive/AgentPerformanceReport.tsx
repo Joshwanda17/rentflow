@@ -131,14 +131,14 @@ export function AgentPerformanceReport() {
         return q.lte('created_at', endISO);
       });
 
-      // Pull rent_requests for tenant counts.
+      // Pull rent_requests for tenant counts AND daily_portfolio.
       // We need TWO scopes:
       //  - rentReqsAll: ALL-time, used to attribute merchant payments (rent_request_id → agent_id),
       //    because a payment in this range may belong to a request created earlier.
       //  - rentReqsInRange: scoped to the selected date range (by created_at), used for tenants_total
       //    so the "X/Y" denominator reflects the chosen period, not lifetime assignments.
-      const rentReqsAll = await fetchAll<{ id: string; agent_id: string | null; tenant_id: string | null; created_at: string }>(() =>
-        supabase.from('rent_requests').select('id, agent_id, tenant_id, created_at').not('agent_id', 'is', null)
+      const rentReqsAll = await fetchAll<{ id: string; agent_id: string | null; tenant_id: string | null; created_at: string; daily_repayment: number | null; status: string | null; amount_repaid: number | null; total_repayment: number | null }>(() =>
+        supabase.from('rent_requests').select('id, agent_id, tenant_id, created_at, daily_repayment, status, amount_repaid, total_repayment').not('agent_id', 'is', null)
       );
       const rentReqsInRange = startISO
         ? rentReqsAll.filter(r => r.created_at >= startISO && r.created_at <= endISO)
@@ -232,14 +232,38 @@ export function AgentPerformanceReport() {
         ensure(r.agent_id).tenantsTotal.add(r.tenant_id);
       });
 
+      // Compute Daily Portfolio per agent = sum(daily_repayment) of ACTIVE rent requests
+      // Active = not fully_repaid / not cancelled / not defaulted, and outstanding > 0.
+      const ACTIVE_STATUSES = new Set(['funded', 'disbursed', 'repaying', 'tenant_ops_approved', 'agent_verified']);
+      const dailyPortfolioByAgent: Record<string, number> = {};
+      const activeTenantsByAgent: Record<string, Set<string>> = {};
+      rentReqsAll.forEach(r => {
+        if (!r.agent_id) return;
+        const status = (r.status || '').toLowerCase();
+        const outstanding = Number(r.total_repayment || 0) - Number(r.amount_repaid || 0);
+        const isActive = ACTIVE_STATUSES.has(status) && outstanding > 0;
+        if (!isActive) return;
+        dailyPortfolioByAgent[r.agent_id] = (dailyPortfolioByAgent[r.agent_id] || 0) + Number(r.daily_repayment || 0);
+        if (r.tenant_id) {
+          (activeTenantsByAgent[r.agent_id] ??= new Set()).add(r.tenant_id);
+        }
+      });
+      // Make sure every agent with a portfolio is in the agg
+      Object.keys(dailyPortfolioByAgent).forEach(id => ensure(id));
+
       const rows: AgentPerfRow[] = Object.entries(agg).map(([id, a]) => {
         // Use ledger commission if present, else 5% of collected as display fallback
         const commission = a.commissionEarnings > 0 ? a.commissionEarnings : a.collected * 0.10;
         const wallet_total = commission + a.interest;
-        const tenantsTotal = a.tenantsTotal.size || a.tenantsPaid.size;
+        const activeTenantCount = activeTenantsByAgent[id]?.size || 0;
+        const tenantsTotal = activeTenantCount || a.tenantsTotal.size || a.tenantsPaid.size;
         const tenantsPaid = a.tenantsPaid.size;
         const pctPaid = tenantsTotal ? (tenantsPaid / tenantsTotal) * 100 : 0;
         const rate = a.collected ? (wallet_total / a.collected) * 100 : 0;
+        const dailyPortfolio = dailyPortfolioByAgent[id] || 0;
+        const expectedWeekly = dailyPortfolio * 7;
+        const efficiency = expectedWeekly ? (a.collected / expectedWeekly) * 100 : 0;
+        const gap = expectedWeekly - a.collected;
         return {
           rank: 0,
           agent_name: profilesMap[id] || id.slice(0, 8),
@@ -252,12 +276,16 @@ export function AgentPerformanceReport() {
           interest: a.interest,
           wallet_total,
           rate,
-          status: statusFor(pctPaid),
+          status: statusForEfficiency(efficiency),
           source_breakdown: a.bySource,
+          daily_portfolio: dailyPortfolio,
+          expected_weekly: expectedWeekly,
+          efficiency,
+          gap,
         };
       })
-      .filter(r => r.tenants_total > 0)
-      .sort((x, y) => y.collected - x.collected)
+      .filter(r => r.tenants_total > 0 || (r.daily_portfolio || 0) > 0)
+      .sort((x, y) => (y.daily_portfolio || 0) - (x.daily_portfolio || 0) || y.collected - x.collected)
       .map((r, i) => ({ ...r, rank: i + 1 }));
 
       const totals: AgentPerfTotals = rows.reduce((t, r) => ({
