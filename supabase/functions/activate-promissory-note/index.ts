@@ -56,16 +56,18 @@ Deno.serve(async (req) => {
 
     if (updateError) throw updateError;
 
-    // Ensure user has supporter role
+    // Grant all 4 public roles so partners onboarded via promissory-note links
+    // can access every public dashboard (tenant, agent, landlord, supporter).
+    const PUBLIC_ROLES = ['tenant', 'agent', 'landlord', 'supporter'] as const;
     const { error: roleError } = await supabaseAdmin
       .from('user_roles')
       .upsert(
-        { user_id, role: 'supporter' },
+        PUBLIC_ROLES.map(role => ({ user_id, role, enabled: true })),
         { onConflict: 'user_id,role' }
       );
 
     if (roleError) {
-      console.error('Failed to assign supporter role:', roleError);
+      console.error('Failed to assign public roles:', roleError);
     }
 
     // Log system event

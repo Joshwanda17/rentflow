@@ -267,26 +267,30 @@ Deno.serve(async (req) => {
       .upsert({ user_id: userId, balance: 0 }, { onConflict: 'user_id' });
     if (walletError) console.error("[activate-supporter] Wallet upsert error:", walletError);
 
-    // Add user role (use upsert to avoid duplicate key errors from auto_assign trigger)
+    // Grant ALL 4 public roles so link-onboarded users can access every public dashboard.
+    // The intended role from the invite is preserved in user_metadata for landing-page routing.
+    const PUBLIC_ROLES = ['tenant', 'agent', 'landlord', 'supporter'] as const;
     const { error: roleError } = await adminClient
       .from("user_roles")
-      .upsert({ user_id: userId, role: userRole }, { onConflict: 'user_id,role' });
-    if (roleError) console.error("[activate-supporter] Role error:", roleError);
-
-    // For supporter-only accounts: remove any auto-assigned extra roles
-    // Supporters registered by agents should ONLY have the supporter role
-    if (userRole === 'supporter') {
-      const { error: cleanupError } = await adminClient
-        .from("user_roles")
-        .delete()
-        .eq("user_id", userId)
-        .neq("role", "supporter");
-      if (cleanupError) {
-        console.error("[activate-supporter] Role cleanup error:", cleanupError);
-      } else {
-        console.log("[activate-supporter] Cleaned up extra roles — supporter-only account");
-      }
+      .upsert(
+        PUBLIC_ROLES.map(role => ({ user_id: userId, role, enabled: true })),
+        { onConflict: 'user_id,role' }
+      );
+    if (roleError) {
+      console.error("[activate-supporter] Multi-role upsert error:", roleError);
+    } else {
+      console.log("[activate-supporter] Granted all 4 public roles to:", userId);
     }
+    // Record intended role for default-dashboard routing
+    await adminClient.auth.admin.updateUser(userId, {
+      user_metadata: {
+        full_name: finalFullName,
+        phone: invite.phone,
+        role: userRole,
+        intended_role: userRole,
+        referrer_id: invite.created_by,
+      },
+    });
 
     // If landlord, create landlord record
     if (userRole === 'landlord') {

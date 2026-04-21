@@ -47,9 +47,9 @@ export async function fetchUserRoles(
 
     if (data && data.length > 0) {
       const userRoles = data.map(r => r.role as AppRole);
-      // Supporter-only accounts: do NOT inject 'agent' role
-      const isSupporterOnly = userRoles.length === 1 && userRoles[0] === 'supporter';
-      if (!isSupporterOnly && !userRoles.includes('agent')) {
+      // Note: link-onboarded users now receive all 4 public roles at activation,
+      // so we no longer special-case supporter-only accounts here.
+      if (!userRoles.includes('agent')) {
         userRoles.unshift('agent');
       }
       setRoles(userRoles);
