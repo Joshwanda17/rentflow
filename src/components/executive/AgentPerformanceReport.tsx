@@ -6,7 +6,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Download, FileBarChart, Search, X, Users, HandCoins, TrendingUp, PiggyBank, Percent, Wallet, Info, Calendar } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Download, FileBarChart, Search, X, Users, HandCoins, TrendingUp, PiggyBank, Percent, Wallet, Info, Calendar, Filter } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, subWeeks, startOfMonth, endOfMonth } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
