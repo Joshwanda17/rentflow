@@ -1,69 +1,70 @@
 
 
-## Why agent deposits show up in the Funder wallet
+## Why "Mutamba Rodgers" referrals show as Unknown
 
-### Root cause (verified in code + DB)
+### Root cause (verified in DB)
 
-`DepositFlow` is a generic dialog used by tenants, agents, supporters and partners. It always:
-1. Inserts into `deposit_requests` and credits the user's **personal `wallets` row** via `wallet_deposit` (this is the only wallet table — there is no separate "agent wallet" or "funder wallet" row; there's one wallet per user).
-2. Then, **only if** the user manually selects "Operational Float" *and* has the `agent` role, `approve-deposit` runs an extra ledger sweep into `agent_landlord_float`.
+The user is **MUTAMBA RODGERS** (id `972f4990-1c4e-4c96-a220-9c9463f58dbf`). He has 5 rows in `public.referrals`:
 
-For Akandwanaho Wycliffe, the two recent deposits were tagged `operational_float` and were swept correctly. But every other agent deposit — and any earlier one where the agent picked "Personal Deposit", "Partnership Deposit", or "Other" — sits in the personal wallet and is therefore visible in:
+| created_at | referred_id | exists in `profiles`? | exists in `auth.users`? | UI shows |
+|---|---|---|---|---|
+| 2026-02-08 | 64f25e03… | ✅ Ssematimba Hanest | ✅ | "Ssematimba Hanest" |
+| 2026-04-20 08:34 | 5e274319… | ❌ | ❌ | **Unknown** |
+| 2026-04-20 18:49 | 1813214a… | ❌ | ❌ | **Unknown** |
+| 2026-04-21 10:21 | 46027971… | ❌ | ❌ | **Unknown** |
+| 2026-04-21 11:42 | 673b6672… | ❌ | ❌ | **Unknown** |
 
-- the personal Wallet card (which the agent perceives as "the funder side"), and
-- any UI that reads the `wallets.balance` / `withdrawable_balance` columns regardless of role.
+The `Referrals.tsx` page renders `referral.referred_name || 'Unknown'`. The name is enriched in `supabase/functions/user-snapshot/index.ts` by joining `referrals.referred_id → profiles.id`. When the join fails, name comes back null → "Unknown".
 
-There is no bug routing money to a *different user's* funder wallet. The confusion is that the agent's **own personal wallet** doubles as the "funder" view because a single user can hold multiple roles, and DepositFlow doesn't enforce the agent-context default.
+**Why the join fails:** `public.referrals` has no foreign keys (`referrals_pkey` and `referrals_unique_pair` are the only constraints). So `referred_id` can hold UUIDs that don't (or no longer) point at any real user. The four orphaned UUIDs above exist in neither `profiles` nor `auth.users` — they are dangling pointers.
 
-### Fix
+These orphans were almost certainly created by an edge function path (`submit-tenant-form`, `register-tenant`, `submit-partner-form`, `create-supporter-invite`) that inserted into `referrals` for a partner/tenant that the agent started onboarding but whose `auth.users` row was rolled back or later deleted, leaving the referral row behind.
 
-Make agent deposits route to the operational float **by default**, with the agent only able to opt out into "Personal Deposit" by an explicit toggle. Same pattern other role-aware dialogs already use.
+### Fix (two layers)
 
-#### 1. DepositFlow becomes role-aware
+#### 1. Stop showing "Unknown" — show what we know
 
-Add an optional prop `defaultPurpose?: DepositPurpose` and a `lockPurpose?: boolean` to `src/components/payments/DepositFlow.tsx`.
-- When `defaultPurpose` is provided, pre-select it and (if `lockPurpose`) hide the purpose grid behind a small "Change purpose" link.
-- For agents, the only sensible non-float purpose is "Personal Deposit" (their own salary top-up). Hide partnership / personal-rent-repayment options when launched from the agent dashboard.
+Update the snapshot to fall back to a human-readable identifier when the profile is missing, rather than rendering a useless "Unknown".
 
-#### 2. AgentDashboard passes the agent context
+In `supabase/functions/user-snapshot/index.ts` (around line 216):
+- After the `profileMap` lookup, if no profile is found, attempt a second lookup against any pending/onboarding sources keyed by the same id (e.g. an `auth.users` admin lookup, or a stored `pending_signups` table if we choose to add one).
+- If still nothing, return a tagged label like `"Onboarding incomplete"` (with the short id appended, e.g. `"Onboarding incomplete · …d77e35"`) instead of `null`.
 
-In `src/components/dashboards/AgentDashboard.tsx` (line 526) and anywhere else an agent opens DepositFlow:
-```tsx
-<DepositFlow
-  open={showQuickDeposit}
-  onOpenChange={setShowQuickDeposit}
-  defaultPurpose="operational_float"
-  allowedPurposes={['operational_float', 'personal_deposit']}
-/>
+In `src/pages/Referrals.tsx` (line 237):
+- Replace the bare `'Unknown'` fallback with the same `"Onboarding incomplete"` label, plus a small muted note: *"This invitee never finished sign-up. Bonus stays pending."*
+- Visually mark the row (lower opacity + an `AlertCircle` icon) so it's obvious it's not a real, completed referral.
+
+#### 2. Stop creating new orphans
+
+Add a hardening migration:
+
+```sql
+-- Add FK so referrals can never point at a non-existent profile
+ALTER TABLE public.referrals
+  ADD CONSTRAINT referrals_referred_id_fkey
+  FOREIGN KEY (referred_id) REFERENCES public.profiles(id)
+  ON DELETE CASCADE;
 ```
 
-Same change in `FullScreenWalletSheet` when the active role is `agent`.
+Before that constraint can be added, the 4 orphan rows (and any others platform-wide) must be cleaned. The migration runs in this order:
+1. `SELECT count(*) FROM referrals r LEFT JOIN profiles p ON p.id = r.referred_id WHERE p.id IS NULL;` — log it.
+2. `DELETE FROM referrals r WHERE NOT EXISTS (SELECT 1 FROM profiles p WHERE p.id = r.referred_id);` — purge orphans.
+3. Add the FK above.
 
-#### 3. Backend safety net (non-negotiable)
+This guarantees: future referral rows are deleted automatically when a profile is removed, and they can never be inserted pointing at a non-existent profile.
 
-In `supabase/functions/approve-deposit/index.ts`, when approving a deposit, after the `wallet_deposit` ledger entry:
-- Look up the depositor's roles.
-- If the user has the `agent` role **and** `deposit_purpose` is null/`'other'`/missing, default-treat it as `operational_float` and run the same sweep block (lines 178–237). This guarantees that even legacy clients or older mobile builds that don't send a purpose still route agent money to the float bucket, not the personal wallet.
-- Log this as `auto_routed_to_float` in `audit_logs` so the override is auditable.
+#### 3. Audit log entry
 
-#### 4. One-time cleanup for Akandwanaho
-
-His two April deposits are already correctly in the float. The remaining UGX 93,000 in `withdrawable_balance` is genuine commission, not a misrouted deposit — keep it as-is.
-
-But for any *historical* agent deposit on the platform that was tagged `personal_deposit` / `other` while the user was an agent and never legitimately a personal top-up, run a reconciliation query (preview-only, manager confirms before applying) that shows: `deposit_id, amount, current location (wallet vs float), suggested target`. Then a follow-up insert sweeps each confirmed row from wallet → operational float using the same `agent_float_deposit` double-entry the live function uses.
+Write a single `audit_logs` entry (`action_type='referrals_orphan_cleanup'`, `table_name='referrals'`, `reason='cleanup_orphan_referrals_blocking_FK_addition'`) recording the count purged, so the deletion is traceable.
 
 ### Files touched
 
-- `src/components/payments/DepositFlow.tsx` — add `defaultPurpose`, `allowedPurposes`, `lockPurpose` props; render purpose grid filtered/locked.
-- `src/components/dashboards/AgentDashboard.tsx` — pass agent defaults to all DepositFlow instances (lines ~526, plus the wallet sheet trigger).
-- `src/components/wallet/FullScreenWalletSheet.tsx` — when current role is agent, pass the same defaults.
-- `supabase/functions/approve-deposit/index.ts` — backend default-to-float for agents missing/ambiguous purpose, with audit log entry.
-- New migration `*_reconcile_agent_misrouted_deposits.sql` — preview report only; actual sweep entries created via `create_ledger_transaction` in a follow-up after you review the list.
+- `supabase/functions/user-snapshot/index.ts` — improved fallback label for missing referred profile.
+- `src/pages/Referrals.tsx` — replace `'Unknown'` with informative label + visual treatment.
+- New migration `*_referrals_fk_and_orphan_cleanup.sql` — count + delete orphans, add FK on `referred_id`, audit log entry.
 
 ### What you'll see after the fix
 
-- An agent tapping **Deposit** from their dashboard sees the form pre-set to **🏘️ Operational Float**, with only one alternative ("Personal Deposit") behind a toggle.
-- Approved agent deposits flow into the **Operations Float** card (`agent_landlord_float`), not the personal Wallet card.
-- Even if a stale app posts without a purpose, the edge function snaps it to float for any user with the agent role.
-- The "funder wallet shows my agent money" complaint disappears because the personal `wallets.balance` only ever holds genuine personal deposits and earned commission for that user.
+- Mutamba Rodgers's Referrals screen will show his 1 real referral ("Ssematimba Hanest") clearly, and the 4 incomplete sign-ups will be labelled **"Onboarding incomplete"** in muted style with a tooltip explaining why no bonus was credited — instead of the alarming "Unknown" label.
+- Going forward, no referral row can ever exist without a matching profile, so this class of bug disappears.
 
