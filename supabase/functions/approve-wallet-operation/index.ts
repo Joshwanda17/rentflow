@@ -690,10 +690,9 @@ Deno.serve(async (req) => {
           })
           .eq("id", op.id);
 
-        // ── Send Returns Disbursement Confirmation email to PARTNER on ROI payouts ──
-        // Triggered for both direct partner payouts and proxy/managed payouts.
-        // The partner is always op.user_id (managed payouts route money to a proxy
-        // agent's wallet via target_wallet_user_id, but the partner remains op.user_id).
+        // ── Send Partner Wallet Deposit email to PARTNER on ROI payouts ──
+        // The partner is always op.user_id (managed/proxy payouts route cash via a
+        // proxy agent, but the partner owns the credited liability).
         if (op.category === 'roi_payout' || op.category === 'supporter_platform_rewards') {
           try {
             const { data: partnerProfile } = await adminClient
@@ -703,36 +702,19 @@ Deno.serve(async (req) => {
               .maybeSingle();
 
             if (partnerProfile?.email) {
-              const payoutMethodLabel = isManaged
-                ? "Proxy Agent (Cash Collection)"
-                : (payment_method
-                    ? payment_method.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
-                    : "Wallet Credit");
+              const { data: partnerWallet } = await adminClient
+                .from("wallets")
+                .select("id")
+                .eq("user_id", op.user_id)
+                .maybeSingle();
+              const walletLast4 = partnerWallet?.id
+                ? partnerWallet.id.replace(/-/g, '').slice(-4)
+                : '';
+
               const refId = op.reference_id || payment_reference || op.id;
               const todayLabel = new Date().toLocaleDateString('en-GB', {
                 day: '2-digit', month: 'long', year: 'numeric',
               });
-
-              let agentName = '';
-              if (isManaged && op.target_wallet_user_id && op.target_wallet_user_id !== op.user_id) {
-                const { data: agentProfile } = await adminClient
-                  .from("profiles")
-                  .select("full_name")
-                  .eq("id", op.target_wallet_user_id)
-                  .maybeSingle();
-                agentName = agentProfile?.full_name || '';
-              }
-
-              // Resolve the portfolio code for the partner-facing reference
-              let portfolioCode = '';
-              if (op.source_table === 'investor_portfolios' && op.source_id) {
-                const { data: portfolioRow } = await adminClient
-                  .from("investor_portfolios")
-                  .select("portfolio_code")
-                  .eq("id", op.source_id)
-                  .maybeSingle();
-                portfolioCode = portfolioRow?.portfolio_code || '';
-              }
 
               await fetch(`${supabaseUrl}/functions/v1/send-transactional-email`, {
                 method: "POST",
@@ -741,28 +723,26 @@ Deno.serve(async (req) => {
                   "Authorization": `Bearer ${supabaseServiceKey}`,
                 },
                 body: JSON.stringify({
-                  templateName: "returns-disbursement-confirmation",
+                  templateName: "partner-wallet-deposit",
                   recipientEmail: partnerProfile.email,
-                  idempotencyKey: `roi-payout-${op.id}`,
+                  idempotencyKey: `partner-wallet-deposit-${op.id}`,
                   templateData: {
                     partner_name: partnerProfile.full_name || "Partner",
                     transaction_id: refId,
-                    portfolio_code: portfolioCode,
                     amount: op.amount,
                     currency: "UGX",
                     date: todayLabel,
-                    payout_method: payoutMethodLabel,
+                    wallet_id_last4: walletLast4,
+                    source: "Platform",
                     company_name: "Welile",
                     logo_url: "https://welilereceipts.com/welile-logo.png",
-                    is_managed_by_agent: isManaged,
-                    agent_name: agentName,
                   },
                 }),
               });
-              console.log(`[approve-wallet-op] Returns disbursement email queued for partner ${op.user_id}`);
+              console.log(`[approve-wallet-op] Partner wallet deposit email queued for partner ${op.user_id}`);
             }
           } catch (emailErr) {
-            console.warn(`[approve-wallet-op] Returns disbursement email enqueue failed for ${op.id}:`, emailErr);
+            console.warn(`[approve-wallet-op] Partner wallet deposit email enqueue failed for ${op.id}:`, emailErr);
           }
         }
 
