@@ -30,6 +30,7 @@ import { AnimatedBalance } from './AnimatedBalance';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useAgentBalances } from '@/hooks/useAgentBalances';
+import { useAgentLandlordFloat } from '@/hooks/useAgentLandlordFloat';
 import { UserAvatar } from '@/components/UserAvatar';
 import { hapticTap } from '@/lib/haptics';
 import { fetchPendingCounts, invalidatePendingCountsCache } from '@/lib/pendingCountsCache';
@@ -53,7 +54,8 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
   const { user, role } = useAuth();
   const { profile } = useProfile();
   const isAgent = role === 'agent';
-  const { commissionBalance, floatBalance, withdrawableBalance } = useAgentBalances();
+  const { commissionBalance, withdrawableBalance } = useAgentBalances();
+  const { floatBalance: operationalFloatBalance } = useAgentLandlordFloat();
   const displayBalance = wallet?.balance || 0;
   const realWithdrawableBalance = Math.max(0, withdrawableBalance);
   const balanceLabel = 'Total Balance';
@@ -197,7 +199,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                   <WalletDisclaimer variant="dark" />
                   {isAgent && (
                     <p className="text-[11px] text-white/60 mt-2">
-                      Withdrawable: <CompactAmount value={realWithdrawableBalance} className="text-white/80 border-0" /> · Locked: <CompactAmount value={floatBalance} className="text-white/80 border-0" />
+                      Withdrawable: <CompactAmount value={realWithdrawableBalance} className="text-white/80 border-0" /> · Locked: <CompactAmount value={operationalFloatBalance} className="text-white/80 border-0" />
                     </p>
                   )}
                 </div>
