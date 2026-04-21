@@ -200,6 +200,14 @@ export function AgentPerformanceReport() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [agentSearch, setAgentSearch] = useState('');
   const [minCollected, setMinCollected] = useState('');
+  // Per-column header filters
+  const [colFilters, setColFilters] = useState<ColFilters>(EMPTY_FILTERS);
+  const setRange = (key: NumericKey, range?: Range) =>
+    setColFilters(prev => {
+      const ranges = { ...prev.ranges };
+      if (!range) delete ranges[key]; else ranges[key] = range;
+      return { ...prev, ranges };
+    });
   const range = useMemo(() => getRange(preset), [preset]);
   const startISO = range.start ? range.start.toISOString() : null;
   const endISO = range.end.toISOString();
@@ -444,9 +452,22 @@ export function AgentPerformanceReport() {
     if (statusFilter !== 'all') out = out.filter(r => r.status === statusFilter);
     if (search) out = out.filter(r => r.agent_name.toLowerCase().includes(search));
     if (minColNum > 0) out = out.filter(r => r.collected >= minColNum);
+    // Column-header filters (AND-combined)
+    const nameQ = colFilters.name.trim().toLowerCase();
+    if (nameQ) out = out.filter(r => r.agent_name.toLowerCase().includes(nameQ));
+    if (colFilters.status.size > 0) out = out.filter(r => colFilters.status.has(r.status));
+    for (const [key, rng] of Object.entries(colFilters.ranges) as [NumericKey, Range][]) {
+      if (!isRangeActive(rng)) continue;
+      out = out.filter(r => {
+        const v = Number((r as any)[key] ?? 0);
+        if (rng.min !== undefined && !Number.isNaN(rng.min) && v < rng.min) return false;
+        if (rng.max !== undefined && !Number.isNaN(rng.max) && v > rng.max) return false;
+        return true;
+      });
+    }
     // Re-rank after filtering
     return out.map((r, i) => ({ ...r, rank: i + 1 }));
-  }, [rawRows, statusFilter, search, minColNum]);
+  }, [rawRows, statusFilter, search, minColNum, colFilters]);
   const totals: AgentPerfTotals = useMemo(() => rows.reduce((t, r) => ({
     collected: t.collected + r.collected,
     payments: t.payments + r.payments,
@@ -462,11 +483,17 @@ export function AgentPerformanceReport() {
 
   const overallEfficiency = (totals.expected_weekly || 0) > 0 ? (totals.collected / (totals.expected_weekly || 1)) * 100 : 0;
 
+  const activeColFilterCount =
+    (colFilters.name ? 1 : 0) +
+    (colFilters.status.size > 0 ? 1 : 0) +
+    Object.values(colFilters.ranges).filter(isRangeActive).length;
+
   const activeFilterCount =
     (paymentSource !== 'all' ? 1 : 0) +
     (statusFilter !== 'all' ? 1 : 0) +
     (search ? 1 : 0) +
-    (minColNum > 0 ? 1 : 0);
+    (minColNum > 0 ? 1 : 0) +
+    activeColFilterCount;
 
   const handleDownloadPdf = async () => {
     if (!rows.length) { toast.error('No data to export'); return; }
