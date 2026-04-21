@@ -1,6 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useEffect } from 'react';
 
 /**
  * Reads the agent's landlord-payout float from `agent_landlord_float.balance`.
@@ -14,6 +15,7 @@ import { useAuth } from '@/hooks/useAuth';
 export function useAgentLandlordFloat(agentId?: string) {
   const { user } = useAuth();
   const effectiveId = agentId || user?.id;
+  const queryClient = useQueryClient();
 
   const query = useQuery({
     queryKey: ['agent-landlord-float', effectiveId],
@@ -33,6 +35,20 @@ export function useAgentLandlordFloat(agentId?: string) {
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
   });
+
+  // Realtime: refetch when this agent's operational float row changes
+  useEffect(() => {
+    if (!effectiveId) return;
+    const channel = supabase
+      .channel(`agent-landlord-float-${effectiveId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'agent_landlord_float', filter: `agent_id=eq.${effectiveId}` },
+        () => queryClient.invalidateQueries({ queryKey: ['agent-landlord-float', effectiveId] }),
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [effectiveId, queryClient]);
 
   return {
     floatBalance: query.data ?? 0,

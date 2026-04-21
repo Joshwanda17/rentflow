@@ -1,6 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useEffect } from 'react';
 
 export interface AgentSplitBalances {
   withdrawableBalance: number;
@@ -14,6 +15,7 @@ export interface AgentSplitBalances {
 export function useAgentBalances(agentId?: string) {
   const { user } = useAuth();
   const effectiveId = agentId || user?.id;
+  const queryClient = useQueryClient();
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['agent-split-balances', effectiveId],
@@ -94,6 +96,25 @@ export function useAgentBalances(agentId?: string) {
     refetchOnWindowFocus: true,
     retry: 2,
   });
+
+  // Realtime: refetch when this user's wallet row OR ledger entries change
+  useEffect(() => {
+    if (!effectiveId) return;
+    const channel = supabase
+      .channel(`agent-balances-${effectiveId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'wallets', filter: `user_id=eq.${effectiveId}` },
+        () => queryClient.invalidateQueries({ queryKey: ['agent-split-balances', effectiveId] }),
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'general_ledger', filter: `user_id=eq.${effectiveId}` },
+        () => queryClient.invalidateQueries({ queryKey: ['agent-split-balances', effectiveId] }),
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [effectiveId, queryClient]);
 
   return {
     withdrawableBalance: data?.withdrawableBalance ?? 0,
