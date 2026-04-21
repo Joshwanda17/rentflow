@@ -170,6 +170,72 @@ Deno.serve(async (req) => {
             throw new Error(`Deposit ledger entry failed: ${depositLedgerErr.message}`);
           }
 
+          // ── Operational Float Sweep ──
+          // If an agent deposits with purpose=operational_float, sweep the credited
+          // amount from their personal wallet into their agent_landlord_float bucket
+          // so it can be used to pay landlords/tenants (NOT their personal wallet).
+          let sweptToFloat = 0;
+          if (depositRequest.deposit_purpose === 'operational_float') {
+            const { data: agentRoleRow } = await supabaseAdmin
+              .from('user_roles')
+              .select('role')
+              .eq('user_id', depositRequest.user_id)
+              .eq('role', 'agent')
+              .maybeSingle();
+
+            if (agentRoleRow) {
+              const sweepAmount = Number(depositRequest.amount);
+              const { error: sweepLedgerErr } = await supabaseAdmin.rpc('create_ledger_transaction', {
+                entries: [
+                  {
+                    user_id: depositRequest.user_id,
+                    amount: sweepAmount,
+                    direction: 'cash_out',
+                    category: 'agent_float_deposit',
+                    ledger_scope: 'wallet',
+                    source_table: 'deposit_requests',
+                    source_id: depositRequest.id,
+                    reference_id: depositRequest.transaction_id || depositRequest.id,
+                    description: `Sweep to operational float (${depositRequest.provider || 'mobile money'})`,
+                    currency: 'UGX',
+                    transaction_date: new Date().toISOString(),
+                  },
+                  {
+                    user_id: depositRequest.user_id,
+                    direction: 'cash_in',
+                    amount: sweepAmount,
+                    category: 'agent_float_deposit',
+                    ledger_scope: 'platform',
+                    source_table: 'deposit_requests',
+                    source_id: depositRequest.id,
+                    description: 'Operational float credited to agent landlord float',
+                    currency: 'UGX',
+                    transaction_date: new Date().toISOString(),
+                  },
+                ],
+              });
+
+              if (sweepLedgerErr) {
+                console.error(`[approve-deposit] Float sweep ledger failed for ${depositRequest.id}:`, sweepLedgerErr.message);
+              } else {
+                // Note: agent_landlord_float is updated automatically by the
+                // general_ledger_route_buckets trigger on agent_float_deposit entries.
+                await supabaseAdmin.from('agent_float_funding').insert({
+                  agent_id: depositRequest.user_id,
+                  amount: sweepAmount,
+                  status: 'approved',
+                  funded_by: user.id,
+                  bank_reference: depositRequest.transaction_id,
+                  bank_name: depositRequest.provider,
+                  notes: `Self-deposit operational float via ${depositRequest.provider || 'mobile money'} (deposit ${depositRequest.id})`,
+                });
+
+                sweptToFloat = sweepAmount;
+                console.log(`[approve-deposit] Swept UGX ${sweepAmount} to operational float for agent ${depositRequest.user_id}`);
+              }
+            }
+          }
+
           // ── Step 1: Auto-deduct rent repayment ──
           // The sync_wallet_from_ledger trigger has now credited the wallet.
           let repaymentApplied = 0;
