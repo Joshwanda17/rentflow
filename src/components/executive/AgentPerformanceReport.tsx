@@ -3,17 +3,20 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Download, FileBarChart } from 'lucide-react';
+import { Download, FileBarChart, Search, X } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, subWeeks, startOfMonth, endOfMonth } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { generateAgentPerformancePdf, AgentPerfRow, AgentPerfTotals } from '@/lib/agentPerformanceReportPdf';
 
-type RangePreset = 'this-week' | 'last-week' | 'this-month' | 'last-7';
+type RangePreset = 'this-week' | 'last-week' | 'this-month' | 'last-7' | 'last-30' | 'last-90' | 'all';
+type PaymentSource = 'all' | 'agent_collections' | 'repayments' | 'merchant';
+type StatusFilter = 'all' | 'critical' | 'low' | 'moderate' | 'strong';
 
-const getRange = (preset: RangePreset): { start: Date; end: Date } => {
+const getRange = (preset: RangePreset): { start: Date | null; end: Date } => {
   const now = new Date();
   switch (preset) {
     case 'this-week': return { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) };
@@ -22,6 +25,17 @@ const getRange = (preset: RangePreset): { start: Date; end: Date } => {
       return { start: startOfWeek(lw, { weekStartsOn: 1 }), end: endOfWeek(lw, { weekStartsOn: 1 }) };
     }
     case 'this-month': return { start: startOfMonth(now), end: endOfMonth(now) };
+    case 'last-30': {
+      const start = new Date(now); start.setDate(start.getDate() - 29); start.setHours(0, 0, 0, 0);
+      const end = new Date(now); end.setHours(23, 59, 59, 999);
+      return { start, end };
+    }
+    case 'last-90': {
+      const start = new Date(now); start.setDate(start.getDate() - 89); start.setHours(0, 0, 0, 0);
+      const end = new Date(now); end.setHours(23, 59, 59, 999);
+      return { start, end };
+    }
+    case 'all': return { start: null, end: now };
     case 'last-7':
     default: {
       const start = new Date(now); start.setDate(start.getDate() - 6); start.setHours(0, 0, 0, 0);
