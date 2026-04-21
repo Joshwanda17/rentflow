@@ -1,88 +1,44 @@
 
 
-## Agent Allocation & Tenant Repayment Holistic Report
+## Make CFO-credited money always withdrawable
 
-### Goal
-Add a single, deep-dive report — **"Agent Allocations & Tenant Repayment"** — that lives in BOTH **Agent Ops** and **Tenant Ops**, showing for every agent:
-- Every tenant they've allocated funds to (start date, rent given, daily amount, duration)
-- How each tenant is paying back (paid, outstanding, % paid, last payment date, days overdue, on-track flag)
-- Per-agent rollups (total allocated, total repaid, collection rate, on-time %, default rate, status badge)
-- Drill-down: click an agent → expanded list of their tenants
+**Rule (per your directive):** When the CFO credits a user wallet, that money moves from *Money We Have* (platform cash) to *Money We Owe* (user wallet liability) and the recipient — any user, any role — must be able to withdraw it without restriction.
 
-Plus a landscape PDF export (one section per agent + a master summary page).
+### Current state (verified)
 
-### Where it lives
+- `cfo-direct-credit` writes a balanced ledger pair: platform `cash_out` + wallet `cash_in`. ✅
+- The bucket router (`wallet_route_for_category`) already routes `system_balance_correction`, `cfo_direct_credit`, `manager_credit`, `general_admin_expense`, etc. to the **withdrawable** bucket. ✅
+- BUT: some historical wallets show drift — total `balance` is high while `withdrawable_balance` is low, so withdrawals fail with `INSUFFICIENT_WITHDRAWABLE` even though the money is "there". This is what blocked the 7M proxy payout (26.7M total vs. real withdrawable < 7M).
+- And the `approve-withdrawal` function currently only allows the *withdrawable* bucket to fund payouts — correct in principle, but it has no awareness that **CFO-deposited money is, by policy, always withdrawable**.
 
-1. **New component**: `src/components/executive/AgentAllocationReport.tsx`
-2. **New PDF generator**: `src/lib/agentAllocationReportPdf.ts`
-3. **Wire into both dashboards**:
-   - `src/components/executive/AgentOpsDashboard.tsx` → add tab **"Allocations & Repayment"**
-   - `src/components/executive/TenantOpsDashboard.tsx` → add tab **"Agent Allocations"**
-   - Same component, identical data — both ops teams see the same truth.
+### What will change
 
-### Data sources (read-only)
-- `rent_requests` — agent_id, tenant_id, start_date, rent_amount, daily_payment, duration_days, total_repayment, amount_repaid, status, created_at
-- `agent_collections` — per-tenant payment events (amount, created_at) → for last payment date, payment count, on-time signal
-- `profiles` — agent name & phone, tenant name & phone
-- Pagination: paginated loop up to 20,000 rows (same pattern already used in `AgentPerformanceReport.tsx`)
-- **Filter**: only agents with `tenants_total > 0` (matches existing performance-report rule)
+**1. Lock CFO credits to the withdrawable bucket (defensive)**
+In `supabase/functions/cfo-direct-credit/index.ts`, after the ledger write, explicitly recompute the recipient's wallet from the ledger so the `withdrawable_balance` column reflects the new credit immediately. Today we rely on the ledger trigger; we'll add an idempotent post-write call to `reconcile_wallet_from_ledger(target_user_id)` so the bucket can never drift on a CFO action.
 
-### Per-tenant row shows
-| # | Tenant | Phone | Start | Rent Given | Daily | Days | Paid | Outstanding | % Paid | Last Payment | Days Overdue | Status |
+**2. Heal historical drift for all wallets**
+Run `reconcile_wallet_from_ledger` across every wallet once. This recomputes `withdrawable_balance`, `float_balance`, `advance_balance`, and total `balance` strictly from `general_ledger`, so any past CFO credit that didn't land in the right bucket is corrected. No money is created or destroyed — only the bucket split is fixed.
 
-**Status logic** (per tenant):
-- `On Track` — paid ≥ expected-to-date AND last payment within 3 days
-- `Slow` — paid 50–99% of expected-to-date
-- `Behind` — paid < 50% of expected-to-date
-- `Default Risk` — no payment in 14+ days AND outstanding > 0
-- `Completed` — outstanding ≤ 0
+**3. Withdrawal acceptance: trust the ledger**
+In `supabase/functions/approve-withdrawal/index.ts`, before computing the gate, also call `reconcile_wallet_from_ledger(funding_user_id)` so the withdrawable figure used to decide approval is the ledger-true value, not a stale column. The existing 3-bucket gate stays intact — withdrawals still draw from `withdrawable` first then `float` for proxy payouts — but we eliminate the false-negative caused by drift.
 
-Where `expected-to-date = daily_payment × min(days_elapsed, duration_days)`.
+**4. Operator-visible confirmation**
+The CFO direct-credit response will include `new_withdrawable_balance` so the CFO sees, in the same response, that the funds are immediately withdrawable.
 
-### Per-agent rollup card shows
-- Agent name + phone, tenant count
-- Total Allocated · Total Repaid · Outstanding · Collection Rate %
-- On-Time % (tenants in `On Track` / total)
-- Default Rate (tenants in `Default Risk` / total)
-- Average days-to-first-payment
-- Status badge: **Excellent ≥85%**, **Good 65–84%**, **Watch 40–64%**, **Critical <40%**
+### Why this matches the directive
 
-### UI layout
-```text
-┌─ Header: "Agent Allocations & Tenant Repayment" + [Range select] [Download PDF] ┐
-├─ KPI strip: Agents · Tenants · Allocated · Repaid · Collection Rate ─────────────┤
-├─ Agent rows (accordion, sorted by collection rate desc)                          │
-│   ▼ Agent A — 12 tenants — UGX 4.2M / 6.0M (70%) · 8 on-track · [Good]           │
-│      └─ Tenant table (12 rows, all the columns above)                            │
-│   ▶ Agent B — 7 tenants — …                                                       │
-└──────────────────────────────────────────────────────────────────────────────────┘
-```
-- Desktop: accordion table.
-- Mobile (≤640px): collapsed agent cards; expand → stacked tenant cards.
+- CFO credit = platform `cash_out` (Money We Have ↓) + wallet `cash_in` to **withdrawable** (Money We Owe ↑, immediately payable).
+- "Any user can withdraw money sent by CFO" — guaranteed because every CFO credit forces a reconciliation that lands the funds in the withdrawable bucket.
+- No new categories, no schema changes — uses existing `reconcile_wallet_from_ledger` RPC and existing routing rules.
 
-### PDF export (`agentAllocationReportPdf.ts`)
-- Landscape A4, color-coded statuses (matches on-screen palette)
-- **Page 1**: Master summary — one row per agent (name, tenants, allocated, repaid, rate, on-time%, default%, status)
-- **Pages 2…N**: One section per agent — agent header band + full tenant table
-- Footer: generated date, page X of Y
+### Files touched
 
-### Range filter
-Same presets already in `AgentPerformanceReport`: Last 7 Days · This Week · Last Week · This Month · **All Time** (new option, important for repayment view because some plans span months).
+- `supabase/functions/cfo-direct-credit/index.ts` — call `reconcile_wallet_from_ledger` after credit; return `new_withdrawable_balance`.
+- `supabase/functions/approve-withdrawal/index.ts` — call `reconcile_wallet_from_ledger` for the funding user before bucket gate.
+- One-off SQL via insert tool: loop `reconcile_wallet_from_ledger(user_id)` across all wallets to heal historical drift.
 
-### Technical notes (for engineers)
-- Reuse pagination pattern from `AgentPerformanceReport.tsx` (paged loops, 1k page size, 20k cap).
-- Profiles fetched in batches of 50 by id — same hygiene already in the codebase.
-- Status helpers live alongside the component (small, pure functions). No DB migration. No RLS change.
-- TanStack Query key: `['agent-allocation-report', startISO, endISO]`, `staleTime: 60_000`.
-- PDF: dynamic `import('jspdf')` to keep initial bundle lean, same as existing PDF generators.
-- No new edge functions, no schema changes, no role/permission changes.
+### Out of scope
 
-### Verification
-1. Open **Agent Ops → Allocations & Repayment** → accordion lists every agent with ≥1 tenant.
-2. Expand an agent → see every tenant they've allocated to with paid/outstanding/status.
-3. Open **Tenant Ops → Agent Allocations** → same data, same view.
-4. KPI strip totals match TOTALS in PDF master page.
-5. Click **Download PDF** → master page + per-agent breakdown pages render cleanly in landscape.
-6. Switch range → table & PDF refresh accordingly.
-7. Test on mobile (≤640px) → cards stack, no horizontal scroll.
+- Changing the 3-bucket model itself (float and advance buckets keep their meaning).
+- Allowing withdrawals to silently dip into `float_balance` for non-proxy users (that would break the agent float guarantee).
 
