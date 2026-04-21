@@ -591,7 +591,7 @@ export function AgentPerformanceReport() {
               variant="ghost"
               size="sm"
               className="h-9 gap-1 text-xs"
-              onClick={() => { setPaymentSource('all'); setStatusFilter('all'); setAgentSearch(''); setMinCollected(''); }}
+              onClick={() => { setPaymentSource('all'); setStatusFilter('all'); setAgentSearch(''); setMinCollected(''); setColFilters(EMPTY_FILTERS); }}
             >
               <X className="h-3 w-3" /> Clear ({activeFilterCount})
             </Button>
