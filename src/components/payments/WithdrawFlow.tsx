@@ -149,9 +149,10 @@ export default function WithdrawFlow({
 
       // Fire-and-forget: if this user is a funder/partner, send disbursement confirmation email
       try {
-        const profileRes: any = await supabase.from('profiles').select('email, full_name').eq('id', user.id).maybeSingle();
-        const portfolioRes: any = await supabase.from('investor_portfolios').select('portfolio_code').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
-        const roleRes: any = await supabase.from('user_roles').select('role').eq('user_id', user.id).eq('role', 'supporter').maybeSingle();
+        const sb: any = supabase;
+        const profileRes: any = await sb.from('profiles').select('email, full_name').eq('id', user.id).maybeSingle();
+        const portfolioRes: any = await sb.from('investor_portfolios').select('portfolio_code').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
+        const roleRes: any = await sb.from('user_roles').select('role').eq('user_id', user.id).eq('role', 'supporter').maybeSingle();
 
         const email = profileRes.data?.email;
         const isFunder = !!roleRes.data || !!portfolioRes.data;
