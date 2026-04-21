@@ -523,7 +523,13 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       </div>
 
       <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />
-      <DepositFlow open={showQuickDeposit} onOpenChange={setShowQuickDeposit} />
+      <DepositFlow
+        open={showQuickDeposit}
+        onOpenChange={setShowQuickDeposit}
+        defaultPurpose="operational_float"
+        allowedPurposes={['operational_float', 'personal_deposit']}
+        lockPurpose
+      />
       <WithdrawFlow open={showQuickWithdraw} onOpenChange={setShowQuickWithdraw} availableBalance={realWithdrawableBalance} />
       <SendMoneyDialog open={showQuickTransfer} onOpenChange={setShowQuickTransfer} />
       

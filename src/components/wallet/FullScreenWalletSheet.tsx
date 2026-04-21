@@ -443,7 +443,13 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
 
       {/* Dialogs */}
       <SendMoneyDialog open={sendOpen} onOpenChange={setSendOpen} />
-      <DepositFlow open={depositOpen} onOpenChange={setDepositOpen} />
+      <DepositFlow
+        open={depositOpen}
+        onOpenChange={setDepositOpen}
+        {...(isAgent
+          ? { defaultPurpose: 'operational_float' as const, allowedPurposes: ['operational_float', 'personal_deposit'] as const, lockPurpose: true }
+          : {})}
+      />
       <RequestMoneyDialog 
         open={requestOpen} 
         onOpenChange={setRequestOpen} 
