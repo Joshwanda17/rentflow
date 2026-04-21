@@ -188,6 +188,9 @@ export function TrustCaptureTab() {
 
   return (
     <div className="space-y-4">
+      {/* Referrals Hero — top-tier trust factor (up to 18 pts of the score) */}
+      <ReferralsHeroCard stats={referralStats} />
+
       {/* Daily Missions — gamified to-dos */}
       <AgentDailyMissions onCaptureClick={() => {
         const el = document.getElementById('trust-capture-search');
