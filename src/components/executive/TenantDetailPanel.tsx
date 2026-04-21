@@ -10,6 +10,8 @@ import { Phone, MessageCircle, User, ArrowLeft, MapPin, FileSearch, Pencil, Save
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { calculateRentRepayment } from '@/lib/rentCalculations';
+import { Textarea } from '@/components/ui/textarea';
 
 const statusColor = (s: string) => {
   const m: Record<string, string> = {
@@ -44,14 +46,14 @@ export function TenantDetailPanel({ tenantId, tenantName, onBack, onViewRegistra
   // Request edit state — keyed by request id
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
   const [savingRequest, setSavingRequest] = useState(false);
-  const [requestEdit, setRequestEdit] = useState({ rent_amount: '', daily_repayment: '', duration_days: '' });
+  const [requestEdit, setRequestEdit] = useState({ rent_amount: '', duration_days: '', reason: '' });
 
   const { data, isLoading } = useQuery({
     queryKey: ['tenant-detail', tenantId],
     queryFn: async () => {
       const [profileRes, requestsRes, walletRes, collectionsRes] = await Promise.all([
         supabase.from('profiles').select('id, full_name, phone, city, created_at').eq('id', tenantId).maybeSingle(),
-        supabase.from('rent_requests').select('id, status, rent_amount, amount_repaid, daily_repayment, duration_days, created_at, landlord_id, agent_id, assigned_agent_id').eq('tenant_id', tenantId).order('created_at', { ascending: false }),
+        supabase.from('rent_requests').select('id, status, rent_amount, amount_repaid, daily_repayment, duration_days, access_fee, request_fee, total_repayment, created_at, landlord_id, agent_id, assigned_agent_id').eq('tenant_id', tenantId).order('created_at', { ascending: false }),
         supabase.from('wallet_transactions').select('id, amount, type, created_at, description').or(`sender_id.eq.${tenantId},recipient_id.eq.${tenantId}`).order('created_at', { ascending: false }).limit(10),
         supabase.from('agent_collections').select('id, amount, created_at, agent_id, payment_method').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(10),
       ]);
