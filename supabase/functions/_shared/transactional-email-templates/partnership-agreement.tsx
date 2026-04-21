@@ -23,6 +23,7 @@ interface PartnershipAgreementProps {
   company_name?: string
   logo_url?: string
   unsubscribe_url?: string
+  dashboard_url?: string
 }
 
 const formatAmount = (amount: string | number | undefined, currency: string) => {
@@ -54,6 +55,7 @@ export function PartnershipAgreement({
   company_name = 'Welile',
   logo_url = 'https://wirntoujqoyjobfhyelc.supabase.co/storage/v1/object/public/email-assets/welile-logo.png',
   unsubscribe_url = 'https://welile.com/unsubscribe',
+  dashboard_url = 'https://welilereceipts.com/auth',
 }: PartnershipAgreementProps) {
   const year = new Date().getFullYear()
   const formattedAmount = formatAmount(partnership_amount, currency)
