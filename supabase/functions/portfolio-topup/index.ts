@@ -303,6 +303,7 @@ Deno.serve(async (req) => {
             company_name: "Welile",
             logo_url: "https://welilereceipts.com/welile-logo.png",
             unsubscribe_url: "https://welile.com/unsubscribe",
+            dashboard_url: "https://welilereceipts.com/auth",
           },
         };
 
