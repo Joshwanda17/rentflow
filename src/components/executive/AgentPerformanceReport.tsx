@@ -472,72 +472,113 @@ export function AgentPerformanceReport() {
       <div className="hidden md:block rounded-2xl border border-border bg-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-blue-600 text-white sticky top-0">
-              <tr>
-                <th className="px-3 py-2.5 text-left font-semibold w-10">#</th>
-                <th className="px-3 py-2.5 text-left font-semibold">Agent</th>
-                <th className="px-3 py-2.5 text-center font-semibold">Tenants Paid</th>
-                <th className="px-3 py-2.5 text-right font-semibold">% Paid</th>
-                <th className="px-3 py-2.5 text-right font-semibold">Collected</th>
-                <th className="px-3 py-2.5 text-right font-semibold">Payments</th>
-                <th className="px-3 py-2.5 text-right font-semibold">10% Comm.</th>
-                <th className="px-3 py-2.5 text-right font-semibold">0.5% Int.</th>
-                <th className="px-3 py-2.5 text-right font-semibold">Wallet</th>
-                <th className="px-3 py-2.5 text-right font-semibold">% Rate</th>
-                <th className="px-3 py-2.5 text-center font-semibold">Status</th>
+            <thead className="text-white sticky top-0">
+              {/* Group row */}
+              <tr className="text-[11px] uppercase tracking-wide">
+                <th className="bg-slate-800 px-2 py-2 text-center font-bold border-r border-slate-700" colSpan={2}>&nbsp;</th>
+                <th className="bg-blue-700 px-2 py-2 text-center font-bold border-r border-blue-800" colSpan={3}>Portfolio (What They Manage)</th>
+                <th className="bg-emerald-700 px-2 py-2 text-center font-bold border-r border-emerald-800" colSpan={3}>Collection Performance</th>
+                <th className="bg-amber-600 px-2 py-2 text-center font-bold border-r border-amber-700" colSpan={2}>Activity</th>
+                <th className="bg-purple-700 px-2 py-2 text-center font-bold border-r border-purple-800" colSpan={3}>Earnings</th>
+                <th className="bg-slate-800 px-2 py-2 text-center font-bold">Status<br/><span className="text-[9px] font-normal normal-case opacity-80">(By Efficiency)</span></th>
+              </tr>
+              {/* Sub-header row */}
+              <tr className="text-[11px]">
+                <th className="bg-slate-700 px-2 py-2 text-center font-semibold w-10">#</th>
+                <th className="bg-slate-700 px-2 py-2 text-left font-semibold">Agent Name</th>
+                <th className="bg-blue-600 px-2 py-2 text-center font-semibold">Active<br/>Tenants</th>
+                <th className="bg-blue-600 px-2 py-2 text-right font-semibold">Daily Portfolio<br/>(UGX)</th>
+                <th className="bg-blue-600 px-2 py-2 text-right font-semibold">Expected Weekly<br/>(7 Days) (UGX)</th>
+                <th className="bg-emerald-600 px-2 py-2 text-right font-semibold">Collected<br/>(UGX)</th>
+                <th className="bg-emerald-600 px-2 py-2 text-right font-semibold">Efficiency<br/>(%)</th>
+                <th className="bg-emerald-600 px-2 py-2 text-right font-semibold">Gap<br/>(UGX)</th>
+                <th className="bg-amber-500 px-2 py-2 text-right font-semibold">Payments<br/>(Count)</th>
+                <th className="bg-amber-500 px-2 py-2 text-right font-semibold">% Paid</th>
+                <th className="bg-purple-600 px-2 py-2 text-right font-semibold">10% Commission<br/>(UGX)</th>
+                <th className="bg-purple-600 px-2 py-2 text-right font-semibold">0.5% Interest<br/>(UGX)</th>
+                <th className="bg-purple-600 px-2 py-2 text-right font-semibold">Total Wallet<br/>(UGX)</th>
+                <th className="bg-slate-700 px-2 py-2 text-center font-semibold">&nbsp;</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <tr key={i} className="border-b border-border">
-                    {Array.from({ length: 11 }).map((_, j) => (
+                    {Array.from({ length: 14 }).map((_, j) => (
                       <td key={j} className="px-3 py-2.5"><Skeleton className="h-4 w-full" /></td>
                     ))}
                   </tr>
                 ))
               ) : rows.length === 0 ? (
-                <tr><td colSpan={11} className="px-3 py-12 text-center text-muted-foreground">No agent activity in this period</td></tr>
+                <tr><td colSpan={14} className="px-3 py-12 text-center text-muted-foreground">No agent activity in this period</td></tr>
               ) : (
-                rows.map((r, i) => (
-                  <tr key={i} className={cn('border-b border-border hover:bg-muted/30 transition-colors', i % 2 === 0 && 'bg-muted/20')}>
-                    <td className="px-3 py-2.5 font-medium">{r.rank}</td>
-                    <td className="px-3 py-2.5 font-medium">{r.agent_name}</td>
-                    <td className="px-3 py-2.5 text-center">{r.tenants_paid}/{r.tenants_total}</td>
-                    <td className="px-3 py-2.5 text-right">{fmtPct(r.pct_paid)}</td>
-                    <td className="px-3 py-2.5 text-right font-mono">{fmt(r.collected)}</td>
-                    <td className="px-3 py-2.5 text-right">{r.payments}</td>
-                    <td className="px-3 py-2.5 text-right font-mono text-emerald-600">{fmt(r.commission)}</td>
-                    <td className="px-3 py-2.5 text-right font-mono text-blue-600">{fmt(r.interest)}</td>
-                    <td className="px-3 py-2.5 text-right font-mono font-semibold">{fmt(r.wallet_total)}</td>
-                    <td className="px-3 py-2.5 text-right">{fmtPct(r.rate)}</td>
-                    <td className="px-3 py-2.5 text-center">
-                      <span className={cn('inline-flex px-2 py-0.5 rounded-md text-xs font-semibold border', STATUS_BADGE[r.status].cls)}>
-                        {STATUS_BADGE[r.status].label}
-                      </span>
-                    </td>
-                  </tr>
-                ))
+                rows.map((r, i) => {
+                  const eff = r.efficiency || 0;
+                  const effCls = eff >= 100 ? 'text-emerald-700 font-bold'
+                    : eff >= 80 ? 'text-emerald-600 font-semibold'
+                    : eff >= 60 ? 'text-amber-600 font-semibold'
+                    : eff >= 40 ? 'text-orange-600 font-semibold'
+                    : 'text-red-600 font-semibold';
+                  const gap = r.gap || 0;
+                  const gapCls = gap > 0 ? 'text-red-600' : gap < 0 ? 'text-emerald-600' : 'text-muted-foreground';
+                  const pctPaidCls = r.pct_paid >= 75 ? 'text-emerald-600 font-semibold' : r.pct_paid >= 50 ? 'text-amber-600' : r.pct_paid >= 25 ? 'text-orange-600' : 'text-red-600';
+                  return (
+                    <tr key={i} className={cn('border-b border-border hover:bg-muted/40 transition-colors', i % 2 === 0 ? 'bg-card' : 'bg-muted/20')}>
+                      <td className="px-2 py-2 text-center text-muted-foreground">{r.rank}</td>
+                      <td className="px-2 py-2 font-semibold whitespace-nowrap">{r.agent_name}</td>
+                      <td className="px-2 py-2 text-center font-medium">{r.tenants_total}</td>
+                      <td className="px-2 py-2 text-right font-mono">{fmt(r.daily_portfolio || 0)}</td>
+                      <td className="px-2 py-2 text-right font-mono">{fmt(r.expected_weekly || 0)}</td>
+                      <td className="px-2 py-2 text-right font-mono font-semibold">{fmt(r.collected)}</td>
+                      <td className={cn('px-2 py-2 text-right font-mono', effCls)}>{fmtPct(eff)}</td>
+                      <td className={cn('px-2 py-2 text-right font-mono', gapCls)}>{fmt(gap)}</td>
+                      <td className="px-2 py-2 text-right">{r.payments}</td>
+                      <td className={cn('px-2 py-2 text-right font-mono', pctPaidCls)}>{fmtPct(r.pct_paid)}</td>
+                      <td className="px-2 py-2 text-right font-mono text-emerald-700">{fmt(r.commission)}</td>
+                      <td className="px-2 py-2 text-right font-mono text-blue-600">{fmt(r.interest)}</td>
+                      <td className="px-2 py-2 text-right font-mono font-bold">{fmt(r.wallet_total)}</td>
+                      <td className="px-2 py-2 text-center">
+                        <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold border', STATUS_BADGE[r.status].cls)}>
+                          {STATUS_BADGE[r.status].label}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
             {!isLoading && rows.length > 0 && (
               <tfoot>
-                <tr className="bg-blue-50 dark:bg-blue-950/30 font-bold border-t-2 border-blue-600">
-                  <td className="px-3 py-3" />
-                  <td className="px-3 py-3 text-blue-700 dark:text-blue-400">TOTALS</td>
-                  <td className="px-3 py-3 text-center">{totals.tenants_paid}/{totals.tenants_total}</td>
-                  <td className="px-3 py-3 text-right">{totals.tenants_total ? fmtPct((totals.tenants_paid / totals.tenants_total) * 100) : '0.0%'}</td>
-                  <td className="px-3 py-3 text-right font-mono">{fmt(totals.collected)}</td>
-                  <td className="px-3 py-3 text-right">{totals.payments}</td>
-                  <td className="px-3 py-3 text-right font-mono text-emerald-700">{fmt(totals.commission)}</td>
-                  <td className="px-3 py-3 text-right font-mono text-blue-700">{fmt(totals.interest)}</td>
-                  <td className="px-3 py-3 text-right font-mono">{fmt(totals.wallet_total)}</td>
-                  <td className="px-3 py-3 text-right">{totals.collected ? fmtPct((totals.wallet_total / totals.collected) * 100) : '0.0%'}</td>
-                  <td className="px-3 py-3" />
+                <tr className="bg-slate-800 text-white font-bold">
+                  <td className="px-2 py-3" />
+                  <td className="px-2 py-3">TOTALS</td>
+                  <td className="px-2 py-3 text-center">{totals.tenants_total}</td>
+                  <td className="px-2 py-3 text-right font-mono">{fmt(totals.daily_portfolio || 0)}</td>
+                  <td className="px-2 py-3 text-right font-mono">{fmt(totals.expected_weekly || 0)}</td>
+                  <td className="px-2 py-3 text-right font-mono">{fmt(totals.collected)}</td>
+                  <td className="px-2 py-3 text-right font-mono">{fmtPct(overallEfficiency)}</td>
+                  <td className="px-2 py-3 text-right font-mono">{fmt(totals.gap || 0)}</td>
+                  <td className="px-2 py-3 text-right">{totals.payments}</td>
+                  <td className="px-2 py-3 text-right font-mono">{totals.tenants_total ? fmtPct((totals.tenants_paid / totals.tenants_total) * 100) : '0.0%'}</td>
+                  <td className="px-2 py-3 text-right font-mono">{fmt(totals.commission)}</td>
+                  <td className="px-2 py-3 text-right font-mono">{fmt(totals.interest)}</td>
+                  <td className="px-2 py-3 text-right font-mono">{fmt(totals.wallet_total)}</td>
+                  <td className="px-2 py-3 text-center">—</td>
                 </tr>
               </tfoot>
             )}
           </table>
+        </div>
+        {/* Status Guide footer */}
+        <div className="border-t border-border bg-muted/30 px-4 py-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px]">
+          <span className="font-bold uppercase tracking-wide text-muted-foreground">Status Guide (By Efficiency %)</span>
+          <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-emerald-700" /> Excellent: ≥ 100%</span>
+          <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Good: 80% – 99%</span>
+          <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-amber-500" /> Moderate: 60% – 79%</span>
+          <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-orange-500" /> Low: 40% – 59%</span>
+          <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-500" /> Critical: &lt; 40%</span>
+          <span className="ml-auto flex items-center gap-1.5 text-muted-foreground"><Info className="h-3.5 w-3.5" /> Expected Weekly = Daily Portfolio × 7 · Efficiency = Collected ÷ Expected Weekly · Gap = Expected − Collected</span>
+          <span className="flex items-center gap-1.5 text-muted-foreground"><Calendar className="h-3.5 w-3.5" /> {periodLabel}</span>
         </div>
       </div>
 
