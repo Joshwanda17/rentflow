@@ -218,7 +218,7 @@ export function AgentPerformanceReport() {
         if (type.includes('interest')) a.interest += Number(e.amount || 0);
         else if (type.includes('commission')) a.commissionEarnings += Number(e.amount || 0);
       });
-      rentReqs.forEach(r => {
+      rentReqsInRange.forEach(r => {
         if (!r.agent_id || !r.tenant_id) return;
         ensure(r.agent_id).tenantsTotal.add(r.tenant_id);
       });
