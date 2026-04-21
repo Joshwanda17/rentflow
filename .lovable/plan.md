@@ -1,57 +1,88 @@
 
 
-## Send Funder Disbursement Email From `WithdrawFlow`
+## Agent Allocation & Tenant Repayment Holistic Report
 
-### Problem
-The `returns-disbursement-confirmation` email is wired into `WithdrawRequestDialog` (used elsewhere) but NOT into `WithdrawFlow.tsx` — which is the component the **Funder/Partner dashboard** opens via `PartnerWalletWidget`. So when a partner withdraws from their dashboard, the request lands in `withdrawal_requests` but no disbursement email is queued.
+### Goal
+Add a single, deep-dive report — **"Agent Allocations & Tenant Repayment"** — that lives in BOTH **Agent Ops** and **Tenant Ops**, showing for every agent:
+- Every tenant they've allocated funds to (start date, rent given, daily amount, duration)
+- How each tenant is paying back (paid, outstanding, % paid, last payment date, days overdue, on-track flag)
+- Per-agent rollups (total allocated, total repaid, collection rate, on-time %, default rate, status badge)
+- Drill-down: click an agent → expanded list of their tenants
 
-`approve-withdrawal` deliberately does not send the email either (comment at line 429: *"Disbursement email is sent at withdrawal-confirm time (client-side)…"*) — so no path currently emails partners who use the new `WithdrawFlow`.
+Plus a landscape PDF export (one section per agent + a master summary page).
 
-### Solution
-After a successful insert into `withdrawal_requests` inside `WithdrawFlow.processWithdrawal()`, detect whether the user is a **partner/funder** and, if so, queue the existing `returns-disbursement-confirmation` template via `send-transactional-email` — mirroring the logic already proven in `WithdrawRequestDialog`.
+### Where it lives
 
-### How we know it's a funder/partner
-Two signals (either qualifies):
-1. `user_roles.role = 'supporter'` for this user, OR
-2. The user has at least one row in `investor_portfolios` (they've ever invested).
+1. **New component**: `src/components/executive/AgentAllocationReport.tsx`
+2. **New PDF generator**: `src/lib/agentAllocationReportPdf.ts`
+3. **Wire into both dashboards**:
+   - `src/components/executive/AgentOpsDashboard.tsx` → add tab **"Allocations & Repayment"**
+   - `src/components/executive/TenantOpsDashboard.tsx` → add tab **"Agent Allocations"**
+   - Same component, identical data — both ops teams see the same truth.
 
-This matches the existing pattern (`WithdrawRequestDialog` keys off `investor_portfolios` lookup) and the `ussd-callback` funder detection (`role = 'supporter'`).
+### Data sources (read-only)
+- `rent_requests` — agent_id, tenant_id, start_date, rent_amount, daily_payment, duration_days, total_repayment, amount_repaid, status, created_at
+- `agent_collections` — per-tenant payment events (amount, created_at) → for last payment date, payment count, on-time signal
+- `profiles` — agent name & phone, tenant name & phone
+- Pagination: paginated loop up to 20,000 rows (same pattern already used in `AgentPerformanceReport.tsx`)
+- **Filter**: only agents with `tenants_total > 0` (matches existing performance-report rule)
 
-### Changes (single file)
-**`src/components/payments/WithdrawFlow.tsx`** — extend `processWithdrawal()`:
+### Per-tenant row shows
+| # | Tenant | Phone | Start | Rent Given | Daily | Days | Paid | Outstanding | % Paid | Last Payment | Days Overdue | Status |
 
-1. After the successful `withdrawal_requests` insert, fetch in parallel:
-   - `profiles.email, full_name` for `user.id`
-   - latest `investor_portfolios.portfolio_code` for `user.id`
-   - `user_roles` row where `role = 'supporter'`
-2. If `email` exists AND (supporter role OR a portfolio exists), call:
-   ```ts
-   supabase.functions.invoke('send-transactional-email', {
-     body: {
-       templateName: 'returns-disbursement-confirmation',
-       recipientEmail: profile.email,
-       idempotencyKey: `partner-withdraw-${user.id}-${Date.now()}`,
-       templateData: {
-         partner_name, transaction_id: ref, portfolio_code,
-         amount, currency: 'UGX', date,
-         payout_method: <derived from payoutMode + momoProvider/bankName>,
-         company_name: 'Welile',
-         logo_url: 'https://welilereceipts.com/welile-logo.png',
-         is_managed_by_agent: false, agent_name: '',
-       },
-     },
-   });
-   ```
-3. Wrap in try/catch (non-blocking) — if email enqueue fails, the withdrawal still succeeds; log a warning. Same hygiene as the existing implementation.
-4. Skip silently for non-funders (tenants, agents, landlords using the same flow) so we don't spam them with a "Returns Disbursement" email.
+**Status logic** (per tenant):
+- `On Track` — paid ≥ expected-to-date AND last payment within 3 days
+- `Slow` — paid 50–99% of expected-to-date
+- `Behind` — paid < 50% of expected-to-date
+- `Default Risk` — no payment in 14+ days AND outstanding > 0
+- `Completed` — outstanding ≤ 0
 
-### Why no edge-function change
-- `send-transactional-email` and the `returns-disbursement-confirmation` template already exist and are exercised by `WithdrawRequestDialog`.
-- `approve-withdrawal` already has a comment stating the email is intentionally client-side at request time. Keeping that contract avoids duplicate emails when the manager later approves.
+Where `expected-to-date = daily_payment × min(days_elapsed, duration_days)`.
+
+### Per-agent rollup card shows
+- Agent name + phone, tenant count
+- Total Allocated · Total Repaid · Outstanding · Collection Rate %
+- On-Time % (tenants in `On Track` / total)
+- Default Rate (tenants in `Default Risk` / total)
+- Average days-to-first-payment
+- Status badge: **Excellent ≥85%**, **Good 65–84%**, **Watch 40–64%**, **Critical <40%**
+
+### UI layout
+```text
+┌─ Header: "Agent Allocations & Tenant Repayment" + [Range select] [Download PDF] ┐
+├─ KPI strip: Agents · Tenants · Allocated · Repaid · Collection Rate ─────────────┤
+├─ Agent rows (accordion, sorted by collection rate desc)                          │
+│   ▼ Agent A — 12 tenants — UGX 4.2M / 6.0M (70%) · 8 on-track · [Good]           │
+│      └─ Tenant table (12 rows, all the columns above)                            │
+│   ▶ Agent B — 7 tenants — …                                                       │
+└──────────────────────────────────────────────────────────────────────────────────┘
+```
+- Desktop: accordion table.
+- Mobile (≤640px): collapsed agent cards; expand → stacked tenant cards.
+
+### PDF export (`agentAllocationReportPdf.ts`)
+- Landscape A4, color-coded statuses (matches on-screen palette)
+- **Page 1**: Master summary — one row per agent (name, tenants, allocated, repaid, rate, on-time%, default%, status)
+- **Pages 2…N**: One section per agent — agent header band + full tenant table
+- Footer: generated date, page X of Y
+
+### Range filter
+Same presets already in `AgentPerformanceReport`: Last 7 Days · This Week · Last Week · This Month · **All Time** (new option, important for repayment view because some plans span months).
+
+### Technical notes (for engineers)
+- Reuse pagination pattern from `AgentPerformanceReport.tsx` (paged loops, 1k page size, 20k cap).
+- Profiles fetched in batches of 50 by id — same hygiene already in the codebase.
+- Status helpers live alongside the component (small, pure functions). No DB migration. No RLS change.
+- TanStack Query key: `['agent-allocation-report', startISO, endISO]`, `staleTime: 60_000`.
+- PDF: dynamic `import('jspdf')` to keep initial bundle lean, same as existing PDF generators.
+- No new edge functions, no schema changes, no role/permission changes.
 
 ### Verification
-1. Log in as a funder → open Funder dashboard → Rent Money → **Withdraw** → complete the flow.
-2. Check the partner's email inbox → "Returns Disbursement Confirmation" arrives within ~30s.
-3. Log in as a tenant/agent and withdraw via the same component → no disbursement email is sent (only their normal flow).
-4. Check `email_send_log` (or equivalent) for the `partner-withdraw-…` idempotency key.
+1. Open **Agent Ops → Allocations & Repayment** → accordion lists every agent with ≥1 tenant.
+2. Expand an agent → see every tenant they've allocated to with paid/outstanding/status.
+3. Open **Tenant Ops → Agent Allocations** → same data, same view.
+4. KPI strip totals match TOTALS in PDF master page.
+5. Click **Download PDF** → master page + per-agent breakdown pages render cleanly in landscape.
+6. Switch range → table & PDF refresh accordingly.
+7. Test on mobile (≤640px) → cards stack, no horizontal scroll.
 
