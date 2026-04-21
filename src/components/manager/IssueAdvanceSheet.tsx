@@ -34,6 +34,7 @@ interface IssueAdvanceSheetProps {
 const RATE_OPTIONS = [
   { value: '0.33', label: '33%' },
   { value: '0.30', label: '30%' },
+  { value: '0.28', label: '28%' },
   { value: '0.25', label: '25%' },
   { value: '0.20', label: '20%' },
   { value: '0.15', label: '15%' },
