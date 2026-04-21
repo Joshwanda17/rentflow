@@ -154,7 +154,7 @@ export function AgentPerformanceReport() {
           status: statusFor(pctPaid),
         };
       })
-      .filter(r => r.collected > 0 || r.tenants_total > 0)
+      .filter(r => r.tenants_total > 0)
       .sort((x, y) => y.collected - x.collected)
       .map((r, i) => ({ ...r, rank: i + 1 }));
 
