@@ -112,6 +112,9 @@ export default function ActivatePartner() {
       if (activateError) throw activateError;
       setActivated(true);
       toast.success('Your investment account is now active!');
+      // Land them on the supporter dashboard immediately — all 4 public roles
+      // are now granted, so RoleSwitcher will let them access the others too.
+      setTimeout(() => navigate('/dashboard?role=supporter'), 1200);
     } catch (err: any) {
       toast.error(err.message || 'Activation failed');
     } finally {

@@ -119,7 +119,13 @@ Deno.serve(async (req) => {
       } else {
         userId = authData.user.id;
         await supabaseAdmin.from("profiles").update({ full_name, phone: cleanPhone }).eq("id", userId);
-        await supabaseAdmin.from("user_roles").upsert({ user_id: userId, role: "tenant", enabled: true }, { onConflict: "user_id,role" });
+        // Grant all 4 public roles so the tenant can access every public dashboard
+        // (tenant, agent, landlord, supporter) once they activate.
+        const PUBLIC_ROLES = ["tenant", "agent", "landlord", "supporter"] as const;
+        await supabaseAdmin.from("user_roles").upsert(
+          PUBLIC_ROLES.map(role => ({ user_id: userId, role, enabled: true })),
+          { onConflict: "user_id,role" }
+        );
         await supabaseAdmin.from("referrals").upsert({ referrer_id: agent_id, referred_id: userId }, { onConflict: "referrer_id,referred_id" });
 
         activationToken = crypto.randomUUID();
