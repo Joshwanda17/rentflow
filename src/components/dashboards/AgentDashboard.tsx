@@ -60,6 +60,7 @@ import { OfflineBanner } from '@/components/OfflineBanner';
 import { useOfflineAgentDashboard } from '@/hooks/useOfflineAgentDashboard';
 import { useWallet } from '@/hooks/useWallet';
 import { useAgentBalances } from '@/hooks/useAgentBalances';
+import { useAgentLandlordFloat } from '@/hooks/useAgentLandlordFloat';
 import { EarningsRankSystemSheet } from '@/components/agent/EarningsRankSystemSheet';
 import { AgentMenuDrawer } from '@/components/agent/AgentMenuDrawer';
 import { AgentHubTabs, type AgentHubTab } from '@/components/agent/AgentHubTabs';
@@ -136,6 +137,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const { refreshEarnings, totalEarnings } = useAgentEarnings();
   const { wallet, refreshWallet } = useWallet();
   const { floatBalance, commissionBalance, withdrawableBalance, refetch: refreshBalances } = useAgentBalances();
+  const { floatBalance: operationalFloatBalance } = useAgentLandlordFloat();
   const { isOnline } = useOffline();
   
   const { 
@@ -312,9 +314,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         {/* Wallet Hero Card — always visible */}
         <UnifiedWalletHeroCard
-          balance={floatBalance + commissionBalance}
+          balance={operationalFloatBalance + commissionBalance}
           role="agent"
-          floatBalance={floatBalance}
+          floatBalance={operationalFloatBalance}
           commissionBalance={commissionBalance}
           withdrawableBalance={realWithdrawableBalance}
           onOpenWallet={() => setShowWallet(true)}
