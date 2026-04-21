@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Shield, TrendingUp, Wallet, Users, BadgeCheck, MapPin, Home, Sparkles } from 'lucide-react';
+import { Shield, TrendingUp, Wallet, Users, BadgeCheck, MapPin, Home, Sparkles, Share2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatUGX } from '@/lib/rentCalculations';
 import { getRiskTierLabel } from '@/lib/welileAiId';
@@ -139,7 +139,18 @@ export function TrustScoreCard({ trust }: Props) {
             label="Network & Contribution"
             weight={trust.weights.network}
             score={trust.breakdown.network}
+            highlight
           />
+          {trust.breakdown.referrals !== undefined && trust.breakdown.referrals > 0 && (
+            <div className="pl-5 -mt-1">
+              <BreakdownBar
+                icon={<Share2 className="h-3 w-3 text-emerald-500" />}
+                label="↳ Referrals (link sign-ups)"
+                weight={18}
+                score={trust.breakdown.referrals}
+              />
+            </div>
+          )}
           <BreakdownBar
             icon={<BadgeCheck className="h-3 w-3" />}
             label="Verification & GPS"
