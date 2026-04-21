@@ -1,0 +1,587 @@
+import * as React from 'npm:react@18.3.1'
+import {
+  Body,
+  Head,
+  Heading,
+  Html,
+  Img,
+  Link,
+  Preview,
+  Text,
+} from 'npm:@react-email/components@0.0.22'
+import type { TemplateEntry } from './types.ts'
+
+interface PartnershipAgreementProps {
+  partner_name?: string
+  partnership_amount?: string | number
+  contribution_date?: string
+  monthly_return_amount?: string | number
+  total_projected_return?: string | number
+  first_payment_date?: string
+  roi_payment_day?: string | number
+  currency?: string
+  company_name?: string
+  logo_url?: string
+  unsubscribe_url?: string
+  contact_email?: string
+}
+
+const formatAmount = (amount: string | number | undefined, currency: string) => {
+  if (amount === undefined || amount === null || amount === '') return `${currency} 0`
+  const num = typeof amount === 'number' ? amount : Number(String(amount).replace(/,/g, ''))
+  if (Number.isNaN(num)) return `${currency} ${amount}`
+  return `${currency} ${num.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+}
+
+const ordinalSuffix = (day: number) => {
+  if (day >= 11 && day <= 13) return 'th'
+  switch (day % 10) {
+    case 1: return 'st'
+    case 2: return 'nd'
+    case 3: return 'rd'
+    default: return 'th'
+  }
+}
+
+export function PartnershipAgreement({
+  partner_name = 'Partner',
+  partnership_amount = 0,
+  contribution_date = new Date().toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  }),
+  monthly_return_amount = 0,
+  total_projected_return = 0,
+  first_payment_date = '',
+  roi_payment_day = 1,
+  currency = 'UGX',
+  company_name = 'Welile',
+  logo_url = 'https://wirntoujqoyjobfhyelc.supabase.co/storage/v1/object/public/email-assets/welile-logo.png',
+  unsubscribe_url = 'https://welile.com/unsubscribe',
+  contact_email = 'info@welile.com',
+}: PartnershipAgreementProps) {
+  const year = new Date().getFullYear()
+  const fmtPartnership = formatAmount(partnership_amount, currency)
+  const fmtMonthly = formatAmount(monthly_return_amount, currency)
+  const fmtTotal = formatAmount(total_projected_return, currency)
+  const dayNum = typeof roi_payment_day === 'number'
+    ? roi_payment_day
+    : Number(roi_payment_day) || 1
+  const daySuffix = ordinalSuffix(dayNum)
+
+  return (
+    <Html>
+      <Head>
+        <style>{clientOverrides}</style>
+      </Head>
+      <Preview>
+        Investment Partnership Confirmation — {fmtPartnership} contributed to {company_name}
+      </Preview>
+      <Body style={main}>
+        <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={bgTable}>
+          <tbody><tr><td align="center" style={{ padding: '40px 10px' }}>
+
+            <table width={600} border={0} cellPadding={0} cellSpacing={0} role="presentation" className="responsive-table" style={contentCard}>
+              <tbody>
+                <tr>
+                  <td height={6} style={accentBar}></td>
+                </tr>
+
+                <tr>
+                  <td className="padding-mobile" style={headerCell}>
+                    <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation">
+                      <tbody><tr>
+                        <td align="left" valign="middle">
+                          <Img src={logo_url} alt={company_name} width="130" style={logoImg} />
+                        </td>
+                        <td align="right" valign="middle" className="hide-mobile" style={secureLabel}>
+                          Agreement Terms
+                        </td>
+                      </tr></tbody>
+                    </table>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td align="center" className="padding-mobile" style={{ padding: '40px 40px 20px 40px' }}>
+                    <Heading style={heroH1}>Investment Partnership Confirmation</Heading>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td align="left" className="padding-mobile" style={{ padding: '0 40px 30px 40px' }}>
+                    <Text style={greeting}>Dear {partner_name},</Text>
+                    <Text style={introText}>
+                      This communication formalizes the partnership terms and agreement between you and Welile Technologies Limited. We deeply value your commitment to our mission.
+                    </Text>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td className="padding-mobile" style={{ padding: '0 40px 40px 40px' }}>
+                    <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={ledgerCard}>
+                      <tbody>
+                        <tr>
+                          <td align="center" style={ledgerAmountHeader}>
+                            <Text style={ledgerAmountLabel}>Partnership Amount</Text>
+                            <Text className="amount-text" style={ledgerAmountValue}>{fmtPartnership}</Text>
+                            <Text style={contributedOn}>Contributed on {contribution_date}</Text>
+                          </td>
+                        </tr>
+
+                        <tr>
+                          <td style={{ padding: '10px 30px' }}>
+                            <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation">
+                              <tbody>
+                                <tr>
+                                  <td style={ledgerRow}>
+                                    <Text style={sectionLabel}>Purpose of Partnership</Text>
+                                    <Text style={sectionBody}>
+                                      Supporting Welile Technologies Limited in helping tenants pay rent conveniently.
+                                    </Text>
+                                  </td>
+                                </tr>
+
+                                <tr>
+                                  <td style={ledgerRow}>
+                                    <Text style={sectionLabel}>Return on Partnership</Text>
+                                    <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation">
+                                      <tbody>
+                                        <tr>
+                                          <td width="50%" style={kvKey}>Agreed Monthly Return</td>
+                                          <td width="50%" align="right" style={kvVal}>15%</td>
+                                        </tr>
+                                        <tr>
+                                          <td width="50%" style={kvKey}>Monthly Return Amount</td>
+                                          <td width="50%" align="right" style={kvVal}>{fmtMonthly}</td>
+                                        </tr>
+                                        <tr>
+                                          <td width="50%" style={kvKey}>Duration</td>
+                                          <td width="50%" align="right" style={kvVal}>12 Months</td>
+                                        </tr>
+                                        <tr>
+                                          <td width="50%" style={kvKeyLast}>Total Projected Return</td>
+                                          <td width="50%" align="right" style={kvValBrand}>{fmtTotal}</td>
+                                        </tr>
+                                      </tbody>
+                                    </table>
+                                  </td>
+                                </tr>
+
+                                <tr>
+                                  <td style={ledgerRow}>
+                                    <Text style={sectionLabel}>Payment Schedule</Text>
+                                    <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation">
+                                      <tbody>
+                                        <tr>
+                                          <td width="50%" style={kvKey}>First Payment Date</td>
+                                          <td width="50%" align="right" style={kvVal}>{first_payment_date}</td>
+                                        </tr>
+                                        <tr>
+                                          <td width="50%" style={kvKeyLast}>Subsequent Payments</td>
+                                          <td width="50%" align="right" style={kvVal}>
+                                            {dayNum}<sup>{daySuffix}</sup> of each month
+                                          </td>
+                                        </tr>
+                                      </tbody>
+                                    </table>
+                                  </td>
+                                </tr>
+
+                                <tr>
+                                  <td style={ledgerRowLast}>
+                                    <Text style={sectionLabel}>Withdrawal Terms</Text>
+                                    <Text style={sectionSmall}>
+                                      Should you wish to exit the partnership before the completion of the 12-month term, a 90-day written notice must be submitted to{' '}
+                                      <Link href={`mailto:${contact_email}`} style={inlineLink}>{contact_email}</Link>.
+                                      Early withdrawal terms and conditions will be communicated upon request.
+                                    </Text>
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td className="padding-mobile" style={{ padding: '0 40px 40px 40px' }}>
+                    <div style={governingBox}>
+                      <Text style={governingText}>
+                        <strong>Governing Terms:</strong> By proceeding or confirming, you acknowledge and accept the terms outlined in this agreement.
+                      </Text>
+                    </div>
+
+                    <Text style={contactLine}>
+                      For any questions or further clarification, please contact us directly at{' '}
+                      <Link href={`mailto:${contact_email}`} style={inlineLink}>{contact_email}</Link>.
+                    </Text>
+
+                    <Text style={signOff}>
+                      Best regards,<br />
+                      <span style={signOffSub}>Partnership Department</span><br />
+                      <span style={signOffSub}>Welile Technologies Limited</span>
+                    </Text>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td style={taglineCell}>
+                    <Text style={taglineText}>
+                      <i>&ldquo;Welile is turning rent into an asset.&rdquo;</i>
+                    </Text>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <table width={600} border={0} cellPadding={0} cellSpacing={0} role="presentation" className="responsive-table" style={{ marginTop: '30px' }}>
+              <tbody><tr>
+                <td align="center" style={{ padding: '0 20px' }}>
+                  <table border={0} cellPadding={0} cellSpacing={0} role="presentation" style={{ marginBottom: '25px' }}>
+                    <tbody><tr>
+                      <td style={{ padding: '0 12px' }}>
+                        <a href="https://x.com/Welile2025"><Img src="https://img.icons8.com/ios-filled/50/94a3b8/twitter.png" alt="Twitter" width="22" style={socialIcon} /></a>
+                      </td>
+                      <td style={{ padding: '0 12px' }}>
+                        <a href="https://ug.linkedin.com/company/welile"><Img src="https://img.icons8.com/ios-filled/50/94a3b8/linkedin.png" alt="LinkedIn" width="22" style={socialIcon} /></a>
+                      </td>
+                      <td style={{ padding: '0 12px' }}>
+                        <a href="https://www.facebook.com/profile.php?id=61578974799814"><Img src="https://img.icons8.com/ios-filled/50/94a3b8/facebook-new.png" alt="Facebook" width="22" style={socialIcon} /></a>
+                      </td>
+                      <td style={{ padding: '0 12px' }}>
+                        <a href="https://www.instagram.com/welile_technologies/"><Img src="https://img.icons8.com/ios-filled/50/94a3b8/instagram-new.png" alt="Instagram" width="22" style={socialIcon} /></a>
+                      </td>
+                    </tr></tbody>
+                  </table>
+
+                  <Text style={footerCompanyName}>WELILE TECHNOLOGIES LTD</Text>
+                  <Text style={{ margin: '0 0 20px 0', fontSize: '13px', textAlign: 'center' as const }}>
+                    <Link
+                      href="https://maps.app.goo.gl/zfmsP2m2cCXEJXPe9"
+                      style={{ color: '#a855f7', textDecoration: 'none' }}
+                    >
+                      Palm Lane Kabaale, Entebbe
+                    </Link>
+                  </Text>
+                  <Text style={footerDisclaimer}>
+                    You are receiving this email because you are a registered partner at {company_name}.<br />
+                    This is an automated notification. Please do not reply directly to this email.
+                  </Text>
+                  <Text style={{ margin: '0 0 15px 0' }}>
+                    <Link href="https://welilereceipts.com/privacy-policy" style={footerLink}>Privacy Policy</Link>
+                    <Link href="https://welilereceipts.com/partners-terms" style={footerLink}>Terms of Service</Link>
+                    <Link href={unsubscribe_url} style={footerLink}>Unsubscribe</Link>
+                  </Text>
+                  <Text style={footerCopyText}>
+                    © {year} {company_name}. All rights reserved.
+                  </Text>
+                </td>
+              </tr></tbody>
+            </table>
+
+          </td></tr></tbody>
+        </table>
+      </Body>
+    </Html>
+  )
+}
+
+/* === Styles === */
+const BRAND = '#7b19d4'
+const BRAND_DEEP = '#5a129e'
+const BRAND_LIGHT = '#a855f7'
+const ACCENT_BG = '#fcf9ff'
+const CARD_BG = '#fafaf9'
+const INK = '#0f172a'
+const BODY = '#475569'
+const SUB = '#64748b'
+const MUTED = '#94a3b8'
+const BORDER = '#e2e8f0'
+const HAIRLINE = '#f1f5f9'
+const PAGE_BG = '#f4f7f9'
+const FONT_STACK =
+  "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'"
+
+const clientOverrides = `
+  body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+  table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+  img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
+  table { border-collapse: collapse !important; }
+  body { height: 100% !important; margin: 0 !important; padding: 0 !important; width: 100% !important; }
+  a { color: ${BRAND}; text-decoration: none; font-weight: 600; }
+  a:hover { color: ${BRAND_DEEP}; text-decoration: underline; }
+  @media screen and (max-width: 600px) {
+    .responsive-table { width: 100% !important; max-width: 100% !important; }
+    .padding-mobile { padding: 25px 20px !important; }
+    .td-block { display: block !important; width: 100% !important; text-align: left !important; }
+    .hide-mobile { display: none !important; }
+    .amount-text { font-size: 28px !important; }
+  }
+`
+
+const main: React.CSSProperties = {
+  margin: 0,
+  padding: 0,
+  backgroundColor: PAGE_BG,
+  fontFamily: FONT_STACK,
+  WebkitFontSmoothing: 'antialiased',
+}
+
+const bgTable: React.CSSProperties = { backgroundColor: PAGE_BG }
+
+const contentCard: React.CSSProperties = {
+  backgroundColor: '#ffffff',
+  borderRadius: '12px',
+  overflow: 'hidden',
+  boxShadow: '0 4px 15px rgba(0,0,0,0.05)',
+}
+
+const accentBar: React.CSSProperties = {
+  backgroundColor: BRAND,
+  backgroundImage: `linear-gradient(90deg, ${BRAND} 0%, ${BRAND_LIGHT} 100%)`,
+}
+
+const headerCell: React.CSSProperties = {
+  padding: '30px 40px',
+  borderBottom: `1px solid ${HAIRLINE}`,
+}
+
+const logoImg: React.CSSProperties = {
+  display: 'block',
+  maxWidth: '130px',
+  height: 'auto',
+}
+
+const secureLabel: React.CSSProperties = {
+  fontSize: '11px',
+  color: MUTED,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '1.5px',
+}
+
+const heroH1: React.CSSProperties = {
+  margin: '0 0 15px 0',
+  color: INK,
+  fontSize: '24px',
+  fontWeight: 800,
+  letterSpacing: '-0.5px',
+}
+
+const greeting: React.CSSProperties = {
+  margin: '0 0 15px 0',
+  color: INK,
+  fontSize: '16px',
+  fontWeight: 600,
+}
+
+const introText: React.CSSProperties = {
+  margin: 0,
+  color: BODY,
+  fontSize: '15px',
+  lineHeight: '24px',
+}
+
+const ledgerCard: React.CSSProperties = {
+  border: `1px solid ${BORDER}`,
+  borderRadius: '12px',
+  overflow: 'hidden',
+  backgroundColor: CARD_BG,
+}
+
+const ledgerAmountHeader: React.CSSProperties = {
+  backgroundColor: ACCENT_BG,
+  padding: '30px 20px',
+  borderBottom: `1px solid ${BORDER}`,
+}
+
+const ledgerAmountLabel: React.CSSProperties = {
+  margin: '0 0 10px 0',
+  color: SUB,
+  fontSize: '12px',
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '1.5px',
+}
+
+const ledgerAmountValue: React.CSSProperties = {
+  margin: '0 0 5px 0',
+  color: BRAND,
+  fontSize: '34px',
+  fontWeight: 800,
+  letterSpacing: '-1px',
+}
+
+const contributedOn: React.CSSProperties = {
+  margin: 0,
+  color: MUTED,
+  fontSize: '13px',
+  fontWeight: 500,
+}
+
+const ledgerRow: React.CSSProperties = {
+  padding: '15px 0',
+  borderBottom: `1px dashed ${BORDER}`,
+}
+
+const ledgerRowLast: React.CSSProperties = {
+  padding: '15px 0',
+}
+
+const sectionLabel: React.CSSProperties = {
+  margin: '0 0 10px 0',
+  color: SUB,
+  fontSize: '13px',
+  fontWeight: 600,
+  textTransform: 'uppercase',
+  letterSpacing: '1px',
+}
+
+const sectionBody: React.CSSProperties = {
+  margin: 0,
+  color: INK,
+  fontSize: '14px',
+  fontWeight: 500,
+  lineHeight: '20px',
+}
+
+const sectionSmall: React.CSSProperties = {
+  margin: 0,
+  color: BODY,
+  fontSize: '13px',
+  lineHeight: '20px',
+}
+
+const kvKey: React.CSSProperties = {
+  paddingBottom: '8px',
+  color: BODY,
+  fontSize: '14px',
+}
+
+const kvKeyLast: React.CSSProperties = {
+  color: BODY,
+  fontSize: '14px',
+}
+
+const kvVal: React.CSSProperties = {
+  paddingBottom: '8px',
+  color: INK,
+  fontSize: '14px',
+  fontWeight: 600,
+}
+
+const kvValBrand: React.CSSProperties = {
+  color: BRAND,
+  fontSize: '14px',
+  fontWeight: 700,
+}
+
+const inlineLink: React.CSSProperties = {
+  color: BRAND,
+  textDecoration: 'none',
+  fontWeight: 600,
+}
+
+const governingBox: React.CSSProperties = {
+  backgroundColor: '#f1f5f9',
+  padding: '15px 20px',
+  borderLeft: `4px solid ${BRAND}`,
+  borderRadius: '4px',
+}
+
+const governingText: React.CSSProperties = {
+  margin: 0,
+  color: '#334155',
+  fontSize: '13px',
+  lineHeight: '20px',
+  fontWeight: 500,
+}
+
+const contactLine: React.CSSProperties = {
+  margin: '25px 0 0 0',
+  color: BODY,
+  fontSize: '14px',
+  lineHeight: '24px',
+}
+
+const signOff: React.CSSProperties = {
+  margin: '25px 0 0 0',
+  color: INK,
+  fontSize: '15px',
+  fontWeight: 600,
+}
+
+const signOffSub: React.CSSProperties = {
+  fontWeight: 400,
+  color: BODY,
+}
+
+const taglineCell: React.CSSProperties = {
+  padding: '20px 40px',
+  textAlign: 'center',
+  borderTop: `1px solid #e5e7eb`,
+}
+
+const taglineText: React.CSSProperties = {
+  margin: 0,
+  color: MUTED,
+  fontSize: '12px',
+  lineHeight: '18px',
+  fontWeight: 500,
+}
+
+const socialIcon: React.CSSProperties = {
+  display: 'block',
+  opacity: 0.8,
+}
+
+const footerCompanyName: React.CSSProperties = {
+  margin: '0 0 12px 0',
+  color: MUTED,
+  fontSize: '14px',
+  fontWeight: 700,
+  textAlign: 'center',
+}
+
+const footerDisclaimer: React.CSSProperties = {
+  margin: '0 0 20px 0',
+  color: MUTED,
+  fontSize: '12px',
+  lineHeight: '18px',
+  textAlign: 'center',
+}
+
+const footerLink: React.CSSProperties = {
+  color: MUTED,
+  fontSize: '12px',
+  textDecoration: 'underline',
+  margin: '0 10px',
+}
+
+const footerCopyText: React.CSSProperties = {
+  margin: 0,
+  color: '#cbd5e1',
+  fontSize: '12px',
+  textAlign: 'center',
+}
+
+export const template: TemplateEntry = {
+  component: PartnershipAgreement,
+  subject: (data) => `Investment Partnership Confirmation — ${data?.partner_name ?? 'Partner'}`,
+  displayName: 'Partnership Agreement Confirmation',
+  previewData: {
+    partner_name: 'Akandwanaho Wycliffe',
+    partnership_amount: 5000000,
+    contribution_date: '21 April 2026',
+    monthly_return_amount: 750000,
+    total_projected_return: 9000000,
+    first_payment_date: '21 May 2026',
+    roi_payment_day: 21,
+    currency: 'UGX',
+  },
+}
