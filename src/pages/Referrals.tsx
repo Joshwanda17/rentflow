@@ -14,7 +14,8 @@ import {
   Copy, 
   CheckCircle2,
   Gift,
-  TrendingUp
+  TrendingUp,
+  AlertCircle
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
@@ -220,25 +221,52 @@ export default function Referrals() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {referrals.map((referral: any, index: number) => (
+                  {referrals.map((referral: any, index: number) => {
+                    const isIncomplete =
+                      referral.referred_profile_missing ||
+                      !referral.referred_name ||
+                      String(referral.referred_name).startsWith('Onboarding incomplete');
+                    const displayName =
+                      referral.referred_name ||
+                      (referral.referred_id
+                        ? `Onboarding incomplete · …${String(referral.referred_id).slice(-6)}`
+                        : 'Onboarding incomplete');
+                    return (
                     <motion.div
                       key={referral.id}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05 }}
-                      className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                      className={`flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors ${
+                        isIncomplete ? 'opacity-60' : ''
+                      }`}
+                      title={
+                        isIncomplete
+                          ? "This invitee never finished sign-up. Bonus stays pending."
+                          : undefined
+                      }
                     >
                       <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                        <Users className="h-5 w-5 text-primary" />
+                        {isIncomplete ? (
+                          <AlertCircle className="h-5 w-5 text-muted-foreground" />
+                        ) : (
+                          <Users className="h-5 w-5 text-primary" />
+                        )}
                       </div>
-                      
+
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">
-                          {referral.referred_name || 'Unknown'}
+                        <p className={`font-medium truncate ${isIncomplete ? 'text-muted-foreground italic' : ''}`}>
+                          {displayName}
                         </p>
                         <p className="text-xs text-muted-foreground truncate">
-                          {referral.referred_phone || '—'}
-                          {referral.referred_city ? ` • ${referral.referred_city}` : ''}
+                          {isIncomplete
+                            ? "Invitee never finished sign-up — bonus pending"
+                            : (
+                              <>
+                                {referral.referred_phone || '—'}
+                                {referral.referred_city ? ` • ${referral.referred_city}` : ''}
+                              </>
+                            )}
                         </p>
                         <p className="text-[10px] text-muted-foreground">
                           {format(new Date(referral.created_at), 'MMM d, yyyy')}
@@ -262,7 +290,7 @@ export default function Referrals() {
                         </Badge>
                       </div>
                     </motion.div>
-                  ))}
+                  );})}
                 </div>
               )}
             </CardContent>

@@ -215,9 +215,14 @@ Deno.serve(async (req) => {
 
       enrichedReferrals = enrichedReferrals.map((r: any) => ({
         ...r,
-        referred_name: profileMap[r.referred_id]?.full_name || null,
+        referred_name:
+          profileMap[r.referred_id]?.full_name ||
+          (r.referred_id
+            ? `Onboarding incomplete · …${String(r.referred_id).slice(-6)}`
+            : 'Onboarding incomplete'),
         referred_phone: profileMap[r.referred_id]?.phone || null,
         referred_city: profileMap[r.referred_id]?.city || null,
+        referred_profile_missing: !profileMap[r.referred_id],
       }));
     }
 
