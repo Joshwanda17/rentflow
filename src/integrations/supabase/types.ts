@@ -7566,6 +7566,13 @@ export type Database = {
             foreignKeyName: "pre_registered_tids_matched_deposit_id_fkey"
             columns: ["matched_deposit_id"]
             isOneToOne: false
+            referencedRelation: "agent_misrouted_deposits_preview"
+            referencedColumns: ["deposit_id"]
+          },
+          {
+            foreignKeyName: "pre_registered_tids_matched_deposit_id_fkey"
+            columns: ["matched_deposit_id"]
+            isOneToOne: false
             referencedRelation: "deposit_requests"
             referencedColumns: ["id"]
           },
@@ -11581,6 +11588,24 @@ export type Database = {
       }
     }
     Views: {
+      agent_misrouted_deposits_preview: {
+        Row: {
+          agent_id: string | null
+          agent_name: string | null
+          amount: number | null
+          approved_at: string | null
+          current_location: string | null
+          deposit_id: string | null
+          original_purpose:
+            | Database["public"]["Enums"]["deposit_purpose"]
+            | null
+          provider: string | null
+          suggested_target: string | null
+          transaction_date: string | null
+          transaction_id: string | null
+        }
+        Relationships: []
+      }
       manager_profiles: {
         Row: {
           avatar_url: string | null

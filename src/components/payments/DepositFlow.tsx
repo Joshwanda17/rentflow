@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -9,14 +9,20 @@ import { Loader2, CheckCircle2, Phone, Calendar, Clock, Hash, AlertCircle, Histo
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+type DepositChannel = 'momo' | 'bank' | 'agent_cash' | 'cash';
+type DepositPurpose = 'operational_float' | 'personal_deposit' | 'partnership_deposit' | 'personal_rent_repayment' | 'other';
+
 interface DepositFlowProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   walletBalance?: number;
+  /** Pre-select a deposit purpose (e.g. 'operational_float' for agents). */
+  defaultPurpose?: DepositPurpose;
+  /** Restrict the purpose grid to only these options. */
+  allowedPurposes?: DepositPurpose[];
+  /** Hide the purpose grid behind a "Change purpose" link. */
+  lockPurpose?: boolean;
 }
-
-type DepositChannel = 'momo' | 'bank' | 'agent_cash' | 'cash';
-type DepositPurpose = 'operational_float' | 'personal_deposit' | 'partnership_deposit' | 'personal_rent_repayment' | 'other';
 
 const DEPOSIT_PURPOSES: { id: DepositPurpose; label: string; emoji: string; desc: string }[] = [
   { id: 'operational_float', emoji: '🏘️', label: 'Operational Float', desc: 'Cash collected from tenants in the field' },
@@ -44,7 +50,7 @@ const BANK_DETAILS = {
 
 const QUICK_AMOUNTS = [50000, 100000, 250000, 500000];
 
-export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
+export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowedPurposes, lockPurpose }: DepositFlowProps) {
   const navigate = useNavigate();
   const [step, setStep] = useState<'channel' | 'form' | 'submitting' | 'success'>('channel');
   const [channel, setChannel] = useState<DepositChannel>('momo');
@@ -56,10 +62,21 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
   const [transactionDate, setTransactionDate] = useState('');
   const [transactionTime, setTransactionTime] = useState('');
   const [reason, setReason] = useState('');
-  const [depositPurpose, setDepositPurpose] = useState<DepositPurpose | ''>('');
+  const [depositPurpose, setDepositPurpose] = useState<DepositPurpose | ''>(defaultPurpose ?? '');
+  const [showPurposeGrid, setShowPurposeGrid] = useState<boolean>(!lockPurpose);
   const [bankSlipFile, setBankSlipFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tidError, setTidError] = useState('');
+
+  // Re-apply default when dialog re-opens
+  useEffect(() => {
+    if (open && defaultPurpose) {
+      setDepositPurpose(defaultPurpose);
+      const purposeLabel = DEPOSIT_PURPOSES.find(p => p.id === defaultPurpose)?.label;
+      if (purposeLabel && defaultPurpose !== 'other') setReason(purposeLabel);
+      setShowPurposeGrid(!lockPurpose);
+    }
+  }, [open, defaultPurpose, lockPurpose]);
 
   const validateTid = (value: string, provider?: 'mtn' | 'airtel') => {
     const upper = value.trim().toUpperCase();
@@ -214,7 +231,8 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
     setTransactionDate('');
     setTransactionTime('');
     setReason('');
-    setDepositPurpose('');
+    setDepositPurpose(defaultPurpose ?? '');
+    setShowPurposeGrid(!lockPurpose);
     setBankSlipFile(null);
     onOpenChange(false);
   };
@@ -546,9 +564,32 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
 
             {/* ─── Deposit Purpose ─── */}
             <div className="space-y-2">
-              <Label className="text-xs flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" /> Deposit Purpose *</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" /> Deposit Purpose *</Label>
+                {lockPurpose && depositPurpose && (
+                  <button
+                    type="button"
+                    onClick={() => setShowPurposeGrid((s) => !s)}
+                    className="text-[10px] text-primary font-medium underline-offset-2 hover:underline"
+                  >
+                    {showPurposeGrid ? 'Hide options' : 'Change purpose'}
+                  </button>
+                )}
+              </div>
+              {lockPurpose && depositPurpose && !showPurposeGrid && (
+                <div className="flex items-center gap-2 p-2.5 rounded-xl border-2 border-primary bg-primary/10">
+                  <span className="text-base">{DEPOSIT_PURPOSES.find(p => p.id === depositPurpose)?.emoji}</span>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-xs">{DEPOSIT_PURPOSES.find(p => p.id === depositPurpose)?.label}</p>
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      {DEPOSIT_PURPOSES.find(p => p.id === depositPurpose)?.desc}
+                    </p>
+                  </div>
+                </div>
+              )}
+              {(showPurposeGrid || !lockPurpose) && (
               <div className="grid grid-cols-2 gap-2">
-                {DEPOSIT_PURPOSES.map((p) => (
+                {DEPOSIT_PURPOSES.filter(p => !allowedPurposes || allowedPurposes.includes(p.id)).map((p) => (
                   <button
                     key={p.id}
                     type="button"
@@ -556,6 +597,7 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
                       setDepositPurpose(p.id);
                       if (p.id !== 'other') setReason(p.label);
                       else setReason('');
+                      if (lockPurpose) setShowPurposeGrid(false);
                     }}
                     className={`flex items-center gap-2 p-2.5 rounded-xl border-2 text-left transition-all text-xs ${
                       depositPurpose === p.id
@@ -571,6 +613,7 @@ export default function DepositFlow({ open, onOpenChange }: DepositFlowProps) {
                   </button>
                 ))}
               </div>
+              )}
               {depositPurpose === 'operational_float' && (
                 <div className="flex items-start gap-2 p-2 bg-primary/5 rounded-lg border border-primary/20">
                   <AlertCircle className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />

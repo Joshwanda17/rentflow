@@ -175,7 +175,12 @@ Deno.serve(async (req) => {
           // amount from their personal wallet into their agent_landlord_float bucket
           // so it can be used to pay landlords/tenants (NOT their personal wallet).
           let sweptToFloat = 0;
-          if (depositRequest.deposit_purpose === 'operational_float') {
+          {
+            const explicitFloat = depositRequest.deposit_purpose === 'operational_float';
+            const ambiguousPurpose = !depositRequest.deposit_purpose
+              || depositRequest.deposit_purpose === 'other';
+
+            // Look up agent role once
             const { data: agentRoleRow } = await supabaseAdmin
               .from('user_roles')
               .select('role')
@@ -183,7 +188,13 @@ Deno.serve(async (req) => {
               .eq('role', 'agent')
               .maybeSingle();
 
-            if (agentRoleRow) {
+            const isAgent = !!agentRoleRow;
+            // Sweep when explicitly tagged as float, OR when an agent submits
+            // a deposit with no/ambiguous purpose (legacy/older client safety net).
+            const shouldSweep = isAgent && (explicitFloat || ambiguousPurpose);
+            const autoRouted = isAgent && !explicitFloat && ambiguousPurpose;
+
+            if (shouldSweep) {
               const sweepAmount = Number(depositRequest.amount);
               const { error: sweepLedgerErr } = await supabaseAdmin.rpc('create_ledger_transaction', {
                 entries: [
@@ -196,7 +207,9 @@ Deno.serve(async (req) => {
                     source_table: 'deposit_requests',
                     source_id: depositRequest.id,
                     reference_id: depositRequest.transaction_id || depositRequest.id,
-                    description: `Sweep to operational float (${depositRequest.provider || 'mobile money'})`,
+                    description: autoRouted
+                      ? `Auto-routed to operational float — agent deposit w/ ambiguous purpose (${depositRequest.provider || 'mobile money'})`
+                      : `Sweep to operational float (${depositRequest.provider || 'mobile money'})`,
                     currency: 'UGX',
                     transaction_date: new Date().toISOString(),
                   },
@@ -227,11 +240,31 @@ Deno.serve(async (req) => {
                   funded_by: user.id,
                   bank_reference: depositRequest.transaction_id,
                   bank_name: depositRequest.provider,
-                  notes: `Self-deposit operational float via ${depositRequest.provider || 'mobile money'} (deposit ${depositRequest.id})`,
+                  notes: autoRouted
+                    ? `Auto-routed agent deposit (ambiguous purpose) via ${depositRequest.provider || 'mobile money'} (deposit ${depositRequest.id})`
+                    : `Self-deposit operational float via ${depositRequest.provider || 'mobile money'} (deposit ${depositRequest.id})`,
                 });
 
+                // Audit the auto-routing override so it is traceable
+                if (autoRouted) {
+                  await supabaseAdmin.from('audit_logs').insert({
+                    user_id: user.id,
+                    action_type: 'auto_routed_to_float',
+                    table_name: 'deposit_requests',
+                    record_id: depositRequest.id,
+                    reason: `Agent deposit ${depositRequest.id} (UGX ${sweepAmount}) had no/ambiguous purpose — auto-routed to operational float by approve-deposit safety net.`,
+                    metadata: {
+                      agent_id: depositRequest.user_id,
+                      amount: sweepAmount,
+                      original_purpose: depositRequest.deposit_purpose ?? null,
+                      provider: depositRequest.provider ?? null,
+                      transaction_id: depositRequest.transaction_id ?? null,
+                    },
+                  } as any);
+                }
+
                 sweptToFloat = sweepAmount;
-                console.log(`[approve-deposit] Swept UGX ${sweepAmount} to operational float for agent ${depositRequest.user_id}`);
+                console.log(`[approve-deposit] Swept UGX ${sweepAmount} to operational float for agent ${depositRequest.user_id}${autoRouted ? ' (auto-routed)' : ''}`);
               }
             }
           }
