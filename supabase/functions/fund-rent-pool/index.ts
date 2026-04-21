@@ -255,8 +255,8 @@ Deno.serve(async (req) => {
       }),
     }).catch(() => {});
 
-    // First-investment Partnership Agreement email (one-time, fire-and-forget)
-    if (isFirstInvestment) {
+    // Partnership Agreement email — sent on every NEW portfolio creation (fire-and-forget)
+    if (portfolioCreatedThisRun) {
       try {
         const { data: profile } = await adminClient
           .from("profiles")
@@ -280,7 +280,7 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
               templateName: "partnership-agreement",
               recipientEmail: profile.email,
-              idempotencyKey: `partnership-agreement-${user.id}-${referenceId}`,
+              idempotencyKey: `partnership-agreement-${user.id}-${newPortfolioId}`,
               templateData: {
                 partner_name: profile.full_name || "Partner",
                 partnership_amount: amount,
