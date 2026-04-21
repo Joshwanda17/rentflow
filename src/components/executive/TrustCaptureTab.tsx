@@ -68,6 +68,36 @@ export function TrustCaptureTab() {
     staleTime: 60_000,
   });
 
+  // Referrals: every user who signed up via this agent's shared link.
+  // This is the headline KPI — referrals are now a top-tier trust factor (up to 18 pts).
+  const { data: referralStats } = useQuery({
+    queryKey: ['trust-capture-referrals', user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
+
+      const [{ count: total }, { count: last7 }, { count: last30 }] = await Promise.all([
+        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('referrer_id', user!.id),
+        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('referrer_id', user!.id).gte('created_at', sevenDaysAgo),
+        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('referrer_id', user!.id).gte('created_at', thirtyDaysAgo),
+      ]);
+
+      const totalCount = total || 0;
+      // Mirrors the DB formula: LEAST(18, referrals_count * 0.6)
+      const referralsScore = Math.min(18, totalCount * 0.6);
+      return {
+        total: totalCount,
+        last7: last7 || 0,
+        last30: last30 || 0,
+        score: referralsScore,
+        topReferrer: totalCount >= 25,
+        nextMilestone: totalCount >= 30 ? null : totalCount >= 25 ? 30 : totalCount >= 10 ? 25 : 10,
+      };
+    },
+    staleTime: 5 * 60_000,
+  });
+
   // Untouched users in agent's network (referrals or assigned tenants without recent visit)
   const { data: untouched = [], isLoading: loadingUntouched } = useQuery({
     queryKey: ['trust-untouched-users', user?.id],
