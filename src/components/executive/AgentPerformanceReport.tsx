@@ -3,17 +3,20 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Download, FileBarChart } from 'lucide-react';
+import { Download, FileBarChart, Search, X } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, subWeeks, startOfMonth, endOfMonth } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { generateAgentPerformancePdf, AgentPerfRow, AgentPerfTotals } from '@/lib/agentPerformanceReportPdf';
 
-type RangePreset = 'this-week' | 'last-week' | 'this-month' | 'last-7';
+type RangePreset = 'this-week' | 'last-week' | 'this-month' | 'last-7' | 'last-30' | 'last-90' | 'all';
+type PaymentSource = 'all' | 'agent_collections' | 'repayments' | 'merchant';
+type StatusFilter = 'all' | 'critical' | 'low' | 'moderate' | 'strong';
 
-const getRange = (preset: RangePreset): { start: Date; end: Date } => {
+const getRange = (preset: RangePreset): { start: Date | null; end: Date } => {
   const now = new Date();
   switch (preset) {
     case 'this-week': return { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) };
@@ -22,6 +25,17 @@ const getRange = (preset: RangePreset): { start: Date; end: Date } => {
       return { start: startOfWeek(lw, { weekStartsOn: 1 }), end: endOfWeek(lw, { weekStartsOn: 1 }) };
     }
     case 'this-month': return { start: startOfMonth(now), end: endOfMonth(now) };
+    case 'last-30': {
+      const start = new Date(now); start.setDate(start.getDate() - 29); start.setHours(0, 0, 0, 0);
+      const end = new Date(now); end.setHours(23, 59, 59, 999);
+      return { start, end };
+    }
+    case 'last-90': {
+      const start = new Date(now); start.setDate(start.getDate() - 89); start.setHours(0, 0, 0, 0);
+      const end = new Date(now); end.setHours(23, 59, 59, 999);
+      return { start, end };
+    }
+    case 'all': return { start: null, end: now };
     case 'last-7':
     default: {
       const start = new Date(now); start.setDate(start.getDate() - 6); start.setHours(0, 0, 0, 0);
@@ -50,51 +64,94 @@ const fmtPct = (n: number) => `${n.toFixed(1)}%`;
 
 export function AgentPerformanceReport() {
   const [preset, setPreset] = useState<RangePreset>('last-7');
+  const [paymentSource, setPaymentSource] = useState<PaymentSource>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [agentSearch, setAgentSearch] = useState('');
+  const [minCollected, setMinCollected] = useState('');
   const range = useMemo(() => getRange(preset), [preset]);
-  const startISO = range.start.toISOString();
+  const startISO = range.start ? range.start.toISOString() : null;
   const endISO = range.end.toISOString();
-  const periodLabel = `${format(range.start, 'MMM d')} – ${format(range.end, 'MMM d, yyyy')}`;
+  const periodLabel = range.start
+    ? `${format(range.start, 'MMM d')} – ${format(range.end, 'MMM d, yyyy')}`
+    : `All time · as of ${format(range.end, 'MMM d, yyyy')}`;
 
   const { data, isLoading } = useQuery({
-    queryKey: ['agent-perf-report', startISO, endISO],
+    queryKey: ['agent-perf-report', startISO, endISO, paymentSource],
     queryFn: async () => {
-      // Pull collections in window
-      const { data: collections } = await supabase
-        .from('agent_collections')
-        .select('agent_id, amount, tenant_id, created_at')
-        .gte('created_at', startISO)
-        .lte('created_at', endISO);
-
-      // Pull earnings in window (for interest)
-      const { data: earnings } = await supabase
-        .from('agent_earnings')
-        .select('agent_id, amount, earning_type, created_at')
-        .gte('created_at', startISO)
-        .lte('created_at', endISO);
-
-      // Pull rent_requests for tenant counts (assigned tenants) - paginated to bypass 1000-row cap
-      const rentReqs: { agent_id: string | null; tenant_id: string | null }[] = [];
-      {
+      // Helper: paginated fetch (up to 20k rows)
+      const fetchAll = async <T,>(builder: () => any): Promise<T[]> => {
         const PAGE = 1000;
+        const out: T[] = [];
         let from = 0;
-        // Cap at 20k rows defensively
         for (let p = 0; p < 20; p++) {
-          const { data, error } = await supabase
-            .from('rent_requests')
-            .select('agent_id, tenant_id')
-            .not('agent_id', 'is', null)
-            .range(from, from + PAGE - 1);
+          const { data, error } = await builder().range(from, from + PAGE - 1);
           if (error || !data || data.length === 0) break;
-          rentReqs.push(...(data as any));
+          out.push(...(data as T[]));
           if (data.length < PAGE) break;
           from += PAGE;
         }
-      }
+        return out;
+      };
+
+      // ============ PULL ALL PAYMENT SOURCES ============
+      // 1) agent_collections (cash collected by agents in field)
+      const collections = (paymentSource === 'all' || paymentSource === 'agent_collections')
+        ? await fetchAll<{ agent_id: string; amount: number; tenant_id: string | null; created_at: string }>(() => {
+            let q = supabase.from('agent_collections').select('agent_id, amount, tenant_id, created_at');
+            if (startISO) q = q.gte('created_at', startISO);
+            return q.lte('created_at', endISO);
+          })
+        : [];
+
+      // 2) repayments (tenant direct payments via merchant — attributed to agent)
+      const repayments = (paymentSource === 'all' || paymentSource === 'repayments')
+        ? await fetchAll<{ agent_id: string | null; tenant_id: string | null; amount: number; created_at: string }>(() => {
+            let q = supabase.from('repayments').select('agent_id, tenant_id, amount, created_at').not('agent_id', 'is', null);
+            if (startISO) q = q.gte('created_at', startISO);
+            return q.lte('created_at', endISO);
+          })
+        : [];
+
+      // 3) tenant_merchant_payments (direct merchant pay-ins by tenant) — attribute via rent_request → agent
+      const merchantRaw = (paymentSource === 'all' || paymentSource === 'merchant')
+        ? await fetchAll<{ tenant_id: string | null; rent_request_id: string | null; amount: number; created_at: string }>(() => {
+            let q = supabase.from('tenant_merchant_payments').select('tenant_id, rent_request_id, amount, created_at');
+            if (startISO) q = q.gte('created_at', startISO);
+            return q.lte('created_at', endISO);
+          })
+        : [];
+
+      // Pull earnings in window (for interest)
+      const earnings = await fetchAll<{ agent_id: string; amount: number; earning_type: string; created_at: string }>(() => {
+        let q = supabase.from('agent_earnings').select('agent_id, amount, earning_type, created_at');
+        if (startISO) q = q.gte('created_at', startISO);
+        return q.lte('created_at', endISO);
+      });
+
+      // Pull rent_requests for tenant counts (assigned tenants) - paginated to bypass 1000-row cap
+      const rentReqs = await fetchAll<{ id: string; agent_id: string | null; tenant_id: string | null }>(() =>
+        supabase.from('rent_requests').select('id, agent_id, tenant_id').not('agent_id', 'is', null)
+      );
+
+      // Build rent_request_id → agent_id map for merchant payment attribution
+      const reqAgentMap: Record<string, string> = {};
+      rentReqs.forEach(r => { if (r.id && r.agent_id) reqAgentMap[r.id] = r.agent_id; });
+
+      // Resolve merchant payments → attributed agent
+      type ResolvedPayment = { agent_id: string; tenant_id: string | null; amount: number };
+      const merchantResolved: ResolvedPayment[] = merchantRaw
+        .map(m => {
+          const aid = m.rent_request_id ? reqAgentMap[m.rent_request_id] : undefined;
+          return aid ? { agent_id: aid, tenant_id: m.tenant_id, amount: Number(m.amount || 0) } : null;
+        })
+        .filter((x): x is ResolvedPayment => x !== null);
 
       const agentIds = Array.from(new Set([
-        ...(collections || []).map(c => c.agent_id),
-        ...(earnings || []).map(e => e.agent_id),
-        ...(rentReqs || []).map(r => r.agent_id as string),
+        ...collections.map(c => c.agent_id),
+        ...repayments.map(r => r.agent_id as string),
+        ...merchantResolved.map(m => m.agent_id),
+        ...earnings.map(e => e.agent_id),
+        ...rentReqs.map(r => r.agent_id as string),
       ].filter(Boolean)));
 
       let profilesMap: Record<string, string> = {};
@@ -114,19 +171,40 @@ export function AgentPerformanceReport() {
         collected: number; payments: number;
         interest: number; commissionEarnings: number;
         tenantsPaid: Set<string>; tenantsTotal: Set<string>;
+        bySource: { agent_collections: number; repayments: number; merchant: number };
       };
       const agg: Record<string, Agg> = {};
       const ensure = (id: string): Agg => agg[id] ??= {
         collected: 0, payments: 0, interest: 0, commissionEarnings: 0,
         tenantsPaid: new Set(), tenantsTotal: new Set(),
+        bySource: { agent_collections: 0, repayments: 0, merchant: 0 },
       };
 
-      (collections || []).forEach(c => {
+      collections.forEach(c => {
         const a = ensure(c.agent_id);
-        a.collected += Number(c.amount || 0);
+        const amt = Number(c.amount || 0);
+        a.collected += amt;
+        a.bySource.agent_collections += amt;
         a.payments += 1;
+        if (c.tenant_id) { a.tenantsPaid.add(c.tenant_id); a.tenantsTotal.add(c.tenant_id); }
       });
-      (earnings || []).forEach(e => {
+      repayments.forEach(r => {
+        if (!r.agent_id) return;
+        const a = ensure(r.agent_id);
+        const amt = Number(r.amount || 0);
+        a.collected += amt;
+        a.bySource.repayments += amt;
+        a.payments += 1;
+        if (r.tenant_id) { a.tenantsPaid.add(r.tenant_id); a.tenantsTotal.add(r.tenant_id); }
+      });
+      merchantResolved.forEach(m => {
+        const a = ensure(m.agent_id);
+        a.collected += m.amount;
+        a.bySource.merchant += m.amount;
+        a.payments += 1;
+        if (m.tenant_id) { a.tenantsPaid.add(m.tenant_id); a.tenantsTotal.add(m.tenant_id); }
+      });
+      earnings.forEach(e => {
         const a = ensure(e.agent_id);
         const type = String(e.earning_type || '').toLowerCase();
         if (type.includes('interest')) a.interest += Number(e.amount || 0);
@@ -135,14 +213,6 @@ export function AgentPerformanceReport() {
       rentReqs.forEach(r => {
         if (!r.agent_id || !r.tenant_id) return;
         ensure(r.agent_id).tenantsTotal.add(r.tenant_id);
-      });
-      // Mark tenants paid from collections in window (regardless of rent_request linkage)
-      (collections || []).forEach(c => {
-        if (!c.tenant_id) return;
-        const a = ensure(c.agent_id);
-        a.tenantsPaid.add(c.tenant_id);
-        // Ensure paid tenants always count toward total (in case rent_request link is missing)
-        a.tenantsTotal.add(c.tenant_id);
       });
 
       const rows: AgentPerfRow[] = Object.entries(agg).map(([id, a]) => {
@@ -166,6 +236,7 @@ export function AgentPerformanceReport() {
           wallet_total,
           rate,
           status: statusFor(pctPaid),
+          source_breakdown: a.bySource,
         };
       })
       .filter(r => r.tenants_total > 0)
@@ -187,19 +258,44 @@ export function AgentPerformanceReport() {
     staleTime: 60_000,
   });
 
-  const rows = data?.rows || [];
-  const totals = data?.totals || { collected: 0, payments: 0, commission: 0, interest: 0, wallet_total: 0, tenants_paid: 0, tenants_total: 0 };
+  const rawRows = data?.rows || [];
+  // Apply client-side filters
+  const minColNum = Number(minCollected) || 0;
+  const search = agentSearch.trim().toLowerCase();
+  const rows = useMemo(() => {
+    let out = rawRows;
+    if (statusFilter !== 'all') out = out.filter(r => r.status === statusFilter);
+    if (search) out = out.filter(r => r.agent_name.toLowerCase().includes(search));
+    if (minColNum > 0) out = out.filter(r => r.collected >= minColNum);
+    // Re-rank after filtering
+    return out.map((r, i) => ({ ...r, rank: i + 1 }));
+  }, [rawRows, statusFilter, search, minColNum]);
+  const totals: AgentPerfTotals = useMemo(() => rows.reduce((t, r) => ({
+    collected: t.collected + r.collected,
+    payments: t.payments + r.payments,
+    commission: t.commission + r.commission,
+    interest: t.interest + r.interest,
+    wallet_total: t.wallet_total + r.wallet_total,
+    tenants_paid: t.tenants_paid + r.tenants_paid,
+    tenants_total: t.tenants_total + r.tenants_total,
+  }), { collected: 0, payments: 0, commission: 0, interest: 0, wallet_total: 0, tenants_paid: 0, tenants_total: 0 }), [rows]);
+
+  const activeFilterCount =
+    (paymentSource !== 'all' ? 1 : 0) +
+    (statusFilter !== 'all' ? 1 : 0) +
+    (search ? 1 : 0) +
+    (minColNum > 0 ? 1 : 0);
 
   const handleDownloadPdf = async () => {
     if (!rows.length) { toast.error('No data to export'); return; }
     try {
       const blob = await generateAgentPerformancePdf({
-        rows, totals, periodLabel, startDate: range.start, endDate: range.end,
+        rows, totals, periodLabel, startDate: range.start || range.end, endDate: range.end,
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `agent_performance_${format(range.start, 'yyyy-MM-dd')}_${format(range.end, 'yyyy-MM-dd')}.pdf`;
+      a.download = `agent_performance_${range.start ? format(range.start, 'yyyy-MM-dd') + '_' : ''}${format(range.end, 'yyyy-MM-dd')}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
       toast.success('PDF downloaded');
@@ -223,9 +319,12 @@ export function AgentPerformanceReport() {
         </div>
         <div className="flex gap-2 items-center">
           <Select value={preset} onValueChange={(v) => setPreset(v as RangePreset)}>
-            <SelectTrigger className="w-[150px] h-9"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-[140px] h-9"><SelectValue /></SelectTrigger>
             <SelectContent>
+              <SelectItem value="all">All Time</SelectItem>
               <SelectItem value="last-7">Last 7 Days</SelectItem>
+              <SelectItem value="last-30">Last 30 Days</SelectItem>
+              <SelectItem value="last-90">Last 90 Days</SelectItem>
               <SelectItem value="this-week">This Week</SelectItem>
               <SelectItem value="last-week">Last Week</SelectItem>
               <SelectItem value="this-month">This Month</SelectItem>
@@ -235,6 +334,61 @@ export function AgentPerformanceReport() {
             <Download className="h-4 w-4" />
             <span className="hidden sm:inline">Download PDF</span>
           </Button>
+        </div>
+      </div>
+
+      {/* Filters bar */}
+      <div className="rounded-2xl border border-border bg-card p-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[180px]">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              value={agentSearch}
+              onChange={(e) => setAgentSearch(e.target.value)}
+              placeholder="Search agent…"
+              className="pl-8 h-9 text-sm"
+            />
+          </div>
+          <Select value={paymentSource} onValueChange={(v) => setPaymentSource(v as PaymentSource)}>
+            <SelectTrigger className="w-[170px] h-9"><SelectValue placeholder="Payment source" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Payment Sources</SelectItem>
+              <SelectItem value="agent_collections">Agent Cash Collections</SelectItem>
+              <SelectItem value="repayments">Tenant Repayments</SelectItem>
+              <SelectItem value="merchant">Merchant Pay-ins</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+            <SelectTrigger className="w-[140px] h-9"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="strong">Strong</SelectItem>
+              <SelectItem value="moderate">Moderate</SelectItem>
+              <SelectItem value="low">Low</SelectItem>
+              <SelectItem value="critical">Critical</SelectItem>
+            </SelectContent>
+          </Select>
+          <Input
+            type="number"
+            inputMode="numeric"
+            value={minCollected}
+            onChange={(e) => setMinCollected(e.target.value)}
+            placeholder="Min UGX collected"
+            className="w-[160px] h-9 text-sm"
+          />
+          {activeFilterCount > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-9 gap-1 text-xs"
+              onClick={() => { setPaymentSource('all'); setStatusFilter('all'); setAgentSearch(''); setMinCollected(''); }}
+            >
+              <X className="h-3 w-3" /> Clear ({activeFilterCount})
+            </Button>
+          )}
+          <span className="text-[11px] text-muted-foreground ml-auto">
+            Showing {rows.length} of {rawRows.length} agents
+          </span>
         </div>
       </div>
 
