@@ -1,37 +1,79 @@
 
 
-## Change: Send "Investment Partnership Confirmation" email on every new investment portfolio
+## Tenant Ops can correct rent — and it propagates through the whole system
 
-### Current behavior
+### Problem
 
-In `supabase/functions/fund-rent-pool/index.ts`, the partnership confirmation email is gated to **first-time investors only** — it checks `existingPortfolio` and only fires if the user had no prior portfolio. The idempotency key is per-user (`partnership-agreement-{user.id}-{referenceId}`), but the gating condition prevents subsequent sends.
+When Tenant Ops edits a tenant's rent on `TenantDetailPanel`, only three columns on `rent_requests` change: `rent_amount`, `daily_repayment`, `duration_days`. But every dashboard (CFO, COO Tenant Balances, Agent collection, etc.) computes "what the tenant owes" as:
 
-### New behavior
+```
+outstanding = total_repayment − amount_repaid
+```
 
-Send the confirmation email **every time a new investor portfolio is created** for the user (i.e. every successful `Fund` action that opens a fresh portfolio row in `investor_portfolios`). Mid-cycle top-ups that get parked in `pending_portfolio_topup` (and therefore do NOT create a new portfolio row) will NOT trigger the email — they're not a new partnership, just an addition to an existing one.
+`total_repayment`, `access_fee` and `request_fee` are never recalculated, and the auto-charge engine keeps using the old `subscription_charges.charge_amount`. Result: the edit is cosmetic — the CFO and the daily charge cron see the old debt forever.
 
-### Implementation
+### Fix — make the Tenant Ops edit a real correction
 
-**File: `supabase/functions/fund-rent-pool/index.ts`**
+When Tenant Ops saves a rent correction on a tenant's request, the system will:
 
-1. Remove the `existingPortfolio === null` first-investment gate around the email-send block.
-2. Replace it with a check on the actual outcome of this transaction: only send when the function path created a **new `investor_portfolios` row** in this run (not when it routed the funds into `pending_portfolio_topup` as a mid-cycle top-up).
-   - Capture a boolean like `portfolioCreatedThisRun` from whichever branch inserts into `investor_portfolios`.
-   - `if (portfolioCreatedThisRun) { ...send email... }`
-3. Keep the idempotency key tied to the new portfolio's reference / id so each distinct portfolio gets exactly one email and retries are still safe:
-   - `idempotencyKey: `partnership-agreement-${user.id}-${newPortfolioId}``
-4. All template data (`partner_name`, `partnership_amount`, `contribution_date`, `monthly_return_amount`, `total_projected_return`, `first_payment_date`, `roi_payment_day`, `dashboard_url`) continues to be derived from the funded `amount` and the new portfolio's timestamps — no template changes needed.
+1. **Recompute fees** using the existing `calculateRentRepayment()` helper in `src/lib/rentCalculations.ts` (the same engine used at request creation), so the new `rent_amount` + `duration_days` produce a fresh `access_fee`, `request_fee`, `total_repayment`, and `daily_repayment`.
+2. **Persist all six columns** on `rent_requests` in one update: `rent_amount, duration_days, access_fee, request_fee, total_repayment, daily_repayment`.
+3. **Sync the active subscription charge** for that request: update `subscription_charges.charge_amount` to the new daily so the daily auto-charge cron immediately collects the corrected amount, and refresh `end_date` based on new duration.
+4. **Audit the correction** with a strict `audit_logs` row of type `tenant_ops_rent_correction` containing `{ rent_request_id, tenant_id, before, after, reason }` plus a mandatory ≥10-char reason captured in the dialog.
+5. **Block destructive edits** if `amount_repaid > new total_repayment` (would create a negative outstanding) — show an inline error and refuse to save.
+6. **Invalidate caches** so CFO Dashboard, COO Tenant Balances, Agent Tenant Search, and Tenant Ops queues all show the corrected outstanding on next refresh.
 
-### Result
+### What the user sees
 
-- Funder funds tenant for the first time → new portfolio created → email sent. ✅
-- Same funder funds another tenant later (new portfolio) → email sent again. ✅
-- Same funder tops up an existing active portfolio mid-cycle (parked in `pending_portfolio_topup`, no new portfolio row) → email NOT sent. ✅
-- Retries of the same fund call → idempotency key prevents duplicates. ✅
+`Tenant Ops → tap a tenant → tap a rent request → Edit (pencil)` opens an upgraded inline editor with:
 
-### Files touched
+- Rent Amount (UGX)
+- Duration (days)
+- Live preview of the recomputed Access Fee, Request Fee, **New Total Repayment**, **New Daily Repayment**, and **New Outstanding** (vs. old).
+- Required "Reason for correction" text (≥10 chars).
+- Save button disabled until reason is provided and new outstanding ≥ 0.
 
-- `supabase/functions/fund-rent-pool/index.ts` — swap the first-investment gate for a "portfolio created this run" gate; update idempotency key to include the new portfolio id.
+After save, a green toast confirms "Rent corrected — daily charge updated to UGX X" and the tenant's outstanding number updates everywhere (CFO, COO, Agent dashboards) on next data load.
 
-No template, schema, or UI changes required.
+### Where it propagates automatically (no extra code needed)
+
+Because every dashboard reads `total_repayment − amount_repaid` live from `rent_requests`, the single update to that row makes the corrected debt show up in:
+
+- CFO Dashboard outstanding totals
+- COO `TenantsBalancesDetail`
+- Agent `PriorityCollectionQueue` & `EarningsForecastCard`
+- `AgentTenantSearch`, `UserProfileSheet`, `TenantAgentLinker`, `TenantRentCollector`
+- Daily payment / missed-days trackers
+- Tenant Ops PDF report
+
+### Technical details
+
+**Files touched (3):**
+
+1. `src/components/executive/TenantDetailPanel.tsx` — extend the inline request edit:
+   - Add `reason` field and a recomputed-preview block.
+   - On save, call `calculateRentRepayment(rentAmount, durationDays)` and update `rent_amount, duration_days, access_fee, request_fee, total_repayment, daily_repayment` in one query.
+   - Then `update subscription_charges set charge_amount = newDaily, end_date = newEnd where rent_request_id = reqId and status in ('active','pending')`.
+   - Write an `audit_logs` row with `action_type='tenant_ops_rent_correction'`, `table_name='rent_requests'`, `record_id=reqId`, and full before/after metadata + reason.
+   - Guard: refuse if `Number(amount_repaid) > newTotalRepayment`.
+   - Invalidate `['tenant-detail', tenantId]`, `['exec-tenant-ops']`, `['coo-tenant-balances']`, `['cfo-*']` queries.
+
+2. `src/components/rent/EditApprovedRentDialog.tsx` *(optional consistency pass)* — same recompute logic so the dialog used in `RentDueReceivablesWidget` and `ApprovedRentRequestsWidget` stays in sync (currently lets users hand-edit `total_repayment` directly, which can desync from `rent_amount`). Switch it to derive from `rent_amount` + `duration_days` via `calculateRentRepayment()`.
+
+3. No DB migration needed — all target columns already exist on `rent_requests` and `subscription_charges`.
+
+### Edge cases
+
+- **No active subscription charge** (request not yet funded): skip step 3 silently — `total_repayment` change still propagates.
+- **Already fully repaid** (`amount_repaid >= old total_repayment`): allow lowering only if `new total_repayment >= amount_repaid`; otherwise block.
+- **Reason missing or <10 chars**: blocked client-side and rejected by audit policy.
+- **RLS**: `rent_requests` and `subscription_charges` updates are already permitted for staff roles used by Tenant Ops; no policy changes required.
+
+### Acceptance check
+
+After saving a correction lowering rent from 500k → 300k for a tenant with `amount_repaid = 100k`:
+- `total_repayment` drops from ~565k → ~339k.
+- Outstanding shown on CFO Dashboard, COO Tenant Balances, and Agent collection queue all show the new ~239k owed.
+- Tomorrow's auto-charge takes the new `daily_repayment` instead of the old.
+- An `audit_logs` row with the reason is visible to the manager audit view.
 
