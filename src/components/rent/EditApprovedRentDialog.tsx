@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2, Save } from 'lucide-react';
+import { calculateRentRepayment } from '@/lib/rentCalculations';
 
 
 interface EditableRequest {
@@ -17,6 +18,7 @@ interface EditableRequest {
   total_repayment?: number;
   daily_repayment?: number;
   number_of_payments?: number | null;
+  amount_repaid?: number;
 }
 
 interface EditApprovedRentDialogProps {
@@ -26,54 +28,44 @@ interface EditApprovedRentDialogProps {
   onSaved: () => void;
 }
 
-const EDITABLE_FIELDS = [
-  { key: 'rent_amount', label: 'Rent Amount (UGX)', type: 'number' },
-  { key: 'duration_days', label: 'Duration (Days)', type: 'number' },
-  { key: 'access_fee', label: 'Access Fee (UGX)', type: 'number' },
-  { key: 'request_fee', label: 'Request Fee (UGX)', type: 'number' },
-  { key: 'total_repayment', label: 'Total Repayment (UGX)', type: 'number' },
-  { key: 'daily_repayment', label: 'Daily Repayment (UGX)', type: 'number' },
-  { key: 'number_of_payments', label: 'Number of Payments', type: 'number' },
-] as const;
-
 export function EditApprovedRentDialog({ request, open, onOpenChange, onSaved }: EditApprovedRentDialogProps) {
-  const [values, setValues] = useState<Record<string, number | null>>({});
+  const [rentAmount, setRentAmount] = useState<string>('');
+  const [durationDays, setDurationDays] = useState<string>('');
   const [saving, setSaving] = useState(false);
 
   const handleOpen = (isOpen: boolean) => {
     if (isOpen && request) {
-      const initial: Record<string, number | null> = {};
-      EDITABLE_FIELDS.forEach(f => {
-        initial[f.key] = (request as any)[f.key] ?? null;
-      });
-      setValues(initial);
+      setRentAmount(String(request.rent_amount || 0));
+      setDurationDays(String(request.duration_days || 0));
     }
     onOpenChange(isOpen);
   };
 
   const handleSave = async () => {
     if (!request) return;
-    setSaving(true);
+    const amount = Number(rentAmount);
+    const days = Number(durationDays);
+    if (!amount || amount <= 0) { toast.error('Rent amount must be positive'); return; }
+    if (!days || days <= 0) { toast.error('Duration must be positive'); return; }
 
-    const updates: Record<string, number | null> = {};
-    EDITABLE_FIELDS.forEach(f => {
-      const newVal = values[f.key];
-      const oldVal = (request as any)[f.key] ?? null;
-      if (newVal !== oldVal) {
-        updates[f.key] = newVal;
-      }
-    });
-
-    if (Object.keys(updates).length === 0) {
-      toast.info('No changes made');
-      setSaving(false);
-      onOpenChange(false);
+    const calc = calculateRentRepayment(amount, days);
+    const repaid = Number(request.amount_repaid || 0);
+    if (repaid > calc.totalRepayment) {
+      toast.error(`Cannot lower below repaid amount (UGX ${repaid.toLocaleString()})`);
       return;
     }
 
+    setSaving(true);
     const { error } = await supabase
       .from('rent_requests')
-      .update(updates)
+      .update({
+        rent_amount: amount,
+        duration_days: days,
+        access_fee: calc.accessFee,
+        request_fee: calc.requestFee,
+        total_repayment: calc.totalRepayment,
+        daily_repayment: calc.dailyRepayment,
+      })
       .eq('id', request.id);
 
     setSaving(false);
@@ -82,11 +74,15 @@ export function EditApprovedRentDialog({ request, open, onOpenChange, onSaved }:
       console.error('Rent request update error:', error);
       toast.error('Failed to update: ' + (error.message || error.code || 'Unknown error'));
     } else {
-      toast.success('Rent request updated successfully');
+      toast.success(`Rent updated — daily charge UGX ${calc.dailyRepayment.toLocaleString()}`);
       onOpenChange(false);
       onSaved();
     }
   };
+
+  const amountNum = Number(rentAmount) || 0;
+  const daysNum = Number(durationDays) || 0;
+  const preview = amountNum > 0 && daysNum > 0 ? calculateRentRepayment(amountNum, daysNum) : null;
 
   return (
     <Dialog open={open} onOpenChange={handleOpen}>
@@ -96,21 +92,22 @@ export function EditApprovedRentDialog({ request, open, onOpenChange, onSaved }:
         </DialogHeader>
 
         <div className="space-y-3 py-2">
-          {EDITABLE_FIELDS.map(f => (
-            <div key={f.key} className="space-y-1">
-              <Label className="text-xs font-medium">{f.label}</Label>
-              <Input
-                type="number"
-                inputMode="numeric"
-                value={values[f.key] ?? ''}
-                onChange={e => {
-                  const val = e.target.value === '' ? null : Number(e.target.value);
-                  setValues(prev => ({ ...prev, [f.key]: val }));
-                }}
-                className="h-9"
-              />
+          <div className="space-y-1">
+            <Label className="text-xs font-medium">Rent Amount (UGX)</Label>
+            <Input type="number" inputMode="numeric" value={rentAmount} onChange={e => setRentAmount(e.target.value)} className="h-9" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs font-medium">Duration (Days)</Label>
+            <Input type="number" inputMode="numeric" value={durationDays} onChange={e => setDurationDays(e.target.value)} className="h-9" />
+          </div>
+          {preview && (
+            <div className="rounded-md bg-muted/50 p-3 text-xs space-y-1">
+              <div className="flex justify-between"><span className="text-muted-foreground">Access Fee</span><span>UGX {preview.accessFee.toLocaleString()}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Request Fee</span><span>UGX {preview.requestFee.toLocaleString()}</span></div>
+              <div className="flex justify-between font-semibold border-t border-border/40 pt-1"><span>Total Repayment</span><span>UGX {preview.totalRepayment.toLocaleString()}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Daily Repayment</span><span>UGX {preview.dailyRepayment.toLocaleString()}</span></div>
             </div>
-          ))}
+          )}
         </div>
 
         <DialogFooter className="gap-2">
