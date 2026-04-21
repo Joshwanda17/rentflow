@@ -147,7 +147,7 @@ export function AgentPerformanceReport() {
 
       const rows: AgentPerfRow[] = Object.entries(agg).map(([id, a]) => {
         // Use ledger commission if present, else 5% of collected as display fallback
-        const commission = a.commissionEarnings > 0 ? a.commissionEarnings : a.collected * 0.05;
+        const commission = a.commissionEarnings > 0 ? a.commissionEarnings : a.collected * 0.10;
         const wallet_total = commission + a.interest;
         const tenantsTotal = a.tenantsTotal.size || a.tenantsPaid.size;
         const tenantsPaid = a.tenantsPaid.size;
@@ -270,7 +270,7 @@ export function AgentPerformanceReport() {
                 <th className="px-3 py-2.5 text-right font-semibold">% Paid</th>
                 <th className="px-3 py-2.5 text-right font-semibold">Collected</th>
                 <th className="px-3 py-2.5 text-right font-semibold">Payments</th>
-                <th className="px-3 py-2.5 text-right font-semibold">5% Comm.</th>
+                <th className="px-3 py-2.5 text-right font-semibold">10% Comm.</th>
                 <th className="px-3 py-2.5 text-right font-semibold">0.5% Int.</th>
                 <th className="px-3 py-2.5 text-right font-semibold">Wallet</th>
                 <th className="px-3 py-2.5 text-right font-semibold">% Rate</th>
