@@ -86,13 +86,8 @@ export function AgentVouchHighlightCard({ userId }: Props) {
       <div className="pointer-events-none absolute -top-12 -right-12 h-40 w-40 rounded-full bg-primary/15 blur-2xl" />
       <div className="pointer-events-none absolute -bottom-10 -left-10 h-28 w-28 rounded-full bg-emerald-500/15 blur-2xl" />
 
-      {/* Header row — tappable for expand */}
-      <button
-        onClick={toggle}
-        aria-expanded={expanded}
-        className="relative w-full text-left p-4 flex items-center gap-3 active:scale-[0.99] transition-transform"
-        style={{ WebkitTapHighlightColor: 'transparent' }}
-      >
+      {/* Header row — display only (no tap behaviour) */}
+      <div className="relative w-full p-4 flex items-center gap-3">
         <div className="h-12 w-12 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shrink-0 shadow-sm">
           <ShieldCheck className="h-6 w-6" />
         </div>
@@ -109,34 +104,38 @@ export function AgentVouchHighlightCard({ userId }: Props) {
               </span>
             )}
           </div>
-          <p className="text-[clamp(1.1rem,5vw,1.6rem)] font-black tracking-tight leading-none mt-1 text-foreground truncate">
+          <p className="text-[clamp(1.25rem,6vw,1.75rem)] font-black tracking-tight leading-tight mt-1 text-foreground truncate">
             {vouch > 0 ? `Up to ${formatUGX(vouch)}` : 'Build your vouch limit'}
           </p>
-          <p className="text-[11px] text-muted-foreground mt-1 truncate flex items-center gap-1">
+          <p className="text-[11px] text-muted-foreground mt-1 truncate">
             Trust Score <span className="font-semibold text-foreground">{score}</span>
-            <span>·</span>
+            <span className="mx-1">·</span>
             <span className="font-semibold text-foreground">{tierLabel}</span>
-            <span>·</span>
-            <span className="inline-flex items-center gap-0.5 text-primary font-medium">
-              {expanded ? 'Hide details' : 'How it works'}
-              <ChevronDown className={cn('h-3 w-3 transition-transform', expanded && 'rotate-180')} />
-            </span>
           </p>
         </div>
+      </div>
 
-        {/* AI ID chip — separate tap target */}
-        <span
-          role="button"
-          tabIndex={0}
-          onClick={(e) => { e.stopPropagation(); goToProfile(); }}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); goToProfile(); } }}
-          className="flex items-center gap-1.5 shrink-0 px-2.5 py-1.5 rounded-full bg-primary/15 border border-primary/25 hover:bg-primary/25 transition-colors cursor-pointer"
+      {/* Thumb-friendly action buttons — stacked on mobile, inline on sm+ */}
+      <div className="relative px-4 pb-4 flex flex-col sm:flex-row gap-2">
+        <button
+          onClick={toggle}
+          aria-expanded={expanded}
+          className="flex-1 inline-flex items-center justify-center gap-2 min-h-[44px] px-4 rounded-xl border border-primary/30 bg-background/60 hover:bg-primary/5 text-foreground text-sm font-semibold active:scale-[0.97] transition-all"
+          style={{ WebkitTapHighlightColor: 'transparent' }}
         >
-          <Fingerprint className="h-3.5 w-3.5 text-primary" />
-          <span className="text-[10px] font-bold text-primary uppercase tracking-wider">AI ID</span>
-          <ChevronRight className="h-3 w-3 text-primary" />
-        </span>
-      </button>
+          <ChevronDown className={cn('h-4 w-4 transition-transform text-primary', expanded && 'rotate-180')} />
+          {expanded ? 'Hide details' : 'How is this calculated?'}
+        </button>
+        <button
+          onClick={goToProfile}
+          className="flex-1 inline-flex items-center justify-center gap-2 min-h-[44px] px-4 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-sm active:scale-[0.97] transition-all"
+          style={{ WebkitTapHighlightColor: 'transparent' }}
+        >
+          <Fingerprint className="h-4 w-4" />
+          {vouch > 0 ? 'Open my AI ID' : 'Build my vouch limit'}
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
 
       {/* Expandable explainer */}
       {expanded && (
