@@ -104,6 +104,28 @@ export function RentAccessLimitCard({
     suggestedRent && suggestedRent > 0 ? String(suggestedRent) : '',
   );
   const [savingRent, setSavingRent] = useState(false);
+  // Inline edit state for the main card (when monthlyRent is already set)
+  const [editingRent, setEditingRent] = useState(false);
+  const [editRentInput, setEditRentInput] = useState<string>('');
+
+  /**
+   * "Manual override" applies the moment the user types a value that differs
+   * from the currently-effective source (auto-detected suggestion in empty
+   * state, or stored monthlyRent in edit mode). Empty input = no override yet.
+   */
+  const overrideActiveEmpty = (() => {
+    const typed = rentInput.replace(/[^0-9]/g, '');
+    if (!typed) return false;
+    const typedNum = Number(typed);
+    if (suggestedRent && suggestedRent > 0) return typedNum !== suggestedRent;
+    return true; // no source at all → any typed value is a manual entry
+  })();
+
+  const overrideActiveEdit = (() => {
+    const typed = editRentInput.replace(/[^0-9]/g, '');
+    if (!typed || !monthlyRent) return false;
+    return Number(typed) !== monthlyRent;
+  })();
 
   const result = useMemo(
     () => calculateRentAccessLimit(monthlyRent, repayments),
