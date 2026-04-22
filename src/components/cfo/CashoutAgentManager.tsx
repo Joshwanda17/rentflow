@@ -429,6 +429,9 @@ export function CashoutAgentManager() {
               <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => setCashoutAgent(selectedAgent)}>
                 <Wallet className="h-4 w-4" /> Active Queue
               </Button>
+              <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => openEdit(selectedAgent)}>
+                <Pencil className="h-4 w-4" /> Edit
+              </Button>
               <Button variant="destructive" size="sm" className="flex-1 gap-1.5" onClick={() => { deactivateMutation.mutate(selectedAgent.id); setSelectedAgent(null); }}>
                 <XCircle className="h-4 w-4" /> Remove
               </Button>
@@ -437,6 +440,22 @@ export function CashoutAgentManager() {
         </Tabs>
 
         <CashoutPendingWithdrawalsDialog open={!!cashoutAgent} onOpenChange={v => { if (!v) setCashoutAgent(null); }} agent={cashoutAgent} />
+
+        {/* Edit dialog (also reachable from drill-down) */}
+        <EditMerchantDialog
+          editAgent={editAgent}
+          setEditAgent={setEditAgent}
+          editLabel={editLabel}
+          setEditLabel={setEditLabel}
+          editHandlesMomo={editHandlesMomo}
+          setEditHandlesMomo={setEditHandlesMomo}
+          editHandlesBank={editHandlesBank}
+          setEditHandlesBank={setEditHandlesBank}
+          editHandlesCash={editHandlesCash}
+          setEditHandlesCash={setEditHandlesCash}
+          isPending={updateMutation.isPending}
+          onSave={() => updateMutation.mutate()}
+        />
       </div>
     );
   }
