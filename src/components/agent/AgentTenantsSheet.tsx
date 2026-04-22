@@ -84,12 +84,12 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const { toast } = useToast();
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(() => loadPrefs().search ?? '');
   const [expandedTenantId, setExpandedTenantId] = useState<string | null>(null);
   const [tenantRequests, setTenantRequests] = useState<Record<string, TenantRentRequest[]>>({});
   const [loadingRequests, setLoadingRequests] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<FilterTab>('owing');
-  const [riskFilter, setRiskFilter] = useState<RiskFilter>('all');
+  const [activeFilter, setActiveFilter] = useState<FilterTab>(() => loadPrefs().activeFilter ?? 'owing');
+  const [riskFilter, setRiskFilter] = useState<RiskFilter>(() => loadPrefs().riskFilter ?? 'all');
   const [sortKey, setSortKey] = useState<SortKey>('balance');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [tenantBalances, setTenantBalances] = useState<Record<string, number>>({});
