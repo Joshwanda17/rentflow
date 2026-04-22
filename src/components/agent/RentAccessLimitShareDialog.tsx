@@ -139,44 +139,60 @@ export function RentAccessLimitShareDialog({
   /** Step 2 — user confirmed the preview, actually send to WhatsApp. */
   const confirmAndShare = async () => {
     if (!previewBlob || !previewMessage) return;
+    setSending(true);
+    setSendError(null);
+    setSendAttempts(n => n + 1);
     const file = new File(
       [previewBlob],
       `rent-access-${tenantName.replace(/\s+/g, '-').toLowerCase()}.png`,
       { type: 'image/png' },
     );
-    const navAny = navigator as any;
-    if (navAny.canShare && navAny.canShare({ files: [file] })) {
-      try {
-        await navAny.share({
-          files: [file],
-          title: 'Rent Access Limit',
-          text: previewMessage,
-        });
-        toast({ title: 'Ready to share' });
-        return;
-      } catch (err: any) {
-        if (err?.name === 'AbortError') return;
-        // fall through to download + WhatsApp web fallback
+    try {
+      const navAny = navigator as any;
+      if (navAny.canShare && navAny.canShare({ files: [file] })) {
+        try {
+          await navAny.share({
+            files: [file],
+            title: 'Rent Access Limit',
+            text: previewMessage,
+          });
+          toast({ title: 'Ready to share' });
+          return;
+        } catch (err: any) {
+          // User cancelled — not an error, just stop quietly
+          if (err?.name === 'AbortError') return;
+          // Genuine share failure — fall through to wa.me fallback
+        }
       }
+
+      // Fallback: download the snapshot image and open WhatsApp chat
+      const url = URL.createObjectURL(previewBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.name;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+      const intl = toIntlPhone(tenantPhone);
+      const waUrl = intl
+        ? `https://wa.me/${intl}?text=${encodeURIComponent(previewMessage)}`
+        : `https://wa.me/?text=${encodeURIComponent(previewMessage)}`;
+      const win = window.open(waUrl, '_blank', 'noopener,noreferrer');
+      if (!win) {
+        // Popup blocked — surface as a retryable error
+        throw new Error('WhatsApp window was blocked. Allow popups and retry.');
+      }
+      toast({
+        title: 'Image saved',
+        description: 'Attach it in the WhatsApp chat that just opened.',
+      });
+    } catch (err: any) {
+      const msg = err?.message || 'Could not open WhatsApp. Please try again.';
+      setSendError(msg);
+      toast({ title: 'Share failed', description: msg, variant: 'destructive' });
+    } finally {
+      setSending(false);
     }
-    // Fallback: download the image and open WhatsApp chat with the prefilled text
-    const url = URL.createObjectURL(previewBlob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = file.name;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
-    // Open WhatsApp using the SNAPSHOT message (not the live `message`),
-    // so the text matches exactly what the agent confirmed in the preview.
-    const intl = toIntlPhone(tenantPhone);
-    const waUrl = intl
-      ? `https://wa.me/${intl}?text=${encodeURIComponent(previewMessage)}`
-      : `https://wa.me/?text=${encodeURIComponent(previewMessage)}`;
-    window.open(waUrl, '_blank', 'noopener,noreferrer');
-    toast({
-      title: 'Image saved',
-      description: 'Attach it in the WhatsApp chat that just opened.',
-    });
   };
 
   const copyMessage = async () => {
