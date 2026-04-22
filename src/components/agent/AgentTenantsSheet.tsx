@@ -5,7 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp, ArrowLeft, Shield } from 'lucide-react';
+import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp, ArrowLeft, Shield, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { generateWelileAiId, getRiskTierLabel } from '@/lib/welileAiId';
 import { format, startOfDay } from 'date-fns';
@@ -49,6 +49,15 @@ interface AgentTenantsSheetProps {
 
 type FilterTab = 'owing' | 'paid-up' | 'all';
 type RiskFilter = 'all' | 'good' | 'standard' | 'caution' | 'new';
+type SortKey = 'risk' | 'aiId' | 'property' | 'balance';
+type SortDir = 'asc' | 'desc';
+
+const RISK_ORDER: Record<'good' | 'standard' | 'caution' | 'new', number> = {
+  caution: 0,
+  standard: 1,
+  good: 2,
+  new: 3,
+};
 
 export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps) {
   const { user } = useAuth();
