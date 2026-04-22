@@ -1157,6 +1157,31 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
         onOpenChange={setSubAgentDialogOpen}
         onSuccess={loadFullProfile}
       />
+
+      {/* Rent Access Limit — opens minimalist sheet with full card */}
+      <Sheet open={rentLimitOpen} onOpenChange={setRentLimitOpen}>
+        <SheetContent
+          side="bottom"
+          className="h-[88vh] rounded-t-3xl flex flex-col p-0 gap-0 overflow-hidden"
+        >
+          <SheetHeader className="px-4 sm:px-5 pt-5 pb-3 text-left">
+            <SheetTitle className="text-lg font-bold">Rent Access Limit</SheetTitle>
+            <SheetDescription className="text-xs">
+              {profile.full_name}'s live limit — recalculated daily from repayments.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-3 sm:px-4 pb-6">
+            <RentAccessLimitCard
+              tenantId={profile.id}
+              tenantName={profile.full_name}
+              tenantPhone={profile.phone}
+              monthlyRent={profile.monthly_rent}
+              repayments={repayments.map(r => ({ amount: r.amount, created_at: r.created_at }))}
+              aiId={aiId}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
