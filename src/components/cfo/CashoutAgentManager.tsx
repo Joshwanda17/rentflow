@@ -153,6 +153,59 @@ export function CashoutAgentManager() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      if (!editAgent) throw new Error('No merchant selected');
+      if (!editHandlesCash && !editHandlesBank && !editHandlesMomo) {
+        throw new Error('Enable at least one payout method');
+      }
+      const patch = {
+        label: editLabel.trim() || 'Merchant Agent',
+        handles_cash: editHandlesCash,
+        handles_bank: editHandlesBank,
+        handles_mtn: editHandlesMomo,
+        handles_airtel: editHandlesMomo,
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await supabase.from('cashout_agents').update(patch).eq('id', editAgent.id);
+      if (error) throw error;
+      await supabase.from('audit_logs').insert({
+        user_id: user!.id,
+        action_type: 'cfo_merchant_agent_updated',
+        table_name: 'cashout_agents',
+        record_id: editAgent.id,
+        metadata: {
+          agent_name: editAgent.profiles?.full_name || editAgent.agent_id,
+          before: {
+            label: editAgent.label,
+            handles_cash: editAgent.handles_cash,
+            handles_bank: editAgent.handles_bank,
+            handles_mtn: editAgent.handles_mtn,
+            handles_airtel: editAgent.handles_airtel,
+          },
+          after: patch,
+        },
+      });
+    },
+    onSuccess: () => {
+      toast({ title: '✅ Merchant Agent updated' });
+      qc.invalidateQueries({ queryKey: ['merchant-agents'] });
+      // Refresh the drill-down view if it's open on the same agent
+      if (selectedAgent && editAgent && selectedAgent.id === editAgent.id) {
+        setSelectedAgent({
+          ...selectedAgent,
+          label: editLabel.trim() || 'Merchant Agent',
+          handles_cash: editHandlesCash,
+          handles_bank: editHandlesBank,
+          handles_mtn: editHandlesMomo,
+          handles_airtel: editHandlesMomo,
+        });
+      }
+      setEditAgent(null);
+    },
+    onError: (e: any) => toast({ title: 'Update failed', description: e.message, variant: 'destructive' }),
+  });
+
   const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString('en-UG', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
   const formatDateTime = (d: string | null) => d ? new Date(d).toLocaleString('en-UG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
 
