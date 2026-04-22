@@ -62,8 +62,9 @@ export function TenantAgentLinker() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [previewSortKey, setPreviewSortKey] = useState<'id' | 'agent' | 'amount'>('amount');
   const [previewSortDir, setPreviewSortDir] = useState<'asc' | 'desc'>('desc');
-  const { location: actorLocation, captureLocation: captureActorLocation } = useGeoLocation();
+  const { captureLocation: captureActorLocation } = useGeoLocation();
   const [lastActorStatus, setLastActorStatus] = useState<ActorLocationStatus | null>(null);
+  const [lastActorAccuracy, setLastActorAccuracy] = useState<number | null>(null);
 
   // Capture executive geo before running an action; never blocks the action.
   const captureActorContext = async (): Promise<{
@@ -81,6 +82,7 @@ export function TenantAgentLinker() {
       const loc = await captureActorLocation();
       if (loc) {
         setLastActorStatus('captured');
+        setLastActorAccuracy(loc.accuracy ?? null);
         return {
           actor_latitude: loc.latitude,
           actor_longitude: loc.longitude,
@@ -89,10 +91,12 @@ export function TenantAgentLinker() {
         };
       }
       setLastActorStatus('unavailable');
+      setLastActorAccuracy(null);
       toast({ title: '📍 Location unavailable', description: 'Proceeding without geo — action will be tagged accordingly.' });
       return { actor_latitude: null, actor_longitude: null, actor_accuracy: null, actor_location_status: 'unavailable' };
     } catch {
       setLastActorStatus('denied');
+      setLastActorAccuracy(null);
       toast({ title: '📍 Location denied', description: 'Proceeding without geo — action will be tagged accordingly.' });
       return { actor_latitude: null, actor_longitude: null, actor_accuracy: null, actor_location_status: 'denied' };
     }
