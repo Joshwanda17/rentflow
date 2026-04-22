@@ -163,12 +163,50 @@ export function RentAccessLimitCard({
               <p className="text-[11px] text-muted-foreground mt-0.5">
                 Powered by Welile · Updates daily
               </p>
-              {detectedFromHistory && (
-                <span className="mt-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20">
-                  <Wand2 className="h-3 w-3" aria-hidden />
-                  Auto-detected from rent history
-                </span>
-              )}
+              <TooltipProvider delayDuration={150}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      className={cn(
+                        'mt-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold border cursor-help',
+                        'transition-colors',
+                        detectedFromHistory
+                          ? 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/15'
+                          : 'bg-muted text-muted-foreground border-border/60 hover:bg-muted/80',
+                      )}
+                      aria-label={
+                        detectedFromHistory
+                          ? 'Monthly rent auto-detected from latest rent request'
+                          : 'Monthly rent entered manually'
+                      }
+                    >
+                      {detectedFromHistory ? (
+                        <Wand2 className="h-3 w-3" aria-hidden />
+                      ) : (
+                        <Pencil className="h-3 w-3" aria-hidden />
+                      )}
+                      Rent: {formatUGX(monthlyRent)} ·{' '}
+                      {detectedFromHistory ? 'auto-detected' : 'manual'}
+                      <Info className="h-3 w-3 opacity-60" aria-hidden />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" align="start" className="max-w-[260px] text-xs">
+                    {detectedFromHistory ? (
+                      <p>
+                        Monthly rent of <span className="font-semibold">{formatUGX(monthlyRent)}</span>{' '}
+                        was auto-detected from {tenantName.split(' ')[0]}'s latest rent request. It updates
+                        automatically whenever a new rent plan is issued.
+                      </p>
+                    ) : (
+                      <p>
+                        Monthly rent of <span className="font-semibold">{formatUGX(monthlyRent)}</span>{' '}
+                        was entered manually on this profile and is stored as their official monthly rent.
+                      </p>
+                    )}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
             <span
               className={cn(
