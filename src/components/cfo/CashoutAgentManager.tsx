@@ -921,14 +921,22 @@ function EditMerchantDialog({
 
 function DeleteMerchantConfirm({
   deleteAgent, setDeleteAgent, isPending, onConfirm,
+  pendingInfo, isReleasing, onRelease,
 }: {
   deleteAgent: any;
   setDeleteAgent: (v: any) => void;
   isPending: boolean;
   onConfirm: () => void;
+  pendingInfo: { count: number; ids: string[]; oldestAt: string | null } | null;
+  isReleasing: boolean;
+  onRelease: () => void;
 }) {
+  const blocked = !!pendingInfo && pendingInfo.count > 0;
+  const oldestDays = pendingInfo?.oldestAt
+    ? Math.floor((Date.now() - new Date(pendingInfo.oldestAt).getTime()) / 86400000)
+    : 0;
   return (
-    <AlertDialog open={!!deleteAgent} onOpenChange={v => { if (!v && !isPending) setDeleteAgent(null); }}>
+    <AlertDialog open={!!deleteAgent} onOpenChange={v => { if (!v && !isPending && !isReleasing) setDeleteAgent(null); }}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete Merchant Agent?</AlertDialogTitle>
@@ -937,17 +945,38 @@ function DeleteMerchantConfirm({
             <span className="font-semibold text-foreground">{deleteAgent?.profiles?.full_name || 'this merchant'}</span>{' '}
             from the payout execution network. Their completed payout history is preserved in audit logs,
             but they will no longer appear in routing or assignment.
-            <br /><br />
-            If they have <span className="font-medium">active claims in queue</span>, the deletion will be blocked —
-            reassign or complete those first. Prefer <span className="font-medium">Deactivate</span> if you only
-            want to pause routing.
           </AlertDialogDescription>
         </AlertDialogHeader>
+        {blocked && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-2">
+            <p className="text-sm font-semibold text-destructive flex items-center gap-1.5">
+              <Clock className="h-4 w-4" />
+              {pendingInfo!.count} active claim{pendingInfo!.count === 1 ? '' : 's'} blocking deletion
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {oldestDays > 0
+                ? `Oldest is ${oldestDays} day${oldestDays === 1 ? '' : 's'} old. `
+                : ''}
+              Release them to return the payout{pendingInfo!.count === 1 ? '' : 's'} to the open pool so any other
+              Merchant Agent can pick {pendingInfo!.count === 1 ? 'it' : 'them'} up — then retry deletion.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-1.5"
+              onClick={onRelease}
+              disabled={isReleasing || isPending}
+            >
+              {isReleasing ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+              Release {pendingInfo!.count} stuck claim{pendingInfo!.count === 1 ? '' : 's'} to open pool
+            </Button>
+          </div>
+        )}
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={isPending || isReleasing}>Cancel</AlertDialogCancel>
           <AlertDialogAction
             onClick={(e) => { e.preventDefault(); onConfirm(); }}
-            disabled={isPending}
+            disabled={isPending || isReleasing || blocked}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
             {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
