@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Loader2, MessageCircle, Image as ImageIcon, FileText, Copy, CheckCircle2, ExternalLink } from 'lucide-react';
+import {
+  Loader2, MessageCircle, Image as ImageIcon, FileText, Copy, CheckCircle2, ExternalLink,
+  ArrowLeft, Eye,
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { createShortLink } from '@/lib/createShortLink';
@@ -43,6 +46,20 @@ export function RentAccessLimitShareDialog({
   const [copied, setCopied] = useState(false);
   const [pngLoading, setPngLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
+  const [previewing, setPreviewing] = useState(false);
+
+  // Reset preview whenever the dialog closes / inputs change
+  useEffect(() => {
+    if (!open) {
+      setPreviewing(false);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+      setPreviewBlob(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   // Build the WhatsApp / share short link as soon as the dialog opens
   useEffect(() => {
@@ -84,8 +101,8 @@ export function RentAccessLimitShareDialog({
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
-  /** One-tap: generate the card image AND open WhatsApp with the message. */
-  const shareCardOnWhatsApp = async () => {
+  /** Step 1 — generate the card image and show preview. */
+  const buildPreview = async () => {
     setPngLoading(true);
     try {
       const blob = await generateRentAccessLimitPng({
@@ -96,42 +113,53 @@ export function RentAccessLimitShareDialog({
         result,
         shareUrl,
       });
-      const file = new File([blob], `rent-access-${tenantName.replace(/\s+/g, '-').toLowerCase()}.png`, {
-        type: 'image/png',
-      });
-      // Prefer native share with the file attached (mobile WhatsApp picks this up directly)
-      const navAny = navigator as any;
-      if (navAny.canShare && navAny.canShare({ files: [file] })) {
-        try {
-          await navAny.share({
-            files: [file],
-            title: 'Rent Access Limit',
-            text: message,
-          });
-          toast({ title: 'Ready to share' });
-          return;
-        } catch (err: any) {
-          if (err?.name === 'AbortError') return;
-          // fall through to download + WhatsApp web fallback
-        }
-      }
-      // Fallback: download the image and open WhatsApp chat with the prefilled text
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = file.name;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
-      openWhatsApp();
-      toast({
-        title: 'Image saved',
-        description: 'Attach it in the WhatsApp chat that just opened.',
-      });
+      setPreviewBlob(blob);
+      setPreviewUrl(url);
+      setPreviewing(true);
     } catch (err: any) {
-      toast({ title: 'Share failed', description: err.message, variant: 'destructive' });
+      toast({ title: 'Preview failed', description: err.message, variant: 'destructive' });
     } finally {
       setPngLoading(false);
     }
+  };
+
+  /** Step 2 — user confirmed the preview, actually send to WhatsApp. */
+  const confirmAndShare = async () => {
+    if (!previewBlob) return;
+    const file = new File(
+      [previewBlob],
+      `rent-access-${tenantName.replace(/\s+/g, '-').toLowerCase()}.png`,
+      { type: 'image/png' },
+    );
+    const navAny = navigator as any;
+    if (navAny.canShare && navAny.canShare({ files: [file] })) {
+      try {
+        await navAny.share({
+          files: [file],
+          title: 'Rent Access Limit',
+          text: message,
+        });
+        toast({ title: 'Ready to share' });
+        return;
+      } catch (err: any) {
+        if (err?.name === 'AbortError') return;
+        // fall through to download + WhatsApp web fallback
+      }
+    }
+    // Fallback: download the image and open WhatsApp chat with the prefilled text
+    const url = URL.createObjectURL(previewBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = file.name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    openWhatsApp();
+    toast({
+      title: 'Image saved',
+      description: 'Attach it in the WhatsApp chat that just opened.',
+    });
   };
 
   const copyMessage = async () => {
@@ -199,19 +227,77 @@ export function RentAccessLimitShareDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Share Rent Access Limit</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            {previewing && (
+              <button
+                type="button"
+                onClick={() => setPreviewing(false)}
+                className="h-7 w-7 -ml-1 rounded-md hover:bg-muted flex items-center justify-center"
+                aria-label="Back to share options"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+            )}
+            {previewing ? 'Preview before sending' : 'Share Rent Access Limit'}
+          </DialogTitle>
           <DialogDescription>
-            Send {tenantName.split(' ')[0]} their current limit and motivate daily payments.
+            {previewing
+              ? `Confirm the card and message for ${tenantName.split(' ')[0]} look right.`
+              : `Send ${tenantName.split(' ')[0]} their current limit and motivate daily payments.`}
           </DialogDescription>
         </DialogHeader>
 
-        {/* Preview snippet */}
-        <div className="rounded-xl border bg-muted/40 p-3 text-xs whitespace-pre-line max-h-40 overflow-y-auto">
-          {message}
-        </div>
+        {previewing && previewUrl ? (
+          <>
+            {/* Image preview */}
+            <div className="rounded-xl border bg-muted/30 p-2 flex items-center justify-center">
+              <img
+                src={previewUrl}
+                alt="Rent access limit card preview"
+                className="max-h-64 w-auto rounded-lg shadow-sm"
+              />
+            </div>
+            {/* Message preview */}
+            <div className="rounded-xl border bg-muted/40 p-3 text-xs whitespace-pre-line max-h-40 overflow-y-auto">
+              {message}
+            </div>
 
-        {/* Link row */}
-        <div className="flex items-center gap-2 rounded-xl bg-background border p-2.5 text-xs">
+            <div className="grid grid-cols-1 gap-2">
+              <Button
+                onClick={confirmAndShare}
+                className="h-12 rounded-xl gap-2 font-bold bg-success hover:bg-success/90 text-success-foreground"
+                size="lg"
+              >
+                <MessageCircle className="h-5 w-5" /> Looks good — send on WhatsApp
+              </Button>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setPreviewing(false)}
+                  className="h-11 rounded-xl gap-2"
+                >
+                  <ArrowLeft className="h-4 w-4" /> Edit
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={copyMessage}
+                  className="h-11 rounded-xl gap-2"
+                >
+                  {copied ? <CheckCircle2 className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
+                  Copy text
+                </Button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Message preview */}
+            <div className="rounded-xl border bg-muted/40 p-3 text-xs whitespace-pre-line max-h-40 overflow-y-auto">
+              {message}
+            </div>
+
+            {/* Link row */}
+            <div className="flex items-center gap-2 rounded-xl bg-background border p-2.5 text-xs">
           <ExternalLink className="h-4 w-4 text-muted-foreground shrink-0" />
           <span className="truncate flex-1 font-mono text-muted-foreground">
             {linkLoading ? 'Generating link…' : shareUrl ?? '—'}
@@ -227,47 +313,49 @@ export function RentAccessLimitShareDialog({
           >
             {copied ? <CheckCircle2 className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
           </Button>
-        </div>
+            </div>
 
-        {/* Actions */}
-        <div className="grid grid-cols-1 gap-2">
-          <Button
-            onClick={shareCardOnWhatsApp}
-            disabled={pngLoading}
-            className="h-12 rounded-xl gap-2 font-bold bg-success hover:bg-success/90 text-success-foreground"
-            size="lg"
-          >
-            {pngLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <MessageCircle className="h-5 w-5" />}
-            {pngLoading ? 'Preparing card…' : 'Share card on WhatsApp'}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={openWhatsApp}
-            className="h-11 rounded-xl gap-2"
-          >
-            <MessageCircle className="h-4 w-4" /> Send text only
-          </Button>
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              variant="outline"
-              onClick={downloadPng}
-              disabled={pngLoading}
-              className="h-11 rounded-xl gap-2"
-            >
-              {pngLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
-              Save image
-            </Button>
-            <Button
-              variant="outline"
-              onClick={downloadPdf}
-              disabled={pdfLoading}
-              className="h-11 rounded-xl gap-2"
-            >
-              {pdfLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-              PDF
-            </Button>
-          </div>
-        </div>
+            {/* Actions */}
+            <div className="grid grid-cols-1 gap-2">
+              <Button
+                onClick={buildPreview}
+                disabled={pngLoading}
+                className="h-12 rounded-xl gap-2 font-bold bg-success hover:bg-success/90 text-success-foreground"
+                size="lg"
+              >
+                {pngLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Eye className="h-5 w-5" />}
+                {pngLoading ? 'Preparing preview…' : 'Preview & send on WhatsApp'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={openWhatsApp}
+                className="h-11 rounded-xl gap-2"
+              >
+                <MessageCircle className="h-4 w-4" /> Send text only
+              </Button>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  onClick={downloadPng}
+                  disabled={pngLoading}
+                  className="h-11 rounded-xl gap-2"
+                >
+                  {pngLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
+                  Save image
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={downloadPdf}
+                  disabled={pdfLoading}
+                  className="h-11 rounded-xl gap-2"
+                >
+                  {pdfLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                  PDF
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
