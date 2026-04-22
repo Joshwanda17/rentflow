@@ -1315,6 +1315,16 @@ export function LandlordOpsDashboard() {
     );
   }
 
+  // ─── LANDLORDS PAID VIEW ───
+  if (view === 'landlords-paid') {
+    return (
+      <div className="space-y-4">
+        <BackButton />
+        <LandlordsPaidView />
+      </div>
+    );
+  }
+
   // ─── HOME: Mobile-first card navigation ───
   return (
     <div className="space-y-4">
