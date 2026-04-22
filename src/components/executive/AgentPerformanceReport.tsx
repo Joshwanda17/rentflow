@@ -89,8 +89,10 @@ function HeaderFilter({
   active,
   align = 'center',
   children,
-}: { active: boolean; align?: 'start' | 'center' | 'end'; children: React.ReactNode }) {
+  onClear,
+ }: { active: boolean; align?: 'start' | 'center' | 'end'; children: React.ReactNode; onClear?: () => void }) {
   return (
+    <span className="inline-flex items-center gap-0.5">
     <Popover>
       <PopoverTrigger asChild>
         <button
@@ -110,6 +112,18 @@ function HeaderFilter({
         {children}
       </PopoverContent>
     </Popover>
+    {active && onClear && (
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onClear(); }}
+        className="inline-flex h-4 w-4 items-center justify-center rounded hover:bg-white/25 text-white/90"
+        aria-label="Clear this filter"
+        title="Clear this filter"
+      >
+        <X className="h-3 w-3" />
+      </button>
+    )}
+    </span>
   );
 }
 
