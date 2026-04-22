@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, Copy, FileDown, Loader2, AlertTriangle, BadgeCheck, Phone, Mail,
-  IdCard, Calendar, TrendingUp, Wallet, Users, Banknote, RefreshCw, MessageCircle, Link as LinkIcon,
+  IdCard, Calendar, TrendingUp, Wallet, Users, Banknote, RefreshCw, MessageCircle, Link as LinkIcon, Trophy,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -186,6 +186,12 @@ export default function HolisticProfile({ publicMode = false }: Props) {
                     {profile.identity.verified && (
                       <BadgeCheck className="h-5 w-5 text-blue-500 shrink-0" />
                     )}
+                    {profile.agent_performance?.top_performing && (
+                      <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white text-[10px] gap-1">
+                        <Trophy className="h-3 w-3" />
+                        Top Performing Agent
+                      </Badge>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                     <AiIdBadge aiId={profile.ai_id} size="sm" staticMode />
@@ -197,6 +203,18 @@ export default function HolisticProfile({ publicMode = false }: Props) {
                     <Calendar className="h-3 w-3 shrink-0" />
                     <span className="truncate">Welile member since {memberSince}</span>
                   </p>
+                  {profile.agent_performance && profile.agent_performance.qualifying_tenants >= 3 && (
+                    <p className="text-[11px] text-muted-foreground mt-1.5 leading-snug">
+                      Manages <span className="font-semibold text-foreground">{profile.agent_performance.qualifying_tenants}</span> tenants ·{' '}
+                      <span className="font-semibold text-emerald-600">
+                        {Math.round(profile.agent_performance.healthy_ratio * 100)}%
+                      </span>{' '}
+                      paying on schedule
+                      {profile.trust.borrowing_limit_ugx > 0 && (
+                        <> · <span className="font-semibold text-foreground">{formatUGX(profile.trust.borrowing_limit_ugx)}</span> Welile vouch</>
+                      )}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -223,7 +241,11 @@ export default function HolisticProfile({ publicMode = false }: Props) {
 
         {/* Trust Score */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-          <TrustScoreCard trust={profile.trust} />
+          <TrustScoreCard
+            trust={profile.trust}
+            agentPerformance={profile.agent_performance}
+            primaryRole={profile.identity.primary_role}
+          />
         </motion.div>
 
         {/* Boost Your Trust suggestions (self only) */}

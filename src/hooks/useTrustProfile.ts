@@ -31,6 +31,7 @@ export interface TrustProfile {
       verification: number;
       behavior: number;
       landlord: number;
+      agent_performance?: number;
     };
     weights: {
       supporter?: number;
@@ -40,7 +41,17 @@ export interface TrustProfile {
       verification: number;
       behavior: number;
       landlord: number;
+      agent_performance?: number;
     };
+  };
+  agent_performance?: {
+    qualifying_tenants: number;
+    healthy_tenants: number;
+    healthy_ratio: number;
+    collection_rate: number;
+    monthly_book: number;
+    agent_term?: number;
+    top_performing: boolean;
   };
   supporter_activity?: {
     is_supporter: boolean;
