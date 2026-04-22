@@ -1393,6 +1393,7 @@ export function LandlordOpsDashboard() {
         {navItems.filter(n => n.priority).map(item => (
           <NavCard key={item.id} item={item} onClick={() => setView(item.id)} badge={
             item.id === 'landlords' ? `${landlordsList.length}` :
+            item.id === 'landlords-paid' ? (paidLandlordsCount !== undefined ? `${paidLandlordsCount}` : undefined) :
             item.id === 'locations' ? `${locationGroups.length}` :
             item.id === 'lc1' ? `${lc1Groups.length}` :
             item.id === 'cities' ? `${cityGroups.length}` :
