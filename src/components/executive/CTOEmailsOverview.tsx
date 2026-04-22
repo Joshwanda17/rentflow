@@ -43,22 +43,12 @@ export function CTOEmailsOverview() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['cto-email-overview', days],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke<EmailOverview>('cto-email-overview', {
-        body: {},
-        method: 'GET' as any,
-      });
-      // Fallback to GET with query param
-      if (error || !data) {
-        const sessionRes = await supabase.auth.getSession();
-        const token = sessionRes.data.session?.access_token;
-        const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cto-email-overview?days=${days}`;
-        const res = await fetch(url, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) throw new Error(await res.text());
-        return (await res.json()) as EmailOverview;
-      }
-      return data;
+      const sessionRes = await supabase.auth.getSession();
+      const token = sessionRes.data.session?.access_token;
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cto-email-overview?days=${days}`;
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error(await res.text());
+      return (await res.json()) as EmailOverview;
     },
     staleTime: 60_000,
   });
