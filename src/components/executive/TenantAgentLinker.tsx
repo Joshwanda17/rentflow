@@ -417,6 +417,38 @@ export function TenantAgentLinker() {
                 to <span className="font-semibold">{selectedAgent.full_name}</span>. Both agents and the tenant will be notified.
               </AlertDescription>
             </Alert>
+
+            {tenantIsFlagged && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  <span className="font-semibold">Tenant flagged:</span> {flaggedRequests.length}{' '}
+                  active request{flaggedRequests.length === 1 ? '' : 's'} {flaggedRequests.length === 1 ? 'has' : 'have'} missed{' '}
+                  <span className="font-semibold">{worstMissedDays}+ daily payments</span> (≥ {MISSED_DAYS_FLAG_THRESHOLD} days).
+                  Consider whether transferring will improve collection or simply move the problem.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {hasMovableRequests && (
+              <Alert className="border-amber-500/40 bg-amber-500/10">
+                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                <AlertDescription className="text-xs space-y-1">
+                  <div>
+                    <span className="font-semibold">{sourceAgentName}</span> will lose collection rights on{' '}
+                    <span className="font-semibold">{movingRequests.length}</span> rent request{movingRequests.length === 1 ? '' : 's'}.
+                  </div>
+                  <div>
+                    Estimated commission forgone:{' '}
+                    <span className="font-semibold">UGX {projectedCommissionLoss.toLocaleString()}</span>{' '}
+                    <span className="text-muted-foreground">
+                      (~2% of UGX {movingOutstanding.toLocaleString()} outstanding).
+                    </span>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+
             <Textarea
               placeholder="Reason for transfer (min 10 characters) — e.g., agent unavailable, tenant relocated, performance issue..."
               value={transferReason}
