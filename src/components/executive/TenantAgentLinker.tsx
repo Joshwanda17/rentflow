@@ -9,6 +9,10 @@ import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { ArrowRightLeft, Link2, Loader2, User } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface SelectedUser {
   id: string;
@@ -22,6 +26,7 @@ export function TenantAgentLinker() {
   const [selectedTenant, setSelectedTenant] = useState<SelectedUser | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<SelectedUser | null>(null);
   const [transferReason, setTransferReason] = useState('');
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   // Fetch active rent requests for selected tenant
   const { data: tenantRequests, isLoading: loadingRequests } = useQuery({
