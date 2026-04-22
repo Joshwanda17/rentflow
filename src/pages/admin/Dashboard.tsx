@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
   Crown, Cpu, Megaphone, MessageSquare, Users, Home, Building2,
-  Shield, Activity, BarChart3, Wallet, Handshake, ArrowLeft
+  Shield, Activity, BarChart3, Wallet, Handshake, ArrowLeft, Gift
 } from 'lucide-react';
 import { useStaffPermissions } from '@/hooks/useStaffPermissions';
 import { useAuth } from '@/hooks/useAuth';
@@ -36,6 +36,7 @@ const operationsDashboards: DashboardCard[] = [
   { label: 'Tenant Ops', description: 'Tenant metrics & rentals', icon: Home, route: '/executive-hub?tab=tenant-ops', color: 'bg-teal-500/10 text-teal-700 border-teal-500/30', permissionKey: 'tenant-ops' },
   { label: 'Landlord Ops', description: 'Property management', icon: Building2, route: '/executive-hub?tab=landlord-ops', color: 'bg-sky-500/10 text-sky-700 border-sky-500/30', permissionKey: 'landlord-ops' },
   { label: 'Partner Ops', description: 'Supporter portfolios', icon: Handshake, route: '/executive-hub?tab=partners-ops', color: 'bg-violet-500/10 text-violet-700 border-violet-500/30', permissionKey: 'partner-ops' },
+  { label: 'Referral Audit', description: 'Bonus status, ledger IDs & trigger reasons', icon: Gift, route: '/admin/referrals', color: 'bg-pink-500/10 text-pink-700 border-pink-500/30', permissionKey: 'financial-ops' },
 ];
 
 export default function AdminDashboardPage() {
