@@ -210,6 +210,18 @@ export function CTOEmailsOverview() {
           loading={isLoading}
           color="bg-violet-500/10 text-violet-600"
         />
+        <KPICard
+          title="Top Error Category"
+          value={kpis?.topErrorCategory ?? '—'}
+          icon={ShieldAlert}
+          loading={isLoading}
+          color="bg-orange-500/10 text-orange-600"
+          subtitle={
+            kpis && kpis.topErrorCategoryCount > 0
+              ? `${kpis.topErrorCategoryCount.toLocaleString()} of ${(kpis.totalFailed + kpis.totalBounced).toLocaleString()} failures • ${kpis.distinctErrorCategories} categories`
+              : 'No failures in range'
+          }
+        />
       </div>
 
       {/* Line Graph */}
