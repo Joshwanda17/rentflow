@@ -311,7 +311,7 @@ export function LandlordsWithTenantsView() {
       </h2>
 
       {/* KPIs */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-5 gap-2">
         <Card>
           <CardContent className="p-3">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Landlords</p>
@@ -334,6 +334,12 @@ export function LandlordsWithTenantsView() {
           <CardContent className="p-3">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Pending</p>
             <p className="text-base font-bold mt-1 text-amber-600">{kpis.pending}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-3">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Empty</p>
+            <p className="text-base font-bold mt-1 text-muted-foreground">{kpis.empty}</p>
           </CardContent>
         </Card>
       </div>
