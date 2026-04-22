@@ -48,6 +48,7 @@ interface AgentTenantsSheetProps {
 }
 
 type FilterTab = 'owing' | 'paid-up' | 'all';
+type RiskFilter = 'all' | 'good' | 'standard' | 'caution' | 'new';
 
 export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps) {
   const { user } = useAuth();
@@ -59,9 +60,12 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [tenantRequests, setTenantRequests] = useState<Record<string, TenantRentRequest[]>>({});
   const [loadingRequests, setLoadingRequests] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterTab>('owing');
+  const [riskFilter, setRiskFilter] = useState<RiskFilter>('all');
   const [tenantBalances, setTenantBalances] = useState<Record<string, number>>({});
   const [tenantTotals, setTenantTotals] = useState<Record<string, { total: number; paid: number }>>({});
   const [tenantStatuses, setTenantStatuses] = useState<Record<string, Set<string>>>({});
+  // Per-tenant context for richer search/filter (latest landlord & address)
+  const [tenantContext, setTenantContext] = useState<Record<string, { landlordName: string; propertyAddress: string; completedCount: number; totalRequests: number }>>({});
   const [renewDialogOpen, setRenewDialogOpen] = useState(false);
   const [renewPrefill, setRenewPrefill] = useState<{ name: string; phone: string; amount: string } | null>(null);
   const [collectDialogOpen, setCollectDialogOpen] = useState(false);
