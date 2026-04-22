@@ -80,6 +80,39 @@ const RISK_ORDER: Record<'good' | 'standard' | 'caution' | 'new', number> = {
   new: 3,
 };
 
+// Escape regex special characters before building a search-highlight pattern.
+function escapeRegex(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Render `text` with all case-insensitive occurrences of `query` wrapped in a
+ * highlight span. Falls back to plain text when there's no query / no match.
+ */
+function Highlight({ text, query }: { text?: string | null; query: string }) {
+  const value = text ?? '';
+  const q = query.trim();
+  if (!q || !value) return <>{value}</>;
+  const re = new RegExp(`(${escapeRegex(q)})`, 'ig');
+  const parts = value.split(re);
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.toLowerCase() === q.toLowerCase() ? (
+          <mark
+            key={i}
+            className="bg-warning/30 text-foreground rounded px-0.5 py-0 font-semibold"
+          >
+            {part}
+          </mark>
+        ) : (
+          <span key={i}>{part}</span>
+        ),
+      )}
+    </>
+  );
+}
+
 export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps) {
   const { user } = useAuth();
   const { toast } = useToast();
