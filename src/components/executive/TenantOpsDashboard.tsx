@@ -12,6 +12,7 @@ import { TenantBehaviorDashboard } from './TenantBehaviorDashboard';
 import { DailyPaymentTracker } from './DailyPaymentTracker';
 import { MissedDaysTracker } from './MissedDaysTracker';
 import { TenantAgentLinker } from './TenantAgentLinker';
+import { TenantTransferAuditTrail } from './TenantTransferAuditTrail';
 import { TenantRentCollector } from './TenantRentCollector';
 import { AgentTenantSearch } from './AgentTenantSearch';
 import { TenantOverviewList } from './TenantOverviewList';
@@ -30,13 +31,13 @@ import { toast } from 'sonner';
 import {
   FileCheck, Clock, AlertTriangle, CheckCircle2, Banknote,
   ArrowRight, Activity, ClipboardList, CalendarCheck, CalendarX2,
-  ArrowLeft, History, Table2, Link2, HandCoins, Users, Trash2, Loader2, FileSearch, Printer, Network
+  ArrowLeft, History, Table2, Link2, HandCoins, Users, Trash2, Loader2, FileSearch, Printer, Network, Shield
 } from 'lucide-react';
 import { generateTenantOpsReportPdf } from '@/lib/generateTenantOpsReportPdf';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 
-type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations';
+type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations';
 
 interface NavCard {
   id: ActiveView;
@@ -243,6 +244,13 @@ export function TenantOpsDashboard() {
       color: 'bg-primary/10 text-primary border-primary/20',
     },
     {
+      id: 'transfer-audit' as ActiveView,
+      label: 'Transfer Audit',
+      description: 'Geo-stamped link & transfer history',
+      icon: Shield,
+      color: 'bg-emerald-500/10 text-emerald-600 border-emerald-200',
+    },
+    {
       id: 'collect-rent',
       label: 'Collect Rent',
       description: 'Charge tenant or agent wallet',
@@ -378,6 +386,8 @@ export function TenantOpsDashboard() {
         );
       case 'link-agent':
         return <TenantAgentLinker />;
+      case 'transfer-audit':
+        return <TenantTransferAuditTrail />;
       case 'collect-rent':
         return <TenantRentCollector />;
       case 'agent-tenants':
