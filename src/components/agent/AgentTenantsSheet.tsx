@@ -500,6 +500,18 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                           <Phone className="h-3 w-3" />
                           {tenant.phone}
                         </p>
+                        {/* AI ID + risk tier chips (also reflect active risk filter) */}
+                        {tenantMeta[tenant.id] && (
+                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                            <span className="text-[10px] font-mono font-semibold text-muted-foreground bg-muted/60 rounded-md px-1.5 py-0.5">
+                              {tenantMeta[tenant.id].aiId}
+                            </span>
+                            <span className={`inline-flex items-center gap-1 text-[10px] font-semibold rounded-md px-1.5 py-0.5 bg-muted/60 ${tenantMeta[tenant.id].riskColor}`}>
+                              <Shield className="h-2.5 w-2.5" />
+                              {tenantMeta[tenant.id].riskLabel}
+                            </span>
+                          </div>
+                        )}
                         {totals.total > 0 && (
                           <div className="mt-1.5">
                             <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
