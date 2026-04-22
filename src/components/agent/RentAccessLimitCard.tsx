@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { TrendingUp, TrendingDown, Info, Sparkles, MessageCircle, Loader2, Check, Wand2, Pencil, AlertCircle } from 'lucide-react';
+import { TrendingUp, TrendingDown, Info, Sparkles, MessageCircle, Loader2, Check, Wand2, Pencil, AlertCircle, X, Edit3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -104,6 +104,28 @@ export function RentAccessLimitCard({
     suggestedRent && suggestedRent > 0 ? String(suggestedRent) : '',
   );
   const [savingRent, setSavingRent] = useState(false);
+  // Inline edit state for the main card (when monthlyRent is already set)
+  const [editingRent, setEditingRent] = useState(false);
+  const [editRentInput, setEditRentInput] = useState<string>('');
+
+  /**
+   * "Manual override" applies the moment the user types a value that differs
+   * from the currently-effective source (auto-detected suggestion in empty
+   * state, or stored monthlyRent in edit mode). Empty input = no override yet.
+   */
+  const overrideActiveEmpty = (() => {
+    const typed = rentInput.replace(/[^0-9]/g, '');
+    if (!typed) return false;
+    const typedNum = Number(typed);
+    if (suggestedRent && suggestedRent > 0) return typedNum !== suggestedRent;
+    return true; // no source at all → any typed value is a manual entry
+  })();
+
+  const overrideActiveEdit = (() => {
+    const typed = editRentInput.replace(/[^0-9]/g, '');
+    if (!typed || !monthlyRent) return false;
+    return Number(typed) !== monthlyRent;
+  })();
 
   const result = useMemo(
     () => calculateRentAccessLimit(monthlyRent, repayments),
@@ -168,9 +190,19 @@ export function RentAccessLimitCard({
             <label htmlFor="rent-input" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
               Monthly rent (UGX)
             </label>
-            <span className="text-[10px] text-muted-foreground">
-              {RENT_MIN_UGX.toLocaleString('en-UG')} – {RENT_MAX_UGX.toLocaleString('en-UG')}
-            </span>
+            {overrideActiveEmpty ? (
+              <span
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-warning/15 text-warning border border-warning/30"
+                aria-label="Manual override active"
+              >
+                <Edit3 className="h-3 w-3" aria-hidden />
+                Manual override
+              </span>
+            ) : (
+              <span className="text-[10px] text-muted-foreground">
+                {RENT_MIN_UGX.toLocaleString('en-UG')} – {RENT_MAX_UGX.toLocaleString('en-UG')}
+              </span>
+            )}
           </div>
           <div className="flex gap-2">
             <Input
@@ -221,6 +253,40 @@ export function RentAccessLimitCard({
 
   const tier = TIER_META[result.tier];
   const isPositive = result.netAdjustmentPct >= 0;
+
+  // Save handler for the inline edit mode on the main card
+  const editValidation = validateMonthlyRentUGX(editRentInput);
+  const editIsEmpty = !editRentInput.replace(/[^0-9]/g, '');
+  const editShowError = !editValidation.ok && !editIsEmpty;
+  const editCanSave = editValidation.ok && !savingRent && overrideActiveEdit;
+
+  const handleSaveEdit = async () => {
+    const v = validateMonthlyRentUGX(editRentInput);
+    if (v.ok === false) {
+      toast({ title: 'Invalid monthly rent', description: v.message, variant: 'destructive' });
+      return;
+    }
+    setSavingRent(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ monthly_rent: v.value })
+        .eq('id', tenantId);
+      if (error) throw error;
+      toast({ title: 'Monthly rent updated', description: `Set to ${formatUGX(v.value)}` });
+      onRentSaved?.(v.value);
+      setEditingRent(false);
+      setEditRentInput('');
+    } catch (err: any) {
+      toast({
+        title: 'Could not save rent',
+        description: err?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingRent(false);
+    }
+  };
 
   return (
     <>
@@ -290,6 +356,20 @@ export function RentAccessLimitCard({
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
+              {!editingRent && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditRentInput(String(monthlyRent));
+                    setEditingRent(true);
+                  }}
+                  className="ml-1.5 mt-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-background/70 text-muted-foreground border border-border/60 hover:text-foreground hover:bg-background transition-colors"
+                  aria-label="Edit monthly rent"
+                >
+                  <Edit3 className="h-3 w-3" aria-hidden />
+                  Edit
+                </button>
+              )}
             </div>
             <span
               className={cn(
@@ -303,6 +383,94 @@ export function RentAccessLimitCard({
               {tier.label}
             </span>
           </div>
+
+          {/* Inline edit mode for monthly rent */}
+          {editingRent && (
+            <div className="rounded-xl bg-background/80 backdrop-blur border border-border/60 p-3 space-y-1.5 animate-fade-in">
+              <div className="flex items-center justify-between">
+                <label
+                  htmlFor="rent-edit-input"
+                  className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground"
+                >
+                  Monthly rent (UGX)
+                </label>
+                {overrideActiveEdit ? (
+                  <span
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-warning/15 text-warning border border-warning/30"
+                    aria-label="Manual override active"
+                  >
+                    <Edit3 className="h-3 w-3" aria-hidden />
+                    Manual override
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-muted-foreground">
+                    Current: {formatUGX(monthlyRent)}
+                  </span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  id="rent-edit-input"
+                  inputMode="numeric"
+                  placeholder="e.g. 350,000"
+                  value={
+                    editRentInput
+                      ? Number(editRentInput.replace(/[^0-9]/g, '')).toLocaleString('en-UG')
+                      : ''
+                  }
+                  onChange={(e) => setEditRentInput(e.target.value.replace(/[^0-9]/g, ''))}
+                  className={cn(
+                    'h-10 text-sm font-mono font-semibold',
+                    editShowError && 'border-destructive focus-visible:ring-destructive',
+                  )}
+                  disabled={savingRent}
+                  aria-invalid={editShowError}
+                  aria-describedby="rent-edit-help"
+                  autoFocus
+                />
+                <Button
+                  type="button"
+                  onClick={handleSaveEdit}
+                  disabled={!editCanSave}
+                  className="h-10 px-3 rounded-md font-bold shrink-0"
+                  aria-label="Save monthly rent"
+                >
+                  {savingRent ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setEditingRent(false);
+                    setEditRentInput('');
+                  }}
+                  disabled={savingRent}
+                  className="h-10 px-3 rounded-md shrink-0"
+                  aria-label="Cancel edit"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <div id="rent-edit-help" className="min-h-[16px]" aria-live="polite">
+                {editShowError ? (
+                  <p className="text-[11px] text-destructive flex items-start gap-1">
+                    <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" aria-hidden />
+                    <span>{(editValidation as Extract<RentValidation, { ok: false }>).message}</span>
+                  </p>
+                ) : overrideActiveEdit && editValidation.ok ? (
+                  <p className="text-[11px] text-warning flex items-center gap-1">
+                    <Edit3 className="h-3 w-3 shrink-0" aria-hidden />
+                    Replaces {detectedFromHistory ? 'auto-detected' : 'current'} rent with{' '}
+                    {formatUGX(editValidation.value)}
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground">
+                    Type a different value to override the {detectedFromHistory ? 'auto-detected' : 'current'} rent.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Main figure */}
           <div>
