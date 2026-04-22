@@ -9,20 +9,28 @@ export async function createShortLink(
   targetPath: string,
   targetParams: Record<string, string>,
 ): Promise<string> {
-  // Try to find existing
-  const { data: existing } = await supabase
-    .from('short_links')
-    .select('code')
-    .eq('user_id', userId)
-    .eq('target_path', targetPath)
-    .eq('target_params', targetParams as any)
-    .maybeSingle();
+  const findExisting = async () => {
+    const { data } = await supabase
+      .from('short_links')
+      .select('code, target_params')
+      .eq('user_id', userId)
+      .eq('target_path', targetPath)
+      .contains('target_params', targetParams as any);
+    if (!data) return null;
+    const exact = data.find((row: any) => {
+      const stored = (row.target_params ?? {}) as Record<string, string>;
+      const keys = new Set([...Object.keys(stored), ...Object.keys(targetParams)]);
+      for (const k of keys) {
+        if (String(stored[k] ?? '') !== String(targetParams[k] ?? '')) return false;
+      }
+      return true;
+    });
+    return exact?.code ?? null;
+  };
 
-  if (existing) {
-    return `${window.location.origin}/r/${existing.code}`;
-  }
+  const existingCode = await findExisting();
+  if (existingCode) return `${window.location.origin}/r/${existingCode}`;
 
-  // Create new
   const { data: created, error } = await supabase
     .from('short_links')
     .insert({
@@ -33,18 +41,12 @@ export async function createShortLink(
     .select('code')
     .single();
 
-  if (error) {
-    // Race condition fallback
-    const { data: retry } = await supabase
-      .from('short_links')
-      .select('code')
-      .eq('user_id', userId)
-      .eq('target_path', targetPath)
-      .eq('target_params', targetParams as any)
-      .maybeSingle();
-    if (retry) return `${window.location.origin}/r/${retry.code}`;
-    throw error;
+  if (!error && created) {
+    return `${window.location.origin}/r/${created.code}`;
   }
 
-  return `${window.location.origin}/r/${created.code}`;
+  const retryCode = await findExisting();
+  if (retryCode) return `${window.location.origin}/r/${retryCode}`;
+
+  throw error ?? new Error('Failed to create short link');
 }

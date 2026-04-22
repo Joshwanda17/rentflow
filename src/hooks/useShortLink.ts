@@ -16,20 +16,35 @@ export function useShortLink({ targetPath, targetParams, enabled = true }: UseSh
     queryFn: async () => {
       if (!user) return null;
 
-      // Try to find existing
-      const { data: existing } = await supabase
-        .from('short_links')
-        .select('code')
-        .eq('user_id', user.id)
-        .eq('target_path', targetPath)
-        .eq('target_params', targetParams as any)
-        .maybeSingle();
+      // jsonb equality via .eq is unreliable (key ordering / whitespace).
+      // Use contains (@>) in BOTH directions so we match by content.
+      const findExisting = async () => {
+        const { data } = await supabase
+          .from('short_links')
+          .select('code, target_params')
+          .eq('user_id', user.id)
+          .eq('target_path', targetPath)
+          .contains('target_params', targetParams as any);
 
-      if (existing) {
-        return `${window.location.origin}/r/${existing.code}`;
+        if (!data) return null;
+        // Tighten match: also ensure stored params are subset of input (exact equality).
+        const exact = data.find((row: any) => {
+          const stored = (row.target_params ?? {}) as Record<string, string>;
+          const keys = new Set([...Object.keys(stored), ...Object.keys(targetParams)]);
+          for (const k of keys) {
+            if (String(stored[k] ?? '') !== String(targetParams[k] ?? '')) return false;
+          }
+          return true;
+        });
+        return exact?.code ?? null;
+      };
+
+      const existingCode = await findExisting();
+      if (existingCode) {
+        return `${window.location.origin}/r/${existingCode}`;
       }
 
-      // Create new
+      // Try to create
       const { data: created, error } = await supabase
         .from('short_links')
         .insert({
@@ -40,20 +55,15 @@ export function useShortLink({ targetPath, targetParams, enabled = true }: UseSh
         .select('code')
         .single();
 
-      if (error) {
-        // Race condition: another tab created it
-        const { data: retry } = await supabase
-          .from('short_links')
-          .select('code')
-          .eq('user_id', user.id)
-          .eq('target_path', targetPath)
-          .eq('target_params', targetParams as any)
-          .maybeSingle();
-        if (retry) return `${window.location.origin}/r/${retry.code}`;
-        throw error;
+      if (!error && created) {
+        return `${window.location.origin}/r/${created.code}`;
       }
 
-      return `${window.location.origin}/r/${created.code}`;
+      // Conflict / race — refetch by content
+      const retryCode = await findExisting();
+      if (retryCode) return `${window.location.origin}/r/${retryCode}`;
+
+      throw error ?? new Error('Failed to create short link');
     },
     enabled: enabled && !!user,
     staleTime: Infinity,
