@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Wallet, ChevronRight, Shield, Home, TrendingUp, Rocket, Lock, Coins } from 'lucide-react';
+import { Wallet, ChevronRight, Shield, Home, TrendingUp, Rocket, PiggyBank, Coins } from 'lucide-react';
 import { hapticTap } from '@/lib/haptics';
 import { useCurrency } from '@/hooks/useCurrency';
 
@@ -99,13 +99,13 @@ export function UnifiedWalletHeroCard({
               {/* Float section */}
               <div className="bg-primary-foreground/10 backdrop-blur-sm rounded-xl p-3">
                 <div className="flex items-center gap-1.5 mb-1.5">
-                  <Lock className="h-3 w-3 text-primary-foreground/50" />
+                  <PiggyBank className="h-3 w-3 text-primary-foreground/50" />
                   <p className="text-[9px] uppercase tracking-[0.15em] font-semibold text-primary-foreground/50">Float</p>
                 </div>
                 <p className="text-lg font-black tracking-tight leading-none text-primary-foreground">
                   {formatAmount(floatBalance ?? 0)}
                 </p>
-                <p className="text-[9px] text-primary-foreground/40 mt-1 font-medium">Locked · Operations</p>
+                <p className="text-[9px] text-primary-foreground/40 mt-1 font-medium">Tenant collections · Pay Rent</p>
               </div>
 
               {/* Commission section */}
