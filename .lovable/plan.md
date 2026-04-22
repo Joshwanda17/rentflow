@@ -1,54 +1,55 @@
 
 
-## Show all Landlords with their Tenants (Paid / Pending)
+## Add Tenant Drawer to Each Landlord Row
 
-Right now the **Landlords Paid** view only shows landlords who already received a disbursement. You want a fuller picture: **every landlord** with **every tenant** under them, each tenant tagged **Paid** or **Pending**, plus a bucket for **tenants with no landlord**.
+Right now tapping a landlord row expands to show **disbursement records** (amounts + payment method). You want it to show **the tenants under that landlord** with each tenant marked **Paid** or **Due Today**.
 
 ### What I'll build
 
-A new section/view inside Landlord Operations called **"Landlords & Tenants"**, with this structure:
+A bottom **Drawer** that opens when you tap any landlord row in the **Landlords Paid / Due Today** view. The current inline expand-down behavior will be replaced by this drawer (cleaner on mobile, more room for tenant details).
 
 ```text
-┌─ Landlords & Tenants ─────────────────────────────┐
-│  KPIs: Landlords · Tenants · Paid · Pending        │
-│  [Search] [All / Paid only / Pending only]         │
-│                                                     │
-│  ▼ Kalungi Yasin  · 0752485865  (3 tenants)        │
-│       • John Doe        UGX 200,000  ✓ Paid        │
-│       • Mary Auma       UGX 150,000  ⏳ Pending    │
-│       • Peter Ssali     UGX 180,000  ✓ Paid        │
-│                                                     │
-│  ▼ Shamila Night · 0703533879  (1 tenant)          │
-│       • Ali Mukasa      UGX 200,000  ✓ Paid        │
-│                                                     │
-│  ▼ ⚠ No Landlord Linked  (12 tenants)              │
-│       • Tenant A        UGX 100,000  ⏳ Pending    │
-│       • Tenant B        UGX 250,000  ✓ Paid        │
-└─────────────────────────────────────────────────────┘
+┌─ Kalungi Yasin · 0752485865 ─────────┐
+│  3 tenants · UGX 530,000 total        │
+│  ─────────────────────────────────────│
+│  • John Doe        UGX 200,000  ✓ Paid│
+│       Paid 12 Apr 2026 · 5 days ago   │
+│  • Mary Auma       UGX 150,000  🕒 Due│
+│       Due today                        │
+│  • Peter Ssali     UGX 180,000  ✓ Paid│
+│       Paid 02 Apr 2026 · 15 days ago  │
+└────────────────────────────────────────┘
 ```
 
-### Data sources (pulled from existing tables, no migration)
+### How tenant data is resolved
 
-- **Landlords**: `landlords` table (id, name, phone)
-- **Tenants under landlord**: derived from `rent_requests.landlord_id → tenant_id`, joined with `profiles` for tenant name/phone
-- **Paid vs Pending status per tenant**:
-  - **Paid** → rent_request status in `funded`, `disbursed`, `repaying`, `completed` (landlord has been/being paid)
-  - **Pending** → status in `pending`, `agent_verified`, `tenant_ops_approved`, `landlord_ops_approved`, `coo_approved` (not yet disbursed)
-  - **Rejected** → excluded
-- **No-landlord bucket**: `rent_requests` rows where `landlord_id IS NULL` (grouped at the bottom)
+For each landlord group, I already have a `records[]` array of `rent_request` / `disbursement` rows that include `rent_request_id`. To get tenant identity I'll:
+
+1. Collect every `rent_request_id` from the landlord group's records.
+2. Query `rent_requests` for `tenant_id` + `rent_amount` + `status` + `disbursed_at`.
+3. Query `profiles` once (batched) for the tenant `full_name` + `phone`.
+4. Per tenant, mark **Paid** if status ∈ `funded/disbursed/repaying/completed`, else **Due Today**.
+5. Dedupe by `tenant_id` (latest request wins, amounts summed).
+
+This runs lazily — only when a landlord row is tapped, so it doesn't slow the main list.
 
 ### Files
 
-- **New**: `src/components/executive/landlord-ops/LandlordsWithTenantsView.tsx` — the new collapsible list with KPIs + filters + search
-- **Modified**: `src/components/executive/LandlordOpsDashboard.tsx` — add a nav item **"Landlords & Tenants"** and route to the new view (existing `LandlordsPaidView` stays untouched)
+- **Modified**: `src/components/executive/landlord-ops/LandlordsPaidView.tsx`
+  - Replace inline expansion with `<Drawer>` from `@/components/ui/drawer`.
+  - Add state `selectedLandlord: LandlordGroup | null`.
+  - Add a `useQuery` keyed by `['landlord-tenants', landlord_id]` enabled only when drawer open.
+  - Tap on landlord card sets `selectedLandlord`; closing clears it.
+  - Drawer header: landlord name, phone, total, tenant count.
+  - Drawer body: scrollable list of tenant cards (name, phone, rent amount, Paid/Due badge, date).
+  - Empty state inside drawer if landlord has no resolvable tenants.
 
-### Behavior details
+### Behavior
 
-- One tenant can appear once per landlord (deduped by tenant_id within each landlord). If a tenant has multiple rent requests, the **latest status wins** for paid/pending, and total paid amount is summed.
-- Each row shows tenant name, phone, monthly rent amount, status badge.
-- Tap a landlord card to expand/collapse the tenant list (same UX as the current Paid view).
-- Search matches landlord name/phone OR tenant name/phone.
-- "No Landlord Linked" group is always rendered last with an amber warning style so Ops can fix attribution.
+- Tapping anywhere on the landlord row opens the drawer (no more chevron expand).
+- Drawer shows a loader while tenants fetch.
+- Each tenant row uses the same Paid/Due color scheme as the parent tabs (emerald for Paid, amber for Due Today).
+- Closing the drawer (swipe down, tap overlay, or close button) returns to the list.
 
-No backend / RLS / financial-statement changes — purely a read-only aggregation of `landlords`, `rent_requests`, and `profiles`.
+No backend, RLS, or schema changes — this is a pure UI + lazy-fetch enhancement on top of existing tables (`rent_requests`, `profiles`).
 
