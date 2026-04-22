@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
-import { ArrowDown, ArrowRightLeft, ArrowUp, ArrowUpDown, Link2, Loader2, MapPin, User } from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowRightLeft, ArrowUp, ArrowUpDown, CalendarX2, Link2, Loader2, MapPin, User } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
@@ -23,6 +23,30 @@ interface SelectedUser {
 }
 
 type ActorLocationStatus = 'captured' | 'denied' | 'unavailable' | 'timeout' | 'unsupported';
+
+// Agent earns ~2% of rent collections — see RegisterTenantDialog.tsx for source rate.
+const AGENT_COMMISSION_RATE = 0.02;
+const MISSED_DAYS_FLAG_THRESHOLD = 7;
+
+/**
+ * Estimate how many daily payments a tenant has missed on a single rent request.
+ * Compares calendar days since disbursement against the days actually covered by
+ * the amount they have repaid (amount_repaid / daily_repayment).
+ */
+function computeMissedDays(rr: {
+  disbursed_at?: string | null;
+  amount_repaid?: number | string | null;
+  daily_repayment?: number | string | null;
+}): number {
+  if (!rr.disbursed_at) return 0;
+  const daily = Number(rr.daily_repayment || 0);
+  if (daily <= 0) return 0;
+  const start = new Date(rr.disbursed_at).getTime();
+  if (Number.isNaN(start)) return 0;
+  const daysElapsed = Math.max(0, Math.floor((Date.now() - start) / (24 * 60 * 60 * 1000)));
+  const daysCovered = Math.floor(Number(rr.amount_repaid || 0) / daily);
+  return Math.max(0, daysElapsed - daysCovered);
+}
 
 function formatRelativeTime(iso: string | null | undefined): string {
   if (!iso) return '';
