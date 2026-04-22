@@ -307,14 +307,42 @@ export function RentAccessLimitShareDialog({
                 : 'Locking snapshot…'}
             </div>
 
+            {/* Retry banner — appears only when the previous send call failed */}
+            {sendError && (
+              <div
+                role="alert"
+                className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs"
+              >
+                <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-destructive">Couldn't open WhatsApp</p>
+                  <p className="text-destructive/90 leading-snug">{sendError}</p>
+                  <p className="text-muted-foreground mt-1">
+                    Same snapshot will be reused — nothing is regenerated.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 gap-2">
               <Button
                 onClick={confirmAndShare}
-                disabled={!previewMessage || !previewBlob}
+                disabled={!previewMessage || !previewBlob || sending}
                 className="h-12 rounded-xl gap-2 font-bold bg-success hover:bg-success/90 text-success-foreground"
                 size="lg"
               >
-                <MessageCircle className="h-5 w-5" /> Looks good — send on WhatsApp
+                {sending ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : sendError ? (
+                  <RotateCw className="h-5 w-5" />
+                ) : (
+                  <MessageCircle className="h-5 w-5" />
+                )}
+                {sending
+                  ? 'Opening WhatsApp…'
+                  : sendError
+                    ? `Retry send${sendAttempts > 1 ? ` (attempt ${sendAttempts + 1})` : ''}`
+                    : 'Looks good — send on WhatsApp'}
               </Button>
               <div className="grid grid-cols-2 gap-2">
                 <Button
