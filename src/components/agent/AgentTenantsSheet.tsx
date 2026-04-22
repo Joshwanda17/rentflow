@@ -243,7 +243,15 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
 
   // Per-tenant derived risk + AI ID (used by search, filter, and row chip)
   const tenantMeta = useMemo(() => {
-    const map: Record<string, { aiId: string; riskLevel: 'good' | 'standard' | 'caution' | 'new'; riskLabel: string; riskColor: string }> = {};
+    const map: Record<string, {
+      aiId: string;
+      riskLevel: 'good' | 'standard' | 'caution' | 'new';
+      riskLabel: string;
+      riskColor: string;
+      completionRate: number;
+      completedCount: number;
+      totalRequests: number;
+    }> = {};
     tenants.forEach(t => {
       const ctx = tenantContext[t.id];
       const completionRate = ctx && ctx.totalRequests > 0
@@ -261,6 +269,9 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         riskLevel,
         riskLabel: tier.label,
         riskColor: tier.color,
+        completionRate,
+        completedCount: ctx?.completedCount || 0,
+        totalRequests,
       };
     });
     return map;
