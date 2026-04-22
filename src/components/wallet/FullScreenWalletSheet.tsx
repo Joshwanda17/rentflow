@@ -30,7 +30,6 @@ import { AnimatedBalance } from './AnimatedBalance';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useAgentBalances } from '@/hooks/useAgentBalances';
-import { useAgentLandlordFloat } from '@/hooks/useAgentLandlordFloat';
 import { UserAvatar } from '@/components/UserAvatar';
 import { hapticTap } from '@/lib/haptics';
 import { fetchPendingCounts, invalidatePendingCountsCache } from '@/lib/pendingCountsCache';
