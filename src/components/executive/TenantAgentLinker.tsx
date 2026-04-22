@@ -6,7 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
-import { Link2, Loader2, User } from 'lucide-react';
+import { ArrowRightLeft, Link2, Loader2, User } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface SelectedUser {
   id: string;
@@ -19,6 +21,7 @@ export function TenantAgentLinker() {
   const qc = useQueryClient();
   const [selectedTenant, setSelectedTenant] = useState<SelectedUser | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<SelectedUser | null>(null);
+  const [transferReason, setTransferReason] = useState('');
 
   // Fetch active rent requests for selected tenant
   const { data: tenantRequests, isLoading: loadingRequests } = useQuery({
@@ -71,6 +74,52 @@ export function TenantAgentLinker() {
     onError: (e: any) => toast({ title: 'Failed', description: e.message, variant: 'destructive' }),
   });
 
+  // Determine current (most common) agent across tenant's active requests
+  const currentAgentId = (() => {
+    if (!tenantRequests || tenantRequests.length === 0) return null;
+    const counts = new Map<string, number>();
+    tenantRequests.forEach((r: any) => {
+      if (r.agent_id) counts.set(r.agent_id, (counts.get(r.agent_id) || 0) + 1);
+    });
+    let top: string | null = null;
+    let max = 0;
+    counts.forEach((v, k) => { if (v > max) { max = v; top = k; } });
+    return top;
+  })();
+
+  const transferAllMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedTenant) throw new Error('Select a tenant');
+      if (!selectedAgent) throw new Error('Select a new agent');
+      if (!currentAgentId) throw new Error('No current agent found on active requests');
+      if (currentAgentId === selectedAgent.id) throw new Error('New agent is the same as current agent');
+      if (transferReason.trim().length < 10) throw new Error('Please enter a reason (min 10 characters)');
+
+      const { data, error } = await supabase.functions.invoke('transfer-tenant', {
+        body: {
+          tenant_id: selectedTenant.id,
+          from_agent_id: currentAgentId,
+          to_agent_id: selectedAgent.id,
+          reason: transferReason.trim(),
+          flag_type: 'manual',
+        },
+      });
+      if (error) throw new Error(error.message || 'Transfer failed');
+      if ((data as any)?.error) throw new Error((data as any).error);
+      return data;
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: '✅ Tenant transferred',
+        description: `${data?.rent_requests_updated ?? 0} request(s) and ${data?.subscriptions_updated ?? 0} subscription(s) reassigned to ${selectedAgent?.full_name}.`,
+      });
+      setTransferReason('');
+      qc.invalidateQueries({ queryKey: ['tenant-rent-requests', selectedTenant?.id] });
+      qc.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
+    },
+    onError: (e: any) => toast({ title: 'Transfer failed', description: e.message, variant: 'destructive' }),
+  });
+
   return (
     <div className="space-y-4">
       <Card>
@@ -98,6 +147,47 @@ export function TenantAgentLinker() {
           />
         </CardContent>
       </Card>
+
+      {/* Bulk Transfer (move tenant from current agent → new agent) */}
+      {selectedTenant && selectedAgent && currentAgentId && currentAgentId !== selectedAgent.id && (
+        <Card className="border-primary/40">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <ArrowRightLeft className="h-4 w-4 text-primary" />
+              Transfer Tenant to New Agent
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Alert>
+              <AlertDescription className="text-xs">
+                This reassigns ALL active rent requests and subscriptions for{' '}
+                <span className="font-semibold">{selectedTenant.full_name}</span> from the current agent
+                to <span className="font-semibold">{selectedAgent.full_name}</span>. Both agents and the tenant will be notified.
+              </AlertDescription>
+            </Alert>
+            <Textarea
+              placeholder="Reason for transfer (min 10 characters) — e.g., agent unavailable, tenant relocated, performance issue..."
+              value={transferReason}
+              onChange={(e) => setTransferReason(e.target.value)}
+              rows={2}
+              className="text-xs"
+            />
+            <Button
+              onClick={() => transferAllMutation.mutate()}
+              disabled={transferAllMutation.isPending || transferReason.trim().length < 10}
+              className="w-full gap-1.5"
+              size="sm"
+            >
+              {transferAllMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ArrowRightLeft className="h-4 w-4" />
+              )}
+              Transfer All Active to {selectedAgent.full_name.split(' ')[0]}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Show tenant's active rent requests */}
       {selectedTenant && (
