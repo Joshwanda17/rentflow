@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -310,8 +310,8 @@ export default function AdminReferralsPage() {
                   const isOpen = !!expanded[r.id];
                   const primaryEntry = r.ledgerEntries.find(e => e.category === 'referral_bonus') || r.ledgerEntries[0];
                   return (
-                    <>
-                      <TableRow key={r.id} className="align-top">
+                    <Fragment key={r.id}>
+                      <TableRow className="align-top">
                         <TableCell>
                           <Badge variant="outline" className={cn('gap-1', meta.cls)}>
                             <Icon className="h-3 w-3" />
@@ -352,7 +352,7 @@ export default function AdminReferralsPage() {
                         </TableCell>
                       </TableRow>
                       {isOpen && (
-                        <TableRow key={`${r.id}-detail`} className="bg-muted/30">
+                        <TableRow className="bg-muted/30">
                           <TableCell colSpan={6} className="p-4">
                             <div className="space-y-3 text-sm">
                               <div>
