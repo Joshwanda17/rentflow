@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { TrendingUp, TrendingDown, Info, Sparkles, MessageCircle, Loader2, Check, Wand2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Info, Sparkles, MessageCircle, Loader2, Check, Wand2, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -7,6 +7,7 @@ import { calculateRentAccessLimit, TIER_META, type RepaymentLike } from '@/lib/r
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { RentAccessLimitShareDialog } from './RentAccessLimitShareDialog';
 
 interface RentAccessLimitCardProps {
