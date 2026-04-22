@@ -89,8 +89,10 @@ function HeaderFilter({
   active,
   align = 'center',
   children,
-}: { active: boolean; align?: 'start' | 'center' | 'end'; children: React.ReactNode }) {
+  onClear,
+ }: { active: boolean; align?: 'start' | 'center' | 'end'; children: React.ReactNode; onClear?: () => void }) {
   return (
+    <span className="inline-flex items-center gap-0.5">
     <Popover>
       <PopoverTrigger asChild>
         <button
@@ -110,6 +112,18 @@ function HeaderFilter({
         {children}
       </PopoverContent>
     </Popover>
+    {active && onClear && (
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onClear(); }}
+        className="inline-flex h-4 w-4 items-center justify-center rounded hover:bg-white/25 text-white/90"
+        aria-label="Clear this filter"
+        title="Clear this filter"
+      >
+        <X className="h-3 w-3" />
+      </button>
+    )}
+    </span>
   );
 }
 
@@ -643,91 +657,91 @@ export function AgentPerformanceReport() {
                 <th className="bg-slate-700 px-2 py-2 text-center font-semibold w-10">#</th>
                 <th className="bg-slate-700 px-2 py-2 text-left font-semibold">
                   <span className="inline-flex items-center gap-1.5">Agent Name
-                    <HeaderFilter active={!!colFilters.name} align="start">
+                    <HeaderFilter active={!!colFilters.name} align="start" onClear={() => setColFilters(p => ({ ...p, name: '' }))}>
                       <TextFilter value={colFilters.name} onChange={(v) => setColFilters(p => ({ ...p, name: v }))} />
                     </HeaderFilter>
                   </span>
                 </th>
                 <th className="bg-blue-600 px-2 py-2 text-center font-semibold">
                   <span className="inline-flex items-center gap-1.5">Active<br/>Tenants
-                    <HeaderFilter active={isRangeActive(colFilters.ranges.tenants_total)}>
+                    <HeaderFilter active={isRangeActive(colFilters.ranges.tenants_total)} onClear={() => setRange('tenants_total', undefined)}>
                       <NumericRangeFilter label="Active Tenants" value={colFilters.ranges.tenants_total} onChange={(r) => setRange('tenants_total', r)} />
                     </HeaderFilter>
                   </span>
                 </th>
                 <th className="bg-blue-600 px-2 py-2 text-right font-semibold">
                   <span className="inline-flex items-center gap-1.5 justify-end">Daily Portfolio<br/>(UGX)
-                    <HeaderFilter active={isRangeActive(colFilters.ranges.daily_portfolio)} align="end">
+                    <HeaderFilter active={isRangeActive(colFilters.ranges.daily_portfolio)} align="end" onClear={() => setRange('daily_portfolio', undefined)}>
                       <NumericRangeFilter label="Daily Portfolio (UGX)" value={colFilters.ranges.daily_portfolio} onChange={(r) => setRange('daily_portfolio', r)} />
                     </HeaderFilter>
                   </span>
                 </th>
                 <th className="bg-blue-600 px-2 py-2 text-right font-semibold">
                   <span className="inline-flex items-center gap-1.5 justify-end">Expected Weekly<br/>(7 Days) (UGX)
-                    <HeaderFilter active={isRangeActive(colFilters.ranges.expected_weekly)} align="end">
+                    <HeaderFilter active={isRangeActive(colFilters.ranges.expected_weekly)} align="end" onClear={() => setRange('expected_weekly', undefined)}>
                       <NumericRangeFilter label="Expected Weekly (UGX)" value={colFilters.ranges.expected_weekly} onChange={(r) => setRange('expected_weekly', r)} />
                     </HeaderFilter>
                   </span>
                 </th>
                 <th className="bg-emerald-600 px-2 py-2 text-right font-semibold">
                   <span className="inline-flex items-center gap-1.5 justify-end">Collected<br/>(UGX)
-                    <HeaderFilter active={isRangeActive(colFilters.ranges.collected)} align="end">
+                    <HeaderFilter active={isRangeActive(colFilters.ranges.collected)} align="end" onClear={() => setRange('collected', undefined)}>
                       <NumericRangeFilter label="Collected (UGX)" value={colFilters.ranges.collected} onChange={(r) => setRange('collected', r)} />
                     </HeaderFilter>
                   </span>
                 </th>
                 <th className="bg-emerald-600 px-2 py-2 text-right font-semibold">
                   <span className="inline-flex items-center gap-1.5 justify-end">Efficiency<br/>(%)
-                    <HeaderFilter active={isRangeActive(colFilters.ranges.efficiency)} align="end">
+                    <HeaderFilter active={isRangeActive(colFilters.ranges.efficiency)} align="end" onClear={() => setRange('efficiency', undefined)}>
                       <NumericRangeFilter label="Efficiency (%)" value={colFilters.ranges.efficiency} onChange={(r) => setRange('efficiency', r)} />
                     </HeaderFilter>
                   </span>
                 </th>
                 <th className="bg-emerald-600 px-2 py-2 text-right font-semibold">
                   <span className="inline-flex items-center gap-1.5 justify-end">Gap<br/>(UGX)
-                    <HeaderFilter active={isRangeActive(colFilters.ranges.gap)} align="end">
+                    <HeaderFilter active={isRangeActive(colFilters.ranges.gap)} align="end" onClear={() => setRange('gap', undefined)}>
                       <NumericRangeFilter label="Gap (UGX)" value={colFilters.ranges.gap} onChange={(r) => setRange('gap', r)} />
                     </HeaderFilter>
                   </span>
                 </th>
                 <th className="bg-amber-500 px-2 py-2 text-right font-semibold">
                   <span className="inline-flex items-center gap-1.5 justify-end">Payments<br/>(Count)
-                    <HeaderFilter active={isRangeActive(colFilters.ranges.payments)} align="end">
+                    <HeaderFilter active={isRangeActive(colFilters.ranges.payments)} align="end" onClear={() => setRange('payments', undefined)}>
                       <NumericRangeFilter label="Payments (Count)" value={colFilters.ranges.payments} onChange={(r) => setRange('payments', r)} />
                     </HeaderFilter>
                   </span>
                 </th>
                 <th className="bg-amber-500 px-2 py-2 text-right font-semibold">
                   <span className="inline-flex items-center gap-1.5 justify-end">% Paid
-                    <HeaderFilter active={isRangeActive(colFilters.ranges.pct_paid)} align="end">
+                    <HeaderFilter active={isRangeActive(colFilters.ranges.pct_paid)} align="end" onClear={() => setRange('pct_paid', undefined)}>
                       <NumericRangeFilter label="% Paid" value={colFilters.ranges.pct_paid} onChange={(r) => setRange('pct_paid', r)} />
                     </HeaderFilter>
                   </span>
                 </th>
                 <th className="bg-purple-600 px-2 py-2 text-right font-semibold">
                   <span className="inline-flex items-center gap-1.5 justify-end">10% Commission<br/>(UGX)
-                    <HeaderFilter active={isRangeActive(colFilters.ranges.commission)} align="end">
+                    <HeaderFilter active={isRangeActive(colFilters.ranges.commission)} align="end" onClear={() => setRange('commission', undefined)}>
                       <NumericRangeFilter label="Commission (UGX)" value={colFilters.ranges.commission} onChange={(r) => setRange('commission', r)} />
                     </HeaderFilter>
                   </span>
                 </th>
                 <th className="bg-purple-600 px-2 py-2 text-right font-semibold">
                   <span className="inline-flex items-center gap-1.5 justify-end">0.5% Interest<br/>(UGX)
-                    <HeaderFilter active={isRangeActive(colFilters.ranges.interest)} align="end">
+                    <HeaderFilter active={isRangeActive(colFilters.ranges.interest)} align="end" onClear={() => setRange('interest', undefined)}>
                       <NumericRangeFilter label="Interest (UGX)" value={colFilters.ranges.interest} onChange={(r) => setRange('interest', r)} />
                     </HeaderFilter>
                   </span>
                 </th>
                 <th className="bg-purple-600 px-2 py-2 text-right font-semibold">
                   <span className="inline-flex items-center gap-1.5 justify-end">Total Wallet<br/>(UGX)
-                    <HeaderFilter active={isRangeActive(colFilters.ranges.wallet_total)} align="end">
+                    <HeaderFilter active={isRangeActive(colFilters.ranges.wallet_total)} align="end" onClear={() => setRange('wallet_total', undefined)}>
                       <NumericRangeFilter label="Total Wallet (UGX)" value={colFilters.ranges.wallet_total} onChange={(r) => setRange('wallet_total', r)} />
                     </HeaderFilter>
                   </span>
                 </th>
                 <th className="bg-slate-700 px-2 py-2 text-center font-semibold">
                   <span className="inline-flex items-center gap-1.5 justify-center">Status
-                    <HeaderFilter active={colFilters.status.size > 0} align="end">
+                    <HeaderFilter active={colFilters.status.size > 0} align="end" onClear={() => setColFilters(p => ({ ...p, status: new Set() }))}>
                       <StatusMultiFilter value={colFilters.status} onChange={(s) => setColFilters(p => ({ ...p, status: s }))} />
                     </HeaderFilter>
                   </span>
