@@ -72,6 +72,7 @@ import { AgentLandlordPayoutDialog } from '@/components/agent/AgentLandlordPayou
 import { AgentLandlordPayoutFlow } from '@/components/agent/AgentLandlordPayoutFlow';
 import { AgentLandlordFloatCard } from '@/components/agent/AgentLandlordFloatCard';
 import { AgentTenantHealthCard } from '@/components/agent/AgentTenantHealthCard';
+import { AgentVouchHighlightCard } from '@/components/agent/AgentVouchHighlightCard';
 import { AgentFloatPayoutWizard } from '@/components/agent/AgentFloatPayoutWizard';
 import { AgentLandlordFloatAllocationsDialog } from '@/components/agent/AgentLandlordFloatAllocationsDialog';
 import { LandlordRecoveryLedger } from '@/components/agent/LandlordRecoveryLedger';
