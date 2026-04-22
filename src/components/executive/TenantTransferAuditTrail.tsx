@@ -512,7 +512,19 @@ export function TenantTransferAuditTrail() {
         <ScrollArea className="h-[calc(100vh-340px)]">
           <div className="space-y-2 pr-2">
             {filtered.map((e) => (
-              <Card key={e.id} className="overflow-hidden">
+              <Card
+                key={e.id}
+                className="overflow-hidden cursor-pointer transition-colors hover:bg-muted/40 hover:border-primary/40"
+                onClick={() => setMapEntry(e)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(ev) => {
+                  if (ev.key === 'Enter' || ev.key === ' ') {
+                    ev.preventDefault();
+                    setMapEntry(e);
+                  }
+                }}
+              >
                 <CardContent className="p-3 space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
@@ -610,6 +622,7 @@ export function TenantTransferAuditTrail() {
                         href={`https://www.google.com/maps?q=${e.actor_latitude},${e.actor_longitude}`}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={(ev) => ev.stopPropagation()}
                         className="text-primary hover:underline flex items-center gap-1 shrink-0"
                       >
                         Map <ExternalLink className="h-3 w-3" />
@@ -622,6 +635,8 @@ export function TenantTransferAuditTrail() {
           </div>
         </ScrollArea>
       )}
+
+      <AuditMapDrawer entry={mapEntry} onClose={() => setMapEntry(null)} />
     </div>
   );
 }
