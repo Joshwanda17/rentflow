@@ -154,11 +154,31 @@ export function TenantAgentLinker() {
   const linkMutation = useMutation({
     mutationFn: async (rentRequestId: string) => {
       if (!selectedAgent) throw new Error('Select an agent first');
+      const geo = await captureActorContext();
       const { error } = await supabase
         .from('rent_requests')
         .update({ agent_id: selectedAgent.id })
         .eq('id', rentRequestId);
       if (error) throw error;
+      // Best-effort audit log; never block UX on logging failures.
+      try {
+        await supabase.from('audit_logs').insert({
+          action_type: 'agent_linked',
+          table_name: 'rent_requests',
+          record_id: rentRequestId,
+          metadata: {
+            tenant_id: selectedTenant?.id ?? null,
+            agent_id: selectedAgent.id,
+            actor_latitude: geo.actor_latitude,
+            actor_longitude: geo.actor_longitude,
+            actor_accuracy: geo.actor_accuracy,
+            actor_location_status: geo.actor_location_status,
+            reason: 'manual_link',
+          },
+        });
+      } catch (_) {
+        // ignore audit failures
+      }
     },
     onSuccess: () => {
       toast({ title: '✅ Agent linked', description: `${selectedAgent?.full_name} is now responsible for ${selectedTenant?.full_name}` });
@@ -198,6 +218,7 @@ export function TenantAgentLinker() {
       if (currentAgentId === selectedAgent.id) throw new Error('New agent is the same as current agent');
       if (transferReason.trim().length < 10) throw new Error('Please enter a reason (min 10 characters)');
 
+      const geo = await captureActorContext();
       const { data, error } = await supabase.functions.invoke('transfer-tenant', {
         body: {
           tenant_id: selectedTenant.id,
@@ -205,6 +226,10 @@ export function TenantAgentLinker() {
           to_agent_id: selectedAgent.id,
           reason: transferReason.trim(),
           flag_type: 'manual',
+          actor_latitude: geo.actor_latitude,
+          actor_longitude: geo.actor_longitude,
+          actor_accuracy: geo.actor_accuracy,
+          actor_location_status: geo.actor_location_status,
         },
       });
       if (error) throw new Error(error.message || 'Transfer failed');
