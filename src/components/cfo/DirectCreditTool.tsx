@@ -656,6 +656,18 @@ export function DirectCreditTool() {
                     </>
                   )}
                 </div>
+                {isCredit && (() => {
+                  const bucket = WALLET_BUCKET_MAP[selectedCategory.walletCategory] ?? 'withdrawable';
+                  const meta = BUCKET_LABEL[bucket];
+                  return (
+                    <div className={`mt-2 rounded-md border p-2 text-[11px] ${meta.tone}`}>
+                      <div className="font-semibold">
+                        💼 Lands in: {meta.name} bucket
+                      </div>
+                      <div className="opacity-80 mt-0.5">{meta.note}</div>
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
