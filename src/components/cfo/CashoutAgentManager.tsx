@@ -160,6 +160,46 @@ export function CashoutAgentManager() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (agent: any) => {
+      // Block delete if there are active claims still routed to this merchant
+      const { count, error: countError } = await supabase
+        .from('withdrawal_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('assigned_cashout_agent_id', agent.id)
+        .in('status', ['pending', 'requested', 'approved', 'manager_approved', 'cfo_approved']);
+      if (countError) throw countError;
+      if ((count || 0) > 0) {
+        throw new Error(`Cannot delete: ${count} active payout claim${count === 1 ? '' : 's'} still routed to this merchant. Reassign or complete them first.`);
+      }
+      const { error } = await supabase.from('cashout_agents').delete().eq('id', agent.id);
+      if (error) throw error;
+      await supabase.from('audit_logs').insert({
+        user_id: user!.id,
+        action_type: 'cfo_merchant_agent_deleted',
+        table_name: 'cashout_agents',
+        record_id: agent.id,
+        metadata: {
+          agent_name: agent.profiles?.full_name || agent.agent_id,
+          label: agent.label,
+          handles_cash: agent.handles_cash,
+          handles_bank: agent.handles_bank,
+          handles_mtn: agent.handles_mtn,
+          handles_airtel: agent.handles_airtel,
+        },
+      });
+    },
+    onSuccess: () => {
+      toast({ title: '🗑️ Merchant Agent deleted', description: 'Record permanently removed.' });
+      qc.invalidateQueries({ queryKey: ['merchant-agents'] });
+      if (selectedAgent && deleteAgent && selectedAgent.id === deleteAgent.id) {
+        setSelectedAgent(null);
+      }
+      setDeleteAgent(null);
+    },
+    onError: (e: any) => toast({ title: 'Delete failed', description: e.message, variant: 'destructive' }),
+  });
+
   const updateMutation = useMutation({
     mutationFn: async () => {
       if (!editAgent) throw new Error('No merchant selected');
