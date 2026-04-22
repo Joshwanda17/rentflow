@@ -479,8 +479,11 @@ export function CashoutAgentManager() {
               <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => openEdit(selectedAgent)}>
                 <Pencil className="h-4 w-4" /> Edit
               </Button>
-              <Button variant="destructive" size="sm" className="flex-1 gap-1.5" onClick={() => { deactivateMutation.mutate(selectedAgent.id); setSelectedAgent(null); }}>
-                <XCircle className="h-4 w-4" /> Remove
+              <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => { deactivateMutation.mutate(selectedAgent.id); setSelectedAgent(null); }}>
+                <XCircle className="h-4 w-4" /> Deactivate
+              </Button>
+              <Button variant="destructive" size="sm" className="flex-1 gap-1.5" onClick={() => setDeleteAgent(selectedAgent)}>
+                <Trash2 className="h-4 w-4" /> Delete
               </Button>
             </div>
           </TabsContent>
