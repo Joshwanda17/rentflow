@@ -438,7 +438,18 @@ export function CashoutAgentManager() {
             <div className="min-w-0 flex-1">
               <p className="font-bold text-base truncate">{p.full_name || 'Unknown'}</p>
               <p className="text-xs text-muted-foreground truncate">{p.phone} · {selectedAgent.label}</p>
-              <div className="flex flex-wrap gap-1 mt-1">{methodBadges(selectedAgent)}</div>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {methodBadges(selectedAgent)}
+                {(() => {
+                  const pending = pendingByAgent.get(selectedAgent.id);
+                  return pending && pending.count > 0 ? (
+                    <Badge variant="destructive" className="text-[9px] h-4 px-1 gap-0.5">
+                      <Clock className="h-2.5 w-2.5" />
+                      {pending.count} in queue
+                    </Badge>
+                  ) : null;
+                })()}
+              </div>
             </div>
           </CardContent>
         </Card>
