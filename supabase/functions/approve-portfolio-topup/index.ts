@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { buildPartnershipTopupRequest, dispatchTransactionalEmail } from "../_shared/partnership-emails.ts";
 import { logSystemEvent } from "../_shared/eventLogger.ts";
 import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
 
@@ -261,8 +262,34 @@ Deno.serve(async (req) => {
           });
         }
       }
-    } catch (notifErr) {
-      console.error("[approve-portfolio-topup] Exec notification error (non-blocking):", notifErr);
+    } catch (_e) {
+      // non-blocking
+    }
+
+    // Partnership Top-Up email — target = partner (not the FinOps actor)
+    if (partnerId) {
+      try {
+        const { data: partnerEmailRow } = await supabase
+          .from("profiles").select("email, full_name").eq("id", partnerId).maybeSingle();
+        if (partnerEmailRow?.email) {
+          dispatchTransactionalEmail(
+            Deno.env.get("SUPABASE_URL")!,
+            Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+            buildPartnershipTopupRequest({
+              recipientEmail: partnerEmailRow.email,
+              partnerName: partnerEmailRow.full_name,
+              partnerId,
+              txGroupId: portfolio_id,  // approval batch keyed by portfolio
+              topupAmount: totalAmount,
+              previousPortfolioValue: currentInvestment,
+              newTotalPartnershipValue: currentInvestment + totalAmount,
+            }),
+            "approve-portfolio-topup",
+          );
+        }
+      } catch (emailErr) {
+        console.warn("[approve-portfolio-topup] Email lookup failed (non-blocking):", emailErr);
+      }
     }
 
     console.log(`[approve-portfolio-topup] FinOps ${user.id} verified ${awaitingOps.length} top-ups (${totalAmount}) for ${portfolio_id}. Ledger entry created. Capital unchanged at ${currentInvestment} — funds parked until next ROI cycle.`);

@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { buildPartnershipAgreementRequest, dispatchTransactionalEmail } from "../_shared/partnership-emails.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -346,6 +347,32 @@ Deno.serve(async (req) => {
     ]);
 
     console.log(`[agent-invest-for-partner] Agent ${agent.id} invested ${amount} for partner ${partner_id}. Portfolio: ${portfolioCode} (ACTIVE). Ref: ${referenceId}. TxGroup: ${txGroupId}`);
+
+    // Partnership Agreement email — target = partner (not the agent actor)
+    try {
+      const { data: partnerEmailRow } = await adminClient
+        .from("profiles").select("email").eq("id", partner_id).maybeSingle();
+      if (partnerEmailRow?.email) {
+        dispatchTransactionalEmail(
+          supabaseUrl,
+          supabaseServiceKey,
+          buildPartnershipAgreementRequest({
+            recipientEmail: partnerEmailRow.email,
+            partnerName,
+            partnerId: partner_id,
+            portfolioId: portfolioCode,
+            amount,
+            monthlyReward,
+            contributionDateIso: new Date().toISOString(),
+            firstPayoutDateIso: firstPayoutDate,
+            payoutDay: payout_day,
+          }),
+          "agent-invest-for-partner",
+        );
+      }
+    } catch (emailErr) {
+      console.warn("[agent-invest-for-partner] Email lookup failed (non-blocking):", emailErr);
+    }
 
     // Notify managers (fire-and-forget)
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {

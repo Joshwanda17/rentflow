@@ -10,6 +10,15 @@ const SITE_NAME = "Welile";
 const FROM_DOMAIN = "welile.com";
 const SENDER_DOMAIN = "notify.welile.com";
 
+// Generate a cryptographically random 32-byte hex token (mirrors send-transactional-email)
+function generateToken(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 function buildAgreementHtml(supporterName: string, acceptDate: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -159,6 +168,47 @@ Deno.serve(async (req) => {
 
     const messageId = crypto.randomUUID();
 
+    // Resolve / create unsubscribe token for this recipient (mirrors send-transactional-email).
+    // The Lovable email library REQUIRES this on every transactional send.
+    const normalizedEmail = email.toLowerCase();
+    let unsubscribeToken: string;
+    const { data: existingToken } = await supabase
+      .from("email_unsubscribe_tokens")
+      .select("token, used_at")
+      .eq("email", normalizedEmail)
+      .maybeSingle();
+
+    if (existingToken && !existingToken.used_at) {
+      unsubscribeToken = existingToken.token;
+    } else if (!existingToken) {
+      unsubscribeToken = generateToken();
+      await supabase
+        .from("email_unsubscribe_tokens")
+        .upsert(
+          { token: unsubscribeToken, email: normalizedEmail },
+          { onConflict: "email", ignoreDuplicates: true },
+        );
+      const { data: stored } = await supabase
+        .from("email_unsubscribe_tokens")
+        .select("token")
+        .eq("email", normalizedEmail)
+        .maybeSingle();
+      unsubscribeToken = stored?.token ?? unsubscribeToken;
+    } else {
+      // Token exists but already used — recipient has unsubscribed. Skip silently.
+      console.log("Supporter agreement skipped — recipient unsubscribed", { email });
+      await supabase.from("email_send_log").insert({
+        message_id: messageId,
+        template_name: "supporter_agreement_copy",
+        recipient_email: email,
+        status: "suppressed",
+      });
+      return new Response(
+        JSON.stringify({ success: false, reason: "email_suppressed" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // Log pending
     await supabase.from("email_send_log").insert({
       message_id: messageId,
@@ -181,6 +231,7 @@ Deno.serve(async (req) => {
         purpose: "transactional",
         label: "supporter_agreement_copy",
         idempotency_key: `supporter-agreement-${user.id}`,
+        unsubscribe_token: unsubscribeToken,
         queued_at: new Date().toISOString(),
       },
     });

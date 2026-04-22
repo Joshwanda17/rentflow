@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { logSystemEvent } from "../_shared/eventLogger.ts";
 import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
+import { buildReturnsDisbursementRequest, dispatchTransactionalEmail } from "../_shared/partnership-emails.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -231,6 +232,34 @@ Deno.serve(async (req) => {
             type: 'earning',
             metadata: { rent_request_id: rr.id, roi_amount: roiAmount, payment_number: paymentNumber },
           });
+
+          // Returns Disbursement email — fire-and-forget (mirrors cfo-direct-credit)
+          try {
+            const { data: partnerProfile } = await supabase
+              .from('profiles').select('email, full_name').eq('id', rr.supporter_id).maybeSingle();
+            if (partnerProfile?.email) {
+              const { data: partnerWallet } = await supabase
+                .from('wallets').select('id').eq('user_id', rr.supporter_id).maybeSingle();
+              const walletLast4 = partnerWallet?.id ? partnerWallet.id.replace(/-/g, '').slice(-4) : '';
+              dispatchTransactionalEmail(
+                Deno.env.get('SUPABASE_URL')!,
+                Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+                buildReturnsDisbursementRequest({
+                  recipientEmail: partnerProfile.email,
+                  partnerName: partnerProfile.full_name,
+                  partnerId: rr.supporter_id,
+                  txGroupId: `${rr.id}-${paymentNumber}`,
+                  amount: roiAmount,
+                  transactionId: `ROI-${rr.id.slice(0, 8).toUpperCase()}-${paymentNumber}`,
+                  walletIdLast4: walletLast4,
+                  payoutMethod: 'Wallet',
+                }),
+                'process-supporter-roi',
+              );
+            }
+          } catch (emailErr) {
+            console.warn('[process-supporter-roi] Returns email lookup failed (non-blocking):', emailErr);
+          }
 
           results.credited++;
         }

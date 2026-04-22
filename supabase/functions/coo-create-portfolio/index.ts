@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { buildPartnershipAgreementRequest, dispatchTransactionalEmail } from "../_shared/partnership-emails.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -230,6 +231,35 @@ Deno.serve(async (req) => {
     });
 
     console.log(`[coo-create-portfolio] ${caller.id} created portfolio ${referenceId} for partner ${body.partner_id}, source=${body.payment_method}, amt=${body.amount}`);
+
+    // Partnership Agreement email — fire-and-forget, target = partner (not the COO actor)
+    try {
+      const { data: partnerProfile } = await adminClient
+        .from("profiles")
+        .select("email, full_name")
+        .eq("id", body.partner_id)
+        .maybeSingle();
+      if (partnerProfile?.email) {
+        dispatchTransactionalEmail(
+          supabaseUrl,
+          supabaseServiceKey,
+          buildPartnershipAgreementRequest({
+            recipientEmail: partnerProfile.email,
+            partnerName: partnerProfile.full_name || partnerName,
+            partnerId: body.partner_id,
+            portfolioId: portfolio.id,
+            amount: body.amount,
+            monthlyReward,
+            contributionDateIso: contributionDate.toISOString(),
+            firstPayoutDateIso: fmt(nextRoiDate),
+            payoutDay,
+          }),
+          "coo-create-portfolio",
+        );
+      }
+    } catch (emailErr) {
+      console.warn("[coo-create-portfolio] Email lookup failed (non-blocking):", emailErr);
+    }
 
     return json({
       success: true,
