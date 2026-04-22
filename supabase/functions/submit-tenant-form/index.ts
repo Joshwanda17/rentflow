@@ -115,7 +115,15 @@ Deno.serve(async (req) => {
         else return err(`Failed to create tenant: ${createErr.message}`, 500);
       } else {
         userId = authData.user.id;
-        await supabaseAdmin.from("profiles").update({ full_name, phone: cleanPhone }).eq("id", userId);
+        const { error: profileUpdateErr } = await supabaseAdmin
+          .from("profiles")
+          .update({ full_name, phone: cleanPhone })
+          .eq("id", userId);
+        if (profileUpdateErr) {
+          // If the DB trigger rejected the name, surface the friendly client-facing message
+          const friendly = mapProfileFullNameDbError(profileUpdateErr);
+          if (friendly) return err(friendly);
+        }
         // Grant all 4 public roles so the tenant can access every public dashboard
         // (tenant, agent, landlord, supporter) once they activate.
         const PUBLIC_ROLES = ["tenant", "agent", "landlord", "supporter"] as const;
