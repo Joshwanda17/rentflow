@@ -7,10 +7,14 @@ import { ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, Cart
 import { format, subDays, startOfDay } from 'date-fns';
 import { SystemLogsViewer } from './SystemLogsViewer';
 import { InfrastructureHealthMonitor } from './InfrastructureHealthMonitor';
+import { CTOEmailsOverview } from './CTOEmailsOverview';
 
 export function CTODashboard({ activeTab }: { activeTab?: string }) {
   if (activeTab === 'system-logs') {
     return <SystemLogsViewer />;
+  }
+  if (activeTab === 'emails') {
+    return <CTOEmailsOverview />;
   }
 
   // Real: active users in last 7 days
