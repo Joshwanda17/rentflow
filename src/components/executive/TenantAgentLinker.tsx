@@ -387,24 +387,40 @@ export function TenantAgentLinker() {
                   </div>
                 </div>
 
-                <div className="max-h-48 overflow-y-auto rounded-md border divide-y">
-                  {moving.length === 0 && (
-                    <p className="p-3 text-xs text-center text-muted-foreground">
-                      No requests will move.
-                    </p>
-                  )}
-                  {moving.map((r: any) => (
-                    <div key={r.id} className="p-2 flex items-center justify-between text-xs">
-                      <div className="min-w-0">
-                        <p className="font-mono text-[10px] text-muted-foreground">{r.id.slice(0, 8)}</p>
-                        <p className="font-medium">UGX {Number(r.rent_amount).toLocaleString()} · {String(r.status).replace(/_/g, ' ')}</p>
+                <div className="rounded-md border overflow-hidden">
+                  <div className="grid grid-cols-[1fr_1fr_auto] gap-2 px-2 py-1.5 bg-muted/50 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    <span>Request ID</span>
+                    <span>Current Agent</span>
+                    <span className="text-right">Amount</span>
+                  </div>
+                  <div className="max-h-56 overflow-y-auto divide-y">
+                    {moving.length === 0 && (
+                      <p className="p-3 text-xs text-center text-muted-foreground">
+                        No requests will move.
+                      </p>
+                    )}
+                    {moving.map((r: any) => (
+                      <div
+                        key={r.id}
+                        className="grid grid-cols-[1fr_1fr_auto] gap-2 px-2 py-1.5 text-xs items-center"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-mono text-[11px] truncate" title={r.id}>
+                            {r.id.slice(0, 8)}…
+                          </p>
+                          <p className="text-[10px] text-muted-foreground capitalize">
+                            {String(r.status).replace(/_/g, ' ')}
+                          </p>
+                        </div>
+                        <p className="font-medium truncate" title={r.agent_name}>
+                          {r.agent_name}
+                        </p>
+                        <p className="text-right tabular-nums">
+                          UGX {Number(r.rent_amount).toLocaleString()}
+                        </p>
                       </div>
-                      <div className="text-right shrink-0 ml-2">
-                        <p className="text-[10px] text-muted-foreground">Current</p>
-                        <p className="font-medium">{r.agent_name}</p>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
 
                 {skipped.length > 0 && (
