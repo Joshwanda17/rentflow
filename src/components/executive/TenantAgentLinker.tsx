@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
-import { ArrowRightLeft, Link2, Loader2, User } from 'lucide-react';
+import { ArrowDown, ArrowRightLeft, ArrowUp, ArrowUpDown, Link2, Loader2, User } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
@@ -28,6 +28,27 @@ export function TenantAgentLinker() {
   const [selectedAgent, setSelectedAgent] = useState<SelectedUser | null>(null);
   const [transferReason, setTransferReason] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [previewSortKey, setPreviewSortKey] = useState<'id' | 'agent' | 'amount'>('amount');
+  const [previewSortDir, setPreviewSortDir] = useState<'asc' | 'desc'>('desc');
+
+  // Reset preview sort each time the confirm dialog opens so it doesn't leak between transfers.
+  useEffect(() => {
+    if (confirmOpen) {
+      setPreviewSortKey('amount');
+      setPreviewSortDir('desc');
+    }
+  }, [confirmOpen]);
+
+  const handlePreviewSort = (key: 'id' | 'agent' | 'amount') => {
+    setPreviewSortKey((prevKey) => {
+      if (prevKey === key) {
+        setPreviewSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+        return prevKey;
+      }
+      setPreviewSortDir(key === 'amount' ? 'desc' : 'asc');
+      return key;
+    });
+  };
 
   // Fetch active rent requests for selected tenant
   const { data: tenantRequests, isLoading: loadingRequests } = useQuery({
@@ -362,6 +383,22 @@ export function TenantAgentLinker() {
               (r: any) => !currentAgentId || r.agent_id !== currentAgentId
             );
             const totalOutstanding = moving.reduce((s: number, r: any) => s + (r.outstanding || 0), 0);
+            const sortedMoving = [...moving].sort((a: any, b: any) => {
+              const dir = previewSortDir === 'asc' ? 1 : -1;
+              if (previewSortKey === 'amount') {
+                return (Number(a.outstanding || 0) - Number(b.outstanding || 0)) * dir;
+              }
+              if (previewSortKey === 'agent') {
+                return String(a.agent_name || '').localeCompare(String(b.agent_name || '')) * dir;
+              }
+              return String(a.id || '').localeCompare(String(b.id || '')) * dir;
+            });
+            const SortIcon = ({ col }: { col: 'id' | 'agent' | 'amount' }) => {
+              if (previewSortKey !== col) return <ArrowUpDown className="h-3 w-3 opacity-30" />;
+              return previewSortDir === 'asc'
+                ? <ArrowUp className="h-3 w-3" />
+                : <ArrowDown className="h-3 w-3" />;
+            };
             return (
               <div className="space-y-3">
                 <div className="grid grid-cols-3 gap-2">
@@ -398,17 +435,35 @@ export function TenantAgentLinker() {
 
                 <div className="rounded-md border overflow-hidden">
                   <div className="grid grid-cols-[1fr_1fr_auto] gap-2 px-2 py-1.5 bg-muted/50 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    <span>Request ID</span>
-                    <span>Current Agent</span>
-                    <span className="text-right">Amount</span>
+                    <button
+                      type="button"
+                      onClick={() => handlePreviewSort('id')}
+                      className="flex items-center gap-1 hover:text-foreground transition-colors text-left"
+                    >
+                      Request ID <SortIcon col="id" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handlePreviewSort('agent')}
+                      className="flex items-center gap-1 hover:text-foreground transition-colors text-left"
+                    >
+                      Current Agent <SortIcon col="agent" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handlePreviewSort('amount')}
+                      className="flex items-center justify-end gap-1 hover:text-foreground transition-colors"
+                    >
+                      Amount <SortIcon col="amount" />
+                    </button>
                   </div>
                   <div className="max-h-56 overflow-y-auto divide-y">
-                    {moving.length === 0 && (
+                    {sortedMoving.length === 0 && (
                       <p className="p-3 text-xs text-center text-muted-foreground">
                         No requests will move.
                       </p>
                     )}
-                    {moving.map((r: any) => (
+                    {sortedMoving.map((r: any) => (
                       <div
                         key={r.id}
                         className="grid grid-cols-[1fr_1fr_auto] gap-2 px-2 py-1.5 text-xs items-center"
