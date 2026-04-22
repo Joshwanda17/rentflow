@@ -690,6 +690,7 @@ export function CashoutAgentManager() {
             const stats = agentStats.get(a.id) || { count: 0, volume: 0, lastAt: null, todayCount: 0 } as any;
             const sevenDaysAgo = Date.now() - 7 * 24 * 3600 * 1000;
             const isRecent = stats.lastAt && new Date(stats.lastAt).getTime() > sevenDaysAgo;
+            const pending = pendingByAgent.get(a.id);
             return (
               <Card key={a.id} className="hover:bg-muted/40 active:bg-muted transition-colors cursor-pointer" onClick={() => setSelectedAgent(a)}>
                 <CardContent className="p-3 flex items-center gap-3">
@@ -702,7 +703,15 @@ export function CashoutAgentManager() {
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-sm truncate">{a.profiles?.full_name || 'Merchant Agent'}</p>
                     <p className="text-[11px] text-muted-foreground truncate">{a.profiles?.phone} · {a.label || 'Merchant Agent'}</p>
-                    <div className="flex flex-wrap gap-1 mt-1">{methodBadges(a)}</div>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {methodBadges(a)}
+                      {pending && pending.count > 0 && (
+                        <Badge variant="destructive" className="text-[9px] h-4 px-1 gap-0.5" title={`${pending.count} active claim${pending.count === 1 ? '' : 's'} in queue — blocks deletion`}>
+                          <Clock className="h-2.5 w-2.5" />
+                          {pending.count} in queue
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                   <div className="text-right shrink-0">
                     <p className="font-bold text-sm">{formatUGX(stats.volume)}</p>
