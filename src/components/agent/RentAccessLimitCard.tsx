@@ -356,6 +356,20 @@ export function RentAccessLimitCard({
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
+              {!editingRent && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditRentInput(String(monthlyRent));
+                    setEditingRent(true);
+                  }}
+                  className="ml-1.5 mt-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-background/70 text-muted-foreground border border-border/60 hover:text-foreground hover:bg-background transition-colors"
+                  aria-label="Edit monthly rent"
+                >
+                  <Edit3 className="h-3 w-3" aria-hidden />
+                  Edit
+                </button>
+              )}
             </div>
             <span
               className={cn(
