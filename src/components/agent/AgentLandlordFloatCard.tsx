@@ -59,7 +59,7 @@ export function AgentLandlordFloatCard({ onPayLandlord, onOpenRecovery, onOpenHi
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Landlord Float</p>
+              <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Landlord Payout Float</p>
               {pendingCount > 0 && (
                 <Badge variant="secondary" className="text-[9px] px-1.5 py-0">
                   {pendingCount} pending
@@ -74,7 +74,7 @@ export function AgentLandlordFloatCard({ onPayLandlord, onOpenRecovery, onOpenHi
               <p className="font-bold text-sm text-foreground mt-0.5">Pay Landlord via MoMo</p>
             )}
             <p className="text-[10px] text-muted-foreground">
-              {hasFloat ? 'Ring-fenced for landlord payouts — not your money' : 'Withdraw from float → Pay landlord → Upload receipt + GPS'}
+              {hasFloat ? 'Sent by Welile CFO · spend only on landlord MoMo payouts' : 'CFO will fund this when a landlord payout is due. Pay landlord → Upload receipt + GPS'}
             </p>
           </div>
           <div className="flex items-center gap-1">
