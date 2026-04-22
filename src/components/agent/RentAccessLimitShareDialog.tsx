@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import {
   Loader2, MessageCircle, Image as ImageIcon, FileText, Copy, CheckCircle2, ExternalLink,
-  ArrowLeft, Eye, ShieldCheck,
+  ArrowLeft, Eye, ShieldCheck, RotateCw, AlertTriangle,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -52,6 +52,9 @@ export function RentAccessLimitShareDialog({
   // Snapshot of the message at the moment the preview was built, so the send
   // action uses the exact text the user saw — even if shareUrl/result changes.
   const [previewMessage, setPreviewMessage] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [sendAttempts, setSendAttempts] = useState(0);
 
   // Reset preview whenever the dialog closes / inputs change
   useEffect(() => {
@@ -61,6 +64,9 @@ export function RentAccessLimitShareDialog({
       setPreviewUrl(null);
       setPreviewBlob(null);
       setPreviewMessage(null);
+      setSendError(null);
+      setSendAttempts(0);
+      setSending(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
