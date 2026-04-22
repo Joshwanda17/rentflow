@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Fingerprint, ShieldCheck, Sparkles, ChevronRight, ChevronDown, Info } from 'lucide-react';
+import { Fingerprint, ShieldCheck, Sparkles, ChevronRight, ChevronDown, Info, Clock } from 'lucide-react';
 import { useTrustProfile } from '@/hooks/useTrustProfile';
 import { generateWelileAiId } from '@/lib/welileAiId';
 import { formatUGX } from '@/lib/rentCalculations';
