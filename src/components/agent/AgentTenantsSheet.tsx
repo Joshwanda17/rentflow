@@ -5,7 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp, ArrowLeft, Shield } from 'lucide-react';
+import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp, ArrowLeft, Shield, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { generateWelileAiId, getRiskTierLabel } from '@/lib/welileAiId';
 import { format, startOfDay } from 'date-fns';
@@ -49,6 +49,15 @@ interface AgentTenantsSheetProps {
 
 type FilterTab = 'owing' | 'paid-up' | 'all';
 type RiskFilter = 'all' | 'good' | 'standard' | 'caution' | 'new';
+type SortKey = 'risk' | 'aiId' | 'property' | 'balance';
+type SortDir = 'asc' | 'desc';
+
+const RISK_ORDER: Record<'good' | 'standard' | 'caution' | 'new', number> = {
+  caution: 0,
+  standard: 1,
+  good: 2,
+  new: 3,
+};
 
 export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps) {
   const { user } = useAuth();
@@ -61,6 +70,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [loadingRequests, setLoadingRequests] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterTab>('owing');
   const [riskFilter, setRiskFilter] = useState<RiskFilter>('all');
+  const [sortKey, setSortKey] = useState<SortKey>('balance');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [tenantBalances, setTenantBalances] = useState<Record<string, number>>({});
   const [tenantTotals, setTenantTotals] = useState<Record<string, { total: number; paid: number }>>({});
   const [tenantStatuses, setTenantStatuses] = useState<Record<string, Set<string>>>({});
@@ -257,9 +268,44 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
       list = list.filter(t => tenantMeta[t.id]?.riskLevel === riskFilter);
     }
 
-    list.sort((a, b) => (tenantBalances[b.id] || 0) - (tenantBalances[a.id] || 0));
+    const dir = sortDir === 'asc' ? 1 : -1;
+    list.sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case 'risk': {
+          const ra = RISK_ORDER[tenantMeta[a.id]?.riskLevel ?? 'new'];
+          const rb = RISK_ORDER[tenantMeta[b.id]?.riskLevel ?? 'new'];
+          cmp = ra - rb;
+          break;
+        }
+        case 'aiId': {
+          cmp = (tenantMeta[a.id]?.aiId ?? '').localeCompare(tenantMeta[b.id]?.aiId ?? '');
+          break;
+        }
+        case 'property': {
+          const pa = (tenantContext[a.id]?.propertyAddress ?? '').toLowerCase();
+          const pb = (tenantContext[b.id]?.propertyAddress ?? '').toLowerCase();
+          // Push empty addresses to the bottom regardless of direction
+          if (!pa && pb) return 1;
+          if (pa && !pb) return -1;
+          cmp = pa.localeCompare(pb);
+          break;
+        }
+        case 'balance':
+        default: {
+          cmp = (tenantBalances[a.id] || 0) - (tenantBalances[b.id] || 0);
+          break;
+        }
+      }
+      if (cmp === 0) {
+        // Stable tiebreaker: name asc
+        cmp = a.full_name.localeCompare(b.full_name);
+        return cmp;
+      }
+      return cmp * dir;
+    });
     return list;
-  }, [tenants, search, activeFilter, riskFilter, tenantBalances, tenantStatuses, tenantContext, tenantMeta]);
+  }, [tenants, search, activeFilter, riskFilter, sortKey, sortDir, tenantBalances, tenantStatuses, tenantContext, tenantMeta]);
 
   // Stats
   const stats = useMemo(() => {
@@ -430,6 +476,48 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                   aria-pressed={isActive}
                 >
                   {opt.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Sort bar — tap to set, tap active to flip direction */}
+          <div className="flex items-center gap-2 overflow-x-auto -mx-1 px-1 pb-0.5 scrollbar-hide">
+            <div className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0 pr-1">
+              <ArrowUpDown className="h-3.5 w-3.5" />
+              Sort
+            </div>
+            {([
+              { key: 'risk', label: 'Risk' },
+              { key: 'aiId', label: 'AI ID' },
+              { key: 'property', label: 'Property' },
+              { key: 'balance', label: 'Owing' },
+            ] as const).map(opt => {
+              const isActive = sortKey === opt.key;
+              const Arrow = sortDir === 'asc' ? ArrowUp : ArrowDown;
+              return (
+                <button
+                  key={opt.key}
+                  onClick={() => {
+                    if (sortKey === opt.key) {
+                      setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
+                    } else {
+                      setSortKey(opt.key);
+                      // Sensible defaults per column
+                      setSortDir(opt.key === 'aiId' || opt.key === 'property' ? 'asc' : 'desc');
+                    }
+                  }}
+                  className={`shrink-0 h-9 px-3 rounded-full text-xs font-semibold transition-all border inline-flex items-center gap-1 ${
+                    isActive
+                      ? 'border-foreground/20 ring-1 ring-foreground/10 bg-primary/15 text-primary'
+                      : 'border-transparent bg-muted text-muted-foreground opacity-80 hover:opacity-100'
+                  }`}
+                  style={{ touchAction: 'manipulation', minHeight: '36px' }}
+                  aria-pressed={isActive}
+                  aria-label={`Sort by ${opt.label}${isActive ? ` (${sortDir === 'asc' ? 'ascending' : 'descending'})` : ''}`}
+                >
+                  {opt.label}
+                  {isActive && <Arrow className="h-3 w-3" />}
                 </button>
               );
             })}
