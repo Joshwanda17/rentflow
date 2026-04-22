@@ -221,12 +221,50 @@ export function CashoutAgentManager() {
     onSuccess: () => {
       toast({ title: '🗑️ Merchant Agent deleted', description: 'Record permanently removed.' });
       qc.invalidateQueries({ queryKey: ['merchant-agents'] });
+      qc.invalidateQueries({ queryKey: ['merchant-agent-active-claims'] });
+      qc.invalidateQueries({ queryKey: ['merchant-agent-active-claims-rows'] });
       if (selectedAgent && deleteAgent && selectedAgent.id === deleteAgent.id) {
         setSelectedAgent(null);
       }
       setDeleteAgent(null);
     },
     onError: (e: any) => toast({ title: 'Delete failed', description: e.message, variant: 'destructive' }),
+  });
+
+  // Release all stuck claims still routed to a merchant — unassigns them so the
+  // open-pool routing can pick them up again. Used to unblock deletion when a
+  // merchant has stale or orphan claims they can't / won't process.
+  const releaseClaimsMutation = useMutation({
+    mutationFn: async (agent: any) => {
+      const info = pendingByAgent.get(agent.id);
+      if (!info || info.count === 0) throw new Error('No active claims to release');
+      const { error } = await supabase
+        .from('withdrawal_requests')
+        .update({ assigned_cashout_agent_id: null, claimed_at: null })
+        .in('id', info.ids);
+      if (error) throw error;
+      await supabase.from('audit_logs').insert({
+        user_id: user!.id,
+        action_type: 'cfo_merchant_agent_claims_released',
+        table_name: 'withdrawal_requests',
+        record_id: agent.id,
+        metadata: {
+          agent_name: agent.profiles?.full_name || agent.agent_id,
+          released_count: info.count,
+          released_ids: info.ids,
+        },
+      });
+    },
+    onSuccess: (_d, agent) => {
+      toast({
+        title: '🔓 Claims released',
+        description: 'Stuck claims returned to the open pool. You can now delete this merchant.',
+      });
+      qc.invalidateQueries({ queryKey: ['merchant-agent-active-claims'] });
+      qc.invalidateQueries({ queryKey: ['merchant-agent-active-claims-rows'] });
+      qc.invalidateQueries({ queryKey: ['cfo-pending-withdrawals'] });
+    },
+    onError: (e: any) => toast({ title: 'Release failed', description: e.message, variant: 'destructive' }),
   });
 
   const updateMutation = useMutation({
