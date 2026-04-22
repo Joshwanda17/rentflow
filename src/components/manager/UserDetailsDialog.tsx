@@ -1905,7 +1905,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                                     <div className="ml-8 mt-2 p-3 rounded-xl bg-muted/30 border border-dashed space-y-2">
                                       <p className="text-xs font-semibold text-muted-foreground mb-2">Operations Departments</p>
                                       {OPERATIONS_DEPARTMENTS.map(dept => {
-                                        const isActive = operationsDepartments.includes(dept);
+                                        const isActive = operationsDepartments.includes(dept.toLowerCase());
                                         return (
                                           <div key={dept} className={`flex items-center justify-between p-2 rounded-lg border ${isActive ? 'bg-card border-primary/20' : 'bg-muted/20 border-transparent'}`}>
                                             <div className="flex items-center gap-2">
@@ -2409,7 +2409,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                                     <p className="text-xs font-semibold text-muted-foreground mb-2">Operations Departments</p>
                                     <div className="grid grid-cols-2 gap-2">
                                       {OPERATIONS_DEPARTMENTS.map(dept => {
-                                        const isActive = operationsDepartments.includes(dept);
+                                        const isActive = operationsDepartments.includes(dept.toLowerCase());
                                         return (
                                           <div key={dept} className={`flex items-center justify-between p-2 rounded-lg border ${isActive ? 'bg-card border-primary/20' : 'bg-muted/20 border-transparent'}`}>
                                             <div className="flex items-center gap-2">
