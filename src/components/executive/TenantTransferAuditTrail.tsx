@@ -306,14 +306,186 @@ export function TenantTransferAuditTrail() {
             </div>
           </div>
 
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              placeholder="Search tenant, agent, executive, or reason..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 h-9 text-xs"
-            />
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Search tenant, agent, executive, or reason..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-8 h-9 text-xs"
+                />
+              </div>
+              <Button
+                variant={showFilters ? 'default' : 'outline'}
+                size="sm"
+                className="h-9 gap-1.5 shrink-0"
+                onClick={() => setShowFilters((v) => !v)}
+              >
+                <Filter className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Filters</span>
+                {activeFilterCount > 0 && (
+                  <Badge variant="secondary" className="h-4 min-w-4 px-1 text-[10px]">
+                    {activeFilterCount}
+                  </Badge>
+                )}
+                <ChevronDown
+                  className={`h-3.5 w-3.5 transition-transform ${showFilters ? 'rotate-180' : ''}`}
+                />
+              </Button>
+            </div>
+
+            <Collapsible open={showFilters}>
+              <CollapsibleContent className="space-y-3 rounded-lg border bg-muted/30 p-3 mt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                  {/* Date range */}
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase text-muted-foreground">From date</Label>
+                    <Input
+                      type="date"
+                      value={dateFrom}
+                      max={dateTo || undefined}
+                      onChange={(e) => setDateFrom(e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase text-muted-foreground">To date</Label>
+                    <Input
+                      type="date"
+                      value={dateTo}
+                      min={dateFrom || undefined}
+                      onChange={(e) => setDateTo(e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+
+                  {/* Action kind */}
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase text-muted-foreground">Action type</Label>
+                    <Select value={kindFilter} onValueChange={(v) => setKindFilter(v as typeof kindFilter)}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All actions</SelectItem>
+                        <SelectItem value="transfer">Transfers only</SelectItem>
+                        <SelectItem value="link">Links only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Tenant */}
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase text-muted-foreground">Tenant</Label>
+                    <Select value={tenantFilter} onValueChange={setTenantFilter}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Any tenant" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-64">
+                        <SelectItem value="all">Any tenant</SelectItem>
+                        {filterOptions.tenants.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Before agent (transfers only) */}
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase text-muted-foreground">Before agent</Label>
+                    <Select value={fromAgentFilter} onValueChange={setFromAgentFilter}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Any" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-64">
+                        <SelectItem value="all">Any</SelectItem>
+                        {filterOptions.fromAgents.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* After agent */}
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase text-muted-foreground">After agent</Label>
+                    <Select value={toAgentFilter} onValueChange={setToAgentFilter}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Any" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-64">
+                        <SelectItem value="all">Any</SelectItem>
+                        {filterOptions.toAgents.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Executive */}
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase text-muted-foreground">Executive</Label>
+                    <Select value={executiveFilter} onValueChange={setExecutiveFilter}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Any executive" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-64">
+                        <SelectItem value="all">Any executive</SelectItem>
+                        {filterOptions.executives.map((e) => (
+                          <SelectItem key={e.id} value={e.id}>
+                            {e.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Capture status */}
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase text-muted-foreground">Capture status</Label>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Any status</SelectItem>
+                        <SelectItem value="captured">Captured</SelectItem>
+                        <SelectItem value="missing">Any missing (no geo)</SelectItem>
+                        <SelectItem value="denied">Denied</SelectItem>
+                        <SelectItem value="unavailable">Unavailable</SelectItem>
+                        <SelectItem value="timeout">Timeout</SelectItem>
+                        <SelectItem value="unsupported">Unsupported</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1 border-t border-border/60">
+                  <div className="text-[11px] text-muted-foreground">
+                    Showing <span className="font-semibold">{filtered.length}</span> of{' '}
+                    {entries?.length ?? 0} actions
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearFilters}
+                    disabled={activeFilterCount === 0}
+                    className="h-7 gap-1 text-xs"
+                  >
+                    <X className="h-3 w-3" />
+                    Clear filters
+                  </Button>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
         </CardContent>
       </Card>
