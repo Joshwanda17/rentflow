@@ -127,24 +127,38 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         const tenantIds = tenantList.map(t => t.id);
         const { data: rentRequests } = await supabase
           .from('rent_requests')
-          .select('tenant_id, total_repayment, amount_repaid, status')
+          .select('tenant_id, total_repayment, amount_repaid, status, created_at, landlord:landlords(name, property_address)')
           .in('tenant_id', tenantIds)
-          .in('status', ['pending', 'approved', 'funded', 'disbursed', 'repaying', 'completed']);
+          .in('status', ['pending', 'approved', 'funded', 'disbursed', 'repaying', 'completed'])
+          .order('created_at', { ascending: false });
 
         const balances: Record<string, number> = {};
         const totals: Record<string, { total: number; paid: number }> = {};
         const statusMap: Record<string, Set<string>> = {};
-        (rentRequests || []).forEach(rr => {
+        const ctx: Record<string, { landlordName: string; propertyAddress: string; completedCount: number; totalRequests: number }> = {};
+        (rentRequests || []).forEach((rr: any) => {
           const owing = (rr.total_repayment || 0) - (rr.amount_repaid || 0);
           balances[rr.tenant_id] = (balances[rr.tenant_id] || 0) + Math.max(0, owing);
           const prev = totals[rr.tenant_id] || { total: 0, paid: 0 };
           totals[rr.tenant_id] = { total: prev.total + (rr.total_repayment || 0), paid: prev.paid + (rr.amount_repaid || 0) };
           if (!statusMap[rr.tenant_id]) statusMap[rr.tenant_id] = new Set();
           if (rr.status) statusMap[rr.tenant_id].add(rr.status);
+          // Latest-first context (first hit wins thanks to descending order)
+          if (!ctx[rr.tenant_id]) {
+            ctx[rr.tenant_id] = {
+              landlordName: rr.landlord?.name || '',
+              propertyAddress: rr.landlord?.property_address || '',
+              completedCount: 0,
+              totalRequests: 0,
+            };
+          }
+          ctx[rr.tenant_id].totalRequests += 1;
+          if (rr.status === 'completed') ctx[rr.tenant_id].completedCount += 1;
         });
         setTenantBalances(balances);
         setTenantTotals(totals);
         setTenantStatuses(statusMap);
+        setTenantContext(ctx);
       }
     } catch (err) {
       console.error('Failed to fetch tenants:', err);
