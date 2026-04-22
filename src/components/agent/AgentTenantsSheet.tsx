@@ -448,9 +448,14 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               <p className="text-sm text-muted-foreground">
                 {search ? `No results for "${search}"` : activeFilter === 'owing' ? 'No tenants owing' : activeFilter === 'paid-up' ? 'No paid up tenants' : 'No tenants yet'}
               </p>
-              {(activeFilter !== 'all' || search) && (
-                <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => { setActiveFilter('all'); setSearch(''); }}>
-                  Show all tenants
+              {(activeFilter !== 'all' || riskFilter !== 'all' || search) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt-2 text-xs"
+                  onClick={() => { setActiveFilter('all'); setRiskFilter('all'); setSearch(''); }}
+                >
+                  Reset filters
                 </Button>
               )}
             </div>
