@@ -92,6 +92,15 @@ export function TenantAgentLinker() {
     return top;
   })();
 
+  // Validation helpers reused by the preview button and the confirm dialog.
+  const movingRequests = (tenantRequests || []).filter(
+    (r: any) => currentAgentId && r.agent_id === currentAgentId
+  );
+  const sameAgent = !!selectedAgent && !!currentAgentId && currentAgentId === selectedAgent.id;
+  const hasMovableRequests = movingRequests.length > 0;
+  const reasonValid = transferReason.trim().length >= 10;
+  const canSubmitTransfer = !sameAgent && hasMovableRequests && reasonValid;
+
   const transferAllMutation = useMutation({
     mutationFn: async () => {
       if (!selectedTenant) throw new Error('Select a tenant');
@@ -177,9 +186,23 @@ export function TenantAgentLinker() {
               rows={2}
               className="text-xs"
             />
+            {sameAgent && (
+              <Alert variant="destructive">
+                <AlertDescription className="text-xs">
+                  The selected new agent is the same as the current agent. Pick a different agent to transfer to.
+                </AlertDescription>
+              </Alert>
+            )}
+            {!sameAgent && !hasMovableRequests && !loadingRequests && (
+              <Alert variant="destructive">
+                <AlertDescription className="text-xs">
+                  No active rent requests on the source agent are available to transfer.
+                </AlertDescription>
+              </Alert>
+            )}
             <Button
               onClick={() => setConfirmOpen(true)}
-              disabled={transferAllMutation.isPending || transferReason.trim().length < 10}
+              disabled={transferAllMutation.isPending || !canSubmitTransfer || loadingRequests}
               className="w-full gap-1.5"
               size="sm"
             >
@@ -188,7 +211,9 @@ export function TenantAgentLinker() {
               ) : (
                 <ArrowRightLeft className="h-4 w-4" />
               )}
-              Preview & Transfer to {selectedAgent.full_name.split(' ')[0]}
+              {hasMovableRequests
+                ? `Preview & Transfer ${movingRequests.length} request${movingRequests.length === 1 ? '' : 's'} to ${selectedAgent.full_name.split(' ')[0]}`
+                : `Preview & Transfer to ${selectedAgent.full_name.split(' ')[0]}`}
             </Button>
           </CardContent>
         </Card>
@@ -399,9 +424,10 @@ export function TenantAgentLinker() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={transferAllMutation.isPending}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              disabled={transferAllMutation.isPending}
+              disabled={transferAllMutation.isPending || !canSubmitTransfer}
               onClick={(e) => {
                 e.preventDefault();
+                if (!canSubmitTransfer) return;
                 transferAllMutation.mutate(undefined, {
                   onSuccess: () => setConfirmOpen(false),
                 });
