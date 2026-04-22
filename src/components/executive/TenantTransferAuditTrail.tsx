@@ -13,10 +13,14 @@ import {
 } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import {
+  Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose,
+} from '@/components/ui/drawer';
+import {
   ArrowRightLeft, Link2, MapPin, MapPinOff, Search, Shield,
-  CheckCircle2, AlertCircle, Clock, ExternalLink, Filter, X, ChevronDown,
+  CheckCircle2, AlertCircle, Clock, ExternalLink, Filter, X, ChevronDown, Navigation, Copy,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
+import { toast } from 'sonner';
 
 type AuditEntryKind = 'transfer' | 'link';
 
