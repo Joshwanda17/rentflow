@@ -11878,6 +11878,16 @@ export type Database = {
           user_id: string
         }[]
       }
+      drain_withdrawable_buckets: {
+        Args: { p_amount: number; p_user_id: string }
+        Returns: {
+          drained_advance: number
+          drained_withdrawable: number
+          new_advance: number
+          new_float: number
+          new_withdrawable: number
+        }[]
+      }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
@@ -12287,6 +12297,7 @@ export type Database = {
         }[]
       }
       get_wallet_totals: { Args: never; Returns: Json }
+      get_withdrawable_total: { Args: { p_user_id: string }; Returns: number }
       has_dashboard_access: {
         Args: { _dashboard: string; _user_id: string }
         Returns: boolean
