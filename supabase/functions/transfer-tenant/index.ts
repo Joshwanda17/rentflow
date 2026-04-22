@@ -40,7 +40,17 @@ Deno.serve(async (req) => {
     const hasPermission = (roles || []).some((r: any) => allowedRoles.includes(r.role));
     if (!hasPermission) throw new Error("Insufficient permissions");
 
-    const { tenant_id, from_agent_id, to_agent_id, reason, flag_type } = await req.json();
+    const {
+      tenant_id,
+      from_agent_id,
+      to_agent_id,
+      reason,
+      flag_type,
+      actor_latitude,
+      actor_longitude,
+      actor_accuracy,
+      actor_location_status,
+    } = await req.json();
 
     // Validate inputs
     if (!tenant_id || !from_agent_id || !to_agent_id || !reason) {
@@ -92,6 +102,10 @@ Deno.serve(async (req) => {
         flag_type: flag_type || "manual",
         rent_requests_updated: rrCount,
         subscriptions_updated: scCount,
+        actor_latitude: actor_latitude ?? null,
+        actor_longitude: actor_longitude ?? null,
+        actor_accuracy: actor_accuracy ?? null,
+        actor_location_status: actor_location_status ?? null,
       });
     if (insertErr) throw new Error(`Failed to log transfer: ${insertErr.message}`);
 
@@ -100,7 +114,19 @@ Deno.serve(async (req) => {
       user_id: user.id,
       action_type: "tenant_transfer",
       table_name: "tenant_transfers",
-      metadata: { tenant_id, from_agent_id, to_agent_id, reason, flag_type, rent_requests_updated: rrCount, subscriptions_updated: scCount },
+      metadata: {
+        tenant_id,
+        from_agent_id,
+        to_agent_id,
+        reason,
+        flag_type,
+        rent_requests_updated: rrCount,
+        subscriptions_updated: scCount,
+        actor_latitude: actor_latitude ?? null,
+        actor_longitude: actor_longitude ?? null,
+        actor_accuracy: actor_accuracy ?? null,
+        actor_location_status: actor_location_status ?? null,
+      },
     });
 
     // 5. Notify both agents and tenant

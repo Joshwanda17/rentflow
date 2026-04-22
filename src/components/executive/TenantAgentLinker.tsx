@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
-import { ArrowDown, ArrowRightLeft, ArrowUp, ArrowUpDown, Link2, Loader2, User } from 'lucide-react';
+import { ArrowDown, ArrowRightLeft, ArrowUp, ArrowUpDown, Link2, Loader2, MapPin, User } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
@@ -14,11 +14,43 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { TenantReassignmentSuggestions } from './TenantReassignmentSuggestions';
+import { useGeoLocation } from '@/hooks/useGeoLocation';
 
 interface SelectedUser {
   id: string;
   full_name: string;
   phone: string;
+}
+
+type ActorLocationStatus = 'captured' | 'denied' | 'unavailable' | 'timeout' | 'unsupported';
+
+function formatRelativeTime(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return '';
+  const diffMs = Date.now() - then;
+  const mins = Math.round(diffMs / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} m ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs} h ago`;
+  const days = Math.round(hrs / 24);
+  return `${days} d ago`;
+}
+
+function haversineKm(
+  a: { latitude: number; longitude: number } | null,
+  b: { latitude: number; longitude: number } | null,
+): number | null {
+  if (!a || !b) return null;
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b.latitude - a.latitude);
+  const dLon = toRad(b.longitude - a.longitude);
+  const lat1 = toRad(a.latitude);
+  const lat2 = toRad(b.latitude);
+  const h = Math.sin(dLat / 2) ** 2 + Math.sin(dLon / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
 export function TenantAgentLinker() {
@@ -30,6 +62,45 @@ export function TenantAgentLinker() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [previewSortKey, setPreviewSortKey] = useState<'id' | 'agent' | 'amount'>('amount');
   const [previewSortDir, setPreviewSortDir] = useState<'asc' | 'desc'>('desc');
+  const { captureLocation: captureActorLocation } = useGeoLocation();
+  const [lastActorStatus, setLastActorStatus] = useState<ActorLocationStatus | null>(null);
+  const [lastActorAccuracy, setLastActorAccuracy] = useState<number | null>(null);
+
+  // Capture executive geo before running an action; never blocks the action.
+  const captureActorContext = async (): Promise<{
+    actor_latitude: number | null;
+    actor_longitude: number | null;
+    actor_accuracy: number | null;
+    actor_location_status: ActorLocationStatus;
+  }> => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setLastActorStatus('unsupported');
+      toast({ title: '📍 Location unavailable', description: 'Browser does not support geolocation — proceeding without it.' });
+      return { actor_latitude: null, actor_longitude: null, actor_accuracy: null, actor_location_status: 'unsupported' };
+    }
+    try {
+      const loc = await captureActorLocation();
+      if (loc) {
+        setLastActorStatus('captured');
+        setLastActorAccuracy(loc.accuracy ?? null);
+        return {
+          actor_latitude: loc.latitude,
+          actor_longitude: loc.longitude,
+          actor_accuracy: loc.accuracy,
+          actor_location_status: 'captured',
+        };
+      }
+      setLastActorStatus('unavailable');
+      setLastActorAccuracy(null);
+      toast({ title: '📍 Location unavailable', description: 'Proceeding without geo — action will be tagged accordingly.' });
+      return { actor_latitude: null, actor_longitude: null, actor_accuracy: null, actor_location_status: 'unavailable' };
+    } catch {
+      setLastActorStatus('denied');
+      setLastActorAccuracy(null);
+      toast({ title: '📍 Location denied', description: 'Proceeding without geo — action will be tagged accordingly.' });
+      return { actor_latitude: null, actor_longitude: null, actor_accuracy: null, actor_location_status: 'denied' };
+    }
+  };
 
   // Reset preview sort each time the confirm dialog opens so it doesn't leak between transfers.
   useEffect(() => {
@@ -87,11 +158,31 @@ export function TenantAgentLinker() {
   const linkMutation = useMutation({
     mutationFn: async (rentRequestId: string) => {
       if (!selectedAgent) throw new Error('Select an agent first');
+      const geo = await captureActorContext();
       const { error } = await supabase
         .from('rent_requests')
         .update({ agent_id: selectedAgent.id })
         .eq('id', rentRequestId);
       if (error) throw error;
+      // Best-effort audit log; never block UX on logging failures.
+      try {
+        await supabase.from('audit_logs').insert({
+          action_type: 'agent_linked',
+          table_name: 'rent_requests',
+          record_id: rentRequestId,
+          metadata: {
+            tenant_id: selectedTenant?.id ?? null,
+            agent_id: selectedAgent.id,
+            actor_latitude: geo.actor_latitude,
+            actor_longitude: geo.actor_longitude,
+            actor_accuracy: geo.actor_accuracy,
+            actor_location_status: geo.actor_location_status,
+            reason: 'manual_link',
+          },
+        });
+      } catch (_) {
+        // ignore audit failures
+      }
     },
     onSuccess: () => {
       toast({ title: '✅ Agent linked', description: `${selectedAgent?.full_name} is now responsible for ${selectedTenant?.full_name}` });
@@ -114,6 +205,39 @@ export function TenantAgentLinker() {
     return top;
   })();
 
+  // Last-known locations for tenant + selected agent (most recent row per user).
+  const locationLookupIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (selectedTenant?.id) ids.add(selectedTenant.id);
+    if (selectedAgent?.id) ids.add(selectedAgent.id);
+    return Array.from(ids);
+  }, [selectedTenant?.id, selectedAgent?.id]);
+
+  const { data: lastKnownLocations } = useQuery({
+    queryKey: ['tenant-linker-last-locations', locationLookupIds.join(',')],
+    enabled: locationLookupIds.length > 0,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('user_locations')
+        .select('user_id, latitude, longitude, accuracy, city, country, captured_at')
+        .in('user_id', locationLookupIds)
+        .order('captured_at', { ascending: false })
+        .limit(50);
+      const byUser = new Map<string, any>();
+      (data || []).forEach((row: any) => {
+        if (!byUser.has(row.user_id)) byUser.set(row.user_id, row);
+      });
+      return byUser;
+    },
+  });
+
+  const tenantLastLoc = selectedTenant ? lastKnownLocations?.get(selectedTenant.id) : null;
+  const agentLastLoc = selectedAgent ? lastKnownLocations?.get(selectedAgent.id) : null;
+  const tenantAgentDistanceKm = haversineKm(
+    tenantLastLoc ? { latitude: Number(tenantLastLoc.latitude), longitude: Number(tenantLastLoc.longitude) } : null,
+    agentLastLoc ? { latitude: Number(agentLastLoc.latitude), longitude: Number(agentLastLoc.longitude) } : null,
+  );
+
   // Validation helpers reused by the preview button and the confirm dialog.
   const movingRequests = (tenantRequests || []).filter(
     (r: any) => currentAgentId && r.agent_id === currentAgentId
@@ -131,6 +255,7 @@ export function TenantAgentLinker() {
       if (currentAgentId === selectedAgent.id) throw new Error('New agent is the same as current agent');
       if (transferReason.trim().length < 10) throw new Error('Please enter a reason (min 10 characters)');
 
+      const geo = await captureActorContext();
       const { data, error } = await supabase.functions.invoke('transfer-tenant', {
         body: {
           tenant_id: selectedTenant.id,
@@ -138,6 +263,10 @@ export function TenantAgentLinker() {
           to_agent_id: selectedAgent.id,
           reason: transferReason.trim(),
           flag_type: 'manual',
+          actor_latitude: geo.actor_latitude,
+          actor_longitude: geo.actor_longitude,
+          actor_accuracy: geo.actor_accuracy,
+          actor_location_status: geo.actor_location_status,
         },
       });
       if (error) throw new Error(error.message || 'Transfer failed');
@@ -181,6 +310,22 @@ export function TenantAgentLinker() {
             onSelect={(u) => { setSelectedTenant(u); }}
             roleFilter="tenant"
           />
+          {selectedTenant && (
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground -mt-1.5 px-1">
+              <MapPin className="h-3 w-3" />
+              {tenantLastLoc ? (
+                <span>
+                  Tenant last seen:{' '}
+                  <span className="font-medium text-foreground">
+                    {tenantLastLoc.city || tenantLastLoc.country || `${Number(tenantLastLoc.latitude).toFixed(3)}, ${Number(tenantLastLoc.longitude).toFixed(3)}`}
+                  </span>{' '}
+                  · {formatRelativeTime(tenantLastLoc.captured_at)}
+                </span>
+              ) : (
+                <span>No location on file for tenant</span>
+              )}
+            </div>
+          )}
 
           <UserSearchPicker
             label="Search Agent"
@@ -189,6 +334,22 @@ export function TenantAgentLinker() {
             onSelect={setSelectedAgent}
             roleFilter="agent"
           />
+          {selectedAgent && (
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground -mt-1.5 px-1">
+              <MapPin className="h-3 w-3" />
+              {agentLastLoc ? (
+                <span>
+                  Agent last seen:{' '}
+                  <span className="font-medium text-foreground">
+                    {agentLastLoc.city || agentLastLoc.country || `${Number(agentLastLoc.latitude).toFixed(3)}, ${Number(agentLastLoc.longitude).toFixed(3)}`}
+                  </span>{' '}
+                  · {formatRelativeTime(agentLastLoc.captured_at)}
+                </span>
+              ) : (
+                <span>No location on file for agent</span>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -497,6 +658,48 @@ export function TenantAgentLinker() {
                 <p className="text-[11px] text-muted-foreground italic">
                   Reason: "{transferReason.trim()}"
                 </p>
+
+                <div className="rounded-md border bg-muted/30 p-2 text-xs space-y-1">
+                  <div className="flex items-center gap-1.5 font-semibold text-[11px] uppercase tracking-wide text-muted-foreground">
+                    <MapPin className="h-3 w-3" />
+                    Location context
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Tenant last seen</span>
+                    <span className="font-medium">
+                      {tenantLastLoc
+                        ? `${tenantLastLoc.city || `${Number(tenantLastLoc.latitude).toFixed(3)}, ${Number(tenantLastLoc.longitude).toFixed(3)}`} · ${formatRelativeTime(tenantLastLoc.captured_at)}`
+                        : '—'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">New agent last seen</span>
+                    <span className="font-medium">
+                      {agentLastLoc
+                        ? `${agentLastLoc.city || `${Number(agentLastLoc.latitude).toFixed(3)}, ${Number(agentLastLoc.longitude).toFixed(3)}`} · ${formatRelativeTime(agentLastLoc.captured_at)}`
+                        : '—'}
+                    </span>
+                  </div>
+                  {tenantAgentDistanceKm !== null && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Approx. distance</span>
+                      <span className="font-medium">
+                        {tenantAgentDistanceKm < 1
+                          ? `${Math.round(tenantAgentDistanceKm * 1000)} m`
+                          : `${tenantAgentDistanceKm.toFixed(1)} km`}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {lastActorStatus && (
+                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <MapPin className="h-3 w-3" />
+                    {lastActorStatus === 'captured'
+                      ? `Your location captured${lastActorAccuracy ? ` (±${Math.round(lastActorAccuracy)} m)` : ''}`
+                      : `Your location ${lastActorStatus} — proceeding without geo`}
+                  </div>
+                )}
               </div>
             );
           })()}

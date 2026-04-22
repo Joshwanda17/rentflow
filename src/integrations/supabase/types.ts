@@ -10383,6 +10383,10 @@ export type Database = {
       }
       tenant_transfers: {
         Row: {
+          actor_accuracy: number | null
+          actor_latitude: number | null
+          actor_location_status: string | null
+          actor_longitude: number | null
           created_at: string
           flag_type: string | null
           from_agent_id: string | null
@@ -10395,6 +10399,10 @@ export type Database = {
           transferred_by: string | null
         }
         Insert: {
+          actor_accuracy?: number | null
+          actor_latitude?: number | null
+          actor_location_status?: string | null
+          actor_longitude?: number | null
           created_at?: string
           flag_type?: string | null
           from_agent_id?: string | null
@@ -10407,6 +10415,10 @@ export type Database = {
           transferred_by?: string | null
         }
         Update: {
+          actor_accuracy?: number | null
+          actor_latitude?: number | null
+          actor_location_status?: string | null
+          actor_longitude?: number | null
           created_at?: string
           flag_type?: string | null
           from_agent_id?: string | null
