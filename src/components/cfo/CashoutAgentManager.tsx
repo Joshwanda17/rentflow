@@ -110,6 +110,35 @@ export function CashoutAgentManager() {
     },
   });
 
+  // Per-merchant active claim list — drives the "pending" badge on each card AND
+  // powers the "Release stuck claims" recovery action in the delete dialog.
+  const { data: pendingClaimRows = [] } = useQuery({
+    queryKey: ['merchant-agent-active-claims-rows'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('withdrawal_requests')
+        .select('id, status, amount, assigned_cashout_agent_id, created_at')
+        .not('assigned_cashout_agent_id', 'is', null)
+        .in('status', ['pending', 'requested', 'approved', 'manager_approved', 'cfo_approved']);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const pendingByAgent = useMemo(() => {
+    const m = new Map<string, { count: number; ids: string[]; oldestAt: string | null }>();
+    for (const r of pendingClaimRows as any[]) {
+      const id = r.assigned_cashout_agent_id;
+      if (!id) continue;
+      const cur = m.get(id) || { count: 0, ids: [] as string[], oldestAt: null as string | null };
+      cur.count += 1;
+      cur.ids.push(r.id);
+      if (!cur.oldestAt || (r.created_at && r.created_at < cur.oldestAt)) cur.oldestAt = r.created_at;
+      m.set(id, cur);
+    }
+    return m;
+  }, [pendingClaimRows]);
+
   const assignMutation = useMutation({
     mutationFn: async () => {
       if (!pickedAgent) throw new Error('Please select an agent');
@@ -192,12 +221,50 @@ export function CashoutAgentManager() {
     onSuccess: () => {
       toast({ title: '🗑️ Merchant Agent deleted', description: 'Record permanently removed.' });
       qc.invalidateQueries({ queryKey: ['merchant-agents'] });
+      qc.invalidateQueries({ queryKey: ['merchant-agent-active-claims'] });
+      qc.invalidateQueries({ queryKey: ['merchant-agent-active-claims-rows'] });
       if (selectedAgent && deleteAgent && selectedAgent.id === deleteAgent.id) {
         setSelectedAgent(null);
       }
       setDeleteAgent(null);
     },
     onError: (e: any) => toast({ title: 'Delete failed', description: e.message, variant: 'destructive' }),
+  });
+
+  // Release all stuck claims still routed to a merchant — unassigns them so the
+  // open-pool routing can pick them up again. Used to unblock deletion when a
+  // merchant has stale or orphan claims they can't / won't process.
+  const releaseClaimsMutation = useMutation({
+    mutationFn: async (agent: any) => {
+      const info = pendingByAgent.get(agent.id);
+      if (!info || info.count === 0) throw new Error('No active claims to release');
+      const { error } = await supabase
+        .from('withdrawal_requests')
+        .update({ assigned_cashout_agent_id: null, claimed_at: null })
+        .in('id', info.ids);
+      if (error) throw error;
+      await supabase.from('audit_logs').insert({
+        user_id: user!.id,
+        action_type: 'cfo_merchant_agent_claims_released',
+        table_name: 'withdrawal_requests',
+        record_id: agent.id,
+        metadata: {
+          agent_name: agent.profiles?.full_name || agent.agent_id,
+          released_count: info.count,
+          released_ids: info.ids,
+        },
+      });
+    },
+    onSuccess: (_d, agent) => {
+      toast({
+        title: '🔓 Claims released',
+        description: 'Stuck claims returned to the open pool. You can now delete this merchant.',
+      });
+      qc.invalidateQueries({ queryKey: ['merchant-agent-active-claims'] });
+      qc.invalidateQueries({ queryKey: ['merchant-agent-active-claims-rows'] });
+      qc.invalidateQueries({ queryKey: ['cfo-pending-withdrawals'] });
+    },
+    onError: (e: any) => toast({ title: 'Release failed', description: e.message, variant: 'destructive' }),
   });
 
   const updateMutation = useMutation({
@@ -371,7 +438,18 @@ export function CashoutAgentManager() {
             <div className="min-w-0 flex-1">
               <p className="font-bold text-base truncate">{p.full_name || 'Unknown'}</p>
               <p className="text-xs text-muted-foreground truncate">{p.phone} · {selectedAgent.label}</p>
-              <div className="flex flex-wrap gap-1 mt-1">{methodBadges(selectedAgent)}</div>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {methodBadges(selectedAgent)}
+                {(() => {
+                  const pending = pendingByAgent.get(selectedAgent.id);
+                  return pending && pending.count > 0 ? (
+                    <Badge variant="destructive" className="text-[9px] h-4 px-1 gap-0.5">
+                      <Clock className="h-2.5 w-2.5" />
+                      {pending.count} in queue
+                    </Badge>
+                  ) : null;
+                })()}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -512,6 +590,9 @@ export function CashoutAgentManager() {
           setDeleteAgent={setDeleteAgent}
           isPending={deleteMutation.isPending}
           onConfirm={() => deleteAgent && deleteMutation.mutate(deleteAgent)}
+          pendingInfo={deleteAgent ? pendingByAgent.get(deleteAgent.id) || null : null}
+          isReleasing={releaseClaimsMutation.isPending}
+          onRelease={() => deleteAgent && releaseClaimsMutation.mutate(deleteAgent)}
         />
       </div>
     );
@@ -623,6 +704,7 @@ export function CashoutAgentManager() {
             const stats = agentStats.get(a.id) || { count: 0, volume: 0, lastAt: null, todayCount: 0 } as any;
             const sevenDaysAgo = Date.now() - 7 * 24 * 3600 * 1000;
             const isRecent = stats.lastAt && new Date(stats.lastAt).getTime() > sevenDaysAgo;
+            const pending = pendingByAgent.get(a.id);
             return (
               <Card key={a.id} className="hover:bg-muted/40 active:bg-muted transition-colors cursor-pointer" onClick={() => setSelectedAgent(a)}>
                 <CardContent className="p-3 flex items-center gap-3">
@@ -635,7 +717,15 @@ export function CashoutAgentManager() {
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-sm truncate">{a.profiles?.full_name || 'Merchant Agent'}</p>
                     <p className="text-[11px] text-muted-foreground truncate">{a.profiles?.phone} · {a.label || 'Merchant Agent'}</p>
-                    <div className="flex flex-wrap gap-1 mt-1">{methodBadges(a)}</div>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {methodBadges(a)}
+                      {pending && pending.count > 0 && (
+                        <Badge variant="destructive" className="text-[9px] h-4 px-1 gap-0.5" title={`${pending.count} active claim${pending.count === 1 ? '' : 's'} in queue — blocks deletion`}>
+                          <Clock className="h-2.5 w-2.5" />
+                          {pending.count} in queue
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                   <div className="text-right shrink-0">
                     <p className="font-bold text-sm">{formatUGX(stats.volume)}</p>
@@ -689,6 +779,9 @@ export function CashoutAgentManager() {
         setDeleteAgent={setDeleteAgent}
         isPending={deleteMutation.isPending}
         onConfirm={() => deleteAgent && deleteMutation.mutate(deleteAgent)}
+        pendingInfo={deleteAgent ? pendingByAgent.get(deleteAgent.id) || null : null}
+        isReleasing={releaseClaimsMutation.isPending}
+        onRelease={() => deleteAgent && releaseClaimsMutation.mutate(deleteAgent)}
       />
     </div>
   );
@@ -828,14 +921,22 @@ function EditMerchantDialog({
 
 function DeleteMerchantConfirm({
   deleteAgent, setDeleteAgent, isPending, onConfirm,
+  pendingInfo, isReleasing, onRelease,
 }: {
   deleteAgent: any;
   setDeleteAgent: (v: any) => void;
   isPending: boolean;
   onConfirm: () => void;
+  pendingInfo: { count: number; ids: string[]; oldestAt: string | null } | null;
+  isReleasing: boolean;
+  onRelease: () => void;
 }) {
+  const blocked = !!pendingInfo && pendingInfo.count > 0;
+  const oldestDays = pendingInfo?.oldestAt
+    ? Math.floor((Date.now() - new Date(pendingInfo.oldestAt).getTime()) / 86400000)
+    : 0;
   return (
-    <AlertDialog open={!!deleteAgent} onOpenChange={v => { if (!v && !isPending) setDeleteAgent(null); }}>
+    <AlertDialog open={!!deleteAgent} onOpenChange={v => { if (!v && !isPending && !isReleasing) setDeleteAgent(null); }}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Delete Merchant Agent?</AlertDialogTitle>
@@ -844,17 +945,38 @@ function DeleteMerchantConfirm({
             <span className="font-semibold text-foreground">{deleteAgent?.profiles?.full_name || 'this merchant'}</span>{' '}
             from the payout execution network. Their completed payout history is preserved in audit logs,
             but they will no longer appear in routing or assignment.
-            <br /><br />
-            If they have <span className="font-medium">active claims in queue</span>, the deletion will be blocked —
-            reassign or complete those first. Prefer <span className="font-medium">Deactivate</span> if you only
-            want to pause routing.
           </AlertDialogDescription>
         </AlertDialogHeader>
+        {blocked && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-2">
+            <p className="text-sm font-semibold text-destructive flex items-center gap-1.5">
+              <Clock className="h-4 w-4" />
+              {pendingInfo!.count} active claim{pendingInfo!.count === 1 ? '' : 's'} blocking deletion
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {oldestDays > 0
+                ? `Oldest is ${oldestDays} day${oldestDays === 1 ? '' : 's'} old. `
+                : ''}
+              Release them to return the payout{pendingInfo!.count === 1 ? '' : 's'} to the open pool so any other
+              Merchant Agent can pick {pendingInfo!.count === 1 ? 'it' : 'them'} up — then retry deletion.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-1.5"
+              onClick={onRelease}
+              disabled={isReleasing || isPending}
+            >
+              {isReleasing ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+              Release {pendingInfo!.count} stuck claim{pendingInfo!.count === 1 ? '' : 's'} to open pool
+            </Button>
+          </div>
+        )}
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={isPending || isReleasing}>Cancel</AlertDialogCancel>
           <AlertDialogAction
             onClick={(e) => { e.preventDefault(); onConfirm(); }}
-            disabled={isPending}
+            disabled={isPending || isReleasing || blocked}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
             {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
