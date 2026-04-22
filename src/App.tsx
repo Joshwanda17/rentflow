@@ -96,6 +96,7 @@ const RegisterPartnerPublic = lazy(() => import('./pages/RegisterPartnerPublic')
 const ActivatePartner = lazy(() => import('./pages/ActivatePartner'));
 const ResolveShortLink = lazy(() => import('./pages/ResolveShortLink'));
 const TrackedRedirect = lazy(() => import('./pages/TrackedRedirect'));
+const RentAccessLimitPublic = lazy(() => import('./pages/RentAccessLimitPublic'));
 const Unsubscribe = lazy(() => import('./pages/Unsubscribe'));
 const HouseDetail = lazy(() => import('./pages/HouseDetail'));
 const ShopEntry = lazy(() => import('./pages/ShopEntry'));
