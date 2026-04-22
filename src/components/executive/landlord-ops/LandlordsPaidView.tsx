@@ -282,21 +282,21 @@ export function LandlordsPaidView() {
       <div className="grid grid-cols-3 gap-2">
         <Card>
           <CardContent className="p-3">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Total Paid Out</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{tab === 'paid' ? 'Total Paid Out' : 'Total Due Today'}</p>
             <p className="text-base font-bold font-mono mt-1">{formatUGX(totalPaid)}</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">{periodRecords.length} disbursements</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{periodRecords.length} {tab === 'paid' ? 'disbursements' : 'pending payouts'}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-3">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Landlords Paid</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{tab === 'paid' ? 'Landlords Paid' : 'Landlords Awaiting'}</p>
             <p className="text-base font-bold mt-1 flex items-center gap-1"><Users className="h-3.5 w-3.5 text-sky-600" />{landlordsPaidCount}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">{period === 'all' ? 'all time' : `last ${period}`}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-3">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Last 30 days</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Paid · Last 30 days</p>
             <p className="text-base font-bold font-mono mt-1">{formatUGX(last30.total)}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">{last30.count} disbursements</p>
           </CardContent>
@@ -365,7 +365,8 @@ export function LandlordsPaidView() {
                         {g.phone && (
                           <span className="flex items-center gap-0.5"><Phone className="h-3 w-3" />{g.phone}</span>
                         )}
-                        <span>· Last paid {formatDistanceToNow(new Date(g.lastPaidAt), { addSuffix: true })}</span>
+                        <span>· {tab === 'paid' ? 'Last paid' : 'Due'} {format(new Date(g.lastPaidAt), 'dd MMM yyyy')}</span>
+                        <span className="opacity-70">({formatDistanceToNow(new Date(g.lastPaidAt), { addSuffix: true })})</span>
                       </div>
                     </div>
                     <div className="text-right shrink-0">
@@ -385,7 +386,7 @@ export function LandlordsPaidView() {
                     </div>
                   </div>
                   <div className="flex items-center justify-between mt-2 text-[11px] text-muted-foreground">
-                    <span>{g.count} disbursement{g.count === 1 ? '' : 's'}</span>
+                    <span>{g.count} {tab === 'paid' ? 'disbursement' : 'pending payout'}{g.count === 1 ? '' : 's'}</span>
                     {isOpen
                       ? <ChevronDown className="h-4 w-4" />
                       : <ChevronRight className="h-4 w-4" />}
