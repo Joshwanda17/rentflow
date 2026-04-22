@@ -680,3 +680,75 @@ function DetailRow({ icon, label, value }: { icon: React.ReactNode; label: strin
     </div>
   );
 }
+
+function EditMerchantDialog({
+  editAgent, setEditAgent,
+  editLabel, setEditLabel,
+  editHandlesMomo, setEditHandlesMomo,
+  editHandlesBank, setEditHandlesBank,
+  editHandlesCash, setEditHandlesCash,
+  isPending, onSave,
+}: {
+  editAgent: any; setEditAgent: (v: any) => void;
+  editLabel: string; setEditLabel: (v: string) => void;
+  editHandlesMomo: boolean; setEditHandlesMomo: (v: boolean) => void;
+  editHandlesBank: boolean; setEditHandlesBank: (v: boolean) => void;
+  editHandlesCash: boolean; setEditHandlesCash: (v: boolean) => void;
+  isPending: boolean; onSave: () => void;
+}) {
+  const noMethod = !editHandlesCash && !editHandlesBank && !editHandlesMomo;
+  return (
+    <Dialog open={!!editAgent} onOpenChange={v => { if (!v) setEditAgent(null); }}>
+      <DialogContent
+        className="max-w-sm overflow-visible"
+        onInteractOutside={e => e.preventDefault()}
+        onPointerDownOutside={e => e.preventDefault()}
+      >
+        <DialogHeader><DialogTitle>Edit Merchant Agent</DialogTitle></DialogHeader>
+        {editAgent && (
+          <>
+            <p className="text-xs text-muted-foreground">
+              Updating <span className="font-semibold text-foreground">{editAgent.profiles?.full_name || 'this merchant'}</span>.
+              Changes apply immediately to their payout routing capabilities.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <Label>Label / Cluster</Label>
+                <Input
+                  placeholder="e.g. Kampala CBD · Branch 02"
+                  value={editLabel}
+                  onChange={e => setEditLabel(e.target.value)}
+                />
+              </div>
+              <div className="rounded-lg border border-border bg-muted/30 p-2.5 space-y-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Payout Capabilities</p>
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm flex items-center gap-1.5"><Smartphone className="h-3.5 w-3.5" />Mobile Money</Label>
+                  <Switch checked={editHandlesMomo} onCheckedChange={setEditHandlesMomo} />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" />Bank Transfer</Label>
+                  <Switch checked={editHandlesBank} onCheckedChange={setEditHandlesBank} />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm flex items-center gap-1.5"><Banknote className="h-3.5 w-3.5" />Cash Payout</Label>
+                  <Switch checked={editHandlesCash} onCheckedChange={setEditHandlesCash} />
+                </div>
+                {noMethod && (
+                  <p className="text-[11px] text-destructive">Enable at least one method.</p>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setEditAgent(null)}>Cancel</Button>
+                <Button className="flex-1" onClick={onSave} disabled={isPending || noMethod}>
+                  {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Save Changes
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
