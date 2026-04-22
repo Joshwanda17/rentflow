@@ -12,9 +12,13 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Banknote, UserPlus, Loader2, XCircle, Building2, Smartphone, Phone, Mail, MapPin,
   CreditCard, Calendar, Shield, Wallet, Users, TrendingUp, ArrowLeft, Search, CheckCircle2, Clock,
-  Network, Activity, Zap, Pencil,
+  Network, Activity, Zap, Pencil, Trash2,
 } from 'lucide-react';
 import { UserSearchPicker } from './UserSearchPicker';
 import { CashoutPendingWithdrawalsDialog } from './CashoutPendingWithdrawalsDialog';
@@ -53,6 +57,9 @@ export function CashoutAgentManager() {
   const [editHandlesCash, setEditHandlesCash] = useState(true);
   const [editHandlesBank, setEditHandlesBank] = useState(true);
   const [editHandlesMomo, setEditHandlesMomo] = useState(true);
+
+  // Delete confirmation state
+  const [deleteAgent, setDeleteAgent] = useState<any>(null);
 
   const openEdit = (a: any) => {
     setEditAgent(a);
@@ -151,6 +158,46 @@ export function CashoutAgentManager() {
       toast({ title: 'Merchant Agent removed' });
       qc.invalidateQueries({ queryKey: ['merchant-agents'] });
     },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (agent: any) => {
+      // Block delete if there are active claims still routed to this merchant
+      const { count, error: countError } = await supabase
+        .from('withdrawal_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('assigned_cashout_agent_id', agent.id)
+        .in('status', ['pending', 'requested', 'approved', 'manager_approved', 'cfo_approved']);
+      if (countError) throw countError;
+      if ((count || 0) > 0) {
+        throw new Error(`Cannot delete: ${count} active payout claim${count === 1 ? '' : 's'} still routed to this merchant. Reassign or complete them first.`);
+      }
+      const { error } = await supabase.from('cashout_agents').delete().eq('id', agent.id);
+      if (error) throw error;
+      await supabase.from('audit_logs').insert({
+        user_id: user!.id,
+        action_type: 'cfo_merchant_agent_deleted',
+        table_name: 'cashout_agents',
+        record_id: agent.id,
+        metadata: {
+          agent_name: agent.profiles?.full_name || agent.agent_id,
+          label: agent.label,
+          handles_cash: agent.handles_cash,
+          handles_bank: agent.handles_bank,
+          handles_mtn: agent.handles_mtn,
+          handles_airtel: agent.handles_airtel,
+        },
+      });
+    },
+    onSuccess: () => {
+      toast({ title: '🗑️ Merchant Agent deleted', description: 'Record permanently removed.' });
+      qc.invalidateQueries({ queryKey: ['merchant-agents'] });
+      if (selectedAgent && deleteAgent && selectedAgent.id === deleteAgent.id) {
+        setSelectedAgent(null);
+      }
+      setDeleteAgent(null);
+    },
+    onError: (e: any) => toast({ title: 'Delete failed', description: e.message, variant: 'destructive' }),
   });
 
   const updateMutation = useMutation({
@@ -432,8 +479,11 @@ export function CashoutAgentManager() {
               <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => openEdit(selectedAgent)}>
                 <Pencil className="h-4 w-4" /> Edit
               </Button>
-              <Button variant="destructive" size="sm" className="flex-1 gap-1.5" onClick={() => { deactivateMutation.mutate(selectedAgent.id); setSelectedAgent(null); }}>
-                <XCircle className="h-4 w-4" /> Remove
+              <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => { deactivateMutation.mutate(selectedAgent.id); setSelectedAgent(null); }}>
+                <XCircle className="h-4 w-4" /> Deactivate
+              </Button>
+              <Button variant="destructive" size="sm" className="flex-1 gap-1.5" onClick={() => setDeleteAgent(selectedAgent)}>
+                <Trash2 className="h-4 w-4" /> Delete
               </Button>
             </div>
           </TabsContent>
@@ -455,6 +505,13 @@ export function CashoutAgentManager() {
           setEditHandlesCash={setEditHandlesCash}
           isPending={updateMutation.isPending}
           onSave={() => updateMutation.mutate()}
+        />
+
+        <DeleteMerchantConfirm
+          deleteAgent={deleteAgent}
+          setDeleteAgent={setDeleteAgent}
+          isPending={deleteMutation.isPending}
+          onConfirm={() => deleteAgent && deleteMutation.mutate(deleteAgent)}
         />
       </div>
     );
@@ -594,6 +651,15 @@ export function CashoutAgentManager() {
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                    onClick={(e) => { e.stopPropagation(); setDeleteAgent(a); }}
+                    title="Delete Merchant Agent"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
                 </CardContent>
               </Card>
             );
@@ -616,6 +682,13 @@ export function CashoutAgentManager() {
         setEditHandlesCash={setEditHandlesCash}
         isPending={updateMutation.isPending}
         onSave={() => updateMutation.mutate()}
+      />
+
+      <DeleteMerchantConfirm
+        deleteAgent={deleteAgent}
+        setDeleteAgent={setDeleteAgent}
+        isPending={deleteMutation.isPending}
+        onConfirm={() => deleteAgent && deleteMutation.mutate(deleteAgent)}
       />
     </div>
   );
@@ -750,5 +823,45 @@ function EditMerchantDialog({
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function DeleteMerchantConfirm({
+  deleteAgent, setDeleteAgent, isPending, onConfirm,
+}: {
+  deleteAgent: any;
+  setDeleteAgent: (v: any) => void;
+  isPending: boolean;
+  onConfirm: () => void;
+}) {
+  return (
+    <AlertDialog open={!!deleteAgent} onOpenChange={v => { if (!v && !isPending) setDeleteAgent(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete Merchant Agent?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will <span className="font-semibold text-destructive">permanently remove</span>{' '}
+            <span className="font-semibold text-foreground">{deleteAgent?.profiles?.full_name || 'this merchant'}</span>{' '}
+            from the payout execution network. Their completed payout history is preserved in audit logs,
+            but they will no longer appear in routing or assignment.
+            <br /><br />
+            If they have <span className="font-medium">active claims in queue</span>, the deletion will be blocked —
+            reassign or complete those first. Prefer <span className="font-medium">Deactivate</span> if you only
+            want to pause routing.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={(e) => { e.preventDefault(); onConfirm(); }}
+            disabled={isPending}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+            Delete Permanently
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
