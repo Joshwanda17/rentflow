@@ -658,6 +658,48 @@ export function TenantAgentLinker() {
                 <p className="text-[11px] text-muted-foreground italic">
                   Reason: "{transferReason.trim()}"
                 </p>
+
+                <div className="rounded-md border bg-muted/30 p-2 text-xs space-y-1">
+                  <div className="flex items-center gap-1.5 font-semibold text-[11px] uppercase tracking-wide text-muted-foreground">
+                    <MapPin className="h-3 w-3" />
+                    Location context
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Tenant last seen</span>
+                    <span className="font-medium">
+                      {tenantLastLoc
+                        ? `${tenantLastLoc.city || `${Number(tenantLastLoc.latitude).toFixed(3)}, ${Number(tenantLastLoc.longitude).toFixed(3)}`} · ${formatRelativeTime(tenantLastLoc.captured_at)}`
+                        : '—'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">New agent last seen</span>
+                    <span className="font-medium">
+                      {agentLastLoc
+                        ? `${agentLastLoc.city || `${Number(agentLastLoc.latitude).toFixed(3)}, ${Number(agentLastLoc.longitude).toFixed(3)}`} · ${formatRelativeTime(agentLastLoc.captured_at)}`
+                        : '—'}
+                    </span>
+                  </div>
+                  {tenantAgentDistanceKm !== null && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Approx. distance</span>
+                      <span className="font-medium">
+                        {tenantAgentDistanceKm < 1
+                          ? `${Math.round(tenantAgentDistanceKm * 1000)} m`
+                          : `${tenantAgentDistanceKm.toFixed(1)} km`}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {lastActorStatus && (
+                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <MapPin className="h-3 w-3" />
+                    {lastActorStatus === 'captured'
+                      ? `Your location captured${lastActorAccuracy ? ` (±${Math.round(lastActorAccuracy)} m)` : ''}`
+                      : `Your location ${lastActorStatus} — proceeding without geo`}
+                  </div>
+                )}
               </div>
             );
           })()}
