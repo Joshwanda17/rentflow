@@ -660,16 +660,16 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                         <p
                           className="font-semibold text-base truncate text-primary underline underline-offset-2 cursor-pointer"
                           onClick={(e) => { e.stopPropagation(); setProfileTenantId(tenant.id); }}
-                        >{tenant.full_name}</p>
+                        ><Highlight text={tenant.full_name} query={search} /></p>
                         <p className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
                           <Phone className="h-3 w-3" />
-                          {tenant.phone}
+                          <Highlight text={tenant.phone} query={search} />
                         </p>
                         {/* AI ID + risk tier chips (also reflect active risk filter) */}
                         {tenantMeta[tenant.id] && (
                           <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                             <span className="text-[10px] font-mono font-semibold text-muted-foreground bg-muted/60 rounded-md px-1.5 py-0.5">
-                              {tenantMeta[tenant.id].aiId}
+                              <Highlight text={tenantMeta[tenant.id].aiId} query={search} />
                             </span>
                             <Popover>
                               <PopoverTrigger asChild>
