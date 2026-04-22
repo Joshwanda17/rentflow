@@ -139,7 +139,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const { refreshEarnings, totalEarnings } = useAgentEarnings();
   const { wallet, refreshWallet } = useWallet();
   const { commissionBalance, withdrawableBalance, refetch: refreshBalances } = useAgentBalances();
-  const { floatBalance: operationalFloatBalance } = useAgentLandlordFloat();
+  const { floatBalance: walletFloatBalance } = useAgentBalances();
+  // Kept for the lower AgentLandlordFloatCard / sheets (CFO escrow, NOT the wallet float)
+  const { floatBalance: landlordPayoutFloat } = useAgentLandlordFloat();
   const { isOnline } = useOffline();
   
   const { 
@@ -316,9 +318,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         {/* Wallet Hero Card — always visible */}
         <UnifiedWalletHeroCard
-          balance={operationalFloatBalance + commissionBalance}
+          balance={walletFloatBalance + commissionBalance}
           role="agent"
-          floatBalance={operationalFloatBalance}
+          floatBalance={walletFloatBalance}
           commissionBalance={commissionBalance}
           withdrawableBalance={realWithdrawableBalance}
           onOpenWallet={() => setShowWallet(true)}
