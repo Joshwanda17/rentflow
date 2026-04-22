@@ -480,6 +480,48 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               );
             })}
           </div>
+
+          {/* Sort bar — tap to set, tap active to flip direction */}
+          <div className="flex items-center gap-2 overflow-x-auto -mx-1 px-1 pb-0.5 scrollbar-hide">
+            <div className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0 pr-1">
+              <ArrowUpDown className="h-3.5 w-3.5" />
+              Sort
+            </div>
+            {([
+              { key: 'risk', label: 'Risk' },
+              { key: 'aiId', label: 'AI ID' },
+              { key: 'property', label: 'Property' },
+              { key: 'balance', label: 'Owing' },
+            ] as const).map(opt => {
+              const isActive = sortKey === opt.key;
+              const Arrow = sortDir === 'asc' ? ArrowUp : ArrowDown;
+              return (
+                <button
+                  key={opt.key}
+                  onClick={() => {
+                    if (sortKey === opt.key) {
+                      setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
+                    } else {
+                      setSortKey(opt.key);
+                      // Sensible defaults per column
+                      setSortDir(opt.key === 'aiId' || opt.key === 'property' ? 'asc' : 'desc');
+                    }
+                  }}
+                  className={`shrink-0 h-9 px-3 rounded-full text-xs font-semibold transition-all border inline-flex items-center gap-1 ${
+                    isActive
+                      ? 'border-foreground/20 ring-1 ring-foreground/10 bg-primary/15 text-primary'
+                      : 'border-transparent bg-muted text-muted-foreground opacity-80 hover:opacity-100'
+                  }`}
+                  style={{ touchAction: 'manipulation', minHeight: '36px' }}
+                  aria-pressed={isActive}
+                  aria-label={`Sort by ${opt.label}${isActive ? ` (${sortDir === 'asc' ? 'ascending' : 'descending'})` : ''}`}
+                >
+                  {opt.label}
+                  {isActive && <Arrow className="h-3 w-3" />}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* ───── Tenant List ───── */}
