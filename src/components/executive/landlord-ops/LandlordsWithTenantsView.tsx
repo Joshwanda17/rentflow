@@ -12,7 +12,7 @@ import {
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
 
-type StatusFilter = 'all' | 'paid' | 'pending';
+type StatusFilter = 'all' | 'paid' | 'pending' | 'empty';
 
 const PAID_STATUSES = new Set(['funded', 'disbursed', 'repaying', 'completed']);
 const PENDING_STATUSES = new Set([
@@ -62,62 +62,97 @@ export function LandlordsWithTenantsView() {
   const { data, isLoading } = useQuery({
     queryKey: ['landlord-ops-landlords-tenants'],
     queryFn: async () => {
-      // 1. All rent_requests (paid + pending only — exclude rejected)
-      const { data: rrs, error: rrErr } = await supabase
-        .from('rent_requests')
-        .select('id, tenant_id, landlord_id, rent_amount, status, created_at')
-        .order('created_at', { ascending: false })
-        .limit(1000);
-      if (rrErr) throw rrErr;
-
-      const rentRows = (rrs || []) as unknown as RentRow[];
-      const validRows = rentRows.filter(r => classify(r.status) !== null);
-
-      // 2. Landlords lookup
-      const landlordIds = Array.from(new Set(validRows.map(r => r.landlord_id).filter(Boolean) as string[]));
-      const landlordMap = new Map<string, { id: string; name: string; phone: string | null }>();
-      for (let i = 0; i < landlordIds.length; i += 200) {
-        const { data: ll } = await supabase
+      // 1. ALL landlords (paginated — 325+ records)
+      const PAGE = 1000;
+      const allLandlords: { id: string; name: string; phone: string | null; tenant_id: string | null; monthly_rent: number | null }[] = [];
+      let offset = 0;
+      let more = true;
+      while (more) {
+        const { data: ll, error } = await supabase
           .from('landlords')
-          .select('id, name, phone')
-          .in('id', landlordIds.slice(i, i + 200));
-        for (const l of ll || []) landlordMap.set(l.id, l);
+          .select('id, name, phone, tenant_id, monthly_rent')
+          .order('created_at', { ascending: false })
+          .range(offset, offset + PAGE - 1);
+        if (error) throw error;
+        if (ll && ll.length > 0) {
+          allLandlords.push(...(ll as any));
+          offset += PAGE;
+          more = ll.length === PAGE;
+        } else {
+          more = false;
+        }
+      }
+      const landlordMap = new Map<string, { id: string; name: string; phone: string | null }>();
+      allLandlords.forEach(l => landlordMap.set(l.id, { id: l.id, name: l.name, phone: l.phone }));
+
+      // 2. ALL rent_requests (paginated — for tenant + status data)
+      const allRR: RentRow[] = [];
+      offset = 0;
+      more = true;
+      while (more) {
+        const { data: rrs, error } = await supabase
+          .from('rent_requests')
+          .select('id, tenant_id, landlord_id, rent_amount, status, created_at')
+          .order('created_at', { ascending: false })
+          .range(offset, offset + PAGE - 1);
+        if (error) throw error;
+        if (rrs && rrs.length > 0) {
+          allRR.push(...(rrs as any));
+          offset += PAGE;
+          more = rrs.length === PAGE;
+        } else {
+          more = false;
+        }
+      }
+      const validRows = allRR.filter(r => classify(r.status) !== null);
+
+      // 3. House-listing tenant linkage (landlord_id -> tenant_id) — covers landlords with tenants but no rent_request yet
+      const landlordIds = allLandlords.map(l => l.id);
+      const houseLinks: { landlord_id: string; tenant_id: string }[] = [];
+      for (let i = 0; i < landlordIds.length; i += 200) {
+        const { data: hl } = await supabase
+          .from('house_listings')
+          .select('landlord_id, tenant_id')
+          .in('landlord_id', landlordIds.slice(i, i + 200))
+          .not('tenant_id', 'is', null);
+        if (hl) houseLinks.push(...(hl as any));
       }
 
-      // 3. Tenant profiles lookup
-      const tenantIds = Array.from(new Set(validRows.map(r => r.tenant_id).filter(Boolean)));
+      // 4. Tenant profiles for everything we have so far
+      const tenantIds = new Set<string>();
+      validRows.forEach(r => r.tenant_id && tenantIds.add(r.tenant_id));
+      houseLinks.forEach(h => h.tenant_id && tenantIds.add(h.tenant_id));
+      allLandlords.forEach(l => l.tenant_id && tenantIds.add(l.tenant_id));
       const tenantMap = new Map<string, { id: string; full_name: string | null; phone: string | null }>();
-      for (let i = 0; i < tenantIds.length; i += 200) {
+      const tIdArr = [...tenantIds];
+      for (let i = 0; i < tIdArr.length; i += 200) {
         const { data: tt } = await supabase
           .from('profiles')
           .select('id, full_name, phone')
-          .in('id', tenantIds.slice(i, i + 200));
+          .in('id', tIdArr.slice(i, i + 200));
         for (const t of tt || []) tenantMap.set(t.id, t as any);
       }
 
-      // 4. Orphan tenants: tenants from profiles with tenant role/status but no resolved landlord
-      const { data: orphanProfiles } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone, monthly_rent')
-        .eq('tenant_status', 'active')
-        .limit(1000);
-
-      return { validRows, landlordMap, tenantMap, orphanProfiles: orphanProfiles || [] };
+      return { allLandlords, validRows, landlordMap, tenantMap, houseLinks };
     },
     staleTime: 60_000,
   });
 
   const groups: LandlordGroup[] = useMemo(() => {
     if (!data) return [];
-    const { validRows, landlordMap, tenantMap, orphanProfiles } = data;
+    const { allLandlords, validRows, landlordMap, tenantMap, houseLinks } = data;
 
-    // Group: landlord_id -> tenant_id -> aggregated tenant row
+    // Initialize bucket for EVERY landlord (so all 325+ appear, even without tenants)
     const map = new Map<string, Map<string, TenantRow>>();
+    for (const l of allLandlords) {
+      map.set(l.id, new Map());
+    }
+    map.set('__none__', new Map());
+
+    // 1. Add tenants from rent_requests (with status + amount)
     for (const r of validRows) {
       const status = classify(r.status)!;
-      // If landlord_id doesn't resolve to a known landlord, treat as no-landlord
       const lkey = r.landlord_id && landlordMap.has(r.landlord_id) ? r.landlord_id : '__none__';
-      if (!map.has(lkey)) map.set(lkey, new Map());
       const tenantBucket = map.get(lkey)!;
       const t = tenantMap.get(r.tenant_id);
       const amt = Number(r.rent_amount ?? 0);
@@ -125,7 +160,6 @@ export function LandlordsWithTenantsView() {
       if (existing) {
         existing.amount += amt;
         existing.requestCount += 1;
-        // latest status wins
         if (new Date(r.created_at) > new Date(existing.latestAt)) {
           existing.latestAt = r.created_at;
           existing.status = status;
@@ -143,26 +177,39 @@ export function LandlordsWithTenantsView() {
       }
     }
 
-    // Add orphan tenants (active tenants in profiles with no rent_request at all) to no-landlord bucket
-    const seenTenants = new Set<string>();
-    for (const bucket of map.values()) {
-      for (const tid of bucket.keys()) seenTenants.add(tid);
+    // 2. Add tenants from house_listings (no rent_request yet → pending, amount 0)
+    for (const h of houseLinks) {
+      if (!h.landlord_id || !h.tenant_id) continue;
+      const lkey = landlordMap.has(h.landlord_id) ? h.landlord_id : '__none__';
+      const tenantBucket = map.get(lkey)!;
+      if (tenantBucket.has(h.tenant_id)) continue; // already from rent_requests
+      const t = tenantMap.get(h.tenant_id);
+      tenantBucket.set(h.tenant_id, {
+        tenant_id: h.tenant_id,
+        name: t?.full_name || 'Unknown Tenant',
+        phone: t?.phone || null,
+        amount: 0,
+        status: 'pending',
+        latestAt: new Date(0).toISOString(),
+        requestCount: 0,
+      });
     }
-    if (orphanProfiles.length > 0) {
-      if (!map.has('__none__')) map.set('__none__', new Map());
-      const noneBucket = map.get('__none__')!;
-      for (const p of orphanProfiles) {
-        if (seenTenants.has(p.id)) continue;
-        noneBucket.set(p.id, {
-          tenant_id: p.id,
-          name: (p as any).full_name || 'Unknown Tenant',
-          phone: (p as any).phone || null,
-          amount: Number((p as any).monthly_rent || 0),
-          status: 'pending',
-          latestAt: new Date(0).toISOString(),
-          requestCount: 0,
-        });
-      }
+
+    // 3. Add tenants from landlords.tenant_id direct linkage
+    for (const l of allLandlords) {
+      if (!l.tenant_id) continue;
+      const tenantBucket = map.get(l.id)!;
+      if (tenantBucket.has(l.tenant_id)) continue;
+      const t = tenantMap.get(l.tenant_id);
+      tenantBucket.set(l.tenant_id, {
+        tenant_id: l.tenant_id,
+        name: t?.full_name || 'Unknown Tenant',
+        phone: t?.phone || null,
+        amount: Number(l.monthly_rent || 0),
+        status: 'pending',
+        latestAt: new Date(0).toISOString(),
+        requestCount: 0,
+      });
     }
 
     const out: LandlordGroup[] = [];
@@ -175,6 +222,7 @@ export function LandlordsWithTenantsView() {
       const totalAmount = tenants.reduce((s, t) => s + t.amount, 0);
 
       if (lkey === '__none__') {
+        if (tenants.length === 0) continue; // skip empty no-landlord bucket
         out.push({
           landlord_id: null,
           name: 'No Landlord Linked',
@@ -192,10 +240,13 @@ export function LandlordsWithTenantsView() {
       }
     }
 
-    // sort: linked landlords by tenant count desc, no-landlord bucket last
+    // sort: landlords with tenants first (by paid count desc, then tenant count desc), empty landlords next, no-landlord last
     return out.sort((a, b) => {
       if (a.landlord_id === null) return 1;
       if (b.landlord_id === null) return -1;
+      if (a.tenants.length === 0 && b.tenants.length > 0) return 1;
+      if (b.tenants.length === 0 && a.tenants.length > 0) return -1;
+      if (b.paidCount !== a.paidCount) return b.paidCount - a.paidCount;
       return b.tenants.length - a.tenants.length;
     });
   }, [data]);
@@ -204,10 +255,14 @@ export function LandlordsWithTenantsView() {
     const q = search.trim().toLowerCase();
     return groups
       .map(g => {
-        // filter tenants by status
+        // filter by status
         let tenants = g.tenants;
-        if (statusFilter !== 'all') {
+        if (statusFilter === 'empty') {
+          // only landlords with no tenants
+          if (g.tenants.length > 0) return null;
+        } else if (statusFilter === 'paid' || statusFilter === 'pending') {
           tenants = tenants.filter(t => t.status === statusFilter);
+          if (tenants.length === 0) return null;
         }
         // filter by search across landlord & tenant
         if (q) {
@@ -219,9 +274,9 @@ export function LandlordsWithTenantsView() {
               t.name.toLowerCase().includes(q) ||
               (t.phone || '').toLowerCase().includes(q)
             );
+            if (tenants.length === 0 && g.tenants.length > 0) return null;
           }
         }
-        if (tenants.length === 0) return null;
         const paidCount = tenants.filter(t => t.status === 'paid').length;
         const pendingCount = tenants.filter(t => t.status === 'pending').length;
         const totalAmount = tenants.reduce((s, t) => s + t.amount, 0);
@@ -233,9 +288,11 @@ export function LandlordsWithTenantsView() {
   // KPIs over unfiltered groups
   const kpis = useMemo(() => {
     const linkedLandlords = groups.filter(g => g.landlord_id !== null).length;
+    const emptyLandlords = groups.filter(g => g.landlord_id !== null && g.tenants.length === 0).length;
     const allTenants = groups.flatMap(g => g.tenants);
     return {
       landlords: linkedLandlords,
+      empty: emptyLandlords,
       tenants: allTenants.length,
       paid: allTenants.filter(t => t.status === 'paid').length,
       pending: allTenants.filter(t => t.status === 'pending').length,
@@ -254,7 +311,7 @@ export function LandlordsWithTenantsView() {
       </h2>
 
       {/* KPIs */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-5 gap-2">
         <Card>
           <CardContent className="p-3">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Landlords</p>
@@ -279,6 +336,12 @@ export function LandlordsWithTenantsView() {
             <p className="text-base font-bold mt-1 text-amber-600">{kpis.pending}</p>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="p-3">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Empty</p>
+            <p className="text-base font-bold mt-1 text-muted-foreground">{kpis.empty}</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filters */}
@@ -293,7 +356,7 @@ export function LandlordsWithTenantsView() {
           />
         </div>
         <div className="flex gap-1 overflow-x-auto pb-1">
-          {(['all', 'paid', 'pending'] as StatusFilter[]).map(s => (
+          {(['all', 'paid', 'pending', 'empty'] as StatusFilter[]).map(s => (
             <Button
               key={s}
               size="sm"
@@ -301,7 +364,7 @@ export function LandlordsWithTenantsView() {
               onClick={() => setStatusFilter(s)}
               className="text-xs h-8 shrink-0"
             >
-              {s === 'all' ? 'All' : s === 'paid' ? '✓ Paid only' : '⏳ Pending only'}
+              {s === 'all' ? 'All' : s === 'paid' ? '✓ Paid only' : s === 'pending' ? '⏳ Pending only' : '🏚 Empty only'}
             </Button>
           ))}
         </div>
@@ -377,6 +440,14 @@ export function LandlordsWithTenantsView() {
                         <AlertTriangle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
                         <p className="text-[11px] text-amber-800 dark:text-amber-300">
                           These tenants don't have a landlord on file. Reach out and link them to fix attribution.
+                        </p>
+                      </div>
+                    )}
+                    {!isNoLandlord && g.tenants.length === 0 && (
+                      <div className="flex items-start gap-2 p-3 rounded bg-muted/40 border border-dashed border-muted-foreground/30">
+                        <UserX className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                        <p className="text-[11px] text-muted-foreground">
+                          No tenants linked to this landlord yet. Use Tenant Matching to attach a tenant.
                         </p>
                       </div>
                     )}
