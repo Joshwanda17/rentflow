@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useWalletRealtime } from '@/hooks/useWalletRealtime';
 
 export interface AgentSplitBalances {
   withdrawableBalance: number;
@@ -14,6 +15,9 @@ export interface AgentSplitBalances {
 export function useAgentBalances(agentId?: string) {
   const { user } = useAuth();
   const effectiveId = agentId || user?.id;
+
+  // Live-update balances the moment wallets / deductions / ledger change for this user.
+  useWalletRealtime(effectiveId);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['agent-split-balances', effectiveId],

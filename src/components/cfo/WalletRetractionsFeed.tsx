@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useWalletRealtime } from '@/hooks/useWalletRealtime';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -23,6 +24,9 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 export function WalletRetractionsFeed({ compact = false }: WalletRetractionsFeedProps) {
   const [filterRetractions, setFilterRetractions] = useState(false);
+
+  // Refresh feed instantly whenever a wallet deduction is inserted/updated anywhere.
+  useWalletRealtime(undefined, [['cfo-wallet-deductions', filterRetractions] as unknown as string[]]);
 
   const { data: deductions, isLoading } = useQuery({
     queryKey: ['cfo-wallet-deductions', filterRetractions],
