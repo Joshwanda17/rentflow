@@ -1,91 +1,46 @@
 
 
-## Add "Landlords Paid" View to Landlord Ops
+## Process Akampurira Onesmus's UGX 281,000 Withdrawal
 
-A new navigation card on the Landlord Ops dashboard letting operators see which landlords have been paid (via tenant rent disbursements), how much, and drill down per landlord.
+You've decided the CFO retractions were correct AND now want to process the withdrawal anyway. To do this safely, I need to **first credit real money back into his withdrawable bucket** via a balanced ledger entry, then approve the withdrawal so it pays out and posts the standard cash-out legs.
 
-### Where it goes
+### What I'll do
 
-New card in the Landlord Ops home grid (`src/components/executive/LandlordOpsDashboard.tsx`), placed in the priority section right under "All Landlords" / above "Locations":
+**Step 1 — Reopen the rejected request**
+Withdrawal `5b928ff5` was marked `rejected` earlier. Flip it back to `pending` so the standard `approve-withdrawal` pipeline can process it.
 
-```
-┌─────────────────────────────────────────────┐
-│ 💸 Landlords Paid                    [9 →]  │
-│    Disbursements from tenant rent           │
-└─────────────────────────────────────────────┘
-```
+**Step 2 — Credit UGX 281,000 to his withdrawable bucket (manager override)**
+Post a balanced ledger pair via `create_ledger_transaction`:
 
-### What the view shows
-
-**Top KPI bar (3 cards):**
-- Total Paid Out · `UGX 1,350,000`
-- Landlords Paid · `9`
-- Last 30 days · `UGX X · Y disbursements`
-
-**Search + filter row:**
-- Search by landlord name / phone
-- Period filter: All · 30d · 7d · Today
-- Confirmation filter: All · Agent confirmed · Pending
-
-**Landlord list** (one row per landlord, sorted by total paid desc):
-
-```
-┌──────────────────────────────────────────────────────┐
-│ NAKATO MARY                       UGX 450,000   ✓ 3  │
-│ 0772-xxx · MoMo · Last paid 2d ago                   │
-│ 3 disbursements · 2 confirmed · 1 pending      ▸    │
-└──────────────────────────────────────────────────────┘
+```text
+Leg A: cash_in  / manual_credit  / scope=wallet    / user=Akampurira  / +281,000
+Leg B: cash_out / manual_credit  / scope=platform  /                  / -281,000
 ```
 
-Tap a row → expands to show each individual disbursement (amount, date, payout method, transaction ref, agent-receipt confirmation with GPS link + photo count). Same visual language as `LandlordPaymentHistory.tsx`.
+- Category: `manual_credit` (allowlisted, used for CFO/manager top-ups).
+- Description: `Manager override — fund approved withdrawal 5b928ff5 after CFO retraction reconciliation`.
+- Then run `recompute_wallet_buckets(<user_id>)` so `withdrawable_balance` reflects the credit.
 
-### Data source
+**Step 3 — Approve the withdrawal through the normal pipeline**
+Set `withdrawal_requests.5b928ff5` → `status='approved'`, `approved_by=<current admin>`, `approved_at=now()`, `rejection_reason=NULL`. The existing `approve-withdrawal` triggers will post the standard cash-out legs (`withdrawal` category, wallet→platform), decrement the withdrawable bucket back to 0, and queue the payout.
 
-Single client-side `useQuery` against `disbursement_records` joined to `landlords` and `agent_delivery_confirmations`. No new tables, no edge function, no new RLS (Landlord Ops staff already have read access).
+**Step 4 — Audit trail**
+Insert into `audit_logs`:
+- `action_type = 'withdrawal_force_approved_after_retraction'`
+- `record_id = 5b928ff5...`
+- `metadata`: previous CFO retraction total (3,191,100), manual credit amount (281,000), reason ("Operator approved payout despite negative ledger; manual credit posted to make whole").
 
-```ts
-// Fetch all disbursements + landlords + delivery confirmations
-const { data: disbursements } = await supabase
-  .from('disbursement_records')
-  .select('*, landlord:landlords(id, name, phone, mobile_money_number)')
-  .order('disbursed_at', { ascending: false });
+### Net effect on the books
 
-const { data: confs } = await supabase
-  .from('agent_delivery_confirmations')
-  .select('*')
-  .in('disbursement_id', disbursementIds);
+| Bucket | Before | After credit | After withdrawal |
+|---|---|---|---|
+| Withdrawable | 0 | 281,000 | 0 |
+| Float (phantom) | 1,908,200 | 1,908,200 | 1,908,200 |
+| Ledger net | -707,500 | -426,500 | -707,500 |
 
-// Group in JS by landlord_id → {total, count, confirmedCount, lastPaidAt, records[]}
-```
+The phantom float drift remains — that's a separate wallet-repair task. This plan only handles the one withdrawal you've authorized.
 
-`staleTime: 60_000` to match the existing pattern in `LandlordPaymentHistory.tsx`.
+### Risk callout
 
-### Files touched
-
-1. **NEW** `src/components/executive/landlord-ops/LandlordsPaidView.tsx` (~250 lines)
-   - Self-contained view, internal `useQuery(['landlord-ops-paid-landlords'])`
-   - KPI bar, search + period + confirmation filters
-   - Expandable landlord rows reusing the disbursement detail markup from `LandlordPaymentHistory.tsx`
-   - Reuses `formatUGX`, `Card`, `Badge`, `Input`, `Button` from existing UI kit
-
-2. **EDIT** `src/components/executive/LandlordOpsDashboard.tsx`
-   - Add `'landlords-paid'` to the `View` union type
-   - Add nav-card entry with `Banknote` icon, label "Landlords Paid", subtitle "Disbursements from tenant rent", positioned right under "All Landlords"
-   - Add `view === 'landlords-paid'` branch that renders `<LandlordsPaidView />` with the existing `<BackButton />` pattern
-   - Show badge count = number of paid landlords (lightweight count query)
-
-### Acceptance
-
-1. Landlord Ops home → tap "Landlords Paid" → see all paid landlords sorted by total, KPI totals match the sum.
-2. Tap a landlord row → expanded panel shows each disbursement with amount, date, method, ref, and agent-confirmation badge (GPS link + photo count where present).
-3. Period filter "Last 30 days" → list and KPIs recompute to that window.
-4. Search "Nakato" → filters to matching name/phone.
-5. Confirmation filter "Pending" → only landlords with at least one unconfirmed disbursement.
-6. Back arrow returns to the Landlord Ops home grid.
-
-### Out of scope
-
-- Editing/refunding a disbursement (already in `LandlordOpsPayoutReview`).
-- Landlord-side WhatsApp confirmation flow.
-- CSV export (can follow later via the data-export protocol).
+You earlier confirmed the CFO retractions were correct, meaning Akampurira's real entitlement is UGX 0. Approving this withdrawal means **Welile is paying UGX 281,000 of platform cash to a user whose ledger shows no balance**. The `manual_credit` posting makes this auditable — it's a deliberate operator override, not a bug. If you'd rather not take that loss, say so and I'll stop after Step 1.
 
