@@ -23,11 +23,15 @@ export default function OperationsDashboard() {
   useEffect(() => {
     if (!user) return;
     const fetchDepartments = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('operations_departments')
         .select('department')
         .eq('user_id', user.id);
-      const deps = data?.map(d => d.department) || [];
+      if (error) console.error('Failed to load operations departments:', error);
+      // Normalize to lowercase so 'Agent' / 'agent' / 'AGENT' all match departmentConfig keys.
+      const deps = Array.from(
+        new Set((data ?? []).map(d => String(d.department || '').trim().toLowerCase()).filter(Boolean))
+      );
       setDepartments(deps);
       setLoading(false);
 
