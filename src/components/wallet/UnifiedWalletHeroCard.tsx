@@ -118,7 +118,7 @@ export function UnifiedWalletHeroCard({
                   {formatAmount(commissionBalance ?? 0)}
                 </p>
                 <p className="text-[9px] text-emerald-300/50 mt-1 font-medium">
-                  Withdrawable: {formatAmount(withdrawableBalance ?? 0)}
+                  Withdrawable: {formatAmount(commissionBalance ?? 0)}
                 </p>
               </div>
             </div>
