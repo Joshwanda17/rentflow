@@ -260,7 +260,10 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
         .from('operations_departments')
         .select('department')
         .eq('user_id', user.id);
-      setOperationsDepartments((data || []).map(d => d.department));
+      // Normalize to lowercase to match the canonical keys used by the Operations Dashboard router.
+      setOperationsDepartments(
+        (data || []).map(d => String(d.department || '').trim().toLowerCase())
+      );
     } catch (e) {
       console.error('Error fetching ops departments:', e);
     }
@@ -269,20 +272,23 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
   const handleToggleOperationsDept = async (dept: string) => {
     if (!user) return;
     setTogglingDept(dept);
+    const key = dept.toLowerCase();
     try {
-      if (operationsDepartments.includes(dept)) {
-        await supabase
+      if (operationsDepartments.includes(key)) {
+        const { error } = await supabase
           .from('operations_departments')
           .delete()
           .eq('user_id', user.id)
-          .eq('department', dept);
-        setOperationsDepartments(prev => prev.filter(d => d !== dept));
+          .eq('department', key);
+        if (error) throw error;
+        setOperationsDepartments(prev => prev.filter(d => d !== key));
         toast.success(`Removed ${dept} department`);
       } else {
-        await supabase
+        const { error } = await supabase
           .from('operations_departments')
-          .insert({ user_id: user.id, department: dept });
-        setOperationsDepartments(prev => [...prev, dept]);
+          .insert({ user_id: user.id, department: key });
+        if (error) throw error;
+        setOperationsDepartments(prev => [...prev, key]);
         toast.success(`Added ${dept} department`);
       }
     } catch (e) {
@@ -1899,7 +1905,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                                     <div className="ml-8 mt-2 p-3 rounded-xl bg-muted/30 border border-dashed space-y-2">
                                       <p className="text-xs font-semibold text-muted-foreground mb-2">Operations Departments</p>
                                       {OPERATIONS_DEPARTMENTS.map(dept => {
-                                        const isActive = operationsDepartments.includes(dept);
+                                        const isActive = operationsDepartments.includes(dept.toLowerCase());
                                         return (
                                           <div key={dept} className={`flex items-center justify-between p-2 rounded-lg border ${isActive ? 'bg-card border-primary/20' : 'bg-muted/20 border-transparent'}`}>
                                             <div className="flex items-center gap-2">
@@ -2403,7 +2409,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                                     <p className="text-xs font-semibold text-muted-foreground mb-2">Operations Departments</p>
                                     <div className="grid grid-cols-2 gap-2">
                                       {OPERATIONS_DEPARTMENTS.map(dept => {
-                                        const isActive = operationsDepartments.includes(dept);
+                                        const isActive = operationsDepartments.includes(dept.toLowerCase());
                                         return (
                                           <div key={dept} className={`flex items-center justify-between p-2 rounded-lg border ${isActive ? 'bg-card border-primary/20' : 'bg-muted/20 border-transparent'}`}>
                                             <div className="flex items-center gap-2">
