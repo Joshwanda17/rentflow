@@ -1175,7 +1175,14 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
               tenantId={profile.id}
               tenantName={profile.full_name}
               tenantPhone={profile.phone}
-              monthlyRent={profile.monthly_rent}
+              monthlyRent={effectiveMonthlyRent}
+              detectedFromHistory={
+                (!profile.monthly_rent || profile.monthly_rent <= 0) && !!detectedMonthlyRent
+              }
+              suggestedRent={detectedMonthlyRent}
+              onRentSaved={(rent) => {
+                setProfile(prev => (prev ? { ...prev, monthly_rent: rent } : prev));
+              }}
               repayments={repayments.map(r => ({ amount: r.amount, created_at: r.created_at }))}
               aiId={aiId}
             />
