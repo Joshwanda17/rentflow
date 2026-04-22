@@ -244,6 +244,13 @@ export function TenantOpsDashboard() {
       color: 'bg-primary/10 text-primary border-primary/20',
     },
     {
+      id: 'transfer-audit' as ActiveView,
+      label: 'Transfer Audit',
+      description: 'Geo-stamped link & transfer history',
+      icon: Shield,
+      color: 'bg-emerald-500/10 text-emerald-600 border-emerald-200',
+    },
+    {
       id: 'collect-rent',
       label: 'Collect Rent',
       description: 'Charge tenant or agent wallet',
