@@ -120,7 +120,7 @@ export function RentAccessLimitCard({
 
     const handleSaveRent = async () => {
       const v = validateMonthlyRentUGX(rentInput);
-      if (!v.ok) {
+      if (v.ok === false) {
         toast({
           title: 'Invalid monthly rent',
           description: v.message,
