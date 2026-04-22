@@ -593,6 +593,21 @@ export function CashoutAgentManager() {
       )}
 
       <CashoutPendingWithdrawalsDialog open={!!cashoutAgent} onOpenChange={v => { if (!v) setCashoutAgent(null); }} agent={cashoutAgent} />
+
+      <EditMerchantDialog
+        editAgent={editAgent}
+        setEditAgent={setEditAgent}
+        editLabel={editLabel}
+        setEditLabel={setEditLabel}
+        editHandlesMomo={editHandlesMomo}
+        setEditHandlesMomo={setEditHandlesMomo}
+        editHandlesBank={editHandlesBank}
+        setEditHandlesBank={setEditHandlesBank}
+        editHandlesCash={editHandlesCash}
+        setEditHandlesCash={setEditHandlesCash}
+        isPending={updateMutation.isPending}
+        onSave={() => updateMutation.mutate()}
+      />
     </div>
   );
 }
