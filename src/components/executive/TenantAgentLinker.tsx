@@ -148,6 +148,47 @@ export function TenantAgentLinker() {
         </CardContent>
       </Card>
 
+      {/* Bulk Transfer (move tenant from current agent → new agent) */}
+      {selectedTenant && selectedAgent && currentAgentId && currentAgentId !== selectedAgent.id && (
+        <Card className="border-primary/40">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <ArrowRightLeft className="h-4 w-4 text-primary" />
+              Transfer Tenant to New Agent
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Alert>
+              <AlertDescription className="text-xs">
+                This reassigns ALL active rent requests and subscriptions for{' '}
+                <span className="font-semibold">{selectedTenant.full_name}</span> from the current agent
+                to <span className="font-semibold">{selectedAgent.full_name}</span>. Both agents and the tenant will be notified.
+              </AlertDescription>
+            </Alert>
+            <Textarea
+              placeholder="Reason for transfer (min 10 characters) — e.g., agent unavailable, tenant relocated, performance issue..."
+              value={transferReason}
+              onChange={(e) => setTransferReason(e.target.value)}
+              rows={2}
+              className="text-xs"
+            />
+            <Button
+              onClick={() => transferAllMutation.mutate()}
+              disabled={transferAllMutation.isPending || transferReason.trim().length < 10}
+              className="w-full gap-1.5"
+              size="sm"
+            >
+              {transferAllMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ArrowRightLeft className="h-4 w-4" />
+              )}
+              Transfer All Active to {selectedAgent.full_name.split(' ')[0]}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Show tenant's active rent requests */}
       {selectedTenant && (
         <div className="space-y-2">
