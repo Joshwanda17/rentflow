@@ -621,6 +621,30 @@ export function TenantAgentLinker() {
             </AlertDialogDescription>
           </AlertDialogHeader>
 
+          {(tenantIsFlagged || hasMovableRequests) && (
+            <div className="space-y-2">
+              {tenantIsFlagged && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription className="text-xs">
+                    Tenant has missed <span className="font-semibold">{worstMissedDays}+ daily payments</span>{' '}
+                    on {flaggedRequests.length} active request{flaggedRequests.length === 1 ? '' : 's'}.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {hasMovableRequests && (
+                <Alert className="border-amber-500/40 bg-amber-500/10">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  <AlertDescription className="text-xs">
+                    <span className="font-semibold">{sourceAgentName}</span> will lose ~UGX{' '}
+                    <span className="font-semibold">{projectedCommissionLoss.toLocaleString()}</span>{' '}
+                    in projected commission on UGX {movingOutstanding.toLocaleString()} outstanding.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          )}
+
           {(() => {
             const moving = (tenantRequests || []).filter(
               (r: any) => currentAgentId && r.agent_id === currentAgentId
