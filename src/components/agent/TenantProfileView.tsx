@@ -25,6 +25,9 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { RegisterSubAgentDialog } from './RegisterSubAgentDialog';
 import { EditTenantDialog } from './EditTenantDialog';
 import { TenantQuickActionsSheet } from './TenantQuickActionsSheet';
+import { RentAccessLimitCard } from './RentAccessLimitCard';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { Sparkles, ChevronRight } from 'lucide-react';
 
 interface TenantProfileViewProps {
   tenantId: string;
@@ -168,6 +171,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
 
   const [lastAllocation, setLastAllocation] = useState<{ id: string; amount: number; created_at: string } | null>(null);
   const [reverseDialogOpen, setReverseDialogOpen] = useState(false);
+  const [rentLimitOpen, setRentLimitOpen] = useState(false);
 
   const loadLastAllocation = async () => {
     if (!user?.id) return;
@@ -589,6 +593,33 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
             </div>
           </button>
         </section>
+
+        {/* ── Rent Access Limit CTA (prominent, minimalist) ── */}
+        <button
+          type="button"
+          onClick={() => setRentLimitOpen(true)}
+          className="group relative w-full overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-background p-4 sm:p-5 text-left active:scale-[0.99] transition-all hover:border-primary/50 shadow-sm"
+          aria-label="View tenant's Rent Access Limit"
+        >
+          <div className="absolute -top-8 -right-8 h-24 w-24 rounded-full bg-primary/15 blur-2xl pointer-events-none" />
+          <div className="relative flex items-center gap-3">
+            <div className="h-12 w-12 shrink-0 rounded-xl bg-primary/15 flex items-center justify-center">
+              <Sparkles className="h-6 w-6 text-primary" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-primary/80">
+                Powered by Welile
+              </p>
+              <p className="text-base sm:text-lg font-bold leading-tight text-foreground">
+                Your Rent Access Limit
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                Tap to see how much rent {profile.full_name.split(' ')[0]} can access today
+              </p>
+            </div>
+            <ChevronRight className="h-5 w-5 text-primary shrink-0 group-hover:translate-x-0.5 transition-transform" />
+          </div>
+        </button>
 
         {/* ── Rent Collection (consolidated; replaces both old collection cards) ── */}
         {summary.activeRequest && summary.currentOutstanding > 0 && (
@@ -1126,6 +1157,31 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
         onOpenChange={setSubAgentDialogOpen}
         onSuccess={loadFullProfile}
       />
+
+      {/* Rent Access Limit — opens minimalist sheet with full card */}
+      <Sheet open={rentLimitOpen} onOpenChange={setRentLimitOpen}>
+        <SheetContent
+          side="bottom"
+          className="h-[88vh] rounded-t-3xl flex flex-col p-0 gap-0 overflow-hidden"
+        >
+          <SheetHeader className="px-4 sm:px-5 pt-5 pb-3 text-left">
+            <SheetTitle className="text-lg font-bold">Rent Access Limit</SheetTitle>
+            <SheetDescription className="text-xs">
+              {profile.full_name}'s live limit — recalculated daily from repayments.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-3 sm:px-4 pb-6">
+            <RentAccessLimitCard
+              tenantId={profile.id}
+              tenantName={profile.full_name}
+              tenantPhone={profile.phone}
+              monthlyRent={profile.monthly_rent}
+              repayments={repayments.map(r => ({ amount: r.amount, created_at: r.created_at }))}
+              aiId={aiId}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
