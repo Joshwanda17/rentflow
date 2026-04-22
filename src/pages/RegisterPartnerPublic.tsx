@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { UGANDA_BANKS } from '@/lib/ugandaBanks';
+import { validateFullName } from '@/lib/authValidation';
 import {
   UserPlus, CheckCircle2, AlertCircle, Phone, User, Mail, MapPin,
   Loader2, Banknote, X, TrendingUp, Wallet
@@ -101,7 +102,7 @@ export default function RegisterPartnerPublic() {
   }, [agentId, token]);
 
   const canSubmit = !!(
-    fullName.trim() && phone.trim() && email.trim() && residence.trim() &&
+    validateFullName(fullName).valid && phone.trim() && email.trim() && residence.trim() &&
     amount >= 100000 && payoutMethod &&
     (payoutMethod === 'bank_transfer'
       ? bankName && accountName.trim() && accountNumber.trim()
@@ -115,9 +116,15 @@ export default function RegisterPartnerPublic() {
     setError(null);
 
     try {
+      const nameCheck = validateFullName(fullName);
+      if (!nameCheck.valid) {
+        setError(nameCheck.error);
+        setSubmitting(false);
+        return;
+      }
       const payload: Record<string, unknown> = {
         token, agent_id: agentId,
-        full_name: fullName.trim(),
+        full_name: nameCheck.trimmed,
         phone: phone.trim(),
         email: email.trim(),
         residence: residence.trim(),

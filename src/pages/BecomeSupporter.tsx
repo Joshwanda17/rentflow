@@ -12,11 +12,13 @@ import { UserPlus, LogIn, ArrowLeft, Lock, User, Phone, TrendingUp, Wallet, User
 import WelileLogo from '@/components/WelileLogo';
 import { CurrencySwitcher } from '@/components/CurrencySwitcher';
 
+import { validateFullName } from '@/lib/authValidation';
+
 // Simplified validation - check inline for faster response
 const validateSignUp = (data: { password: string; fullName: string; phone: string }) => {
   if (data.password.length < 6) return 'Password must be at least 6 characters';
-  const trimmedName = (data.fullName ?? '').trim();
-  if (trimmedName.length < 2) return 'Full name is required (minimum 2 characters)';
+  const nameCheck = validateFullName(data.fullName);
+  if (!nameCheck.valid) return nameCheck.error;
   if (data.phone.replace(/\D/g, '').length < 10) return 'Please enter a valid phone number';
   return null;
 };
@@ -149,7 +151,8 @@ export default function BecomeSupporter() {
           return;
         }
 
-        const trimmedFullName = (fullName ?? '').trim();
+        const nameCheck = validateFullName(fullName);
+        const trimmedFullName = nameCheck.trimmed;
         const validationError = validateSignUp({ password, fullName: trimmedFullName, phone });
         if (validationError) {
           toast({ title: 'Error', description: validationError, variant: 'destructive' });
