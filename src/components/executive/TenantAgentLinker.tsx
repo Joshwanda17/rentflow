@@ -272,6 +272,28 @@ export function TenantAgentLinker() {
   const reasonValid = transferReason.trim().length >= 10;
   const canSubmitTransfer = !sameAgent && hasMovableRequests && reasonValid;
 
+  // Missed-days flagging: tenant is "at risk" if ANY of their active requests
+  // has missed >= 7 daily payments. Used to nudge ops before transferring.
+  const flaggedRequests = (tenantRequests || []).filter(
+    (r: any) => (r.missed_days ?? 0) >= MISSED_DAYS_FLAG_THRESHOLD,
+  );
+  const tenantIsFlagged = flaggedRequests.length > 0;
+  const worstMissedDays = flaggedRequests.reduce(
+    (max: number, r: any) => Math.max(max, Number(r.missed_days || 0)),
+    0,
+  );
+
+  // Revenue-loss projection for the source agent if we transfer.
+  // We use the outstanding balance the source agent will no longer collect on
+  // and apply the platform's standard agent commission rate (2%).
+  const sourceAgentName =
+    movingRequests.find((r: any) => r.agent_name && r.agent_name !== '—')?.agent_name ?? 'Current agent';
+  const movingOutstanding = movingRequests.reduce(
+    (s: number, r: any) => s + Number(r.outstanding || 0),
+    0,
+  );
+  const projectedCommissionLoss = Math.round(movingOutstanding * AGENT_COMMISSION_RATE);
+
   const transferAllMutation = useMutation({
     mutationFn: async () => {
       if (!selectedTenant) throw new Error('Select a tenant');
