@@ -52,6 +52,26 @@ type RiskFilter = 'all' | 'good' | 'standard' | 'caution' | 'new';
 type SortKey = 'risk' | 'aiId' | 'property' | 'balance';
 type SortDir = 'asc' | 'desc';
 
+const PREFS_KEY = 'agent-tenants-sheet:prefs:v1';
+
+interface SheetPrefs {
+  search?: string;
+  activeFilter?: FilterTab;
+  riskFilter?: RiskFilter;
+}
+
+function loadPrefs(): SheetPrefs {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(PREFS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as SheetPrefs;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 const RISK_ORDER: Record<'good' | 'standard' | 'caution' | 'new', number> = {
   caution: 0,
   standard: 1,
