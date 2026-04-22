@@ -506,6 +506,13 @@ export function CashoutAgentManager() {
           isPending={updateMutation.isPending}
           onSave={() => updateMutation.mutate()}
         />
+
+        <DeleteMerchantConfirm
+          deleteAgent={deleteAgent}
+          setDeleteAgent={setDeleteAgent}
+          isPending={deleteMutation.isPending}
+          onConfirm={() => deleteAgent && deleteMutation.mutate(deleteAgent)}
+        />
       </div>
     );
   }
