@@ -254,6 +254,40 @@ export function RentAccessLimitCard({
   const tier = TIER_META[result.tier];
   const isPositive = result.netAdjustmentPct >= 0;
 
+  // Save handler for the inline edit mode on the main card
+  const editValidation = validateMonthlyRentUGX(editRentInput);
+  const editIsEmpty = !editRentInput.replace(/[^0-9]/g, '');
+  const editShowError = !editValidation.ok && !editIsEmpty;
+  const editCanSave = editValidation.ok && !savingRent && overrideActiveEdit;
+
+  const handleSaveEdit = async () => {
+    const v = validateMonthlyRentUGX(editRentInput);
+    if (v.ok === false) {
+      toast({ title: 'Invalid monthly rent', description: v.message, variant: 'destructive' });
+      return;
+    }
+    setSavingRent(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ monthly_rent: v.value })
+        .eq('id', tenantId);
+      if (error) throw error;
+      toast({ title: 'Monthly rent updated', description: `Set to ${formatUGX(v.value)}` });
+      onRentSaved?.(v.value);
+      setEditingRent(false);
+      setEditRentInput('');
+    } catch (err: any) {
+      toast({
+        title: 'Could not save rent',
+        description: err?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingRent(false);
+    }
+  };
+
   return (
     <>
       <section
