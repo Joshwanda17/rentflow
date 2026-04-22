@@ -5,6 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp, ArrowLeft, Shield, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { generateWelileAiId, getRiskTierLabel } from '@/lib/welileAiId';
@@ -242,7 +243,15 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
 
   // Per-tenant derived risk + AI ID (used by search, filter, and row chip)
   const tenantMeta = useMemo(() => {
-    const map: Record<string, { aiId: string; riskLevel: 'good' | 'standard' | 'caution' | 'new'; riskLabel: string; riskColor: string }> = {};
+    const map: Record<string, {
+      aiId: string;
+      riskLevel: 'good' | 'standard' | 'caution' | 'new';
+      riskLabel: string;
+      riskColor: string;
+      completionRate: number;
+      completedCount: number;
+      totalRequests: number;
+    }> = {};
     tenants.forEach(t => {
       const ctx = tenantContext[t.id];
       const completionRate = ctx && ctx.totalRequests > 0
@@ -260,6 +269,9 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         riskLevel,
         riskLabel: tier.label,
         riskColor: tier.color,
+        completionRate,
+        completedCount: ctx?.completedCount || 0,
+        totalRequests,
       };
     });
     return map;
@@ -626,10 +638,75 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                             <span className="text-[10px] font-mono font-semibold text-muted-foreground bg-muted/60 rounded-md px-1.5 py-0.5">
                               {tenantMeta[tenant.id].aiId}
                             </span>
-                            <span className={`inline-flex items-center gap-1 text-[10px] font-semibold rounded-md px-1.5 py-0.5 bg-muted/60 ${tenantMeta[tenant.id].riskColor}`}>
-                              <Shield className="h-2.5 w-2.5" />
-                              {tenantMeta[tenant.id].riskLabel}
-                            </span>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <button
+                                  type="button"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className={`inline-flex items-center gap-1 text-[10px] font-semibold rounded-md px-1.5 py-0.5 bg-muted/60 hover:bg-muted transition-colors cursor-help ${tenantMeta[tenant.id].riskColor}`}
+                                  aria-label={`Risk tier: ${tenantMeta[tenant.id].riskLabel}. Tap to see how it's calculated.`}
+                                >
+                                  <Shield className="h-2.5 w-2.5" />
+                                  {tenantMeta[tenant.id].riskLabel}
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent
+                                side="top"
+                                align="start"
+                                className="w-72 p-3 text-xs"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-1.5 font-bold text-sm">
+                                    <Shield className={`h-3.5 w-3.5 ${tenantMeta[tenant.id].riskColor}`} />
+                                    How risk is calculated
+                                  </div>
+                                  <p className="text-muted-foreground leading-relaxed">
+                                    Based on this tenant's <span className="font-semibold text-foreground">repayment completion rate</span> across all rent plans.
+                                  </p>
+                                  <div className="rounded-lg bg-muted/60 p-2 space-y-1">
+                                    <div className="flex justify-between">
+                                      <span className="text-muted-foreground">Completed plans</span>
+                                      <span className="font-mono font-semibold">
+                                        {tenantMeta[tenant.id].completedCount} / {tenantMeta[tenant.id].totalRequests}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-muted-foreground">Completion rate</span>
+                                      <span className="font-mono font-semibold">
+                                        {tenantMeta[tenant.id].totalRequests > 0
+                                          ? `${tenantMeta[tenant.id].completionRate}%`
+                                          : 'N/A'}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between pt-1 border-t border-border/50">
+                                      <span className="text-muted-foreground">Current tier</span>
+                                      <span className={`font-semibold ${tenantMeta[tenant.id].riskColor}`}>
+                                        {tenantMeta[tenant.id].riskLabel}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <ul className="space-y-1 text-[11px]">
+                                    <li className="flex items-center gap-1.5">
+                                      <span className="h-2 w-2 rounded-full bg-success shrink-0" />
+                                      <span><span className="font-semibold text-success">Good</span> — 80%+ completion</span>
+                                    </li>
+                                    <li className="flex items-center gap-1.5">
+                                      <span className="h-2 w-2 rounded-full bg-primary shrink-0" />
+                                      <span><span className="font-semibold text-primary">Standard</span> — 50–79% completion</span>
+                                    </li>
+                                    <li className="flex items-center gap-1.5">
+                                      <span className="h-2 w-2 rounded-full bg-destructive shrink-0" />
+                                      <span><span className="font-semibold text-destructive">Caution</span> — under 50%</span>
+                                    </li>
+                                    <li className="flex items-center gap-1.5">
+                                      <span className="h-2 w-2 rounded-full bg-muted-foreground shrink-0" />
+                                      <span><span className="font-semibold text-muted-foreground">New</span> — no rent plans yet</span>
+                                    </li>
+                                  </ul>
+                                </div>
+                              </PopoverContent>
+                            </Popover>
                           </div>
                         )}
                         {totals.total > 0 && (
