@@ -9,6 +9,10 @@ import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
 import { ArrowRightLeft, Link2, Loader2, User } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface SelectedUser {
   id: string;
@@ -22,6 +26,7 @@ export function TenantAgentLinker() {
   const [selectedTenant, setSelectedTenant] = useState<SelectedUser | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<SelectedUser | null>(null);
   const [transferReason, setTransferReason] = useState('');
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   // Fetch active rent requests for selected tenant
   const { data: tenantRequests, isLoading: loadingRequests } = useQuery({
@@ -173,7 +178,7 @@ export function TenantAgentLinker() {
               className="text-xs"
             />
             <Button
-              onClick={() => transferAllMutation.mutate()}
+              onClick={() => setConfirmOpen(true)}
               disabled={transferAllMutation.isPending || transferReason.trim().length < 10}
               className="w-full gap-1.5"
               size="sm"
@@ -183,7 +188,7 @@ export function TenantAgentLinker() {
               ) : (
                 <ArrowRightLeft className="h-4 w-4" />
               )}
-              Transfer All Active to {selectedAgent.full_name.split(' ')[0]}
+              Preview & Transfer to {selectedAgent.full_name.split(' ')[0]}
             </Button>
           </CardContent>
         </Card>
@@ -299,6 +304,119 @@ export function TenantAgentLinker() {
           })}
         </div>
       )}
+
+      {/* Confirmation dialog with preview of affected requests */}
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent className="max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <ArrowRightLeft className="h-4 w-4 text-primary" />
+              Confirm bulk transfer
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs">
+              Review every active rent request that will be reassigned. Only requests
+              currently held by the source agent will move. Items already on the new
+              agent or assigned elsewhere are skipped.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {(() => {
+            const moving = (tenantRequests || []).filter(
+              (r: any) => currentAgentId && r.agent_id === currentAgentId
+            );
+            const skipped = (tenantRequests || []).filter(
+              (r: any) => !currentAgentId || r.agent_id !== currentAgentId
+            );
+            const totalOutstanding = moving.reduce((s: number, r: any) => s + (r.outstanding || 0), 0);
+            return (
+              <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-md border bg-primary/5 p-2 text-center">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Will move</p>
+                    <p className="text-lg font-bold text-primary">{moving.length}</p>
+                  </div>
+                  <div className="rounded-md border p-2 text-center">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Skipped</p>
+                    <p className="text-lg font-bold">{skipped.length}</p>
+                  </div>
+                  <div className="rounded-md border p-2 text-center">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Outstanding</p>
+                    <p className="text-sm font-bold">UGX {totalOutstanding.toLocaleString()}</p>
+                  </div>
+                </div>
+
+                <div className="rounded-md border bg-muted/30 p-2 text-xs space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">From</span>
+                    <span className="font-medium">
+                      {moving[0]?.agent_name || 'Current agent'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">To</span>
+                    <span className="font-medium text-primary">{selectedAgent?.full_name}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Tenant</span>
+                    <span className="font-medium">{selectedTenant?.full_name}</span>
+                  </div>
+                </div>
+
+                <div className="max-h-48 overflow-y-auto rounded-md border divide-y">
+                  {moving.length === 0 && (
+                    <p className="p-3 text-xs text-center text-muted-foreground">
+                      No requests will move.
+                    </p>
+                  )}
+                  {moving.map((r: any) => (
+                    <div key={r.id} className="p-2 flex items-center justify-between text-xs">
+                      <div className="min-w-0">
+                        <p className="font-mono text-[10px] text-muted-foreground">{r.id.slice(0, 8)}</p>
+                        <p className="font-medium">UGX {Number(r.rent_amount).toLocaleString()} · {String(r.status).replace(/_/g, ' ')}</p>
+                      </div>
+                      <div className="text-right shrink-0 ml-2">
+                        <p className="text-[10px] text-muted-foreground">Current</p>
+                        <p className="font-medium">{r.agent_name}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {skipped.length > 0 && (
+                  <p className="text-[11px] text-muted-foreground">
+                    {skipped.length} request{skipped.length === 1 ? '' : 's'} skipped
+                    (not on the source agent).
+                  </p>
+                )}
+
+                <p className="text-[11px] text-muted-foreground italic">
+                  Reason: "{transferReason.trim()}"
+                </p>
+              </div>
+            );
+          })()}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={transferAllMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={transferAllMutation.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                transferAllMutation.mutate(undefined, {
+                  onSuccess: () => setConfirmOpen(false),
+                });
+              }}
+            >
+              {transferAllMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+              ) : (
+                <ArrowRightLeft className="h-4 w-4 mr-1.5" />
+              )}
+              Confirm transfer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
