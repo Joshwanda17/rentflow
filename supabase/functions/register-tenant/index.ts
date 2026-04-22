@@ -1,17 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { validateFullName, FULL_NAME_ERROR } from "../_shared/validateFullName.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-function validateFullName(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  const cleaned = value.trim();
-  if (cleaned.length < 2 || cleaned.length > 100) return null;
-  if (!/^[\p{L}\p{M}\s'.-]+$/u.test(cleaned)) return null;
-  return cleaned;
-}
 
 function validatePhone(value: unknown): string | null {
   if (typeof value !== 'string') return null;
@@ -81,12 +74,13 @@ Deno.serve(async (req) => {
     const { full_name: rawName, phone: rawPhone, email: rawEmail, national_id: rawNationalId } = body as Record<string, unknown>;
     console.log("[register-tenant] Input:", { rawName, rawPhone, rawNationalId });
 
-    const full_name = validateFullName(rawName);
+    const nameCheck = validateFullName(rawName);
+    const full_name = nameCheck.valid ? nameCheck.trimmed : null;
     const phone = validatePhone(rawPhone);
     const national_id = validateNationalId(rawNationalId);
 
     if (!full_name) {
-      return new Response(JSON.stringify({ error: "Invalid name. Must be 2-100 characters, letters only." }), {
+      return new Response(JSON.stringify({ error: nameCheck.error || FULL_NAME_ERROR }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

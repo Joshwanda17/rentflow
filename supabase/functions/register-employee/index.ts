@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { validateFullName, FULL_NAME_ERROR } from "../_shared/validateFullName.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -64,12 +65,21 @@ Deno.serve(async (req) => {
     } = body;
 
     // Validate
-    if (!email || !password || !full_name || !phone || !employee_id) {
+    if (!email || !password || !phone || !employee_id) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const nameCheck = validateFullName(full_name);
+    if (!nameCheck.valid) {
+      return new Response(JSON.stringify({ error: nameCheck.error || FULL_NAME_ERROR }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const cleanFullName = nameCheck.trimmed;
 
     if (password.length < 6) {
       return new Response(JSON.stringify({ error: "Password must be at least 6 characters" }), {
@@ -97,7 +107,7 @@ Deno.serve(async (req) => {
       email,
       password,
       email_confirm: true,
-      user_metadata: { full_name, phone },
+      user_metadata: { full_name: cleanFullName, phone },
     });
 
     if (authError) {
@@ -112,7 +122,7 @@ Deno.serve(async (req) => {
     // Create profile (upsert in case trigger already created it)
     await adminClient.from("profiles").upsert({
       id: userId,
-      full_name,
+      full_name: cleanFullName,
       email,
       phone,
       verified: true,

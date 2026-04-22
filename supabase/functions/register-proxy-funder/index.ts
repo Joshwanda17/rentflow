@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { validateFullName, FULL_NAME_ERROR } from "../_shared/validateFullName.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,19 +27,21 @@ Deno.serve(async (req) => {
 
     const { full_name, phone, agent_id, notes } = await req.json();
 
-    if (!full_name || !phone || !agent_id) {
+    if (!phone || !agent_id) {
       return new Response(
-        JSON.stringify({ error: "full_name, phone, and agent_id are required" }),
+        JSON.stringify({ error: "phone and agent_id are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    if (full_name.length < 2 || full_name.length > 100) {
+    const nameCheck = validateFullName(full_name);
+    if (!nameCheck.valid) {
       return new Response(
-        JSON.stringify({ error: "Name must be 2-100 characters" }),
+        JSON.stringify({ error: nameCheck.error || FULL_NAME_ERROR }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    const cleanFullName = nameCheck.trimmed;
 
     const normalizedPhone = normalizePhone(phone);
     const local9 = normalizedPhone.slice(-9);
@@ -62,7 +65,7 @@ Deno.serve(async (req) => {
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       phone: normalizedPhone,
       phone_confirm: true,
-      user_metadata: { full_name, registered_by_agent: agent_id },
+      user_metadata: { full_name: cleanFullName, registered_by_agent: agent_id },
     });
 
     if (authError) {
@@ -77,7 +80,7 @@ Deno.serve(async (req) => {
     // Insert profile
     const { error: profileError } = await supabase.from("profiles").upsert({
       id: userId,
-      full_name: full_name.trim(),
+      full_name: cleanFullName,
       phone: normalizedPhone,
       registration_method: "proxy_agent",
     });
