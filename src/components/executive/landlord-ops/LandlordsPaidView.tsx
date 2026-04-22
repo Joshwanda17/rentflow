@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
   Loader2, Banknote, Search, CheckCircle2, Clock, ChevronDown, ChevronRight,
-  Receipt, MapPin, ExternalLink, Camera, Phone, Users,
+  Receipt, MapPin, ExternalLink, Camera, Phone, Users, CalendarClock,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -15,6 +15,10 @@ import { cn } from '@/lib/utils';
 
 type Period = 'all' | '30d' | '7d' | 'today';
 type ConfFilter = 'all' | 'confirmed' | 'pending';
+type Tab = 'paid' | 'due_today';
+
+const PAID_STATUSES = ['funded', 'disbursed', 'repaying', 'completed'] as const;
+const DUE_STATUSES = ['coo_approved'] as const;
 
 interface DisbursementRow {
   id: string;
@@ -26,6 +30,8 @@ interface DisbursementRow {
   landlord_id: string | null;
   landlord: { id: string; name: string; phone: string | null; mobile_money_number: string | null } | null;
   delivery: any | null;
+  source: 'disbursement' | 'rent_request';
+  status: string;
 }
 
 interface LandlordGroup {
@@ -55,19 +61,46 @@ export function LandlordsPaidView() {
   const [period, setPeriod] = useState<Period>('all');
   const [confFilter, setConfFilter] = useState<ConfFilter>('all');
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [tab, setTab] = useState<Tab>('paid');
 
   const { data, isLoading } = useQuery({
-    queryKey: ['landlord-ops-paid-landlords'],
+    queryKey: ['landlord-ops-paid-landlords-v2'],
     queryFn: async () => {
-      const { data: disb, error } = await supabase
+      // 1. Disbursement records (authoritative for landlords actually paid via CFO)
+      const { data: disb, error: dErr } = await supabase
         .from('disbursement_records')
-        .select('id, amount, disbursed_at, payout_method, transaction_reference, agent_confirmed, landlord_id')
+        .select('id, amount, disbursed_at, payout_method, transaction_reference, agent_confirmed, landlord_id, rent_request_id')
         .order('disbursed_at', { ascending: false });
-      if (error) throw error;
+      if (dErr) throw dErr;
 
-      const ids = (disb || []).map(d => d.id);
-      const landlordIds = Array.from(new Set((disb || []).map(d => d.landlord_id).filter(Boolean) as string[]));
+      // 2. Rent requests (paid + due-today statuses) — paginated to bypass 1000-row limit
+      const PAGE = 1000;
+      const allRR: any[] = [];
+      let offset = 0;
+      let more = true;
+      const allStatuses = [...PAID_STATUSES, ...DUE_STATUSES];
+      while (more) {
+        const { data: rrs, error } = await supabase
+          .from('rent_requests')
+          .select('id, landlord_id, rent_amount, status, funded_at, disbursed_at, updated_at, created_at')
+          .in('status', allStatuses as any)
+          .order('updated_at', { ascending: false })
+          .range(offset, offset + PAGE - 1);
+        if (error) throw error;
+        if (rrs && rrs.length > 0) {
+          allRR.push(...rrs);
+          offset += PAGE;
+          more = rrs.length === PAGE;
+        } else {
+          more = false;
+        }
+      }
 
+      // 3. Lookup landlords for both sources
+      const landlordIds = Array.from(new Set([
+        ...((disb || []).map(d => d.landlord_id).filter(Boolean) as string[]),
+        ...(allRR.map(r => r.landlord_id).filter(Boolean) as string[]),
+      ]));
       const landlordMap = new Map<string, { id: string; name: string; phone: string | null; mobile_money_number: string | null }>();
       for (let i = 0; i < landlordIds.length; i += 200) {
         const { data: ll } = await supabase
@@ -77,6 +110,8 @@ export function LandlordsPaidView() {
         for (const l of ll || []) landlordMap.set(l.id, l);
       }
 
+      // 4. Delivery confirmations for disbursement rows
+      const ids = (disb || []).map(d => d.id);
       const confMap = new Map<string, any>();
       if (ids.length > 0) {
         for (let i = 0; i < ids.length; i += 200) {
@@ -88,22 +123,58 @@ export function LandlordsPaidView() {
         }
       }
 
-      return (disb || []).map(d => ({
-        ...d,
-        landlord: d.landlord_id ? (landlordMap.get(d.landlord_id) || null) : null,
-        delivery: confMap.get(d.id) || null,
-      })) as DisbursementRow[];
+      // 5. Merge — use disbursement_records when available, otherwise synthesize from rent_requests
+      const disbursedRRIds = new Set((disb || []).map(d => d.rent_request_id).filter(Boolean));
+      const merged: DisbursementRow[] = [];
+
+      for (const d of disb || []) {
+        merged.push({
+          ...d,
+          landlord: d.landlord_id ? (landlordMap.get(d.landlord_id) || null) : null,
+          delivery: confMap.get(d.id) || null,
+          source: 'disbursement',
+          status: 'paid',
+        });
+      }
+
+      // For rent_requests not yet in disbursement_records, synthesize a row
+      for (const r of allRR) {
+        if (disbursedRRIds.has(r.id)) continue; // already covered by disbursement_records
+        const isPaid = (PAID_STATUSES as readonly string[]).includes(r.status);
+        const paidAt = r.disbursed_at || r.funded_at || r.updated_at || r.created_at;
+        merged.push({
+          id: `rr-${r.id}`,
+          amount: Number(r.rent_amount || 0),
+          disbursed_at: paidAt,
+          payout_method: 'rent_pipeline',
+          transaction_reference: null,
+          agent_confirmed: null,
+          landlord_id: r.landlord_id,
+          landlord: r.landlord_id ? (landlordMap.get(r.landlord_id) || null) : null,
+          delivery: null,
+          source: 'rent_request',
+          status: isPaid ? 'paid' : 'due_today',
+        });
+      }
+
+      return merged;
     },
     staleTime: 60_000,
   });
 
   const records = data || [];
 
+  // Tab split: paid vs due_today
+  const tabRecords = useMemo(
+    () => records.filter(r => (tab === 'paid' ? r.status === 'paid' : r.status === 'due_today')),
+    [records, tab]
+  );
+
   // Apply period filter to underlying records
   const cutoff = periodCutoff(period);
   const periodRecords = useMemo(
-    () => cutoff ? records.filter(r => new Date(r.disbursed_at) >= cutoff) : records,
-    [records, cutoff]
+    () => cutoff ? tabRecords.filter(r => new Date(r.disbursed_at) >= cutoff) : tabRecords,
+    [tabRecords, cutoff]
   );
 
   // Group by landlord
@@ -130,11 +201,12 @@ export function LandlordsPaidView() {
       }
       g.total += Number(r.amount);
       g.count += 1;
-      if (r.agent_confirmed) g.confirmedCount += 1; else g.pendingCount += 1;
+      if (r.source === 'disbursement' && r.agent_confirmed) g.confirmedCount += 1;
+      else g.pendingCount += 1;
       if (new Date(r.disbursed_at) > new Date(g.lastPaidAt)) g.lastPaidAt = r.disbursed_at;
       g.records.push(r);
     }
-    return Array.from(map.values()).sort((a, b) => b.total - a.total);
+    return Array.from(map.values()).sort((a, b) => new Date(b.lastPaidAt).getTime() - new Date(a.lastPaidAt).getTime());
   }, [periodRecords]);
 
   // Filter by search + confirmation
@@ -157,9 +229,19 @@ export function LandlordsPaidView() {
   const landlordsPaidCount = groups.length;
   const last30 = useMemo(() => {
     const cut = periodCutoff('30d')!;
-    const arr = records.filter(r => new Date(r.disbursed_at) >= cut);
+    const paidOnly = records.filter(r => r.status === 'paid');
+    const arr = paidOnly.filter(r => new Date(r.disbursed_at) >= cut);
     return { total: arr.reduce((s, r) => s + Number(r.amount), 0), count: arr.length };
   }, [records]);
+
+  const dueTodayCount = useMemo(
+    () => new Set(records.filter(r => r.status === 'due_today').map(r => r.landlord_id)).size,
+    [records]
+  );
+  const paidLandlordsTotal = useMemo(
+    () => new Set(records.filter(r => r.status === 'paid').map(r => r.landlord_id)).size,
+    [records]
+  );
 
   if (isLoading) {
     return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
@@ -169,28 +251,52 @@ export function LandlordsPaidView() {
     <div className="space-y-3">
       <h2 className="text-lg font-bold flex items-center gap-2">
         <Banknote className="h-5 w-5 text-emerald-600" />
-        Landlords Paid ({landlordsPaidCount})
+        Landlords {tab === 'paid' ? 'Paid' : 'Due Today'} ({landlordsPaidCount})
       </h2>
+
+      {/* Tabs: Paid vs Due Today */}
+      <div className="flex gap-1 p-1 bg-muted rounded-lg">
+        <Button
+          size="sm"
+          variant={tab === 'paid' ? 'default' : 'ghost'}
+          onClick={() => setTab('paid')}
+          className="flex-1 text-xs h-9 gap-1.5"
+        >
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          Already Paid
+          <Badge variant="secondary" className="ml-1 text-[10px] h-4 px-1.5">{paidLandlordsTotal}</Badge>
+        </Button>
+        <Button
+          size="sm"
+          variant={tab === 'due_today' ? 'default' : 'ghost'}
+          onClick={() => setTab('due_today')}
+          className="flex-1 text-xs h-9 gap-1.5"
+        >
+          <CalendarClock className="h-3.5 w-3.5" />
+          Due Today
+          <Badge variant="secondary" className="ml-1 text-[10px] h-4 px-1.5">{dueTodayCount}</Badge>
+        </Button>
+      </div>
 
       {/* KPI bar */}
       <div className="grid grid-cols-3 gap-2">
         <Card>
           <CardContent className="p-3">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Total Paid Out</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{tab === 'paid' ? 'Total Paid Out' : 'Total Due Today'}</p>
             <p className="text-base font-bold font-mono mt-1">{formatUGX(totalPaid)}</p>
-            <p className="text-[10px] text-muted-foreground mt-0.5">{periodRecords.length} disbursements</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{periodRecords.length} {tab === 'paid' ? 'disbursements' : 'pending payouts'}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-3">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Landlords Paid</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{tab === 'paid' ? 'Landlords Paid' : 'Landlords Awaiting'}</p>
             <p className="text-base font-bold mt-1 flex items-center gap-1"><Users className="h-3.5 w-3.5 text-sky-600" />{landlordsPaidCount}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">{period === 'all' ? 'all time' : `last ${period}`}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-3">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Last 30 days</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Paid · Last 30 days</p>
             <p className="text-base font-bold font-mono mt-1">{formatUGX(last30.total)}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">{last30.count} disbursements</p>
           </CardContent>
@@ -259,7 +365,8 @@ export function LandlordsPaidView() {
                         {g.phone && (
                           <span className="flex items-center gap-0.5"><Phone className="h-3 w-3" />{g.phone}</span>
                         )}
-                        <span>· Last paid {formatDistanceToNow(new Date(g.lastPaidAt), { addSuffix: true })}</span>
+                        <span>· {tab === 'paid' ? 'Last paid' : 'Due'} {format(new Date(g.lastPaidAt), 'dd MMM yyyy')}</span>
+                        <span className="opacity-70">({formatDistanceToNow(new Date(g.lastPaidAt), { addSuffix: true })})</span>
                       </div>
                     </div>
                     <div className="text-right shrink-0">
@@ -279,7 +386,7 @@ export function LandlordsPaidView() {
                     </div>
                   </div>
                   <div className="flex items-center justify-between mt-2 text-[11px] text-muted-foreground">
-                    <span>{g.count} disbursement{g.count === 1 ? '' : 's'}</span>
+                    <span>{g.count} {tab === 'paid' ? 'disbursement' : 'pending payout'}{g.count === 1 ? '' : 's'}</span>
                     {isOpen
                       ? <ChevronDown className="h-4 w-4" />
                       : <ChevronRight className="h-4 w-4" />}
