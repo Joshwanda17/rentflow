@@ -52,6 +52,26 @@ type RiskFilter = 'all' | 'good' | 'standard' | 'caution' | 'new';
 type SortKey = 'risk' | 'aiId' | 'property' | 'balance';
 type SortDir = 'asc' | 'desc';
 
+const PREFS_KEY = 'agent-tenants-sheet:prefs:v1';
+
+interface SheetPrefs {
+  search?: string;
+  activeFilter?: FilterTab;
+  riskFilter?: RiskFilter;
+}
+
+function loadPrefs(): SheetPrefs {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(PREFS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as SheetPrefs;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 const RISK_ORDER: Record<'good' | 'standard' | 'caution' | 'new', number> = {
   caution: 0,
   standard: 1,
@@ -64,12 +84,12 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const { toast } = useToast();
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(() => loadPrefs().search ?? '');
   const [expandedTenantId, setExpandedTenantId] = useState<string | null>(null);
   const [tenantRequests, setTenantRequests] = useState<Record<string, TenantRentRequest[]>>({});
   const [loadingRequests, setLoadingRequests] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<FilterTab>('owing');
-  const [riskFilter, setRiskFilter] = useState<RiskFilter>('all');
+  const [activeFilter, setActiveFilter] = useState<FilterTab>(() => loadPrefs().activeFilter ?? 'owing');
+  const [riskFilter, setRiskFilter] = useState<RiskFilter>(() => loadPrefs().riskFilter ?? 'all');
   const [sortKey, setSortKey] = useState<SortKey>('balance');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [tenantBalances, setTenantBalances] = useState<Record<string, number>>({});
@@ -89,6 +109,18 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     if (open && user) fetchTenants();
     if (!open) { setExpandedTenantId(null); setProfileTenantId(null); }
   }, [open, user]);
+
+  // Persist search / status tab / risk chip across sheet open-close and reloads
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        PREFS_KEY,
+        JSON.stringify({ search, activeFilter, riskFilter } satisfies SheetPrefs),
+      );
+    } catch {
+      /* storage unavailable — ignore */
+    }
+  }, [search, activeFilter, riskFilter]);
 
   const fetchTenants = async () => {
     if (!user) return;
