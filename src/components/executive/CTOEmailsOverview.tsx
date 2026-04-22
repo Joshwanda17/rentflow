@@ -268,6 +268,67 @@ export function CTOEmailsOverview() {
         />
       </div>
 
+      {/* Failure breakdown */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div>
+          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <ShieldAlert className="h-4 w-4 text-orange-600" />
+            Failures by Error Category
+          </h3>
+          <ExecutiveDataTable
+            data={data?.errorCategories ?? []}
+            columns={[
+              { key: 'category', label: 'Category' },
+              {
+                key: 'count',
+                label: 'Count',
+                render: (v) => <span className="font-medium text-destructive">{Number(v).toLocaleString()}</span>,
+              },
+              {
+                key: 'count',
+                label: 'Share',
+                render: (v) => {
+                  const totalFails = (data?.errorCategories ?? []).reduce((sum, c) => sum + c.count, 0);
+                  const pct = totalFails > 0 ? Math.round((Number(v) / totalFails) * 1000) / 10 : 0;
+                  return <span className="text-muted-foreground">{pct}%</span>;
+                },
+              },
+            ]}
+            loading={isLoading}
+            title="Categories"
+          />
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+            Top Error Messages
+          </h3>
+          <ExecutiveDataTable
+            data={data?.topErrorMessages ?? []}
+            columns={[
+              {
+                key: 'message',
+                label: 'Error',
+                className: 'max-w-[360px] truncate text-xs',
+              },
+              { key: 'category', label: 'Category', render: (v) => <span className="text-xs text-muted-foreground">{String(v)}</span> },
+              {
+                key: 'count',
+                label: 'Count',
+                render: (v) => <span className="font-medium text-destructive">{Number(v).toLocaleString()}</span>,
+              },
+              {
+                key: 'lastSeen',
+                label: 'Last Seen',
+                render: (v) => (v ? format(new Date(v as string), 'dd MMM HH:mm') : '—'),
+              },
+            ]}
+            loading={isLoading}
+            title="Top 10 errors"
+          />
+        </div>
+      </div>
+
       {/* Recent emails table */}
       <div>
         <h3 className="text-sm font-semibold mb-3">Recent Emails</h3>
