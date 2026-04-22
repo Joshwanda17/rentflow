@@ -11785,6 +11785,16 @@ export type Database = {
       }
       cleanup_expired_otps: { Args: never; Returns: undefined }
       cleanup_old_system_events: { Args: never; Returns: undefined }
+      compute_agent_performance: {
+        Args: { p_agent_id: string }
+        Returns: {
+          collection_rate: number
+          healthy_ratio: number
+          healthy_tenants: number
+          monthly_book: number
+          qualifying_tenants: number
+        }[]
+      }
       compute_daily_stats: { Args: never; Returns: undefined }
       create_direct_conversation: {
         Args: { other_user_id: string }

@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Sparkles, ChevronRight, MapPin, Home, Wallet, Users, IdCard, Activity } from 'lucide-react';
+import { Sparkles, ChevronRight, MapPin, Home, Wallet, Users, IdCard, Activity, Trophy } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 
 import { useNavigate } from 'react-router-dom';
@@ -121,6 +121,23 @@ export function TrustBoostSuggestions({ profile, showForSelfOnly = true }: Props
       cta: 'Verify Now',
       action: () => navigate('/profile/settings'),
       priority: 9,
+    });
+  }
+
+  // Agent performance — nudge low-healthy-ratio agents
+  if (
+    profile.identity.primary_role === 'agent' &&
+    profile.agent_performance &&
+    profile.agent_performance.qualifying_tenants >= 3 &&
+    profile.agent_performance.healthy_ratio < 0.5
+  ) {
+    suggestions.push({
+      icon: <Trophy className="h-4 w-4" />,
+      title: 'Visit late-paying tenants',
+      description: `Only ${profile.agent_performance.healthy_tenants} of ${profile.agent_performance.qualifying_tenants} tenants are paying ≥50%. Capture trust signals to nudge collections and grow your vouch limit.`,
+      cta: 'Open Agent Hub',
+      action: () => navigate('/dashboard'),
+      priority: 10,
     });
   }
 

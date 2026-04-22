@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Shield, TrendingUp, Wallet, Users, BadgeCheck, MapPin, Home, Sparkles, Share2 } from 'lucide-react';
+import { Shield, TrendingUp, Wallet, Users, BadgeCheck, MapPin, Home, Sparkles, Share2, Trophy } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatUGX } from '@/lib/rentCalculations';
 import { getRiskTierLabel } from '@/lib/welileAiId';
@@ -7,6 +7,8 @@ import type { TrustProfile } from '@/hooks/useTrustProfile';
 
 interface Props {
   trust: TrustProfile['trust'];
+  agentPerformance?: TrustProfile['agent_performance'];
+  primaryRole?: string;
 }
 
 const tierGradient: Record<string, string> = {
@@ -27,7 +29,7 @@ const tierBg: Record<string, string> = {
   new: 'bg-muted/40 border-border',
 };
 
-export function TrustScoreCard({ trust }: Props) {
+export function TrustScoreCard({ trust, agentPerformance, primaryRole }: Props) {
   const tier = getRiskTierLabel(trust.tier);
   const score = Math.round(trust.score);
   const isNew = trust.tier === 'new';
@@ -169,6 +171,21 @@ export function TrustScoreCard({ trust }: Props) {
             weight={trust.weights.landlord}
             score={trust.breakdown.landlord}
           />
+          {(trust.weights.agent_performance ?? 0) > 0 &&
+            ((trust.breakdown.agent_performance ?? 0) > 0 || primaryRole === 'agent') && (
+            <BreakdownBar
+              icon={<Trophy className="h-3 w-3 text-emerald-500" />}
+              label="Agent Performance"
+              weight={trust.weights.agent_performance ?? 10}
+              score={trust.breakdown.agent_performance ?? 0}
+              highlight
+              subtitle={
+                agentPerformance && agentPerformance.qualifying_tenants > 0
+                  ? `${agentPerformance.healthy_tenants} of ${agentPerformance.qualifying_tenants} tenants paying ≥50% of daily expectation`
+                  : 'Need ≥3 active tenants (>30 days) to unlock'
+              }
+            />
+          )}
         </div>
       </CardContent>
     </Card>
@@ -181,12 +198,14 @@ function BreakdownBar({
   weight,
   score,
   highlight = false,
+  subtitle,
 }: {
   icon: React.ReactNode;
   label: string;
   weight: number;
   score: number;
   highlight?: boolean;
+  subtitle?: string;
 }) {
   return (
     <div className="space-y-1">
@@ -206,6 +225,9 @@ function BreakdownBar({
           className={`h-full rounded-full ${highlight ? 'bg-gradient-to-r from-amber-500 to-amber-300' : 'bg-gradient-to-r from-primary to-primary/60'}`}
         />
       </div>
+      {subtitle && (
+        <p className="text-[10px] text-muted-foreground pl-5 leading-tight">{subtitle}</p>
+      )}
     </div>
   );
 }

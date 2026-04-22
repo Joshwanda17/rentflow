@@ -71,6 +71,7 @@ import { AgentManagedPropertiesSheet } from '@/components/agent/AgentManagedProp
 import { AgentLandlordPayoutDialog } from '@/components/agent/AgentLandlordPayoutDialog';
 import { AgentLandlordPayoutFlow } from '@/components/agent/AgentLandlordPayoutFlow';
 import { AgentLandlordFloatCard } from '@/components/agent/AgentLandlordFloatCard';
+import { AgentTenantHealthCard } from '@/components/agent/AgentTenantHealthCard';
 import { AgentFloatPayoutWizard } from '@/components/agent/AgentFloatPayoutWizard';
 import { AgentLandlordFloatAllocationsDialog } from '@/components/agent/AgentLandlordFloatAllocationsDialog';
 import { LandlordRecoveryLedger } from '@/components/agent/LandlordRecoveryLedger';
@@ -383,6 +384,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
             {/* Today's snapshot */}
             <TodayCollectionsCard agentId={user.id} onViewTenants={() => setTenantsSheetOpen(true)} />
+
+            {/* Tenant Health — agent-performance booster summary */}
+            <AgentTenantHealthCard userId={user.id} />
 
             {/* Daily rent expected */}
             <div key="daily-rent-card">
