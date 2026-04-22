@@ -74,6 +74,52 @@ export function TenantAgentLinker() {
     onError: (e: any) => toast({ title: 'Failed', description: e.message, variant: 'destructive' }),
   });
 
+  // Determine current (most common) agent across tenant's active requests
+  const currentAgentId = (() => {
+    if (!tenantRequests || tenantRequests.length === 0) return null;
+    const counts = new Map<string, number>();
+    tenantRequests.forEach((r: any) => {
+      if (r.agent_id) counts.set(r.agent_id, (counts.get(r.agent_id) || 0) + 1);
+    });
+    let top: string | null = null;
+    let max = 0;
+    counts.forEach((v, k) => { if (v > max) { max = v; top = k; } });
+    return top;
+  })();
+
+  const transferAllMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedTenant) throw new Error('Select a tenant');
+      if (!selectedAgent) throw new Error('Select a new agent');
+      if (!currentAgentId) throw new Error('No current agent found on active requests');
+      if (currentAgentId === selectedAgent.id) throw new Error('New agent is the same as current agent');
+      if (transferReason.trim().length < 10) throw new Error('Please enter a reason (min 10 characters)');
+
+      const { data, error } = await supabase.functions.invoke('transfer-tenant', {
+        body: {
+          tenant_id: selectedTenant.id,
+          from_agent_id: currentAgentId,
+          to_agent_id: selectedAgent.id,
+          reason: transferReason.trim(),
+          flag_type: 'manual',
+        },
+      });
+      if (error) throw new Error(error.message || 'Transfer failed');
+      if ((data as any)?.error) throw new Error((data as any).error);
+      return data;
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: '✅ Tenant transferred',
+        description: `${data?.rent_requests_updated ?? 0} request(s) and ${data?.subscriptions_updated ?? 0} subscription(s) reassigned to ${selectedAgent?.full_name}.`,
+      });
+      setTransferReason('');
+      qc.invalidateQueries({ queryKey: ['tenant-rent-requests', selectedTenant?.id] });
+      qc.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
+    },
+    onError: (e: any) => toast({ title: 'Transfer failed', description: e.message, variant: 'destructive' }),
+  });
+
   return (
     <div className="space-y-4">
       <Card>
