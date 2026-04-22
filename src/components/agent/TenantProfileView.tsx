@@ -1074,53 +1074,22 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
         <div className="h-24 sm:h-4" />
       </div>
 
-      {/* ── Mobile-only sticky quick actions toolbar ── */}
-      <div
-        className="sm:hidden fixed bottom-0 inset-x-0 z-30 border-t border-border/60 bg-background/95 backdrop-blur-md px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-4px_20px_-8px_hsl(var(--foreground)/0.15)]"
-        role="toolbar"
-        aria-label="Quick actions"
-      >
-        <div className="grid grid-cols-4 gap-1.5">
-          <a
-            href={`tel:${profile.phone}`}
-            className="flex flex-col items-center justify-center gap-1 h-14 rounded-xl bg-primary/10 active:scale-95 transition-transform"
-            aria-label={`Call ${profile.full_name}`}
-          >
-            <Phone className="h-5 w-5 text-primary" />
-            <span className="text-[11px] font-semibold text-primary">Call</span>
-          </a>
-          <a
-            href={`https://wa.me/${phoneIntl}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex flex-col items-center justify-center gap-1 h-14 rounded-xl bg-success/15 active:scale-95 transition-transform"
-            aria-label={`Open WhatsApp chat with ${profile.full_name}`}
-          >
-            <MessageCircle className="h-5 w-5 text-success" />
-            <span className="text-[11px] font-semibold text-success">WhatsApp</span>
-          </a>
-          <button
-            type="button"
-            onClick={() => setCollectDialogOpen(true)}
-            disabled={!summary.activeRequest || summary.currentOutstanding <= 0 || floatLoading || !!floatError || agentFloatBalance < 500}
-            className="flex flex-col items-center justify-center gap-1 h-14 rounded-xl bg-warning/15 active:scale-95 transition-transform disabled:opacity-40 disabled:active:scale-100"
-            aria-label="Collect rent from operations float"
-          >
-            <Banknote className="h-5 w-5 text-warning" />
-            <span className="text-[11px] font-semibold text-warning">Collect</span>
-          </button>
-          <button
-            type="button"
-            onClick={handleShareProfile}
-            disabled={sharingProfile}
-            className="flex flex-col items-center justify-center gap-1 h-14 rounded-xl bg-muted active:scale-95 transition-transform disabled:opacity-50"
-            aria-label="Share tenant profile"
-          >
-            {sharingProfile ? <Loader2 className="h-5 w-5 animate-spin text-foreground" /> : <Share2 className="h-5 w-5 text-foreground" />}
-            <span className="text-[11px] font-semibold text-foreground">Share</span>
-          </button>
-        </div>
-      </div>
+      {/* ── Mobile-only swipeable bottom-sheet quick actions ── */}
+      <TenantQuickActionsSheet
+        tenantName={profile.full_name}
+        phone={profile.phone}
+        phoneIntl={phoneIntl}
+        onCollect={() => setCollectDialogOpen(true)}
+        onShare={handleShareProfile}
+        collectDisabled={
+          !summary.activeRequest ||
+          summary.currentOutstanding <= 0 ||
+          floatLoading ||
+          !!floatError ||
+          agentFloatBalance < 500
+        }
+        shareLoading={sharingProfile}
+      />
 
       {/* Float payment dialog */}
       {summary.activeRequest && profile && (
