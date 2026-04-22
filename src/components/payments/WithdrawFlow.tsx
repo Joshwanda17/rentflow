@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import StepperModal, { Step } from './StepperModal';
 import ConfirmSummaryCard from './ConfirmSummaryCard';
 import ProcessingScreen from './ProcessingScreen';
@@ -16,7 +16,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { UGANDA_BANKS, PAYOUT_METHODS } from '@/lib/ugandaBanks';
-import { useEffect } from 'react';
 
 interface WithdrawFlowProps {
   open: boolean;
