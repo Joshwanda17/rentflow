@@ -436,21 +436,16 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
             <motion.div key="otp" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
               <div className="p-4 rounded-xl bg-chart-4/5 border border-chart-4/20 space-y-2">
                 <h3 className="font-bold text-sm text-chart-4 flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4" />
-                  Verify Landlord Identity
+                  <Landmark className="h-4 w-4" />
+                  Pay {req.landlord?.name}
                 </h3>
-                <p className="text-xs text-muted-foreground">
-                  An SMS code will be sent to <span className="font-bold text-foreground">{req.landlord?.name}</span>'s phone.
-                  Ask the landlord to read you the 6-digit code.
-                </p>
                 <div className="flex items-center gap-2 text-xs font-mono bg-muted/50 p-2 rounded-lg">
                   <Phone className="h-3.5 w-3.5 text-chart-4" />
                   {landlordPhone || 'No phone number'}
                 </div>
               </div>
 
-              {!landlordOtp.otpSent && (
-                <div className="space-y-3 p-3 rounded-xl border bg-card">
+              <div className="space-y-3 p-3 rounded-xl border bg-card">
                   <div className="space-y-1.5">
                     <Label htmlFor="payout-amount" className="text-xs">
                       Amount to pay (UGX)
@@ -494,76 +489,23 @@ export function AgentFloatPayoutWizard({ open, onOpenChange }: AgentFloatPayoutW
                       <p className="text-[11px] text-destructive">Enter a valid Ugandan phone number.</p>
                     )}
                   </div>
-                </div>
-              )}
+              </div>
 
-              {!landlordOtp.otpSent ? (
-                <Button
-                  type="button"
-                  onClick={handleSendOtp}
-                  disabled={landlordOtp.otpLoading || !phoneValid || !amountValid}
-                  className="w-full gap-2 h-12 rounded-xl"
-                >
-                  {landlordOtp.otpLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <ShieldCheck className="h-4 w-4" />
-                  )}
-                  Send OTP to Landlord's Phone
-                </Button>
-              ) : (
-                <div className="space-y-3">
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground">
-                      Enter the 6-digit code from <span className="font-medium text-foreground">{req.landlord?.name}</span>'s phone
-                    </p>
-                  </div>
-
-                  <div className="flex justify-center">
-                    <InputOTP maxLength={6} value={otpCode} onChange={handleVerifyOtp}>
-                      <InputOTPGroup>
-                        <InputOTPSlot index={0} />
-                        <InputOTPSlot index={1} />
-                        <InputOTPSlot index={2} />
-                        <InputOTPSlot index={3} />
-                        <InputOTPSlot index={4} />
-                        <InputOTPSlot index={5} />
-                      </InputOTPGroup>
-                    </InputOTP>
-                  </div>
-
-                  {landlordOtp.otpLoading && (
-                    <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Verifying...
-                    </div>
-                  )}
-
-                  {landlordOtp.otpError && (
-                    <p className="text-sm text-destructive text-center">{landlordOtp.otpError}</p>
-                  )}
-
-                  <div className="text-center">
-                    <button
-                      type="button"
-                      onClick={handleResendOtp}
-                      disabled={resendCooldown > 0 || landlordOtp.otpLoading}
-                      className="text-xs text-primary hover:underline disabled:text-muted-foreground disabled:no-underline"
-                    >
-                      {resendCooldown > 0 ? (
-                        <span className="flex items-center gap-1 justify-center">
-                          <RefreshCw className="h-3 w-3" />
-                          Resend in {resendCooldown}s
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 justify-center">
-                          <RefreshCw className="h-3 w-3" />
-                          Resend code
-                        </span>
-                      )}
-                    </button>
-                  </div>
-                </div>
+              <Button
+                type="button"
+                onClick={startAutoDisburse}
+                disabled={isDisbursing || !phoneValid || !amountValid}
+                className="w-full gap-2 h-12 rounded-xl"
+              >
+                {isDisbursing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Landmark className="h-4 w-4" />
+                )}
+                Pay Landlord Now
+              </Button>
+              {disburseError && (
+                <p className="text-xs text-destructive text-center">{disburseError}</p>
               )}
 
               <Button variant="ghost" size="sm" className="w-full" onClick={() => { resetForm(); }}>
