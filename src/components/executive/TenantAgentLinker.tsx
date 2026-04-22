@@ -306,6 +306,22 @@ export function TenantAgentLinker() {
             onSelect={(u) => { setSelectedTenant(u); }}
             roleFilter="tenant"
           />
+          {selectedTenant && (
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground -mt-1.5 px-1">
+              <MapPin className="h-3 w-3" />
+              {tenantLastLoc ? (
+                <span>
+                  Tenant last seen:{' '}
+                  <span className="font-medium text-foreground">
+                    {tenantLastLoc.city || tenantLastLoc.country || `${Number(tenantLastLoc.latitude).toFixed(3)}, ${Number(tenantLastLoc.longitude).toFixed(3)}`}
+                  </span>{' '}
+                  · {formatRelativeTime(tenantLastLoc.captured_at)}
+                </span>
+              ) : (
+                <span>No location on file for tenant</span>
+              )}
+            </div>
+          )}
 
           <UserSearchPicker
             label="Search Agent"
@@ -314,6 +330,22 @@ export function TenantAgentLinker() {
             onSelect={setSelectedAgent}
             roleFilter="agent"
           />
+          {selectedAgent && (
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground -mt-1.5 px-1">
+              <MapPin className="h-3 w-3" />
+              {agentLastLoc ? (
+                <span>
+                  Agent last seen:{' '}
+                  <span className="font-medium text-foreground">
+                    {agentLastLoc.city || agentLastLoc.country || `${Number(agentLastLoc.latitude).toFixed(3)}, ${Number(agentLastLoc.longitude).toFixed(3)}`}
+                  </span>{' '}
+                  · {formatRelativeTime(agentLastLoc.captured_at)}
+                </span>
+              ) : (
+                <span>No location on file for agent</span>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
