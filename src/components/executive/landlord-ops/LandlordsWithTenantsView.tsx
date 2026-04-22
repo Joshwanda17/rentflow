@@ -12,7 +12,7 @@ import {
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
 
-type StatusFilter = 'all' | 'paid' | 'pending';
+type StatusFilter = 'all' | 'paid' | 'pending' | 'empty';
 
 const PAID_STATUSES = new Set(['funded', 'disbursed', 'repaying', 'completed']);
 const PENDING_STATUSES = new Set([
@@ -255,10 +255,14 @@ export function LandlordsWithTenantsView() {
     const q = search.trim().toLowerCase();
     return groups
       .map(g => {
-        // filter tenants by status
+        // filter by status
         let tenants = g.tenants;
-        if (statusFilter !== 'all') {
+        if (statusFilter === 'empty') {
+          // only landlords with no tenants
+          if (g.tenants.length > 0) return null;
+        } else if (statusFilter === 'paid' || statusFilter === 'pending') {
           tenants = tenants.filter(t => t.status === statusFilter);
+          if (tenants.length === 0) return null;
         }
         // filter by search across landlord & tenant
         if (q) {
@@ -270,9 +274,9 @@ export function LandlordsWithTenantsView() {
               t.name.toLowerCase().includes(q) ||
               (t.phone || '').toLowerCase().includes(q)
             );
+            if (tenants.length === 0 && g.tenants.length > 0) return null;
           }
         }
-        if (tenants.length === 0) return null;
         const paidCount = tenants.filter(t => t.status === 'paid').length;
         const pendingCount = tenants.filter(t => t.status === 'pending').length;
         const totalAmount = tenants.reduce((s, t) => s + t.amount, 0);
@@ -284,9 +288,11 @@ export function LandlordsWithTenantsView() {
   // KPIs over unfiltered groups
   const kpis = useMemo(() => {
     const linkedLandlords = groups.filter(g => g.landlord_id !== null).length;
+    const emptyLandlords = groups.filter(g => g.landlord_id !== null && g.tenants.length === 0).length;
     const allTenants = groups.flatMap(g => g.tenants);
     return {
       landlords: linkedLandlords,
+      empty: emptyLandlords,
       tenants: allTenants.length,
       paid: allTenants.filter(t => t.status === 'paid').length,
       pending: allTenants.filter(t => t.status === 'pending').length,
