@@ -165,7 +165,21 @@ Deno.serve(async (req) => {
 
     if (ledgerErr) {
       console.error("[coo-create-portfolio] Ledger RPC failed:", ledgerErr.message);
-      return json({ error: `Failed to deduct funds: ${ledgerErr.message}` }, 500);
+      // Insufficient-balance is a user-correctable validation error, not a runtime crash.
+      // Return 400 with a friendly message so the caller toasts cleanly instead of
+      // bubbling a 500 / blank-screen runtime overlay.
+      const raw = ledgerErr.message || "";
+      const isInsufficient = /insufficient ledger balance/i.test(raw);
+      if (isInsufficient) {
+        const m = raw.match(/Available:\s*(\d+).*?Required:\s*(\d+)/i);
+        const available = m ? Number(m[1]).toLocaleString() : null;
+        const required = m ? Number(m[2]).toLocaleString() : null;
+        const friendly = available && required
+          ? `Insufficient funds in ${sourceName}'s ${body.payment_method === "proxy_agent" ? "proxy-agent" : "partner"} wallet. Available: UGX ${available} · Required: UGX ${required}. Top up the wallet and try again.`
+          : `Insufficient funds in ${sourceName}'s wallet. Top up and try again.`;
+        return json({ error: friendly }, 400);
+      }
+      return json({ error: `Failed to deduct funds: ${raw}` }, 500);
     }
 
     // ── Create the portfolio AFTER successful deduction ──
