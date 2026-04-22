@@ -189,9 +189,32 @@ Deno.serve(async (req) => {
               .maybeSingle();
 
             const isAgent = !!agentRoleRow;
-            // Sweep when explicitly tagged as float, OR when an agent submits
-            // a deposit with no/ambiguous purpose (legacy/older client safety net).
-            const shouldSweep = isAgent && (explicitFloat || ambiguousPurpose);
+
+            // Detect proxy-agent role: these agents fund partner portfolios from
+            // their wallet ledger (via coo-create-portfolio) and must NOT have
+            // their deposits swept into landlord-payout float.
+            const { data: proxyRow } = await supabaseAdmin
+              .from('proxy_agent_assignments')
+              .select('id')
+              .eq('agent_id', depositRequest.user_id)
+              .eq('is_active', true)
+              .eq('approval_status', 'approved')
+              .limit(1)
+              .maybeSingle();
+            const isProxyAgent = !!proxyRow;
+
+            if (isAgent && isProxyAgent && !explicitFloat) {
+              console.log(
+                `[approve-deposit] Skipping float sweep — user ${depositRequest.user_id} is a proxy agent; deposit stays in wallet for partner portfolio funding`
+              );
+            }
+
+            // Sweep when:
+            //  (a) explicitly tagged operational_float (always honoured), OR
+            //  (b) ambiguous purpose AND agent is NOT a proxy agent.
+            const shouldSweep = isAgent
+              && !(isProxyAgent && !explicitFloat)
+              && (explicitFloat || ambiguousPurpose);
             const autoRouted = isAgent && !explicitFloat && ambiguousPurpose;
 
             if (shouldSweep) {
