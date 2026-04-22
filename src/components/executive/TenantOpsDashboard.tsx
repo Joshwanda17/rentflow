@@ -142,24 +142,29 @@ export function TenantOpsDashboard() {
     queryKey: ['exec-tenant-ops'],
     queryFn: async () => {
       const { data } = await supabase.from('rent_requests')
-        .select('id, status, rent_amount, amount_repaid, created_at, tenant_id, landlord_id')
+        .select('id, status, rent_amount, amount_repaid, created_at, tenant_id, landlord_id, agent_id')
         .order('created_at', { ascending: false }).limit(200);
       const items = data || [];
 
       const tenantIds = [...new Set(items.map(r => r.tenant_id).filter(Boolean))];
       const landlordIds = [...new Set(items.map(r => r.landlord_id).filter(Boolean))];
+      const agentIds = [...new Set(items.map(r => r.agent_id).filter(Boolean))];
 
-      const [profilesRes, landlordsRes] = await Promise.all([
+      const [profilesRes, landlordsRes, agentsRes] = await Promise.all([
         tenantIds.length > 0
           ? supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds.slice(0, 100))
           : { data: [] },
         landlordIds.length > 0
           ? supabase.from('landlords').select('id, name, phone').in('id', landlordIds.slice(0, 100))
           : { data: [] },
+        agentIds.length > 0
+          ? supabase.from('profiles').select('id, full_name').in('id', agentIds.slice(0, 100))
+          : { data: [] },
       ]);
 
       const profileMap = new Map((profilesRes.data || []).map(p => [p.id, p]));
       const landlordMap = new Map((landlordsRes.data || []).map(l => [l.id, l]));
+      const agentMap = new Map((agentsRes.data || []).map((a: any) => [a.id, a]));
 
       return items.map(r => ({
         ...r,
@@ -167,6 +172,7 @@ export function TenantOpsDashboard() {
         tenant_phone: profileMap.get(r.tenant_id)?.phone || '—',
         landlord_name: landlordMap.get(r.landlord_id)?.name || '—',
         landlord_phone: landlordMap.get(r.landlord_id)?.phone || '—',
+        agent_name: r.agent_id ? (agentMap.get(r.agent_id)?.full_name || '—') : 'Unassigned',
       }));
     },
     staleTime: 600000,
@@ -299,6 +305,11 @@ export function TenantOpsDashboard() {
     }},
     { key: 'rent_amount', label: 'Amount', render: (v) => Number(v || 0).toLocaleString() },
     { key: 'amount_repaid', label: 'Repaid', render: (v) => Number(v || 0).toLocaleString() },
+    { key: 'agent_name', label: 'Current Agent', render: (v) => (
+      <span className={`text-xs ${v === 'Unassigned' ? 'text-muted-foreground italic' : 'font-medium'}`}>
+        {String(v ?? '—')}
+      </span>
+    )},
     { key: 'landlord_name', label: 'Landlord' },
     { key: 'landlord_phone', label: 'L. Phone' },
     { key: 'tenant_id', label: 'Action', render: (_v, row) => (

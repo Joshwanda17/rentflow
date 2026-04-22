@@ -210,13 +210,42 @@ export function TenantAgentLinker() {
             </Card>
           )}
 
-          {tenantRequests?.map((rr) => (
-            <Card key={rr.id} className="border">
+          {tenantRequests?.map((rr) => {
+            const willMove =
+              !!selectedAgent &&
+              !!currentAgentId &&
+              currentAgentId !== selectedAgent.id &&
+              rr.agent_id === currentAgentId;
+            const alreadyOnNewAgent =
+              !!selectedAgent && rr.agent_id === selectedAgent.id;
+            return (
+            <Card
+              key={rr.id}
+              className={`border transition-colors ${
+                willMove
+                  ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                  : alreadyOnNewAgent
+                  ? 'border-emerald-500/40 bg-emerald-500/5'
+                  : ''
+              }`}
+            >
               <CardContent className="p-3 space-y-2">
                 <div className="flex items-center justify-between">
-                  <Badge variant="outline" className="text-[10px]">
-                    {rr.status.replace(/_/g, ' ')}
-                  </Badge>
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="outline" className="text-[10px]">
+                      {rr.status.replace(/_/g, ' ')}
+                    </Badge>
+                    {willMove && (
+                      <Badge className="text-[10px] bg-primary text-primary-foreground">
+                        Will transfer
+                      </Badge>
+                    )}
+                    {alreadyOnNewAgent && (
+                      <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-700 dark:text-emerald-400">
+                        Already on new agent
+                      </Badge>
+                    )}
+                  </div>
                   <span className="text-xs text-muted-foreground">
                     {rr.id.slice(0, 8)}
                   </span>
@@ -266,7 +295,8 @@ export function TenantAgentLinker() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
