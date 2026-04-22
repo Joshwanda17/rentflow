@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import {
   Loader2, MessageCircle, Image as ImageIcon, FileText, Copy, CheckCircle2, ExternalLink,
-  ArrowLeft, Eye,
+  ArrowLeft, Eye, ShieldCheck,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -273,9 +273,22 @@ export function RentAccessLimitShareDialog({
               {previewMessage ?? message}
             </div>
 
+            {/* Snapshot indicator — proves the send action will use this exact text */}
+            <div
+              className="flex items-center gap-1.5 text-[11px] text-success font-medium"
+              role="status"
+              aria-live="polite"
+            >
+              <ShieldCheck className="h-3.5 w-3.5" />
+              {previewMessage
+                ? 'Uses preview snapshot — sent text will match exactly'
+                : 'Locking snapshot…'}
+            </div>
+
             <div className="grid grid-cols-1 gap-2">
               <Button
                 onClick={confirmAndShare}
+                disabled={!previewMessage || !previewBlob}
                 className="h-12 rounded-xl gap-2 font-bold bg-success hover:bg-success/90 text-success-foreground"
                 size="lg"
               >
