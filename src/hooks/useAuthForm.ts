@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { getLocationData } from '@/hooks/useGeolocation';
 import { generatePhoneEmailVariants, cleanPhoneNumber, isValidPhoneNumber, getTriedPhoneFormats } from '@/lib/phoneUtils';
-import { validateSignUp } from '@/lib/authValidation';
+import { validateSignUp, validateFullName } from '@/lib/authValidation';
 
 const VALID_SIGNUP_ROLES = ['tenant', 'agent', 'landlord', 'supporter'] as const;
 
@@ -244,7 +244,8 @@ export function useAuthForm() {
       toast({ title: 'Phone Already Registered', description: duplicateMessage || 'This phone number is already in use.', variant: 'destructive' });
       return;
     }
-    const trimmedFullName = (fullName ?? '').trim();
+    const nameCheck = validateFullName(fullName);
+    const trimmedFullName = nameCheck.trimmed;
     const validationError = validateSignUp({ password, confirmPassword, fullName: trimmedFullName, phone });
     if (validationError) {
       toast({ title: 'Error', description: validationError, variant: 'destructive' });
