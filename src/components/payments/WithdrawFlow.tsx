@@ -275,6 +275,36 @@ export default function WithdrawFlow({
                 </div>
               </Card>
             </div>
+
+            {(floatBalance > 0 || advanceBalance > 0) && (
+              <div className="rounded-lg border border-dashed border-border bg-muted/30 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-foreground">Other wallet buckets (not withdrawable)</p>
+                  {userRoles.length > 1 && (
+                    <span className="text-[10px] text-muted-foreground">
+                      {userRoles.length} active roles
+                    </span>
+                  )}
+                </div>
+                {floatBalance > 0 && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">🏦 Float (operational money for agents/partners)</span>
+                    <span className="font-medium text-foreground">{formatCurrency(floatBalance, 'UGX')}</span>
+                  </div>
+                )}
+                {advanceBalance > 0 && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">📋 Advance (auto-recovered from incoming income)</span>
+                    <span className="font-medium text-foreground">{formatCurrency(advanceBalance, 'UGX')}</span>
+                  </div>
+                )}
+                <p className="text-[10px] text-muted-foreground leading-relaxed pt-1 border-t border-border/40">
+                  Funds credited by Finance land in a specific bucket based on the credit category. Only the
+                  <span className="font-semibold text-foreground"> Available Balance </span>
+                  can be withdrawn — Float and Advance are reserved by policy.
+                </p>
+              </div>
+            )}
           </div>
         );
 
