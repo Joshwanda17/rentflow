@@ -229,6 +229,41 @@ const IMPACT_CONFIG: Record<FinancialImpact, { label: string; color: string; ico
   neutral: { label: 'Neutral', color: 'text-muted-foreground bg-muted/50 border-border', icon: Minus },
 };
 
+// Map a wallet category to the wallet bucket it lands in, so the CFO knows
+// whether the user can actually withdraw the credited amount.
+type WalletBucket = 'withdrawable' | 'float' | 'advance';
+const WALLET_BUCKET_MAP: Record<string, WalletBucket> = {
+  roi_wallet_credit: 'withdrawable',
+  agent_commission_earned: 'withdrawable',
+  system_balance_correction: 'withdrawable',
+  wallet_transfer: 'withdrawable',
+  rent_disbursement: 'float',
+  marketing_expense: 'withdrawable',
+  research_development_expense: 'withdrawable',
+  general_admin_expense: 'withdrawable',
+  payroll_expense: 'withdrawable',
+  tax_expense: 'withdrawable',
+  interest_expense: 'withdrawable',
+  equipment_expense: 'withdrawable',
+};
+const BUCKET_LABEL: Record<WalletBucket, { name: string; note: string; tone: string }> = {
+  withdrawable: {
+    name: 'Withdrawable',
+    note: 'User can withdraw this immediately from any of their dashboards.',
+    tone: 'text-emerald-700 bg-emerald-50 border-emerald-200',
+  },
+  float: {
+    name: 'Float (Operational)',
+    note: 'Reserved for agent/partner operations — NOT withdrawable by the user.',
+    tone: 'text-blue-700 bg-blue-50 border-blue-200',
+  },
+  advance: {
+    name: 'Advance (Liability)',
+    note: 'Auto-recovered from the user\u2019s next incoming salary or commission.',
+    tone: 'text-amber-700 bg-amber-50 border-amber-200',
+  },
+};
+
 export function DirectCreditTool() {
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -621,6 +656,18 @@ export function DirectCreditTool() {
                     </>
                   )}
                 </div>
+                {isCredit && (() => {
+                  const bucket = WALLET_BUCKET_MAP[selectedCategory.walletCategory] ?? 'withdrawable';
+                  const meta = BUCKET_LABEL[bucket];
+                  return (
+                    <div className={`mt-2 rounded-md border p-2 text-[11px] ${meta.tone}`}>
+                      <div className="font-semibold">
+                        💼 Lands in: {meta.name} bucket
+                      </div>
+                      <div className="opacity-80 mt-0.5">{meta.note}</div>
+                    </div>
+                  );
+                })()}
               </div>
             )}
 

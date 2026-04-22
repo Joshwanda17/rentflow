@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import StepperModal, { Step } from './StepperModal';
 import ConfirmSummaryCard from './ConfirmSummaryCard';
 import ProcessingScreen from './ProcessingScreen';
@@ -67,6 +67,35 @@ export default function WithdrawFlow({
   const [withdrawalRef, setWithdrawalRef] = useState('');
 
   const maxAmount = source === 'available' ? availableBalance : roiBalance;
+
+  // Cross-bucket visibility: show user the other (non-withdrawable) buckets
+  // so they understand where CFO/agent credits may have landed.
+  const [floatBalance, setFloatBalance] = useState<number>(0);
+  const [advanceBalance, setAdvanceBalance] = useState<number>(0);
+  const [userRoles, setUserRoles] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!open || !user) return;
+    let cancelled = false;
+    (async () => {
+      const [walletRes, rolesRes] = await Promise.all([
+        supabase
+          .from('wallets')
+          .select('float_balance, advance_balance')
+          .eq('user_id', user.id)
+          .maybeSingle(),
+        supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id),
+      ]);
+      if (cancelled) return;
+      setFloatBalance(Number(walletRes.data?.float_balance ?? 0));
+      setAdvanceBalance(Number(walletRes.data?.advance_balance ?? 0));
+      setUserRoles((rolesRes.data ?? []).map((r: any) => r.role));
+    })();
+    return () => { cancelled = true; };
+  }, [open, user]);
 
   const handleReset = () => {
     setCurrentStep(0);
@@ -246,6 +275,36 @@ export default function WithdrawFlow({
                 </div>
               </Card>
             </div>
+
+            {(floatBalance > 0 || advanceBalance > 0) && (
+              <div className="rounded-lg border border-dashed border-border bg-muted/30 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-foreground">Other wallet buckets (not withdrawable)</p>
+                  {userRoles.length > 1 && (
+                    <span className="text-[10px] text-muted-foreground">
+                      {userRoles.length} active roles
+                    </span>
+                  )}
+                </div>
+                {floatBalance > 0 && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">🏦 Float (operational money for agents/partners)</span>
+                    <span className="font-medium text-foreground">{formatCurrency(floatBalance, 'UGX')}</span>
+                  </div>
+                )}
+                {advanceBalance > 0 && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">📋 Advance (auto-recovered from incoming income)</span>
+                    <span className="font-medium text-foreground">{formatCurrency(advanceBalance, 'UGX')}</span>
+                  </div>
+                )}
+                <p className="text-[10px] text-muted-foreground leading-relaxed pt-1 border-t border-border/40">
+                  Funds credited by Finance land in a specific bucket based on the credit category. Only the
+                  <span className="font-semibold text-foreground"> Available Balance </span>
+                  can be withdrawn — Float and Advance are reserved by policy.
+                </p>
+              </div>
+            )}
           </div>
         );
 
