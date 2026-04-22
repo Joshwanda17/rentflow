@@ -268,9 +268,44 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
       list = list.filter(t => tenantMeta[t.id]?.riskLevel === riskFilter);
     }
 
-    list.sort((a, b) => (tenantBalances[b.id] || 0) - (tenantBalances[a.id] || 0));
+    const dir = sortDir === 'asc' ? 1 : -1;
+    list.sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case 'risk': {
+          const ra = RISK_ORDER[tenantMeta[a.id]?.riskLevel ?? 'new'];
+          const rb = RISK_ORDER[tenantMeta[b.id]?.riskLevel ?? 'new'];
+          cmp = ra - rb;
+          break;
+        }
+        case 'aiId': {
+          cmp = (tenantMeta[a.id]?.aiId ?? '').localeCompare(tenantMeta[b.id]?.aiId ?? '');
+          break;
+        }
+        case 'property': {
+          const pa = (tenantContext[a.id]?.propertyAddress ?? '').toLowerCase();
+          const pb = (tenantContext[b.id]?.propertyAddress ?? '').toLowerCase();
+          // Push empty addresses to the bottom regardless of direction
+          if (!pa && pb) return 1;
+          if (pa && !pb) return -1;
+          cmp = pa.localeCompare(pb);
+          break;
+        }
+        case 'balance':
+        default: {
+          cmp = (tenantBalances[a.id] || 0) - (tenantBalances[b.id] || 0);
+          break;
+        }
+      }
+      if (cmp === 0) {
+        // Stable tiebreaker: name asc
+        cmp = a.full_name.localeCompare(b.full_name);
+        return cmp;
+      }
+      return cmp * dir;
+    });
     return list;
-  }, [tenants, search, activeFilter, riskFilter, tenantBalances, tenantStatuses, tenantContext, tenantMeta]);
+  }, [tenants, search, activeFilter, riskFilter, sortKey, sortDir, tenantBalances, tenantStatuses, tenantContext, tenantMeta]);
 
   // Stats
   const stats = useMemo(() => {
