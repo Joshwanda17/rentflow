@@ -28,6 +28,27 @@ export function TenantAgentLinker() {
   const [selectedAgent, setSelectedAgent] = useState<SelectedUser | null>(null);
   const [transferReason, setTransferReason] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [previewSortKey, setPreviewSortKey] = useState<'id' | 'agent' | 'amount'>('amount');
+  const [previewSortDir, setPreviewSortDir] = useState<'asc' | 'desc'>('desc');
+
+  // Reset preview sort each time the confirm dialog opens so it doesn't leak between transfers.
+  useEffect(() => {
+    if (confirmOpen) {
+      setPreviewSortKey('amount');
+      setPreviewSortDir('desc');
+    }
+  }, [confirmOpen]);
+
+  const handlePreviewSort = (key: 'id' | 'agent' | 'amount') => {
+    setPreviewSortKey((prevKey) => {
+      if (prevKey === key) {
+        setPreviewSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+        return prevKey;
+      }
+      setPreviewSortDir(key === 'amount' ? 'desc' : 'asc');
+      return key;
+    });
+  };
 
   // Fetch active rent requests for selected tenant
   const { data: tenantRequests, isLoading: loadingRequests } = useQuery({
