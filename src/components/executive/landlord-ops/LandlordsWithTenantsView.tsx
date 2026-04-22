@@ -23,8 +23,7 @@ interface RentRow {
   id: string;
   tenant_id: string;
   landlord_id: string | null;
-  monthly_rent: number | null;
-  amount: number | null;
+  rent_amount: number | null;
   status: string;
   created_at: string;
 }
@@ -66,12 +65,12 @@ export function LandlordsWithTenantsView() {
       // 1. All rent_requests (paid + pending only — exclude rejected)
       const { data: rrs, error: rrErr } = await supabase
         .from('rent_requests')
-        .select('id, tenant_id, landlord_id, monthly_rent, amount, status, created_at')
+        .select('id, tenant_id, landlord_id, rent_amount, status, created_at')
         .order('created_at', { ascending: false })
         .limit(1000);
       if (rrErr) throw rrErr;
 
-      const rentRows = (rrs || []) as RentRow[];
+      const rentRows = (rrs || []) as unknown as RentRow[];
       const validRows = rentRows.filter(r => classify(r.status) !== null);
 
       // 2. Landlords lookup
@@ -87,33 +86,41 @@ export function LandlordsWithTenantsView() {
 
       // 3. Tenant profiles lookup
       const tenantIds = Array.from(new Set(validRows.map(r => r.tenant_id).filter(Boolean)));
-      const tenantMap = new Map<string, { id: string; full_name: string | null; phone_number: string | null }>();
+      const tenantMap = new Map<string, { id: string; full_name: string | null; phone: string | null }>();
       for (let i = 0; i < tenantIds.length; i += 200) {
         const { data: tt } = await supabase
           .from('profiles')
-          .select('id, full_name, phone_number')
+          .select('id, full_name, phone')
           .in('id', tenantIds.slice(i, i + 200));
-        for (const t of tt || []) tenantMap.set(t.id, t);
+        for (const t of tt || []) tenantMap.set(t.id, t as any);
       }
 
-      return { validRows, landlordMap, tenantMap };
+      // 4. Orphan tenants: tenants from profiles with tenant role/status but no resolved landlord
+      const { data: orphanProfiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone, monthly_rent')
+        .eq('tenant_status', 'active')
+        .limit(1000);
+
+      return { validRows, landlordMap, tenantMap, orphanProfiles: orphanProfiles || [] };
     },
     staleTime: 60_000,
   });
 
   const groups: LandlordGroup[] = useMemo(() => {
     if (!data) return [];
-    const { validRows, landlordMap, tenantMap } = data;
+    const { validRows, landlordMap, tenantMap, orphanProfiles } = data;
 
     // Group: landlord_id -> tenant_id -> aggregated tenant row
     const map = new Map<string, Map<string, TenantRow>>();
     for (const r of validRows) {
       const status = classify(r.status)!;
-      const lkey = r.landlord_id || '__none__';
+      // If landlord_id doesn't resolve to a known landlord, treat as no-landlord
+      const lkey = r.landlord_id && landlordMap.has(r.landlord_id) ? r.landlord_id : '__none__';
       if (!map.has(lkey)) map.set(lkey, new Map());
       const tenantBucket = map.get(lkey)!;
       const t = tenantMap.get(r.tenant_id);
-      const amt = Number(r.monthly_rent ?? r.amount ?? 0);
+      const amt = Number(r.rent_amount ?? 0);
       const existing = tenantBucket.get(r.tenant_id);
       if (existing) {
         existing.amount += amt;
@@ -127,11 +134,33 @@ export function LandlordsWithTenantsView() {
         tenantBucket.set(r.tenant_id, {
           tenant_id: r.tenant_id,
           name: t?.full_name || 'Unknown Tenant',
-          phone: t?.phone_number || null,
+          phone: t?.phone || null,
           amount: amt,
           status,
           latestAt: r.created_at,
           requestCount: 1,
+        });
+      }
+    }
+
+    // Add orphan tenants (active tenants in profiles with no rent_request at all) to no-landlord bucket
+    const seenTenants = new Set<string>();
+    for (const bucket of map.values()) {
+      for (const tid of bucket.keys()) seenTenants.add(tid);
+    }
+    if (orphanProfiles.length > 0) {
+      if (!map.has('__none__')) map.set('__none__', new Map());
+      const noneBucket = map.get('__none__')!;
+      for (const p of orphanProfiles) {
+        if (seenTenants.has(p.id)) continue;
+        noneBucket.set(p.id, {
+          tenant_id: p.id,
+          name: (p as any).full_name || 'Unknown Tenant',
+          phone: (p as any).phone || null,
+          amount: Number((p as any).monthly_rent || 0),
+          status: 'pending',
+          latestAt: new Date(0).toISOString(),
+          requestCount: 0,
         });
       }
     }
@@ -361,6 +390,9 @@ export function LandlordsWithTenantsView() {
                             )}
                             {t.requestCount > 1 && (
                               <span>· {t.requestCount} requests</span>
+                            )}
+                            {t.requestCount === 0 && (
+                              <span>· no rent request</span>
                             )}
                           </div>
                         </div>
