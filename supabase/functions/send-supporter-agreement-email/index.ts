@@ -10,6 +10,15 @@ const SITE_NAME = "Welile";
 const FROM_DOMAIN = "welile.com";
 const SENDER_DOMAIN = "notify.welile.com";
 
+// Generate a cryptographically random 32-byte hex token (mirrors send-transactional-email)
+function generateToken(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 function buildAgreementHtml(supporterName: string, acceptDate: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
