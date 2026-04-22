@@ -579,6 +579,21 @@ export function LandlordOpsDashboard() {
     enabled: view === 'lc1' || view === 'home',
   });
 
+  // ─── Paid Landlords Count (for nav badge) ───
+  const { data: paidLandlordsCount } = useQuery({
+    queryKey: ['landlord-ops-paid-landlords-count'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('disbursement_records')
+        .select('landlord_id')
+        .not('landlord_id', 'is', null);
+      const set = new Set<string>();
+      (data || []).forEach((r: any) => { if (r.landlord_id) set.add(r.landlord_id); });
+      return set.size;
+    },
+    staleTime: 60_000,
+  });
+
   const lc1Groups = fullLC1Data || [];
 
   const verifiedLandlords = landlordsList.filter(l => l.verified);
