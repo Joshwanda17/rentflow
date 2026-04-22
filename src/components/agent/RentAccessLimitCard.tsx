@@ -10,6 +10,54 @@ import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { RentAccessLimitShareDialog } from './RentAccessLimitShareDialog';
 
+/**
+ * Sensible UGX bounds for monthly rent.
+ * - MIN: 10,000 UGX (anything lower is almost certainly a typo / wrong unit)
+ * - MAX: 50,000,000 UGX (covers high-end Kampala properties; protects against
+ *        accidentally entering yearly rent or adding extra zeros)
+ * - STEP: 500 UGX (rent is rarely quoted with finer granularity)
+ */
+const RENT_MIN_UGX = 10_000;
+const RENT_MAX_UGX = 50_000_000;
+const RENT_STEP_UGX = 500;
+
+type RentValidation =
+  | { ok: true; value: number }
+  | { ok: false; reason: 'empty' | 'too_low' | 'too_high' | 'not_round' | 'nan'; message: string };
+
+function validateMonthlyRentUGX(raw: string): RentValidation {
+  const cleaned = raw.replace(/[^0-9]/g, '');
+  if (!cleaned) {
+    return { ok: false, reason: 'empty', message: 'Enter the monthly rent amount.' };
+  }
+  const n = Number(cleaned);
+  if (!Number.isFinite(n)) {
+    return { ok: false, reason: 'nan', message: 'Rent must be a valid number.' };
+  }
+  if (n < RENT_MIN_UGX) {
+    return {
+      ok: false,
+      reason: 'too_low',
+      message: `Rent looks too low — minimum is ${RENT_MIN_UGX.toLocaleString('en-UG')} UGX.`,
+    };
+  }
+  if (n > RENT_MAX_UGX) {
+    return {
+      ok: false,
+      reason: 'too_high',
+      message: `Rent looks too high — maximum is ${RENT_MAX_UGX.toLocaleString('en-UG')} UGX. Did you enter yearly rent?`,
+    };
+  }
+  if (n % RENT_STEP_UGX !== 0) {
+    return {
+      ok: false,
+      reason: 'not_round',
+      message: `Round to the nearest ${RENT_STEP_UGX.toLocaleString('en-UG')} UGX.`,
+    };
+  }
+  return { ok: true, value: n };
+}
+
 interface RentAccessLimitCardProps {
   tenantId: string;
   tenantName: string;
