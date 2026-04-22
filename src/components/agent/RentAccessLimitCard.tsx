@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { TrendingUp, TrendingDown, Info, Sparkles, MessageCircle, Loader2, Check, Wand2, Pencil } from 'lucide-react';
+import { TrendingUp, TrendingDown, Info, Sparkles, MessageCircle, Loader2, Check, Wand2, Pencil, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -9,6 +9,54 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { RentAccessLimitShareDialog } from './RentAccessLimitShareDialog';
+
+/**
+ * Sensible UGX bounds for monthly rent.
+ * - MIN: 10,000 UGX (anything lower is almost certainly a typo / wrong unit)
+ * - MAX: 50,000,000 UGX (covers high-end Kampala properties; protects against
+ *        accidentally entering yearly rent or adding extra zeros)
+ * - STEP: 500 UGX (rent is rarely quoted with finer granularity)
+ */
+const RENT_MIN_UGX = 10_000;
+const RENT_MAX_UGX = 50_000_000;
+const RENT_STEP_UGX = 500;
+
+type RentValidation =
+  | { ok: true; value: number }
+  | { ok: false; reason: 'empty' | 'too_low' | 'too_high' | 'not_round' | 'nan'; message: string };
+
+function validateMonthlyRentUGX(raw: string): RentValidation {
+  const cleaned = raw.replace(/[^0-9]/g, '');
+  if (!cleaned) {
+    return { ok: false, reason: 'empty', message: 'Enter the monthly rent amount.' };
+  }
+  const n = Number(cleaned);
+  if (!Number.isFinite(n)) {
+    return { ok: false, reason: 'nan', message: 'Rent must be a valid number.' };
+  }
+  if (n < RENT_MIN_UGX) {
+    return {
+      ok: false,
+      reason: 'too_low',
+      message: `Rent looks too low — minimum is ${RENT_MIN_UGX.toLocaleString('en-UG')} UGX.`,
+    };
+  }
+  if (n > RENT_MAX_UGX) {
+    return {
+      ok: false,
+      reason: 'too_high',
+      message: `Rent looks too high — maximum is ${RENT_MAX_UGX.toLocaleString('en-UG')} UGX. Did you enter yearly rent?`,
+    };
+  }
+  if (n % RENT_STEP_UGX !== 0) {
+    return {
+      ok: false,
+      reason: 'not_round',
+      message: `Round to the nearest ${RENT_STEP_UGX.toLocaleString('en-UG')} UGX.`,
+    };
+  }
+  return { ok: true, value: n };
+}
 
 interface RentAccessLimitCardProps {
   tenantId: string;
@@ -64,20 +112,31 @@ export function RentAccessLimitCard({
 
   // No monthly rent set → actionable prompt to capture it now
   if (!monthlyRent || monthlyRent <= 0) {
-    const parsed = parseInt(rentInput.replace(/[^0-9]/g, ''), 10) || 0;
-    const canSave = parsed >= 10000 && !savingRent;
+    const validation = validateMonthlyRentUGX(rentInput);
+    const isEmpty = !rentInput.replace(/[^0-9]/g, '');
+    // Only surface validation errors after the user has typed something
+    const showError = !validation.ok && !isEmpty;
+    const canSave = validation.ok && !savingRent;
 
     const handleSaveRent = async () => {
-      if (!canSave) return;
+      const v = validateMonthlyRentUGX(rentInput);
+      if (v.ok === false) {
+        toast({
+          title: 'Invalid monthly rent',
+          description: v.message,
+          variant: 'destructive',
+        });
+        return;
+      }
       setSavingRent(true);
       try {
         const { error } = await supabase
           .from('profiles')
-          .update({ monthly_rent: parsed })
+          .update({ monthly_rent: v.value })
           .eq('id', tenantId);
         if (error) throw error;
-        toast({ title: 'Monthly rent saved', description: `Set to ${formatUGX(parsed)}` });
-        onRentSaved?.(parsed);
+        toast({ title: 'Monthly rent saved', description: `Set to ${formatUGX(v.value)}` });
+        onRentSaved?.(v.value);
       } catch (err: any) {
         toast({
           title: 'Could not save rent',
@@ -105,9 +164,14 @@ export function RentAccessLimitCard({
         </div>
 
         <div className="space-y-1.5">
-          <label htmlFor="rent-input" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-            Monthly rent (UGX)
-          </label>
+          <div className="flex items-center justify-between">
+            <label htmlFor="rent-input" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              Monthly rent (UGX)
+            </label>
+            <span className="text-[10px] text-muted-foreground">
+              {RENT_MIN_UGX.toLocaleString('en-UG')} – {RENT_MAX_UGX.toLocaleString('en-UG')}
+            </span>
+          </div>
           <div className="flex gap-2">
             <Input
               id="rent-input"
@@ -115,8 +179,13 @@ export function RentAccessLimitCard({
               placeholder="e.g. 350,000"
               value={rentInput ? Number(rentInput.replace(/[^0-9]/g, '')).toLocaleString('en-UG') : ''}
               onChange={(e) => setRentInput(e.target.value.replace(/[^0-9]/g, ''))}
-              className="h-11 text-sm font-mono font-semibold"
+              className={cn(
+                'h-11 text-sm font-mono font-semibold',
+                showError && 'border-destructive focus-visible:ring-destructive',
+              )}
               disabled={savingRent}
+              aria-invalid={showError}
+              aria-describedby="rent-input-help"
             />
             <Button
               type="button"
@@ -128,9 +197,23 @@ export function RentAccessLimitCard({
               <span className="ml-1.5">Save</span>
             </Button>
           </div>
-          {parsed > 0 && parsed < 10000 && (
-            <p className="text-[11px] text-destructive">Rent looks too low — minimum 10,000 UGX.</p>
-          )}
+          <div id="rent-input-help" className="min-h-[16px]" aria-live="polite">
+            {showError ? (
+              <p className="text-[11px] text-destructive flex items-start gap-1">
+                <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" aria-hidden />
+                <span>{(validation as Extract<RentValidation, { ok: false }>).message}</span>
+              </p>
+            ) : validation.ok ? (
+              <p className="text-[11px] text-success flex items-center gap-1">
+                <Check className="h-3 w-3 shrink-0" aria-hidden />
+                Looks good — saves as {formatUGX(validation.value)}
+              </p>
+            ) : (
+              <p className="text-[11px] text-muted-foreground">
+                Round to nearest {RENT_STEP_UGX.toLocaleString('en-UG')} UGX. Enter the <strong>monthly</strong>, not yearly, amount.
+              </p>
+            )}
+          </div>
         </div>
       </div>
     );
