@@ -61,11 +61,22 @@ export function LandlordsPaidView() {
     queryFn: async () => {
       const { data: disb, error } = await supabase
         .from('disbursement_records')
-        .select('id, amount, disbursed_at, payout_method, transaction_reference, agent_confirmed, landlord_id, landlord:landlords(id, name, phone, mobile_money_number)')
+        .select('id, amount, disbursed_at, payout_method, transaction_reference, agent_confirmed, landlord_id')
         .order('disbursed_at', { ascending: false });
       if (error) throw error;
 
       const ids = (disb || []).map(d => d.id);
+      const landlordIds = Array.from(new Set((disb || []).map(d => d.landlord_id).filter(Boolean) as string[]));
+
+      const landlordMap = new Map<string, { id: string; name: string; phone: string | null; mobile_money_number: string | null }>();
+      for (let i = 0; i < landlordIds.length; i += 200) {
+        const { data: ll } = await supabase
+          .from('landlords')
+          .select('id, name, phone, mobile_money_number')
+          .in('id', landlordIds.slice(i, i + 200));
+        for (const l of ll || []) landlordMap.set(l.id, l);
+      }
+
       const confMap = new Map<string, any>();
       if (ids.length > 0) {
         for (let i = 0; i < ids.length; i += 200) {
@@ -77,7 +88,11 @@ export function LandlordsPaidView() {
         }
       }
 
-      return (disb || []).map(d => ({ ...d, delivery: confMap.get(d.id) || null })) as DisbursementRow[];
+      return (disb || []).map(d => ({
+        ...d,
+        landlord: d.landlord_id ? (landlordMap.get(d.landlord_id) || null) : null,
+        delivery: confMap.get(d.id) || null,
+      })) as DisbursementRow[];
     },
     staleTime: 60_000,
   });
