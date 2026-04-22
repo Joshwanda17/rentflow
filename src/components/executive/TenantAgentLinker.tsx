@@ -535,6 +535,12 @@ export function TenantAgentLinker() {
                     <Badge variant="outline" className="text-[10px]">
                       {rr.status.replace(/_/g, ' ')}
                     </Badge>
+                    {(rr.missed_days ?? 0) >= MISSED_DAYS_FLAG_THRESHOLD && (
+                      <Badge variant="destructive" className="text-[10px] gap-0.5">
+                        <CalendarX2 className="h-2.5 w-2.5" />
+                        Missed {rr.missed_days}d
+                      </Badge>
+                    )}
                     {willMove && (
                       <Badge className="text-[10px] bg-primary text-primary-foreground">
                         Will transfer
