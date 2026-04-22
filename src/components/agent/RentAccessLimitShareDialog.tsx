@@ -49,6 +49,9 @@ export function RentAccessLimitShareDialog({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
   const [previewing, setPreviewing] = useState(false);
+  // Snapshot of the message at the moment the preview was built, so the send
+  // action uses the exact text the user saw — even if shareUrl/result changes.
+  const [previewMessage, setPreviewMessage] = useState<string | null>(null);
 
   // Reset preview whenever the dialog closes / inputs change
   useEffect(() => {
@@ -57,6 +60,7 @@ export function RentAccessLimitShareDialog({
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(null);
       setPreviewBlob(null);
+      setPreviewMessage(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -117,6 +121,7 @@ export function RentAccessLimitShareDialog({
       const url = URL.createObjectURL(blob);
       setPreviewBlob(blob);
       setPreviewUrl(url);
+      setPreviewMessage(message);
       setPreviewing(true);
     } catch (err: any) {
       toast({ title: 'Preview failed', description: err.message, variant: 'destructive' });
@@ -127,7 +132,7 @@ export function RentAccessLimitShareDialog({
 
   /** Step 2 — user confirmed the preview, actually send to WhatsApp. */
   const confirmAndShare = async () => {
-    if (!previewBlob) return;
+    if (!previewBlob || !previewMessage) return;
     const file = new File(
       [previewBlob],
       `rent-access-${tenantName.replace(/\s+/g, '-').toLowerCase()}.png`,
@@ -139,7 +144,7 @@ export function RentAccessLimitShareDialog({
         await navAny.share({
           files: [file],
           title: 'Rent Access Limit',
-          text: message,
+          text: previewMessage,
         });
         toast({ title: 'Ready to share' });
         return;
@@ -155,7 +160,13 @@ export function RentAccessLimitShareDialog({
     a.download = file.name;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
-    openWhatsApp();
+    // Open WhatsApp using the SNAPSHOT message (not the live `message`),
+    // so the text matches exactly what the agent confirmed in the preview.
+    const intl = toIntlPhone(tenantPhone);
+    const waUrl = intl
+      ? `https://wa.me/${intl}?text=${encodeURIComponent(previewMessage)}`
+      : `https://wa.me/?text=${encodeURIComponent(previewMessage)}`;
+    window.open(waUrl, '_blank', 'noopener,noreferrer');
     toast({
       title: 'Image saved',
       description: 'Attach it in the WhatsApp chat that just opened.',
