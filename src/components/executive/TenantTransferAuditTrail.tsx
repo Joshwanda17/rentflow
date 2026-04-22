@@ -13,10 +13,14 @@ import {
 } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import {
+  Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose,
+} from '@/components/ui/drawer';
+import {
   ArrowRightLeft, Link2, MapPin, MapPinOff, Search, Shield,
-  CheckCircle2, AlertCircle, Clock, ExternalLink, Filter, X, ChevronDown,
+  CheckCircle2, AlertCircle, Clock, ExternalLink, Filter, X, ChevronDown, Navigation, Copy,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
+import { toast } from 'sonner';
 
 type AuditEntryKind = 'transfer' | 'link';
 
@@ -67,6 +71,8 @@ function statusPill(status: string | null) {
 
 export function TenantTransferAuditTrail() {
   const [search, setSearch] = useState('');
+  // Currently-open entry for the embedded map drawer. null => closed.
+  const [mapEntry, setMapEntry] = useState<AuditEntry | null>(null);
 
   const { data: entries, isLoading } = useQuery({
     queryKey: ['tenant-transfer-audit-trail'],
@@ -506,7 +512,19 @@ export function TenantTransferAuditTrail() {
         <ScrollArea className="h-[calc(100vh-340px)]">
           <div className="space-y-2 pr-2">
             {filtered.map((e) => (
-              <Card key={e.id} className="overflow-hidden">
+              <Card
+                key={e.id}
+                className="overflow-hidden cursor-pointer transition-colors hover:bg-muted/40 hover:border-primary/40"
+                onClick={() => setMapEntry(e)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(ev) => {
+                  if (ev.key === 'Enter' || ev.key === ' ') {
+                    ev.preventDefault();
+                    setMapEntry(e);
+                  }
+                }}
+              >
                 <CardContent className="p-3 space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
@@ -604,6 +622,7 @@ export function TenantTransferAuditTrail() {
                         href={`https://www.google.com/maps?q=${e.actor_latitude},${e.actor_longitude}`}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={(ev) => ev.stopPropagation()}
                         className="text-primary hover:underline flex items-center gap-1 shrink-0"
                       >
                         Map <ExternalLink className="h-3 w-3" />
@@ -616,6 +635,188 @@ export function TenantTransferAuditTrail() {
           </div>
         </ScrollArea>
       )}
+
+      <AuditMapDrawer entry={mapEntry} onClose={() => setMapEntry(null)} />
     </div>
+  );
+}
+
+/**
+ * Bottom drawer that embeds an OpenStreetMap iframe centred on the executive's
+ * captured coordinates, plus copy/open-in-Maps shortcuts. OSM's public embed
+ * needs no API key — perfect for an audit-only verification view.
+ */
+function AuditMapDrawer({
+  entry,
+  onClose,
+}: {
+  entry: AuditEntry | null;
+  onClose: () => void;
+}) {
+  const open = entry !== null;
+  const lat = entry?.actor_latitude ?? null;
+  const lon = entry?.actor_longitude ?? null;
+  const hasGeo = lat != null && lon != null;
+
+  // Tighten the bbox as accuracy gets better — minimum ~250m window so a
+  // <10m fix doesn't render as an unreadable zoomed-pin.
+  const accuracy = entry?.actor_accuracy ?? 100;
+  const halfDeg = Math.max(0.0025, (Number(accuracy) || 100) / 50000);
+  const bbox = hasGeo
+    ? `${(lon as number) - halfDeg},${(lat as number) - halfDeg},${(lon as number) + halfDeg},${(lat as number) + halfDeg}`
+    : '';
+  const embedSrc = hasGeo
+    ? `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lon}`
+    : '';
+
+  const copyCoords = async () => {
+    if (!hasGeo) return;
+    try {
+      await navigator.clipboard.writeText(`${lat}, ${lon}`);
+      toast.success('Coordinates copied');
+    } catch {
+      toast.error('Could not copy');
+    }
+  };
+
+  return (
+    <Drawer open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DrawerContent className="max-h-[90vh]">
+        <DrawerHeader className="text-left">
+          <DrawerTitle className="flex items-center gap-2 text-base">
+            {entry?.kind === 'transfer' ? (
+              <ArrowRightLeft className="h-4 w-4 text-orange-600" />
+            ) : (
+              <Link2 className="h-4 w-4 text-primary" />
+            )}
+            {entry?.kind === 'transfer' ? 'Transfer location' : 'Link location'}
+          </DrawerTitle>
+          <DrawerDescription className="text-xs">
+            {entry && (
+              <>
+                <span className="font-medium text-foreground">{entry.actor_name}</span>{' '}
+                · {format(new Date(entry.created_at), 'PP p')}
+              </>
+            )}
+          </DrawerDescription>
+        </DrawerHeader>
+
+        <div className="px-4 pb-2 space-y-3">
+          {entry && (
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded-md border p-2">
+                <div className="text-[10px] uppercase text-muted-foreground">Tenant</div>
+                <div className="font-medium truncate">{entry.tenant_name}</div>
+              </div>
+              <div className="rounded-md border p-2">
+                <div className="text-[10px] uppercase text-muted-foreground">
+                  {entry.kind === 'transfer' ? 'Agent change' : 'Linked agent'}
+                </div>
+                <div className="font-medium truncate flex items-center gap-1">
+                  {entry.kind === 'transfer' ? (
+                    <>
+                      <span className="truncate">{entry.from_agent_name}</span>
+                      <ArrowRightLeft className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <span className="truncate">{entry.to_agent_name}</span>
+                    </>
+                  ) : (
+                    entry.to_agent_name
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between gap-2">
+            {entry && statusPill(entry.actor_location_status)}
+            {hasGeo && (
+              <div className="text-[11px] font-mono text-muted-foreground">
+                {Number(lat).toFixed(6)}, {Number(lon).toFixed(6)}
+                {entry?.actor_accuracy != null && (
+                  <span> · ±{Math.round(Number(entry.actor_accuracy))} m</span>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-md border overflow-hidden bg-muted/30 h-[42vh] min-h-[260px]">
+            {hasGeo ? (
+              <iframe
+                key={`${lat},${lon}`}
+                title="Captured location map"
+                src={embedSrc}
+                className="w-full h-full border-0"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-center p-6 gap-2">
+                <MapPinOff className="h-8 w-8 text-muted-foreground" />
+                <div className="text-sm font-medium">No coordinates recorded</div>
+                <div className="text-xs text-muted-foreground max-w-sm">
+                  This action was completed without a successful geo-capture
+                  {entry?.actor_location_status ? ` (${entry.actor_location_status})` : ''}.
+                  Cross-check with the executive directly before relying on it for field
+                  verification.
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <DrawerFooter className="pt-2">
+          <div className="flex flex-wrap gap-2">
+            {hasGeo && (
+              <>
+                <Button
+                  asChild
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                >
+                  <a
+                    href={`https://www.google.com/maps?q=${lat},${lon}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    Google Maps
+                  </a>
+                </Button>
+                <Button
+                  asChild
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                >
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Navigation className="h-3.5 w-3.5" />
+                    Directions
+                  </a>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={copyCoords}
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  Copy coords
+                </Button>
+              </>
+            )}
+            <DrawerClose asChild>
+              <Button size="sm" variant="ghost" className="ml-auto">
+                Close
+              </Button>
+            </DrawerClose>
+          </div>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
   );
 }
