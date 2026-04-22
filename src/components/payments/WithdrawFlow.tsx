@@ -66,13 +66,15 @@ export default function WithdrawFlow({
   const [paymentStatus, setPaymentStatus] = useState<'success' | 'failed'>('success');
   const [withdrawalRef, setWithdrawalRef] = useState('');
 
-  const maxAmount = source === 'available' ? availableBalance : roiBalance;
-
-  // Cross-bucket visibility: show user the other (non-withdrawable) buckets
-  // so they understand where CFO/agent credits may have landed.
+  // Withdrawable = withdrawable_balance + advance_balance (advance is recoverable
+  // user money). Float is operational/company money and stays locked.
   const [floatBalance, setFloatBalance] = useState<number>(0);
   const [advanceBalance, setAdvanceBalance] = useState<number>(0);
   const [userRoles, setUserRoles] = useState<string[]>([]);
+
+  // The "available" source now represents withdrawable + advance combined.
+  const combinedAvailable = availableBalance + advanceBalance;
+  const maxAmount = source === 'available' ? combinedAvailable : roiBalance;
 
   useEffect(() => {
     if (!open || !user) return;
@@ -252,10 +254,14 @@ export default function WithdrawFlow({
                     <Wallet className="w-5 h-5 text-primary" />
                   </div>
                   <div className="flex-1">
-                    <h4 className="font-semibold">Available Balance</h4>
-                    <p className="text-sm text-muted-foreground">Ready to withdraw</p>
+                    <h4 className="font-semibold">Available to Withdraw</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {advanceBalance > 0
+                        ? `Withdrawable + Advance combined`
+                        : 'Ready to withdraw'}
+                    </p>
                   </div>
-                  <span className="font-bold text-lg">{formatCurrency(availableBalance, 'UGX')}</span>
+                  <span className="font-bold text-lg">{formatCurrency(combinedAvailable, 'UGX')}</span>
                 </div>
               </Card>
               
@@ -279,29 +285,33 @@ export default function WithdrawFlow({
             {(floatBalance > 0 || advanceBalance > 0) && (
               <div className="rounded-lg border border-dashed border-border bg-muted/30 p-3 space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-foreground">Other wallet buckets (not withdrawable)</p>
+                  <p className="text-xs font-semibold text-foreground">Wallet bucket breakdown</p>
                   {userRoles.length > 1 && (
                     <span className="text-[10px] text-muted-foreground">
                       {userRoles.length} active roles
                     </span>
                   )}
                 </div>
-                {floatBalance > 0 && (
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">🏦 Float (operational money for agents/partners)</span>
-                    <span className="font-medium text-foreground">{formatCurrency(floatBalance, 'UGX')}</span>
-                  </div>
-                )}
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">💰 Withdrawable</span>
+                  <span className="font-medium text-foreground">{formatCurrency(availableBalance, 'UGX')}</span>
+                </div>
                 {advanceBalance > 0 && (
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">📋 Advance (auto-recovered from incoming income)</span>
-                    <span className="font-medium text-foreground">{formatCurrency(advanceBalance, 'UGX')}</span>
+                    <span className="text-muted-foreground">📋 Advance (also withdrawable)</span>
+                    <span className="font-medium text-emerald-600">{formatCurrency(advanceBalance, 'UGX')}</span>
+                  </div>
+                )}
+                {floatBalance > 0 && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">🔒 Operational Float (locked)</span>
+                    <span className="font-medium text-muted-foreground">{formatCurrency(floatBalance, 'UGX')}</span>
                   </div>
                 )}
                 <p className="text-[10px] text-muted-foreground leading-relaxed pt-1 border-t border-border/40">
-                  Funds credited by Finance land in a specific bucket based on the credit category. Only the
-                  <span className="font-semibold text-foreground"> Available Balance </span>
-                  can be withdrawn — Float and Advance are reserved by policy.
+                  <span className="font-semibold text-foreground">Withdrawable</span> and <span className="font-semibold text-foreground">Advance</span> are both yours to withdraw.
+                  <span className="font-semibold text-foreground"> Operational Float </span>
+                  is company money reserved for agent/partner operations and cannot be withdrawn.
                 </p>
               </div>
             )}
