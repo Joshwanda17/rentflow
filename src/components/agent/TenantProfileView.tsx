@@ -70,6 +70,70 @@ interface WalletData {
 
 const PAGE_SIZE = 5;
 
+/* ---------- Small presentational helpers (local, no new files) ---------- */
+
+function SectionCard({
+  icon: Icon,
+  title,
+  badge,
+  tone = 'neutral',
+  children,
+}: {
+  icon: any;
+  title: string;
+  badge?: React.ReactNode;
+  tone?: 'neutral' | 'primary' | 'destructive' | 'success';
+  children: React.ReactNode;
+}) {
+  const toneRing =
+    tone === 'primary' ? 'border-primary/30'
+    : tone === 'destructive' ? 'border-destructive/30'
+    : tone === 'success' ? 'border-success/30'
+    : 'border-border/60';
+  const toneIcon =
+    tone === 'primary' ? 'text-primary'
+    : tone === 'destructive' ? 'text-destructive'
+    : tone === 'success' ? 'text-success'
+    : 'text-muted-foreground';
+  return (
+    <section className={`rounded-2xl border ${toneRing} bg-card p-4 sm:p-5 space-y-4`}>
+      <header className="flex items-center justify-between gap-3">
+        <h3 className="flex items-center gap-2 text-base font-bold text-foreground">
+          <Icon className={`h-5 w-5 ${toneIcon}`} aria-hidden="true" />
+          {title}
+        </h3>
+        {badge}
+      </header>
+      {children}
+    </section>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  tone = 'default',
+}: {
+  label: string;
+  value: React.ReactNode;
+  tone?: 'default' | 'success' | 'destructive' | 'primary' | 'warning';
+}) {
+  const valueTone =
+    tone === 'success' ? 'text-success'
+    : tone === 'destructive' ? 'text-destructive'
+    : tone === 'primary' ? 'text-primary'
+    : tone === 'warning' ? 'text-warning'
+    : 'text-foreground';
+  return (
+    <div className="bg-muted/40 rounded-xl p-3 text-center">
+      <p className="text-[11px] sm:text-xs text-muted-foreground uppercase tracking-wider font-medium">{label}</p>
+      <p className={`text-base sm:text-lg font-bold font-mono mt-1 ${valueTone}`}>{value}</p>
+    </div>
+  );
+}
+
+/* ---------- Main component ---------- */
+
 export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -78,37 +142,29 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
   const [requests, setRequests] = useState<RentRequestRow[]>([]);
   const [repayments, setRepayments] = useState<RepaymentRow[]>([]);
   const [walletData, setWalletData] = useState<WalletData | null>(null);
-  
+
   const [partnershipAmount, setPartnershipAmount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [showAllRepayments, setShowAllRepayments] = useState(false);
   const [showAllRequests, setShowAllRequests] = useState(false);
 
-  // Float payment dialog
   const [collectDialogOpen, setCollectDialogOpen] = useState(false);
 
-  // GPS capture
   const { location: gpsLocation, loading: gpsLoading, error: gpsError, captureLocation } = useGeoLocation();
 
-  // Dashboard link sharing
   const [sharingLink, setSharingLink] = useState(false);
   const [sharingProfile, setSharingProfile] = useState(false);
 
-  // User roles
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const [addingRole, setAddingRole] = useState(false);
 
-  // Sub-agent dialog
   const [subAgentDialogOpen, setSubAgentDialogOpen] = useState(false);
 
-  // Auto-collect
   const [autoCollecting, setAutoCollecting] = useState(false);
 
-  // Edit tenant dialog
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
-  // Last reversible allocation (for inline Reverse button)
   const [lastAllocation, setLastAllocation] = useState<{ id: string; amount: number; created_at: string } | null>(null);
   const [reverseDialogOpen, setReverseDialogOpen] = useState(false);
 
@@ -197,7 +253,6 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
       const pAmount = (portfolioRes.data || []).reduce((s: number, p: any) => s + (p.investment_amount || 0), 0);
       setPartnershipAmount(pAmount);
 
-      // Set user roles
       const enabledRoles = ((rolesRes.data || []) as any[])
         .filter(r => r.enabled === null || r.enabled === true)
         .map(r => r.role as string);
@@ -264,7 +319,6 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
     setSharingLink(true);
     try {
       const shortUrl = await createShortLink(user.id, '/auth', { phone: profile.phone, ref: user.id });
-      
       if (navigator.share) {
         await navigator.share({
           title: 'Welile Dashboard',
@@ -334,7 +388,6 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
     if (!profile) return;
     setAddingRole(true);
     try {
-      // Check if role already exists (even disabled)
       const typedRole = role as 'agent' | 'supporter' | 'landlord' | 'tenant';
       const { data: existing } = await supabase
         .from('user_roles')
@@ -359,7 +412,6 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
         if (error) throw error;
         toast({ title: `✅ ${role} role added to ${profile.full_name}` });
       }
-      // Refresh roles
       const { data: rolesData } = await supabase
         .from('user_roles')
         .select('role, enabled')
@@ -402,6 +454,9 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
   };
 
   const progressPct = summary.totalFunded > 0 ? Math.min(100, Math.round((summary.totalRepaid / summary.totalFunded) * 100)) : 0;
+  const activePct = summary.activeRequest && summary.activeRequest.total_repayment > 0
+    ? Math.min(100, Math.round((summary.activeRequest.amount_repaid / summary.activeRequest.total_repayment) * 100))
+    : 0;
 
   const visibleRepayments = showAllRepayments ? repayments : repayments.slice(0, PAGE_SIZE);
   const visibleRequests = showAllRequests ? requests : requests.slice(0, PAGE_SIZE);
@@ -422,32 +477,39 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
         <Button variant="ghost" size="lg" onClick={onBack} className="mb-4 gap-2 text-base">
           <ArrowLeft className="h-5 w-5" /> Back
         </Button>
-        <p className="text-sm text-muted-foreground text-center">Profile not found</p>
+        <p className="text-base text-muted-foreground text-center">Profile not found</p>
       </div>
     );
   }
 
+  const phoneIntl = profile.phone.replace(/^0/, '256').replace(/[^0-9]/g, '');
+
   return (
-    <div className="flex flex-col h-full">
-      {/* Sticky header with avatar */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b border-border/50 px-4 py-3 flex items-center gap-3">
-        <Button variant="ghost" size="default" onClick={onBack} className="h-11 px-3 rounded-xl shrink-0 gap-1.5 text-base font-semibold">
+    <div className="flex flex-col h-full bg-muted/20">
+      {/* ── Sticky compact header (back + name + share/edit) ── */}
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md border-b border-border/50 px-3 sm:px-4 py-2.5 flex items-center gap-2">
+        <Button
+          variant="ghost"
+          onClick={onBack}
+          className="h-11 px-3 rounded-xl shrink-0 gap-1.5 text-base font-semibold"
+          aria-label="Back to tenants list"
+        >
           <ArrowLeft className="h-5 w-5" />
-          Back
+          <span className="hidden xs:inline sm:inline">Back</span>
         </Button>
-        <UserAvatar avatarUrl={profile.avatar_url} fullName={profile.full_name} size="md" />
         <div className="min-w-0 flex-1">
-          <p className="font-bold text-base truncate">{profile.full_name}</p>
-          <p className="text-sm text-muted-foreground">Tenant Profile</p>
+          <p className="font-bold text-base sm:text-lg leading-tight truncate">{profile.full_name}</p>
+          <p className="text-xs text-muted-foreground">Tenant Profile</p>
         </div>
         <Button
           variant="outline"
           size="icon"
           onClick={() => setEditDialogOpen(true)}
           className="h-11 w-11 rounded-xl shrink-0"
+          aria-label="Edit tenant details"
           title="Edit tenant details"
         >
-          <Pencil className="h-4 w-4" />
+          <Pencil className="h-5 w-5" />
         </Button>
         <Button
           variant="outline"
@@ -455,15 +517,13 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
           onClick={handleShareProfile}
           disabled={sharingProfile}
           className="h-11 w-11 rounded-xl shrink-0"
+          aria-label="Share profile"
+          title="Share profile"
         >
-          {sharingProfile ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
+          {sharingProfile ? <Loader2 className="h-5 w-5 animate-spin" /> : <Share2 className="h-5 w-5" />}
         </Button>
-        {profile.verified && (
-          <Badge className="bg-success/15 text-success border-0 text-xs">Verified ✓</Badge>
-        )}
       </div>
 
-      {/* Edit Tenant Dialog */}
       <EditTenantDialog
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
@@ -479,162 +539,171 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
         }}
       />
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-        {/* AI ID Card — tap to open holistic trust profile */}
-        <button
-          type="button"
-          onClick={() => navigate(`/profile/${aiId}`)}
-          className="w-full text-left bg-gradient-to-br from-primary/10 to-primary/5 rounded-2xl p-4 border border-primary/20 hover:border-primary/40 transition-colors active:scale-[0.99]"
-        >
-          <div className="flex items-center justify-between mb-1">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">Welile AI ID — Tap for Trust Profile</p>
-            <span className="text-[10px] text-primary font-medium">View →</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <p className="text-2xl font-black font-mono tracking-wider text-primary">{aiId}</p>
-            <button
-              onClick={(e) => { e.stopPropagation(); copyAiId(); }}
-              className="p-2 rounded-lg bg-primary/10 active:scale-90 transition-transform"
-              aria-label="Copy AI ID"
-            >
-              {copied ? <CheckCircle2 className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4 text-primary" />}
-            </button>
-          </div>
-          <div className="flex items-center gap-2 mt-2">
-            <Shield className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className={`text-sm font-semibold ${riskTier.color}`}>{riskTier.label}</span>
-            {summary.totalRequests > 0 && (
-              <span className="text-xs text-muted-foreground ml-1">• {summary.completionRate}% completion rate</span>
-            )}
-          </div>
-        </button>
+      <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 space-y-4 max-w-2xl mx-auto w-full">
 
-        {/* Roles & Verification — with Add Role */}
-        <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-            <UserCheck className="h-4 w-4" /> Roles & Verification
-          </h3>
-          <div className="flex flex-wrap gap-1.5">
-            {userRoles.map(role => (
-              <Badge key={role} variant="outline" className="capitalize text-xs">{role}</Badge>
-            ))}
-            {userRoles.length === 0 && <Badge variant="outline" className="capitalize text-xs">Tenant</Badge>}
-            {profile.verified && <Badge className="bg-success/15 text-success border-0 text-xs">✓ Verified</Badge>}
-            {profile.national_id && <Badge className="bg-primary/10 text-primary border-0 text-xs">ID on file</Badge>}
-            {!profile.verified && <Badge className="bg-warning/15 text-warning border-0 text-xs">⏳ Unverified</Badge>}
-          </div>
-
-          {/* Add role buttons */}
-          {availableRolesToAdd.length > 0 && (
-            <div className="pt-2 border-t border-border/40">
-              <p className="text-xs text-muted-foreground mb-2">Add role to this user:</p>
-              <div className="flex flex-wrap gap-2">
-                {availableRolesToAdd.map(role => (
-                  <Button
-                    key={role}
-                    variant="outline"
-                    size="sm"
-                    className="capitalize gap-1.5 text-sm"
-                    onClick={() => handleAddRole(role)}
-                    disabled={addingRole}
-                  >
-                    {addingRole ? <Loader2 className="h-3 w-3 animate-spin" /> : <Shield className="h-3 w-3" />}
-                    + {role}
-                  </Button>
-                ))}
+        {/* ── Hero: identity + AI ID + risk ── */}
+        <section className="rounded-2xl bg-gradient-to-br from-primary/10 via-card to-card border border-primary/20 p-4 sm:p-5">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <UserAvatar avatarUrl={profile.avatar_url} fullName={profile.full_name} size="lg" />
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg sm:text-xl font-bold leading-tight truncate">{profile.full_name}</h2>
+              <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                {profile.verified ? (
+                  <Badge className="bg-success/15 text-success border-0 text-xs">✓ Verified</Badge>
+                ) : (
+                  <Badge className="bg-warning/15 text-warning border-0 text-xs">⏳ Unverified</Badge>
+                )}
+                <Badge variant="outline" className="text-xs">
+                  <Shield className={`h-3 w-3 mr-1 ${riskTier.color}`} />
+                  <span className={riskTier.color}>{riskTier.label}</span>
+                </Badge>
+                {summary.totalRequests > 0 && (
+                  <Badge variant="outline" className="text-xs">{summary.completionRate}% completion</Badge>
+                )}
               </div>
             </div>
-          )}
-
-          <div className="text-sm text-muted-foreground">
-            Joined {format(new Date(profile.created_at), 'dd MMM yyyy')}
           </div>
-        </div>
 
-        {/* ── Rent Collection Actions ── */}
+          <button
+            type="button"
+            onClick={() => navigate(`/profile/${aiId}`)}
+            className="mt-4 w-full text-left rounded-xl bg-background/70 border border-primary/20 hover:border-primary/40 active:scale-[0.99] transition-all p-3 sm:p-4 flex items-center justify-between gap-3"
+            aria-label={`Open Welile AI ID ${aiId}`}
+          >
+            <div className="min-w-0">
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Welile AI ID</p>
+              <p className="text-xl sm:text-2xl font-black font-mono tracking-wider text-primary truncate">{aiId}</p>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); copyAiId(); }}
+                className="h-11 w-11 rounded-xl bg-primary/10 hover:bg-primary/15 flex items-center justify-center active:scale-90 transition-transform"
+                aria-label="Copy AI ID"
+                title="Copy AI ID"
+              >
+                {copied ? <CheckCircle2 className="h-5 w-5 text-success" /> : <Copy className="h-5 w-5 text-primary" />}
+              </button>
+              <span className="text-xs text-primary font-semibold pr-1 hidden sm:inline">View →</span>
+            </div>
+          </button>
+        </section>
+
+        {/* ── Rent Collection (consolidated; replaces both old collection cards) ── */}
         {summary.activeRequest && summary.currentOutstanding > 0 && (
-          <div className="rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-card p-4 space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-              <Banknote className="h-4 w-4" /> Rent Collection
-            </h3>
+          <SectionCard
+            icon={Banknote}
+            title="Rent Collection"
+            tone="primary"
+            badge={
+              <Badge variant="destructive" className="text-sm font-mono">
+                {formatUGX(summary.currentOutstanding)}
+              </Badge>
+            }
+          >
+            {/* Headline numbers */}
+            <div className="grid grid-cols-2 gap-2.5">
+              <Stat label="Outstanding" value={formatUGX(summary.currentOutstanding)} tone="destructive" />
+              <Stat
+                label="Your Ops Float"
+                value={floatLoading ? <Loader2 className="h-4 w-4 animate-spin inline" /> : formatUGX(agentFloatBalance)}
+                tone="success"
+              />
+            </div>
 
-            {/* Balance overview */}
-            <div className="grid grid-cols-2 gap-2 text-center">
-              <div className="bg-destructive/10 rounded-xl p-3">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Outstanding</p>
-                <p className="text-lg font-black font-mono text-destructive">{formatUGX(summary.currentOutstanding)}</p>
+            {/* Plan breakdown */}
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="bg-muted/40 rounded-xl p-2.5">
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Rent</p>
+                <p className="text-sm font-bold font-mono mt-0.5">{formatUGX(summary.activeRequest.rent_amount)}</p>
               </div>
-              <div className="bg-success/10 rounded-xl p-3">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Your Ops Float</p>
-                <p className="text-lg font-black font-mono text-success">
-                  {floatLoading ? <Loader2 className="h-4 w-4 animate-spin inline" /> : formatUGX(agentFloatBalance)}
-                </p>
+              <div className="bg-muted/40 rounded-xl p-2.5">
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Total Due</p>
+                <p className="text-sm font-bold font-mono mt-0.5">{formatUGX(summary.activeRequest.total_repayment)}</p>
+              </div>
+              <div className="bg-muted/40 rounded-xl p-2.5">
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Repaid</p>
+                <p className="text-sm font-bold font-mono text-success mt-0.5">{formatUGX(summary.activeRequest.amount_repaid)}</p>
               </div>
             </div>
 
+            {/* Progress */}
+            <div>
+              <div className="flex justify-between text-xs sm:text-sm text-muted-foreground mb-1.5">
+                <span>Repayment progress</span>
+                <span className="font-bold text-foreground">{activePct}%</span>
+              </div>
+              <div className="h-3 rounded-full bg-muted overflow-hidden" role="progressbar" aria-valuenow={activePct} aria-valuemin={0} aria-valuemax={100}>
+                <div
+                  className={`h-full rounded-full transition-all ${activePct >= 100 ? 'bg-success' : activePct >= 50 ? 'bg-primary' : 'bg-destructive'}`}
+                  style={{ width: `${activePct}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Float warnings */}
             {!floatLoading && floatError && (
-              <div className="flex items-center gap-2 bg-warning/10 border border-warning/20 rounded-xl p-3">
-                <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
+              <div className="flex items-center gap-2 bg-warning/10 border border-warning/30 rounded-xl p-3">
+                <AlertTriangle className="h-5 w-5 text-warning shrink-0" />
                 <div className="flex-1">
-                  <p className="text-xs text-warning font-medium">Couldn't load your Operations Float.</p>
+                  <p className="text-sm text-warning font-semibold">Couldn't load your Operations Float.</p>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => refetchFloat()} className="shrink-0 text-xs h-7">
+                <Button variant="outline" size="sm" onClick={() => refetchFloat()} className="shrink-0 text-xs h-9">
                   Retry
                 </Button>
               </div>
             )}
 
             {!floatLoading && !floatError && agentFloatBalance < 500 && (
-              <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/20 rounded-xl p-3">
-                <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
-                <p className="text-xs text-destructive font-medium">Insufficient float. Deposit to your operations float first or ask CFO to top up.</p>
+              <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/30 rounded-xl p-3">
+                <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+                <p className="text-sm text-destructive font-semibold">Insufficient float. Top up your operations float to collect.</p>
               </div>
             )}
 
-            {/* ── Option 1: Pay from Operations Float ── */}
-            <div className="rounded-xl border border-success/30 bg-success/5 p-3 space-y-2">
-              <div className="flex items-start gap-2">
-                <Wallet className="h-4 w-4 text-success mt-0.5 shrink-0" />
+            {/* Pay from float */}
+            <div className="rounded-xl border border-success/30 bg-success/5 p-3 sm:p-4 space-y-2.5">
+              <div className="flex items-start gap-2.5">
+                <Wallet className="h-5 w-5 text-success mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-sm font-bold text-success">Pay from Your Float</p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Deducts from <strong>your operations float</strong> to pay this tenant's rent. You earn <strong className="text-success">10% commission</strong> instantly. Best for field collections where you've already received cash.
+                  <p className="text-base font-bold text-success">Pay from Your Float</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Deducts from <strong>your operations float</strong>. You earn <strong className="text-success">10% commission</strong> instantly.
                   </p>
                 </div>
               </div>
               <Button
                 onClick={() => setCollectDialogOpen(true)}
-                className="w-full gap-2 text-base h-14 font-bold rounded-xl shadow-lg active:scale-[0.96] transition-transform"
+                className="w-full gap-2 text-base h-14 font-bold rounded-xl shadow-lg active:scale-[0.97] transition-transform"
                 variant="success"
                 size="xl"
                 disabled={floatLoading || !!floatError || agentFloatBalance < 500}
               >
                 {floatLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Banknote className="h-6 w-6" />}
-                {floatLoading ? 'Loading float...' : `Pay ${formatUGX(Math.min(summary.currentOutstanding, agentFloatBalance))} from Float`}
+                {floatLoading ? 'Loading float...' : `Pay ${formatUGX(Math.min(summary.currentOutstanding, agentFloatBalance))}`}
               </Button>
-
               {lastAllocation && (
                 <Button
                   onClick={() => setReverseDialogOpen(true)}
                   variant="outline"
-                  size="sm"
-                  className="w-full gap-2 text-xs h-9 border-warning/40 text-warning hover:bg-warning/10 hover:text-warning"
+                  className="w-full gap-2 text-sm h-11 border-warning/40 text-warning hover:bg-warning/10 hover:text-warning"
                 >
-                  <Undo2 className="h-3.5 w-3.5" />
-                  Reverse last allocation — {formatUGX(lastAllocation.amount)}
+                  <Undo2 className="h-4 w-4" />
+                  Reverse last — {formatUGX(lastAllocation.amount)}
                 </Button>
               )}
             </div>
 
-            {/* ── Option 2: Auto-Collect from Tenant Wallet ── */}
+            {/* Auto-collect from tenant wallet */}
             {walletData && walletData.balance > 0 && (
-              <div className="rounded-xl border border-border/40 bg-muted/30 p-3 space-y-2">
-                <div className="flex items-start gap-2">
-                  <Bot className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+              <div className="rounded-xl border border-border/50 bg-muted/30 p-3 sm:p-4 space-y-2.5">
+                <div className="flex items-start gap-2.5">
+                  <Bot className="h-5 w-5 text-primary mt-0.5 shrink-0" />
                   <div>
-                    <p className="text-sm font-bold">Auto-Collect from Tenant Wallet</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Automatically deducts <strong className="font-mono">{formatUGX(Math.min(walletData.balance, summary.currentOutstanding))}</strong> from the <strong>tenant's wallet</strong>. No cash needed — instant digital transfer. Tenant wallet: <strong className="font-mono text-primary">{formatUGX(walletData.balance)}</strong>
+                    <p className="text-base font-bold">Auto-Collect from Tenant Wallet</p>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Pull <strong className="font-mono">{formatUGX(Math.min(walletData.balance, summary.currentOutstanding))}</strong> from tenant wallet
+                      (<strong className="font-mono text-primary">{formatUGX(walletData.balance)}</strong> available). No cash needed.
                     </p>
                   </div>
                 </div>
@@ -642,88 +711,118 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
                   onClick={handleAutoCollectFromWallet}
                   disabled={autoCollecting}
                   variant="outline"
-                  size="default"
-                  className="w-full gap-2 text-sm h-10 rounded-xl border-primary/30 active:scale-[0.96] transition-transform"
+                  className="w-full gap-2 text-base h-12 rounded-xl border-primary/30 active:scale-[0.97] transition-transform"
                 >
-                  {autoCollecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bot className="h-4 w-4 text-primary" />}
+                  {autoCollecting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Bot className="h-5 w-5 text-primary" />}
                   Auto-Collect {formatUGX(Math.min(walletData.balance, summary.currentOutstanding))}
                 </Button>
               </div>
             )}
-          </div>
+          </SectionCard>
         )}
 
-        {/* Quick Actions — Make Sub-Agent, Send Dashboard */}
-        <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-            <Zap className="h-4 w-4" /> Quick Actions
-          </h3>
-          <div className="grid grid-cols-2 gap-2">
+        {/* ── Quick Actions ── */}
+        <SectionCard icon={Zap} title="Quick Actions">
+          <div className="grid grid-cols-2 gap-2.5">
             <Button
               variant="outline"
-              size="lg"
-              className="gap-2 text-sm h-auto py-3 flex-col items-center"
+              className="gap-2 text-sm h-auto py-3.5 flex-col items-center rounded-xl"
               onClick={() => setSubAgentDialogOpen(true)}
             >
-              <UsersRound className="h-5 w-5 text-warning" />
-              Make Sub-Agent
+              <UsersRound className="h-6 w-6 text-warning" />
+              <span className="font-semibold">Make Sub-Agent</span>
             </Button>
             <Button
               variant="outline"
-              size="lg"
-              className="gap-2 text-sm h-auto py-3 flex-col items-center"
+              className="gap-2 text-sm h-auto py-3.5 flex-col items-center rounded-xl"
               onClick={handleSendDashboardLink}
               disabled={sharingLink}
             >
-              {sharingLink ? <Loader2 className="h-5 w-5 animate-spin" /> : <Smartphone className="h-5 w-5 text-primary" />}
-              Dashboard Link
+              {sharingLink ? <Loader2 className="h-6 w-6 animate-spin" /> : <Smartphone className="h-6 w-6 text-primary" />}
+              <span className="font-semibold">Dashboard Link</span>
             </Button>
           </div>
-        </div>
+        </SectionCard>
 
-        {/* Earning Rating */}
-        <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-2">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-            <Star className="h-4 w-4" /> Earning Rating
-          </h3>
-          <div className="flex items-center gap-2">
-            <div className="flex gap-0.5">
+        {/* ── Roles & Verification ── */}
+        <SectionCard icon={UserCheck} title="Roles & Verification">
+          <div className="flex flex-wrap gap-1.5">
+            {userRoles.map(role => (
+              <Badge key={role} variant="outline" className="capitalize text-sm py-1 px-2.5">{role}</Badge>
+            ))}
+            {userRoles.length === 0 && <Badge variant="outline" className="capitalize text-sm py-1 px-2.5">Tenant</Badge>}
+            {profile.national_id && <Badge className="bg-primary/10 text-primary border-0 text-sm py-1 px-2.5">ID on file</Badge>}
+          </div>
+
+          {availableRolesToAdd.length > 0 && (
+            <div className="pt-3 border-t border-border/40">
+              <p className="text-sm text-muted-foreground mb-2.5 font-medium">Add another role:</p>
+              <div className="flex flex-wrap gap-2">
+                {availableRolesToAdd.map(role => (
+                  <Button
+                    key={role}
+                    variant="outline"
+                    size="sm"
+                    className="capitalize gap-1.5 text-sm h-10"
+                    onClick={() => handleAddRole(role)}
+                    disabled={addingRole}
+                  >
+                    {addingRole ? <Loader2 className="h-4 w-4 animate-spin" /> : <Shield className="h-4 w-4" />}
+                    + {role}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+            <Calendar className="h-4 w-4" />
+            Joined {format(new Date(profile.created_at), 'dd MMM yyyy')}
+          </p>
+        </SectionCard>
+
+        {/* ── Earning Rating ── */}
+        <SectionCard icon={Star} title="Earning Rating">
+          <div className="flex items-center gap-3">
+            <div className="flex gap-0.5" aria-label={`${earningRating.stars} of 5 stars`}>
               {[1, 2, 3, 4, 5].map(i => (
-                <Star key={i} className={`h-5 w-5 ${i <= earningRating.stars ? 'text-warning fill-warning' : 'text-muted-foreground/30'}`} />
+                <Star key={i} className={`h-6 w-6 ${i <= earningRating.stars ? 'text-warning fill-warning' : 'text-muted-foreground/30'}`} />
               ))}
             </div>
-            <span className="text-base font-semibold">{earningRating.label}</span>
+            <span className="text-base sm:text-lg font-bold">{earningRating.label}</span>
           </div>
           {partnershipAmount > 0 && (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm sm:text-base text-muted-foreground">
               Partnership investment: <span className="font-bold text-primary font-mono">{formatUGX(partnershipAmount)}</span>
             </p>
           )}
-        </div>
+        </SectionCard>
 
-        {/* Contact Details */}
-        <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Contact Details</h3>
-          <div className="space-y-2.5">
-            {/* Phone row with WhatsApp */}
+        {/* ── Contact Details ── */}
+        <SectionCard icon={Phone} title="Contact Details">
+          <div className="space-y-3">
+            {/* Phone */}
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0"><Phone className="h-4 w-4 text-muted-foreground" /></div>
+              <div className="h-11 w-11 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                <Phone className="h-5 w-5 text-muted-foreground" />
+              </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5 font-medium">
                   Phone
-                  <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-success bg-success/10 rounded-full px-1.5 py-0.5">
+                  <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-success bg-success/10 rounded-full px-1.5 py-0.5">
                     <MessageCircle className="h-2.5 w-2.5" /> WhatsApp
                   </span>
                 </p>
-                <a href={`tel:${profile.phone}`} className="text-base font-semibold text-primary">{profile.phone}</a>
+                <a href={`tel:${profile.phone}`} className="text-base sm:text-lg font-semibold text-primary break-all">{profile.phone}</a>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 <a
-                  href={`https://wa.me/${profile.phone.replace(/^0/, '256').replace(/[^0-9]/g, '')}`}
+                  href={`https://wa.me/${phoneIntl}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="h-11 w-11 rounded-xl bg-success/15 flex items-center justify-center active:scale-90 transition-transform"
                   style={{ touchAction: 'manipulation' }}
+                  aria-label="Open WhatsApp chat"
                 >
                   <MessageCircle className="h-5 w-5 text-success" />
                 </a>
@@ -732,22 +831,25 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
                     const msg = encodeURIComponent(
                       `Hi ${profile.full_name}, this is your Welile agent. Please update your phone number in the Welile app. Go to Settings > Profile to make changes. Thank you!`
                     );
-                    window.open(`https://wa.me/${profile.phone.replace(/^0/, '256').replace(/[^0-9]/g, '')}?text=${msg}`, '_blank');
+                    window.open(`https://wa.me/${phoneIntl}?text=${msg}`, '_blank');
                   }}
                   className="h-11 w-11 rounded-xl bg-warning/15 flex items-center justify-center active:scale-90 transition-transform"
                   style={{ touchAction: 'manipulation' }}
+                  aria-label="Request phone edit"
                   title="Request phone edit"
                 >
-                  <Pencil className="h-4 w-4 text-warning" />
+                  <Pencil className="h-5 w-5 text-warning" />
                 </button>
               </div>
             </div>
 
-            {/* Email row with edit request */}
+            {/* Email */}
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0"><Mail className="h-4 w-4 text-muted-foreground" /></div>
+              <div className="h-11 w-11 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                <Mail className="h-5 w-5 text-muted-foreground" />
+              </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-muted-foreground">Email</p>
+                <p className="text-xs text-muted-foreground font-medium">Email</p>
                 <p className="text-base font-semibold truncate">{profile.email || 'Not set'}</p>
               </div>
               <button
@@ -755,50 +857,56 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
                   const msg = encodeURIComponent(
                     `Hi ${profile.full_name}, this is your Welile agent. Please update your email address in the Welile app. Go to Settings > Profile to make changes. Thank you!`
                   );
-                  window.open(`https://wa.me/${profile.phone.replace(/^0/, '256').replace(/[^0-9]/g, '')}?text=${msg}`, '_blank');
+                  window.open(`https://wa.me/${phoneIntl}?text=${msg}`, '_blank');
                 }}
                 className="h-11 w-11 rounded-xl bg-warning/15 flex items-center justify-center active:scale-90 transition-transform shrink-0"
                 style={{ touchAction: 'manipulation' }}
+                aria-label="Request email edit"
                 title="Request email edit"
               >
-                <Pencil className="h-4 w-4 text-warning" />
+                <Pencil className="h-5 w-5 text-warning" />
               </button>
             </div>
 
             {profile.national_id && (
               <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0"><CreditCard className="h-4 w-4 text-muted-foreground" /></div>
-                <div>
-                  <p className="text-xs text-muted-foreground">National ID</p>
-                  <p className="text-base font-semibold font-mono">{profile.national_id}</p>
+                <div className="h-11 w-11 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                  <CreditCard className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground font-medium">National ID</p>
+                  <p className="text-base font-semibold font-mono break-all">{profile.national_id}</p>
                 </div>
               </div>
             )}
+
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center shrink-0"><Calendar className="h-4 w-4 text-muted-foreground" /></div>
+              <div className="h-11 w-11 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                <Calendar className="h-5 w-5 text-muted-foreground" />
+              </div>
               <div>
-                <p className="text-xs text-muted-foreground">Member Since</p>
+                <p className="text-xs text-muted-foreground font-medium">Member Since</p>
                 <p className="text-base font-semibold">{format(new Date(profile.created_at), 'dd MMM yyyy')}</p>
               </div>
             </div>
           </div>
 
-          {/* GPS Capture */}
-          <div className="pt-2 border-t border-border/40 space-y-2">
+          {/* GPS */}
+          <div className="pt-3 border-t border-border/40 space-y-2">
             <Button
               variant="outline"
               size="lg"
-              className="w-full gap-2 text-base"
+              className="w-full gap-2 text-base h-12 rounded-xl"
               onClick={handleCaptureGPS}
               disabled={gpsLoading}
             >
-              {gpsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Navigation className="h-4 w-4" />}
+              {gpsLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Navigation className="h-5 w-5" />}
               Capture GPS Location
             </Button>
             {gpsLocation && (
-              <div className="bg-muted/30 rounded-xl p-3 flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-success shrink-0" />
-                <div className="text-sm">
+              <div className="bg-muted/40 rounded-xl p-3 flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-success shrink-0" />
+                <div className="text-sm sm:text-base">
                   <span className="font-mono font-semibold">{gpsLocation.latitude.toFixed(5)}</span>
                   <span className="text-muted-foreground mx-1">,</span>
                   <span className="font-mono font-semibold">{gpsLocation.longitude.toFixed(5)}</span>
@@ -809,168 +917,77 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
               </div>
             )}
             {gpsError && (
-              <p className="text-xs text-destructive">{gpsError}</p>
+              <p className="text-sm text-destructive">{gpsError}</p>
             )}
           </div>
-        </div>
+        </SectionCard>
 
-        {/* Wallet Usage Behavior */}
+        {/* ── Wallet Usage ── */}
         {walletData && (
-          <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <Wallet className="h-4 w-4" /> Wallet Usage
-            </h3>
+          <SectionCard icon={Wallet} title="Wallet Usage">
             <div className="grid grid-cols-3 gap-2">
-              <div className="bg-muted/30 rounded-xl p-3 text-center">
-                <p className="text-xs text-muted-foreground">Balance</p>
-                <p className="text-base font-bold font-mono text-primary">{formatUGX(walletData.balance)}</p>
-              </div>
-              <div className="bg-muted/30 rounded-xl p-3 text-center">
-                <p className="text-xs text-muted-foreground">Total In</p>
-                <p className="text-base font-bold font-mono text-success">{formatUGX(walletData.total_in)}</p>
-              </div>
-              <div className="bg-muted/30 rounded-xl p-3 text-center">
-                <p className="text-xs text-muted-foreground">Total Out</p>
-                <p className="text-base font-bold font-mono text-destructive">{formatUGX(walletData.total_out)}</p>
-              </div>
+              <Stat label="Balance" value={formatUGX(walletData.balance)} tone="primary" />
+              <Stat label="Total In" value={formatUGX(walletData.total_in)} tone="success" />
+              <Stat label="Total Out" value={formatUGX(walletData.total_out)} tone="destructive" />
             </div>
-          </div>
+          </SectionCard>
         )}
 
-        {/* Current Property */}
+        {/* ── Current Property ── */}
         {summary.latestLandlord && (
-          <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Current Property</h3>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="bg-muted/30 rounded-xl p-3 flex items-start gap-2">
-                <User className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+          <SectionCard icon={Home} title="Current Property">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="bg-muted/40 rounded-xl p-3 flex items-start gap-2.5">
+                <User className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">Landlord</p>
-                  <p className="text-sm font-bold truncate">{summary.latestLandlord}</p>
+                  <p className="text-xs text-muted-foreground font-medium">Landlord</p>
+                  <p className="text-base font-bold truncate">{summary.latestLandlord}</p>
                 </div>
               </div>
-              <div className="bg-muted/30 rounded-xl p-3 flex items-start gap-2">
-                <Home className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+              <div className="bg-muted/40 rounded-xl p-3 flex items-start gap-2.5">
+                <Home className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">House Type</p>
-                  <p className="text-sm font-bold truncate">{summary.latestHouseType || 'N/A'}</p>
+                  <p className="text-xs text-muted-foreground font-medium">House Type</p>
+                  <p className="text-base font-bold truncate">{summary.latestHouseType || 'N/A'}</p>
                 </div>
               </div>
               {summary.latestAddress && (
-                <div className="bg-muted/30 rounded-xl p-3 flex items-start gap-2 col-span-2">
-                  <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                <div className="bg-muted/40 rounded-xl p-3 flex items-start gap-2.5 sm:col-span-2">
+                  <MapPin className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
                   <div className="min-w-0">
-                    <p className="text-xs text-muted-foreground">Address</p>
-                    <p className="text-sm font-bold">{summary.latestAddress}</p>
+                    <p className="text-xs text-muted-foreground font-medium">Address</p>
+                    <p className="text-base font-bold">{summary.latestAddress}</p>
                   </div>
                 </div>
               )}
             </div>
-          </div>
+          </SectionCard>
         )}
 
-        {/* Outstanding Balance + Pay from Float Button */}
-        {summary.activeRequest && (
-          <div className="rounded-2xl border-2 border-destructive/30 bg-destructive/[0.04] p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-destructive flex items-center gap-1.5">
-                <AlertTriangle className="h-4 w-4" /> Outstanding Balance
-              </h3>
-              <Badge variant="destructive" className="text-sm font-mono">
-                {formatUGX(summary.currentOutstanding)}
-              </Badge>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 text-center text-xs">
-              <div>
-                <p className="text-muted-foreground">Rent Amount</p>
-                <p className="font-bold font-mono text-sm">{formatUGX(summary.activeRequest.rent_amount)}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Total Due</p>
-                <p className="font-bold font-mono text-sm">{formatUGX(summary.activeRequest.total_repayment)}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Repaid</p>
-                <p className="font-bold font-mono text-sm text-success">{formatUGX(summary.activeRequest.amount_repaid)}</p>
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                <span>Repayment progress</span>
-                <span className="font-bold">
-                  {Math.round((summary.activeRequest.amount_repaid / summary.activeRequest.total_repayment) * 100)}%
-                </span>
-              </div>
-              <div className="h-2.5 rounded-full bg-muted overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-destructive transition-all"
-                  style={{ width: `${Math.min(100, (summary.activeRequest.amount_repaid / summary.activeRequest.total_repayment) * 100)}%` }}
-                />
-              </div>
-            </div>
-
-            <Button
-              onClick={() => setCollectDialogOpen(true)}
-              disabled={floatLoading || summary.currentOutstanding <= 0 || agentFloatBalance < 100}
-              className="w-full gap-2 text-base"
-              variant="success"
-              size="xl"
-            >
-              {floatLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Banknote className="h-5 w-5" />}
-              {floatLoading ? 'Loading float...' : `Pay from Operations Float — ${formatUGX(Math.min(summary.currentOutstanding, agentFloatBalance))}`}
-            </Button>
-
-            {lastAllocation && (
-              <Button
-                onClick={() => setReverseDialogOpen(true)}
-                variant="outline"
-                size="sm"
-                className="w-full gap-2 text-xs h-9 border-warning/40 text-warning hover:bg-warning/10 hover:text-warning"
-              >
-                <Undo2 className="h-3.5 w-3.5" />
-                Reverse last allocation — {formatUGX(lastAllocation.amount)}
-              </Button>
-            )}
-          </div>
-        )}
-
-        {/* Repayment Behavior Summary */}
-        <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-            <TrendingUp className="h-4 w-4" /> Rent Payment Behavior
-          </h3>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="bg-muted/30 rounded-xl p-3 text-center">
-              <p className="text-xs text-muted-foreground">Rent Plans</p>
-              <p className="text-xl font-black font-mono">{summary.totalRequests}</p>
-            </div>
-            <div className="bg-muted/30 rounded-xl p-3 text-center">
-              <p className="text-xs text-muted-foreground">Completion Rate</p>
-              <p className={`text-xl font-black font-mono ${summary.completionRate >= 80 ? 'text-success' : summary.completionRate >= 50 ? 'text-primary' : 'text-destructive'}`}>
-                {summary.completionRate}%
-              </p>
-            </div>
-            <div className="bg-muted/30 rounded-xl p-3 text-center">
-              <p className="text-xs text-muted-foreground">Total Repaid</p>
-              <p className="text-base font-bold text-success font-mono">{formatUGX(summary.totalRepaid)}</p>
-            </div>
-            <div className="bg-muted/30 rounded-xl p-3 text-center">
-              <p className="text-xs text-muted-foreground">Total Owing</p>
-              <p className={`text-base font-bold font-mono ${summary.totalOwing > 0 ? 'text-destructive' : 'text-success'}`}>
-                {summary.totalOwing > 0 ? formatUGX(summary.totalOwing) : 'Clear ✓'}
-              </p>
-            </div>
+        {/* ── Rent Payment Behavior ── */}
+        <SectionCard icon={TrendingUp} title="Rent Payment Behavior">
+          <div className="grid grid-cols-2 gap-2.5">
+            <Stat label="Rent Plans" value={summary.totalRequests} />
+            <Stat
+              label="Completion"
+              value={`${summary.completionRate}%`}
+              tone={summary.completionRate >= 80 ? 'success' : summary.completionRate >= 50 ? 'primary' : 'destructive'}
+            />
+            <Stat label="Total Repaid" value={formatUGX(summary.totalRepaid)} tone="success" />
+            <Stat
+              label="Total Owing"
+              value={summary.totalOwing > 0 ? formatUGX(summary.totalOwing) : 'Clear ✓'}
+              tone={summary.totalOwing > 0 ? 'destructive' : 'success'}
+            />
           </div>
 
           {summary.totalFunded > 0 && (
             <div>
-              <div className="flex justify-between text-xs text-muted-foreground mb-1">
+              <div className="flex justify-between text-xs sm:text-sm text-muted-foreground mb-1.5">
                 <span>Overall repayment</span>
-                <span className="font-bold">{progressPct}%</span>
+                <span className="font-bold text-foreground">{progressPct}%</span>
               </div>
-              <div className="h-2.5 rounded-full bg-muted overflow-hidden">
+              <div className="h-3 rounded-full bg-muted overflow-hidden" role="progressbar" aria-valuenow={progressPct} aria-valuemin={0} aria-valuemax={100}>
                 <div
                   className={`h-full rounded-full transition-all ${progressPct >= 100 ? 'bg-success' : progressPct >= 50 ? 'bg-primary' : 'bg-destructive'}`}
                   style={{ width: `${progressPct}%` }}
@@ -978,78 +995,81 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
               </div>
             </div>
           )}
-        </div>
+        </SectionCard>
 
-        {/* Rent Request History */}
+        {/* ── Rent Plan History ── */}
         {requests.length > 0 && (
-          <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <Home className="h-4 w-4" /> Rent Plan History ({requests.length})
-            </h3>
+          <SectionCard
+            icon={Home}
+            title="Rent Plan History"
+            badge={<Badge variant="outline" className="text-xs">{requests.length}</Badge>}
+          >
             <div className="space-y-2">
               {visibleRequests.map(req => {
                 const owing = Math.max(0, req.total_repayment - req.amount_repaid);
                 const pct = req.total_repayment > 0 ? Math.round((req.amount_repaid / req.total_repayment) * 100) : 0;
                 return (
-                  <div key={req.id} className="bg-muted/30 rounded-xl p-3 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold">{format(new Date(req.created_at), 'dd MMM yyyy')}</span>
+                  <div key={req.id} className="bg-muted/40 rounded-xl p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm sm:text-base font-semibold">{format(new Date(req.created_at), 'dd MMM yyyy')}</span>
                       <Badge variant="outline" className="text-xs capitalize">{req.status}</Badge>
                     </div>
-                    <div className="flex justify-between text-xs text-muted-foreground">
+                    <div className="flex justify-between text-xs sm:text-sm text-muted-foreground gap-2 flex-wrap">
                       <span>Rent: <span className="font-bold text-foreground font-mono">{formatUGX(req.rent_amount)}</span></span>
                       <span>Owing: <span className={`font-bold font-mono ${owing > 0 ? 'text-destructive' : 'text-success'}`}>{owing > 0 ? formatUGX(owing) : 'Cleared'}</span></span>
                     </div>
-                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div className="h-2 rounded-full bg-muted overflow-hidden">
                       <div className={`h-full rounded-full ${pct >= 100 ? 'bg-success' : 'bg-primary'}`} style={{ width: `${pct}%` }} />
                     </div>
                     {req.landlord?.name && (
-                      <p className="text-xs text-muted-foreground">📍 {req.landlord.name} — {req.landlord.property_address || 'N/A'}</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">📍 {req.landlord.name} — {req.landlord.property_address || 'N/A'}</p>
                     )}
                   </div>
                 );
               })}
             </div>
             {requests.length > PAGE_SIZE && (
-              <Button variant="ghost" size="sm" className="w-full text-sm gap-1" onClick={() => setShowAllRequests(!showAllRequests)}>
-                {showAllRequests ? <><ChevronUp className="h-3 w-3" /> Show Less</> : <><ChevronDown className="h-3 w-3" /> Show All ({requests.length})</>}
+              <Button variant="ghost" className="w-full text-sm gap-1 h-11" onClick={() => setShowAllRequests(!showAllRequests)}>
+                {showAllRequests ? <><ChevronUp className="h-4 w-4" /> Show Less</> : <><ChevronDown className="h-4 w-4" /> Show All ({requests.length})</>}
               </Button>
             )}
-          </div>
+          </SectionCard>
         )}
 
-        {/* Repayment History */}
+        {/* ── Repayment History ── */}
         {repayments.length > 0 && (
-          <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <History className="h-4 w-4" /> Repayment History ({repayments.length})
-            </h3>
+          <SectionCard
+            icon={History}
+            title="Repayment History"
+            badge={<Badge variant="outline" className="text-xs">{repayments.length}</Badge>}
+          >
             <div className="space-y-1.5">
               {visibleRepayments.map(r => (
-                <div key={r.id} className="flex items-center justify-between py-2 px-3 bg-muted/30 rounded-xl">
-                  <div>
-                    <p className="text-sm font-semibold font-mono text-success">{formatUGX(r.amount)}</p>
-                    <p className="text-xs text-muted-foreground">{format(new Date(r.created_at), 'dd MMM yyyy, HH:mm')}</p>
+                <div key={r.id} className="flex items-center justify-between py-2.5 px-3 bg-muted/40 rounded-xl gap-2">
+                  <div className="min-w-0">
+                    <p className="text-base font-semibold font-mono text-success">{formatUGX(r.amount)}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">{format(new Date(r.created_at), 'dd MMM yyyy, HH:mm')}</p>
                   </div>
-                  <CheckCircle2 className="h-4 w-4 text-success/60" />
+                  <CheckCircle2 className="h-5 w-5 text-success/70 shrink-0" />
                 </div>
               ))}
             </div>
             {repayments.length > PAGE_SIZE && (
-              <Button variant="ghost" size="sm" className="w-full text-sm gap-1" onClick={() => setShowAllRepayments(!showAllRepayments)}>
-                {showAllRepayments ? <><ChevronUp className="h-3 w-3" /> Show Less</> : <><ChevronDown className="h-3 w-3" /> Show All ({repayments.length})</>}
+              <Button variant="ghost" className="w-full text-sm gap-1 h-11" onClick={() => setShowAllRepayments(!showAllRepayments)}>
+                {showAllRepayments ? <><ChevronUp className="h-4 w-4" /> Show Less</> : <><ChevronDown className="h-4 w-4" /> Show All ({repayments.length})</>}
               </Button>
             )}
-          </div>
+          </SectionCard>
         )}
 
-        {/* Monthly Rent */}
+        {/* ── Monthly Rent ── */}
         {profile.monthly_rent && profile.monthly_rent > 0 && (
-          <div className="rounded-2xl border border-border/60 bg-card p-4">
-            <p className="text-xs text-muted-foreground">Monthly Rent</p>
-            <p className="text-xl font-black font-mono text-primary">{formatUGX(profile.monthly_rent)}</p>
-          </div>
+          <SectionCard icon={Banknote} title="Monthly Rent">
+            <p className="text-2xl sm:text-3xl font-black font-mono text-primary">{formatUGX(profile.monthly_rent)}</p>
+          </SectionCard>
         )}
+
+        <div className="h-4" />
       </div>
 
       {/* Float payment dialog */}
@@ -1069,7 +1089,6 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
         />
       )}
 
-      {/* Reverse last allocation dialog */}
       <ReverseAllocationDialog
         open={reverseDialogOpen}
         onOpenChange={setReverseDialogOpen}
@@ -1083,7 +1102,6 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
         }}
       />
 
-      {/* Sub-Agent Registration Dialog — pre-filled with tenant info */}
       <RegisterSubAgentDialog
         open={subAgentDialogOpen}
         onOpenChange={setSubAgentDialogOpen}
