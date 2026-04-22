@@ -380,8 +380,13 @@ export function useAuthForm() {
       }
     }
 
-    // Phase 2: Only try generated placeholders if RPC found NOTHING
-    if (!loginSuccess && rpcMatchedEmails.length === 0) {
+    // Phase 2: Try generated placeholders.
+    // We attempt these even if Phase 1 found a profile email, because the auth
+    // account may be keyed off the synthetic `@welile.user` / `@welile.agent`
+    // placeholder while `profiles.email` stores a contact address (e.g. Gmail).
+    // Without this fallback, users whose contact email differs from their auth
+    // identifier can never sign in by phone.
+    if (!loginSuccess) {
       // Limit to 3 placeholder attempts max to avoid rate limiting
       for (const emailToTry of generatedPlaceholders.slice(0, 3)) {
         try {
