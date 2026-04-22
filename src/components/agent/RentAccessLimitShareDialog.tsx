@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import {
   Loader2, MessageCircle, Image as ImageIcon, FileText, Copy, CheckCircle2, ExternalLink,
-  ArrowLeft, Eye, ShieldCheck,
+  ArrowLeft, Eye, ShieldCheck, RotateCw, AlertTriangle,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -52,6 +52,9 @@ export function RentAccessLimitShareDialog({
   // Snapshot of the message at the moment the preview was built, so the send
   // action uses the exact text the user saw — even if shareUrl/result changes.
   const [previewMessage, setPreviewMessage] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [sendAttempts, setSendAttempts] = useState(0);
 
   // Reset preview whenever the dialog closes / inputs change
   useEffect(() => {
@@ -61,6 +64,9 @@ export function RentAccessLimitShareDialog({
       setPreviewUrl(null);
       setPreviewBlob(null);
       setPreviewMessage(null);
+      setSendError(null);
+      setSendAttempts(0);
+      setSending(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -133,44 +139,60 @@ export function RentAccessLimitShareDialog({
   /** Step 2 — user confirmed the preview, actually send to WhatsApp. */
   const confirmAndShare = async () => {
     if (!previewBlob || !previewMessage) return;
+    setSending(true);
+    setSendError(null);
+    setSendAttempts(n => n + 1);
     const file = new File(
       [previewBlob],
       `rent-access-${tenantName.replace(/\s+/g, '-').toLowerCase()}.png`,
       { type: 'image/png' },
     );
-    const navAny = navigator as any;
-    if (navAny.canShare && navAny.canShare({ files: [file] })) {
-      try {
-        await navAny.share({
-          files: [file],
-          title: 'Rent Access Limit',
-          text: previewMessage,
-        });
-        toast({ title: 'Ready to share' });
-        return;
-      } catch (err: any) {
-        if (err?.name === 'AbortError') return;
-        // fall through to download + WhatsApp web fallback
+    try {
+      const navAny = navigator as any;
+      if (navAny.canShare && navAny.canShare({ files: [file] })) {
+        try {
+          await navAny.share({
+            files: [file],
+            title: 'Rent Access Limit',
+            text: previewMessage,
+          });
+          toast({ title: 'Ready to share' });
+          return;
+        } catch (err: any) {
+          // User cancelled — not an error, just stop quietly
+          if (err?.name === 'AbortError') return;
+          // Genuine share failure — fall through to wa.me fallback
+        }
       }
+
+      // Fallback: download the snapshot image and open WhatsApp chat
+      const url = URL.createObjectURL(previewBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.name;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+      const intl = toIntlPhone(tenantPhone);
+      const waUrl = intl
+        ? `https://wa.me/${intl}?text=${encodeURIComponent(previewMessage)}`
+        : `https://wa.me/?text=${encodeURIComponent(previewMessage)}`;
+      const win = window.open(waUrl, '_blank', 'noopener,noreferrer');
+      if (!win) {
+        // Popup blocked — surface as a retryable error
+        throw new Error('WhatsApp window was blocked. Allow popups and retry.');
+      }
+      toast({
+        title: 'Image saved',
+        description: 'Attach it in the WhatsApp chat that just opened.',
+      });
+    } catch (err: any) {
+      const msg = err?.message || 'Could not open WhatsApp. Please try again.';
+      setSendError(msg);
+      toast({ title: 'Share failed', description: msg, variant: 'destructive' });
+    } finally {
+      setSending(false);
     }
-    // Fallback: download the image and open WhatsApp chat with the prefilled text
-    const url = URL.createObjectURL(previewBlob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = file.name;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
-    // Open WhatsApp using the SNAPSHOT message (not the live `message`),
-    // so the text matches exactly what the agent confirmed in the preview.
-    const intl = toIntlPhone(tenantPhone);
-    const waUrl = intl
-      ? `https://wa.me/${intl}?text=${encodeURIComponent(previewMessage)}`
-      : `https://wa.me/?text=${encodeURIComponent(previewMessage)}`;
-    window.open(waUrl, '_blank', 'noopener,noreferrer');
-    toast({
-      title: 'Image saved',
-      description: 'Attach it in the WhatsApp chat that just opened.',
-    });
   };
 
   const copyMessage = async () => {
@@ -285,14 +307,42 @@ export function RentAccessLimitShareDialog({
                 : 'Locking snapshot…'}
             </div>
 
+            {/* Retry banner — appears only when the previous send call failed */}
+            {sendError && (
+              <div
+                role="alert"
+                className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs"
+              >
+                <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-destructive">Couldn't open WhatsApp</p>
+                  <p className="text-destructive/90 leading-snug">{sendError}</p>
+                  <p className="text-muted-foreground mt-1">
+                    Same snapshot will be reused — nothing is regenerated.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 gap-2">
               <Button
                 onClick={confirmAndShare}
-                disabled={!previewMessage || !previewBlob}
+                disabled={!previewMessage || !previewBlob || sending}
                 className="h-12 rounded-xl gap-2 font-bold bg-success hover:bg-success/90 text-success-foreground"
                 size="lg"
               >
-                <MessageCircle className="h-5 w-5" /> Looks good — send on WhatsApp
+                {sending ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : sendError ? (
+                  <RotateCw className="h-5 w-5" />
+                ) : (
+                  <MessageCircle className="h-5 w-5" />
+                )}
+                {sending
+                  ? 'Opening WhatsApp…'
+                  : sendError
+                    ? `Retry send${sendAttempts > 1 ? ` (attempt ${sendAttempts + 1})` : ''}`
+                    : 'Looks good — send on WhatsApp'}
               </Button>
               <div className="grid grid-cols-2 gap-2">
                 <Button
