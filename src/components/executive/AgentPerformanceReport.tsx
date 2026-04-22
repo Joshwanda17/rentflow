@@ -239,7 +239,12 @@ export function AgentPerformanceReport() {
         let from = 0;
         for (let p = 0; p < 20; p++) {
           const { data, error } = await builder().range(from, from + PAGE - 1);
-          if (error || !data || data.length === 0) break;
+          if (error) {
+            console.error('[AgentPerformanceReport] fetchAll error:', error);
+            toast.error(`Report query failed: ${error.message}`);
+            throw error;
+          }
+          if (!data || data.length === 0) break;
           out.push(...(data as T[]));
           if (data.length < PAGE) break;
           from += PAGE;
@@ -259,8 +264,8 @@ export function AgentPerformanceReport() {
 
       // 2) repayments (tenant direct payments via merchant — attributed to agent)
       const repayments = (paymentSource === 'all' || paymentSource === 'repayments')
-        ? await fetchAll<{ agent_id: string | null; tenant_id: string | null; amount: number; created_at: string }>(() => {
-            let q = supabase.from('repayments').select('agent_id, tenant_id, amount, created_at').not('agent_id', 'is', null);
+        ? await fetchAll<{ rent_request_id: string | null; tenant_id: string | null; amount: number; created_at: string }>(() => {
+            let q = supabase.from('repayments').select('rent_request_id, tenant_id, amount, created_at');
             if (startISO) q = q.gte('created_at', startISO);
             return q.lte('created_at', endISO);
           })
