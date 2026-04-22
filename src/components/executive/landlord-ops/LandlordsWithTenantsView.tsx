@@ -443,6 +443,14 @@ export function LandlordsWithTenantsView() {
                         </p>
                       </div>
                     )}
+                    {!isNoLandlord && g.tenants.length === 0 && (
+                      <div className="flex items-start gap-2 p-3 rounded bg-muted/40 border border-dashed border-muted-foreground/30">
+                        <UserX className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                        <p className="text-[11px] text-muted-foreground">
+                          No tenants linked to this landlord yet. Use Tenant Matching to attach a tenant.
+                        </p>
+                      </div>
+                    )}
                     {g.tenants.map(t => (
                       <div key={t.tenant_id} className="border rounded-lg p-2.5 bg-background flex items-center justify-between gap-2">
                         <div className="flex-1 min-w-0">
