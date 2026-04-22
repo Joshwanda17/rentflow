@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,9 +6,15 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import {
   ArrowRightLeft, Link2, MapPin, MapPinOff, Search, Shield,
-  CheckCircle2, AlertCircle, Clock, ExternalLink,
+  CheckCircle2, AlertCircle, Clock, ExternalLink, Filter, X, ChevronDown,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 
@@ -171,22 +177,105 @@ export function TenantTransferAuditTrail() {
     },
   });
 
+  // Advanced filter state — each filter is independent and combines with AND.
+  const [showFilters, setShowFilters] = useState(false);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [tenantFilter, setTenantFilter] = useState('all');
+  const [executiveFilter, setExecutiveFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [fromAgentFilter, setFromAgentFilter] = useState('all');
+  const [toAgentFilter, setToAgentFilter] = useState('all');
+  const [kindFilter, setKindFilter] = useState<'all' | 'transfer' | 'link'>('all');
+
+  // Build dropdown option lists from the loaded entries so operators only see
+  // values that actually exist in the audit trail.
+  const filterOptions = useMemo(() => {
+    const tenants = new Map<string, string>();
+    const fromAgents = new Map<string, string>();
+    const toAgents = new Map<string, string>();
+    const executives = new Map<string, string>();
+    (entries || []).forEach((e) => {
+      if (e.tenant_id) tenants.set(e.tenant_id, e.tenant_name);
+      if (e.from_agent_id) fromAgents.set(e.from_agent_id, e.from_agent_name);
+      if (e.to_agent_id) toAgents.set(e.to_agent_id, e.to_agent_name);
+      if (e.actor_id) executives.set(e.actor_id, e.actor_name);
+    });
+    const toSorted = (m: Map<string, string>) =>
+      Array.from(m.entries())
+        .map(([id, name]) => ({ id, name }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    return {
+      tenants: toSorted(tenants),
+      fromAgents: toSorted(fromAgents),
+      toAgents: toSorted(toAgents),
+      executives: toSorted(executives),
+    };
+  }, [entries]);
+
+  const fromTs = dateFrom ? new Date(dateFrom + 'T00:00:00').getTime() : null;
+  const toTs = dateTo ? new Date(dateTo + 'T23:59:59.999').getTime() : null;
+
   const filtered = (entries || []).filter((e) => {
-    if (!search.trim()) return true;
-    const q = search.toLowerCase();
-    return (
-      e.tenant_name.toLowerCase().includes(q) ||
-      e.from_agent_name.toLowerCase().includes(q) ||
-      e.to_agent_name.toLowerCase().includes(q) ||
-      e.actor_name.toLowerCase().includes(q) ||
-      (e.reason || '').toLowerCase().includes(q)
-    );
+    // Quick text search across all key names + reason.
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      const hit =
+        e.tenant_name.toLowerCase().includes(q) ||
+        e.from_agent_name.toLowerCase().includes(q) ||
+        e.to_agent_name.toLowerCase().includes(q) ||
+        e.actor_name.toLowerCase().includes(q) ||
+        (e.reason || '').toLowerCase().includes(q);
+      if (!hit) return false;
+    }
+    if (kindFilter !== 'all' && e.kind !== kindFilter) return false;
+    if (tenantFilter !== 'all' && e.tenant_id !== tenantFilter) return false;
+    if (fromAgentFilter !== 'all' && e.from_agent_id !== fromAgentFilter) return false;
+    if (toAgentFilter !== 'all' && e.to_agent_id !== toAgentFilter) return false;
+    if (executiveFilter !== 'all' && e.actor_id !== executiveFilter) return false;
+    if (statusFilter !== 'all') {
+      const s = e.actor_location_status || 'unknown';
+      if (statusFilter === 'missing') {
+        if (s === 'captured') return false;
+      } else if (s !== statusFilter) {
+        return false;
+      }
+    }
+    if (fromTs || toTs) {
+      const ts = new Date(e.created_at).getTime();
+      if (fromTs && ts < fromTs) return false;
+      if (toTs && ts > toTs) return false;
+    }
+    return true;
   });
 
   const captured = (entries || []).filter((e) => e.actor_location_status === 'captured').length;
   const missing = (entries || []).filter(
     (e) => !e.actor_location_status || e.actor_location_status !== 'captured',
   ).length;
+
+  // Count active filters for the toggle pill — search excluded since it has its
+  // own visible field.
+  const activeFilterCount =
+    (dateFrom ? 1 : 0) +
+    (dateTo ? 1 : 0) +
+    (tenantFilter !== 'all' ? 1 : 0) +
+    (fromAgentFilter !== 'all' ? 1 : 0) +
+    (toAgentFilter !== 'all' ? 1 : 0) +
+    (executiveFilter !== 'all' ? 1 : 0) +
+    (statusFilter !== 'all' ? 1 : 0) +
+    (kindFilter !== 'all' ? 1 : 0);
+
+  const clearFilters = () => {
+    setDateFrom('');
+    setDateTo('');
+    setTenantFilter('all');
+    setFromAgentFilter('all');
+    setToAgentFilter('all');
+    setExecutiveFilter('all');
+    setStatusFilter('all');
+    setKindFilter('all');
+  };
 
   return (
     <div className="space-y-4">
@@ -217,14 +306,186 @@ export function TenantTransferAuditTrail() {
             </div>
           </div>
 
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              placeholder="Search tenant, agent, executive, or reason..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 h-9 text-xs"
-            />
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Search tenant, agent, executive, or reason..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-8 h-9 text-xs"
+                />
+              </div>
+              <Button
+                variant={showFilters ? 'default' : 'outline'}
+                size="sm"
+                className="h-9 gap-1.5 shrink-0"
+                onClick={() => setShowFilters((v) => !v)}
+              >
+                <Filter className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Filters</span>
+                {activeFilterCount > 0 && (
+                  <Badge variant="secondary" className="h-4 min-w-4 px-1 text-[10px]">
+                    {activeFilterCount}
+                  </Badge>
+                )}
+                <ChevronDown
+                  className={`h-3.5 w-3.5 transition-transform ${showFilters ? 'rotate-180' : ''}`}
+                />
+              </Button>
+            </div>
+
+            <Collapsible open={showFilters}>
+              <CollapsibleContent className="space-y-3 rounded-lg border bg-muted/30 p-3 mt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                  {/* Date range */}
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase text-muted-foreground">From date</Label>
+                    <Input
+                      type="date"
+                      value={dateFrom}
+                      max={dateTo || undefined}
+                      onChange={(e) => setDateFrom(e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase text-muted-foreground">To date</Label>
+                    <Input
+                      type="date"
+                      value={dateTo}
+                      min={dateFrom || undefined}
+                      onChange={(e) => setDateTo(e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+
+                  {/* Action kind */}
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase text-muted-foreground">Action type</Label>
+                    <Select value={kindFilter} onValueChange={(v) => setKindFilter(v as typeof kindFilter)}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All actions</SelectItem>
+                        <SelectItem value="transfer">Transfers only</SelectItem>
+                        <SelectItem value="link">Links only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Tenant */}
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase text-muted-foreground">Tenant</Label>
+                    <Select value={tenantFilter} onValueChange={setTenantFilter}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Any tenant" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-64">
+                        <SelectItem value="all">Any tenant</SelectItem>
+                        {filterOptions.tenants.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Before agent (transfers only) */}
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase text-muted-foreground">Before agent</Label>
+                    <Select value={fromAgentFilter} onValueChange={setFromAgentFilter}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Any" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-64">
+                        <SelectItem value="all">Any</SelectItem>
+                        {filterOptions.fromAgents.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* After agent */}
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase text-muted-foreground">After agent</Label>
+                    <Select value={toAgentFilter} onValueChange={setToAgentFilter}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Any" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-64">
+                        <SelectItem value="all">Any</SelectItem>
+                        {filterOptions.toAgents.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Executive */}
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase text-muted-foreground">Executive</Label>
+                    <Select value={executiveFilter} onValueChange={setExecutiveFilter}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Any executive" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-64">
+                        <SelectItem value="all">Any executive</SelectItem>
+                        {filterOptions.executives.map((e) => (
+                          <SelectItem key={e.id} value={e.id}>
+                            {e.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Capture status */}
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase text-muted-foreground">Capture status</Label>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Any status</SelectItem>
+                        <SelectItem value="captured">Captured</SelectItem>
+                        <SelectItem value="missing">Any missing (no geo)</SelectItem>
+                        <SelectItem value="denied">Denied</SelectItem>
+                        <SelectItem value="unavailable">Unavailable</SelectItem>
+                        <SelectItem value="timeout">Timeout</SelectItem>
+                        <SelectItem value="unsupported">Unsupported</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1 border-t border-border/60">
+                  <div className="text-[11px] text-muted-foreground">
+                    Showing <span className="font-semibold">{filtered.length}</span> of{' '}
+                    {entries?.length ?? 0} actions
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearFilters}
+                    disabled={activeFilterCount === 0}
+                    className="h-7 gap-1 text-xs"
+                  >
+                    <X className="h-3 w-3" />
+                    Clear filters
+                  </Button>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           </div>
         </CardContent>
       </Card>
