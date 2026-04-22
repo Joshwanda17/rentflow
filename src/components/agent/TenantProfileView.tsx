@@ -24,6 +24,7 @@ import { shareTenantProfileWhatsApp, type TenantProfilePdfData } from '@/lib/ten
 import { UserAvatar } from '@/components/UserAvatar';
 import { RegisterSubAgentDialog } from './RegisterSubAgentDialog';
 import { EditTenantDialog } from './EditTenantDialog';
+import { TenantQuickActionsSheet } from './TenantQuickActionsSheet';
 
 interface TenantProfileViewProps {
   tenantId: string;
