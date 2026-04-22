@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { TrendingUp, TrendingDown, Share2, Info, Sparkles } from 'lucide-react';
+import { TrendingUp, TrendingDown, Info, Sparkles, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatUGX } from '@/lib/rentCalculations';
 import { calculateRentAccessLimit, TIER_META, type RepaymentLike } from '@/lib/rentAccessLimit';
@@ -140,12 +140,12 @@ export function RentAccessLimitCard({
             <Button
               type="button"
               size="lg"
-              className="flex-1 h-11 rounded-xl font-bold shadow-sm"
+              className="flex-1 h-11 rounded-xl font-bold shadow-sm bg-success hover:bg-success/90 text-success-foreground"
               onClick={() => setShareOpen(true)}
-              aria-label="Share rent access limit with tenant"
+              aria-label="Share on WhatsApp"
             >
-              <Share2 className="h-4 w-4 mr-1.5" />
-              Share with tenant
+              <MessageCircle className="h-4 w-4 mr-1.5" />
+              Share on WhatsApp
             </Button>
             <Button
               type="button"
