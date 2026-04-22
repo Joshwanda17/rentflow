@@ -356,7 +356,7 @@ export function LandlordsWithTenantsView() {
           />
         </div>
         <div className="flex gap-1 overflow-x-auto pb-1">
-          {(['all', 'paid', 'pending'] as StatusFilter[]).map(s => (
+          {(['all', 'paid', 'pending', 'empty'] as StatusFilter[]).map(s => (
             <Button
               key={s}
               size="sm"
@@ -364,7 +364,7 @@ export function LandlordsWithTenantsView() {
               onClick={() => setStatusFilter(s)}
               className="text-xs h-8 shrink-0"
             >
-              {s === 'all' ? 'All' : s === 'paid' ? '✓ Paid only' : '⏳ Pending only'}
+              {s === 'all' ? 'All' : s === 'paid' ? '✓ Paid only' : s === 'pending' ? '⏳ Pending only' : '🏚 Empty only'}
             </Button>
           ))}
         </div>
