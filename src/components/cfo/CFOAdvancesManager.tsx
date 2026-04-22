@@ -17,6 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { formatUGX, getRiskLevel } from '@/lib/agentAdvanceCalculations';
 import IssueAdvanceSheet from '@/components/manager/IssueAdvanceSheet';
+import { RecordAdvancePaymentDialog } from '@/components/cfo/RecordAdvancePaymentDialog';
 import { differenceInDays } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -44,6 +45,7 @@ export function CFOAdvancesManager() {
   const [deleting, setDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportingPayments, setExportingPayments] = useState(false);
+  const [paymentAdvance, setPaymentAdvance] = useState<any | null>(null);
 
   const handleExportPayments = async () => {
     if (filtered.length === 0) return;
@@ -332,6 +334,7 @@ export function CFOAdvancesManager() {
                 <TableHead>Days Left</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Risk</TableHead>
+                <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -381,6 +384,18 @@ export function CFOAdvancesManager() {
                     <TableCell onClick={() => navigate(`/agent-advances/${adv.id}`)}>
                       <div className={`h-3 w-3 rounded-full ${risk === 'green' ? 'bg-green-500' : risk === 'yellow' ? 'bg-amber-500' : 'bg-red-500'}`} />
                     </TableCell>
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      {(adv.status === 'active' || adv.status === 'overdue') && (
+                        <Button
+                          size="sm"
+                          variant="soft"
+                          className="gap-1"
+                          onClick={() => setPaymentAdvance(adv)}
+                        >
+                          <Receipt className="h-3.5 w-3.5" /> Record Payment
+                        </Button>
+                      )}
+                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -412,6 +427,13 @@ export function CFOAdvancesManager() {
         onOpenChange={(open) => { setRenewOpen(open); if (!open) setRenewAgentId(null); }}
         onSuccess={() => { refetch(); setSelectedIds(new Set()); }}
         preselectedAgentId={renewAgentId || undefined}
+      />
+
+      <RecordAdvancePaymentDialog
+        advance={paymentAdvance}
+        open={!!paymentAdvance}
+        onOpenChange={(o) => { if (!o) setPaymentAdvance(null); }}
+        onSuccess={() => { refetch(); setPaymentAdvance(null); }}
       />
     </div>
   );
