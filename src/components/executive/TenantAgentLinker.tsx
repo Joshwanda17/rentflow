@@ -28,6 +28,15 @@ export function TenantAgentLinker() {
   const [transferReason, setTransferReason] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
 
+  // Validation helpers reused by the preview button and the confirm dialog.
+  const movingRequests = (tenantRequests || []).filter(
+    (r: any) => currentAgentId && r.agent_id === currentAgentId
+  );
+  const sameAgent = !!selectedAgent && !!currentAgentId && currentAgentId === selectedAgent.id;
+  const hasMovableRequests = movingRequests.length > 0;
+  const reasonValid = transferReason.trim().length >= 10;
+  const canSubmitTransfer = !sameAgent && hasMovableRequests && reasonValid;
+
   // Fetch active rent requests for selected tenant
   const { data: tenantRequests, isLoading: loadingRequests } = useQuery({
     queryKey: ['tenant-rent-requests', selectedTenant?.id],
