@@ -384,6 +384,94 @@ export function RentAccessLimitCard({
             </span>
           </div>
 
+          {/* Inline edit mode for monthly rent */}
+          {editingRent && (
+            <div className="rounded-xl bg-background/80 backdrop-blur border border-border/60 p-3 space-y-1.5 animate-fade-in">
+              <div className="flex items-center justify-between">
+                <label
+                  htmlFor="rent-edit-input"
+                  className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground"
+                >
+                  Monthly rent (UGX)
+                </label>
+                {overrideActiveEdit ? (
+                  <span
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-warning/15 text-warning border border-warning/30"
+                    aria-label="Manual override active"
+                  >
+                    <Edit3 className="h-3 w-3" aria-hidden />
+                    Manual override
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-muted-foreground">
+                    Current: {formatUGX(monthlyRent)}
+                  </span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  id="rent-edit-input"
+                  inputMode="numeric"
+                  placeholder="e.g. 350,000"
+                  value={
+                    editRentInput
+                      ? Number(editRentInput.replace(/[^0-9]/g, '')).toLocaleString('en-UG')
+                      : ''
+                  }
+                  onChange={(e) => setEditRentInput(e.target.value.replace(/[^0-9]/g, ''))}
+                  className={cn(
+                    'h-10 text-sm font-mono font-semibold',
+                    editShowError && 'border-destructive focus-visible:ring-destructive',
+                  )}
+                  disabled={savingRent}
+                  aria-invalid={editShowError}
+                  aria-describedby="rent-edit-help"
+                  autoFocus
+                />
+                <Button
+                  type="button"
+                  onClick={handleSaveEdit}
+                  disabled={!editCanSave}
+                  className="h-10 px-3 rounded-md font-bold shrink-0"
+                  aria-label="Save monthly rent"
+                >
+                  {savingRent ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setEditingRent(false);
+                    setEditRentInput('');
+                  }}
+                  disabled={savingRent}
+                  className="h-10 px-3 rounded-md shrink-0"
+                  aria-label="Cancel edit"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <div id="rent-edit-help" className="min-h-[16px]" aria-live="polite">
+                {editShowError ? (
+                  <p className="text-[11px] text-destructive flex items-start gap-1">
+                    <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" aria-hidden />
+                    <span>{(editValidation as Extract<RentValidation, { ok: false }>).message}</span>
+                  </p>
+                ) : overrideActiveEdit && editValidation.ok ? (
+                  <p className="text-[11px] text-warning flex items-center gap-1">
+                    <Edit3 className="h-3 w-3 shrink-0" aria-hidden />
+                    Replaces {detectedFromHistory ? 'auto-detected' : 'current'} rent with{' '}
+                    {formatUGX(editValidation.value)}
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground">
+                    Type a different value to override the {detectedFromHistory ? 'auto-detected' : 'current'} rent.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Main figure */}
           <div>
             <p className="text-3xl sm:text-4xl font-black font-mono text-foreground leading-none break-all">
