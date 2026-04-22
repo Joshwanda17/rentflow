@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
-import { ArrowDown, ArrowRightLeft, ArrowUp, ArrowUpDown, Link2, Loader2, User } from 'lucide-react';
+import { ArrowDown, ArrowRightLeft, ArrowUp, ArrowUpDown, Link2, Loader2, MapPin, User } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
@@ -14,11 +14,43 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { TenantReassignmentSuggestions } from './TenantReassignmentSuggestions';
+import { useGeoLocation } from '@/hooks/useGeoLocation';
 
 interface SelectedUser {
   id: string;
   full_name: string;
   phone: string;
+}
+
+type ActorLocationStatus = 'captured' | 'denied' | 'unavailable' | 'timeout' | 'unsupported';
+
+function formatRelativeTime(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return '';
+  const diffMs = Date.now() - then;
+  const mins = Math.round(diffMs / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} m ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs} h ago`;
+  const days = Math.round(hrs / 24);
+  return `${days} d ago`;
+}
+
+function haversineKm(
+  a: { latitude: number; longitude: number } | null,
+  b: { latitude: number; longitude: number } | null,
+): number | null {
+  if (!a || !b) return null;
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b.latitude - a.latitude);
+  const dLon = toRad(b.longitude - a.longitude);
+  const lat1 = toRad(a.latitude);
+  const lat2 = toRad(b.latitude);
+  const h = Math.sin(dLat / 2) ** 2 + Math.sin(dLon / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
 export function TenantAgentLinker() {
@@ -30,6 +62,41 @@ export function TenantAgentLinker() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [previewSortKey, setPreviewSortKey] = useState<'id' | 'agent' | 'amount'>('amount');
   const [previewSortDir, setPreviewSortDir] = useState<'asc' | 'desc'>('desc');
+  const { location: actorLocation, captureLocation: captureActorLocation } = useGeoLocation();
+  const [lastActorStatus, setLastActorStatus] = useState<ActorLocationStatus | null>(null);
+
+  // Capture executive geo before running an action; never blocks the action.
+  const captureActorContext = async (): Promise<{
+    actor_latitude: number | null;
+    actor_longitude: number | null;
+    actor_accuracy: number | null;
+    actor_location_status: ActorLocationStatus;
+  }> => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setLastActorStatus('unsupported');
+      toast({ title: '📍 Location unavailable', description: 'Browser does not support geolocation — proceeding without it.' });
+      return { actor_latitude: null, actor_longitude: null, actor_accuracy: null, actor_location_status: 'unsupported' };
+    }
+    try {
+      const loc = await captureActorLocation();
+      if (loc) {
+        setLastActorStatus('captured');
+        return {
+          actor_latitude: loc.latitude,
+          actor_longitude: loc.longitude,
+          actor_accuracy: loc.accuracy,
+          actor_location_status: 'captured',
+        };
+      }
+      setLastActorStatus('unavailable');
+      toast({ title: '📍 Location unavailable', description: 'Proceeding without geo — action will be tagged accordingly.' });
+      return { actor_latitude: null, actor_longitude: null, actor_accuracy: null, actor_location_status: 'unavailable' };
+    } catch {
+      setLastActorStatus('denied');
+      toast({ title: '📍 Location denied', description: 'Proceeding without geo — action will be tagged accordingly.' });
+      return { actor_latitude: null, actor_longitude: null, actor_accuracy: null, actor_location_status: 'denied' };
+    }
+  };
 
   // Reset preview sort each time the confirm dialog opens so it doesn't leak between transfers.
   useEffect(() => {
