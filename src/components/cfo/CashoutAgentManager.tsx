@@ -825,3 +825,43 @@ function EditMerchantDialog({
     </Dialog>
   );
 }
+
+function DeleteMerchantConfirm({
+  deleteAgent, setDeleteAgent, isPending, onConfirm,
+}: {
+  deleteAgent: any;
+  setDeleteAgent: (v: any) => void;
+  isPending: boolean;
+  onConfirm: () => void;
+}) {
+  return (
+    <AlertDialog open={!!deleteAgent} onOpenChange={v => { if (!v && !isPending) setDeleteAgent(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete Merchant Agent?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will <span className="font-semibold text-destructive">permanently remove</span>{' '}
+            <span className="font-semibold text-foreground">{deleteAgent?.profiles?.full_name || 'this merchant'}</span>{' '}
+            from the payout execution network. Their completed payout history is preserved in audit logs,
+            but they will no longer appear in routing or assignment.
+            <br /><br />
+            If they have <span className="font-medium">active claims in queue</span>, the deletion will be blocked —
+            reassign or complete those first. Prefer <span className="font-medium">Deactivate</span> if you only
+            want to pause routing.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={(e) => { e.preventDefault(); onConfirm(); }}
+            disabled={isPending}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+            Delete Permanently
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
