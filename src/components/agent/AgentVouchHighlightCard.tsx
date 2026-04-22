@@ -56,6 +56,24 @@ export function AgentVouchHighlightCard({ userId }: Props) {
     if (aiId) navigate(`/profile/${aiId}`);
   };
 
+  // Data freshness — `generated_at` is when the trust RPC computed this snapshot.
+  const generatedAt = profile.generated_at ? new Date(profile.generated_at) : null;
+  const fmtFull = (d: Date) =>
+    d.toLocaleString(undefined, {
+      year: 'numeric', month: 'short', day: '2-digit',
+      hour: '2-digit', minute: '2-digit',
+    });
+  const fmtRelative = (d: Date) => {
+    const diffMs = Date.now() - d.getTime();
+    const min = Math.floor(diffMs / 60000);
+    if (min < 1) return 'just now';
+    if (min < 60) return `${min}m ago`;
+    const hr = Math.floor(min / 60);
+    if (hr < 24) return `${hr}h ago`;
+    const days = Math.floor(hr / 24);
+    return `${days}d ago`;
+  };
+
   const toggle = (e: React.MouseEvent) => {
     e.stopPropagation();
     hapticTap();
