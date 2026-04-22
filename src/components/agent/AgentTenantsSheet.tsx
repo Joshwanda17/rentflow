@@ -70,6 +70,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [loadingRequests, setLoadingRequests] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterTab>('owing');
   const [riskFilter, setRiskFilter] = useState<RiskFilter>('all');
+  const [sortKey, setSortKey] = useState<SortKey>('balance');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [tenantBalances, setTenantBalances] = useState<Record<string, number>>({});
   const [tenantTotals, setTenantTotals] = useState<Record<string, { total: number; paid: number }>>({});
   const [tenantStatuses, setTenantStatuses] = useState<Record<string, Set<string>>>({});
