@@ -13,6 +13,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { TenantReassignmentSuggestions } from './TenantReassignmentSuggestions';
 
 interface SelectedUser {
   id: string;
@@ -136,6 +137,14 @@ export function TenantAgentLinker() {
 
   return (
     <div className="space-y-4">
+      <TenantReassignmentSuggestions
+        onApply={(tenant, agent) => {
+          setSelectedTenant(tenant);
+          setSelectedAgent(agent);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+      />
+
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
