@@ -5,6 +5,7 @@ import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import {
   Mail, Send, AlertTriangle, Clock, Users, Ban, TrendingUp, Inbox,
+  ShieldAlert,
 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -24,10 +25,15 @@ interface EmailOverview {
     suppressedTotal: number;
     deliveryRate: number;
     uniqueRecipients: number;
+    topErrorCategory: string | null;
+    topErrorCategoryCount: number;
+    distinctErrorCategories: number;
   };
   series: { day: string; sent: number; failed: number; pending: number; total: number }[];
   templateSummary: { template: string; total: number; sent: number; failed: number; pending: number; lastSentAt: string | null }[];
   recent: { id: string; template_name: string; recipient_email: string; status: string; error_message: string | null; created_at: string }[];
+  errorCategories: { category: string; count: number }[];
+  topErrorMessages: { message: string; count: number; category: string; lastSeen: string }[];
 }
 
 const RANGE_OPTIONS = [
@@ -204,6 +210,18 @@ export function CTOEmailsOverview() {
           loading={isLoading}
           color="bg-violet-500/10 text-violet-600"
         />
+        <KPICard
+          title="Top Error Category"
+          value={kpis?.topErrorCategory ?? '—'}
+          icon={ShieldAlert}
+          loading={isLoading}
+          color="bg-orange-500/10 text-orange-600"
+          subtitle={
+            kpis && kpis.topErrorCategoryCount > 0
+              ? `${kpis.topErrorCategoryCount.toLocaleString()} of ${(kpis.totalFailed + kpis.totalBounced).toLocaleString()} failures • ${kpis.distinctErrorCategories} categories`
+              : 'No failures in range'
+          }
+        />
       </div>
 
       {/* Line Graph */}
@@ -248,6 +266,67 @@ export function CTOEmailsOverview() {
           loading={isLoading}
           title="Templates"
         />
+      </div>
+
+      {/* Failure breakdown */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div>
+          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <ShieldAlert className="h-4 w-4 text-orange-600" />
+            Failures by Error Category
+          </h3>
+          <ExecutiveDataTable
+            data={data?.errorCategories ?? []}
+            columns={[
+              { key: 'category', label: 'Category' },
+              {
+                key: 'count',
+                label: 'Count',
+                render: (v) => <span className="font-medium text-destructive">{Number(v).toLocaleString()}</span>,
+              },
+              {
+                key: 'count',
+                label: 'Share',
+                render: (v) => {
+                  const totalFails = (data?.errorCategories ?? []).reduce((sum, c) => sum + c.count, 0);
+                  const pct = totalFails > 0 ? Math.round((Number(v) / totalFails) * 1000) / 10 : 0;
+                  return <span className="text-muted-foreground">{pct}%</span>;
+                },
+              },
+            ]}
+            loading={isLoading}
+            title="Categories"
+          />
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+            Top Error Messages
+          </h3>
+          <ExecutiveDataTable
+            data={data?.topErrorMessages ?? []}
+            columns={[
+              {
+                key: 'message',
+                label: 'Error',
+                className: 'max-w-[360px] truncate text-xs',
+              },
+              { key: 'category', label: 'Category', render: (v) => <span className="text-xs text-muted-foreground">{String(v)}</span> },
+              {
+                key: 'count',
+                label: 'Count',
+                render: (v) => <span className="font-medium text-destructive">{Number(v).toLocaleString()}</span>,
+              },
+              {
+                key: 'lastSeen',
+                label: 'Last Seen',
+                render: (v) => (v ? format(new Date(v as string), 'dd MMM HH:mm') : '—'),
+              },
+            ]}
+            loading={isLoading}
+            title="Top 10 errors"
+          />
+        </div>
       </div>
 
       {/* Recent emails table */}

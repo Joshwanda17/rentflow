@@ -94,6 +94,28 @@ Deno.serve(async (req) => {
     // Recent emails (cap UI payload)
     const recent = all.slice(0, 100);
 
+    // Error breakdown — categorize failed/bounced/dlq emails
+    const failedRows = all.filter((r) => r.status === "failed" || r.status === "dlq" || r.status === "bounced");
+    const categoryMap = new Map<string, number>();
+    const messageMap = new Map<string, { message: string; count: number; category: string; lastSeen: string }>();
+    for (const r of failedRows) {
+      const raw = (r.error_message || "").trim();
+      const category = categorizeError(raw, r.status as string);
+      categoryMap.set(category, (categoryMap.get(category) ?? 0) + 1);
+
+      const key = (raw || `(${category})`).slice(0, 200);
+      const cur = messageMap.get(key) || { message: key, count: 0, category, lastSeen: r.created_at as string };
+      cur.count++;
+      if ((r.created_at as string) > cur.lastSeen) cur.lastSeen = r.created_at as string;
+      messageMap.set(key, cur);
+    }
+    const errorCategories = Array.from(categoryMap.entries())
+      .map(([category, count]) => ({ category, count }))
+      .sort((a, b) => b.count - a.count);
+    const topErrorMessages = Array.from(messageMap.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
     // Suppression count
     const { count: suppressedCount } = await adminClient
       .from("suppressed_emails")
@@ -111,10 +133,15 @@ Deno.serve(async (req) => {
         suppressedTotal: suppressedCount ?? 0,
         deliveryRate,
         uniqueRecipients,
+        topErrorCategory: errorCategories[0]?.category ?? null,
+        topErrorCategoryCount: errorCategories[0]?.count ?? 0,
+        distinctErrorCategories: errorCategories.length,
       },
       series,
       templateSummary,
       recent,
+      errorCategories,
+      topErrorMessages,
     }, 200);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
@@ -127,4 +154,28 @@ function json(body: unknown, status: number) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+function categorizeError(message: string, status: string): string {
+  const m = (message || "").toLowerCase();
+  if (!m) {
+    if (status === "bounced") return "Bounce";
+    if (status === "dlq") return "Dead Letter";
+    return "Unknown";
+  }
+  if (m.includes("bounce") || m.includes("undeliverable") || m.includes("mailbox") && m.includes("full")) return "Bounce";
+  if (m.includes("invalid") && (m.includes("email") || m.includes("address") || m.includes("recipient"))) return "Invalid Recipient";
+  if (m.includes("does not exist") || m.includes("no such user") || m.includes("user unknown") || m.includes("550")) return "Invalid Recipient";
+  if (m.includes("suppress") || m.includes("unsubscribe") || m.includes("complaint") || m.includes("spam")) return "Suppressed / Complaint";
+  if (m.includes("rate limit") || m.includes("too many") || m.includes("429") || m.includes("throttle")) return "Rate Limited";
+  if (m.includes("timeout") || m.includes("timed out") || m.includes("etimedout")) return "Timeout";
+  if (m.includes("dns") || m.includes("enotfound") || m.includes("getaddrinfo")) return "DNS / Network";
+  if (m.includes("network") || m.includes("econnrefused") || m.includes("econnreset") || m.includes("socket")) return "DNS / Network";
+  if (m.includes("auth") || m.includes("unauthorized") || m.includes("api key") || m.includes("forbidden") || m.includes("401") || m.includes("403")) return "Auth / API Key";
+  if (m.includes("template") || m.includes("render")) return "Template Error";
+  if (m.includes("attachment") || m.includes("payload") || m.includes("size")) return "Payload / Size";
+  if (m.includes("smtp") || m.includes("relay")) return "SMTP / Relay";
+  if (m.includes("5xx") || m.includes("server error") || m.includes("500") || m.includes("502") || m.includes("503")) return "Provider 5xx";
+  if (m.includes("4xx") || m.includes("400") || m.includes("422")) return "Provider 4xx";
+  return "Other";
 }
