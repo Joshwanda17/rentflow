@@ -68,6 +68,35 @@ export default function WithdrawFlow({
 
   const maxAmount = source === 'available' ? availableBalance : roiBalance;
 
+  // Cross-bucket visibility: show user the other (non-withdrawable) buckets
+  // so they understand where CFO/agent credits may have landed.
+  const [floatBalance, setFloatBalance] = useState<number>(0);
+  const [advanceBalance, setAdvanceBalance] = useState<number>(0);
+  const [userRoles, setUserRoles] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!open || !user) return;
+    let cancelled = false;
+    (async () => {
+      const [walletRes, rolesRes] = await Promise.all([
+        supabase
+          .from('wallets')
+          .select('float_balance, advance_balance')
+          .eq('user_id', user.id)
+          .maybeSingle(),
+        supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id),
+      ]);
+      if (cancelled) return;
+      setFloatBalance(Number(walletRes.data?.float_balance ?? 0));
+      setAdvanceBalance(Number(walletRes.data?.advance_balance ?? 0));
+      setUserRoles((rolesRes.data ?? []).map((r: any) => r.role));
+    })();
+    return () => { cancelled = true; };
+  }, [open, user]);
+
   const handleReset = () => {
     setCurrentStep(0);
     setSource('available');
