@@ -214,8 +214,8 @@ Deno.test({
   ignore: !!skipReason,
   async fn() {
     for (const id of createdUserIds) {
-      await admin!.from("profiles").delete().eq("id", id).catch(() => {});
-      await admin!.auth.admin.deleteUser(id).catch(() => {});
+      try { await admin!.from("profiles").delete().eq("id", id); } catch { /* ignore */ }
+      try { await admin!.auth.admin.deleteUser(id); } catch { /* ignore */ }
     }
   },
 });
