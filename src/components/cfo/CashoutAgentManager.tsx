@@ -585,6 +585,15 @@ export function CashoutAgentManager() {
                     <p className="text-[10px] text-muted-foreground">{stats.count} payout{stats.count !== 1 ? 's' : ''}</p>
                     {stats.todayCount > 0 && <p className="text-[10px] text-success font-medium">+{stats.todayCount} today</p>}
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+                    onClick={(e) => { e.stopPropagation(); openEdit(a); }}
+                    title="Edit Merchant Agent"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
                 </CardContent>
               </Card>
             );
