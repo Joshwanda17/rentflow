@@ -15,7 +15,8 @@ import { CurrencySwitcher } from '@/components/CurrencySwitcher';
 // Simplified validation - check inline for faster response
 const validateSignUp = (data: { password: string; fullName: string; phone: string }) => {
   if (data.password.length < 6) return 'Password must be at least 6 characters';
-  if (data.fullName.length < 2) return 'Full name is required';
+  const trimmedName = (data.fullName ?? '').trim();
+  if (trimmedName.length < 2) return 'Full name is required (minimum 2 characters)';
   if (data.phone.replace(/\D/g, '').length < 10) return 'Please enter a valid phone number';
   return null;
 };
@@ -148,7 +149,8 @@ export default function BecomeSupporter() {
           return;
         }
 
-        const validationError = validateSignUp({ password, fullName, phone });
+        const trimmedFullName = (fullName ?? '').trim();
+        const validationError = validateSignUp({ password, fullName: trimmedFullName, phone });
         if (validationError) {
           toast({ title: 'Error', description: validationError, variant: 'destructive' });
           setIsLoading(false);
@@ -167,7 +169,7 @@ export default function BecomeSupporter() {
         const storedReferrerId = referrerIdState || localStorage.getItem('supporter_referrer_id');
         console.log('[BecomeSupporter] Signup with referrer:', storedReferrerId, '(state:', referrerIdState, ')');
         
-        const { error } = await signUpWithoutRole(generatedEmail, password, fullName, phone, storedReferrerId || undefined);
+        const { error } = await signUpWithoutRole(generatedEmail, password, trimmedFullName, phone, storedReferrerId || undefined);
         // DON'T clear referrer here - handleAddSupporterRole needs it after the user session activates
         // It will be cleared in handleAddSupporterRole after the referral records are created
         if (error) {

@@ -244,7 +244,8 @@ export function useAuthForm() {
       toast({ title: 'Phone Already Registered', description: duplicateMessage || 'This phone number is already in use.', variant: 'destructive' });
       return;
     }
-    const validationError = validateSignUp({ password, confirmPassword, fullName, phone });
+    const trimmedFullName = (fullName ?? '').trim();
+    const validationError = validateSignUp({ password, confirmPassword, fullName: trimmedFullName, phone });
     if (validationError) {
       toast({ title: 'Error', description: validationError, variant: 'destructive' });
       return;
@@ -261,7 +262,7 @@ export function useAuthForm() {
     const storedReferrerId = referrerIdState || localStorage.getItem('referral_agent_id');
     console.log('[Auth] Signup with referrer:', storedReferrerId, '(state:', referrerIdState, ', localStorage:', localStorage.getItem('referral_agent_id'), ')');
 
-    const { error } = await signUpWithoutRole(generatedEmail, password, fullName, fullPhone, storedReferrerId || undefined, preSelectedRole || undefined);
+    const { error } = await signUpWithoutRole(generatedEmail, password, trimmedFullName, fullPhone, storedReferrerId || undefined, preSelectedRole || undefined);
     if (error) {
       let errorMessage = error.message;
       if (error.message.includes('already registered')) {
