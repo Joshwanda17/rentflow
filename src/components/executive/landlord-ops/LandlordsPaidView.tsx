@@ -6,12 +6,14 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
-  Loader2, Banknote, Search, CheckCircle2, Clock, ChevronDown, ChevronRight,
-  Receipt, MapPin, ExternalLink, Camera, Phone, Users, CalendarClock,
+  Loader2, Banknote, Search, CheckCircle2, Clock, ChevronRight,
+  Phone, Users, CalendarClock, User,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, formatDistanceToNow } from 'date-fns';
-import { cn } from '@/lib/utils';
+import {
+  Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
+} from '@/components/ui/drawer';
 
 type Period = 'all' | '30d' | '7d' | 'today';
 type ConfFilter = 'all' | 'confirmed' | 'pending';
