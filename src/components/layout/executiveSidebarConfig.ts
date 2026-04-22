@@ -3,7 +3,7 @@ import {
   TrendingUp, Users, Home, Building2, Handshake, Activity, Megaphone, Target, Share2,
   MessageSquare, HeadphonesIcon, AlertTriangle, Scale, UserCheck, FileText, Wallet,
   Crown, LayoutDashboard, Globe, DollarSign, UserCog, Truck, Layers, MinusCircle, Receipt,
-  ShieldCheck, GraduationCap
+  ShieldCheck, GraduationCap, Mail
 } from 'lucide-react';
 import type { AppRole } from '@/hooks/auth/types';
 
@@ -27,6 +27,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Overview', icon: LayoutDashboard, id: 'overview' },
         { label: 'System Infrastructure', icon: Server, id: 'infrastructure' },
         { label: 'API Management', icon: Code, id: 'api' },
+        { label: 'Emails', icon: Mail, id: 'emails' },
         { label: 'Security Logs', icon: Lock, id: 'security' },
         { label: 'Developer Tools', icon: Wrench, id: 'tools' },
         { label: 'System Logs', icon: FileText, id: 'system-logs' },
