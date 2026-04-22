@@ -386,6 +386,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             {/* Today's snapshot */}
             <TodayCollectionsCard agentId={user.id} onViewTenants={() => setTenantsSheetOpen(true)} />
 
+            {/* Welile Vouches highlight — entices tap into AI ID */}
+            <AgentVouchHighlightCard userId={user.id} />
+
             {/* Tenant Health — agent-performance booster summary */}
             <AgentTenantHealthCard userId={user.id} />
 
