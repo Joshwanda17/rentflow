@@ -71,6 +71,8 @@ function statusPill(status: string | null) {
 
 export function TenantTransferAuditTrail() {
   const [search, setSearch] = useState('');
+  // Currently-open entry for the embedded map drawer. null => closed.
+  const [mapEntry, setMapEntry] = useState<AuditEntry | null>(null);
 
   const { data: entries, isLoading } = useQuery({
     queryKey: ['tenant-transfer-audit-trail'],
