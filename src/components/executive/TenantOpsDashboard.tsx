@@ -386,6 +386,8 @@ export function TenantOpsDashboard() {
         );
       case 'link-agent':
         return <TenantAgentLinker />;
+      case 'transfer-audit':
+        return <TenantTransferAuditTrail />;
       case 'collect-rent':
         return <TenantRentCollector />;
       case 'agent-tenants':
