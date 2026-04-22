@@ -50,7 +50,7 @@ export function useAgentBalances(agentId?: string) {
       }
 
       const wallet = walletRes.data as any;
-      const withdrawableBalance = Number(wallet?.withdrawable_balance ?? 0);
+      const rawWithdrawable = Number(wallet?.withdrawable_balance ?? 0);
       const floatBalance = Number(wallet?.float_balance ?? 0);
       const advanceBalance = Number(wallet?.advance_balance ?? 0);
 
@@ -77,7 +77,18 @@ export function useAgentBalances(agentId?: string) {
         commissionBalance = Math.max(0, commissionBalance);
       } else if (commissionRes.error) {
         console.warn('[useAgentBalances] commission ledger error (non-fatal):', commissionRes.error);
-        commissionBalance = withdrawableBalance; // fallback to legacy behavior
+        commissionBalance = rawWithdrawable; // fallback to legacy behavior
+      }
+
+      // INVARIANT: withdrawable balance ALWAYS equals commission balance for agents.
+      // The wallet's stored withdrawable_balance can lag behind ledger truth, so the
+      // commission ledger is the source of truth for what the agent can cash out.
+      const withdrawableBalance = commissionBalance;
+      if (Math.abs(rawWithdrawable - commissionBalance) > 0.01) {
+        console.warn(
+          '[useAgentBalances] withdrawable/commission drift',
+          { agentId: effectiveId, rawWithdrawable, commissionBalance }
+        );
       }
 
       return {
