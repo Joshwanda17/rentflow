@@ -110,6 +110,18 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     if (!open) { setExpandedTenantId(null); setProfileTenantId(null); }
   }, [open, user]);
 
+  // Persist search / status tab / risk chip across sheet open-close and reloads
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        PREFS_KEY,
+        JSON.stringify({ search, activeFilter, riskFilter } satisfies SheetPrefs),
+      );
+    } catch {
+      /* storage unavailable — ignore */
+    }
+  }, [search, activeFilter, riskFilter]);
+
   const fetchTenants = async () => {
     if (!user) return;
     setLoading(true);
