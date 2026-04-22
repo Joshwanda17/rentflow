@@ -14,7 +14,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Banknote, UserPlus, Loader2, XCircle, Building2, Smartphone, Phone, Mail, MapPin,
   CreditCard, Calendar, Shield, Wallet, Users, TrendingUp, ArrowLeft, Search, CheckCircle2, Clock,
-  Network, Activity, Zap,
+  Network, Activity, Zap, Pencil,
 } from 'lucide-react';
 import { UserSearchPicker } from './UserSearchPicker';
 import { CashoutPendingWithdrawalsDialog } from './CashoutPendingWithdrawalsDialog';
@@ -46,6 +46,21 @@ export function CashoutAgentManager() {
   const [search, setSearch] = useState('');
   const [methodFilter, setMethodFilter] = useState<MethodFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+
+  // Edit dialog state
+  const [editAgent, setEditAgent] = useState<any>(null);
+  const [editLabel, setEditLabel] = useState('');
+  const [editHandlesCash, setEditHandlesCash] = useState(true);
+  const [editHandlesBank, setEditHandlesBank] = useState(true);
+  const [editHandlesMomo, setEditHandlesMomo] = useState(true);
+
+  const openEdit = (a: any) => {
+    setEditAgent(a);
+    setEditLabel(a.label || '');
+    setEditHandlesCash(!!a.handles_cash);
+    setEditHandlesBank(!!a.handles_bank);
+    setEditHandlesMomo(!!(a.handles_mtn || a.handles_airtel));
+  };
 
   const { data: agents = [], isLoading } = useQuery({
     queryKey: ['merchant-agents'],
@@ -136,6 +151,59 @@ export function CashoutAgentManager() {
       toast({ title: 'Merchant Agent removed' });
       qc.invalidateQueries({ queryKey: ['merchant-agents'] });
     },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      if (!editAgent) throw new Error('No merchant selected');
+      if (!editHandlesCash && !editHandlesBank && !editHandlesMomo) {
+        throw new Error('Enable at least one payout method');
+      }
+      const patch = {
+        label: editLabel.trim() || 'Merchant Agent',
+        handles_cash: editHandlesCash,
+        handles_bank: editHandlesBank,
+        handles_mtn: editHandlesMomo,
+        handles_airtel: editHandlesMomo,
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await supabase.from('cashout_agents').update(patch).eq('id', editAgent.id);
+      if (error) throw error;
+      await supabase.from('audit_logs').insert({
+        user_id: user!.id,
+        action_type: 'cfo_merchant_agent_updated',
+        table_name: 'cashout_agents',
+        record_id: editAgent.id,
+        metadata: {
+          agent_name: editAgent.profiles?.full_name || editAgent.agent_id,
+          before: {
+            label: editAgent.label,
+            handles_cash: editAgent.handles_cash,
+            handles_bank: editAgent.handles_bank,
+            handles_mtn: editAgent.handles_mtn,
+            handles_airtel: editAgent.handles_airtel,
+          },
+          after: patch,
+        },
+      });
+    },
+    onSuccess: () => {
+      toast({ title: '✅ Merchant Agent updated' });
+      qc.invalidateQueries({ queryKey: ['merchant-agents'] });
+      // Refresh the drill-down view if it's open on the same agent
+      if (selectedAgent && editAgent && selectedAgent.id === editAgent.id) {
+        setSelectedAgent({
+          ...selectedAgent,
+          label: editLabel.trim() || 'Merchant Agent',
+          handles_cash: editHandlesCash,
+          handles_bank: editHandlesBank,
+          handles_mtn: editHandlesMomo,
+          handles_airtel: editHandlesMomo,
+        });
+      }
+      setEditAgent(null);
+    },
+    onError: (e: any) => toast({ title: 'Update failed', description: e.message, variant: 'destructive' }),
   });
 
   const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString('en-UG', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
@@ -361,6 +429,9 @@ export function CashoutAgentManager() {
               <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => setCashoutAgent(selectedAgent)}>
                 <Wallet className="h-4 w-4" /> Active Queue
               </Button>
+              <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => openEdit(selectedAgent)}>
+                <Pencil className="h-4 w-4" /> Edit
+              </Button>
               <Button variant="destructive" size="sm" className="flex-1 gap-1.5" onClick={() => { deactivateMutation.mutate(selectedAgent.id); setSelectedAgent(null); }}>
                 <XCircle className="h-4 w-4" /> Remove
               </Button>
@@ -369,6 +440,22 @@ export function CashoutAgentManager() {
         </Tabs>
 
         <CashoutPendingWithdrawalsDialog open={!!cashoutAgent} onOpenChange={v => { if (!v) setCashoutAgent(null); }} agent={cashoutAgent} />
+
+        {/* Edit dialog (also reachable from drill-down) */}
+        <EditMerchantDialog
+          editAgent={editAgent}
+          setEditAgent={setEditAgent}
+          editLabel={editLabel}
+          setEditLabel={setEditLabel}
+          editHandlesMomo={editHandlesMomo}
+          setEditHandlesMomo={setEditHandlesMomo}
+          editHandlesBank={editHandlesBank}
+          setEditHandlesBank={setEditHandlesBank}
+          editHandlesCash={editHandlesCash}
+          setEditHandlesCash={setEditHandlesCash}
+          isPending={updateMutation.isPending}
+          onSave={() => updateMutation.mutate()}
+        />
       </div>
     );
   }
@@ -498,6 +585,15 @@ export function CashoutAgentManager() {
                     <p className="text-[10px] text-muted-foreground">{stats.count} payout{stats.count !== 1 ? 's' : ''}</p>
                     {stats.todayCount > 0 && <p className="text-[10px] text-success font-medium">+{stats.todayCount} today</p>}
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+                    onClick={(e) => { e.stopPropagation(); openEdit(a); }}
+                    title="Edit Merchant Agent"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
                 </CardContent>
               </Card>
             );
@@ -506,6 +602,21 @@ export function CashoutAgentManager() {
       )}
 
       <CashoutPendingWithdrawalsDialog open={!!cashoutAgent} onOpenChange={v => { if (!v) setCashoutAgent(null); }} agent={cashoutAgent} />
+
+      <EditMerchantDialog
+        editAgent={editAgent}
+        setEditAgent={setEditAgent}
+        editLabel={editLabel}
+        setEditLabel={setEditLabel}
+        editHandlesMomo={editHandlesMomo}
+        setEditHandlesMomo={setEditHandlesMomo}
+        editHandlesBank={editHandlesBank}
+        setEditHandlesBank={setEditHandlesBank}
+        editHandlesCash={editHandlesCash}
+        setEditHandlesCash={setEditHandlesCash}
+        isPending={updateMutation.isPending}
+        onSave={() => updateMutation.mutate()}
+      />
     </div>
   );
 }
@@ -567,5 +678,77 @@ function DetailRow({ icon, label, value }: { icon: React.ReactNode; label: strin
       <span className="text-muted-foreground min-w-[80px] text-xs">{label}:</span>
       <span className="font-medium truncate text-xs">{value || '—'}</span>
     </div>
+  );
+}
+
+function EditMerchantDialog({
+  editAgent, setEditAgent,
+  editLabel, setEditLabel,
+  editHandlesMomo, setEditHandlesMomo,
+  editHandlesBank, setEditHandlesBank,
+  editHandlesCash, setEditHandlesCash,
+  isPending, onSave,
+}: {
+  editAgent: any; setEditAgent: (v: any) => void;
+  editLabel: string; setEditLabel: (v: string) => void;
+  editHandlesMomo: boolean; setEditHandlesMomo: (v: boolean) => void;
+  editHandlesBank: boolean; setEditHandlesBank: (v: boolean) => void;
+  editHandlesCash: boolean; setEditHandlesCash: (v: boolean) => void;
+  isPending: boolean; onSave: () => void;
+}) {
+  const noMethod = !editHandlesCash && !editHandlesBank && !editHandlesMomo;
+  return (
+    <Dialog open={!!editAgent} onOpenChange={v => { if (!v) setEditAgent(null); }}>
+      <DialogContent
+        className="max-w-sm overflow-visible"
+        onInteractOutside={e => e.preventDefault()}
+        onPointerDownOutside={e => e.preventDefault()}
+      >
+        <DialogHeader><DialogTitle>Edit Merchant Agent</DialogTitle></DialogHeader>
+        {editAgent && (
+          <>
+            <p className="text-xs text-muted-foreground">
+              Updating <span className="font-semibold text-foreground">{editAgent.profiles?.full_name || 'this merchant'}</span>.
+              Changes apply immediately to their payout routing capabilities.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <Label>Label / Cluster</Label>
+                <Input
+                  placeholder="e.g. Kampala CBD · Branch 02"
+                  value={editLabel}
+                  onChange={e => setEditLabel(e.target.value)}
+                />
+              </div>
+              <div className="rounded-lg border border-border bg-muted/30 p-2.5 space-y-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Payout Capabilities</p>
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm flex items-center gap-1.5"><Smartphone className="h-3.5 w-3.5" />Mobile Money</Label>
+                  <Switch checked={editHandlesMomo} onCheckedChange={setEditHandlesMomo} />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" />Bank Transfer</Label>
+                  <Switch checked={editHandlesBank} onCheckedChange={setEditHandlesBank} />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm flex items-center gap-1.5"><Banknote className="h-3.5 w-3.5" />Cash Payout</Label>
+                  <Switch checked={editHandlesCash} onCheckedChange={setEditHandlesCash} />
+                </div>
+                {noMethod && (
+                  <p className="text-[11px] text-destructive">Enable at least one method.</p>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setEditAgent(null)}>Cancel</Button>
+                <Button className="flex-1" onClick={onSave} disabled={isPending || noMethod}>
+                  {isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Save Changes
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
