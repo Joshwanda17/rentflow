@@ -197,12 +197,46 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     }
   };
 
+  // Per-tenant derived risk + AI ID (used by search, filter, and row chip)
+  const tenantMeta = useMemo(() => {
+    const map: Record<string, { aiId: string; riskLevel: 'good' | 'standard' | 'caution' | 'new'; riskLabel: string; riskColor: string }> = {};
+    tenants.forEach(t => {
+      const ctx = tenantContext[t.id];
+      const completionRate = ctx && ctx.totalRequests > 0
+        ? Math.round((ctx.completedCount / ctx.totalRequests) * 100)
+        : 0;
+      const totalRequests = ctx?.totalRequests || 0;
+      const riskLevel: 'good' | 'standard' | 'caution' | 'new' =
+        totalRequests === 0 ? 'new'
+        : completionRate >= 80 ? 'good'
+        : completionRate >= 50 ? 'standard'
+        : 'caution';
+      const tier = getRiskTierLabel(riskLevel);
+      map[t.id] = {
+        aiId: generateWelileAiId(t.id),
+        riskLevel,
+        riskLabel: tier.label,
+        riskColor: tier.color,
+      };
+    });
+    return map;
+  }, [tenants, tenantContext]);
+
   // Filtered & sorted tenants — always sorted by highest debt
   const processedTenants = useMemo(() => {
-    let list = tenants.filter(t =>
-      t.full_name.toLowerCase().includes(search.toLowerCase()) ||
-      t.phone.includes(search)
-    );
+    const q = search.trim().toLowerCase();
+    let list = tenants.filter(t => {
+      if (!q) return true;
+      const ctx = tenantContext[t.id];
+      const meta = tenantMeta[t.id];
+      return (
+        t.full_name.toLowerCase().includes(q) ||
+        t.phone.includes(search) ||
+        (ctx?.landlordName || '').toLowerCase().includes(q) ||
+        (ctx?.propertyAddress || '').toLowerCase().includes(q) ||
+        (meta?.aiId || '').toLowerCase().includes(q)
+      );
+    });
 
     switch (activeFilter) {
       case 'owing':
@@ -219,9 +253,13 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         break;
     }
 
+    if (riskFilter !== 'all') {
+      list = list.filter(t => tenantMeta[t.id]?.riskLevel === riskFilter);
+    }
+
     list.sort((a, b) => (tenantBalances[b.id] || 0) - (tenantBalances[a.id] || 0));
     return list;
-  }, [tenants, search, activeFilter, tenantBalances, tenantStatuses]);
+  }, [tenants, search, activeFilter, riskFilter, tenantBalances, tenantStatuses, tenantContext, tenantMeta]);
 
   // Stats
   const stats = useMemo(() => {
