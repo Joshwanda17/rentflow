@@ -224,6 +224,56 @@ export function AgentVouchHighlightCard({ userId }: Props) {
             </div>
           )}
 
+          {/* Exact inputs & timestamps */}
+          <div className="rounded-xl border border-border/60 bg-card/70 p-2.5">
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+                Exact inputs used
+              </p>
+              {generatedAt && (
+                <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground" title={fmtFull(generatedAt)}>
+                  <Clock className="h-3 w-3" />
+                  {fmtRelative(generatedAt)}
+                </span>
+              )}
+            </div>
+            <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px]">
+              <dt className="text-muted-foreground">Healthy ratio</dt>
+              <dd className="text-right font-bold tabular-nums text-foreground">
+                {qualifying >= 3 ? `${healthyPct}%` : '—'}
+              </dd>
+              <dt className="text-muted-foreground">Healthy / qualifying</dt>
+              <dd className="text-right font-bold tabular-nums text-foreground">
+                {healthy} / {qualifying}
+              </dd>
+              <dt className="text-muted-foreground">Collection rate (30d)</dt>
+              <dd className="text-right font-bold tabular-nums text-foreground">
+                {qualifying >= 3 ? `${collectionPct}%` : '—'}
+              </dd>
+              <dt className="text-muted-foreground">Monthly tenant book</dt>
+              <dd className="text-right font-bold tabular-nums text-foreground">
+                {formatUGX(monthlyBook)}
+              </dd>
+              <dt className="text-muted-foreground">Trust score</dt>
+              <dd className="text-right font-bold tabular-nums text-foreground">
+                {score} / 100
+              </dd>
+              <dt className="text-muted-foreground">Current tier</dt>
+              <dd className="text-right font-bold text-foreground">
+                {currentTier.label}
+              </dd>
+              <dt className="text-muted-foreground">Vouch limit</dt>
+              <dd className="text-right font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
+                {formatUGX(vouch)}
+              </dd>
+            </dl>
+            {generatedAt && (
+              <p className="text-[10px] text-muted-foreground mt-2 pt-2 border-t border-border/40">
+                Last updated: <span className="font-medium text-foreground">{fmtFull(generatedAt)}</span>
+              </p>
+            )}
+          </div>
+
           <button
             onClick={goToProfile}
             className="w-full mt-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-lg bg-primary text-primary-foreground text-[11px] font-bold uppercase tracking-wider active:scale-95 transition-transform"
