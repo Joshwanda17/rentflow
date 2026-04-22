@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, TouchEvent as RTouchEvent } from 'react';
-import { Phone, MessageCircle, Banknote, Share2, Loader2, ChevronUp, GripHorizontal } from 'lucide-react';
+import { Phone, MessageCircle, Banknote, Share2, Loader2, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
 
@@ -38,13 +38,13 @@ export function TenantQuickActionsSheet({
     setExpanded((v) => !v);
   }, []);
 
-  const onTouchStart = (e: RTouchEvent<HTMLDivElement>) => {
+  const onTouchStart = (e: RTouchEvent<HTMLElement>) => {
     startY.current = e.touches[0].clientY;
     lockedAxis.current = null;
     setDragOffset(0);
   };
 
-  const onTouchMove = (e: RTouchEvent<HTMLDivElement>) => {
+  const onTouchMove = (e: RTouchEvent<HTMLElement>) => {
     if (startY.current === null) return;
     const dy = e.touches[0].clientY - startY.current;
     if (lockedAxis.current === null && Math.abs(dy) > 6) {
