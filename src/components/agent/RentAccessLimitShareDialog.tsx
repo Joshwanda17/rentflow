@@ -84,6 +84,56 @@ export function RentAccessLimitShareDialog({
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
+  /** One-tap: generate the card image AND open WhatsApp with the message. */
+  const shareCardOnWhatsApp = async () => {
+    setPngLoading(true);
+    try {
+      const blob = await generateRentAccessLimitPng({
+        tenantName,
+        tenantPhone,
+        aiId,
+        monthlyRent: result.base / 12,
+        result,
+        shareUrl,
+      });
+      const file = new File([blob], `rent-access-${tenantName.replace(/\s+/g, '-').toLowerCase()}.png`, {
+        type: 'image/png',
+      });
+      // Prefer native share with the file attached (mobile WhatsApp picks this up directly)
+      const navAny = navigator as any;
+      if (navAny.canShare && navAny.canShare({ files: [file] })) {
+        try {
+          await navAny.share({
+            files: [file],
+            title: 'Rent Access Limit',
+            text: message,
+          });
+          toast({ title: 'Ready to share' });
+          return;
+        } catch (err: any) {
+          if (err?.name === 'AbortError') return;
+          // fall through to download + WhatsApp web fallback
+        }
+      }
+      // Fallback: download the image and open WhatsApp chat with the prefilled text
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.name;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      openWhatsApp();
+      toast({
+        title: 'Image saved',
+        description: 'Attach it in the WhatsApp chat that just opened.',
+      });
+    } catch (err: any) {
+      toast({ title: 'Share failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setPngLoading(false);
+    }
+  };
+
   const copyMessage = async () => {
     try {
       await navigator.clipboard.writeText(message);
@@ -181,8 +231,21 @@ export function RentAccessLimitShareDialog({
 
         {/* Actions */}
         <div className="grid grid-cols-1 gap-2">
-          <Button onClick={openWhatsApp} className="h-12 rounded-xl gap-2 font-bold" size="lg">
-            <MessageCircle className="h-5 w-5" /> Send via WhatsApp
+          <Button
+            onClick={shareCardOnWhatsApp}
+            disabled={pngLoading}
+            className="h-12 rounded-xl gap-2 font-bold bg-success hover:bg-success/90 text-success-foreground"
+            size="lg"
+          >
+            {pngLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <MessageCircle className="h-5 w-5" />}
+            {pngLoading ? 'Preparing card…' : 'Share card on WhatsApp'}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={openWhatsApp}
+            className="h-11 rounded-xl gap-2"
+          >
+            <MessageCircle className="h-4 w-4" /> Send text only
           </Button>
           <div className="grid grid-cols-2 gap-2">
             <Button
@@ -192,7 +255,7 @@ export function RentAccessLimitShareDialog({
               className="h-11 rounded-xl gap-2"
             >
               {pngLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
-              Image
+              Save image
             </Button>
             <Button
               variant="outline"
