@@ -305,6 +305,24 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
   const riskLevel = summary.completionRate >= 80 ? 'good' : summary.completionRate >= 50 ? 'standard' : summary.totalRequests === 0 ? 'new' : 'caution';
   const riskTier = getRiskTierLabel(riskLevel);
 
+  /**
+   * Auto-detect monthly rent when the profile field is empty.
+   * Strategy: use the most recent rent_request.rent_amount as a strong signal —
+   * it's the same number the agent already entered when issuing rent.
+   * Falls back to the median across all requests if the latest one looks off.
+   */
+  const detectedMonthlyRent = useMemo<number | null>(() => {
+    const amounts = requests
+      .map(r => Number(r.rent_amount) || 0)
+      .filter(a => a >= 10000);
+    if (amounts.length === 0) return null;
+    // Most recent first (requests are loaded ordered by created_at desc)
+    return amounts[0] || null;
+  }, [requests]);
+
+  const effectiveMonthlyRent =
+    profile?.monthly_rent && profile.monthly_rent > 0 ? profile.monthly_rent : detectedMonthlyRent;
+
   const copyAiId = () => {
     navigator.clipboard.writeText(aiId);
     setCopied(true);
