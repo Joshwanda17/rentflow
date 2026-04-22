@@ -291,9 +291,6 @@ Deno.serve(async (req) => {
         console.warn("[approve-portfolio-topup] Email lookup failed (non-blocking):", emailErr);
       }
     }
-    } catch (notifErr) {
-      console.error("[approve-portfolio-topup] Exec notification error (non-blocking):", notifErr);
-    }
 
     console.log(`[approve-portfolio-topup] FinOps ${user.id} verified ${awaitingOps.length} top-ups (${totalAmount}) for ${portfolio_id}. Ledger entry created. Capital unchanged at ${currentInvestment} — funds parked until next ROI cycle.`);
 
