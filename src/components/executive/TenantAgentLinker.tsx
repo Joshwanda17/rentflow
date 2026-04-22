@@ -6,7 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { UserSearchPicker } from '@/components/cfo/UserSearchPicker';
-import { Link2, Loader2, User } from 'lucide-react';
+import { ArrowRightLeft, Link2, Loader2, User } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface SelectedUser {
   id: string;
@@ -19,6 +21,7 @@ export function TenantAgentLinker() {
   const qc = useQueryClient();
   const [selectedTenant, setSelectedTenant] = useState<SelectedUser | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<SelectedUser | null>(null);
+  const [transferReason, setTransferReason] = useState('');
 
   // Fetch active rent requests for selected tenant
   const { data: tenantRequests, isLoading: loadingRequests } = useQuery({
