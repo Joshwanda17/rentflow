@@ -590,6 +590,9 @@ export function CashoutAgentManager() {
           setDeleteAgent={setDeleteAgent}
           isPending={deleteMutation.isPending}
           onConfirm={() => deleteAgent && deleteMutation.mutate(deleteAgent)}
+          pendingInfo={deleteAgent ? pendingByAgent.get(deleteAgent.id) || null : null}
+          isReleasing={releaseClaimsMutation.isPending}
+          onRelease={() => deleteAgent && releaseClaimsMutation.mutate(deleteAgent)}
         />
       </div>
     );
@@ -776,6 +779,9 @@ export function CashoutAgentManager() {
         setDeleteAgent={setDeleteAgent}
         isPending={deleteMutation.isPending}
         onConfirm={() => deleteAgent && deleteMutation.mutate(deleteAgent)}
+        pendingInfo={deleteAgent ? pendingByAgent.get(deleteAgent.id) || null : null}
+        isReleasing={releaseClaimsMutation.isPending}
+        onRelease={() => deleteAgent && releaseClaimsMutation.mutate(deleteAgent)}
       />
     </div>
   );
