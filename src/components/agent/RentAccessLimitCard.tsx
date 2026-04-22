@@ -44,24 +44,93 @@ export function RentAccessLimitCard({
   monthlyRent,
   repayments,
   aiId,
+  detectedFromHistory,
+  suggestedRent,
+  onRentSaved,
 }: RentAccessLimitCardProps) {
   const [shareOpen, setShareOpen] = useState(false);
   const [showHow, setShowHow] = useState(false);
+  const { toast } = useToast();
+  const [rentInput, setRentInput] = useState<string>(
+    suggestedRent && suggestedRent > 0 ? String(suggestedRent) : '',
+  );
+  const [savingRent, setSavingRent] = useState(false);
 
   const result = useMemo(
     () => calculateRentAccessLimit(monthlyRent, repayments),
     [monthlyRent, repayments],
   );
 
-  // No monthly rent set → show a quiet hint instead of a misleading limit
+  // No monthly rent set → actionable prompt to capture it now
   if (!monthlyRent || monthlyRent <= 0) {
+    const parsed = parseInt(rentInput.replace(/[^0-9]/g, ''), 10) || 0;
+    const canSave = parsed >= 10000 && !savingRent;
+
+    const handleSaveRent = async () => {
+      if (!canSave) return;
+      setSavingRent(true);
+      try {
+        const { error } = await supabase
+          .from('profiles')
+          .update({ monthly_rent: parsed })
+          .eq('id', tenantId);
+        if (error) throw error;
+        toast({ title: 'Monthly rent saved', description: `Set to ${formatUGX(parsed)}` });
+        onRentSaved?.(parsed);
+      } catch (err: any) {
+        toast({
+          title: 'Could not save rent',
+          description: err?.message || 'Please try again.',
+          variant: 'destructive',
+        });
+      } finally {
+        setSavingRent(false);
+      }
+    };
+
     return (
-      <div className="rounded-2xl border border-dashed border-border/60 bg-muted/30 p-4 text-center">
-        <Sparkles className="h-5 w-5 mx-auto mb-1.5 text-muted-foreground" />
-        <p className="text-sm font-semibold text-foreground">Set a monthly rent</p>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Add this tenant's monthly rent to unlock their Rent Access Limit.
-        </p>
+      <div className="rounded-2xl border border-dashed border-primary/40 bg-primary/5 p-4 sm:p-5 space-y-3">
+        <div className="flex items-start gap-2.5">
+          <div className="h-9 w-9 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+            <Sparkles className="h-4.5 w-4.5 text-primary" aria-hidden />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-foreground">Add monthly rent to unlock the limit</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              We couldn't auto-detect rent from past records. Ask {tenantName.split(' ')[0]} or enter it yourself —
+              it powers their Rent Access Limit.
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <label htmlFor="rent-input" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+            Monthly rent (UGX)
+          </label>
+          <div className="flex gap-2">
+            <Input
+              id="rent-input"
+              inputMode="numeric"
+              placeholder="e.g. 350,000"
+              value={rentInput ? Number(rentInput.replace(/[^0-9]/g, '')).toLocaleString('en-UG') : ''}
+              onChange={(e) => setRentInput(e.target.value.replace(/[^0-9]/g, ''))}
+              className="h-11 text-sm font-mono font-semibold"
+              disabled={savingRent}
+            />
+            <Button
+              type="button"
+              onClick={handleSaveRent}
+              disabled={!canSave}
+              className="h-11 px-4 rounded-md font-bold shrink-0"
+            >
+              {savingRent ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              <span className="ml-1.5">Save</span>
+            </Button>
+          </div>
+          {parsed > 0 && parsed < 10000 && (
+            <p className="text-[11px] text-destructive">Rent looks too low — minimum 10,000 UGX.</p>
+          )}
+        </div>
       </div>
     );
   }
@@ -93,6 +162,12 @@ export function RentAccessLimitCard({
               <p className="text-[11px] text-muted-foreground mt-0.5">
                 Powered by Welile · Updates daily
               </p>
+              {detectedFromHistory && (
+                <span className="mt-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20">
+                  <Wand2 className="h-3 w-3" aria-hidden />
+                  Auto-detected from rent history
+                </span>
+              )}
             </div>
             <span
               className={cn(
