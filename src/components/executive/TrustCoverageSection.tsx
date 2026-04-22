@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ShieldCheck, Users, BarChart3, MapPinned, Banknote, TrendingUp } from 'lucide-react';
+import { ShieldCheck, Users, BarChart3, MapPinned, Banknote, TrendingUp, Trophy } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts';
 
 interface CoverageStats {
@@ -14,6 +14,8 @@ interface CoverageStats {
   agent_signals_7d: number;
   active_agents_7d: number;
   capture_rate_per_agent_7d: number;
+  agent_tenant_health_pct?: number;
+  active_agents_with_tenants?: number;
   generated_at: string;
 }
 
@@ -92,6 +94,14 @@ export function TrustCoverageSection() {
       icon: Banknote,
       color: 'bg-rose-500/10 text-rose-600',
       target: 'grow MoM',
+    },
+    {
+      label: 'Agent Tenant Health',
+      value: data?.agent_tenant_health_pct != null ? `${data.agent_tenant_health_pct}%` : '—',
+      sub: data?.active_agents_with_tenants ? `across ${fmt(data.active_agents_with_tenants)} agents` : 'tenants paying ≥50%',
+      icon: Trophy,
+      color: 'bg-emerald-500/10 text-emerald-700',
+      target: '≥ 70%',
     },
   ];
 

@@ -385,6 +385,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             {/* Today's snapshot */}
             <TodayCollectionsCard agentId={user.id} onViewTenants={() => setTenantsSheetOpen(true)} />
 
+            {/* Tenant Health — agent-performance booster summary */}
+            <AgentTenantHealthCard userId={user.id} />
+
             {/* Daily rent expected */}
             <div key="daily-rent-card">
               <DailyRentExpectedCard userId={user.id} />
