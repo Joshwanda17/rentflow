@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { validateFullName, FULL_NAME_ERROR } from "../_shared/validateFullName.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,14 +11,6 @@ function ok(data: unknown) {
 }
 function err(msg: string, status = 400) {
   return new Response(JSON.stringify({ error: msg }), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-}
-
-function validateFullName(v: unknown): string | null {
-  if (typeof v !== 'string') return null;
-  const c = v.trim();
-  if (c.length < 2 || c.length > 100) return null;
-  if (!/^[\p{L}\p{M}\s'.-]+$/u.test(c)) return null;
-  return c;
 }
 
 function validatePhone(v: unknown): string | null {
@@ -66,9 +59,10 @@ Deno.serve(async (req) => {
     if (new Date(tokenData.expires_at) < new Date()) return err("This link has expired");
     if (tokenData.uses_count >= tokenData.max_uses) return err("This link has reached its usage limit");
 
-    // Validate fields
-    const fullName = validateFullName(body.full_name);
-    if (!fullName) return err("Full name is required (2–100 characters)");
+    // Validate fields (shared rules — same message client + DB trigger use)
+    const partnerNameCheck = validateFullName(body.full_name);
+    if (!partnerNameCheck.valid) return err(partnerNameCheck.error || FULL_NAME_ERROR);
+    const fullName = partnerNameCheck.trimmed;
 
     const phone = validatePhone(body.phone);
     if (!phone) return err("Valid phone number is required");
