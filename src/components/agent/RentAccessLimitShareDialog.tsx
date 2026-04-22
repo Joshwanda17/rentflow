@@ -270,7 +270,7 @@ export function RentAccessLimitShareDialog({
             </div>
             {/* Message preview */}
             <div className="rounded-xl border bg-muted/40 p-3 text-xs whitespace-pre-line max-h-40 overflow-y-auto">
-              {message}
+              {previewMessage ?? message}
             </div>
 
             <div className="grid grid-cols-1 gap-2">
