@@ -72,6 +72,7 @@ import { AgentLandlordPayoutDialog } from '@/components/agent/AgentLandlordPayou
 import { AgentLandlordPayoutFlow } from '@/components/agent/AgentLandlordPayoutFlow';
 import { AgentLandlordFloatCard } from '@/components/agent/AgentLandlordFloatCard';
 import { AgentTenantHealthCard } from '@/components/agent/AgentTenantHealthCard';
+import { AgentVouchHighlightCard } from '@/components/agent/AgentVouchHighlightCard';
 import { AgentFloatPayoutWizard } from '@/components/agent/AgentFloatPayoutWizard';
 import { AgentLandlordFloatAllocationsDialog } from '@/components/agent/AgentLandlordFloatAllocationsDialog';
 import { LandlordRecoveryLedger } from '@/components/agent/LandlordRecoveryLedger';
@@ -384,6 +385,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
             {/* Today's snapshot */}
             <TodayCollectionsCard agentId={user.id} onViewTenants={() => setTenantsSheetOpen(true)} />
+
+            {/* Welile Vouches highlight — entices tap into AI ID */}
+            <AgentVouchHighlightCard userId={user.id} />
 
             {/* Tenant Health — agent-performance booster summary */}
             <AgentTenantHealthCard userId={user.id} />
