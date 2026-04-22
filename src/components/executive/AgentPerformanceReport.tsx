@@ -310,6 +310,22 @@ export function AgentPerformanceReport() {
         }
       });
 
+      // Build rent_request_id → agent_id map (used to attribute repayments, which carry no agent_id)
+      const requestAgentMap: Record<string, string> = {};
+      rentReqsAll.forEach(r => {
+        if (r.id && r.agent_id) requestAgentMap[r.id] = r.agent_id;
+      });
+
+      // Resolve repayments → attributed agent (via rent_request_id, fall back to tenant→agent map)
+      type ResolvedRepayment = { agent_id: string; tenant_id: string | null; amount: number };
+      const repaymentsResolved: ResolvedRepayment[] = repayments
+        .map(r => {
+          const aid = (r.rent_request_id ? requestAgentMap[r.rent_request_id] : undefined)
+            || (r.tenant_id ? tenantAgentMap[r.tenant_id]?.agent_id : undefined);
+          return aid ? { agent_id: aid, tenant_id: r.tenant_id, amount: Number(r.amount || 0) } : null;
+        })
+        .filter((x): x is ResolvedRepayment => x !== null);
+
       // Resolve merchant payments → attributed agent (prefer direct agent_id, fall back to tenant→agent map)
       type ResolvedPayment = { agent_id: string; tenant_id: string | null; amount: number };
       const merchantResolved: ResolvedPayment[] = merchantRaw
@@ -321,7 +337,7 @@ export function AgentPerformanceReport() {
 
       const agentIds = Array.from(new Set([
         ...collections.map(c => c.agent_id),
-        ...repayments.map(r => r.agent_id as string),
+        ...repaymentsResolved.map(r => r.agent_id),
         ...merchantResolved.map(m => m.agent_id),
         ...earnings.map(e => e.agent_id),
         ...rentReqsInRange.map(r => r.agent_id as string),
@@ -361,10 +377,9 @@ export function AgentPerformanceReport() {
         a.payments += 1;
         if (c.tenant_id) { a.tenantsPaid.add(c.tenant_id); a.tenantsTotal.add(c.tenant_id); }
       });
-      repayments.forEach(r => {
-        if (!r.agent_id) return;
+      repaymentsResolved.forEach(r => {
         const a = ensure(r.agent_id);
-        const amt = Number(r.amount || 0);
+        const amt = r.amount;
         a.collected += amt;
         a.bySource.repayments += amt;
         a.payments += 1;
