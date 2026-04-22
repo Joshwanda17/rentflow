@@ -201,6 +201,39 @@ export function TenantAgentLinker() {
     return top;
   })();
 
+  // Last-known locations for tenant + selected agent (most recent row per user).
+  const locationLookupIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (selectedTenant?.id) ids.add(selectedTenant.id);
+    if (selectedAgent?.id) ids.add(selectedAgent.id);
+    return Array.from(ids);
+  }, [selectedTenant?.id, selectedAgent?.id]);
+
+  const { data: lastKnownLocations } = useQuery({
+    queryKey: ['tenant-linker-last-locations', locationLookupIds.join(',')],
+    enabled: locationLookupIds.length > 0,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('user_locations')
+        .select('user_id, latitude, longitude, accuracy, city, country, captured_at')
+        .in('user_id', locationLookupIds)
+        .order('captured_at', { ascending: false })
+        .limit(50);
+      const byUser = new Map<string, any>();
+      (data || []).forEach((row: any) => {
+        if (!byUser.has(row.user_id)) byUser.set(row.user_id, row);
+      });
+      return byUser;
+    },
+  });
+
+  const tenantLastLoc = selectedTenant ? lastKnownLocations?.get(selectedTenant.id) : null;
+  const agentLastLoc = selectedAgent ? lastKnownLocations?.get(selectedAgent.id) : null;
+  const tenantAgentDistanceKm = haversineKm(
+    tenantLastLoc ? { latitude: Number(tenantLastLoc.latitude), longitude: Number(tenantLastLoc.longitude) } : null,
+    agentLastLoc ? { latitude: Number(agentLastLoc.latitude), longitude: Number(agentLastLoc.longitude) } : null,
+  );
+
   // Validation helpers reused by the preview button and the confirm dialog.
   const movingRequests = (tenantRequests || []).filter(
     (r: any) => currentAgentId && r.agent_id === currentAgentId
