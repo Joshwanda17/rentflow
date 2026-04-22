@@ -352,109 +352,53 @@ export function LandlordsPaidView() {
         </Card>
       ) : (
         <div className="space-y-2">
-          {filteredGroups.map(g => {
-            const isOpen = !!expanded[g.landlord_id];
-            return (
-              <Card key={g.landlord_id} className="overflow-hidden">
-                <button
-                  onClick={() => setExpanded(s => ({ ...s, [g.landlord_id]: !s[g.landlord_id] }))}
-                  className="w-full text-left p-3 active:bg-muted/50 transition-colors min-h-[64px]"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm truncate">{g.name}</p>
-                      <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
-                        {g.phone && (
-                          <span className="flex items-center gap-0.5"><Phone className="h-3 w-3" />{g.phone}</span>
-                        )}
-                        <span>· {tab === 'paid' ? 'Last paid' : 'Due'} {format(new Date(g.lastPaidAt), 'dd MMM yyyy')}</span>
-                        <span className="opacity-70">({formatDistanceToNow(new Date(g.lastPaidAt), { addSuffix: true })})</span>
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="font-bold font-mono text-sm">{formatUGX(g.total)}</p>
-                      <div className="flex items-center justify-end gap-1 mt-0.5">
-                        {g.confirmedCount > 0 && (
-                          <Badge className="bg-success/10 text-success border-success/30 text-[10px] px-1.5 py-0 h-4">
-                            <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />{g.confirmedCount}
-                          </Badge>
-                        )}
-                        {g.pendingCount > 0 && (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
-                            <Clock className="h-2.5 w-2.5 mr-0.5" />{g.pendingCount}
-                          </Badge>
-                        )}
-                      </div>
+          {filteredGroups.map(g => (
+            <Card key={g.landlord_id} className="overflow-hidden">
+              <button
+                onClick={() => setSelectedLandlord(g)}
+                className="w-full text-left p-3 active:bg-muted/50 transition-colors min-h-[64px]"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm truncate">{g.name}</p>
+                    <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
+                      {g.phone && (
+                        <span className="flex items-center gap-0.5"><Phone className="h-3 w-3" />{g.phone}</span>
+                      )}
+                      <span>· {tab === 'paid' ? 'Last paid' : 'Due'} {format(new Date(g.lastPaidAt), 'dd MMM yyyy')}</span>
+                      <span className="opacity-70">({formatDistanceToNow(new Date(g.lastPaidAt), { addSuffix: true })})</span>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between mt-2 text-[11px] text-muted-foreground">
-                    <span>{g.count} {tab === 'paid' ? 'disbursement' : 'pending payout'}{g.count === 1 ? '' : 's'}</span>
-                    {isOpen
-                      ? <ChevronDown className="h-4 w-4" />
-                      : <ChevronRight className="h-4 w-4" />}
+                  <div className="text-right shrink-0">
+                    <p className="font-bold font-mono text-sm">{formatUGX(g.total)}</p>
+                    <div className="flex items-center justify-end gap-1 mt-0.5">
+                      {g.confirmedCount > 0 && (
+                        <Badge className="bg-success/10 text-success border-success/30 text-[10px] px-1.5 py-0 h-4">
+                          <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />{g.confirmedCount}
+                        </Badge>
+                      )}
+                      {g.pendingCount > 0 && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
+                          <Clock className="h-2.5 w-2.5 mr-0.5" />{g.pendingCount}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
-                </button>
-
-                {isOpen && (
-                  <div className="border-t bg-muted/20 p-3 space-y-2">
-                    {g.records.map(r => (
-                      <div key={r.id} className="border rounded-lg p-2.5 bg-background space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-bold font-mono text-sm">{formatUGX(Number(r.amount))}</p>
-                            <p className="text-[10px] text-muted-foreground">
-                              {format(new Date(r.disbursed_at), 'dd MMM yyyy · HH:mm')}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <Badge variant="outline" className="text-[10px]">{r.payout_method}</Badge>
-                            {r.agent_confirmed ? (
-                              <Badge className="bg-success/10 text-success border-success/30 text-[10px]">
-                                <CheckCircle2 className="h-3 w-3 mr-0.5" />Confirmed
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-[10px]">
-                                <Clock className="h-3 w-3 mr-0.5" />Pending
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        {r.transaction_reference && (
-                          <p className="text-[10px] font-mono text-muted-foreground flex items-center gap-1">
-                            <Receipt className="h-3 w-3" />Ref: {r.transaction_reference}
-                          </p>
-                        )}
-                        {r.delivery && (
-                          <div className="bg-success/5 rounded p-2 space-y-1">
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-success">Agent Receipt Collected</p>
-                            {r.delivery.latitude && (
-                              <a
-                                href={`https://www.google.com/maps?q=${r.delivery.latitude},${r.delivery.longitude}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className="text-[11px] text-primary flex items-center gap-1 w-fit"
-                              >
-                                <MapPin className="h-3 w-3" />GPS Verified <ExternalLink className="h-3 w-3" />
-                              </a>
-                            )}
-                            {r.delivery.photo_urls?.length > 0 && (
-                              <div className="flex items-center gap-1">
-                                <Camera className="h-3 w-3 text-muted-foreground" />
-                                <span className="text-[11px] text-muted-foreground">{r.delivery.photo_urls.length} photo(s)</span>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </Card>
-            );
-          })}
+                </div>
+                <div className="flex items-center justify-between mt-2 text-[11px] text-muted-foreground">
+                  <span>{g.count} {tab === 'paid' ? 'disbursement' : 'pending payout'}{g.count === 1 ? '' : 's'} · Tap to view tenants</span>
+                  <ChevronRight className="h-4 w-4" />
+                </div>
+              </button>
+            </Card>
+          ))}
         </div>
       )}
+
+      <LandlordTenantsDrawer
+        landlord={selectedLandlord}
+        onClose={() => setSelectedLandlord(null)}
+      />
     </div>
   );
 }
