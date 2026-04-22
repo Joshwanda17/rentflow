@@ -294,6 +294,31 @@ Deno.serve(async (req) => {
 
     console.log(`[manager-portfolio-topup] ${user.id} instant ${payment_method} top-up ${topupAmount} for portfolio ${portfolio_id} (wallet owner: ${walletOwnerId})`);
 
+    // Partnership Top-Up email — target = partner (not the manager actor)
+    try {
+      const { data: partnerEmailRow } = await supabase
+        .from("profiles").select("email, full_name").eq("id", partnerId).maybeSingle();
+      if (partnerEmailRow?.email) {
+        const previousValue = Number(portfolio.investment_amount) || 0;
+        dispatchTransactionalEmail(
+          supabaseUrl,
+          serviceKey,
+          buildPartnershipTopupRequest({
+            recipientEmail: partnerEmailRow.email,
+            partnerName: partnerEmailRow.full_name,
+            partnerId,
+            txGroupId,
+            topupAmount,
+            previousPortfolioValue: previousValue,
+            newTotalPartnershipValue: previousValue + topupAmount,
+          }),
+          "manager-portfolio-topup",
+        );
+      }
+    } catch (emailErr) {
+      console.warn("[manager-portfolio-topup] Email lookup failed (non-blocking):", emailErr);
+    }
+
     // Fire-and-forget notifications
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
       method: "POST",

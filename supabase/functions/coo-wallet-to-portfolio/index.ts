@@ -277,6 +277,31 @@ Deno.serve(async (req) => {
 
     console.log(`[coo-wallet-to-portfolio] COO ${user.id} instant ${method} top-up ${topupAmount} for portfolio ${portfolio_id} (wallet owner: ${walletOwnerId})`);
 
+    // Partnership Top-Up email — target = partner (not the COO actor)
+    try {
+      const { data: partnerEmailRow } = await supabase
+        .from("profiles").select("email, full_name").eq("id", partnerId).maybeSingle();
+      if (partnerEmailRow?.email) {
+        const previousValue = Number(portfolio.investment_amount) || 0;
+        dispatchTransactionalEmail(
+          supabaseUrl,
+          serviceKey,
+          buildPartnershipTopupRequest({
+            recipientEmail: partnerEmailRow.email,
+            partnerName: partnerEmailRow.full_name,
+            partnerId,
+            txGroupId,
+            topupAmount,
+            previousPortfolioValue: previousValue,
+            newTotalPartnershipValue: previousValue + topupAmount,
+          }),
+          "coo-wallet-to-portfolio",
+        );
+      }
+    } catch (emailErr) {
+      console.warn("[coo-wallet-to-portfolio] Email lookup failed (non-blocking):", emailErr);
+    }
+
     // Fire-and-forget notifications
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
       method: "POST",
