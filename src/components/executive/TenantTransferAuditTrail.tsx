@@ -177,22 +177,105 @@ export function TenantTransferAuditTrail() {
     },
   });
 
+  // Advanced filter state — each filter is independent and combines with AND.
+  const [showFilters, setShowFilters] = useState(false);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [tenantFilter, setTenantFilter] = useState('all');
+  const [executiveFilter, setExecutiveFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [fromAgentFilter, setFromAgentFilter] = useState('all');
+  const [toAgentFilter, setToAgentFilter] = useState('all');
+  const [kindFilter, setKindFilter] = useState<'all' | 'transfer' | 'link'>('all');
+
+  // Build dropdown option lists from the loaded entries so operators only see
+  // values that actually exist in the audit trail.
+  const filterOptions = useMemo(() => {
+    const tenants = new Map<string, string>();
+    const fromAgents = new Map<string, string>();
+    const toAgents = new Map<string, string>();
+    const executives = new Map<string, string>();
+    (entries || []).forEach((e) => {
+      if (e.tenant_id) tenants.set(e.tenant_id, e.tenant_name);
+      if (e.from_agent_id) fromAgents.set(e.from_agent_id, e.from_agent_name);
+      if (e.to_agent_id) toAgents.set(e.to_agent_id, e.to_agent_name);
+      if (e.actor_id) executives.set(e.actor_id, e.actor_name);
+    });
+    const toSorted = (m: Map<string, string>) =>
+      Array.from(m.entries())
+        .map(([id, name]) => ({ id, name }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    return {
+      tenants: toSorted(tenants),
+      fromAgents: toSorted(fromAgents),
+      toAgents: toSorted(toAgents),
+      executives: toSorted(executives),
+    };
+  }, [entries]);
+
+  const fromTs = dateFrom ? new Date(dateFrom + 'T00:00:00').getTime() : null;
+  const toTs = dateTo ? new Date(dateTo + 'T23:59:59.999').getTime() : null;
+
   const filtered = (entries || []).filter((e) => {
-    if (!search.trim()) return true;
-    const q = search.toLowerCase();
-    return (
-      e.tenant_name.toLowerCase().includes(q) ||
-      e.from_agent_name.toLowerCase().includes(q) ||
-      e.to_agent_name.toLowerCase().includes(q) ||
-      e.actor_name.toLowerCase().includes(q) ||
-      (e.reason || '').toLowerCase().includes(q)
-    );
+    // Quick text search across all key names + reason.
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      const hit =
+        e.tenant_name.toLowerCase().includes(q) ||
+        e.from_agent_name.toLowerCase().includes(q) ||
+        e.to_agent_name.toLowerCase().includes(q) ||
+        e.actor_name.toLowerCase().includes(q) ||
+        (e.reason || '').toLowerCase().includes(q);
+      if (!hit) return false;
+    }
+    if (kindFilter !== 'all' && e.kind !== kindFilter) return false;
+    if (tenantFilter !== 'all' && e.tenant_id !== tenantFilter) return false;
+    if (fromAgentFilter !== 'all' && e.from_agent_id !== fromAgentFilter) return false;
+    if (toAgentFilter !== 'all' && e.to_agent_id !== toAgentFilter) return false;
+    if (executiveFilter !== 'all' && e.actor_id !== executiveFilter) return false;
+    if (statusFilter !== 'all') {
+      const s = e.actor_location_status || 'unknown';
+      if (statusFilter === 'missing') {
+        if (s === 'captured') return false;
+      } else if (s !== statusFilter) {
+        return false;
+      }
+    }
+    if (fromTs || toTs) {
+      const ts = new Date(e.created_at).getTime();
+      if (fromTs && ts < fromTs) return false;
+      if (toTs && ts > toTs) return false;
+    }
+    return true;
   });
 
   const captured = (entries || []).filter((e) => e.actor_location_status === 'captured').length;
   const missing = (entries || []).filter(
     (e) => !e.actor_location_status || e.actor_location_status !== 'captured',
   ).length;
+
+  // Count active filters for the toggle pill — search excluded since it has its
+  // own visible field.
+  const activeFilterCount =
+    (dateFrom ? 1 : 0) +
+    (dateTo ? 1 : 0) +
+    (tenantFilter !== 'all' ? 1 : 0) +
+    (fromAgentFilter !== 'all' ? 1 : 0) +
+    (toAgentFilter !== 'all' ? 1 : 0) +
+    (executiveFilter !== 'all' ? 1 : 0) +
+    (statusFilter !== 'all' ? 1 : 0) +
+    (kindFilter !== 'all' ? 1 : 0);
+
+  const clearFilters = () => {
+    setDateFrom('');
+    setDateTo('');
+    setTenantFilter('all');
+    setFromAgentFilter('all');
+    setToAgentFilter('all');
+    setExecutiveFilter('all');
+    setStatusFilter('all');
+    setKindFilter('all');
+  };
 
   return (
     <div className="space-y-4">
