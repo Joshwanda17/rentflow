@@ -5,6 +5,7 @@ import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import {
   Mail, Send, AlertTriangle, Clock, Users, Ban, TrendingUp, Inbox,
+  ShieldAlert,
 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -24,10 +25,15 @@ interface EmailOverview {
     suppressedTotal: number;
     deliveryRate: number;
     uniqueRecipients: number;
+    topErrorCategory: string | null;
+    topErrorCategoryCount: number;
+    distinctErrorCategories: number;
   };
   series: { day: string; sent: number; failed: number; pending: number; total: number }[];
   templateSummary: { template: string; total: number; sent: number; failed: number; pending: number; lastSentAt: string | null }[];
   recent: { id: string; template_name: string; recipient_email: string; status: string; error_message: string | null; created_at: string }[];
+  errorCategories: { category: string; count: number }[];
+  topErrorMessages: { message: string; count: number; category: string; lastSeen: string }[];
 }
 
 const RANGE_OPTIONS = [
