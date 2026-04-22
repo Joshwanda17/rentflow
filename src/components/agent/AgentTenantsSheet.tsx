@@ -5,8 +5,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp, ArrowLeft } from 'lucide-react';
+import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp, ArrowLeft, Shield } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
+import { generateWelileAiId, getRiskTierLabel } from '@/lib/welileAiId';
 import { format, startOfDay } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { downloadRepaymentPdf, shareRepaymentPdfWhatsApp } from '@/lib/repaymentSchedulePdf';
@@ -47,6 +48,7 @@ interface AgentTenantsSheetProps {
 }
 
 type FilterTab = 'owing' | 'paid-up' | 'all';
+type RiskFilter = 'all' | 'good' | 'standard' | 'caution' | 'new';
 
 export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps) {
   const { user } = useAuth();
@@ -58,9 +60,12 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [tenantRequests, setTenantRequests] = useState<Record<string, TenantRentRequest[]>>({});
   const [loadingRequests, setLoadingRequests] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterTab>('owing');
+  const [riskFilter, setRiskFilter] = useState<RiskFilter>('all');
   const [tenantBalances, setTenantBalances] = useState<Record<string, number>>({});
   const [tenantTotals, setTenantTotals] = useState<Record<string, { total: number; paid: number }>>({});
   const [tenantStatuses, setTenantStatuses] = useState<Record<string, Set<string>>>({});
+  // Per-tenant context for richer search/filter (latest landlord & address)
+  const [tenantContext, setTenantContext] = useState<Record<string, { landlordName: string; propertyAddress: string; completedCount: number; totalRequests: number }>>({});
   const [renewDialogOpen, setRenewDialogOpen] = useState(false);
   const [renewPrefill, setRenewPrefill] = useState<{ name: string; phone: string; amount: string } | null>(null);
   const [collectDialogOpen, setCollectDialogOpen] = useState(false);
@@ -122,24 +127,38 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         const tenantIds = tenantList.map(t => t.id);
         const { data: rentRequests } = await supabase
           .from('rent_requests')
-          .select('tenant_id, total_repayment, amount_repaid, status')
+          .select('tenant_id, total_repayment, amount_repaid, status, created_at, landlord:landlords(name, property_address)')
           .in('tenant_id', tenantIds)
-          .in('status', ['pending', 'approved', 'funded', 'disbursed', 'repaying', 'completed']);
+          .in('status', ['pending', 'approved', 'funded', 'disbursed', 'repaying', 'completed'])
+          .order('created_at', { ascending: false });
 
         const balances: Record<string, number> = {};
         const totals: Record<string, { total: number; paid: number }> = {};
         const statusMap: Record<string, Set<string>> = {};
-        (rentRequests || []).forEach(rr => {
+        const ctx: Record<string, { landlordName: string; propertyAddress: string; completedCount: number; totalRequests: number }> = {};
+        (rentRequests || []).forEach((rr: any) => {
           const owing = (rr.total_repayment || 0) - (rr.amount_repaid || 0);
           balances[rr.tenant_id] = (balances[rr.tenant_id] || 0) + Math.max(0, owing);
           const prev = totals[rr.tenant_id] || { total: 0, paid: 0 };
           totals[rr.tenant_id] = { total: prev.total + (rr.total_repayment || 0), paid: prev.paid + (rr.amount_repaid || 0) };
           if (!statusMap[rr.tenant_id]) statusMap[rr.tenant_id] = new Set();
           if (rr.status) statusMap[rr.tenant_id].add(rr.status);
+          // Latest-first context (first hit wins thanks to descending order)
+          if (!ctx[rr.tenant_id]) {
+            ctx[rr.tenant_id] = {
+              landlordName: rr.landlord?.name || '',
+              propertyAddress: rr.landlord?.property_address || '',
+              completedCount: 0,
+              totalRequests: 0,
+            };
+          }
+          ctx[rr.tenant_id].totalRequests += 1;
+          if (rr.status === 'completed') ctx[rr.tenant_id].completedCount += 1;
         });
         setTenantBalances(balances);
         setTenantTotals(totals);
         setTenantStatuses(statusMap);
+        setTenantContext(ctx);
       }
     } catch (err) {
       console.error('Failed to fetch tenants:', err);
@@ -178,12 +197,46 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     }
   };
 
+  // Per-tenant derived risk + AI ID (used by search, filter, and row chip)
+  const tenantMeta = useMemo(() => {
+    const map: Record<string, { aiId: string; riskLevel: 'good' | 'standard' | 'caution' | 'new'; riskLabel: string; riskColor: string }> = {};
+    tenants.forEach(t => {
+      const ctx = tenantContext[t.id];
+      const completionRate = ctx && ctx.totalRequests > 0
+        ? Math.round((ctx.completedCount / ctx.totalRequests) * 100)
+        : 0;
+      const totalRequests = ctx?.totalRequests || 0;
+      const riskLevel: 'good' | 'standard' | 'caution' | 'new' =
+        totalRequests === 0 ? 'new'
+        : completionRate >= 80 ? 'good'
+        : completionRate >= 50 ? 'standard'
+        : 'caution';
+      const tier = getRiskTierLabel(riskLevel);
+      map[t.id] = {
+        aiId: generateWelileAiId(t.id),
+        riskLevel,
+        riskLabel: tier.label,
+        riskColor: tier.color,
+      };
+    });
+    return map;
+  }, [tenants, tenantContext]);
+
   // Filtered & sorted tenants — always sorted by highest debt
   const processedTenants = useMemo(() => {
-    let list = tenants.filter(t =>
-      t.full_name.toLowerCase().includes(search.toLowerCase()) ||
-      t.phone.includes(search)
-    );
+    const q = search.trim().toLowerCase();
+    let list = tenants.filter(t => {
+      if (!q) return true;
+      const ctx = tenantContext[t.id];
+      const meta = tenantMeta[t.id];
+      return (
+        t.full_name.toLowerCase().includes(q) ||
+        t.phone.includes(search) ||
+        (ctx?.landlordName || '').toLowerCase().includes(q) ||
+        (ctx?.propertyAddress || '').toLowerCase().includes(q) ||
+        (meta?.aiId || '').toLowerCase().includes(q)
+      );
+    });
 
     switch (activeFilter) {
       case 'owing':
@@ -200,9 +253,13 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         break;
     }
 
+    if (riskFilter !== 'all') {
+      list = list.filter(t => tenantMeta[t.id]?.riskLevel === riskFilter);
+    }
+
     list.sort((a, b) => (tenantBalances[b.id] || 0) - (tenantBalances[a.id] || 0));
     return list;
-  }, [tenants, search, activeFilter, tenantBalances, tenantStatuses]);
+  }, [tenants, search, activeFilter, riskFilter, tenantBalances, tenantStatuses, tenantContext, tenantMeta]);
 
   // Stats
   const stats = useMemo(() => {
@@ -292,18 +349,23 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
             </SheetTitle>
           </SheetHeader>
 
-          {/* Search */}
+          {/* Search — name, phone, property, landlord, or AI ID */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search name or phone..."
+              placeholder="Search name, phone, property, or AI ID…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9 h-11 rounded-xl bg-muted/40 border-0 focus-visible:ring-1 focus-visible:ring-primary/30"
               style={{ fontSize: '16px' }}
+              aria-label="Search tenants by name, phone, property, or AI ID"
             />
             {search && (
-              <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-sm p-1">✕</button>
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-sm p-1"
+                aria-label="Clear search"
+              >✕</button>
             )}
           </div>
 
@@ -340,6 +402,38 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               Total owed: <span className="font-bold text-destructive font-mono">{formatUGX(stats.totalOwing)}</span>
             </p>
           )}
+
+          {/* Risk tier filter — horizontal chip row */}
+          <div className="flex items-center gap-2 overflow-x-auto -mx-1 px-1 pb-0.5 scrollbar-hide">
+            <div className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0 pr-1">
+              <Shield className="h-3.5 w-3.5" />
+              Risk
+            </div>
+            {([
+              { key: 'all', label: 'All', tone: 'bg-muted text-foreground' },
+              { key: 'good', label: 'Good', tone: 'bg-success/15 text-success' },
+              { key: 'standard', label: 'Standard', tone: 'bg-primary/15 text-primary' },
+              { key: 'caution', label: 'Caution', tone: 'bg-destructive/15 text-destructive' },
+              { key: 'new', label: 'New', tone: 'bg-muted/70 text-muted-foreground' },
+            ] as const).map(opt => {
+              const isActive = riskFilter === opt.key;
+              return (
+                <button
+                  key={opt.key}
+                  onClick={() => setRiskFilter(opt.key as RiskFilter)}
+                  className={`shrink-0 h-9 px-3 rounded-full text-xs font-semibold transition-all border ${
+                    isActive
+                      ? 'border-foreground/20 ring-1 ring-foreground/10 ' + opt.tone
+                      : 'border-transparent ' + opt.tone + ' opacity-70 hover:opacity-100'
+                  }`}
+                  style={{ touchAction: 'manipulation', minHeight: '36px' }}
+                  aria-pressed={isActive}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* ───── Tenant List ───── */}
@@ -354,9 +448,14 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               <p className="text-sm text-muted-foreground">
                 {search ? `No results for "${search}"` : activeFilter === 'owing' ? 'No tenants owing' : activeFilter === 'paid-up' ? 'No paid up tenants' : 'No tenants yet'}
               </p>
-              {(activeFilter !== 'all' || search) && (
-                <Button variant="ghost" size="sm" className="mt-2 text-xs" onClick={() => { setActiveFilter('all'); setSearch(''); }}>
-                  Show all tenants
+              {(activeFilter !== 'all' || riskFilter !== 'all' || search) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt-2 text-xs"
+                  onClick={() => { setActiveFilter('all'); setRiskFilter('all'); setSearch(''); }}
+                >
+                  Reset filters
                 </Button>
               )}
             </div>
@@ -401,6 +500,18 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                           <Phone className="h-3 w-3" />
                           {tenant.phone}
                         </p>
+                        {/* AI ID + risk tier chips (also reflect active risk filter) */}
+                        {tenantMeta[tenant.id] && (
+                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                            <span className="text-[10px] font-mono font-semibold text-muted-foreground bg-muted/60 rounded-md px-1.5 py-0.5">
+                              {tenantMeta[tenant.id].aiId}
+                            </span>
+                            <span className={`inline-flex items-center gap-1 text-[10px] font-semibold rounded-md px-1.5 py-0.5 bg-muted/60 ${tenantMeta[tenant.id].riskColor}`}>
+                              <Shield className="h-2.5 w-2.5" />
+                              {tenantMeta[tenant.id].riskLabel}
+                            </span>
+                          </div>
+                        )}
                         {totals.total > 0 && (
                           <div className="mt-1.5">
                             <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
