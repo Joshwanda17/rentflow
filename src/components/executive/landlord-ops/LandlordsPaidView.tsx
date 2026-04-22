@@ -62,7 +62,7 @@ export function LandlordsPaidView() {
   const [search, setSearch] = useState('');
   const [period, setPeriod] = useState<Period>('all');
   const [confFilter, setConfFilter] = useState<ConfFilter>('all');
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [selectedLandlord, setSelectedLandlord] = useState<LandlordGroup | null>(null);
   const [tab, setTab] = useState<Tab>('paid');
 
   const { data, isLoading } = useQuery({
