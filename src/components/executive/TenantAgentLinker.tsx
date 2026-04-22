@@ -152,7 +152,7 @@ export function TenantAgentLinker() {
     queryFn: async () => {
       const { data } = await supabase
         .from('rent_requests')
-        .select('id, status, rent_amount, amount_repaid, total_repayment, daily_repayment, agent_id, created_at')
+        .select('id, status, rent_amount, amount_repaid, total_repayment, daily_repayment, agent_id, created_at, disbursed_at')
         .eq('tenant_id', selectedTenant!.id)
         .in('status', ['pending', 'funded', 'disbursed', 'repaying', 'approved', 'tenant_ops_approved', 'agent_verified', 'landlord_ops_approved', 'coo_approved'])
         .order('created_at', { ascending: false })
@@ -175,6 +175,7 @@ export function TenantAgentLinker() {
         ...r,
         agent_name: r.agent_id ? agentMap.get(r.agent_id) || '—' : 'No agent',
         outstanding: Number(r.total_repayment || 0) - Number(r.amount_repaid || 0),
+        missed_days: computeMissedDays(r),
       }));
     },
   });
