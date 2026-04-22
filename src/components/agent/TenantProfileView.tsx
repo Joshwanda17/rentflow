@@ -25,6 +25,9 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { RegisterSubAgentDialog } from './RegisterSubAgentDialog';
 import { EditTenantDialog } from './EditTenantDialog';
 import { TenantQuickActionsSheet } from './TenantQuickActionsSheet';
+import { RentAccessLimitCard } from './RentAccessLimitCard';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { Sparkles, ChevronRight } from 'lucide-react';
 
 interface TenantProfileViewProps {
   tenantId: string;
