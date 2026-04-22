@@ -190,9 +190,19 @@ export function RentAccessLimitCard({
             <label htmlFor="rent-input" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
               Monthly rent (UGX)
             </label>
-            <span className="text-[10px] text-muted-foreground">
-              {RENT_MIN_UGX.toLocaleString('en-UG')} – {RENT_MAX_UGX.toLocaleString('en-UG')}
-            </span>
+            {overrideActiveEmpty ? (
+              <span
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-warning/15 text-warning border border-warning/30"
+                aria-label="Manual override active"
+              >
+                <Edit3 className="h-3 w-3" aria-hidden />
+                Manual override
+              </span>
+            ) : (
+              <span className="text-[10px] text-muted-foreground">
+                {RENT_MIN_UGX.toLocaleString('en-UG')} – {RENT_MAX_UGX.toLocaleString('en-UG')}
+              </span>
+            )}
           </div>
           <div className="flex gap-2">
             <Input
