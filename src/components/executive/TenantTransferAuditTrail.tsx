@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
 import {
   ArrowRightLeft, Link2, MapPin, MapPinOff, Search, Shield,
   CheckCircle2, AlertCircle, Clock, ExternalLink, Filter, X, ChevronDown,
