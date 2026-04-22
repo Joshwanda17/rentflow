@@ -4,7 +4,8 @@ import { isValidPhoneNumberGlobal } from '@/lib/phoneUtils';
 export const validateSignUp = (data: { password: string; confirmPassword: string; fullName: string; phone: string }) => {
   if (data.password.length < 6) return 'Password must be at least 6 characters';
   if (data.password !== data.confirmPassword) return "Passwords don't match";
-  if (data.fullName.length < 2) return 'Full name is required';
+  const trimmedName = (data.fullName ?? '').trim();
+  if (trimmedName.length < 2) return 'Full name is required (minimum 2 characters)';
   
   const phoneValidation = isValidPhoneNumberGlobal(data.phone);
   if (!phoneValidation.valid) return phoneValidation.reason || 'Invalid phone number';
