@@ -182,6 +182,17 @@ Deno.serve(async (req) => {
       return json({ error: `Failed to deduct funds: ${raw}` }, 500);
     }
 
+    // Belt-and-braces: re-derive bucket balances from ledger truth so the
+    // withdrawable_balance bucket stays in sync with the just-posted debit.
+    // Without this, ledger trigger updates `balance` but the per-bucket fields
+    // can drift if the bucket router ever misses a category.
+    const { error: recomputeErr } = await adminClient.rpc("recompute_wallet_buckets", {
+      p_user_id: body.source_wallet_user_id,
+    });
+    if (recomputeErr) {
+      console.warn(`[coo-create-portfolio] Bucket recompute failed for ${body.source_wallet_user_id} (non-blocking):`, recomputeErr.message);
+    }
+
     // ── Create the portfolio AFTER successful deduction ──
     const portfolioPin = String(Math.floor(1000 + Math.random() * 9000));
     const { data: portfolio, error: portfolioErr } = await adminClient
