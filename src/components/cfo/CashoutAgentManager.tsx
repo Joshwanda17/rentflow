@@ -237,10 +237,13 @@ export function CashoutAgentManager() {
   const releaseClaimsMutation = useMutation({
     mutationFn: async (agent: any) => {
       const info = pendingByAgent.get(agent.id);
-      if (!info || info.count === 0) throw new Error('No active claims to release');
+      // Guard: only release when there are actually claims (> 0) routed to this merchant.
+      if (!info || info.count <= 0 || !info.ids?.length) {
+        throw new Error('No active claims to release — queue is already empty');
+      }
       const { error } = await supabase
         .from('withdrawal_requests')
-        .update({ assigned_cashout_agent_id: null, claimed_at: null })
+        .update({ assigned_cashout_agent_id: null })
         .in('id', info.ids);
       if (error) throw error;
       await supabase.from('audit_logs').insert({
