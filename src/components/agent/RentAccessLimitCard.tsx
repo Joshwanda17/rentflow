@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react';
-import { TrendingUp, TrendingDown, Info, Sparkles, MessageCircle } from 'lucide-react';
+import { TrendingUp, TrendingDown, Info, Sparkles, MessageCircle, Loader2, Check, Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { formatUGX } from '@/lib/rentCalculations';
 import { calculateRentAccessLimit, TIER_META, type RepaymentLike } from '@/lib/rentAccessLimit';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { RentAccessLimitShareDialog } from './RentAccessLimitShareDialog';
 
 interface RentAccessLimitCardProps {
@@ -14,6 +17,20 @@ interface RentAccessLimitCardProps {
   repayments: RepaymentLike[];
   /** Optional Welile AI ID to show on the share artefacts */
   aiId?: string;
+  /**
+   * If set, the card shows a "auto-detected from last rent plan" pill —
+   * meaning monthlyRent was inferred from prior rent_requests, not stored on profile.
+   */
+  detectedFromHistory?: boolean;
+  /**
+   * Suggested monthly rent to pre-fill the prompt with (e.g. last known rent).
+   */
+  suggestedRent?: number | null;
+  /**
+   * Called after the rent is successfully saved to profiles.monthly_rent.
+   * Parent should refresh its profile state so the card re-renders with the new value.
+   */
+  onRentSaved?: (rent: number) => void;
 }
 
 /**
