@@ -6,12 +6,15 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
-  Loader2, Banknote, Search, CheckCircle2, Clock, ChevronDown, ChevronRight,
-  Receipt, MapPin, ExternalLink, Camera, Phone, Users, CalendarClock,
+  Loader2, Banknote, Search, CheckCircle2, Clock, ChevronRight,
+  Phone, Users, CalendarClock,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
+import {
+  Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
+} from '@/components/ui/drawer';
 
 type Period = 'all' | '30d' | '7d' | 'today';
 type ConfFilter = 'all' | 'confirmed' | 'pending';
@@ -60,7 +63,7 @@ export function LandlordsPaidView() {
   const [search, setSearch] = useState('');
   const [period, setPeriod] = useState<Period>('all');
   const [confFilter, setConfFilter] = useState<ConfFilter>('all');
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [selectedLandlord, setSelectedLandlord] = useState<LandlordGroup | null>(null);
   const [tab, setTab] = useState<Tab>('paid');
 
   const { data, isLoading } = useQuery({
@@ -350,109 +353,247 @@ export function LandlordsPaidView() {
         </Card>
       ) : (
         <div className="space-y-2">
-          {filteredGroups.map(g => {
-            const isOpen = !!expanded[g.landlord_id];
-            return (
-              <Card key={g.landlord_id} className="overflow-hidden">
-                <button
-                  onClick={() => setExpanded(s => ({ ...s, [g.landlord_id]: !s[g.landlord_id] }))}
-                  className="w-full text-left p-3 active:bg-muted/50 transition-colors min-h-[64px]"
+          {filteredGroups.map(g => (
+            <Card key={g.landlord_id} className="overflow-hidden">
+              <button
+                onClick={() => setSelectedLandlord(g)}
+                className="w-full text-left p-3 active:bg-muted/50 transition-colors min-h-[64px]"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm truncate">{g.name}</p>
+                    <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
+                      {g.phone && (
+                        <span className="flex items-center gap-0.5"><Phone className="h-3 w-3" />{g.phone}</span>
+                      )}
+                      <span>· {tab === 'paid' ? 'Last paid' : 'Due'} {format(new Date(g.lastPaidAt), 'dd MMM yyyy')}</span>
+                      <span className="opacity-70">({formatDistanceToNow(new Date(g.lastPaidAt), { addSuffix: true })})</span>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="font-bold font-mono text-sm">{formatUGX(g.total)}</p>
+                    <div className="flex items-center justify-end gap-1 mt-0.5">
+                      {g.confirmedCount > 0 && (
+                        <Badge className="bg-success/10 text-success border-success/30 text-[10px] px-1.5 py-0 h-4">
+                          <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />{g.confirmedCount}
+                        </Badge>
+                      )}
+                      {g.pendingCount > 0 && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
+                          <Clock className="h-2.5 w-2.5 mr-0.5" />{g.pendingCount}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between mt-2 text-[11px] text-muted-foreground">
+                  <span>{g.count} {tab === 'paid' ? 'disbursement' : 'pending payout'}{g.count === 1 ? '' : 's'} · Tap to view tenants</span>
+                  <ChevronRight className="h-4 w-4" />
+                </div>
+              </button>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <LandlordTenantsDrawer
+        landlord={selectedLandlord}
+        onClose={() => setSelectedLandlord(null)}
+      />
+    </div>
+  );
+}
+
+// ============================================================================
+// LandlordTenantsDrawer — bottom drawer showing tenants under a landlord
+// ============================================================================
+
+interface TenantRow {
+  tenant_id: string;
+  full_name: string;
+  phone: string | null;
+  rent_amount: number;
+  status: 'paid' | 'due_today';
+  latest_at: string;
+}
+
+function LandlordTenantsDrawer({
+  landlord,
+  onClose,
+}: {
+  landlord: LandlordGroup | null;
+  onClose: () => void;
+}) {
+  const open = !!landlord;
+  const landlordId = landlord?.landlord_id;
+
+  const { data: tenants, isLoading } = useQuery({
+    queryKey: ['landlord-tenants-drawer', landlordId],
+    enabled: open && !!landlordId,
+    staleTime: 60_000,
+    queryFn: async (): Promise<TenantRow[]> => {
+      if (!landlordId) return [];
+
+      // 1. All rent_requests for this landlord (paid + due-today statuses)
+      const allStatuses = [...PAID_STATUSES, ...DUE_STATUSES];
+      const PAGE = 1000;
+      const rows: any[] = [];
+      let offset = 0;
+      let more = true;
+      while (more) {
+        const { data: rr, error } = await supabase
+          .from('rent_requests')
+          .select('id, tenant_id, rent_amount, status, disbursed_at, funded_at, updated_at, created_at')
+          .eq('landlord_id', landlordId)
+          .in('status', allStatuses as any)
+          .order('updated_at', { ascending: false })
+          .range(offset, offset + PAGE - 1);
+        if (error) throw error;
+        if (rr && rr.length > 0) {
+          rows.push(...rr);
+          offset += PAGE;
+          more = rr.length === PAGE;
+        } else {
+          more = false;
+        }
+      }
+
+      // 2. Lookup tenant profiles
+      const tenantIds = Array.from(new Set(rows.map(r => r.tenant_id).filter(Boolean)));
+      const profileMap = new Map<string, { id: string; full_name: string | null; phone: string | null }>();
+      for (let i = 0; i < tenantIds.length; i += 200) {
+        const { data: profs } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone')
+          .in('id', tenantIds.slice(i, i + 200));
+        for (const p of profs || []) profileMap.set(p.id, p as any);
+      }
+
+      // 3. Dedupe by tenant — sum amount, latest status wins
+      const tenantMap = new Map<string, TenantRow>();
+      for (const r of rows) {
+        if (!r.tenant_id) continue;
+        const isPaid = (PAID_STATUSES as readonly string[]).includes(r.status);
+        const at = r.disbursed_at || r.funded_at || r.updated_at || r.created_at;
+        const prof = profileMap.get(r.tenant_id);
+        const existing = tenantMap.get(r.tenant_id);
+        if (!existing) {
+          tenantMap.set(r.tenant_id, {
+            tenant_id: r.tenant_id,
+            full_name: prof?.full_name || 'Unknown Tenant',
+            phone: prof?.phone || null,
+            rent_amount: Number(r.rent_amount || 0),
+            status: isPaid ? 'paid' : 'due_today',
+            latest_at: at,
+          });
+        } else {
+          existing.rent_amount += Number(r.rent_amount || 0);
+          if (new Date(at) > new Date(existing.latest_at)) {
+            existing.latest_at = at;
+            existing.status = isPaid ? 'paid' : 'due_today';
+          }
+        }
+      }
+
+      return Array.from(tenantMap.values()).sort(
+        (a, b) => new Date(b.latest_at).getTime() - new Date(a.latest_at).getTime()
+      );
+    },
+  });
+
+  const list = tenants || [];
+  const paidCount = list.filter(t => t.status === 'paid').length;
+  const dueCount = list.filter(t => t.status === 'due_today').length;
+
+  return (
+    <Drawer open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DrawerContent className="max-h-[85vh]">
+        <DrawerHeader className="text-left border-b">
+          <DrawerTitle className="text-base font-bold">{landlord?.name || 'Landlord'}</DrawerTitle>
+          <DrawerDescription className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+            {landlord?.phone && (
+              <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{landlord.phone}</span>
+            )}
+            <span>{list.length} tenant{list.length === 1 ? '' : 's'}</span>
+            {landlord && <span className="font-mono font-bold text-foreground">{formatUGX(landlord.total)}</span>}
+          </DrawerDescription>
+          {(paidCount > 0 || dueCount > 0) && (
+            <div className="flex gap-2 pt-2">
+              {paidCount > 0 && (
+                <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 text-[10px]">
+                  <CheckCircle2 className="h-3 w-3 mr-1" />{paidCount} Paid
+                </Badge>
+              )}
+              {dueCount > 0 && (
+                <Badge className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 text-[10px]">
+                  <CalendarClock className="h-3 w-3 mr-1" />{dueCount} Due Today
+                </Badge>
+              )}
+            </div>
+          )}
+        </DrawerHeader>
+
+        <div className="overflow-y-auto p-4 space-y-2">
+          {isLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : list.length === 0 ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">
+              <Users className="h-8 w-8 mx-auto mb-2 opacity-40" />
+              No tenants found for this landlord.
+            </div>
+          ) : (
+            list.map(t => {
+              const isPaid = t.status === 'paid';
+              return (
+                <div
+                  key={t.tenant_id}
+                  className={cn(
+                    'border rounded-lg p-3 space-y-1.5',
+                    isPaid
+                      ? 'border-emerald-500/30 bg-emerald-500/5'
+                      : 'border-amber-500/30 bg-amber-500/5'
+                  )}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm truncate">{g.name}</p>
-                      <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
-                        {g.phone && (
-                          <span className="flex items-center gap-0.5"><Phone className="h-3 w-3" />{g.phone}</span>
-                        )}
-                        <span>· {tab === 'paid' ? 'Last paid' : 'Due'} {format(new Date(g.lastPaidAt), 'dd MMM yyyy')}</span>
-                        <span className="opacity-70">({formatDistanceToNow(new Date(g.lastPaidAt), { addSuffix: true })})</span>
-                      </div>
+                      <p className="font-bold text-sm truncate">{t.full_name}</p>
+                      {t.phone && (
+                        <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <Phone className="h-3 w-3" />{t.phone}
+                        </p>
+                      )}
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="font-bold font-mono text-sm">{formatUGX(g.total)}</p>
-                      <div className="flex items-center justify-end gap-1 mt-0.5">
-                        {g.confirmedCount > 0 && (
-                          <Badge className="bg-success/10 text-success border-success/30 text-[10px] px-1.5 py-0 h-4">
-                            <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />{g.confirmedCount}
-                          </Badge>
+                      <p className="font-bold font-mono text-sm">{formatUGX(t.rent_amount)}</p>
+                      <Badge
+                        className={cn(
+                          'mt-0.5 text-[10px] px-1.5 py-0 h-4',
+                          isPaid
+                            ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
+                            : 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30'
                         )}
-                        {g.pendingCount > 0 && (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
-                            <Clock className="h-2.5 w-2.5 mr-0.5" />{g.pendingCount}
-                          </Badge>
+                      >
+                        {isPaid ? (
+                          <><CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />Paid</>
+                        ) : (
+                          <><Clock className="h-2.5 w-2.5 mr-0.5" />Due Today</>
                         )}
-                      </div>
+                      </Badge>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between mt-2 text-[11px] text-muted-foreground">
-                    <span>{g.count} {tab === 'paid' ? 'disbursement' : 'pending payout'}{g.count === 1 ? '' : 's'}</span>
-                    {isOpen
-                      ? <ChevronDown className="h-4 w-4" />
-                      : <ChevronRight className="h-4 w-4" />}
-                  </div>
-                </button>
-
-                {isOpen && (
-                  <div className="border-t bg-muted/20 p-3 space-y-2">
-                    {g.records.map(r => (
-                      <div key={r.id} className="border rounded-lg p-2.5 bg-background space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-bold font-mono text-sm">{formatUGX(Number(r.amount))}</p>
-                            <p className="text-[10px] text-muted-foreground">
-                              {format(new Date(r.disbursed_at), 'dd MMM yyyy · HH:mm')}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <Badge variant="outline" className="text-[10px]">{r.payout_method}</Badge>
-                            {r.agent_confirmed ? (
-                              <Badge className="bg-success/10 text-success border-success/30 text-[10px]">
-                                <CheckCircle2 className="h-3 w-3 mr-0.5" />Confirmed
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-[10px]">
-                                <Clock className="h-3 w-3 mr-0.5" />Pending
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        {r.transaction_reference && (
-                          <p className="text-[10px] font-mono text-muted-foreground flex items-center gap-1">
-                            <Receipt className="h-3 w-3" />Ref: {r.transaction_reference}
-                          </p>
-                        )}
-                        {r.delivery && (
-                          <div className="bg-success/5 rounded p-2 space-y-1">
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-success">Agent Receipt Collected</p>
-                            {r.delivery.latitude && (
-                              <a
-                                href={`https://www.google.com/maps?q=${r.delivery.latitude},${r.delivery.longitude}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className="text-[11px] text-primary flex items-center gap-1 w-fit"
-                              >
-                                <MapPin className="h-3 w-3" />GPS Verified <ExternalLink className="h-3 w-3" />
-                              </a>
-                            )}
-                            {r.delivery.photo_urls?.length > 0 && (
-                              <div className="flex items-center gap-1">
-                                <Camera className="h-3 w-3 text-muted-foreground" />
-                                <span className="text-[11px] text-muted-foreground">{r.delivery.photo_urls.length} photo(s)</span>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </Card>
-            );
-          })}
+                  <p className="text-[10px] text-muted-foreground">
+                    {isPaid ? 'Paid ' : 'Due '}
+                    {format(new Date(t.latest_at), 'dd MMM yyyy')}
+                    <span className="opacity-70"> · {formatDistanceToNow(new Date(t.latest_at), { addSuffix: true })}</span>
+                  </p>
+                </div>
+              );
+            })
+          )}
         </div>
-      )}
-    </div>
+      </DrawerContent>
+    </Drawer>
   );
 }
