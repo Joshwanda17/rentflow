@@ -178,7 +178,7 @@ export function TenantAgentLinker() {
               className="text-xs"
             />
             <Button
-              onClick={() => transferAllMutation.mutate()}
+              onClick={() => setConfirmOpen(true)}
               disabled={transferAllMutation.isPending || transferReason.trim().length < 10}
               className="w-full gap-1.5"
               size="sm"
@@ -188,7 +188,7 @@ export function TenantAgentLinker() {
               ) : (
                 <ArrowRightLeft className="h-4 w-4" />
               )}
-              Transfer All Active to {selectedAgent.full_name.split(' ')[0]}
+              Preview & Transfer to {selectedAgent.full_name.split(' ')[0]}
             </Button>
           </CardContent>
         </Card>
