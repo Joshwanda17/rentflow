@@ -47,6 +47,21 @@ export function CashoutAgentManager() {
   const [methodFilter, setMethodFilter] = useState<MethodFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
+  // Edit dialog state
+  const [editAgent, setEditAgent] = useState<any>(null);
+  const [editLabel, setEditLabel] = useState('');
+  const [editHandlesCash, setEditHandlesCash] = useState(true);
+  const [editHandlesBank, setEditHandlesBank] = useState(true);
+  const [editHandlesMomo, setEditHandlesMomo] = useState(true);
+
+  const openEdit = (a: any) => {
+    setEditAgent(a);
+    setEditLabel(a.label || '');
+    setEditHandlesCash(!!a.handles_cash);
+    setEditHandlesBank(!!a.handles_bank);
+    setEditHandlesMomo(!!(a.handles_mtn || a.handles_airtel));
+  };
+
   const { data: agents = [], isLoading } = useQuery({
     queryKey: ['merchant-agents'],
     queryFn: async () => {
