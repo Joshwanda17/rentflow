@@ -1342,6 +1342,16 @@ export function LandlordOpsDashboard() {
     );
   }
 
+  // ─── LANDLORDS & TENANTS VIEW ───
+  if (view === 'landlords-tenants') {
+    return (
+      <div className="space-y-4">
+        <BackButton />
+        <LandlordsWithTenantsView />
+      </div>
+    );
+  }
+
   // ─── HOME: Mobile-first card navigation ───
   return (
     <div className="space-y-4">
