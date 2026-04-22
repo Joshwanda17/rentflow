@@ -1,55 +1,72 @@
 
 
-## Add Tenant Drawer to Each Landlord Row
+## Why the Collected column is empty
 
-Right now tapping a landlord row expands to show **disbursement records** (amounts + payment method). You want it to show **the tenants under that landlord** with each tenant marked **Paid** or **Due Today**.
+The report's data is being **blocked by Row-Level Security (RLS)**, not by missing data. The database actually has **UGX 1,395,160** in `agent_collections` and **UGX 1,541,160** in `repayments` for Apr 16–22, but the executive viewing the report cannot read those rows.
 
-### What I'll build
+### Root causes (3 distinct bugs)
 
-A bottom **Drawer** that opens when you tap any landlord row in the **Landlords Paid / Due Today** view. The current inline expand-down behavior will be replaced by this drawer (cleaner on mobile, more room for tenant details).
+1. **`agent_collections` RLS is agent-only.**  
+   Policy: `agent_id = auth.uid()`. Executives, COO, CFO, financial-ops — none can read collections. Only the collecting agent can see their own rows. Result: 0 rows reach the report.
 
-```text
-┌─ Kalungi Yasin · 0752485865 ─────────┐
-│  3 tenants · UGX 530,000 total        │
-│  ─────────────────────────────────────│
-│  • John Doe        UGX 200,000  ✓ Paid│
-│       Paid 12 Apr 2026 · 5 days ago   │
-│  • Mary Auma       UGX 150,000  🕒 Due│
-│       Due today                        │
-│  • Peter Ssali     UGX 180,000  ✓ Paid│
-│       Paid 02 Apr 2026 · 15 days ago  │
-└────────────────────────────────────────┘
+2. **`repayments` RLS is manager-only AND the query references a non-existent column.**  
+   - Policy allows `tenant_id = auth.uid()` OR `has_role('manager')`. Executives without the `manager` role get 0 rows.  
+   - The query selects `agent_id` and filters `.not('agent_id','is',null)`, but `repayments` has no `agent_id` column. PostgREST returns 400, `fetchAll` swallows the error and returns `[]`.
+
+3. **`tenant_merchant_payments`** has 0 rows in this window — not a bug, just no data.
+
+The agent list still renders (names, "Tenants Paid 0/35", daily portfolio) because that comes from `rent_requests`, which is readable. Only the money columns go blank.
+
+### Fix plan
+
+**A. Add executive-readable RLS for collections & repayments**
+
+New SELECT policies (additive — agent/tenant policies stay):
+
+```sql
+-- agent_collections: let staff with reporting roles read all rows
+CREATE POLICY "Staff can view all agent_collections"
+  ON public.agent_collections FOR SELECT
+  USING (
+    has_role(auth.uid(), 'manager')
+    OR has_role(auth.uid(), 'cfo')
+    OR has_role(auth.uid(), 'coo')
+    OR has_role(auth.uid(), 'financial_ops')
+    OR has_role(auth.uid(), 'tenant_ops')
+  );
+
+-- repayments: same staff list (manager already has access)
+CREATE POLICY "Staff can view all repayments"
+  ON public.repayments FOR SELECT
+  USING (
+    has_role(auth.uid(), 'cfo')
+    OR has_role(auth.uid(), 'coo')
+    OR has_role(auth.uid(), 'financial_ops')
+    OR has_role(auth.uid(), 'tenant_ops')
+  );
 ```
 
-### How tenant data is resolved
+(Confirm exact role enum values from `app_role` before running — fall back to whichever roles the COO / Tenant Ops dashboards already use.)
 
-For each landlord group, I already have a `records[]` array of `rent_request` / `disbursement` rows that include `rent_request_id`. To get tenant identity I'll:
+**B. Fix the broken `repayments` query in `AgentPerformanceReport.tsx`**
 
-1. Collect every `rent_request_id` from the landlord group's records.
-2. Query `rent_requests` for `tenant_id` + `rent_amount` + `status` + `disbursed_at`.
-3. Query `profiles` once (batched) for the tenant `full_name` + `phone`.
-4. Per tenant, mark **Paid** if status ∈ `funded/disbursed/repaying/completed`, else **Due Today**.
-5. Dedupe by `tenant_id` (latest request wins, amounts summed).
+`repayments` has only `id, tenant_id, rent_request_id, amount, created_at` — no `agent_id`. Resolve agent via `rent_request_id → rent_requests.agent_id` (we already pull `rentReqsAll`, so build a `rentRequestId → agent_id` map and attribute repayments through it, the same pattern already used for merchant payments).
 
-This runs lazily — only when a landlord row is tapped, so it doesn't slow the main list.
+**C. Make `fetchAll` fail loudly**
 
-### Files
+Currently any PostgREST error returns `[]` silently. Surface errors so future column/RLS regressions trigger a visible toast instead of a blank column.
 
-- **Modified**: `src/components/executive/landlord-ops/LandlordsPaidView.tsx`
-  - Replace inline expansion with `<Drawer>` from `@/components/ui/drawer`.
-  - Add state `selectedLandlord: LandlordGroup | null`.
-  - Add a `useQuery` keyed by `['landlord-tenants', landlord_id]` enabled only when drawer open.
-  - Tap on landlord card sets `selectedLandlord`; closing clears it.
-  - Drawer header: landlord name, phone, total, tenant count.
-  - Drawer body: scrollable list of tenant cards (name, phone, rent amount, Paid/Due badge, date).
-  - Empty state inside drawer if landlord has no resolvable tenants.
+**D. Verification**
 
-### Behavior
+After the migration + code fix, reload the report for Apr 16–22 and confirm:
+- Collected totals ≥ UGX 2.9M across the listed agents
+- "Tenants Paid X/Y" shows non-zero numerators
+- Commission and Total Wallet populate
 
-- Tapping anywhere on the landlord row opens the drawer (no more chevron expand).
-- Drawer shows a loader while tenants fetch.
-- Each tenant row uses the same Paid/Due color scheme as the parent tabs (emerald for Paid, amber for Due Today).
-- Closing the drawer (swipe down, tap overlay, or close button) returns to the list.
+### Files to change
 
-No backend, RLS, or schema changes — this is a pure UI + lazy-fetch enhancement on top of existing tables (`rent_requests`, `profiles`).
+- **New migration**: add SELECT policies to `agent_collections` and `repayments` for executive/ops roles.
+- `src/components/executive/AgentPerformanceReport.tsx`:
+  - Remove `agent_id` from `repayments` select; resolve agent via `rent_request_id` map.
+  - Make `fetchAll` throw on error and surface via `toast.error`.
 
