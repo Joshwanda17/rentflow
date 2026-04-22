@@ -594,6 +594,33 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
           </button>
         </section>
 
+        {/* ── Rent Access Limit CTA (prominent, minimalist) ── */}
+        <button
+          type="button"
+          onClick={() => setRentLimitOpen(true)}
+          className="group relative w-full overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-background p-4 sm:p-5 text-left active:scale-[0.99] transition-all hover:border-primary/50 shadow-sm"
+          aria-label="View tenant's Rent Access Limit"
+        >
+          <div className="absolute -top-8 -right-8 h-24 w-24 rounded-full bg-primary/15 blur-2xl pointer-events-none" />
+          <div className="relative flex items-center gap-3">
+            <div className="h-12 w-12 shrink-0 rounded-xl bg-primary/15 flex items-center justify-center">
+              <Sparkles className="h-6 w-6 text-primary" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-primary/80">
+                Powered by Welile
+              </p>
+              <p className="text-base sm:text-lg font-bold leading-tight text-foreground">
+                Your Rent Access Limit
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                Tap to see how much rent {profile.full_name.split(' ')[0]} can access today
+              </p>
+            </div>
+            <ChevronRight className="h-5 w-5 text-primary shrink-0 group-hover:translate-x-0.5 transition-transform" />
+          </div>
+        </button>
+
         {/* ── Rent Collection (consolidated; replaces both old collection cards) ── */}
         {summary.activeRequest && summary.currentOutstanding > 0 && (
           <SectionCard
