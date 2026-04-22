@@ -1,76 +1,91 @@
 
 
-## Make the "Welile Vouches For You" card thumb-friendly on smartphones
+## Add "Landlords Paid" View to Landlord Ops
 
-The card on the Agent dashboard currently looks informational: the headline number (`Up to UGX X`) sits next to a small "How it works ▾" link in the meta line, and a tiny "AI ID ›" pill in the corner. On a phone, nothing screams "tap me", and the two tap zones are crammed against each other so misclicks happen.
+A new navigation card on the Landlord Ops dashboard letting operators see which landlords have been paid (via tenant rent disbursements), how much, and drill down per landlord.
 
-Goal: on small screens, turn this into a card that **clearly invites a tap**, with two big, finger-sized buttons stacked at the bottom — one to expand the explainer, one to open the AI ID profile. Desktop layout stays compact (current look).
+### Where it goes
 
-### What changes
-
-**1. Add a clear vouch headline + supporting sub-line (no behaviour change):**
-```
-┌──────────────────────────────────────────────┐
-│ 🛡️  WELILE VOUCHES FOR YOU       [TOP AGENT] │
-│                                              │
-│     Up to UGX 1,250,000                      │
-│     Trust Score 72 · Good                    │
-└──────────────────────────────────────────────┘
-```
-The whole card is no longer one big tap target — the header just displays. This kills the "did I tap the right thing?" ambiguity.
-
-**2. Two thumb-sized action buttons stacked underneath (mobile only — `sm:` switches to inline):**
-```
-┌──────────────────────────────────────────────┐
-│ ▾  How is this calculated?                   │  ← 44px tall, full-width
-├──────────────────────────────────────────────┤
-│ 👆 Open my AI ID  →                          │  ← 44px tall, full-width, primary
-└──────────────────────────────────────────────┘
-```
-- Each button is `min-h-[44px]` (Apple HIG minimum touch target).
-- Full-width on mobile, side-by-side on `sm:` and up so desktop stays tidy.
-- Both buttons get `active:scale-[0.97]` + haptic tap (already imported).
-- The "How is this calculated?" button rotates its chevron when expanded — same affordance as today, just much bigger.
-
-**3. AI ID chip → real button:** the tiny pill in the corner gets removed and folded into the second action button ("Open my AI ID →"). Removes the cramped two-target header and means people stop accidentally expanding when they meant to view their profile.
-
-**4. Building state (no vouch yet):** the second button changes to "Build my vouch limit →" and still routes to the AI ID page where the trust journey lives. The headline says "Build your vouch limit" (today's copy).
-
-**5. Expandable explainer body — unchanged.** All the existing content (healthy ratio meter, collection rate meter, tier ladder, vouch math, exact-inputs panel, "Open full Trust Profile" CTA) stays exactly as it is. Only the trigger UI on top changes.
-
-### Visual sketch (mobile)
+New card in the Landlord Ops home grid (`src/components/executive/LandlordOpsDashboard.tsx`), placed in the priority section right under "All Landlords" / above "Locations":
 
 ```
-┌────────────────────────────────────────────────┐
-│  🛡️    WELILE VOUCHES FOR YOU      [TOP AGENT]│
-│                                                │
-│        Up to UGX 1,250,000                     │
-│        Trust Score 72 · Good                   │
-│                                                │
-│  ┌──────────────────┐ ┌──────────────────────┐│
-│  │ ▾ How calculated │ │ 👆 Open my AI ID  →  ││
-│  └──────────────────┘ └──────────────────────┘│
-│       (stacked on phone, side-by-side ≥sm)     │
-└────────────────────────────────────────────────┘
-   [tap "How calculated" → existing explainer
-    panel slides open below, unchanged]
+┌─────────────────────────────────────────────┐
+│ 💸 Landlords Paid                    [9 →]  │
+│    Disbursements from tenant rent           │
+└─────────────────────────────────────────────┘
 ```
+
+### What the view shows
+
+**Top KPI bar (3 cards):**
+- Total Paid Out · `UGX 1,350,000`
+- Landlords Paid · `9`
+- Last 30 days · `UGX X · Y disbursements`
+
+**Search + filter row:**
+- Search by landlord name / phone
+- Period filter: All · 30d · 7d · Today
+- Confirmation filter: All · Agent confirmed · Pending
+
+**Landlord list** (one row per landlord, sorted by total paid desc):
+
+```
+┌──────────────────────────────────────────────────────┐
+│ NAKATO MARY                       UGX 450,000   ✓ 3  │
+│ 0772-xxx · MoMo · Last paid 2d ago                   │
+│ 3 disbursements · 2 confirmed · 1 pending      ▸    │
+└──────────────────────────────────────────────────────┘
+```
+
+Tap a row → expands to show each individual disbursement (amount, date, payout method, transaction ref, agent-receipt confirmation with GPS link + photo count). Same visual language as `LandlordPaymentHistory.tsx`.
+
+### Data source
+
+Single client-side `useQuery` against `disbursement_records` joined to `landlords` and `agent_delivery_confirmations`. No new tables, no edge function, no new RLS (Landlord Ops staff already have read access).
+
+```ts
+// Fetch all disbursements + landlords + delivery confirmations
+const { data: disbursements } = await supabase
+  .from('disbursement_records')
+  .select('*, landlord:landlords(id, name, phone, mobile_money_number)')
+  .order('disbursed_at', { ascending: false });
+
+const { data: confs } = await supabase
+  .from('agent_delivery_confirmations')
+  .select('*')
+  .in('disbursement_id', disbursementIds);
+
+// Group in JS by landlord_id → {total, count, confirmedCount, lastPaidAt, records[]}
+```
+
+`staleTime: 60_000` to match the existing pattern in `LandlordPaymentHistory.tsx`.
 
 ### Files touched
 
-- `src/components/agent/AgentVouchHighlightCard.tsx` — restructure the top section only:
-  - Replace the `<button>` wrapper around the header with a non-interactive `<div>`; remove the inline "How it works" chip and the corner AI ID pill.
-  - Add a new action-button row at the bottom of the header (above the expanded panel) with two `<button>` elements, full-width on mobile, `sm:flex-row` `sm:w-auto` on desktop.
-  - Keep the existing expanded panel (`expanded && <div>...`) and `MetricRow` helper untouched.
+1. **NEW** `src/components/executive/landlord-ops/LandlordsPaidView.tsx` (~250 lines)
+   - Self-contained view, internal `useQuery(['landlord-ops-paid-landlords'])`
+   - KPI bar, search + period + confirmation filters
+   - Expandable landlord rows reusing the disbursement detail markup from `LandlordPaymentHistory.tsx`
+   - Reuses `formatUGX`, `Card`, `Badge`, `Input`, `Button` from existing UI kit
 
-No changes to: data hooks, trust score logic, navigation routes, any other component, or backend.
+2. **EDIT** `src/components/executive/LandlordOpsDashboard.tsx`
+   - Add `'landlords-paid'` to the `View` union type
+   - Add nav-card entry with `Banknote` icon, label "Landlords Paid", subtitle "Disbursements from tenant rent", positioned right under "All Landlords"
+   - Add `view === 'landlords-paid'` branch that renders `<LandlordsPaidView />` with the existing `<BackButton />` pattern
+   - Show badge count = number of paid landlords (lightweight count query)
 
 ### Acceptance
 
-1. On a 375px-wide phone, the headline number is the dominant visual; the two action buttons are clearly separate, each at least 44px tall, and span the full card width.
-2. Tapping "How is this calculated?" expands/collapses the existing explainer panel; the chevron rotates.
-3. Tapping "Open my AI ID →" navigates to `/profile/<aiId>` (same as today's pill).
-4. A user with no vouch limit sees "Build your vouch limit" and the second button reads "Build my vouch limit →".
-5. On `sm:` and wider, the two action buttons sit side-by-side so the card stays compact on tablets/desktop.
-6. The TOP AGENT badge and Trust Score / tier line are still visible; haptic feedback still fires on tap.
+1. Landlord Ops home → tap "Landlords Paid" → see all paid landlords sorted by total, KPI totals match the sum.
+2. Tap a landlord row → expanded panel shows each disbursement with amount, date, method, ref, and agent-confirmation badge (GPS link + photo count where present).
+3. Period filter "Last 30 days" → list and KPIs recompute to that window.
+4. Search "Nakato" → filters to matching name/phone.
+5. Confirmation filter "Pending" → only landlords with at least one unconfirmed disbursement.
+6. Back arrow returns to the Landlord Ops home grid.
+
+### Out of scope
+
+- Editing/refunding a disbursement (already in `LandlordOpsPayoutReview`).
+- Landlord-side WhatsApp confirmation flow.
+- CSV export (can follow later via the data-export protocol).
 
