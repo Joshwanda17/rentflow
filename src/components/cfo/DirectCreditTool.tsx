@@ -248,18 +248,18 @@ const WALLET_BUCKET_MAP: Record<string, WalletBucket> = {
 };
 const BUCKET_LABEL: Record<WalletBucket, { name: string; note: string; tone: string }> = {
   withdrawable: {
-    name: 'Withdrawable',
-    note: 'User can withdraw this immediately from any of their dashboards.',
+    name: 'Withdrawable by user',
+    note: 'Lands directly in the user\u2019s withdrawable bucket — they can cash out immediately.',
+    tone: 'text-emerald-700 bg-emerald-50 border-emerald-200',
+  },
+  advance: {
+    name: 'Withdrawable by user (after advance recovery)',
+    note: 'Sweeps any outstanding advance debt first, then the remainder lands in withdrawable. Advance balance also counts as withdrawable.',
     tone: 'text-emerald-700 bg-emerald-50 border-emerald-200',
   },
   float: {
-    name: 'Float (Operational)',
-    note: 'Reserved for agent/partner operations — NOT withdrawable by the user.',
-    tone: 'text-blue-700 bg-blue-50 border-blue-200',
-  },
-  advance: {
-    name: 'Advance (Liability)',
-    note: 'Auto-recovered from the user\u2019s next incoming salary or commission.',
+    name: 'Operational Float — not withdrawable',
+    note: 'Company/operational money reserved for agent/partner operations. The user CANNOT withdraw this.',
     tone: 'text-amber-700 bg-amber-50 border-amber-200',
   },
 };

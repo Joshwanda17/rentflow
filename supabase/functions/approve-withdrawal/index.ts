@@ -239,18 +239,19 @@ Deno.serve(async (req) => {
       }
     }
 
-    // For proxy payouts, funds are partner funds routed through the agent's wallet —
-    // historically these went through the float pool, so accept either bucket.
-    const withdrawable = healedWithdrawable + totalPendingHold;
+    // Withdrawable = withdrawable_balance + advance_balance. Float is locked
+    // operational money. For proxy payouts, float is also spendable because
+    // those funds are partner funds parked in the agent wallet.
+    const withdrawable = healedWithdrawable + walletAdvance + totalPendingHold;
     const totalSpendable = isProxyPayout
-      ? Math.max(walletBalance, healedWithdrawable + walletFloat) + totalPendingHold
+      ? Math.max(walletBalance, healedWithdrawable + walletAdvance + walletFloat) + totalPendingHold
       : withdrawable;
     const effectiveBalance = totalSpendable;
 
     if (!wallet || totalSpendable < amount) {
       return new Response(
         JSON.stringify({
-          error: `Insufficient withdrawable balance. Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. (Wallet total UGX ${Math.round(walletBalance).toLocaleString()} — only the withdrawable bucket can fund payouts.)`,
+          error: `Insufficient withdrawable balance. Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. (Wallet total UGX ${Math.round(walletBalance).toLocaleString()} — float bucket cannot fund payouts.)`,
           code: "INSUFFICIENT_WITHDRAWABLE",
           available: Math.round(totalSpendable),
           wallet_total: Math.round(walletBalance),
@@ -315,19 +316,22 @@ Deno.serve(async (req) => {
     }
 
     {
-      // Decrement buckets. For proxy payouts, prefer withdrawable, then float, then leave the
-      // remainder to be absorbed by the unallocated balance pool.
+      // Drain order: withdrawable_balance first, then advance_balance, then
+      // (proxy payouts only) float_balance. Float is otherwise never touched.
       let remaining = amount;
       let nextWithdrawable = healedWithdrawable;
+      let nextAdvance = walletAdvance;
       let nextFloat = walletFloat;
 
-      if (!isProxyPayout) {
-        nextWithdrawable = Math.max(0, healedWithdrawable - remaining);
-        remaining = 0;
-      } else {
-        const fromWithdrawable = Math.min(nextWithdrawable, remaining);
-        nextWithdrawable -= fromWithdrawable;
-        remaining -= fromWithdrawable;
+      const fromWithdrawable = Math.min(nextWithdrawable, remaining);
+      nextWithdrawable -= fromWithdrawable;
+      remaining -= fromWithdrawable;
+
+      const fromAdvance = Math.min(nextAdvance, remaining);
+      nextAdvance -= fromAdvance;
+      remaining -= fromAdvance;
+
+      if (isProxyPayout && remaining > 0) {
         const fromFloat = Math.min(nextFloat, remaining);
         nextFloat -= fromFloat;
         remaining -= fromFloat;
@@ -337,6 +341,7 @@ Deno.serve(async (req) => {
         .from("wallets")
         .update({
           withdrawable_balance: nextWithdrawable,
+          advance_balance: nextAdvance,
           float_balance: nextFloat,
           updated_at: new Date().toISOString(),
         })
