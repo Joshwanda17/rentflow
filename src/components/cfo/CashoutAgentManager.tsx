@@ -58,6 +58,9 @@ export function CashoutAgentManager() {
   const [editHandlesBank, setEditHandlesBank] = useState(true);
   const [editHandlesMomo, setEditHandlesMomo] = useState(true);
 
+  // Delete confirmation state
+  const [deleteAgent, setDeleteAgent] = useState<any>(null);
+
   const openEdit = (a: any) => {
     setEditAgent(a);
     setEditLabel(a.label || '');
