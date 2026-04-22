@@ -110,6 +110,35 @@ export function CashoutAgentManager() {
     },
   });
 
+  // Per-merchant active claim list — drives the "pending" badge on each card AND
+  // powers the "Release stuck claims" recovery action in the delete dialog.
+  const { data: pendingClaimRows = [] } = useQuery({
+    queryKey: ['merchant-agent-active-claims-rows'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('withdrawal_requests')
+        .select('id, status, amount, assigned_cashout_agent_id, created_at')
+        .not('assigned_cashout_agent_id', 'is', null)
+        .in('status', ['pending', 'requested', 'approved', 'manager_approved', 'cfo_approved']);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const pendingByAgent = useMemo(() => {
+    const m = new Map<string, { count: number; ids: string[]; oldestAt: string | null }>();
+    for (const r of pendingClaimRows as any[]) {
+      const id = r.assigned_cashout_agent_id;
+      if (!id) continue;
+      const cur = m.get(id) || { count: 0, ids: [] as string[], oldestAt: null as string | null };
+      cur.count += 1;
+      cur.ids.push(r.id);
+      if (!cur.oldestAt || (r.created_at && r.created_at < cur.oldestAt)) cur.oldestAt = r.created_at;
+      m.set(id, cur);
+    }
+    return m;
+  }, [pendingClaimRows]);
+
   const assignMutation = useMutation({
     mutationFn: async () => {
       if (!pickedAgent) throw new Error('Please select an agent');
