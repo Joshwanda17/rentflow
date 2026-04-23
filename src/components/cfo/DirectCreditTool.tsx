@@ -722,6 +722,36 @@ export function DirectCreditTool() {
           </>
         )}
       </CardContent>
+
+      <AlertDialog
+        open={!!pendingNonCommissionConfirm}
+        onOpenChange={(open) => { if (!open) setPendingNonCommissionConfirm(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>⚠️ Crediting an agent under a non-commission category</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingNonCommissionConfirm?.message}
+              <br /><br />
+              <span className="text-muted-foreground text-xs">
+                Suggested: use <strong>{pendingNonCommissionConfirm?.suggested_category}</strong> if this is meant to be a commission payout.
+                Otherwise (e.g. admin reimbursement), confirm to proceed with <strong>{pendingNonCommissionConfirm?.chosen_category}</strong>.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingNonCommissionConfirm(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setPendingNonCommissionConfirm(null);
+                mutation.mutate({ confirmNonCommission: true });
+              }}
+            >
+              Confirm — credit anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
