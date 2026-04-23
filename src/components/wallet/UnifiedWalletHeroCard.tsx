@@ -126,21 +126,6 @@ export function UnifiedWalletHeroCard({
               </div>
             </div>
 
-            {/* Other (non-commission CFO credits) — only when present */}
-            {(otherBalance ?? 0) > 0 && (
-              <div
-                className="mt-2 flex items-center justify-between rounded-lg bg-amber-500/15 border border-amber-400/30 px-3 py-2"
-                title="Funds credited by CFO under a non-commission category. Withdrawable but not counted as earnings."
-              >
-                <span className="text-[10px] uppercase tracking-[0.12em] font-semibold text-amber-200">
-                  Other (CFO admin credit)
-                </span>
-                <span className="text-xs font-black text-amber-100">
-                  {formatAmount(otherBalance ?? 0)}
-                </span>
-              </div>
-            )}
-
             {/* Total balance row */}
             <div className="flex items-center justify-between mt-3 px-1">
               <span className="text-[10px] uppercase tracking-[0.12em] font-semibold text-primary-foreground/40">Total Balance</span>
