@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { AgentOpsHomeView, type DateRange } from './agent-ops-v2/AgentOpsHomeView';
+import { AgentOpsBottomNav, type BottomTab } from './agent-ops-v2/AgentOpsBottomNav';
 import { AdvanceRequestsQueue } from '@/components/ops/AdvanceRequestsQueue';
 import { BusinessAdvanceQueue } from '@/components/ops/BusinessAdvanceQueue';
 import { RentHistoryVerificationQueue } from '@/components/ops/RentHistoryVerificationQueue';
