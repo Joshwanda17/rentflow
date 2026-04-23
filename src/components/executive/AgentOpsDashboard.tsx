@@ -274,36 +274,108 @@ export function AgentOpsDashboard() {
     );
   }
 
-  // HOME VIEW: KPIs + Quick Nav Grid
+  // Map a bottom-nav tab → opening the matching sub-view
+  const handleBottomNav = (tab: BottomTab) => {
+    setBottomTab(tab);
+    if (tab === 'home') {
+      setActiveView(null);
+      return;
+    }
+    if (tab === 'pipeline') {
+      setActiveView('pipeline');
+      return;
+    }
+    if (tab === 'agents') {
+      setActiveView('directory');
+      return;
+    }
+    if (tab === 'finance') {
+      setActiveView('balances');
+      return;
+    }
+    // 'more' just shows the grouped grid below — keep activeView=null
+    setActiveView(null);
+  };
+
+  const handleOpenSection = (key: string) => {
+    setActiveView(key as ActiveView);
+  };
+
+  // Grouped sections for the "More" tab
+  const MORE_GROUPS: { title: string; keys: ActiveView[] }[] = [
+    { title: '🧩 Operations', keys: ['trust-capture', 'escalations', 'tasks'] },
+    { title: '👥 Agent Network', keys: ['sub-agents', 'promote-tenant', 'lending-agents'] },
+    { title: '🏢 Business', keys: ['service-centres', 'advance-requests'] },
+    { title: '📊 Insights', keys: ['leaderboard', 'performance-report', 'allocation-report', 'performance', 'lifecycle', 'alerts', 'brief'] },
+    { title: '🔗 System', keys: ['connector', 'transfers', 'float-payouts', 'earnings'] },
+  ];
+
+  // HOME VIEW
   return (
     <div className="space-y-4">
-      {/* KPIs — compact on mobile */}
-      <div className="grid grid-cols-3 gap-2">
-        <KPICard title="Agents" value={uniqueAgents} icon={Users} loading={kpisLoading} />
-        <KPICard title="Earnings" value={fmt(totalEarnings)} icon={Banknote} loading={kpisLoading} color="bg-green-500/10 text-green-600" />
-        <KPICard title="Commissions" value={fmt(totalCommissions)} icon={DollarSign} loading={kpisLoading} color="bg-blue-500/10 text-blue-600" />
+      {/* Greeting header */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-base sm:text-lg font-bold text-foreground">Good day 👋</h2>
+          <p className="text-xs text-muted-foreground">Agent Operations Manager</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setActiveView('alerts')}
+            className="relative h-9 w-9 rounded-full border border-border bg-card flex items-center justify-center hover:border-primary/30 active:scale-95 transition-all touch-manipulation"
+            aria-label="Notifications"
+          >
+            <Bell className="h-4 w-4 text-foreground" />
+            <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-primary" />
+          </button>
+        </div>
       </div>
 
-      {/* Quick Nav Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
-        {NAV_ITEMS.map((item) => (
-          <button
-            key={item.key}
-            onClick={() => setActiveView(item.key)}
-            className={cn(
-              "flex flex-col items-center gap-2 p-4 rounded-2xl border border-border bg-card",
-              "active:scale-95 transition-all touch-manipulation min-h-[88px]",
-              "hover:shadow-md hover:border-primary/30",
-              item.priority && "ring-1 ring-primary/20"
-            )}
-          >
-            <div className={cn("p-3 rounded-xl shadow-sm", item.color)}>
-              <item.icon className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-xs sm:text-sm font-semibold text-center leading-tight">{item.label}</span>
-          </button>
-        ))}
-      </div>
+      {bottomTab !== 'more' ? (
+        <AgentOpsHomeView
+          range={dateRange}
+          onRangeChange={setDateRange}
+          onOpenSection={handleOpenSection}
+        />
+      ) : (
+        <div className="space-y-5 pb-20 sm:pb-4">
+          {MORE_GROUPS.map((group) => (
+            <section key={group.title} className="space-y-2">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
+                {group.title}
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
+                {group.keys.map((key) => {
+                  const item = NAV_ITEMS.find((n) => n.key === key);
+                  if (!item) return null;
+                  return (
+                    <button
+                      key={item.key}
+                      onClick={() => setActiveView(item.key)}
+                      className={cn(
+                        'flex flex-col items-center gap-2 p-3 rounded-2xl border border-border bg-card',
+                        'active:scale-95 transition-all touch-manipulation min-h-[84px]',
+                        'hover:shadow-md hover:border-primary/30',
+                      )}
+                    >
+                      <div className={cn('p-2.5 rounded-xl shadow-sm', item.color)}>
+                        <item.icon className="h-4 w-4 text-white" />
+                      </div>
+                      <span className="text-[11px] sm:text-xs font-semibold text-center leading-tight">
+                        {item.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
+
+      {/* Mobile bottom nav */}
+      <AgentOpsBottomNav active={bottomTab} onChange={handleBottomNav} />
 
       <UserProfileDialog open={!!selectedAgent} onOpenChange={(open) => !open && setSelectedAgent(null)} user={selectedAgent} />
     </div>
