@@ -11360,6 +11360,54 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_overdraw_events: {
+        Row: {
+          advance_after: number | null
+          advance_before: number | null
+          attempted_balance: number
+          clamped_to: number
+          created_at: string
+          delta_lost: number | null
+          float_after: number | null
+          float_before: number | null
+          id: string
+          trigger_op: string | null
+          user_id: string
+          withdrawable_after: number | null
+          withdrawable_before: number | null
+        }
+        Insert: {
+          advance_after?: number | null
+          advance_before?: number | null
+          attempted_balance: number
+          clamped_to?: number
+          created_at?: string
+          delta_lost?: number | null
+          float_after?: number | null
+          float_before?: number | null
+          id?: string
+          trigger_op?: string | null
+          user_id: string
+          withdrawable_after?: number | null
+          withdrawable_before?: number | null
+        }
+        Update: {
+          advance_after?: number | null
+          advance_before?: number | null
+          attempted_balance?: number
+          clamped_to?: number
+          created_at?: string
+          delta_lost?: number | null
+          float_after?: number | null
+          float_before?: number | null
+          id?: string
+          trigger_op?: string | null
+          user_id?: string
+          withdrawable_after?: number | null
+          withdrawable_before?: number | null
+        }
+        Relationships: []
+      }
       wallet_transactions: {
         Row: {
           amount: number
