@@ -181,6 +181,7 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
   const queryClient = useQueryClient();
   const rangeStart = useMemo(() => getRangeStart(range).toISOString(), [range]);
   const prevRangeStart = useMemo(() => getPrevRangeStart(range).toISOString(), [range]);
+  const [activeDrill, setActiveDrill] = useState<DrillMetric | null>(null);
 
   // Realtime: invalidate when underlying tables change
   useEffect(() => {
@@ -304,14 +305,15 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
     staleTime: 60_000,
   });
 
-  const cards: Array<Omit<BriefCardProps, 'series' | 'changePct'> & { rawValue: number; series: number[]; prev: number }> = [
+  const cards: Array<Omit<BriefCardProps, 'series' | 'changePct'> & { rawValue: number; series: number[]; prev: number; drillKey: DrillMetric }> = [
     {
       title: 'New Agents Onboarded',
       value: data?.kpis.newAgents.value ?? 0,
       icon: UserPlus,
       accent: 'primary',
       loading: isLoading,
-      onClick: () => onOpenSection('directory'),
+      onClick: () => setActiveDrill('new-agents'),
+      drillKey: 'new-agents',
       rawValue: data?.kpis.newAgents.value ?? 0,
       prev: data?.kpis.newAgents.prev ?? 0,
       series: data?.trend.map((t) => t.agents) ?? [],
@@ -322,7 +324,8 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
       icon: FileText,
       accent: 'sky',
       loading: isLoading,
-      onClick: () => onOpenSection('pipeline'),
+      onClick: () => setActiveDrill('rent-requests'),
+      drillKey: 'rent-requests',
       rawValue: data?.kpis.rentRequests.value ?? 0,
       prev: data?.kpis.rentRequests.prev ?? 0,
       series: data?.trend.map((t) => t.requests) ?? [],
@@ -333,7 +336,8 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
       icon: Banknote,
       accent: 'emerald',
       loading: isLoading,
-      onClick: () => onOpenSection('earnings'),
+      onClick: () => setActiveDrill('commission'),
+      drillKey: 'commission',
       rawValue: data?.kpis.commission.value ?? 0,
       prev: data?.kpis.commission.prev ?? 0,
       series: data?.trend.map((t) => t.commission) ?? [],
@@ -344,7 +348,8 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
       icon: Activity,
       accent: 'amber',
       loading: isLoading,
-      onClick: () => onOpenSection('directory'),
+      onClick: () => setActiveDrill('active-agents'),
+      drillKey: 'active-agents',
       rawValue: data?.kpis.activeAgents.value ?? 0,
       prev: data?.kpis.activeAgents.prev ?? 0,
       series: data?.trend.map((t) => (t.agents > 0 ? t.agents : 0)) ?? [],
@@ -470,6 +475,33 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
           </ResponsiveContainer>
         </div>
       </Card>
+
+      {/* Drill-down modal */}
+      <BriefDrillDownModal
+        open={activeDrill !== null}
+        onOpenChange={(open) => {
+          if (!open) setActiveDrill(null);
+        }}
+        metric={activeDrill}
+        range={range}
+        series={
+          activeDrill
+            ? cards.find((c) => c.drillKey === activeDrill)?.series ?? []
+            : []
+        }
+        kpiValue={
+          activeDrill ? cards.find((c) => c.drillKey === activeDrill)?.value ?? 0 : 0
+        }
+        changePct={
+          activeDrill
+            ? pctChange(
+                cards.find((c) => c.drillKey === activeDrill)?.rawValue ?? 0,
+                cards.find((c) => c.drillKey === activeDrill)?.prev ?? 0,
+              )
+            : 0
+        }
+        onOpenSection={onOpenSection}
+      />
     </div>
   );
 }
