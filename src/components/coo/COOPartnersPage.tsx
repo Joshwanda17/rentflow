@@ -3219,14 +3219,16 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       });
 
       // Send partner-compound transactional email (fire-and-forget, non-blocking)
-      try {
-        const recipientEmail = p.email;
-        const isRealEmail =
-          recipientEmail &&
-          !recipientEmail.endsWith('@welile.user') &&
-          !recipientEmail.endsWith('@noapp.welile.user');
+      const recipientEmail = p.email || '';
+      const isRealEmail =
+        !!recipientEmail &&
+        !recipientEmail.endsWith('@welile.user') &&
+        !recipientEmail.endsWith('@noapp.welile.user');
+      let emailStatus: CompoundEmailStatus = 'skipped_no_email';
+      let emailDetail: string | undefined;
 
-        if (isRealEmail) {
+      if (isRealEmail) {
+        try {
           // Compute paymentNumber for idempotency: count of prior roi_compounded events for this portfolio
           const { count: priorCompounds } = await supabase
             .from('audit_logs')
@@ -3235,12 +3237,21 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
             .eq('record_id', p.portfolioId);
           const paymentNumber = (priorCompounds ?? 0);
 
+          // Detect "previously sent" — was a partner-compound email for this recipient
+          // already successfully sent before this action?
+          const { count: priorSentCount } = await supabase
+            .from('email_send_log')
+            .select('id', { count: 'exact', head: true })
+            .eq('template_name', 'partner-compound')
+            .eq('recipient_email', recipientEmail)
+            .eq('status', 'sent');
+
           const compactPortfolio = p.portfolioId.replace(/-/g, '').slice(0, 8).toUpperCase();
           const compoundDate = new Date().toLocaleDateString('en-GB', {
             day: '2-digit', month: 'long', year: 'numeric',
           });
 
-          await supabase.functions.invoke('send-transactional-email', {
+          const { data: emailResp, error: emailInvokeErr } = await supabase.functions.invoke('send-transactional-email', {
             body: {
               templateName: 'partner-compound',
               recipientEmail,
@@ -3261,12 +3272,45 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
               },
             },
           });
+
+          if (emailInvokeErr) {
+            emailStatus = 'failed';
+            emailDetail = emailInvokeErr.message || 'Edge function returned an error';
+          } else if (emailResp?.success === false && emailResp?.reason === 'email_suppressed') {
+            emailStatus = 'suppressed';
+            emailDetail = 'Recipient is on the suppression list (unsubscribed or bounced).';
+          } else if (emailResp?.success && emailResp?.queued) {
+            emailStatus = (priorSentCount ?? 0) > 0 ? 'previously_sent' : 'queued';
+            emailDetail = (priorSentCount ?? 0) > 0
+              ? `New email queued. ${priorSentCount} previous compound email(s) were already delivered to this recipient.`
+              : 'Email handed off to the dispatcher and will be delivered shortly.';
+          } else {
+            emailStatus = 'failed';
+            emailDetail = 'Unexpected response from the email service.';
+          }
+        } catch (emailErr: any) {
+          emailStatus = 'failed';
+          emailDetail = emailErr?.message || 'Email dispatch threw an exception.';
+          console.warn('[partner-compound] email dispatch failed (non-blocking):', emailErr);
         }
-      } catch (emailErr) {
-        console.warn('[partner-compound] email dispatch failed (non-blocking):', emailErr);
+      } else {
+        emailDetail = recipientEmail
+          ? `Internal placeholder address (${recipientEmail}) — no email sent.`
+          : 'Partner has no email address on file.';
       }
 
       toast.success(`Compounded ${formatUGX(roiAmount)} for ${p.name}`, { description: `Ref: ${refId}` });
+      setCompoundConfirmation({
+        open: true,
+        partnerName: p.name || 'Partner',
+        portfolioLabel: p.portfolioName || `PF-${p.portfolioId.slice(0, 8).toUpperCase()}`,
+        roiAmount,
+        newPrincipal: newAmount,
+        refId,
+        recipientEmail,
+        emailStatus,
+        emailDetail,
+      });
       setCompleted(prev => ({ ...prev, [p.portfolioId]: 'compounded' }));
       onActionComplete?.();
     } catch (err: any) {
