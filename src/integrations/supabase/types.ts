@@ -7398,6 +7398,63 @@ export type Database = {
           },
         ]
       }
+      phantom_wallet_drift: {
+        Row: {
+          created_at: string
+          detection_run_id: string | null
+          drift_amount: number
+          drift_type: string
+          first_detected_at: string
+          id: string
+          last_detected_at: string
+          ledger_net: number
+          resolution_notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          status: string
+          updated_at: string
+          user_id: string
+          wallet_balance: number
+        }
+        Insert: {
+          created_at?: string
+          detection_run_id?: string | null
+          drift_amount: number
+          drift_type: string
+          first_detected_at?: string
+          id?: string
+          last_detected_at?: string
+          ledger_net: number
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          wallet_balance: number
+        }
+        Update: {
+          created_at?: string
+          detection_run_id?: string | null
+          drift_amount?: number
+          drift_type?: string
+          first_detected_at?: string
+          id?: string
+          last_detected_at?: string
+          ledger_net?: number
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          wallet_balance?: number
+        }
+        Relationships: []
+      }
       platform_expense_transfers: {
         Row: {
           agent_id: string
@@ -11926,6 +11983,7 @@ export type Database = {
         Returns: boolean
       }
       derive_welile_ai_id: { Args: { p_user_id: string }; Returns: string }
+      detect_phantom_wallet_drift: { Args: never; Returns: Json }
       detect_velocity_abuse: {
         Args: { p_threshold?: number; p_window_minutes?: number }
         Returns: {
