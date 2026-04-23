@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import {
   Loader2, MessageCircle, Image as ImageIcon, FileText, Copy, CheckCircle2, ExternalLink,
-  ArrowLeft, Eye, ShieldCheck, RotateCw, AlertTriangle,
+  ArrowLeft, Eye, ShieldCheck, RotateCw, AlertTriangle, Phone, Check, CheckCheck,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -274,28 +274,69 @@ export function RentAccessLimitShareDialog({
                 <ArrowLeft className="h-4 w-4" />
               </button>
             )}
-            {previewing ? 'Preview before sending' : 'Share Rent Access Limit'}
+            {previewing ? 'WhatsApp preview' : 'Share Rent Access Limit'}
           </DialogTitle>
           <DialogDescription>
             {previewing
-              ? `Confirm the card and message for ${tenantName.split(' ')[0]} look right.`
+              ? `This is exactly what ${tenantName.split(' ')[0]} will receive on WhatsApp.`
               : `Send ${tenantName.split(' ')[0]} their current limit and motivate daily payments.`}
           </DialogDescription>
         </DialogHeader>
 
         {previewing && previewUrl ? (
           <>
-            {/* Image preview */}
-            <div className="rounded-xl border bg-muted/30 p-2 flex items-center justify-center">
-              <img
-                src={previewUrl}
-                alt="Rent access limit card preview"
-                className="max-h-64 w-auto rounded-lg shadow-sm"
-              />
-            </div>
-            {/* Message preview */}
-            <div className="rounded-xl border bg-muted/40 p-3 text-xs whitespace-pre-line max-h-40 overflow-y-auto">
-              {previewMessage ?? message}
+            {/* WhatsApp-styled preview pane — mirrors the actual chat layout */}
+            <div className="rounded-xl overflow-hidden border border-border/60 shadow-sm">
+              {/* Chat header */}
+              <div className="flex items-center gap-2.5 bg-[#075E54] text-white px-3 py-2">
+                <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold">
+                  {tenantName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold leading-tight truncate">{tenantName}</p>
+                  <p className="text-[10px] text-white/75 leading-tight flex items-center gap-1">
+                    <Phone className="h-2.5 w-2.5" /> {tenantPhone || 'no phone on file'}
+                  </p>
+                </div>
+                <span className="text-[9px] uppercase tracking-wider bg-white/15 rounded px-1.5 py-0.5 font-bold">
+                  Preview
+                </span>
+              </div>
+
+              {/* Chat body — WhatsApp light beige background */}
+              <div className="bg-[#ECE5DD] dark:bg-[#0b141a] p-3 space-y-2 max-h-[420px] overflow-y-auto">
+                {/* Outgoing bubble: PNG attachment */}
+                <div className="flex justify-end">
+                  <div className="max-w-[85%] bg-[#DCF8C6] dark:bg-[#005c4b] rounded-lg rounded-tr-sm shadow-sm p-1.5">
+                    <img
+                      src={previewUrl}
+                      alt="Rent access limit card preview"
+                      className="rounded-md w-full h-auto"
+                    />
+                    <div className="flex items-center justify-end gap-1 px-1.5 pt-1 pb-0.5">
+                      <span className="text-[9px] text-foreground/50 dark:text-white/60">
+                        {new Date().toLocaleTimeString('en-UG', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      <CheckCheck className="h-3 w-3 text-[#34B7F1]" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Outgoing bubble: text message */}
+                <div className="flex justify-end">
+                  <div className="max-w-[85%] bg-[#DCF8C6] dark:bg-[#005c4b] rounded-lg rounded-tr-sm shadow-sm px-2.5 py-1.5">
+                    <p className="text-[12px] whitespace-pre-line text-foreground dark:text-white leading-snug">
+                      {previewMessage ?? message}
+                    </p>
+                    <div className="flex items-center justify-end gap-1 pt-0.5">
+                      <span className="text-[9px] text-foreground/50 dark:text-white/60">
+                        {new Date().toLocaleTimeString('en-UG', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      <Check className="h-3 w-3 text-foreground/40 dark:text-white/50" />
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Snapshot indicator — proves the send action will use this exact text */}
