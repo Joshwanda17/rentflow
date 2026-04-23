@@ -812,6 +812,39 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_daily_commission_reports: {
+        Row: {
+          agent_id: string
+          commission: number
+          created_at: string
+          id: string
+          report_date: string
+          total_transactions: number
+          total_value: number
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          commission?: number
+          created_at?: string
+          id?: string
+          report_date: string
+          total_transactions?: number
+          total_value?: number
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          commission?: number
+          created_at?: string
+          id?: string
+          report_date?: string
+          total_transactions?: number
+          total_value?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       agent_delivery_confirmations: {
         Row: {
           agent_id: string
@@ -11957,6 +11990,13 @@ export type Database = {
           title: string
           total_monthly_cost: number
           verified: boolean
+        }[]
+      }
+      generate_daily_merchant_commission_report: {
+        Args: { p_date?: string }
+        Returns: {
+          agents_processed: number
+          total_commission: number
         }[]
       }
       generate_employee_id: { Args: { _full_name: string }; Returns: string }
