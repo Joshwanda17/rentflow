@@ -358,12 +358,13 @@ export function RentAccessLimitCard({
             <Button
               type="button"
               size="lg"
-              className="flex-1 h-11 rounded-xl font-bold shadow-sm bg-success hover:bg-success/90 text-success-foreground"
+              className="flex-1 h-11 rounded-xl font-bold shadow-md bg-primary hover:bg-primary/90 text-primary-foreground"
               onClick={() => setShareOpen(true)}
-              aria-label="Share on WhatsApp"
+              aria-label="Send this rent money offer to the tenant on WhatsApp"
             >
               <MessageCircle className="h-4 w-4 mr-1.5" />
-              Share on WhatsApp
+              Send to {tenantName.split(' ')[0]} on WhatsApp
+              <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
             <Button
               type="button"
