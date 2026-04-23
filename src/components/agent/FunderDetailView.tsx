@@ -12,6 +12,7 @@ import { AgentProxyWithdrawalDialog } from './AgentProxyWithdrawalDialog';
 import { ProxyPartnerDepositDialog } from './ProxyPartnerDepositDialog';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
+import { useFunderAccountsRealtime } from '@/hooks/useFunderAccountsRealtime';
 import {
   ArrowLeft, Phone, MessageSquare, Banknote, ArrowDownToLine,
   Wallet, Home, TrendingUp, Calendar, CircleDot, Loader2, Send,
@@ -98,6 +99,16 @@ export function FunderDetailView({
     if (!beneficiaryId) return;
     fetchAllData();
   }, [beneficiaryId]);
+
+  useFunderAccountsRealtime({
+    agentId: user?.id,
+    beneficiaryId,
+    onChange: () => {
+      fetchAllData();
+      onRefresh();
+    },
+    enabled: !!beneficiaryId && !!user,
+  });
 
   const fetchAllData = async () => {
     if (!beneficiaryId || !user) return;
