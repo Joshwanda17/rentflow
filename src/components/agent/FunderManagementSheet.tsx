@@ -15,6 +15,7 @@ import { FunderDetailView } from './FunderDetailView';
 import { formatUGX } from '@/lib/rentCalculations';
 import { usePhoneDuplicateCheck } from '@/hooks/usePhoneDuplicateCheck';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
+import { useFunderAccountsRealtime } from '@/hooks/useFunderAccountsRealtime';
 import {
   Users, Loader2, Phone, Send, HandCoins, UserPlus, AlertCircle,
 } from 'lucide-react';
@@ -108,6 +109,12 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
       setLoading(false);
     }
   };
+
+  useFunderAccountsRealtime({
+    agentId: user?.id,
+    onChange: fetchFunders,
+    enabled: open && !!user,
+  });
 
   const handleSendStatement = async (funder: LinkedFunder) => {
     if (!funder.beneficiary || !user) return;
