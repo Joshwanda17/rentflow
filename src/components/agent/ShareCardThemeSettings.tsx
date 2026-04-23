@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -6,7 +6,7 @@ import {
   SHARE_CARD_THEME_PRESETS,
   type ShareCardTheme,
 } from '@/hooks/useShareCardTheme';
-import { Palette, Check, RotateCcw, ShieldCheck, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { Palette, Check, RotateCcw, ShieldCheck, Image as ImageIcon, Loader2, Eye } from 'lucide-react';
 import welileLogoUrl from '@/assets/welile-logo.png';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -21,6 +21,59 @@ import { toast } from 'sonner';
 export default function ShareCardThemeSettings() {
   const { theme, setTheme, reset, resolved } = useShareCardTheme();
   const [previewing, setPreviewing] = useState(false);
+  const [livePreviewUrl, setLivePreviewUrl] = useState<string | null>(null);
+  const [livePreviewLoading, setLivePreviewLoading] = useState(false);
+  const previewUrlRef = useRef<string | null>(null);
+
+  // Live PNG preview — regenerates whenever the active theme changes.
+  useEffect(() => {
+    let cancelled = false;
+    setLivePreviewLoading(true);
+
+    (async () => {
+      try {
+        const { generateRentAccessLimitPng } = await import('@/lib/rentAccessLimitPdf');
+        const blob = await generateRentAccessLimitPng({
+          tenantName: 'Sample Tenant',
+          tenantPhone: '+256 700 000 000',
+          aiId: 'WAI-PREVIEW-0001',
+          monthlyRent: 350000,
+          result: {
+            limit: 4_200_000,
+            base: 4_200_000,
+            netAdjustmentPct: 0.15,
+            paidDays: 18,
+            missedDays: 2,
+            trackedDays: 20,
+            paidToday: true,
+            todayChange: 21000,
+          } as any,
+          shareUrl: 'https://welilereceipts.com/limit/sample',
+        });
+        if (cancelled) return;
+        const url = URL.createObjectURL(blob);
+        // Revoke previous URL to avoid leaks
+        if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+        previewUrlRef.current = url;
+        setLivePreviewUrl(url);
+      } catch {
+        /* preview is best-effort */
+      } finally {
+        if (!cancelled) setLivePreviewLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [theme.preset, theme.customStops?.[0], theme.customStops?.[1], theme.customStops?.[2]]);
+
+  // Cleanup blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    };
+  }, []);
 
   const presetEntries = useMemo(
     () => Object.entries(SHARE_CARD_THEME_PRESETS) as [
