@@ -1,55 +1,43 @@
 
 
-# One-Off CFO Phantom Wallet Report (PDF)
+## Fix garbled arrow (��) in Partner email CTA buttons
 
-## What you'll get
+### Problem
+The "Access Your Dashboard →" button in the **Portfolio Compounded** email renders as "Access Your Dashboard ��" in the user's mail client. The Unicode `→` (U+2192) is being mis-decoded somewhere in the Mailgun delivery pipeline (charset mismatch). Same broken arrow exists in two sibling templates that share this CTA.
 
-A single PDF saved to `/mnt/documents/welile-phantom-wallets-cfo-report-<date>.pdf` listing every wallet whose balance is not backed by ledger entries, ready to print or email.
+### Fix
+Replace the literal `→` character with the HTML entity `&rarr;` (rendered via `dangerouslySetInnerHTML` since JSX escapes entities). HTML entities are 7-bit ASCII and immune to charset/encoding issues, so they render reliably in every email client.
 
-## Report contents
+### Files changed (3)
+All three partner emails use the same CTA block — fix them together for consistency:
 
-**Cover header**
-- Title: "Phantom Wallet Reconciliation Report — CFO"
-- Generated timestamp, "CONFIDENTIAL", platform = Welile
-- Reconciliation rule used (one line):
-  `phantom = wallet.balance − SUM(general_ledger WHERE account='wallet:<uid>' AND ledger_scope='wallet' AND classification IN ('production','admin_correction'))`
+1. `supabase/functions/_shared/transactional-email-templates/partner-compound.tsx` (line 159) — the "Portfolio Compounded" template the user reported.
+2. `supabase/functions/_shared/transactional-email-templates/partnership-topup.tsx` (line 141)
+3. `supabase/functions/_shared/transactional-email-templates/partnership-agreement.tsx` (line 216)
 
-**Executive summary block**
-- Total wallets scanned, phantom wallet count, total phantom UGX
-- Breakdown by inferred category (agent_commission_earned, agent_float_deposit, roi_wallet_credit, wallet_deposit, system_balance_correction)
-- Top 5 holders by phantom amount
+### Change pattern (per file)
+Replace:
+```tsx
+<Link href={dashboard_url} style={ctaButton}>
+  Access Your Dashboard&nbsp;→
+</Link>
+```
+with:
+```tsx
+<Link
+  href={dashboard_url}
+  style={ctaButton}
+  dangerouslySetInnerHTML={{ __html: 'Access Your Dashboard&nbsp;&rarr;' }}
+/>
+```
 
-**Main table** (one row per wallet, sorted by phantom amount desc)
+This keeps the visual arrow identical, removes the non-ASCII byte that's tripping the encoder, and matches the email-safe pattern.
 
-| # | Name | Phone | Role(s) | Wallet Balance | Withdrawable | Float | Advance | Ledger Derived | Phantom Gap | Inferred Category | Suggested Action |
+### Out of scope
+- No other glyphs (em dashes `—`, ellipses, etc.) are reported broken, so they stay as-is. If a future report shows them garbled, same fix pattern applies.
+- No changes to email subject, sender, schedule, or send logic.
+- No DB or RPC changes.
 
-**Suggested-action rules**
-- Phantom > 1,000,000 UGX & withdrawable > 0 → **"FREEZE withdrawals + back-fill ledger"**
-- Phantom > 0 & only float bucket → **"Back-fill as `agent_float_deposit`"**
-- Phantom > 0 & supporter role → **"Back-fill as `roi_wallet_credit`"**
-- Phantom > 0 & tenant/landlord → **"Back-fill as `wallet_deposit`"**
-- No profile attached → **"Investigate orphan wallet — confirm user identity or write down"**
-- Withdrawable > balance → **"Bucket integrity error — recompute buckets"**
-
-**Footer**
-- Page numbers, "Welile Phantom Reconciliation — CONFIDENTIAL"
-
-## How it will be built
-
-- **Data source**: live SQL via `supabase--read_query` joining `wallets`, `general_ledger`, `profiles`, `user_roles`.
-- **PDF generator**: Python `reportlab` script written to `/tmp/`, run via `code--exec`. Landscape A4 to fit the wide table.
-- **QA pass**: convert each page to JPEG with `pdftoppm` and inspect for clipping, overlap, missing rows, and column alignment before delivering. Iterate until clean.
-- **Output**: `<lov-artifact>` tag pointing at the final PDF in `/mnt/documents/`.
-
-## What this does NOT do
-
-- No database writes. No ledger entries. No wallet changes.
-- Does not deliver the back-fill migration that was previously discussed — this is a standalone report only.
-- Does not email or share — just produces the file for you to download.
-
-## Files touched
-
-- New: `/tmp/build_phantom_report.py` (transient)
-- New: `/mnt/documents/welile-phantom-wallets-cfo-report-<date>.pdf` (deliverable)
-- No project source files modified.
+### Verification
+After deploy, trigger a re-send of the Portfolio Compounded email (or use the test-email function) and confirm the arrow renders as `→` instead of `��`.
 
