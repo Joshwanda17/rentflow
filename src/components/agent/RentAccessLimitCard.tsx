@@ -309,6 +309,10 @@ export function RentAccessLimitCard({
             <p className="text-3xl sm:text-4xl font-black font-mono text-foreground leading-none break-all">
               {formatUGX(result.limit)}
             </p>
+            <p className="text-sm font-semibold text-primary mt-1.5 flex items-center gap-1">
+              <Wallet className="h-3.5 w-3.5" aria-hidden />
+              You can use this money for rent today
+            </p>
             <p className="text-xs text-muted-foreground mt-1">
               Base: {formatUGX(result.base)} ·{' '}
               <span className={isPositive ? 'text-success font-semibold' : 'text-destructive font-semibold'}>
