@@ -1,69 +1,31 @@
 
 
-# Tap-to-Drill Modals for Brief Cards
+# Pin the Agent Ops bottom nav to the viewport
 
-Add a drill-down modal triggered by tapping any of the 4 brief cards on the Agent Ops dashboard. Each modal shows the actual records behind the metric, updates live via Supabase Realtime, and respects the active date range (24H / 7D / 1M).
+## Problem
+The bottom navigation on the Agent Ops dashboard scrolls away with the page content instead of staying pinned. You shouldn't have to scroll to find Dashboard / Pipeline / Agents / Finance / More.
 
-## What you'll see
+## Root cause
+`AgentOpsBottomNav` already has `fixed bottom-0 inset-x-0 z-40 sm:hidden` — the styling is correct. But it's rendered **inside** `AgentOpsDashboard`'s scroll container, and somewhere up the tree there's an ancestor with `transform`, `filter`, or `overflow` that breaks `position: fixed` (a known CSS gotcha — `transform` on an ancestor turns `fixed` into `absolute` relative to that ancestor). That's why it scrolls with the content instead of sticking to the viewport.
 
-Tap a card → a sheet/dialog slides up with:
-- **Header**: metric title, big number, % change, range badge, a pulsing "Live" dot.
-- **Mini sparkline** (same series as the card) for context.
-- **Records list**: the actual rows backing the number, newest first, paginated 25 at a time with "Load more".
-- **Realtime ticker**: when a new matching row arrives, it animates in at the top with a subtle highlight; the header count auto-increments.
-- **Row tap**: opens the relevant detail (agent profile / rent request / earning entry) using existing routes where available.
+A second issue: the nav is gated by `sm:hidden`, so on tablet/desktop it disappears entirely. On the mobile preview where you're seeing it, the fixed positioning is being defeated by an ancestor.
 
-## Per-card drill-downs
+## Fix
 
-| Card | Records shown | Source | Row content |
-|------|---------------|--------|-------------|
-| New Agents Onboarded | New agents in range | `user_roles` (role=agent) joined to `profiles` | Avatar, name, phone, joined-at relative time |
-| Rent Requests | Requests created in range | `rent_requests` joined to `profiles` (tenant) | Tenant name, amount (UGX), status pill, created-at |
-| Commission Earned | Earnings posted in range | `agent_earnings` joined to `profiles` (agent) | Agent name, amount (UGX), source/category, created-at |
-| Active Agents | Agents with `last_active_at` in range | `profiles` filtered by role=agent | Avatar, name, last-active relative time, status dot |
+1. **Render the nav via a React portal to `document.body`** so no ancestor `transform`/`overflow`/`contain` can capture its `position: fixed`. This guarantees it pins to the viewport regardless of the parent layout.
+2. **Add bottom padding to the dashboard scroll area** (`pb-[calc(env(safe-area-inset-bottom)+72px)]`) so the last card isn't hidden behind the nav.
+3. **Keep `sm:hidden`** (mobile-only) as designed — the desktop layout uses the side nav. If you want it visible on desktop too, say the word and I'll drop that class.
+4. **Bump z-index to `z-50`** so it sits above any floating buttons (e.g. `FloatingPortfolioButton` at `z-40`).
 
-Each modal also shows totals (count + sum where applicable) and a "View full section" button that calls the existing `onOpenSection` (directory / pipeline / earnings) for deeper management.
+## Files
 
-## Realtime behavior
+**Modified**
+- `src/components/executive/agent-ops-v2/AgentOpsBottomNav.tsx` — wrap returned `<nav>` in `createPortal(..., document.body)`; bump to `z-50`.
+- `src/components/executive/AgentOpsDashboard.tsx` — add `pb-[calc(env(safe-area-inset-bottom)+72px)] sm:pb-0` to the main scroll container so content clears the pinned nav.
 
-- Each modal opens its own scoped Supabase channel filtered to the table it cares about, so events don't leak across modals.
-- New INSERTs that fall inside the current range are prepended with a 1.5s highlight pulse.
-- UPDATEs (e.g. rent request status change) update the row in place.
-- Channel is torn down on close to avoid lingering subscriptions.
-
-## Empty / loading / error states
-
-- Skeleton rows while loading (5 placeholders).
-- Empty state: friendly icon + "No [metric] in this window yet. New entries appear here live."
-- Error state: retry button.
-
-## Mobile-first UX
-
-- Uses a bottom **Sheet** on mobile (`<640px`), centered **Dialog** on desktop — both already in the design system.
-- 85vh max height, internal scroll, sticky header with close button.
-- Touch-friendly 44px min row height; tap row = drill deeper.
-
-## Technical plan
-
-**New files**
-- `src/components/executive/agent-ops-v2/BriefDrillDownModal.tsx` — generic modal shell (header, sparkline, list container, realtime wiring). Props: `open`, `onOpenChange`, `metric` (`'new-agents' | 'rent-requests' | 'commission' | 'active-agents'`), `range`, `series`, `kpi`, `onOpenSection`.
-- `src/components/executive/agent-ops-v2/drill/NewAgentsList.tsx`
-- `src/components/executive/agent-ops-v2/drill/RentRequestsList.tsx`
-- `src/components/executive/agent-ops-v2/drill/CommissionList.tsx`
-- `src/components/executive/agent-ops-v2/drill/ActiveAgentsList.tsx`
-
-Each list component owns its own `useQuery` (paginated via `range(from, to)`) + a Realtime subscription. They expose a consistent row renderer.
-
-**Modified files**
-- `src/components/executive/agent-ops-v2/AgentOpsHomeView.tsx`:
-  - Replace each card's `onClick: () => onOpenSection(...)` with `onClick: () => setActiveDrill(metricKey)`.
-  - Add `<BriefDrillDownModal>` at the bottom, controlled by `activeDrill` state.
-  - Keep `onOpenSection` as the secondary "View full section" CTA inside each modal.
-
-**No DB migration needed** — realtime publication for `user_roles`, `rent_requests`, `agent_earnings` was already enabled in Phase 1. We'll add `profiles` to the publication only if active-agents realtime requires it (will check before adding).
-
-**Performance**
-- Page size 25, fetched server-side with `.range()`.
-- Realtime payloads are filtered client-side against the active range to avoid stale inserts polluting the list.
-- Modal queries use a separate `queryKey` (`['agent-ops-drill', metric, range, page]`) so they don't conflict with the card aggregates.
+## Verification
+- Scroll the Agent Ops dashboard on mobile → nav stays glued to the bottom edge.
+- Last card is fully visible (not clipped by the nav).
+- Tapping a tab still switches views; safe-area inset respected on iOS.
+- Desktop layout unchanged.
 
