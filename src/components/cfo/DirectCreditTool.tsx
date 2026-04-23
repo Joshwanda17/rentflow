@@ -713,7 +713,7 @@ export function DirectCreditTool() {
 
             <Button
               className={`w-full ${isCredit ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-destructive hover:bg-destructive/90'}`}
-              onClick={() => mutation.mutate()}
+              onClick={() => mutation.mutate({})}
               disabled={mutation.isPending || !selectedUser || !amount || reason.length < 10 || !selectedCategoryId}
             >
               {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
