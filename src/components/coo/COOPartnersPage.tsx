@@ -3654,6 +3654,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
   const selectedProcessing = selectedPayout ? processing[selectedPayout.portfolioId] : null;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] p-0 sm:max-w-xl">
         {paymentStep === 'list' ? (
