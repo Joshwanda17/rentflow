@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { TrendingUp, TrendingDown, Info, Sparkles, MessageCircle, Loader2, Check, Wand2, Pencil, AlertCircle, X, Edit3 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Info, Sparkles, MessageCircle, Loader2, Check, Wand2, Pencil, AlertCircle, Wallet, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -104,28 +104,6 @@ export function RentAccessLimitCard({
     suggestedRent && suggestedRent > 0 ? String(suggestedRent) : '',
   );
   const [savingRent, setSavingRent] = useState(false);
-  // Inline edit state for the main card (when monthlyRent is already set)
-  const [editingRent, setEditingRent] = useState(false);
-  const [editRentInput, setEditRentInput] = useState<string>('');
-
-  /**
-   * "Manual override" applies the moment the user types a value that differs
-   * from the currently-effective source (auto-detected suggestion in empty
-   * state, or stored monthlyRent in edit mode). Empty input = no override yet.
-   */
-  const overrideActiveEmpty = (() => {
-    const typed = rentInput.replace(/[^0-9]/g, '');
-    if (!typed) return false;
-    const typedNum = Number(typed);
-    if (suggestedRent && suggestedRent > 0) return typedNum !== suggestedRent;
-    return true; // no source at all → any typed value is a manual entry
-  })();
-
-  const overrideActiveEdit = (() => {
-    const typed = editRentInput.replace(/[^0-9]/g, '');
-    if (!typed || !monthlyRent) return false;
-    return Number(typed) !== monthlyRent;
-  })();
 
   const result = useMemo(
     () => calculateRentAccessLimit(monthlyRent, repayments),
@@ -190,19 +168,9 @@ export function RentAccessLimitCard({
             <label htmlFor="rent-input" className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
               Monthly rent (UGX)
             </label>
-            {overrideActiveEmpty ? (
-              <span
-                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-warning/15 text-warning border border-warning/30"
-                aria-label="Manual override active"
-              >
-                <Edit3 className="h-3 w-3" aria-hidden />
-                Manual override
-              </span>
-            ) : (
-              <span className="text-[10px] text-muted-foreground">
-                {RENT_MIN_UGX.toLocaleString('en-UG')} – {RENT_MAX_UGX.toLocaleString('en-UG')}
-              </span>
-            )}
+            <span className="text-[10px] text-muted-foreground">
+              {RENT_MIN_UGX.toLocaleString('en-UG')} – {RENT_MAX_UGX.toLocaleString('en-UG')}
+            </span>
           </div>
           <div className="flex gap-2">
             <Input
@@ -254,40 +222,6 @@ export function RentAccessLimitCard({
   const tier = TIER_META[result.tier];
   const isPositive = result.netAdjustmentPct >= 0;
 
-  // Save handler for the inline edit mode on the main card
-  const editValidation = validateMonthlyRentUGX(editRentInput);
-  const editIsEmpty = !editRentInput.replace(/[^0-9]/g, '');
-  const editShowError = !editValidation.ok && !editIsEmpty;
-  const editCanSave = editValidation.ok && !savingRent && overrideActiveEdit;
-
-  const handleSaveEdit = async () => {
-    const v = validateMonthlyRentUGX(editRentInput);
-    if (v.ok === false) {
-      toast({ title: 'Invalid monthly rent', description: v.message, variant: 'destructive' });
-      return;
-    }
-    setSavingRent(true);
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ monthly_rent: v.value })
-        .eq('id', tenantId);
-      if (error) throw error;
-      toast({ title: 'Monthly rent updated', description: `Set to ${formatUGX(v.value)}` });
-      onRentSaved?.(v.value);
-      setEditingRent(false);
-      setEditRentInput('');
-    } catch (err: any) {
-      toast({
-        title: 'Could not save rent',
-        description: err?.message || 'Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setSavingRent(false);
-    }
-  };
-
   return (
     <>
       <section
@@ -307,10 +241,10 @@ export function RentAccessLimitCard({
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-primary/80">
-                Rent Access Limit
+                Rent Money You Can Get
               </p>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                Powered by Welile · Updates daily
+                Welile can pay this much rent for you · Grows daily
               </p>
               <TooltipProvider delayDuration={150}>
                 <Tooltip>
@@ -356,20 +290,6 @@ export function RentAccessLimitCard({
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              {!editingRent && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditRentInput(String(monthlyRent));
-                    setEditingRent(true);
-                  }}
-                  className="ml-1.5 mt-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-background/70 text-muted-foreground border border-border/60 hover:text-foreground hover:bg-background transition-colors"
-                  aria-label="Edit monthly rent"
-                >
-                  <Edit3 className="h-3 w-3" aria-hidden />
-                  Edit
-                </button>
-              )}
             </div>
             <span
               className={cn(
@@ -384,98 +304,14 @@ export function RentAccessLimitCard({
             </span>
           </div>
 
-          {/* Inline edit mode for monthly rent */}
-          {editingRent && (
-            <div className="rounded-xl bg-background/80 backdrop-blur border border-border/60 p-3 space-y-1.5 animate-fade-in">
-              <div className="flex items-center justify-between">
-                <label
-                  htmlFor="rent-edit-input"
-                  className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground"
-                >
-                  Monthly rent (UGX)
-                </label>
-                {overrideActiveEdit ? (
-                  <span
-                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-warning/15 text-warning border border-warning/30"
-                    aria-label="Manual override active"
-                  >
-                    <Edit3 className="h-3 w-3" aria-hidden />
-                    Manual override
-                  </span>
-                ) : (
-                  <span className="text-[10px] text-muted-foreground">
-                    Current: {formatUGX(monthlyRent)}
-                  </span>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <Input
-                  id="rent-edit-input"
-                  inputMode="numeric"
-                  placeholder="e.g. 350,000"
-                  value={
-                    editRentInput
-                      ? Number(editRentInput.replace(/[^0-9]/g, '')).toLocaleString('en-UG')
-                      : ''
-                  }
-                  onChange={(e) => setEditRentInput(e.target.value.replace(/[^0-9]/g, ''))}
-                  className={cn(
-                    'h-10 text-sm font-mono font-semibold',
-                    editShowError && 'border-destructive focus-visible:ring-destructive',
-                  )}
-                  disabled={savingRent}
-                  aria-invalid={editShowError}
-                  aria-describedby="rent-edit-help"
-                  autoFocus
-                />
-                <Button
-                  type="button"
-                  onClick={handleSaveEdit}
-                  disabled={!editCanSave}
-                  className="h-10 px-3 rounded-md font-bold shrink-0"
-                  aria-label="Save monthly rent"
-                >
-                  {savingRent ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => {
-                    setEditingRent(false);
-                    setEditRentInput('');
-                  }}
-                  disabled={savingRent}
-                  className="h-10 px-3 rounded-md shrink-0"
-                  aria-label="Cancel edit"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              <div id="rent-edit-help" className="min-h-[16px]" aria-live="polite">
-                {editShowError ? (
-                  <p className="text-[11px] text-destructive flex items-start gap-1">
-                    <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" aria-hidden />
-                    <span>{(editValidation as Extract<RentValidation, { ok: false }>).message}</span>
-                  </p>
-                ) : overrideActiveEdit && editValidation.ok ? (
-                  <p className="text-[11px] text-warning flex items-center gap-1">
-                    <Edit3 className="h-3 w-3 shrink-0" aria-hidden />
-                    Replaces {detectedFromHistory ? 'auto-detected' : 'current'} rent with{' '}
-                    {formatUGX(editValidation.value)}
-                  </p>
-                ) : (
-                  <p className="text-[11px] text-muted-foreground">
-                    Type a different value to override the {detectedFromHistory ? 'auto-detected' : 'current'} rent.
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
           {/* Main figure */}
           <div>
             <p className="text-3xl sm:text-4xl font-black font-mono text-foreground leading-none break-all">
               {formatUGX(result.limit)}
+            </p>
+            <p className="text-sm font-semibold text-primary mt-1.5 flex items-center gap-1">
+              <Wallet className="h-3.5 w-3.5" aria-hidden />
+              You can use this money for rent today
             </p>
             <p className="text-xs text-muted-foreground mt-1">
               Base: {formatUGX(result.base)} ·{' '}
@@ -522,12 +358,13 @@ export function RentAccessLimitCard({
             <Button
               type="button"
               size="lg"
-              className="flex-1 h-11 rounded-xl font-bold shadow-sm bg-success hover:bg-success/90 text-success-foreground"
+              className="flex-1 h-11 rounded-xl font-bold shadow-md bg-primary hover:bg-primary/90 text-primary-foreground"
               onClick={() => setShareOpen(true)}
-              aria-label="Share on WhatsApp"
+              aria-label="Send this rent money offer to the tenant on WhatsApp"
             >
               <MessageCircle className="h-4 w-4 mr-1.5" />
-              Share on WhatsApp
+              Send to {tenantName.split(' ')[0]} on WhatsApp
+              <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
             <Button
               type="button"
@@ -545,13 +382,15 @@ export function RentAccessLimitCard({
           {/* How-it-works */}
           {showHow && (
             <div className="rounded-xl bg-background/70 backdrop-blur border border-border/50 p-3 text-xs space-y-1 animate-fade-in">
-              <p className="font-bold text-foreground">How the limit is calculated</p>
+              <p className="font-bold text-foreground">How much money can you get?</p>
               <p className="text-muted-foreground">
-                <span className="font-semibold text-foreground">Base</span> = monthly rent × 12
+                We start with your <span className="font-semibold text-foreground">monthly rent × 12 months</span>.
               </p>
-              <p className="text-success">+5% of base for every day you pay on time</p>
-              <p className="text-destructive">−5% of base for every missed day</p>
-              <p className="text-muted-foreground pt-1">Pay daily, grow your limit. Miss days, it shrinks.</p>
+              <p className="text-success">✅ Pay rent today → you get more money tomorrow (+5%)</p>
+              <p className="text-destructive">❌ Miss a day → the money you can get goes down (−5%)</p>
+              <p className="text-muted-foreground pt-1 font-medium">
+                Pay every day. The more you pay, the more rent Welile can give you.
+              </p>
             </div>
           )}
         </div>
