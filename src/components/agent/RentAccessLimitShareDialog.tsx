@@ -94,14 +94,17 @@ export function RentAccessLimitShareDialog({
 
   const pct = result.netAdjustmentPct * 100;
   const message =
-    `🏠 *Welile · Your Rent Access Limit*\n\n` +
-    `Hi ${tenantName.split(' ')[0]}, your current rent access limit is:\n` +
-    `*${formatUGX(result.limit)}*\n\n` +
-    `📈 ${pct >= 0 ? '+' : ''}${pct.toFixed(0)}% from your daily payments\n` +
-    `✅ On-time days: ${result.paidDays}\n` +
-    `⚠️ Missed days: ${result.missedDays}\n\n` +
-    `Pay today and earn *+${formatUGX(Math.abs(result.todayChange))}* more access tomorrow.\n` +
-    (shareUrl ? `\nView live: ${shareUrl}` : '');
+    `🏠 *Welile — Rent Money You Can Get*\n\n` +
+    `Hello ${tenantName.split(' ')[0]},\n` +
+    `Good news! Welile can pay rent for you up to:\n\n` +
+    `💜 *${formatUGX(result.limit)}*\n\n` +
+    `This is real money you can use for your rent today.\n\n` +
+    `📈 You are at ${pct >= 0 ? '+' : ''}${pct.toFixed(0)}% because of your daily payments\n` +
+    `✅ Days paid on time: ${result.paidDays}\n` +
+    `⚠️ Days missed: ${result.missedDays}\n\n` +
+    `👉 Pay rent today and tomorrow we can give you *+${formatUGX(Math.abs(result.todayChange))}* more.\n` +
+    `The more you pay, the more rent money Welile gives you.\n` +
+    (shareUrl ? `\nSee your live limit: ${shareUrl}` : '');
 
   const openWhatsApp = () => {
     const intl = toIntlPhone(tenantPhone);
