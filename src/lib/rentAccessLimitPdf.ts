@@ -1,6 +1,7 @@
 import { formatUGX } from '@/lib/rentCalculations';
 import welileLogoUrl from '@/assets/welile-logo.png';
 import type { RentAccessLimitResult } from '@/lib/rentAccessLimit';
+import { getShareCardThemeSync } from '@/hooks/useShareCardTheme';
 
 export interface RentAccessLimitPdfData {
   tenantName: string;
