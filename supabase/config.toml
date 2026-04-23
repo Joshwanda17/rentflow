@@ -109,3 +109,5 @@ project_id = "wirntoujqoyjobfhyelc"
     verify_jwt = false
   [functions.handle-email-suppression]
     verify_jwt = false
+  [functions.generate-daily-merchant-commission]
+    verify_jwt = false
