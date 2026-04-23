@@ -11,6 +11,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Send, ArrowUpRight, ArrowDownLeft, TrendingUp, TrendingDown, Minus, Info, ChevronDown } from 'lucide-react';
 import { UserSearchPicker } from './UserSearchPicker';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 import { RentDisbursementQueue } from './RentDisbursementQueue';
 import { BusinessAdvanceDisbursementQueue } from './BusinessAdvanceDisbursementQueue';
@@ -275,6 +285,11 @@ export function DirectCreditTool() {
   const [selectedSubCategoryId, setSelectedSubCategoryId] = useState('');
   const [automateEnabled, setAutomateEnabled] = useState(false);
   const [automateDay, setAutomateDay] = useState(1);
+  const [pendingNonCommissionConfirm, setPendingNonCommissionConfirm] = useState<{
+    message: string;
+    suggested_category: string;
+    chosen_category: string;
+  } | null>(null);
 
   const { data: rentQueueCount = 0 } = useQuery({
     queryKey: ['rent-disbursement-queue-count'],
@@ -352,7 +367,7 @@ export function DirectCreditTool() {
   };
 
   const mutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (opts: { confirmNonCommission?: boolean } = {}) => {
       const amt = parseFloat(amount);
       if (!amt || amt <= 0) throw new Error('Invalid amount');
       if (!reason || reason.length < 10) throw new Error('Reason must be at least 10 characters');
@@ -375,9 +390,31 @@ export function DirectCreditTool() {
           financial_impact: selectedCategory.impact,
           category_label: categoryLabel,
           sub_category: selectedSubCategoryId || null,
+          confirm_non_commission: opts.confirmNonCommission === true,
         },
       });
       if (error) {
+        // Try to detect the 409 confirmation gate before falling through to generic handling.
+        try {
+          const ctx = (error as any)?.context;
+          if (ctx && typeof ctx.json === 'function') {
+            const body = await ctx.clone().json();
+            if (body?.code === 'CONFIRM_NON_COMMISSION_AGENT_CREDIT') {
+              setPendingNonCommissionConfirm({
+                message: body.message,
+                suggested_category: body.suggested_category,
+                chosen_category: body.chosen_category,
+              });
+              // Throw a tagged error so onError can stay quiet.
+              const e = new Error('__CONFIRM_NON_COMMISSION__');
+              (e as any).__silent = true;
+              throw e;
+            }
+          }
+        } catch (innerErr: any) {
+          if (innerErr?.__silent) throw innerErr;
+          // ignore parse errors and fall through
+        }
         const msg = await extractFromErrorObject(error, 'Something went wrong');
         if (msg.includes('Unauthorized')) throw new Error('You do not have permission. Please log in again.');
         if (msg.includes('Insufficient permissions')) throw new Error('Your role does not have CFO privileges.');
@@ -426,7 +463,10 @@ export function DirectCreditTool() {
       setSelectedSubCategoryId('');
       setAutomateEnabled(false);
     },
-    onError: (e: any) => toast({ title: 'Failed', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => {
+      if (e?.__silent) return; // confirmation dialog will handle it
+      toast({ title: 'Failed', description: e.message, variant: 'destructive' });
+    },
   });
 
   const isCredit = operation === 'credit';
