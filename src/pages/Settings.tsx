@@ -32,6 +32,7 @@ const RentDiscountToggle = lazy(() => import('@/components/tenant/RentDiscountTo
 const StaffAccessCard = lazy(() => import('@/components/settings/StaffAccessCard'));
 const ResidenceAddressForm = lazy(() => import('@/components/profile/ResidenceAddressForm'));
 const EmailEditor = lazy(() => import('@/components/profile/EmailEditor'));
+const ShareCardThemeSettings = lazy(() => import('@/components/agent/ShareCardThemeSettings'));
 
 class SectionBoundary extends Component<{ children: ReactNode; name: string }, { hasError: boolean }> {
   state = { hasError: false };
