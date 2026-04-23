@@ -164,7 +164,7 @@ export default function ShareCardThemeSettings() {
                 </>
               ) : (
                 <>
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                   Up to date
                 </>
               )}
