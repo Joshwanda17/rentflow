@@ -458,7 +458,10 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
       <WithdrawRequestDialog 
         open={withdrawOpen} 
         onOpenChange={setWithdrawOpen} 
-        walletBalance={isAgent ? realWithdrawableBalance : (wallet?.balance || 0)}
+        // For agents: total = withdrawable + float (float is reserved for proxy
+        // partner payouts but should still be visible so the agent knows their
+        // real wallet position). The backend enforces proxy-only float spending.
+        walletBalance={isAgent ? (realWithdrawableBalance + walletFloatBalance) : (wallet?.balance || 0)}
         onSuccess={refreshWallet}
       />
       <TransactionReceipt 
