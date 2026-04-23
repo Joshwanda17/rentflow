@@ -1,84 +1,79 @@
 
 
-# Safe path to fix wallet drift — zero impact on withdrawals, deposits, transactions
+## Plan: Restore Agent Float — Fix Misrouted Float Credits
 
-Goal: stop phantom drift at its source **without** pausing money movement, without changing balances, and without breaking any of the 54 edge functions touching wallets.
+### The Problem
 
-## The core idea: neutralize, don't delete
+For agents, money meant to fund tenant rent payments (operational float = company money) has been routed into the `withdrawable_balance` bucket instead of `float_balance`. The UI's `useAgentBalances` hook then reads withdrawable, treats every shilling above their commission ledger as "other / unclassified," and the "Float Allocation" RPC sees `float_balance = 0` and blocks rent disbursements.
 
-We don't remove triggers (risky — many functions depend on side effects). We don't touch balances (risky — would reconcile away real losses). Instead we make the **two conflicting triggers cooperate** by demoting one to a no-op while keeping its function signature alive, then close the silent-floor leak that hides overdraws.
+### Concrete Examples (from live DB)
 
-This is done in **3 small, reversible migrations**, each independently safe.
+| Agent | Wallet Balance | Withdrawable | Float | Ledger Commission |
+|---|---|---|---|---|
+| LUKODDA JOSEPH | 34,000,000 | 34,000,000 | 0 | 74,017,562 |
+| ATUHAIRE CAROLYNE | 5,340,397 | 5,340,397 | 0 | 295,000 |
+| Akampurira Onesmus | 1,647,200 | 1,647,200 | 0 | 3,677,033 |
+| Katongole James | 2,400,000 | 2,400,000 | 0 | 10,059,997 |
 
----
+In every case `float_balance = 0` despite the agent clearly holding company money. Withdrawable inflated by float credits is also why the previous "lock commission" error appeared.
 
-## Migration 1 — Make `sync_wallet_from_ledger` a no-op (stop the double-count)
+### Root Cause
 
-**Problem**: Two triggers update `wallets.balance` per ledger insert → double-count.
+`wallet_route_for_category` routes these credit categories to **withdrawable** for ALL users, but for **agents** they are float deposits:
 
-**Fix**: Rewrite `sync_wallet_from_ledger()` body to `RETURN NEW;` immediately. Keep the trigger attached, keep the function signature, keep its name in pg_proc — so any code/migration that references it still works. It just stops mutating anything.
+1. `wallet_deposit` — agent cash deposits at the merchant code (the explicit "Operations Float" funding flow)
+2. `wallet_transfer` — portfolio top-up funding routed to the agent's wallet for client investments
+3. `roi_wallet_credit` — ROI proceeds being held to be paid out to a partner
+4. `system_balance_correction` / `cfo_direct_credit` — when description says "operational float" / "portfolio top-up"
 
-`apply_wallet_movement` becomes the **sole writer** to `wallets.balance` (it already sets `balance = withdrawable + float` correctly).
+There is no role-aware routing. The router treats an agent's wallet identical to a tenant's wallet.
 
-**Impact on live ops**: 
-- Deposits: still work — `apply_wallet_movement` handles them.
-- Withdrawals: still work — same path.
-- Transfers: still work.
-- **Zero balance changes** at the moment of migration. Future inserts stop double-counting.
+### The Fix (3 parts)
 
-**Reversible**: one-line restore of the old function body.
+**1. Make routing role-aware in `wallet_route_for_category`** (or add a sibling helper invoked by `apply_wallet_movement`):
 
-## Migration 2 — Convert silent floor into a logged event (stop hiding overdraws)
+For users with the `agent` role, route the following credit categories to **`float`** instead of `withdrawable`:
+- `wallet_deposit` (agent cash float top-ups — non-commission)
+- `wallet_transfer` (portfolio top-up funding)
+- `roi_wallet_credit` (partner ROI being held)
+- `agent_proxy_investment` (cash_in side, when funds are being held for a partner)
+- `pool_capital_received`, `partner_funding`, `supporter_capital`, `supporter_rent_fund`
 
-**Problem**: `enforce_non_negative_balance` silently sets `balance := 0` when a debit would go negative → ledger keeps the -50M, wallet shows 0, drift = +50M forever.
+Keep these routing to **withdrawable** for agents (real personal earnings):
+- `agent_commission_earned`, `agent_commission`, `agent_bonus`
+- `partner_commission`, `referral_bonus`, `proxy_investment_commission`
+- `agent_investment_commission`, `salary_payout`
 
-**Fix**: Modify the trigger to:
-1. Still floor at 0 (so no withdrawal flow breaks on a negative-balance constraint).
-2. **Insert a row into a new `wallet_overdraw_events` table** capturing `(user_id, attempted_balance, clamped_to, ledger_entry_id, created_at)`.
-3. Emit a `system_event` of type `wallet_overdraw_clamped`.
+For non-agents: behavior unchanged.
 
-This way every future overdraw is **visible and attributable** instead of becoming silent phantom drift. Existing flows continue unchanged.
+**2. One-time reconciliation migration** — for every agent wallet, recompute the correct split from the ledger using the new rules and rewrite the bucket fields atomically (using the `wallet.sync_authorized` session flag). Move misclassified withdrawable funds into `float_balance`. Preserve the invariant `balance = withdrawable + float + advance` (the existing `trg_enforce_wallet_balance_invariant` will keep it safe).
 
-**Impact on live ops**: None. Same clamp behavior, just observable now.
+After reconciliation, expected outcomes:
+- LUKODDA JOSEPH: withdrawable ≈ 0 (no commission earned has been withdrawn yet sits as "other"), float ≈ 34M
+- ATUHAIRE CAROLYNE: withdrawable ≈ 295K (commission), float ≈ 5,045K
+- Akampurira Onesmus: withdrawable ≈ matches commission earned-minus-spent, float ≈ rest
 
-## Migration 3 — Make unroutable categories visible (stop structural gap)
+**3. Update `useAgentBalances` hook** — already mostly correct. Once routing is fixed, the "drift warning" between withdrawable and commission will naturally vanish because `withdrawable` will only contain real commission. Remove the legacy `otherBalance` fallback wording (or keep it as a safety net for future drift but it should always be 0 after the fix).
 
-**Problem**: When `apply_wallet_movement` sees a category with `route='none'`, it silently does nothing. `sync_wallet_from_ledger` (now neutered) used to compensate. Post-Migration 1, these inserts will move nothing → bucket-vs-balance mismatch.
+### Verification Steps
 
-**Fix**: In `apply_wallet_movement`, when `route='none'`:
-- Do NOT raise (would break edge functions mid-flight).
-- Insert into a new `wallet_unrouted_movements` table: `(category, ledger_entry_id, amount, user_id, suggested_bucket)`.
-- Emit `system_event` `wallet_category_unrouted`.
+After the migration runs we'll re-query the agent wallet table and confirm:
+1. `float_balance > 0` for every agent who has received a `wallet_deposit` or `wallet_transfer` credit.
+2. `withdrawable_balance` ≈ ledger commission balance for each agent (no drift).
+3. The "Float allocation blocked — would require commission funds" error disappears for the affected agents.
+4. `balance = withdrawable + float + advance` invariant holds (enforced by existing trigger).
 
-Lets us migrate categories one-by-one to the router without breaking any function. The two known offenders (`test_funds_cleanup`, `proxy_investment_commission`) will surface immediately, plus any others.
+### Files to Change
 
-**Impact on live ops**: Same behavior as today for unrouted categories (no movement), but now observable.
+- `supabase/migrations/<new>.sql`
+  - Replace `wallet_route_for_category` with a role-aware version (takes `p_user_id`)
+  - Update `apply_wallet_movement` to pass `p_user_id` into the router
+  - One-time reconciliation block: for each agent, recompute `withdrawable / float` from ledger and `UPDATE wallets` under `set_config('wallet.sync_authorized','true',true)`
+- `src/hooks/useAgentBalances.ts` — minor: simplify `otherBalance` (should be ~0 post-fix), keep warning log as a safety monitor.
 
----
+### Risks & Mitigations
 
-## What this does NOT do (intentionally)
-
-- Does **not** change a single wallet balance.
-- Does **not** reconcile historical phantom drift (the 117M is pre-existing — handled separately later via targeted `admin_correction` entries once the bleeding stops).
-- Does **not** delete any trigger or function (full backward compatibility).
-- Does **not** modify any of the 54 edge functions.
-- Does **not** touch RLS, withdrawals queue, deposit approval, or transfer flow.
-
-## After all 3 migrations
-
-Within 15 min the `phantom_wallet_drift` cron will stop generating *new* drift rows. Two new tables (`wallet_overdraw_events`, `wallet_unrouted_movements`) will surface the categories of leakage that previously went silent. Then in a follow-up round we:
-1. Patch the 2 unallowlisted categories.
-2. Backfill historical drift with `admin_correction` entries (one wallet at a time, with full audit trail).
-
-## Safety order & rollback
-
-1. Apply Migration 1. Watch `phantom_wallet_drift` cron output for 1 hour. Watch `system_events` for any abnormality.
-2. If stable → apply Migration 2.
-3. If stable → apply Migration 3.
-
-Each migration has a one-line rollback (restore prior function body). All three are pure trigger/function rewrites — no schema breakage, no data movement.
-
-## Approval needed
-
-Approve and I'll prepare the 3 migrations in order, executing them one at a time with a verification query between each. **No balances will change. No edge function will be modified. No money movement will be paused.**
+- **Risk**: Mis-routing a category breaks future credits. **Mitigation**: HARD-FAIL is preserved for unknown categories; we only re-route known ones for the `agent` role.
+- **Risk**: Reconciliation moves funds an agent already attempted to withdraw. **Mitigation**: We only move credits whose categories indicate float-purpose; commission-earning categories stay in withdrawable. Existing `wallet_withdrawal` debits already came out of withdrawable so the math nets correctly.
+- **Risk**: Wallet sole-writer rule. **Mitigation**: All updates go through `apply_wallet_movement` semantics (set sync_authorized flag inside the migration block).
 
