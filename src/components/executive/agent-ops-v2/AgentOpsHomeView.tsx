@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Bell, UserPlus, FileText, Banknote, Activity, TrendingUp, TrendingDown, Loader2, ChevronRight } from 'lucide-react';
+import { BriefDrillDownModal, type DrillMetric } from './BriefDrillDownModal';
 import {
   ResponsiveContainer,
   AreaChart,
