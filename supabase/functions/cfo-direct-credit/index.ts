@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { target_user_id, amount, reason, operation, wallet_category, platform_category, financial_impact, category_label, sub_category } = await req.json();
+    const { target_user_id, amount, reason, operation, wallet_category, platform_category, financial_impact, category_label, sub_category, confirm_non_commission } = await req.json();
     const op = operation === "debit" ? "debit" : "credit";
     const callerRoles = (roles || []).map((r: any) => r.role);
 
@@ -71,6 +71,40 @@ Deno.serve(async (req) => {
     const walletCat = ALLOWED_CATEGORIES.includes(wallet_category) ? wallet_category : 'system_balance_correction';
     const platformCat = ALLOWED_CATEGORIES.includes(platform_category) ? platform_category : 'system_balance_correction';
     const impact = ['revenue', 'expense', 'neutral'].includes(financial_impact) ? financial_impact : 'neutral';
+
+    // ── Guardrail: warn CFO when crediting an AGENT under a non-commission category
+    // that routes to their withdrawable bucket (admin reimbursements, marketing, etc.).
+    // These funds become withdrawable but won't show as commission earnings.
+    // Sometimes legitimate (admin reimbursements) — so this is a CONFIRM step, not a block.
+    const WITHDRAWABLE_CATEGORIES = new Set([
+      'roi_wallet_credit', 'agent_commission_earned', 'system_balance_correction', 'wallet_transfer',
+      'marketing_expense', 'research_development_expense', 'general_admin_expense',
+      'payroll_expense', 'tax_expense', 'interest_expense', 'equipment_expense',
+    ]);
+    if (
+      op === 'credit' &&
+      target_user_id &&
+      WITHDRAWABLE_CATEGORIES.has(walletCat) &&
+      walletCat !== 'agent_commission_earned' &&
+      !confirm_non_commission
+    ) {
+      const { data: targetRoles } = await adminClient
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', target_user_id)
+        .eq('role', 'agent');
+      if (targetRoles && targetRoles.length > 0) {
+        return new Response(JSON.stringify({
+          code: 'CONFIRM_NON_COMMISSION_AGENT_CREDIT',
+          message: `Recipient is an agent. Crediting them under '${walletCat}' will appear in their withdrawable bucket but NOT as commission. Re-submit with confirm_non_commission=true to proceed.`,
+          suggested_category: 'agent_commission_earned',
+          chosen_category: walletCat,
+        }), {
+          status: 409,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
 
     // Validate inputs — shadow on failure paths
     if (!target_user_id || typeof target_user_id !== "string") {
