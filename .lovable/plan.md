@@ -1,171 +1,75 @@
 
-## Plan: Fix the current financial-action errors and remove the remaining silent failures
 
-### What I found
+## Plan: Add a "Sub Agents" tab on the Agent dashboard
 
-There are two different problems happening at once:
+Add a fifth tab to the Agent Hub tab bar that lists all of the agent's sub-agents, each tagged to the parent agent (the signed-in agent), with their tenant counts visible.
 
-1. **Backend wallet routing bug**
-   - `wallet-deduction` is trying to use category `float_retraction`.
-   - Edge logs show:
-     ```text
-     Category "float_retraction" is not in the locked allowlist
-     ```
-   - That means the new float-overflow split logic was added in the edge function, but the category was never registered in the platform’s locked ledger rules.
+### What changes
 
-2. **Some buttons still fail silently because the UI only checks `error`, not `data?.error`**
-   - Several deposit/withdrawal approval screens still call `supabase.functions.invoke(...)` directly.
-   - Many of them only handle SDK transport errors, so a structured backend response like:
-     ```json
-     { "error": "Insufficient withdrawable balance..." }
-     ```
-     can still be missed.
+#### 1) Tab bar update — `src/components/agent/AgentHubTabs.tsx`
+- Extend `AgentHubTab` union: `'home' | 'money' | 'tenants' | 'grow' | 'subagents'`.
+- Add a new tab entry after **Grow**:
+  - id: `subagents`
+  - icon: `UsersRound` (lucide)
+  - label: `Sub Agents`
+- Update the grid from `grid-cols-4` to `grid-cols-5` so all five tabs fit on mobile, with tighter padding/icon sizes already used.
 
-There is also a third important detail:
+#### 2) Agent dashboard panel — `src/components/dashboards/AgentDashboard.tsx`
+- Add a new conditional block after the existing `activeTab === 'grow'` panel:
+  ```tsx
+  {activeTab === 'subagents' && (
+    <div className="space-y-5 animate-in fade-in duration-200">
+      <SubAgentsPanel agentId={user.id} />
+    </div>
+  )}
+  ```
+- Import the new panel component.
 
-3. **CFO direct debit is not fully fixed yet**
-   - Logs show `cfo-direct-credit` still hitting:
-     ```text
-     new row for relation "wallets" violates check constraint "wallets_balance_check"
-     ```
-   - The current debit split logic still depends on a float fallback category that is not fully aligned with the router/allowlist setup.
+#### 3) New panel — `src/components/agent/SubAgentsPanel.tsx`
+Reuse existing data plumbing (we already have `SubAgentsList` and `SubAgentInvitesList` that do the heavy lifting). The panel will:
 
-### Implementation plan
+- Header strip showing:
+  - Parent agent name + avatar (the signed-in agent) with a "Lead Agent" badge so the parent-child tagging is visible
+  - Total sub-agents
+  - Total tenants across all sub-agents
+- Pending invites section (`SubAgentInvitesList`) — only renders if invites exist
+- Active sub-agents section (`SubAgentsList`) — already shows per-sub-agent tenant counts and earnings
+- Empty state: when zero sub-agents and zero invites, show a friendly card with an "Invite Sub-Agent" CTA that triggers the existing invite flow (uses the `handleInviteSubAgent` handler already wired in `AgentDashboard`)
 
-#### 1) Fix float-backed debits with a valid ledger category
-Use an existing production category instead of the unregistered `float_retraction`.
+Tagging-to-parent visualization:
+- Each sub-agent row keeps the existing layout but adds a small subtitle line: `Reports to: {parent agent full name}` so the link to the lead agent is explicit on screen.
+- Total tenants is derived by summing `tenants_count` across the sub-agents already loaded by `SubAgentsList`. We will lift that aggregate up through a small callback prop `onSummary({ count, totalTenants })` so the header can render the total without duplicating the query.
 
-- Update:
-  - `supabase/functions/wallet-deduction/index.ts`
-  - `supabase/functions/cfo-direct-credit/index.ts`
-- Replace the float-overflow debit leg from `float_retraction` to an already approved float cash-out category:
-  - `agent_float_settlement`
-- Then update the wallet router so that `agent_float_settlement` is explicitly treated as a **float bucket** category.
+#### 4) Minor enhancement — `src/components/agent/SubAgentsList.tsx`
+- Add an optional `onSummary?: (s: { count: number; totalTenants: number; totalEarnings: number }) => void` prop and call it after the enrichment step.
+- Add an optional `parentAgentName?: string` prop. When provided, render the "Reports to: …" subtitle under each sub-agent name.
+- No behavior change when these props are omitted (existing usages stay intact).
 
-Why this path:
-- `agent_float_settlement` already exists in the strict allowlist / locked categories.
-- It avoids inventing a brand-new category and reduces the chance of another strict-mode failure.
-
-#### 2) Patch the wallet router so float settlement actually drains float
-Create a database migration that updates `wallet_route_for_category(...)` so:
+### ASCII layout
 
 ```text
-agent_float_settlement -> float bucket
-sign follows direction
+[ Home ] [ Money ] [ Tenants ] [ Grow ] [ Sub Agents* ]
+
+Sub Agents tab:
+┌─────────────────────────────────────────────┐
+│  Lead Agent: Grace Paul Ochieng             │
+│  Sub-Agents: 4    Total Tenants: 37         │
+└─────────────────────────────────────────────┘
+[ Pending Invites (if any) ]
+[ My Sub-Agents list                          ]
+   • Name — 12 tenants — Reports to: Grace P. │
 ```
-
-This ensures that when the edge functions split a debit:
-- first leg drains `withdrawable`
-- overflow leg drains `float`
-
-instead of trying to route back into `withdrawable` and tripping wallet balance checks.
-
-#### 3) Keep bucket-aware prechecks in the edge functions
-For both:
-- `wallet-deduction`
-- `cfo-direct-credit` debit branch
-
-Use this rule:
-
-```text
-if withdrawable >= amount:
-  use single withdrawable debit
-else if withdrawable + float >= amount:
-  split debit into withdrawable portion + float portion
-else:
-  return structured 400 error with bucket breakdown
-```
-
-Expected backend error shape:
-```json
-{
-  "error": "Insufficient balance. Withdrawable: UGX X, Float: UGX Y, Requested: UGX Z"
-}
-```
-
-#### 4) Roll out the global edge-error wrapper to the approval buttons
-Adopt `src/lib/invokeEdgeFunction.ts` for the financial actions that still use raw `supabase.functions.invoke(...)`.
-
-Priority callsites:
-
-**Deposit approval / rejection**
-- `src/components/manager/DepositRequestsManager.tsx`
-- `src/pages/DepositsManagement.tsx`
-- `src/components/agent/PendingDepositsSection.tsx`
-- `src/components/financial-ops/DepositStatsPanel.tsx`
-- `src/components/financial-ops/TidVerification.tsx`
-
-**Withdrawal approval / rejection**
-- `src/components/financial-ops/FinOpsWithdrawalVerification.tsx`
-- `src/components/cfo/CFOWithdrawalApprovals.tsx`
-- `src/components/financial-ops/FloatPayoutVerification.tsx`
-
-**Already-related financial actions worth aligning**
-- `src/components/financial-ops/WalletDeductionPanel.tsx`
-- `src/components/cfo/DirectCreditTool.tsx` (preserve its special 409 confirmation flow for non-commission agent credits)
-
-The goal is:
-- every edge failure shows a toast
-- every structured backend error body is surfaced
-- no button appears to do nothing
-
-#### 5) Handle partial-success batch responses properly
-Some deposit bulk actions return `data.results` rather than a single hard failure.
-
-For bulk approve/reject screens:
-- parse `results`
-- show per-item backend error summaries when present
-- avoid generic messages like “Failed to approve 1 deposit” when the backend already returned the exact reason
 
 ### Files to change
 
-**Backend**
-- `supabase/functions/wallet-deduction/index.ts`
-- `supabase/functions/cfo-direct-credit/index.ts`
-- new migration updating `wallet_route_for_category(...)`
+- `src/components/agent/AgentHubTabs.tsx` (add `subagents` tab, switch to 5-col grid)
+- `src/components/dashboards/AgentDashboard.tsx` (render the new panel)
+- `src/components/agent/SubAgentsList.tsx` (optional `onSummary` + `parentAgentName` props)
+- `src/components/agent/SubAgentsPanel.tsx` (new file)
 
-**Frontend**
-- `src/lib/invokeEdgeFunction.ts` (only if a small enhancement is needed for special-case handling)
-- `src/components/manager/DepositRequestsManager.tsx`
-- `src/pages/DepositsManagement.tsx`
-- `src/components/agent/PendingDepositsSection.tsx`
-- `src/components/financial-ops/DepositStatsPanel.tsx`
-- `src/components/financial-ops/TidVerification.tsx`
-- `src/components/financial-ops/FinOpsWithdrawalVerification.tsx`
-- `src/components/cfo/CFOWithdrawalApprovals.tsx`
-- `src/components/financial-ops/FloatPayoutVerification.tsx`
-- `src/components/financial-ops/WalletDeductionPanel.tsx`
-- `src/components/cfo/DirectCreditTool.tsx`
+### Notes
 
-### Verification checklist
+- No backend / RLS changes needed — the data comes from the existing `agent_subagents`, `referrals`, `profiles`, `agent_earnings`, and `rent_requests` queries already used by `SubAgentsList`.
+- Tenant counts already exist per-sub-agent; the new total is just a client-side sum.
+- Empty state CTA reuses the existing invite-sub-agent handler in `AgentDashboard`, so no new invite flow is introduced.
 
-1. **Wallet deduction from float-backed wallet**
-   - user has `withdrawable=0`, `float>0`
-   - deduction succeeds by draining float through valid category routing
-
-2. **CFO direct debit**
-   - debit against user with float-backed funds no longer throws `wallets_balance_check`
-   - if insufficient total funds, toast shows exact backend message
-
-3. **Confirm deposit buttons**
-   - forced backend rejection always shows the structured reason in a toast
-   - no silent confirm/reject actions
-
-4. **Withdrawal approval buttons in Financial Ops**
-   - approve/reject always show backend errors
-   - `INSUFFICIENT_WITHDRAWABLE`, permission failures, and state conflicts all surface visibly
-
-5. **Batch deposit actions**
-   - mixed-result responses show exact failure reasons, not only a generic fail count
-
-### Technical note
-
-Current evidence strongly indicates the main runtime break is not just “missing toasts”:
-```text
-wallet-deduction -> Category "float_retraction" is not in the locked allowlist
-cfo-direct-credit -> wallets_balance_check violation
-```
-
-So the fix needs both layers:
-- backend category/router correction
-- shared frontend error surfacing
