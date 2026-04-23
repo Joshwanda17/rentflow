@@ -68,6 +68,8 @@ const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; pri
 export function AgentOpsDashboard() {
   const [activeView, setActiveView] = useState<ActiveView>(null);
   const [selectedAgent, setSelectedAgent] = useState<any>(null);
+  const [bottomTab, setBottomTab] = useState<BottomTab>('home');
+  const [dateRange, setDateRange] = useState<DateRange>('24h');
   const isMobile = useIsMobile();
 
   const { data: kpis, isLoading: kpisLoading } = useQuery({
