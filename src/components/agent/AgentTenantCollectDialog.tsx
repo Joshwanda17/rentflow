@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentLandlordFloat } from '@/hooks/useAgentLandlordFloat';
 import { formatUGX } from '@/lib/rentCalculations';
+import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { CommissionCelebration } from './CommissionCelebration';
 
 interface AgentTenantCollectDialogProps {
@@ -67,13 +68,17 @@ export function AgentTenantCollectDialog({
         p_notes: notes.trim() || null,
       });
 
-      if (error) throw error;
+      if (error) {
+        const message = await extractFromErrorObject(error, 'Allocation failed');
+        console.error('[AgentTenantCollectDialog] allocation RPC failed:', message, error);
+        throw new Error(message);
+      }
 
       const res = data as any;
-      if (!res.success) {
-        toast.error('Allocation failed', { description: res.error });
-        setLoading(false);
-        return;
+      if (!res?.success || res?.error) {
+        const message = res?.error || 'Allocation failed. Please try again.';
+        console.error('[AgentTenantCollectDialog] allocation rejected:', res);
+        throw new Error(message);
       }
 
       setResult(res);
@@ -93,7 +98,9 @@ export function AgentTenantCollectDialog({
         description: `${formatUGX(amount)} moved from float for ${tenant.full_name}`,
       });
     } catch (err: any) {
-      toast.error('Allocation failed', { description: err.message });
+      toast.error('Allocation failed', {
+        description: err instanceof Error ? err.message : 'Allocation failed. Please try again.',
+      });
     } finally {
       setLoading(false);
     }
