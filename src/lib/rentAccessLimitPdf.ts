@@ -171,6 +171,22 @@ export async function generateRentAccessLimitPdf(data: RentAccessLimitPdfData): 
   return pdf.output('blob');
 }
 
+/** Load the Welile logo as an HTMLImageElement (best-effort, returns null on failure). */
+async function loadLogoImage(): Promise<HTMLImageElement | null> {
+  try {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = welileLogoUrl;
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('logo load failed'));
+    });
+    return img;
+  } catch {
+    return null;
+  }
+}
+
 /** Render a square PNG share card via offscreen <canvas>. Returns a Blob. */
 export async function generateRentAccessLimitPng(data: RentAccessLimitPdfData): Promise<Blob> {
   const W = 1080;
@@ -181,15 +197,15 @@ export async function generateRentAccessLimitPng(data: RentAccessLimitPdfData): 
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas not supported');
 
-  // Background gradient
+  // Welile purple brand gradient (matches --primary: 271 100% 40%)
   const grad = ctx.createLinearGradient(0, 0, W, H);
-  grad.addColorStop(0, '#1e3a8a');
-  grad.addColorStop(0.55, '#2563eb');
-  grad.addColorStop(1, '#0f172a');
+  grad.addColorStop(0, '#3d0066');     // deep purple top-left
+  grad.addColorStop(0.5, '#7A00CC');   // brand primary purple
+  grad.addColorStop(1, '#1a0033');     // near-black purple bottom-right
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, H);
 
-  // Soft glow orbs
+  // Soft purple glow orbs
   const orb = (x: number, y: number, r: number, color: string) => {
     const g = ctx.createRadialGradient(x, y, 0, x, y, r);
     g.addColorStop(0, color);
@@ -197,36 +213,57 @@ export async function generateRentAccessLimitPng(data: RentAccessLimitPdfData): 
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
   };
-  orb(880, 180, 360, 'rgba(96,165,250,0.55)');
-  orb(140, 940, 360, 'rgba(59,130,246,0.40)');
+  orb(880, 180, 380, 'rgba(196,128,255,0.55)');
+  orb(140, 940, 380, 'rgba(122,0,204,0.45)');
 
-  // Top brand row
-  ctx.fillStyle = 'rgba(255,255,255,0.9)';
-  ctx.font = 'bold 36px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+  // Top brand row — logo + wordmark
+  const logo = await loadLogoImage();
+  let brandTextX = 64;
+  if (logo) {
+    const logoSize = 72;
+    // White rounded backdrop so the logo always reads on purple
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    const r = 18;
+    const lx = 64;
+    const ly = 56;
+    ctx.beginPath();
+    ctx.moveTo(lx + r, ly);
+    ctx.arcTo(lx + logoSize, ly, lx + logoSize, ly + logoSize, r);
+    ctx.arcTo(lx + logoSize, ly + logoSize, lx, ly + logoSize, r);
+    ctx.arcTo(lx, ly + logoSize, lx, ly, r);
+    ctx.arcTo(lx, ly, lx + logoSize, ly, r);
+    ctx.closePath();
+    ctx.fill();
+    ctx.drawImage(logo, lx + 6, ly + 6, logoSize - 12, logoSize - 12);
+    brandTextX = lx + logoSize + 18;
+  }
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 44px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
   ctx.textBaseline = 'top';
-  ctx.fillText('Welile', 64, 64);
+  ctx.fillText('Welile', brandTextX, 62);
 
-  ctx.fillStyle = 'rgba(255,255,255,0.65)';
-  ctx.font = '500 24px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
-  ctx.fillText('Rent Access Certificate', 64, 110);
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.font = '600 22px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+  ctx.fillText('Rent Money You Can Get', brandTextX, 112);
 
   // Tenant
-  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
   ctx.font = '600 28px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
-  ctx.fillText('Issued to', 64, 240);
+  ctx.fillText('For', 64, 240);
 
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 56px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
   ctx.fillText(data.tenantName, 64, 280);
 
-  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
   ctx.font = '500 24px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
   ctx.fillText(`${data.tenantPhone}${data.aiId ? '  ·  ' + data.aiId : ''}`, 64, 350);
 
   // Big limit
-  ctx.fillStyle = 'rgba(255,255,255,0.65)';
-  ctx.font = 'bold 26px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
-  ctx.fillText('YOUR RENT ACCESS LIMIT', 64, 470);
+  ctx.fillStyle = 'rgba(255,255,255,0.8)';
+  ctx.font = 'bold 28px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+  ctx.fillText('WELILE CAN PAY YOUR RENT UP TO', 64, 460);
 
   ctx.fillStyle = '#ffffff';
   ctx.font = '900 110px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
@@ -240,8 +277,8 @@ export async function generateRentAccessLimitPng(data: RentAccessLimitPdfData): 
   ctx.fillText(limitText, 64, 510);
 
   const pct = data.result.netAdjustmentPct * 100;
-  const pctText = `${pct >= 0 ? '+' : ''}${pct.toFixed(0)}% from daily payments`;
-  ctx.fillStyle = pct >= 0 ? '#86efac' : '#fca5a5';
+  const pctText = `${pct >= 0 ? '+' : ''}${pct.toFixed(0)}% from your daily payments`;
+  ctx.fillStyle = pct >= 0 ? '#bbf7d0' : '#fecaca';
   ctx.font = '700 28px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
   ctx.fillText(pctText, 64, 660);
 
@@ -279,9 +316,9 @@ export async function generateRentAccessLimitPng(data: RentAccessLimitPdfData): 
 
   // Tagline
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 30px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+  ctx.font = 'bold 32px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('Pay today. Unlock more rent tomorrow.', W / 2, 920);
+  ctx.fillText('Pay today. Get more rent money tomorrow.', W / 2, 920);
 
   if (data.shareUrl) {
     ctx.fillStyle = 'rgba(255,255,255,0.7)';
