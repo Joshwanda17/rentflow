@@ -92,9 +92,12 @@ export function useAgentBalances(agentId?: string) {
       // aren't earnings.
       const withdrawableBalance = rawWithdrawable;
       const otherBalance = Math.max(0, rawWithdrawable - commissionBalance);
-      if (Math.abs(rawWithdrawable - commissionBalance) > 0.01) {
-        console.warn(
-          '[useAgentBalances] withdrawable/commission drift',
+      // After role-aware routing fix (2026-04-23), withdrawable should equal commission balance
+      // for agents. Any drift means a non-commission credit landed in withdrawable — log so we
+      // can catch missed categories in the router, but don't alarm the user.
+      if (otherBalance > 1) {
+        console.info(
+          '[useAgentBalances] withdrawable/commission drift (non-commission funds in withdrawable)',
           { agentId: effectiveId, rawWithdrawable, commissionBalance, otherBalance }
         );
       }

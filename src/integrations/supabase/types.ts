@@ -12808,13 +12808,21 @@ export type Database = {
         Args: { p_ledger_id: string; p_reason: string }
         Returns: undefined
       }
-      wallet_route_for_category: {
-        Args: { p_category: string; p_direction: string }
-        Returns: {
-          bucket: string
-          sign: number
-        }[]
-      }
+      wallet_route_for_category:
+        | {
+            Args: { p_category: string; p_direction: string }
+            Returns: {
+              bucket: string
+              sign: number
+            }[]
+          }
+        | {
+            Args: { p_category: string; p_direction: string; p_user_id: string }
+            Returns: {
+              bucket: string
+              sign: number
+            }[]
+          }
     }
     Enums: {
       ai_priority: "low" | "medium" | "high" | "critical"
