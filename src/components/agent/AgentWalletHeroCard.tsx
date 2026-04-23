@@ -10,6 +10,7 @@ interface AgentWalletHeroCardProps {
   floatBalance: number;
   commissionBalance: number;
   withdrawableBalance?: number;
+  otherBalance?: number;
   tenantsCount: number;
   totalEarnings: number;
   territory?: string;
@@ -19,6 +20,7 @@ export function AgentWalletHeroCard({
   floatBalance,
   commissionBalance,
   withdrawableBalance = 0,
+  otherBalance = 0,
   tenantsCount,
   totalEarnings,
   territory,
@@ -64,16 +66,24 @@ export function AgentWalletHeroCard({
             </p>
             <div className="flex items-baseline gap-2 min-w-0 w-full">
               <p className="text-[clamp(1.1rem,4.5vw,2.25rem)] font-black tracking-tight leading-none text-primary-foreground truncate w-full">
-                {formatAmount(floatBalance + commissionBalance)}
+                {formatAmount(floatBalance + commissionBalance + otherBalance)}
               </p>
             </div>
-            <div className="flex items-center gap-3 mt-2 text-xs">
+            <div className="flex items-center gap-3 mt-2 text-xs flex-wrap">
               <span className="text-emerald-300 font-semibold">
                 Commission: {formatAmountCompact(commissionBalance)}
               </span>
               <span className="text-blue-300 font-semibold">
                 Float: {formatAmountCompact(floatBalance)}
               </span>
+              {otherBalance > 0 && (
+                <span
+                  className="text-amber-300 font-semibold"
+                  title="Funds credited by CFO under a non-commission category. Withdrawable but not counted as earnings."
+                >
+                  Other: {formatAmountCompact(otherBalance)}
+                </span>
+              )}
             </div>
           </button>
 

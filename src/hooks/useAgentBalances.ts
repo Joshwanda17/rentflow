@@ -9,6 +9,8 @@ export interface AgentSplitBalances {
   advanceBalance: number;
   /** True commission balance: sum(agent_commission_earned cash_in) − sum(commission cash_out). Always ≥ 0. */
   commissionBalance: number;
+  /** Withdrawable funds NOT classified as commission (e.g. CFO admin-expense credits). Review with CFO. */
+  otherBalance: number;
   totalBalance: number;
 }
 
@@ -84,14 +86,16 @@ export function useAgentBalances(agentId?: string) {
         commissionBalance = rawWithdrawable; // fallback to legacy behavior
       }
 
-      // INVARIANT: withdrawable balance ALWAYS equals commission balance for agents.
-      // The wallet's stored withdrawable_balance can lag behind ledger truth, so the
-      // commission ledger is the source of truth for what the agent can cash out.
-      const withdrawableBalance = commissionBalance;
+      // Withdrawable balance is the truth from the wallet row (what the user can actually
+      // cash out). Commission balance is ledger-derived (what they earned). The gap is
+      // "other" — typically CFO admin-expense credits that landed in withdrawable but
+      // aren't earnings.
+      const withdrawableBalance = rawWithdrawable;
+      const otherBalance = Math.max(0, rawWithdrawable - commissionBalance);
       if (Math.abs(rawWithdrawable - commissionBalance) > 0.01) {
         console.warn(
           '[useAgentBalances] withdrawable/commission drift',
-          { agentId: effectiveId, rawWithdrawable, commissionBalance }
+          { agentId: effectiveId, rawWithdrawable, commissionBalance, otherBalance }
         );
       }
 
@@ -100,6 +104,7 @@ export function useAgentBalances(agentId?: string) {
         floatBalance,
         advanceBalance,
         commissionBalance,
+        otherBalance,
         totalBalance: withdrawableBalance + floatBalance,
       };
     },
@@ -115,6 +120,7 @@ export function useAgentBalances(agentId?: string) {
     floatBalance: data?.floatBalance ?? 0,
     advanceBalance: data?.advanceBalance ?? 0,
     commissionBalance: data?.commissionBalance ?? 0,
+    otherBalance: data?.otherBalance ?? 0,
     totalBalance: data?.totalBalance ?? 0,
     isLoading,
     error,
