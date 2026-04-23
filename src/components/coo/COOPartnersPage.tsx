@@ -3301,7 +3301,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       setCompoundConfirmation({
         open: true,
         partnerName: p.name || 'Partner',
-        portfolioLabel: p.portfolioName || `PF-${p.portfolioId.slice(0, 8).toUpperCase()}`,
+        portfolioLabel: p.portfolioName || p.portfolioId,
         roiAmount,
         newPrincipal: newAmount,
         refId,
