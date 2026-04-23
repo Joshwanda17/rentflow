@@ -11360,6 +11360,54 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_overdraw_events: {
+        Row: {
+          advance_after: number | null
+          advance_before: number | null
+          attempted_balance: number
+          clamped_to: number
+          created_at: string
+          delta_lost: number | null
+          float_after: number | null
+          float_before: number | null
+          id: string
+          trigger_op: string | null
+          user_id: string
+          withdrawable_after: number | null
+          withdrawable_before: number | null
+        }
+        Insert: {
+          advance_after?: number | null
+          advance_before?: number | null
+          attempted_balance: number
+          clamped_to?: number
+          created_at?: string
+          delta_lost?: number | null
+          float_after?: number | null
+          float_before?: number | null
+          id?: string
+          trigger_op?: string | null
+          user_id: string
+          withdrawable_after?: number | null
+          withdrawable_before?: number | null
+        }
+        Update: {
+          advance_after?: number | null
+          advance_before?: number | null
+          attempted_balance?: number
+          clamped_to?: number
+          created_at?: string
+          delta_lost?: number | null
+          float_after?: number | null
+          float_before?: number | null
+          id?: string
+          trigger_op?: string | null
+          user_id?: string
+          withdrawable_after?: number | null
+          withdrawable_before?: number | null
+        }
+        Relationships: []
+      }
       wallet_transactions: {
         Row: {
           amount: number
@@ -11384,6 +11432,39 @@ export type Database = {
           id?: string
           recipient_id?: string
           sender_id?: string
+        }
+        Relationships: []
+      }
+      wallet_unrouted_movements: {
+        Row: {
+          amount: number
+          bucket_returned: string | null
+          category: string
+          created_at: string
+          direction: string
+          id: string
+          sign_returned: number | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          bucket_returned?: string | null
+          category: string
+          created_at?: string
+          direction: string
+          id?: string
+          sign_returned?: number | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          bucket_returned?: string | null
+          category?: string
+          created_at?: string
+          direction?: string
+          id?: string
+          sign_returned?: number | null
+          user_id?: string
         }
         Relationships: []
       }
