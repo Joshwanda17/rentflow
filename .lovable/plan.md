@@ -1,56 +1,69 @@
 
 
-## Capture geo-location during link / transfer (delink) actions
+# Tap-to-Drill Modals for Brief Cards
 
-When an executive **links** an agent to a tenant or **transfers** (delinks) a tenant from one agent to another in `TenantAgentLinker.tsx`, capture the **executive's browser geo-location** at the moment of action and persist it alongside the action's audit record. This gives Tenant Ops a verifiable footprint of *where* every assignment decision was taken — feeding the Agent Field Mandate / Trust Coverage Engine.
+Add a drill-down modal triggered by tapping any of the 4 brief cards on the Agent Ops dashboard. Each modal shows the actual records behind the metric, updates live via Supabase Realtime, and respects the active date range (24H / 7D / 1M).
 
-### What changes
+## What you'll see
 
-**1. Capture executive location at click-time**  
-- Reuse the existing `useGeoLocation` hook (`src/hooks/useGeoLocation.tsx`) — already returns `{ latitude, longitude, accuracy }` and handles permission errors.
-- On **Link** (single request) and on **Confirm transfer** (bulk), call `captureLocation()` *before* invoking the mutation. If the browser denies/timeouts, show a toast and proceed (do **not** block the action — auditability shouldn't break operations), tagging the record with `actor_location_status = 'denied' | 'unavailable' | 'captured'`.
-- Add a small inline status row in both the link card footer and the confirm dialog footer:  
-  `📍 Location captured (±18 m)` / `📍 Location unavailable — proceeding without geo`.
+Tap a card → a sheet/dialog slides up with:
+- **Header**: metric title, big number, % change, range badge, a pulsing "Live" dot.
+- **Mini sparkline** (same series as the card) for context.
+- **Records list**: the actual rows backing the number, newest first, paginated 25 at a time with "Load more".
+- **Realtime ticker**: when a new matching row arrives, it animates in at the top with a subtle highlight; the header count auto-increments.
+- **Row tap**: opens the relevant detail (agent profile / rent request / earning entry) using existing routes where available.
 
-**2. Also surface tenant & agent last-known location**  
-- Both `selectedTenant` and `selectedAgent` already have `id` → query `user_locations` for the most recent row per user (single round-trip via `.in('user_id', [...])` + `order('captured_at', desc)` deduped client-side).
-- Show as two pills under each picker:  
-  `Tenant last seen: Kampala · 2 h ago` / `Agent last seen: Wakiso · 14 m ago` (or `No location on file`).
-- Inside the **confirm dialog**, add a "Location context" block showing tenant + agent last-known coords with a distance estimate (haversine, km) so the operator sees if the new agent is geographically near the tenant.
+## Per-card drill-downs
 
-**3. Persist actor location with the action**
+| Card | Records shown | Source | Row content |
+|------|---------------|--------|-------------|
+| New Agents Onboarded | New agents in range | `user_roles` (role=agent) joined to `profiles` | Avatar, name, phone, joined-at relative time |
+| Rent Requests | Requests created in range | `rent_requests` joined to `profiles` (tenant) | Tenant name, amount (UGX), status pill, created-at |
+| Commission Earned | Earnings posted in range | `agent_earnings` joined to `profiles` (agent) | Agent name, amount (UGX), source/category, created-at |
+| Active Agents | Agents with `last_active_at` in range | `profiles` filtered by role=agent | Avatar, name, last-active relative time, status dot |
 
-- **Bulk transfer** (`transfer-tenant` edge function): extend the request body with `actor_latitude`, `actor_longitude`, `actor_accuracy`, `actor_location_status`. The function writes them into the new columns on `tenant_transfers` and into the `audit_logs.metadata` JSON. No RLS change needed (table already manager/admin-only).
-- **Single link** (direct `rent_requests` update from the client): write a row into `audit_logs` (`action_type='agent_linked'`, `table_name='rent_requests'`, `record_id=rentRequestId`, `metadata={ tenant_id, agent_id, actor_latitude, actor_longitude, actor_accuracy, actor_location_status, reason: 'manual_link' }`) so single-link actions are equally traceable.
+Each modal also shows totals (count + sum where applicable) and a "View full section" button that calls the existing `onOpenSection` (directory / pipeline / earnings) for deeper management.
 
-**4. Database migration**
+## Realtime behavior
 
-Add columns to `tenant_transfers`:
-```sql
-ALTER TABLE public.tenant_transfers
-  ADD COLUMN actor_latitude double precision,
-  ADD COLUMN actor_longitude double precision,
-  ADD COLUMN actor_accuracy double precision,
-  ADD COLUMN actor_location_status text
-    CHECK (actor_location_status IN ('captured','denied','unavailable','timeout','unsupported'));
-```
-No new table — `user_locations` already stores tenant/agent passive captures; this just enriches the action record.
+- Each modal opens its own scoped Supabase channel filtered to the table it cares about, so events don't leak across modals.
+- New INSERTs that fall inside the current range are prepended with a 1.5s highlight pulse.
+- UPDATEs (e.g. rent request status change) update the row in place.
+- Channel is torn down on close to avoid lingering subscriptions.
 
-### Files to change
+## Empty / loading / error states
 
-- **New migration** — add 4 actor location columns to `tenant_transfers`.
-- `supabase/functions/transfer-tenant/index.ts` — accept and persist `actor_latitude/longitude/accuracy/location_status` to `tenant_transfers` and `audit_logs.metadata`.
-- `src/components/executive/TenantAgentLinker.tsx`:
-  - Import & use `useGeoLocation`.
-  - New query `lastKnownLocations` for `[selectedTenant.id, selectedAgent.id]` against `user_locations`.
-  - `linkMutation` and `transferAllMutation` capture location first, pass it through, and `linkMutation` also writes an `audit_logs` row.
-  - Render last-seen pills under each picker.
-  - Render location-context block + capture status in the confirm dialog.
-- (Optional, no code) leverages existing `useGeoLocation` — no new hook required.
+- Skeleton rows while loading (5 placeholders).
+- Empty state: friendly icon + "No [metric] in this window yet. New entries appear here live."
+- Error state: retry button.
 
-### Behavior notes
+## Mobile-first UX
 
-- **Non-blocking**: a denied/failed geo capture still allows the link/transfer (with `actor_location_status` reflecting why). This matches existing `useLocationTracking` pattern where failures are recorded, never thrown.
-- **Single permission prompt per session**: `getCurrentPosition` reuses browser cache (`maximumAge: 0` in current hook — we'll keep it for accuracy at decision-time).
-- **Trust mission alignment**: every link/transfer becomes a `system_event`-eligible signal; the geo-stamped `audit_logs.metadata` is the canonical record for downstream `capture_trust_signal` calls if/when wired.
+- Uses a bottom **Sheet** on mobile (`<640px`), centered **Dialog** on desktop — both already in the design system.
+- 85vh max height, internal scroll, sticky header with close button.
+- Touch-friendly 44px min row height; tap row = drill deeper.
+
+## Technical plan
+
+**New files**
+- `src/components/executive/agent-ops-v2/BriefDrillDownModal.tsx` — generic modal shell (header, sparkline, list container, realtime wiring). Props: `open`, `onOpenChange`, `metric` (`'new-agents' | 'rent-requests' | 'commission' | 'active-agents'`), `range`, `series`, `kpi`, `onOpenSection`.
+- `src/components/executive/agent-ops-v2/drill/NewAgentsList.tsx`
+- `src/components/executive/agent-ops-v2/drill/RentRequestsList.tsx`
+- `src/components/executive/agent-ops-v2/drill/CommissionList.tsx`
+- `src/components/executive/agent-ops-v2/drill/ActiveAgentsList.tsx`
+
+Each list component owns its own `useQuery` (paginated via `range(from, to)`) + a Realtime subscription. They expose a consistent row renderer.
+
+**Modified files**
+- `src/components/executive/agent-ops-v2/AgentOpsHomeView.tsx`:
+  - Replace each card's `onClick: () => onOpenSection(...)` with `onClick: () => setActiveDrill(metricKey)`.
+  - Add `<BriefDrillDownModal>` at the bottom, controlled by `activeDrill` state.
+  - Keep `onOpenSection` as the secondary "View full section" CTA inside each modal.
+
+**No DB migration needed** — realtime publication for `user_roles`, `rent_requests`, `agent_earnings` was already enabled in Phase 1. We'll add `profiles` to the publication only if active-agents realtime requires it (will check before adding).
+
+**Performance**
+- Page size 25, fetched server-side with `.range()`.
+- Realtime payloads are filtered client-side against the active range to avoid stale inserts polluting the list.
+- Modal queries use a separate `queryKey` (`['agent-ops-drill', metric, range, page]`) so they don't conflict with the card aggregates.
 
