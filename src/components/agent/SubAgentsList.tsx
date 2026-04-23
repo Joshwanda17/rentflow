@@ -33,7 +33,12 @@ interface SubAgent {
   active_today: boolean;
 }
 
-export function SubAgentsList() {
+interface SubAgentsListProps {
+  onSummary?: (s: { count: number; totalTenants: number; totalEarnings: number }) => void;
+  parentAgentName?: string;
+}
+
+export function SubAgentsList({ onSummary, parentAgentName }: SubAgentsListProps = {}) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [subAgents, setSubAgents] = useState<SubAgent[]>([]);
@@ -160,13 +165,18 @@ export function SubAgentsList() {
 
       setSubAgents(enriched);
       setTotalSubAgentEarnings(total);
+      onSummary?.({
+        count: enriched.length,
+        totalTenants: enriched.reduce((sum, s) => sum + (s.tenants_count || 0), 0),
+        totalEarnings: total,
+      });
     } catch (error) {
       console.error('Error fetching sub-agents:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user]);
+  }, [user, onSummary]);
 
   useEffect(() => {
     if (!user) return;
@@ -325,6 +335,11 @@ export function SubAgentsList() {
                   <p className="font-medium text-sm truncate">
                     {sub.full_name}
                   </p>
+                  {parentAgentName && (
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      Reports to: {parentAgentName}
+                    </p>
+                  )}
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <p className="text-[11px] text-muted-foreground truncate">
                       {sub.tenants_count} tenants

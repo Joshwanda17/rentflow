@@ -1,8 +1,8 @@
-import { Home, Wallet, Users, TrendingUp } from 'lucide-react';
+import { Home, Wallet, Users, TrendingUp, UsersRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
 
-export type AgentHubTab = 'home' | 'money' | 'tenants' | 'grow';
+export type AgentHubTab = 'home' | 'money' | 'tenants' | 'grow' | 'subagents';
 
 interface AgentHubTabsProps {
   active: AgentHubTab;
@@ -14,12 +14,13 @@ const tabs: { id: AgentHubTab; icon: typeof Home; label: string }[] = [
   { id: 'money', icon: Wallet, label: 'Money' },
   { id: 'tenants', icon: Users, label: 'Tenants' },
   { id: 'grow', icon: TrendingUp, label: 'Grow' },
+  { id: 'subagents', icon: UsersRound, label: 'Sub Agents' },
 ];
 
 export function AgentHubTabs({ active, onChange }: AgentHubTabsProps) {
   return (
     <div className="sticky top-0 z-20 -mx-4 px-4 pt-2 pb-2 bg-background/95 backdrop-blur-md border-b border-border/40">
-      <div className="grid grid-cols-4 gap-1 p-1 rounded-2xl bg-muted/60">
+      <div className="grid grid-cols-5 gap-1 p-1 rounded-2xl bg-muted/60">
         {tabs.map((t) => {
           const isActive = active === t.id;
           return (
@@ -35,7 +36,7 @@ export function AgentHubTabs({ active, onChange }: AgentHubTabsProps) {
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               <t.icon className={cn('h-4 w-4', isActive && 'scale-110')} strokeWidth={isActive ? 2.5 : 2} />
-              <span className="text-[10px] font-semibold tracking-wide">{t.label}</span>
+              <span className="text-[9px] font-semibold tracking-tight leading-tight text-center">{t.label}</span>
             </button>
           );
         })}
