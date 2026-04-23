@@ -45,6 +45,7 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { AgentDepositDialog } from '@/components/agent/AgentDepositDialog';
 import { UnifiedRegistrationDialog } from '@/components/agent/UnifiedRegistrationDialog';
 import { RegisterSubAgentDialog } from '@/components/agent/RegisterSubAgentDialog';
+import { SubAgentsPanel } from '@/components/agent/SubAgentsPanel';
 import AgentRentRequestDialog from '@/components/agent/AgentRentRequestDialog';
 import BusinessAdvanceRequestDialog from '@/components/agent/BusinessAdvanceRequestDialog';
 import { CommissionCelebrationModal } from '@/components/agent/CommissionCelebrationModal';
@@ -527,6 +528,13 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               ))}
             </div>
             <ShareRentRecorderCard />
+          </div>
+        )}
+
+        {/* === SUB AGENTS TAB === Team management */}
+        {activeTab === 'subagents' && (
+          <div className="space-y-5 animate-in fade-in duration-200">
+            <SubAgentsPanel agentId={user.id} onInviteSubAgent={handleInviteSubAgent} />
           </div>
         )}
 
