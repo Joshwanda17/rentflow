@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Search, AlertTriangle, Wallet, MinusCircle, Loader2, User, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatUGX } from '@/lib/rentCalculations';
+import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 
 const DEDUCTION_CATEGORIES = [
   { value: 'fee_correction', label: 'Fee Correction' },
@@ -126,8 +127,11 @@ export function WalletDeductionPanel() {
         },
       });
 
-      if (error) throw new Error(error.message || 'Deduction failed');
-      if (data?.error) throw new Error(data.error);
+      if (error || data?.error) {
+        const msg = await extractEdgeFunctionError({ error, data }, 'Deduction failed');
+        console.error('[WalletDeductionPanel] deduction failed:', msg, error);
+        throw new Error(msg);
+      }
       return data;
     },
     onSuccess: (data) => {
