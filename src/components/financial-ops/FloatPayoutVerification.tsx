@@ -144,7 +144,7 @@ export function FloatPayoutVerification() {
 
         // Trigger disbursement
         try {
-          await supabase.functions.invoke('disburse-rent-to-landlord', {
+          const { data: disbData, error: disbErr } = await supabase.functions.invoke('disburse-rent-to-landlord', {
             body: {
               rent_request_id: payout.rent_request_id,
               transaction_reference: tid.trim(),
@@ -152,8 +152,17 @@ export function FloatPayoutVerification() {
               notes: `Landlord float payout verified. TID: ${tid.trim()}. ${notes}`.trim(),
             },
           });
+          if (disbErr || disbData?.error) {
+            const { extractEdgeFunctionError } = await import('@/lib/extractEdgeFunctionError');
+            const msg = await extractEdgeFunctionError({ error: disbErr, data: disbData }, 'Disbursement finalization failed');
+            console.warn('[FloatPayoutVerification] disbursement finalize failed:', msg);
+            toast.warning('TID saved, but disbursement finalization failed', { description: msg });
+          }
         } catch (disbErr) {
           console.warn('Disbursement finalization failed:', disbErr);
+          toast.warning('TID saved, but disbursement finalization threw', {
+            description: (disbErr as Error)?.message,
+          });
         }
 
         // 1% commission to agent (platform expense, NOT charged to user)
