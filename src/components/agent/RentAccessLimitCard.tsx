@@ -241,10 +241,10 @@ export function RentAccessLimitCard({
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-primary/80">
-                Rent Access Limit
+                Rent Money You Can Get
               </p>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                Powered by Welile · Updates daily
+                Welile can pay this much rent for you · Grows daily
               </p>
               <TooltipProvider delayDuration={150}>
                 <Tooltip>
