@@ -51,9 +51,16 @@ const ACTIVE_PROXY_WITHDRAWAL_STATUSES = [
   'requested',
   'manager_approved',
   'cfo_approved',
+  'processing',
+] as const;
+
+// Terminal/disbursed statuses — funds have already been deducted from the agent
+// wallet via the approve-withdrawal edge function. These count as "delivered"
+// against the per-partner ROI balance.
+const COMPLETED_PROXY_WITHDRAWAL_STATUSES = [
+  'completed',
   'approved',
   'fin_ops_approved',
-  'processing',
 ] as const;
 
 export function ProxyPartnerFunds() {
