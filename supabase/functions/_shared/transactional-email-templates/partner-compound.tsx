@@ -142,6 +142,37 @@ export function PartnerCompound({
                 </tr>
 
                 <tr>
+                  <td className="padding-mobile" style={{ padding: '0 40px 40px 40px' }}>
+                    <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={ctaCard}>
+                      <tbody>
+                        <tr>
+                          <td align="center" style={ctaInner}>
+                            <Text style={ctaEyebrow}>Your Partner Dashboard Awaits</Text>
+                            <Heading as="h2" style={ctaHeadline}>Track every shilling, in real time.</Heading>
+                            <Text style={ctaSubtext}>
+                              Sign in to monitor your portfolio, watch monthly returns accrue, and download your statements — anytime, from anywhere.
+                            </Text>
+                            <table border={0} cellPadding={0} cellSpacing={0} role="presentation" align="center" style={{ margin: '8px auto 0 auto' }}>
+                              <tbody><tr>
+                                <td align="center" style={ctaButtonCell}>
+                                  <Link href={dashboard_url} style={ctaButton}>
+                                    Access Your Dashboard&nbsp;→
+                                  </Link>
+                                </td>
+                              </tr></tbody>
+                            </table>
+                            <Text style={ctaFinePrint}>
+                              Or paste this into your browser:{' '}
+                              <Link href={dashboard_url} style={ctaFineLink}>{dashboard_url}</Link>
+                            </Text>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+
+                <tr>
                   <td style={taglineCell}>
                     <Text style={taglineText}>
                       <em>"{company_name} is turning rent into an asset."</em>
