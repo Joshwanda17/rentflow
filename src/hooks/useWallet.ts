@@ -31,7 +31,14 @@ interface Wallet {
 }
 // Module-level wallet cache to prevent duplicate fetches across component instances
 let walletCache: { data: Wallet | null; userId: string; timestamp: number } | null = null;
-const WALLET_CACHE_TTL = 30_000; // 30 seconds
+// Keep a tiny module-level cache so multiple hook instances on the same render
+// don't all fire the same fetch, but never long enough to mask a real change
+// in withdrawable funds. Realtime UPDATE events override this immediately.
+const WALLET_CACHE_TTL = 5_000; // 5 seconds
+// Bump this whenever the wallet shape or invalidation logic changes — old
+// localStorage entries from previous releases will be discarded on next load.
+const WALLET_LS_VERSION = 'v2';
+const lsKey = (uid?: string) => `wallet_${WALLET_LS_VERSION}_${uid}`;
 
 export function useWallet() {
   const { user } = useAuth();
@@ -43,8 +50,10 @@ export function useWallet() {
     }
     // Sync read from localStorage for instant first-paint
     try {
-      const raw = localStorage.getItem(`wallet_${user?.id}`);
+      const raw = localStorage.getItem(lsKey(user?.id));
       if (raw) return JSON.parse(raw) as Wallet;
+      // Clean up any stale pre-v2 cache so it can never be served again
+      try { localStorage.removeItem(`wallet_${user?.id}`); } catch {}
     } catch {}
     return null;
   });
@@ -53,7 +62,7 @@ export function useWallet() {
   const [loading, setLoading] = useState(() => {
     if (walletCache && walletCache.userId === user?.id) return false;
     try {
-      return !localStorage.getItem(`wallet_${user?.id}`);
+      return !localStorage.getItem(lsKey(user?.id));
     } catch { return true; }
   });
   const [isOfflineData, setIsOfflineData] = useState(false);
@@ -110,14 +119,14 @@ export function useWallet() {
         setIsOfflineData(false);
         setLastSyncedAt(new Date());
         walletCache = { data: newWallet, userId: user.id, timestamp: Date.now() };
-        try { localStorage.setItem(`wallet_${user.id}`, JSON.stringify(newWallet)); } catch {}
+        try { localStorage.setItem(lsKey(user.id), JSON.stringify(newWallet)); } catch {}
         await cacheWallet(newWallet);
       } else {
         setWallet(data);
         setIsOfflineData(false);
         setLastSyncedAt(new Date());
         walletCache = { data, userId: user.id, timestamp: Date.now() };
-        try { localStorage.setItem(`wallet_${user.id}`, JSON.stringify(data)); } catch {}
+        try { localStorage.setItem(lsKey(user.id), JSON.stringify(data)); } catch {}
         await cacheWallet(data);
       }
     } catch (e) {
@@ -254,7 +263,7 @@ export function useWallet() {
               setIsOfflineData(false);
               setLastSyncedAt(new Date());
               walletCache = { data: updated, userId: user.id, timestamp: Date.now() };
-              try { localStorage.setItem(`wallet_${user.id}`, JSON.stringify(updated)); } catch {}
+              try { localStorage.setItem(lsKey(user.id), JSON.stringify(updated)); } catch {}
               cacheWallet(updated);
             }
           }
