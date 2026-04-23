@@ -112,7 +112,12 @@ export function useAgentBalances(agentId?: string) {
       };
     },
     enabled: !!effectiveId,
-    staleTime: 15_000,
+    // Treat balances as always-stale: the wallet is the most safety-critical
+    // value the user sees. We must never gate a withdraw button on a 15s-old
+    // cached zero. Realtime invalidations will still keep it fresh between
+    // renders; this just stops React Query from serving a stale snapshot.
+    staleTime: 0,
+    gcTime: 30_000,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
     retry: 2,
