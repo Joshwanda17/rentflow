@@ -39,14 +39,37 @@ export function PendingFunderApprovals() {
   const { data: pending, isLoading } = useQuery({
     queryKey: ['pending-funder-approvals'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // NOTE: do NOT use embedded selects (agent:agent_id(...)) — proxy_agent_assignments
+      // has multiple PostgREST relationships on agent_id/beneficiary_id (profiles +
+      // manager_profiles + referral_leaderboard + user_financial_summaries views),
+      // which makes the embed ambiguous and silently returns nothing.
+      const { data: rows, error } = await supabase
         .from('proxy_agent_assignments')
-        .select('id, agent_id, beneficiary_id, beneficiary_role, reason, created_at, agent:agent_id(full_name, phone), beneficiary:beneficiary_id(full_name, phone)')
+        .select('id, agent_id, beneficiary_id, beneficiary_role, reason, created_at')
         .eq('approval_status', 'pending')
         .eq('beneficiary_role', 'supporter')
         .order('created_at', { ascending: true });
       if (error) throw error;
-      const items = (data as unknown as Omit<PendingFunder, 'accruedReturns' | 'investmentTotal'>[]) || [];
+      const baseRows = rows || [];
+      if (baseRows.length === 0) return [] as PendingFunder[];
+
+      // Resolve agent + beneficiary profiles in a single batched fetch
+      const profileIds = Array.from(
+        new Set(baseRows.flatMap(r => [r.agent_id, r.beneficiary_id]).filter(Boolean))
+      );
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone')
+        .in('id', profileIds);
+      const profileMap = new Map(
+        (profiles || []).map(p => [p.id, { full_name: p.full_name, phone: p.phone }])
+      );
+
+      const items: Omit<PendingFunder, 'accruedReturns' | 'investmentTotal'>[] = baseRows.map(r => ({
+        ...r,
+        agent: profileMap.get(r.agent_id) || null,
+        beneficiary: profileMap.get(r.beneficiary_id) || null,
+      }));
 
       // Enrich with portfolio returns for each funder
       const enriched = await Promise.all(items.map(async (item) => {
