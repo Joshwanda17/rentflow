@@ -446,7 +446,6 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             .eq('record_id', portfolio.id);
           const paymentNumber = (priorCompounds ?? 0); // includes the one we just inserted? insert above already happened, so this is the cycle index
 
-          const compactPortfolio = portfolio.id.replace(/-/g, '').slice(0, 8).toUpperCase();
           const compoundIso = new Date().toISOString();
           const compoundDate = new Date(compoundIso).toLocaleDateString('en-GB', {
             day: '2-digit', month: 'long', year: 'numeric',
@@ -459,7 +458,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
               idempotencyKey: `partner-compound-${detailPartner.profile.id}-${portfolio.id}-${paymentNumber}`,
               templateData: {
                 partner_name: detailPartner.profile.full_name || 'Partner',
-                portfolio_id: `PF-${compactPortfolio}`,
+                portfolio_id: portfolio.portfolio_code || portfolio.id,
                 compound_date: compoundDate,
                 initial_partnership_amount: portfolio.investment_amount,
                 roi_return: `${portfolio.roi_percentage}%`,
