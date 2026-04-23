@@ -242,7 +242,7 @@ export function AgentOpsDashboard() {
   // MOBILE: Show sub-view inline with back button
   if (isMobile && activeView) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-3 pb-[calc(env(safe-area-inset-bottom)+72px)] sm:pb-0">
         <button
           onClick={() => setActiveView(null)}
           className="flex items-center gap-2 text-sm font-semibold text-primary active:scale-95 transition-transform touch-manipulation py-2"
@@ -260,7 +260,7 @@ export function AgentOpsDashboard() {
   // DESKTOP: Show sub-view inline (no grid replacement)
   if (!isMobile && activeView) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 pb-[calc(env(safe-area-inset-bottom)+72px)] sm:pb-0">
         <button
           onClick={() => setActiveView(null)}
           className="flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
@@ -312,7 +312,7 @@ export function AgentOpsDashboard() {
 
   // HOME VIEW
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-[calc(env(safe-area-inset-bottom)+72px)] sm:pb-0">
       {/* Greeting header */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">

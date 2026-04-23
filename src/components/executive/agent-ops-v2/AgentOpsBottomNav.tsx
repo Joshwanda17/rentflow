@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { Home, Briefcase, Users, Wallet, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -18,10 +19,12 @@ export function AgentOpsBottomNav({
   active: BottomTab;
   onChange: (tab: BottomTab) => void;
 }) {
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <nav
       className={cn(
-        'fixed bottom-0 inset-x-0 z-40 sm:hidden',
+        'fixed bottom-0 inset-x-0 z-50 sm:hidden',
         'bg-card/95 backdrop-blur border-t border-border',
         'pb-[env(safe-area-inset-bottom)]',
       )}
@@ -51,6 +54,7 @@ export function AgentOpsBottomNav({
           );
         })}
       </ul>
-    </nav>
+    </nav>,
+    document.body,
   );
 }
