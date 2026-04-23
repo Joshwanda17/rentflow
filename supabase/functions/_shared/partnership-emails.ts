@@ -141,6 +141,7 @@ export function buildPartnerCompoundRequest(input: PartnerCompoundInput) {
       company_name: COMPANY_NAME,
       logo_url: LOGO_URL,
       unsubscribe_url: UNSUBSCRIBE_URL,
+      dashboard_url: DASHBOARD_URL,
     },
   };
 }
