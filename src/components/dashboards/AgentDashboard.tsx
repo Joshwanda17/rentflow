@@ -7,6 +7,7 @@ import { User } from '@supabase/supabase-js';
 import AiIdButton from '@/components/ai-id/AiIdButton';
 import { UnifiedWalletHeroCard } from '@/components/wallet/UnifiedWalletHeroCard';
 import { AgentRiskExposureCard } from '@/components/agent/AgentRiskExposureCard';
+import { EarnedSinceLastWithdrawalCard } from '@/components/agent/EarnedSinceLastWithdrawalCard';
 
 import { Button } from '@/components/ui/button';
 import { 
@@ -437,6 +438,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {activeTab === 'money' && (
           <div className="space-y-5 animate-in fade-in duration-200">
             <AgentRiskExposureCard />
+            <EarnedSinceLastWithdrawalCard />
             <AgentLandlordFloatCard
               onPayLandlord={() => { hapticTap(); setFloatAllocationsOpen(true); }}
               onOpenRecovery={() => { hapticTap(); setRecoveryLedgerOpen(true); }}
