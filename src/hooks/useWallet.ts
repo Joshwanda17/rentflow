@@ -119,14 +119,14 @@ export function useWallet() {
         setIsOfflineData(false);
         setLastSyncedAt(new Date());
         walletCache = { data: newWallet, userId: user.id, timestamp: Date.now() };
-        try { localStorage.setItem(`wallet_${user.id}`, JSON.stringify(newWallet)); } catch {}
+        try { localStorage.setItem(lsKey(user.id), JSON.stringify(newWallet)); } catch {}
         await cacheWallet(newWallet);
       } else {
         setWallet(data);
         setIsOfflineData(false);
         setLastSyncedAt(new Date());
         walletCache = { data, userId: user.id, timestamp: Date.now() };
-        try { localStorage.setItem(`wallet_${user.id}`, JSON.stringify(data)); } catch {}
+        try { localStorage.setItem(lsKey(user.id), JSON.stringify(data)); } catch {}
         await cacheWallet(data);
       }
     } catch (e) {
@@ -263,7 +263,7 @@ export function useWallet() {
               setIsOfflineData(false);
               setLastSyncedAt(new Date());
               walletCache = { data: updated, userId: user.id, timestamp: Date.now() };
-              try { localStorage.setItem(`wallet_${user.id}`, JSON.stringify(updated)); } catch {}
+              try { localStorage.setItem(lsKey(user.id), JSON.stringify(updated)); } catch {}
               cacheWallet(updated);
             }
           }
