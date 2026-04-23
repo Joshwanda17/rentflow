@@ -110,9 +110,13 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
     }
   };
 
+  useFunderAccountsRealtime({
+    agentId: user?.id,
+    onChange: fetchFunders,
+    enabled: open && !!user,
+  });
+
   const handleSendStatement = async (funder: LinkedFunder) => {
-    // realtime hook placed after fetchFunders is in scope above
-    // (declaration handled below via the hoisted hook call)
     if (!funder.beneficiary || !user) return;
     setSendingSMS(funder.beneficiary.id);
     try {
