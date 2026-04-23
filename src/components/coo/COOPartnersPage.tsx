@@ -3088,6 +3088,20 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
   const [splitPayMode, setSplitPayMode] = useState<'wallet' | 'agent_wallet' | 'already_paid'>('wallet');
   const [splitReinvestMode, setSplitReinvestMode] = useState<'reinvest' | 'keep_returns'>('reinvest');
 
+  // Compound confirmation state — shown after a compound action completes
+  type CompoundEmailStatus = 'queued' | 'previously_sent' | 'suppressed' | 'skipped_no_email' | 'failed';
+  const [compoundConfirmation, setCompoundConfirmation] = useState<{
+    open: boolean;
+    partnerName: string;
+    portfolioLabel: string;
+    roiAmount: number;
+    newPrincipal: number;
+    refId: string;
+    recipientEmail: string;
+    emailStatus: CompoundEmailStatus;
+    emailDetail?: string;
+  } | null>(null);
+
   // Keep a local snapshot so items don't vanish when parent refetches
   const [localPortfolios, setLocalPortfolios] = useState<NearingPayoutPortfolio[]>(portfolios);
   useEffect(() => {
