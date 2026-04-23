@@ -1,69 +1,90 @@
 
 
-# Tap-to-Drill Modals for Brief Cards
+# Fix: wallet digits not updating in the UI + phantom balances
 
-Add a drill-down modal triggered by tapping any of the 4 brief cards on the Agent Ops dashboard. Each modal shows the actual records behind the metric, updates live via Supabase Realtime, and respects the active date range (24H / 7D / 1M).
+Two real bugs are converging into the symptom you see. We'll fix both, then reconcile the bad data (including Collines).
 
-## What you'll see
+## Root causes (verified in DB + code)
 
-Tap a card → a sheet/dialog slides up with:
-- **Header**: metric title, big number, % change, range badge, a pulsing "Live" dot.
-- **Mini sparkline** (same series as the card) for context.
-- **Records list**: the actual rows backing the number, newest first, paginated 25 at a time with "Load more".
-- **Realtime ticker**: when a new matching row arrives, it animates in at the top with a subtle highlight; the header count auto-increments.
-- **Row tap**: opens the relevant detail (agent profile / rent request / earning entry) using existing routes where available.
+**1. The 3-bucket router is OFF in the database.**
+The trigger `general_ledger_route_buckets` on `general_ledger` is **disabled** (`tgenabled='D'`). Only the legacy `sync_wallet_from_ledger` runs, which updates the headline `balance` column but never touches `withdrawable_balance / float_balance / advance_balance`. Result:
+- Withdrawals check `withdrawable_balance` (0) → look like nothing happened, but `balance` was the real money.
+- CFO retractions debit `balance` while buckets sit at stale values, or vice-versa.
+- Collines's wallet shows `balance=10000`, buckets all 0 — physically impossible under the documented model.
+- An old `system_balance_correction` of 2,149,908 was inserted as `cash_in` with **no balanced `cash_out` partner**, which is how the 2M phantom appeared in his wallet originally.
 
-## Per-card drill-downs
+**2. The tenant wallet UI hides realtime updates behind a 30-second cache.**
+`src/hooks/useWallet.ts` keeps a module-level `walletCache` (TTL 30s) **and** mirrors to `localStorage`. On first paint and on every component remount it shows the stale cached number. The realtime channel listens only to `UPDATE` events — `INSERT` of a brand-new wallet, or any case where the row id changes, is missed. After a withdrawal succeeds, `refreshWallet` is called only inside `sendMoney`; for withdrawals the UI just waits for realtime, which races the cache.
 
-| Card | Records shown | Source | Row content |
-|------|---------------|--------|-------------|
-| New Agents Onboarded | New agents in range | `user_roles` (role=agent) joined to `profiles` | Avatar, name, phone, joined-at relative time |
-| Rent Requests | Requests created in range | `rent_requests` joined to `profiles` (tenant) | Tenant name, amount (UGX), status pill, created-at |
-| Commission Earned | Earnings posted in range | `agent_earnings` joined to `profiles` (agent) | Agent name, amount (UGX), source/category, created-at |
-| Active Agents | Agents with `last_active_at` in range | `profiles` filtered by role=agent | Avatar, name, last-active relative time, status dot |
+Additionally, `useWallet` only reads `balance`. It never reads `withdrawable_balance`, so it cannot reflect the bucket reality even when realtime fires.
 
-Each modal also shows totals (count + sum where applicable) and a "View full section" button that calls the existing `onOpenSection` (directory / pipeline / earnings) for deeper management.
+## What we'll change
 
-## Realtime behavior
+### A. Database — restore the bucket invariant
 
-- Each modal opens its own scoped Supabase channel filtered to the table it cares about, so events don't leak across modals.
-- New INSERTs that fall inside the current range are prepended with a 1.5s highlight pulse.
-- UPDATEs (e.g. rent request status change) update the row in place.
-- Channel is torn down on close to avoid lingering subscriptions.
+**A1. Enable the bucket router.**
+```sql
+ALTER TABLE public.general_ledger ENABLE TRIGGER general_ledger_route_buckets;
+```
+From this point forward every `cash_in` / `cash_out` ledger entry routes into the correct bucket, and the legacy `sync_wallet_from_ledger` continues to keep the headline `balance` consistent.
 
-## Empty / loading / error states
+**A2. Add a hard invariant trigger on `wallets`.**
+A new `BEFORE UPDATE` trigger `enforce_bucket_invariant` rejects any write where `balance != withdrawable_balance + float_balance + advance_balance` (skipped only when the legacy sync session flag is set during the same statement). This stops new drift forever.
 
-- Skeleton rows while loading (5 placeholders).
-- Empty state: friendly icon + "No [metric] in this window yet. New entries appear here live."
-- Error state: retry button.
+**A3. Reconciliation migration (one-shot).**
+For every wallet where `balance != Σbuckets`, replay the last-known truth from the ledger:
+- Recompute `balance` as `Σ(cash_in - cash_out)` over `ledger_scope='wallet'` for that user.
+- Recompute each bucket using the existing `route_buckets` category map.
+- If a wallet has no offsetting entry (like Collines's `system_balance_correction` of 2,149,908), we insert a balanced `cash_out` admin-correction entry with `category='admin_correction'`, `classification='admin_correction'` and a clear reason ("Phantom balance correction — no original cash_out partner found"). This zeroes the phantom **through the ledger**, leaving an audit trail instead of a silent wallet UPDATE.
+- Output a CSV report of every adjusted wallet to `audit_logs` so CFO can review.
 
-## Mobile-first UX
+**A4. Backfill realtime publication for `general_ledger`.**
+`general_ledger` is published but its `replica_identity` is `default`, which prevents `UPDATE`/`DELETE` payloads. Set `REPLICA IDENTITY FULL` so subscribers reliably receive every event the UI needs.
 
-- Uses a bottom **Sheet** on mobile (`<640px`), centered **Dialog** on desktop — both already in the design system.
-- 85vh max height, internal scroll, sticky header with close button.
-- Touch-friendly 44px min row height; tap row = drill deeper.
+### B. Frontend — make the wallet UI tell the truth
 
-## Technical plan
+**B1. Rewrite `src/hooks/useWallet.ts` as a React Query hook.**
+- New `queryKey: ['wallet', userId]`, `staleTime: 0`, `refetchOnWindowFocus: true`.
+- Selects **all bucket fields** (`balance, withdrawable_balance, float_balance, advance_balance, locked_balance, updated_at`).
+- Drops the 30-second `walletCache` and `localStorage` mirror entirely (offline cache stays via existing `cacheWallet`, but it no longer suppresses fresh data).
+- Internally calls `useWalletRealtime(userId)` so the existing global hook handles `INSERT`/`UPDATE`/`DELETE` on `wallets`, `wallet_deductions`, and `general_ledger` — the cache is invalidated, not patched, so we never display a stale row.
+- Returns the same `{ wallet, refreshWallet, sendMoney, … }` API so no call sites break.
 
-**New files**
-- `src/components/executive/agent-ops-v2/BriefDrillDownModal.tsx` — generic modal shell (header, sparkline, list container, realtime wiring). Props: `open`, `onOpenChange`, `metric` (`'new-agents' | 'rent-requests' | 'commission' | 'active-agents'`), `range`, `series`, `kpi`, `onOpenSection`.
-- `src/components/executive/agent-ops-v2/drill/NewAgentsList.tsx`
-- `src/components/executive/agent-ops-v2/drill/RentRequestsList.tsx`
-- `src/components/executive/agent-ops-v2/drill/CommissionList.tsx`
-- `src/components/executive/agent-ops-v2/drill/ActiveAgentsList.tsx`
+**B2. Force refresh after every wallet-affecting mutation.**
+Audit the four flows that move money but don't refresh:
+- `WithdrawFlow` (calls `withdraw-request` edge function) → on success, `queryClient.invalidateQueries({ queryKey: ['wallet'] })` and `['agent-split-balances']`.
+- `DepositFlow` → same invalidation on success.
+- CFO `wallet-deduction` (admin-side) — already invalidates `cfo-wallet-deductions`; add `['wallet']` so the impacted user's UI updates if they're online.
+- Tenant rent payment → already triggers via realtime; verify and add explicit invalidation as a belt-and-suspenders.
 
-Each list component owns its own `useQuery` (paginated via `range(from, to)`) + a Realtime subscription. They expose a consistent row renderer.
+**B3. Show the bucket reality in the wallet card.**
+`CollapsibleWalletCard` and `FullScreenWalletSheet` currently show `wallet?.balance` only. Add a small "Available to withdraw: UGX X" line under the headline (driven by `withdrawable_balance`) so users see exactly what they can pull out. Tenants will no longer be confused when they see UGX 10,000 on top but withdrawals refuse — they'll see "Available to withdraw: UGX 0" and understand.
 
-**Modified files**
-- `src/components/executive/agent-ops-v2/AgentOpsHomeView.tsx`:
-  - Replace each card's `onClick: () => onOpenSection(...)` with `onClick: () => setActiveDrill(metricKey)`.
-  - Add `<BriefDrillDownModal>` at the bottom, controlled by `activeDrill` state.
-  - Keep `onOpenSection` as the secondary "View full section" CTA inside each modal.
+**B4. Optimistic decrement on withdraw.**
+When a withdrawal request is approved (status → `approved` realtime event on `withdrawal_requests`), eagerly subtract the amount from `wallet.withdrawable_balance` in the cache, then let the realtime `UPDATE` from `wallets` confirm. This makes the digits move the instant the back office approves, instead of waiting for the next React Query refetch.
 
-**No DB migration needed** — realtime publication for `user_roles`, `rent_requests`, `agent_earnings` was already enabled in Phase 1. We'll add `profiles` to the publication only if active-agents realtime requires it (will check before adding).
+### C. Observability
 
-**Performance**
-- Page size 25, fetched server-side with `.range()`.
-- Realtime payloads are filtered client-side against the active range to avoid stale inserts polluting the list.
-- Modal queries use a separate `queryKey` (`['agent-ops-drill', metric, range, page]`) so they don't conflict with the card aggregates.
+- Add a `phantomBalanceReport` admin page under CFO that lists wallets where `balance ≠ Σbuckets` (currently 11 rows), with a "Reconcile via ledger" button that calls a new edge function `reconcile-wallet-buckets`. This gives CFO/FinOps a permanent self-service tool, so this class of drift never silently piles up again.
+
+## Files
+
+**New**
+- `supabase/migrations/<ts>_enable_bucket_router_and_reconcile.sql` — A1, A2, A3, A4 + the one-shot data fix.
+- `supabase/functions/reconcile-wallet-buckets/index.ts` — admin-only, replays ledger → buckets for one or many user_ids.
+- `src/pages/cfo/PhantomBalanceReport.tsx` — UI for C.
+
+**Modified**
+- `src/hooks/useWallet.ts` — full rewrite to React Query + realtime, exposes bucket fields.
+- `src/components/wallet/CollapsibleWalletCard.tsx`, `src/components/wallet/FullScreenWalletSheet.tsx` — render `withdrawable_balance` line.
+- `src/components/payments/WithdrawFlow.tsx`, `src/components/payments/DepositFlow.tsx` — invalidate `['wallet']` on success.
+- `supabase/functions/wallet-deduction/index.ts` — already writes through ledger; no logic change, but bucket router (now enabled) will correctly debit `withdrawable_balance` for `wallet_deduction` category.
+
+## How we'll verify
+
+1. Run `SELECT user_id, balance, withdrawable_balance + float_balance + advance_balance FROM wallets WHERE balance <> withdrawable_balance + float_balance + advance_balance` after the migration → expect **0 rows**.
+2. Collines's wallet: `balance=0`, all buckets=0, with a fresh `admin_correction` ledger pair documenting the phantom 2,149,908 and the leftover 10,000 wallet_transfer being routed into the correct bucket.
+3. Manually run a CFO retraction in preview → digits in the affected user's wallet card move within ~1 second without a page refresh.
+4. Manually approve a withdrawal in preview → withdrawing user's "Available to withdraw" decrements immediately.
+5. Open two browser tabs as the same user → mutating in tab A reflects in tab B without refresh.
 
