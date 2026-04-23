@@ -15,7 +15,8 @@ import {
   ChevronsUpDown, MoreHorizontal, TrendingUp, Pencil, Wallet, Ban, PlayCircle,
   Users, Banknote, PiggyBank, ArrowUpRight, Filter, RefreshCw, Phone, Calendar as CalendarIcon,
   CalendarDays, Shield, CheckCircle2, Clock, Briefcase, Save, Upload, Trash2,
-  Plus, FileText, Share2, ArrowRightLeft, ShieldCheck, Handshake, Scissors, Info
+  Plus, FileText, Share2, ArrowRightLeft, ShieldCheck, Handshake, Scissors, Info,
+  Mail, MailCheck, MailX, MailWarning
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
@@ -3087,6 +3088,20 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
   const [splitPayMode, setSplitPayMode] = useState<'wallet' | 'agent_wallet' | 'already_paid'>('wallet');
   const [splitReinvestMode, setSplitReinvestMode] = useState<'reinvest' | 'keep_returns'>('reinvest');
 
+  // Compound confirmation state — shown after a compound action completes
+  type CompoundEmailStatus = 'queued' | 'previously_sent' | 'suppressed' | 'skipped_no_email' | 'failed';
+  const [compoundConfirmation, setCompoundConfirmation] = useState<{
+    open: boolean;
+    partnerName: string;
+    portfolioLabel: string;
+    roiAmount: number;
+    newPrincipal: number;
+    refId: string;
+    recipientEmail: string;
+    emailStatus: CompoundEmailStatus;
+    emailDetail?: string;
+  } | null>(null);
+
   // Keep a local snapshot so items don't vanish when parent refetches
   const [localPortfolios, setLocalPortfolios] = useState<NearingPayoutPortfolio[]>(portfolios);
   useEffect(() => {
@@ -3204,14 +3219,16 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       });
 
       // Send partner-compound transactional email (fire-and-forget, non-blocking)
-      try {
-        const recipientEmail = p.email;
-        const isRealEmail =
-          recipientEmail &&
-          !recipientEmail.endsWith('@welile.user') &&
-          !recipientEmail.endsWith('@noapp.welile.user');
+      const recipientEmail = p.email || '';
+      const isRealEmail =
+        !!recipientEmail &&
+        !recipientEmail.endsWith('@welile.user') &&
+        !recipientEmail.endsWith('@noapp.welile.user');
+      let emailStatus: CompoundEmailStatus = 'skipped_no_email';
+      let emailDetail: string | undefined;
 
-        if (isRealEmail) {
+      if (isRealEmail) {
+        try {
           // Compute paymentNumber for idempotency: count of prior roi_compounded events for this portfolio
           const { count: priorCompounds } = await supabase
             .from('audit_logs')
@@ -3220,12 +3237,21 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
             .eq('record_id', p.portfolioId);
           const paymentNumber = (priorCompounds ?? 0);
 
+          // Detect "previously sent" — was a partner-compound email for this recipient
+          // already successfully sent before this action?
+          const { count: priorSentCount } = await supabase
+            .from('email_send_log')
+            .select('id', { count: 'exact', head: true })
+            .eq('template_name', 'partner-compound')
+            .eq('recipient_email', recipientEmail)
+            .eq('status', 'sent');
+
           const compactPortfolio = p.portfolioId.replace(/-/g, '').slice(0, 8).toUpperCase();
           const compoundDate = new Date().toLocaleDateString('en-GB', {
             day: '2-digit', month: 'long', year: 'numeric',
           });
 
-          await supabase.functions.invoke('send-transactional-email', {
+          const { data: emailResp, error: emailInvokeErr } = await supabase.functions.invoke('send-transactional-email', {
             body: {
               templateName: 'partner-compound',
               recipientEmail,
@@ -3246,12 +3272,45 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
               },
             },
           });
+
+          if (emailInvokeErr) {
+            emailStatus = 'failed';
+            emailDetail = emailInvokeErr.message || 'Edge function returned an error';
+          } else if (emailResp?.success === false && emailResp?.reason === 'email_suppressed') {
+            emailStatus = 'suppressed';
+            emailDetail = 'Recipient is on the suppression list (unsubscribed or bounced).';
+          } else if (emailResp?.success && emailResp?.queued) {
+            emailStatus = (priorSentCount ?? 0) > 0 ? 'previously_sent' : 'queued';
+            emailDetail = (priorSentCount ?? 0) > 0
+              ? `New email queued. ${priorSentCount} previous compound email(s) were already delivered to this recipient.`
+              : 'Email handed off to the dispatcher and will be delivered shortly.';
+          } else {
+            emailStatus = 'failed';
+            emailDetail = 'Unexpected response from the email service.';
+          }
+        } catch (emailErr: any) {
+          emailStatus = 'failed';
+          emailDetail = emailErr?.message || 'Email dispatch threw an exception.';
+          console.warn('[partner-compound] email dispatch failed (non-blocking):', emailErr);
         }
-      } catch (emailErr) {
-        console.warn('[partner-compound] email dispatch failed (non-blocking):', emailErr);
+      } else {
+        emailDetail = recipientEmail
+          ? `Internal placeholder address (${recipientEmail}) — no email sent.`
+          : 'Partner has no email address on file.';
       }
 
       toast.success(`Compounded ${formatUGX(roiAmount)} for ${p.name}`, { description: `Ref: ${refId}` });
+      setCompoundConfirmation({
+        open: true,
+        partnerName: p.name || 'Partner',
+        portfolioLabel: p.portfolioName || `PF-${p.portfolioId.slice(0, 8).toUpperCase()}`,
+        roiAmount,
+        newPrincipal: newAmount,
+        refId,
+        recipientEmail,
+        emailStatus,
+        emailDetail,
+      });
       setCompleted(prev => ({ ...prev, [p.portfolioId]: 'compounded' }));
       onActionComplete?.();
     } catch (err: any) {
@@ -3595,6 +3654,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
   const selectedProcessing = selectedPayout ? processing[selectedPayout.portfolioId] : null;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] p-0 sm:max-w-xl">
         {paymentStep === 'list' ? (
@@ -4032,5 +4092,91 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         ) : null}
       </DialogContent>
     </Dialog>
+
+    {/* Compound confirmation — shows recipient email + queue status */}
+    <Dialog
+      open={!!compoundConfirmation?.open}
+      onOpenChange={(v) => {
+        if (!v) setCompoundConfirmation(prev => prev ? { ...prev, open: false } : prev);
+      }}
+    >
+      <DialogContent className="sm:max-w-md">
+        {compoundConfirmation && (() => {
+          const status = compoundConfirmation.emailStatus;
+          const styles =
+            status === 'queued' || status === 'previously_sent'
+              ? { Icon: MailCheck, ring: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400', label: status === 'queued' ? 'Email queued for delivery' : 'New email queued (previously sent)' }
+              : status === 'suppressed'
+              ? { Icon: MailX, ring: 'bg-destructive/10 text-destructive', label: 'Email suppressed' }
+              : status === 'skipped_no_email'
+              ? { Icon: Mail, ring: 'bg-muted text-muted-foreground', label: 'No email sent' }
+              : { Icon: MailWarning, ring: 'bg-amber-500/10 text-amber-700 dark:text-amber-400', label: 'Email failed' };
+          const StatusIcon = styles.Icon;
+          return (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-2">
+                  <div className="h-9 w-9 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                    <CheckCircle2 className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <DialogTitle className="text-base">ROI Compounded</DialogTitle>
+                    <DialogDescription className="text-xs">
+                      {compoundConfirmation.partnerName} · {compoundConfirmation.portfolioLabel}
+                    </DialogDescription>
+                  </div>
+                </div>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-lg bg-muted/50 border border-border/40 p-2.5">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">ROI Reinvested</p>
+                    <p className="text-sm font-bold tabular-nums">{formatUGX(compoundConfirmation.roiAmount)}</p>
+                  </div>
+                  <div className="rounded-lg bg-muted/50 border border-border/40 p-2.5">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">New Principal</p>
+                    <p className="text-sm font-bold tabular-nums">{formatUGX(compoundConfirmation.newPrincipal)}</p>
+                  </div>
+                </div>
+
+                <div className={cn('rounded-lg border border-border/40 p-3 space-y-2')}>
+                  <div className="flex items-start gap-2.5">
+                    <div className={cn('h-8 w-8 rounded-full flex items-center justify-center shrink-0', styles.ring)}>
+                      <StatusIcon className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold">{styles.label}</p>
+                      <p className="text-[11px] text-muted-foreground break-all mt-0.5">
+                        {compoundConfirmation.recipientEmail || '—'}
+                      </p>
+                      {compoundConfirmation.emailDetail && (
+                        <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
+                          {compoundConfirmation.emailDetail}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-lg bg-muted/30 border border-dashed border-border/40 p-2">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Reference</p>
+                  <p className="text-xs font-mono break-all">{compoundConfirmation.refId}</p>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCompoundConfirmation(prev => prev ? { ...prev, open: false } : prev)}
+                >
+                  Close
+                </Button>
+              </DialogFooter>
+            </>
+          );
+        })()}
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
