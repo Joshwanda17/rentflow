@@ -206,14 +206,19 @@ export function FloatPayoutVerification() {
 
       } else if (action === 'reject') {
         // Use edge function for proper rejection with refund, notification & audit
-        const { error: rejectErr } = await supabase.functions.invoke('reject-withdrawal', {
+        const { data: rejectData, error: rejectErr } = await supabase.functions.invoke('reject-withdrawal', {
           body: {
             withdrawal_ids: [id],
             reason: notes,
             withdrawal_type: 'float',
           },
         });
-        if (rejectErr) throw rejectErr;
+        if (rejectErr || rejectData?.error) {
+          const { extractEdgeFunctionError } = await import('@/lib/extractEdgeFunctionError');
+          const msg = await extractEdgeFunctionError({ error: rejectErr, data: rejectData }, 'Failed to reject float payout');
+          console.error('[FloatPayoutVerification] reject failed:', msg, rejectErr);
+          throw new Error(msg);
+        }
       }
     },
     onSuccess: (_, { action }) => {

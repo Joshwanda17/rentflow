@@ -124,7 +124,12 @@ export function CFOWithdrawalApprovals() {
       const { data, error } = await supabase.functions.invoke('reject-withdrawal', {
         body: { withdrawal_ids: [selected.id], reason: rejectionReason.trim(), withdrawal_type: 'wallet' },
       });
-      if (error) throw error;
+      if (error || data?.error) {
+        const { extractEdgeFunctionError } = await import('@/lib/extractEdgeFunctionError');
+        const msg = await extractEdgeFunctionError({ error, data }, 'Failed to reject withdrawal');
+        console.error('[CFOWithdrawalApprovals] reject failed:', msg, error);
+        throw new Error(msg);
+      }
 
       // Verify the row was actually rejected
       const result = data?.results?.find((r: any) => r.id === selected.id);
