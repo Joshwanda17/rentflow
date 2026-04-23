@@ -141,7 +141,8 @@ Deno.serve(async (req) => {
 
         if (shouldReinvest) {
           // ═══ AUTO-REINVEST: Add ROI to portfolio instead of wallet ═══
-          const newAmount = reinvestInfo.current_amount + roiAmount;
+          const prevAmount = reinvestInfo.current_amount;
+          const newAmount = prevAmount + roiAmount;
 
           // Update portfolio balance
           await supabase.from('investor_portfolios')
@@ -194,6 +195,33 @@ Deno.serve(async (req) => {
           // Update the cached amount for subsequent iterations
           reinvestInfo.current_amount = newAmount;
           results.reinvested++;
+
+          // Partner Compounding Confirmation email — fire-and-forget
+          try {
+            const { data: partnerProfile } = await supabase
+              .from('profiles').select('email, full_name').eq('id', rr.supporter_id).maybeSingle();
+            if (partnerProfile?.email) {
+              dispatchTransactionalEmail(
+                Deno.env.get('SUPABASE_URL')!,
+                Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+                buildPartnerCompoundRequest({
+                  recipientEmail: partnerProfile.email,
+                  partnerName: partnerProfile.full_name,
+                  partnerId: rr.supporter_id,
+                  portfolioId: reinvestInfo.portfolio_id,
+                  paymentNumber,
+                  initialAmount: prevAmount,
+                  roiPercentage: 15,
+                  returnAmount: roiAmount,
+                  newTotal: newAmount,
+                  compoundDateIso: now.toISOString(),
+                }),
+                'process-supporter-roi',
+              );
+            }
+          } catch (emailErr) {
+            console.warn('[process-supporter-roi] Compound email lookup failed (non-blocking):', emailErr);
+          }
         } else {
           // ═══ STANDARD WALLET CREDIT via RPC ═══
           const { error: walletLedgerErr } = await supabase.rpc('create_ledger_transaction', {
