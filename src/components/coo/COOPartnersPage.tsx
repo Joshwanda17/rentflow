@@ -3203,6 +3203,54 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         metadata: { portfolio_id: p.portfolioId, roi_amount: roiAmount, reference: refId },
       });
 
+      // Send partner-compound transactional email (fire-and-forget, non-blocking)
+      try {
+        const recipientEmail = p.email;
+        const isRealEmail =
+          recipientEmail &&
+          !recipientEmail.endsWith('@welile.user') &&
+          !recipientEmail.endsWith('@noapp.welile.user');
+
+        if (isRealEmail) {
+          // Compute paymentNumber for idempotency: count of prior roi_compounded events for this portfolio
+          const { count: priorCompounds } = await supabase
+            .from('audit_logs')
+            .select('id', { count: 'exact', head: true })
+            .eq('action_type', 'roi_compounded')
+            .eq('record_id', p.portfolioId);
+          const paymentNumber = (priorCompounds ?? 0);
+
+          const compactPortfolio = p.portfolioId.replace(/-/g, '').slice(0, 8).toUpperCase();
+          const compoundDate = new Date().toLocaleDateString('en-GB', {
+            day: '2-digit', month: 'long', year: 'numeric',
+          });
+
+          await supabase.functions.invoke('send-transactional-email', {
+            body: {
+              templateName: 'partner-compound',
+              recipientEmail,
+              idempotencyKey: `partner-compound-${p.investorId}-${p.portfolioId}-${paymentNumber}`,
+              templateData: {
+                partner_name: p.name || 'Partner',
+                portfolio_id: `PF-${compactPortfolio}`,
+                compound_date: compoundDate,
+                initial_partnership_amount: p.investmentAmount,
+                roi_return: `${p.roiPercentage}%`,
+                return_amount: roiAmount,
+                new_total_partnership_value: newAmount,
+                currency: 'UGX',
+                company_name: 'Welile',
+                logo_url: 'https://welilereceipts.com/welile-logo.png',
+                unsubscribe_url: 'https://welile.com/unsubscribe',
+                dashboard_url: 'https://welilereceipts.com/auth',
+              },
+            },
+          });
+        }
+      } catch (emailErr) {
+        console.warn('[partner-compound] email dispatch failed (non-blocking):', emailErr);
+      }
+
       toast.success(`Compounded ${formatUGX(roiAmount)} for ${p.name}`, { description: `Ref: ${refId}` });
       setCompleted(prev => ({ ...prev, [p.portfolioId]: 'compounded' }));
       onActionComplete?.();
