@@ -1,7 +1,11 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { logSystemEvent } from "../_shared/eventLogger.ts";
 import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
-import { buildReturnsDisbursementRequest, dispatchTransactionalEmail } from "../_shared/partnership-emails.ts";
+import {
+  buildReturnsDisbursementRequest,
+  buildPartnerCompoundRequest,
+  dispatchTransactionalEmail,
+} from "../_shared/partnership-emails.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

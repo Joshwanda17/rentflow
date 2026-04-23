@@ -85,6 +85,66 @@ export function buildPartnershipTopupRequest(input: PartnershipTopupInput) {
   };
 }
 
+export interface PartnerCompoundInput {
+  recipientEmail: string;
+  partnerName: string | null | undefined;
+  partnerId: string;             // idempotency scoping
+  portfolioId: string;           // idempotency scoping + shown in email
+  paymentNumber: number;         // idempotency scoping (one email per cycle)
+  initialAmount: number;         // portfolio value before compounding
+  roiPercentage: number;         // e.g. 15 for "15%"
+  returnAmount: number;          // monetary amount earned this cycle
+  newTotal: number;              // portfolio value after compounding
+  compoundDateIso?: string;      // defaults to now
+}
+
+function ordinalDay(day: number): string {
+  if (day >= 11 && day <= 13) return `${day}th`;
+  switch (day % 10) {
+    case 1: return `${day}st`;
+    case 2: return `${day}nd`;
+    case 3: return `${day}rd`;
+    default: return `${day}th`;
+  }
+}
+
+function formatOrdinalDate(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  const day = d.getDate();
+  const month = d.toLocaleDateString("en-GB", { month: "long" });
+  const year = d.getFullYear();
+  return `${ordinalDay(day)} of ${month}, ${year}`;
+}
+
+function shortPortfolioId(portfolioId: string): string {
+  // Render UUID as PF-XXXXXXXX (first 8 chars of the hex, uppercased)
+  const compact = portfolioId.replace(/-/g, "").slice(0, 8).toUpperCase();
+  return `PF-${compact}`;
+}
+
+export function buildPartnerCompoundRequest(input: PartnerCompoundInput) {
+  const compoundIso = input.compoundDateIso || new Date().toISOString();
+  return {
+    templateName: "partner-compound",
+    recipientEmail: input.recipientEmail,
+    idempotencyKey: `partner-compound-${input.partnerId}-${input.portfolioId}-${input.paymentNumber}`,
+    templateData: {
+      partner_name: input.partnerName || "Partner",
+      portfolio_id: shortPortfolioId(input.portfolioId),
+      compound_date: formatOrdinalDate(compoundIso),
+      initial_partnership_amount: input.initialAmount,
+      roi_return: `${input.roiPercentage}%`,
+      return_amount: input.returnAmount,
+      new_total_partnership_value: input.newTotal,
+      currency: CURRENCY,
+      company_name: COMPANY_NAME,
+      logo_url: LOGO_URL,
+      unsubscribe_url: UNSUBSCRIBE_URL,
+    },
+  };
+}
+
 export interface ReturnsDisbursementInput {
   recipientEmail: string;
   partnerName: string | null | undefined;
