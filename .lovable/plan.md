@@ -1,31 +1,52 @@
 
 
-# Pin the Agent Ops bottom nav to the viewport
-
-## Problem
-The bottom navigation on the Agent Ops dashboard scrolls away with the page content instead of staying pinned. You shouldn't have to scroll to find Dashboard / Pipeline / Agents / Finance / More.
+# Restore real-time updates for Carol's funder accounts (and platform-wide)
 
 ## Root cause
-`AgentOpsBottomNav` already has `fixed bottom-0 inset-x-0 z-40 sm:hidden` — the styling is correct. But it's rendered **inside** `AgentOpsDashboard`'s scroll container, and somewhere up the tree there's an ancestor with `transform`, `filter`, or `overflow` that breaks `position: fixed` (a known CSS gotcha — `transform` on an ancestor turns `fixed` into `absolute` relative to that ancestor). That's why it scrolls with the content instead of sticking to the viewport.
 
-A second issue: the nav is gated by `sm:hidden`, so on tablet/desktop it disappears entirely. On the mobile preview where you're seeing it, the fixed positioning is being defeated by an ancestor.
+`src/lib/disableRealtime.ts` was added as a temporary measure to free DB connections. It monkey-patches `supabase.channel()` to return a no-op object, so EVERY `useEffect` that subscribes to `postgres_changes` — across the whole app — does nothing. Hooks like `useWalletRealtime`, the funder accounts list, ROI updates, withdrawals, and the Carol/proxy-agent funder views all silently fail to receive updates.
+
+That's why nothing changes in the UI for Carol's funder accounts until you hard-refresh.
+
+There is no specific Carol bug. It's a global kill switch that's still on.
 
 ## Fix
 
-1. **Render the nav via a React portal to `document.body`** so no ancestor `transform`/`overflow`/`contain` can capture its `position: fixed`. This guarantees it pins to the viewport regardless of the parent layout.
-2. **Add bottom padding to the dashboard scroll area** (`pb-[calc(env(safe-area-inset-bottom)+72px)]`) so the last card isn't hidden behind the nav.
-3. **Keep `sm:hidden`** (mobile-only) as designed — the desktop layout uses the side nav. If you want it visible on desktop too, say the word and I'll drop that class.
-4. **Bump z-index to `z-50`** so it sits above any floating buttons (e.g. `FloatingPortfolioButton` at `z-40`).
+Two-step, surgical:
 
-## Files
+### 1. Re-enable realtime globally
+- Flip `REALTIME_DISABLED` to `false` in `src/lib/disableRealtime.ts` (keeps the file as a future kill switch but stops the no-op patch). All existing subscriptions (`useWalletRealtime`, funder lists, withdrawals, ROI, etc.) immediately start working again.
 
-**Modified**
-- `src/components/executive/agent-ops-v2/AgentOpsBottomNav.tsx` — wrap returned `<nav>` in `createPortal(..., document.body)`; bump to `z-50`.
-- `src/components/executive/AgentOpsDashboard.tsx` — add `pb-[calc(env(safe-area-inset-bottom)+72px)] sm:pb-0` to the main scroll container so content clears the pinned nav.
+### 2. Add a scoped realtime subscription for the funder-accounts panel
+The funder list under a proxy agent (Carol) currently has no dedicated realtime hook — it relies on manual refetch / `onRefresh`. Add a small hook so deposits, ROI, and withdrawals reflect instantly without the user tapping refresh.
+
+- New: `src/hooks/useFunderAccountsRealtime.ts`
+  - Subscribes to `postgres_changes` on the tables that drive the funder panel: `investor_portfolios`, `wallets`, `roi_payments`, `withdrawal_requests`, and `proxy_agent_assignments`, filtered by `proxy_agent_id` (or beneficiary IDs) of the current agent.
+  - On any change, invalidates the React Query keys used by `FunderManagementSheet` / `FunderDetailView` (e.g. `['funder-accounts', agentId]`, `['funder-stats', beneficiaryId]`, `['funder-portfolios', beneficiaryId]`).
+- Wire the hook into `FunderManagementSheet.tsx` and `FunderDetailView.tsx`.
+
+### 3. Confirm publication membership (one migration if needed)
+Verify these tables are in `supabase_realtime`. If any are missing, add them via migration:
+```sql
+ALTER PUBLICATION supabase_realtime ADD TABLE
+  public.investor_portfolios,
+  public.roi_payments,
+  public.withdrawal_requests,
+  public.proxy_agent_assignments;
+```
+(`wallets`, `wallet_deductions`, `general_ledger` are already used by `useWalletRealtime` and assumed published.)
 
 ## Verification
-- Scroll the Agent Ops dashboard on mobile → nav stays glued to the bottom edge.
-- Last card is fully visible (not clipped by the nav).
-- Tapping a tab still switches views; safe-area inset respected on iOS.
-- Desktop layout unchanged.
+
+- Open Carol's proxy-agent funder list. In another tab, insert a test ROI payment / deposit for one of her funders. The UI updates within ~1s without a refresh.
+- `useWalletRealtime` resumes working everywhere (CFO retractions, withdrawal approvals, deposits) — confirm by watching console: the `[Realtime]` "DISABLED" log no longer appears.
+- No spike in dropped DB connections (the original reason it was disabled was a saturated pool — if that returns, we re-enable selectively rather than killing all realtime).
+
+## Files touched
+
+- `src/lib/disableRealtime.ts` — flip flag to `false`.
+- `src/hooks/useFunderAccountsRealtime.ts` — NEW.
+- `src/components/agent/FunderManagementSheet.tsx` — call the new hook.
+- `src/components/agent/FunderDetailView.tsx` — call the new hook scoped to the open funder.
+- Migration (only if publication check shows missing tables).
 
