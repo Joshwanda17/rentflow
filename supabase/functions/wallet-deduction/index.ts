@@ -156,8 +156,21 @@ Deno.serve(async (req) => {
 
     if (ledgerErr) {
       console.error("Ledger RPC error:", ledgerErr);
-      return new Response(JSON.stringify({ error: "Failed to record ledger entry" }), {
-        status: 500,
+      const rawMsg = ledgerErr.message || "Failed to record ledger entry";
+      // Friendlier message for the most common case
+      const friendly = /Insufficient ledger balance/i.test(rawMsg)
+        ? (() => {
+            const m = rawMsg.match(/Available:\s*(\d+(?:\.\d+)?),\s*Required:\s*(\d+(?:\.\d+)?)/i);
+            if (m) {
+              const avail = Number(m[1]).toLocaleString();
+              const req = Number(m[2]).toLocaleString();
+              return `Insufficient ledger balance. Available: UGX ${avail}, Required: UGX ${req}. The wallet shows UGX ${wallet.balance.toLocaleString()} but the user's net ledger position is lower (likely due to outstanding debt or pending obligations).`;
+            }
+            return rawMsg;
+          })()
+        : rawMsg;
+      return new Response(JSON.stringify({ error: friendly }), {
+        status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
