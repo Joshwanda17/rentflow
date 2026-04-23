@@ -261,7 +261,7 @@ Deno.serve(async (req) => {
           user_id: target_user_id,
           amount: floatOverflow,
           direction: 'cash_out',
-          category: 'float_retraction',
+          category: 'agent_float_settlement',
           ledger_scope: 'wallet',
           source_table: 'cfo_direct_credit',
           reference_id: refId,
