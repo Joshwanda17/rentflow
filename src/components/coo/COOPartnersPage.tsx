@@ -4091,5 +4091,91 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         ) : null}
       </DialogContent>
     </Dialog>
+
+    {/* Compound confirmation — shows recipient email + queue status */}
+    <Dialog
+      open={!!compoundConfirmation?.open}
+      onOpenChange={(v) => {
+        if (!v) setCompoundConfirmation(prev => prev ? { ...prev, open: false } : prev);
+      }}
+    >
+      <DialogContent className="sm:max-w-md">
+        {compoundConfirmation && (() => {
+          const status = compoundConfirmation.emailStatus;
+          const styles =
+            status === 'queued' || status === 'previously_sent'
+              ? { Icon: MailCheck, ring: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400', label: status === 'queued' ? 'Email queued for delivery' : 'New email queued (previously sent)' }
+              : status === 'suppressed'
+              ? { Icon: MailX, ring: 'bg-destructive/10 text-destructive', label: 'Email suppressed' }
+              : status === 'skipped_no_email'
+              ? { Icon: Mail, ring: 'bg-muted text-muted-foreground', label: 'No email sent' }
+              : { Icon: MailWarning, ring: 'bg-amber-500/10 text-amber-700 dark:text-amber-400', label: 'Email failed' };
+          const StatusIcon = styles.Icon;
+          return (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-2">
+                  <div className="h-9 w-9 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                    <CheckCircle2 className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <DialogTitle className="text-base">ROI Compounded</DialogTitle>
+                    <DialogDescription className="text-xs">
+                      {compoundConfirmation.partnerName} · {compoundConfirmation.portfolioLabel}
+                    </DialogDescription>
+                  </div>
+                </div>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-lg bg-muted/50 border border-border/40 p-2.5">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">ROI Reinvested</p>
+                    <p className="text-sm font-bold tabular-nums">{formatUGX(compoundConfirmation.roiAmount)}</p>
+                  </div>
+                  <div className="rounded-lg bg-muted/50 border border-border/40 p-2.5">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">New Principal</p>
+                    <p className="text-sm font-bold tabular-nums">{formatUGX(compoundConfirmation.newPrincipal)}</p>
+                  </div>
+                </div>
+
+                <div className={cn('rounded-lg border border-border/40 p-3 space-y-2')}>
+                  <div className="flex items-start gap-2.5">
+                    <div className={cn('h-8 w-8 rounded-full flex items-center justify-center shrink-0', styles.ring)}>
+                      <StatusIcon className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold">{styles.label}</p>
+                      <p className="text-[11px] text-muted-foreground break-all mt-0.5">
+                        {compoundConfirmation.recipientEmail || '—'}
+                      </p>
+                      {compoundConfirmation.emailDetail && (
+                        <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
+                          {compoundConfirmation.emailDetail}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-lg bg-muted/30 border border-dashed border-border/40 p-2">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Reference</p>
+                  <p className="text-xs font-mono break-all">{compoundConfirmation.refId}</p>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCompoundConfirmation(prev => prev ? { ...prev, open: false } : prev)}
+                >
+                  Close
+                </Button>
+              </DialogFooter>
+            </>
+          );
+        })()}
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
