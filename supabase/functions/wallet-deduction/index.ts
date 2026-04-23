@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
     // Check user wallet balance
     const { data: wallet } = await adminClient
       .from("wallets")
-      .select("balance")
+      .select("balance, withdrawable_balance, float_balance, advance_balance")
       .eq("user_id", target_user_id)
       .single();
 
@@ -105,10 +105,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (wallet.balance < amount) {
+    const withdrawable = Number(wallet.withdrawable_balance ?? 0);
+    const floatBal = Number(wallet.float_balance ?? 0);
+    const totalAvailable = withdrawable + floatBal;
+
+    if (totalAvailable < amount) {
       return new Response(
         JSON.stringify({
-          error: `Insufficient balance. Wallet has UGX ${wallet.balance.toLocaleString()}, cannot deduct UGX ${amount.toLocaleString()}`,
+          error: `Insufficient balance. Withdrawable: UGX ${withdrawable.toLocaleString()}, Float: UGX ${floatBal.toLocaleString()}, Requested: UGX ${amount.toLocaleString()}`,
         }),
         {
           status: 400,
@@ -116,6 +120,10 @@ Deno.serve(async (req) => {
         }
       );
     }
+
+    // Bucket-aware split: drain withdrawable first, overflow into float via float_retraction
+    const withdrawablePortion = Math.min(withdrawable, amount);
+    const floatPortion = amount - withdrawablePortion;
 
     // Get target user profile for audit
     const { data: targetProfile } = await adminClient
@@ -126,33 +134,62 @@ Deno.serve(async (req) => {
 
     const targetName = targetProfile?.full_name || "Unknown";
 
-    // Insert balanced ledger entry via RPC (cash_out from wallet, cash_in to platform)
-    const { data: txnGroupId, error: ledgerErr } = await adminClient.rpc('create_ledger_transaction', {
-      entries: [
-        {
-          user_id: target_user_id,
-          amount: amount,
-          direction: 'cash_out',
-          category: 'wallet_deduction',
-          ledger_scope: 'wallet',
-          description: `Wallet deduction (${safeCategory}): ${reason}`,
-          currency: 'UGX',
-          source_table: 'wallet_deductions',
-          linked_party: user.id,
-          transaction_date: new Date().toISOString(),
-        },
-        {
-          direction: 'cash_in',
-          amount: amount,
-          category: 'wallet_deduction',
-          ledger_scope: 'platform',
-          description: `Platform receives deduction (${safeCategory}): ${reason}`,
-          currency: 'UGX',
-          source_table: 'wallet_deductions',
-          transaction_date: new Date().toISOString(),
-        },
-      ],
-    });
+    // Build balanced ledger entries. If the withdrawable bucket can't cover
+    // the full amount, split: wallet_deduction (withdrawable) + float_retraction (float).
+    const nowIso = new Date().toISOString();
+    const entries: any[] = [];
+
+    if (withdrawablePortion > 0) {
+      entries.push({
+        user_id: target_user_id,
+        amount: withdrawablePortion,
+        direction: 'cash_out',
+        category: 'wallet_deduction',
+        ledger_scope: 'wallet',
+        description: `Wallet deduction (${safeCategory}): ${reason}`,
+        currency: 'UGX',
+        source_table: 'wallet_deductions',
+        linked_party: user.id,
+        transaction_date: nowIso,
+      });
+      entries.push({
+        direction: 'cash_in',
+        amount: withdrawablePortion,
+        category: 'wallet_deduction',
+        ledger_scope: 'platform',
+        description: `Platform receives deduction (${safeCategory}): ${reason}`,
+        currency: 'UGX',
+        source_table: 'wallet_deductions',
+        transaction_date: nowIso,
+      });
+    }
+
+    if (floatPortion > 0) {
+      entries.push({
+        user_id: target_user_id,
+        amount: floatPortion,
+        direction: 'cash_out',
+        category: 'float_retraction',
+        ledger_scope: 'wallet',
+        description: `Float retraction (${safeCategory}): ${reason}`,
+        currency: 'UGX',
+        source_table: 'wallet_deductions',
+        linked_party: user.id,
+        transaction_date: nowIso,
+      });
+      entries.push({
+        direction: 'cash_in',
+        amount: floatPortion,
+        category: 'float_retraction',
+        ledger_scope: 'platform',
+        description: `Platform receives float retraction (${safeCategory}): ${reason}`,
+        currency: 'UGX',
+        source_table: 'wallet_deductions',
+        transaction_date: nowIso,
+      });
+    }
+
+    const { data: txnGroupId, error: ledgerErr } = await adminClient.rpc('create_ledger_transaction', { entries });
 
     if (ledgerErr) {
       console.error("Ledger RPC error:", ledgerErr);
@@ -164,7 +201,7 @@ Deno.serve(async (req) => {
             if (m) {
               const avail = Number(m[1]).toLocaleString();
               const req = Number(m[2]).toLocaleString();
-              return `Insufficient ledger balance. Available: UGX ${avail}, Required: UGX ${req}. The wallet shows UGX ${wallet.balance.toLocaleString()} but the user's net ledger position is lower (likely due to outstanding debt or pending obligations).`;
+              return `Insufficient ledger balance. Available: UGX ${avail}, Required: UGX ${req}. The wallet shows UGX ${Number(wallet.balance).toLocaleString()} but the user's net ledger position is lower (likely due to outstanding debt or pending obligations).`;
             }
             return rawMsg;
           })()
@@ -207,6 +244,8 @@ Deno.serve(async (req) => {
         txn_group_id: txnGroupId,
         previous_balance: wallet.balance,
         new_balance: wallet.balance - amount,
+        withdrawable_portion: withdrawablePortion,
+        float_portion: floatPortion,
       },
     });
 

@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
     // Ensure wallet exists
     const { data: existingWallet } = await adminClient
       .from("wallets")
-      .select("id, balance")
+      .select("id, balance, withdrawable_balance, float_balance")
       .eq("user_id", target_user_id)
       .single();
 
@@ -205,33 +205,86 @@ Deno.serve(async (req) => {
       }
     } else {
       console.log("[cfo-direct-credit] Creating DEBIT ledger entries for", target_user_id, "amount:", amount);
+      // Bucket-aware split for debits: if the chosen wallet category routes
+      // to the withdrawable bucket but it can't cover the amount, drain
+      // withdrawable first then take the remainder from float_balance via
+      // float_retraction. Categories that already route to float
+      // (system_balance_correction / wallet_transfer for agents) just pass through.
+      const WITHDRAWABLE_ROUTE = new Set([
+        'roi_wallet_credit', 'agent_commission_earned', 'wallet_deduction',
+        'marketing_expense', 'research_development_expense', 'general_admin_expense',
+        'payroll_expense', 'tax_expense', 'interest_expense', 'equipment_expense',
+        'access_fee_collected', 'registration_fee_collected',
+      ]);
+      const withdrawable = Number(existingWallet?.withdrawable_balance ?? 0);
+      const floatBal = Number(existingWallet?.float_balance ?? 0);
+
+      let primaryAmount = amount;
+      let floatOverflow = 0;
+      if (WITHDRAWABLE_ROUTE.has(walletCat) && withdrawable < amount && (withdrawable + floatBal) >= amount) {
+        primaryAmount = withdrawable;
+        floatOverflow = amount - withdrawable;
+      }
+
+      const nowIso = new Date().toISOString();
+      const entries: any[] = [];
+
+      if (primaryAmount > 0) {
+        entries.push({
+          user_id: target_user_id,
+          amount: primaryAmount,
+          direction: 'cash_out',
+          category: walletCat,
+          ledger_scope: 'wallet',
+          source_table: 'cfo_direct_credit',
+          reference_id: refId,
+          description: `CFO Debit [${category_label || walletCat}]: ${reason}`,
+          currency: 'UGX',
+          transaction_date: nowIso,
+        });
+        entries.push({
+          user_id: userId,
+          direction: 'cash_in',
+          amount: primaryAmount,
+          category: platformCat,
+          ledger_scope: 'platform',
+          source_table: 'cfo_direct_credit',
+          reference_id: refId,
+          description: `${targetProfile.full_name} → Platform [${impact}]: ${reason}`,
+          currency: 'UGX',
+          transaction_date: nowIso,
+        });
+      }
+
+      if (floatOverflow > 0) {
+        entries.push({
+          user_id: target_user_id,
+          amount: floatOverflow,
+          direction: 'cash_out',
+          category: 'float_retraction',
+          ledger_scope: 'wallet',
+          source_table: 'cfo_direct_credit',
+          reference_id: refId,
+          description: `CFO Debit (float portion) [${category_label || walletCat}]: ${reason}`,
+          currency: 'UGX',
+          transaction_date: nowIso,
+        });
+        entries.push({
+          user_id: userId,
+          direction: 'cash_in',
+          amount: floatOverflow,
+          category: platformCat,
+          ledger_scope: 'platform',
+          source_table: 'cfo_direct_credit',
+          reference_id: refId,
+          description: `${targetProfile.full_name} float → Platform [${impact}]: ${reason}`,
+          currency: 'UGX',
+          transaction_date: nowIso,
+        });
+      }
+
       const { error: rpcErr } = await adminClient.rpc('create_ledger_transaction', {
-        entries: [
-          {
-            user_id: target_user_id,
-            amount,
-            direction: 'cash_out',
-            category: walletCat,
-            ledger_scope: 'wallet',
-            source_table: 'cfo_direct_credit',
-            reference_id: refId,
-            description: `CFO Debit [${category_label || walletCat}]: ${reason}`,
-            currency: 'UGX',
-            transaction_date: new Date().toISOString(),
-          },
-          {
-            user_id: userId,
-            direction: 'cash_in',
-            amount,
-            category: platformCat,
-            ledger_scope: 'platform',
-            source_table: 'cfo_direct_credit',
-            reference_id: refId,
-            description: `${targetProfile.full_name} → Platform [${impact}]: ${reason}`,
-            currency: 'UGX',
-            transaction_date: new Date().toISOString(),
-          },
-        ],
+        entries,
         skip_balance_check: true,
       });
       if (rpcErr) {
