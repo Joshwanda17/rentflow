@@ -23,6 +23,7 @@ interface PartnerCompoundProps {
   company_name?: string
   logo_url?: string
   unsubscribe_url?: string
+  dashboard_url?: string
 }
 
 const formatAmount = (amount: string | number | undefined, currency: string) => {
@@ -44,6 +45,7 @@ export function PartnerCompound({
   company_name = 'Welile',
   logo_url = 'https://welilereceipts.com/welile-logo.png',
   unsubscribe_url = 'https://welile.com/unsubscribe',
+  dashboard_url = 'https://welilereceipts.com/auth',
 }: PartnerCompoundProps) {
   const year = new Date().getFullYear()
   const formattedInitial = formatAmount(initial_partnership_amount, currency)
