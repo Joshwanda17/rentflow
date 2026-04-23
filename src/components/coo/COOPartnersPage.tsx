@@ -422,6 +422,61 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         metadata: { portfolio_id: portfolio.id, roi_amount: roiAmount, reference: refId },
       });
 
+      // Send partner-compound transactional email (fire-and-forget, non-blocking)
+      try {
+        // Resolve partner email (not stored on detailPartner.profile)
+        const { data: profileRow } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('id', detailPartner.profile.id)
+          .maybeSingle();
+        const recipientEmail = profileRow?.email;
+        const isRealEmail =
+          recipientEmail &&
+          !recipientEmail.endsWith('@welile.user') &&
+          !recipientEmail.endsWith('@noapp.welile.user');
+
+        if (isRealEmail) {
+          // Compute paymentNumber for idempotency: count of prior roi_compounded events for this portfolio
+          const { count: priorCompounds } = await supabase
+            .from('audit_logs')
+            .select('id', { count: 'exact', head: true })
+            .eq('action_type', 'roi_compounded')
+            .eq('record_id', portfolio.id);
+          const paymentNumber = (priorCompounds ?? 0); // includes the one we just inserted? insert above already happened, so this is the cycle index
+
+          const compactPortfolio = portfolio.id.replace(/-/g, '').slice(0, 8).toUpperCase();
+          const compoundIso = new Date().toISOString();
+          const compoundDate = new Date(compoundIso).toLocaleDateString('en-GB', {
+            day: '2-digit', month: 'long', year: 'numeric',
+          });
+
+          await supabase.functions.invoke('send-transactional-email', {
+            body: {
+              templateName: 'partner-compound',
+              recipientEmail,
+              idempotencyKey: `partner-compound-${detailPartner.profile.id}-${portfolio.id}-${paymentNumber}`,
+              templateData: {
+                partner_name: detailPartner.profile.full_name || 'Partner',
+                portfolio_id: `PF-${compactPortfolio}`,
+                compound_date: compoundDate,
+                initial_partnership_amount: portfolio.investment_amount,
+                roi_return: `${portfolio.roi_percentage}%`,
+                return_amount: roiAmount,
+                new_total_partnership_value: newAmount,
+                currency: 'UGX',
+                company_name: 'Welile',
+                logo_url: 'https://welilereceipts.com/welile-logo.png',
+                unsubscribe_url: 'https://welile.com/unsubscribe',
+                dashboard_url: 'https://welilereceipts.com/auth',
+              },
+            },
+          });
+        }
+      } catch (emailErr) {
+        console.warn('[partner-compound] email dispatch failed (non-blocking):', emailErr);
+      }
+
       toast.success(`Compounded ${formatUGX(roiAmount)}`, { description: `New principal: ${formatUGX(newAmount)}. Ref: ${refId}` });
       // Refresh detail view
       if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
