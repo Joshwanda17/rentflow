@@ -32,6 +32,7 @@ const RentDiscountToggle = lazy(() => import('@/components/tenant/RentDiscountTo
 const StaffAccessCard = lazy(() => import('@/components/settings/StaffAccessCard'));
 const ResidenceAddressForm = lazy(() => import('@/components/profile/ResidenceAddressForm'));
 const EmailEditor = lazy(() => import('@/components/profile/EmailEditor'));
+const ShareCardThemeSettings = lazy(() => import('@/components/agent/ShareCardThemeSettings'));
 
 class SectionBoundary extends Component<{ children: ReactNode; name: string }, { hasError: boolean }> {
   state = { hasError: false };
@@ -348,8 +349,9 @@ export default function Settings() {
             )}
 
             {activeSection === 'appearance' && (
-              <Card className="border-border/40 rounded-2xl">
-                <CardContent className="pt-5 space-y-5">
+              <div className="space-y-4">
+                <Card className="border-border/40 rounded-2xl">
+                  <CardContent className="pt-5 space-y-5">
                   <SettingsRow label="Dark / Light" description="Change the look"><ThemeToggle /></SettingsRow>
                   <div className="space-y-3">
                     <div className="flex items-center gap-2"><Type className="h-4 w-4 text-primary" /><p className="font-medium text-sm">Text Size</p></div>
@@ -374,8 +376,14 @@ export default function Settings() {
                   </div>
                   <SettingsRow label="Stay Logged In" description="Don't ask to sign in every time" icon={LogIn}><Switch checked={preferences.rememberLogin} onCheckedChange={(c) => { updatePreference('rememberLogin', c); toast.success(c ? 'Login remembered' : 'Login not remembered'); }} /></SettingsRow>
                   <SettingsRow label="Skip Welcome Screen" description={preferences.skipSplash ? 'Goes straight to dashboard' : 'Shows welcome first'} icon={RotateCcw}><Switch checked={preferences.skipSplash} onCheckedChange={(c) => { updatePreference('skipSplash', c); toast.success(c ? 'Splash skipped' : 'Splash enabled'); }} /></SettingsRow>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+                {roles.includes('agent') && (
+                  <LazySection name="ShareCardTheme">
+                    <ShareCardThemeSettings />
+                  </LazySection>
+                )}
+              </div>
             )}
 
             {activeSection === 'security' && (

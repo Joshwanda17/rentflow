@@ -1,6 +1,7 @@
 import { formatUGX } from '@/lib/rentCalculations';
 import welileLogoUrl from '@/assets/welile-logo.png';
 import type { RentAccessLimitResult } from '@/lib/rentAccessLimit';
+import { getShareCardThemeSync } from '@/hooks/useShareCardTheme';
 
 export interface RentAccessLimitPdfData {
   tenantName: string;
@@ -197,15 +198,16 @@ export async function generateRentAccessLimitPng(data: RentAccessLimitPdfData): 
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas not supported');
 
-  // Welile purple brand gradient (matches --primary: 271 100% 40%)
+  // Theme-driven gradient (agent-customizable; default Welile purple)
+  const theme = getShareCardThemeSync();
   const grad = ctx.createLinearGradient(0, 0, W, H);
-  grad.addColorStop(0, '#3d0066');     // deep purple top-left
-  grad.addColorStop(0.5, '#7A00CC');   // brand primary purple
-  grad.addColorStop(1, '#1a0033');     // near-black purple bottom-right
+  grad.addColorStop(0, theme.gradient[0]);
+  grad.addColorStop(0.5, theme.gradient[1]);
+  grad.addColorStop(1, theme.gradient[2]);
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, H);
 
-  // Soft purple glow orbs
+  // Soft glow orbs from the same theme
   const orb = (x: number, y: number, r: number, color: string) => {
     const g = ctx.createRadialGradient(x, y, 0, x, y, r);
     g.addColorStop(0, color);
@@ -213,8 +215,8 @@ export async function generateRentAccessLimitPng(data: RentAccessLimitPdfData): 
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
   };
-  orb(880, 180, 380, 'rgba(196,128,255,0.55)');
-  orb(140, 940, 380, 'rgba(122,0,204,0.45)');
+  orb(880, 180, 380, theme.orbA);
+  orb(140, 940, 380, theme.orbB);
 
   // Top brand row — logo + wordmark
   const logo = await loadLogoImage();
