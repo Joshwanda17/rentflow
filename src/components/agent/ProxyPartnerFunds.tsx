@@ -664,7 +664,11 @@ export function ProxyPartnerFunds() {
       <WithdrawRequestDialog
         open={withdrawOpen}
         onOpenChange={setWithdrawOpen}
-        walletBalance={wallet?.balance || 0}
+        // For proxy partner withdrawals, the available balance is the
+        // per-partner ROI balance (prefillAmount), NOT the agent's own
+        // wallet balance. The agent's wallet may show 0 here even when
+        // the partner has unwithdrawn ROI ready to disburse.
+        walletBalance={prefillAmount || 0}
         onSuccess={handleWithdrawSuccess}
         prefillAmount={prefillAmount}
         prefillReason={prefillReason}
