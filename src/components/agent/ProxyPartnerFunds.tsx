@@ -51,9 +51,16 @@ const ACTIVE_PROXY_WITHDRAWAL_STATUSES = [
   'requested',
   'manager_approved',
   'cfo_approved',
+  'processing',
+] as const;
+
+// Terminal/disbursed statuses — funds have already been deducted from the agent
+// wallet via the approve-withdrawal edge function. These count as "delivered"
+// against the per-partner ROI balance.
+const COMPLETED_PROXY_WITHDRAWAL_STATUSES = [
+  'completed',
   'approved',
   'fin_ops_approved',
-  'processing',
 ] as const;
 
 export function ProxyPartnerFunds() {
@@ -211,7 +218,7 @@ export function ProxyPartnerFunds() {
           .from('withdrawal_requests')
           .select('linked_party, amount, status, reason')
           .eq('user_id', user.id)
-          .eq('status', 'completed')
+          .in('status', [...COMPLETED_PROXY_WITHDRAWAL_STATUSES])
           .not('linked_party', 'is', null),
         // Active (pending/processing) withdrawal requests
         supabase
