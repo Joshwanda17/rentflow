@@ -2581,7 +2581,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Pencil className="h-5 w-5 text-primary" /> Edit Portfolio</DialogTitle>
             <DialogDescription>
-              Update portfolio <strong>{editPortfolio?.portfolio_code}</strong> details. Changes are audit-logged.
+              Update portfolio <strong>{editPortfolio?.portfolio_code}</strong> details.
             </DialogDescription>
           </DialogHeader>
           {editPortfolio && (
