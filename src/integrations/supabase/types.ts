@@ -11435,6 +11435,39 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_unrouted_movements: {
+        Row: {
+          amount: number
+          bucket_returned: string | null
+          category: string
+          created_at: string
+          direction: string
+          id: string
+          sign_returned: number | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          bucket_returned?: string | null
+          category: string
+          created_at?: string
+          direction: string
+          id?: string
+          sign_returned?: number | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          bucket_returned?: string | null
+          category?: string
+          created_at?: string
+          direction?: string
+          id?: string
+          sign_returned?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       wallets: {
         Row: {
           advance_balance: number
