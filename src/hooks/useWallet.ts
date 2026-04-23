@@ -1,14 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
-import { 
-  cacheWallet, 
-  getCachedWallet, 
-  cacheTransactions, 
-  getCachedTransactions,
-  addToSyncQueue 
-} from '@/lib/offlineDataStorage';
+import { cacheWallet, getCachedWallet } from '@/lib/offlineDataStorage';
 import { useServiceValidation } from '@/core/services/useServiceValidation';
+import { useWalletRealtime } from './useWalletRealtime';
 
 interface WalletTransaction {
   id: string;
@@ -26,64 +22,36 @@ interface Wallet {
   id: string;
   user_id: string;
   balance: number;
+  withdrawable_balance: number;
+  float_balance: number;
+  advance_balance: number;
+  locked_balance: number;
   created_at: string;
   updated_at: string;
 }
-// Module-level wallet cache to prevent duplicate fetches across component instances
-let walletCache: { data: Wallet | null; userId: string; timestamp: number } | null = null;
-const WALLET_CACHE_TTL = 30_000; // 30 seconds
 
 export function useWallet() {
   const { user } = useAuth();
   const { preValidateTransfer, checkBalance } = useServiceValidation();
-  // Initialize from module cache OR localStorage for instant display (no flash)
-  const [wallet, setWallet] = useState<Wallet | null>(() => {
-    if (walletCache && walletCache.userId === user?.id && (Date.now() - walletCache.timestamp < WALLET_CACHE_TTL)) {
-      return walletCache.data;
-    }
-    // Sync read from localStorage for instant first-paint
-    try {
-      const raw = localStorage.getItem(`wallet_${user?.id}`);
-      if (raw) return JSON.parse(raw) as Wallet;
-    } catch {}
-    return null;
-  });
-  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
-  // Never show loading if we have ANY cached balance — show stale data instantly
-  const [loading, setLoading] = useState(() => {
-    if (walletCache && walletCache.userId === user?.id) return false;
-    try {
-      return !localStorage.getItem(`wallet_${user?.id}`);
-    } catch { return true; }
-  });
-  const [isOfflineData, setIsOfflineData] = useState(false);
-  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
+  const queryClient = useQueryClient();
 
-  const fetchWallet = useCallback(async (force = false) => {
-    if (!user) return;
+  // Realtime invalidation (wallets, wallet_deductions, general_ledger)
+  useWalletRealtime(user?.id);
 
-    // Check module-level cache first (prevents duplicate fetches from multiple hook instances)
-    if (!force && walletCache && walletCache.userId === user.id && (Date.now() - walletCache.timestamp < WALLET_CACHE_TTL)) {
-      setWallet(walletCache.data);
-      setLoading(false);
-      setIsOfflineData(false);
-      return;
-    }
+  const walletQuery = useQuery<Wallet | null>({
+    queryKey: ['wallet', user?.id],
+    enabled: !!user,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    queryFn: async () => {
+      if (!user) return null;
 
-    // Try cached data first
-    try {
-      const cached = await getCachedWallet(user.id);
-      if (cached) {
-        setWallet(cached);
-        setIsOfflineData(true);
+      if (!navigator.onLine) {
+        const cached = await getCachedWallet(user.id).catch(() => null);
+        return (cached as Wallet) || null;
       }
-    } catch (e) {
-      console.warn('[useWallet] Cache read failed:', e);
-    }
 
-    if (!navigator.onLine) return;
-
-    try {
       const { data, error } = await supabase
         .from('wallets')
         .select('*')
@@ -91,193 +59,132 @@ export function useWallet() {
         .maybeSingle();
 
       if (error) {
-        console.error('Error fetching wallet:', error);
-        return;
+        console.error('[useWallet] fetch error:', error);
+        const cached = await getCachedWallet(user.id).catch(() => null);
+        return (cached as Wallet) || null;
       }
 
-      if (!data) {
-        const { data: newWallet, error: createError } = await supabase
+      let row = data as Wallet | null;
+      if (!row) {
+        const { data: created, error: createError } = await supabase
           .from('wallets')
           .insert({ user_id: user.id, balance: 0 })
-          .select()
+          .select('*')
           .single();
-
         if (createError) {
-          console.error('Error creating wallet:', createError);
-          return;
+          console.error('[useWallet] create error:', createError);
+          return null;
         }
-        setWallet(newWallet);
-        setIsOfflineData(false);
-        setLastSyncedAt(new Date());
-        walletCache = { data: newWallet, userId: user.id, timestamp: Date.now() };
-        try { localStorage.setItem(`wallet_${user.id}`, JSON.stringify(newWallet)); } catch {}
-        await cacheWallet(newWallet);
-      } else {
-        setWallet(data);
-        setIsOfflineData(false);
-        setLastSyncedAt(new Date());
-        walletCache = { data, userId: user.id, timestamp: Date.now() };
-        try { localStorage.setItem(`wallet_${user.id}`, JSON.stringify(data)); } catch {}
-        await cacheWallet(data);
+        row = created as Wallet;
       }
-    } catch (e) {
-      console.warn('[useWallet] Failed to fetch wallet:', e);
-    }
-  }, [user]);
 
-  const fetchTransactions = useCallback(async () => {
-    if (!user) return;
+      cacheWallet(row).catch(() => {});
+      return row;
+    },
+  });
 
-    // Try cached transactions first
-    try {
-      const cached = await getCachedTransactions();
-      if (cached.length > 0) {
-        setTransactions(cached.filter(t => t.sender_id === user.id || t.recipient_id === user.id));
-      }
-    } catch (e) {
-      console.warn('[useWallet] Cache read failed:', e);
-    }
+  const wallet = walletQuery.data ?? null;
+  const loading = walletQuery.isLoading;
+  const isOfflineData = !navigator.onLine;
+  const lastSyncedAt = walletQuery.dataUpdatedAt ? new Date(walletQuery.dataUpdatedAt) : null;
 
-    if (!navigator.onLine) return;
-
-    try {
+  // Transactions — fetched on demand by the wallet sheet
+  const txQuery = useQuery<WalletTransaction[]>({
+    queryKey: ['wallet-transactions', user?.id],
+    enabled: false, // lazy: opened by refreshTransactions
+    staleTime: 30_000,
+    queryFn: async () => {
+      if (!user) return [];
       const { data, error } = await supabase
         .from('wallet_transactions')
         .select('*')
         .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
         .order('created_at', { ascending: false })
         .limit(5);
+      if (error || !data) return [];
+      const ADMIN_ONLY = ['pool deployment'];
+      const filtered = data.filter(
+        (t: any) => !ADMIN_ONLY.some((term) => t.description?.toLowerCase().startsWith(term)),
+      );
+      const userIds = [
+        ...new Set([...filtered.map((t: any) => t.sender_id), ...filtered.map((t: any) => t.recipient_id)]),
+      ];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone')
+        .in('id', userIds);
+      const map = new Map((profiles || []).map((p: any) => [p.id, p]));
+      return filtered.map((t: any) => ({
+        ...t,
+        sender_name: map.get(t.sender_id)?.full_name || 'Unknown',
+        recipient_name: map.get(t.recipient_id)?.full_name || 'Unknown',
+        recipient_phone: map.get(t.recipient_id)?.phone || '',
+      }));
+    },
+  });
 
-      if (error) {
-        console.error('Error fetching transactions:', error);
-        return;
-      }
+  const refreshWallet = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['wallet', user?.id] });
+    return walletQuery.refetch();
+  }, [queryClient, user?.id, walletQuery]);
 
-      if (data && data.length > 0) {
-        // Filter out pool deployment transactions (admin-only visibility)
-        const ADMIN_ONLY_DESCRIPTIONS = ['pool deployment'];
-        const filteredData = data.filter(t =>
-          !ADMIN_ONLY_DESCRIPTIONS.some(term => t.description?.toLowerCase().startsWith(term))
-        );
-        const userIds = [...new Set([...filteredData.map(t => t.sender_id), ...filteredData.map(t => t.recipient_id)])];
-        
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone')
-          .in('id', userIds);
+  const refreshTransactions = useCallback(() => {
+    return txQuery.refetch();
+  }, [txQuery]);
 
-        const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+  const sendMoney = useCallback(
+    async (recipientPhone: string, amount: number, description?: string) => {
+      if (!user) return { error: new Error('Please log in first') };
 
-        const enrichedTransactions = filteredData.map(t => ({
-          ...t,
-          sender_name: profileMap.get(t.sender_id)?.full_name || 'Unknown',
-          recipient_name: profileMap.get(t.recipient_id)?.full_name || 'Unknown',
-          recipient_phone: profileMap.get(t.recipient_id)?.phone || '',
-        }));
-
-        setTransactions(enrichedTransactions);
-        await cacheTransactions(enrichedTransactions);
-      } else {
-        setTransactions([]);
-      }
-    } catch (e) {
-      console.warn('[useWallet] Failed to fetch transactions:', e);
-    }
-  }, [user]);
-
-  const sendMoney = useCallback(async (recipientPhone: string, amount: number, description?: string) => {
-    if (!user) return { error: new Error('Please log in first') };
-
-    // Phase 4: Optional pre-validation via new service layer
-    const transferCheck = preValidateTransfer({
-      senderId: user.id,
-      recipientPhone,
-      amount,
-      description,
-    });
-    if (!transferCheck.shouldProceed) {
-      return { error: new Error(transferCheck.errors?.[0] || 'Validation failed') };
-    }
-
-    // Optional balance pre-check (fail-fast)
-    if (wallet) {
-      const balanceCheck = checkBalance(wallet.balance, amount);
-      if (!balanceCheck.shouldProceed) {
-        return { error: new Error(balanceCheck.errors?.[0] || 'Insufficient balance') };
-      }
-    }
-    
-    try {
-      const { data, error } = await supabase.functions.invoke('wallet-transfer', {
-        body: {
-          recipient_phone: recipientPhone,
-          amount,
-          description: description || 'Wallet transfer',
-        },
+      const transferCheck = preValidateTransfer({
+        senderId: user.id,
+        recipientPhone,
+        amount,
+        description,
       });
+      if (!transferCheck.shouldProceed) {
+        return { error: new Error(transferCheck.errors?.[0] || 'Validation failed') };
+      }
 
-      if (error) return { error: new Error(error.message || 'Transfer failed') };
-      if (data?.error) return { error: new Error(data.error) };
+      if (wallet) {
+        const balanceCheck = checkBalance(wallet.withdrawable_balance ?? wallet.balance, amount);
+        if (!balanceCheck.shouldProceed) {
+          return { error: new Error(balanceCheck.errors?.[0] || 'Insufficient balance') };
+        }
+      }
 
-      // Refresh wallet after successful transfer
-      await fetchWallet(true);
-      return { error: null };
-    } catch (e: any) {
-      return { error: new Error(e.message || 'Transfer failed') };
-    }
-  }, [user, fetchWallet, wallet, preValidateTransfer, checkBalance]);
+      try {
+        const { data, error } = await supabase.functions.invoke('wallet-transfer', {
+          body: {
+            recipient_phone: recipientPhone,
+            amount,
+            description: description || 'Wallet transfer',
+          },
+        });
+        if (error) return { error: new Error(error.message || 'Transfer failed') };
+        if (data?.error) return { error: new Error(data.error) };
+        await refreshWallet();
+        return { error: null };
+      } catch (e: any) {
+        return { error: new Error(e.message || 'Transfer failed') };
+      }
+    },
+    [user, wallet, preValidateTransfer, checkBalance, refreshWallet],
+  );
 
   const depositMoney = useCallback(async (_amount: number) => {
-    // Direct client-side wallet updates are not allowed for security.
-    // Use the deposit request flow instead (approve-deposit edge function).
     return { error: new Error('Direct deposits not allowed. Please use the deposit request flow.') };
   }, []);
 
-  useEffect(() => {
-    if (user) {
-      // Only show loading if we have NO cached data at all — prevents flash when cache exists
-      const hasCachedData = wallet !== null;
-      if (!hasCachedData) setLoading(true);
-      // Only fetch wallet balance on mount — transactions load lazily when wallet sheet opens
-      fetchWallet().finally(() => setLoading(false));
-
-      // SINGLE realtime channel for wallet balance only (reduced from 4 channels to 1)
-      const walletChannel = supabase
-        .channel(`wallet-${user.id}`)
-        .on(
-          'postgres_changes',
-          { event: 'UPDATE', schema: 'public', table: 'wallets', filter: `user_id=eq.${user.id}` },
-          (payload) => {
-          if (payload.new) {
-              const updated = payload.new as Wallet;
-              setWallet(updated);
-              setIsOfflineData(false);
-              setLastSyncedAt(new Date());
-              walletCache = { data: updated, userId: user.id, timestamp: Date.now() };
-              try { localStorage.setItem(`wallet_${user.id}`, JSON.stringify(updated)); } catch {}
-              cacheWallet(updated);
-            }
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(walletChannel);
-      };
-    }
-  }, [user, fetchWallet, fetchTransactions]);
-
-  const refreshWallet = useCallback(() => fetchWallet(true), [fetchWallet]);
-
   return {
     wallet,
-    transactions,
+    transactions: txQuery.data ?? [],
     loading,
     isOfflineData,
     lastSyncedAt,
     sendMoney,
     depositMoney,
     refreshWallet,
-    refreshTransactions: fetchTransactions,
+    refreshTransactions,
   };
 }
