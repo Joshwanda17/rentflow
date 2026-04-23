@@ -7,6 +7,7 @@ import { User } from '@supabase/supabase-js';
 import AiIdButton from '@/components/ai-id/AiIdButton';
 import { UnifiedWalletHeroCard } from '@/components/wallet/UnifiedWalletHeroCard';
 import { AgentRiskExposureCard } from '@/components/agent/AgentRiskExposureCard';
+import { EarnedSinceLastWithdrawalCard } from '@/components/agent/EarnedSinceLastWithdrawalCard';
 
 import { Button } from '@/components/ui/button';
 import { 
