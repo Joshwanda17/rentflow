@@ -137,9 +137,11 @@ export function PartnershipTopup({
                             <table border={0} cellPadding={0} cellSpacing={0} role="presentation" align="center" style={{ margin: '8px auto 0 auto' }}>
                               <tbody><tr>
                                 <td align="center" style={ctaButtonCell}>
-                                  <Link href={dashboard_url} style={ctaButton}>
-                                    Access Your Dashboard&nbsp;→
-                                  </Link>
+                                  <Link
+                                    href={dashboard_url}
+                                    style={ctaButton}
+                                    dangerouslySetInnerHTML={{ __html: 'Access Your Dashboard&nbsp;&rarr;' }}
+                                  />
                                 </td>
                               </tr></tbody>
                             </table>
