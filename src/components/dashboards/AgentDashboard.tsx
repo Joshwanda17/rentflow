@@ -437,6 +437,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {activeTab === 'money' && (
           <div className="space-y-5 animate-in fade-in duration-200">
             <AgentRiskExposureCard />
+            <EarnedSinceLastWithdrawalCard />
             <AgentLandlordFloatCard
               onPayLandlord={() => { hapticTap(); setFloatAllocationsOpen(true); }}
               onOpenRecovery={() => { hapticTap(); setRecoveryLedgerOpen(true); }}
