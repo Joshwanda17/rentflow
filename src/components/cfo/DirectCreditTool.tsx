@@ -395,25 +395,42 @@ export function DirectCreditTool() {
       });
       if (error) {
         // Try to detect the 409 confirmation gate before falling through to generic handling.
+        // The body shape can vary across Supabase SDK versions: Response object, parsed object,
+        // string body, or stringified JSON inside error.message. Try them all.
+        let gateBody: any = null;
         try {
           const ctx = (error as any)?.context;
-          if (ctx && typeof ctx.json === 'function') {
-            const body = await ctx.clone().json();
-            if (body?.code === 'CONFIRM_NON_COMMISSION_AGENT_CREDIT') {
-              setPendingNonCommissionConfirm({
-                message: body.message,
-                suggested_category: body.suggested_category,
-                chosen_category: body.chosen_category,
-              });
-              // Throw a tagged error so onError can stay quiet.
-              const e = new Error('__CONFIRM_NON_COMMISSION__');
-              (e as any).__silent = true;
-              throw e;
+          if (ctx) {
+            // Already-parsed object
+            if (ctx.code) {
+              gateBody = ctx;
+            } else if (typeof ctx.json === 'function') {
+              try {
+                const cloned = typeof ctx.clone === 'function' ? ctx.clone() : ctx;
+                gateBody = await cloned.json();
+              } catch { /* body already consumed or not a Response */ }
+            }
+            if (!gateBody && ctx.body) {
+              gateBody = typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
             }
           }
-        } catch (innerErr: any) {
-          if (innerErr?.__silent) throw innerErr;
-          // ignore parse errors and fall through
+          // Last resort: parse JSON out of error.message (e.g. "Edge function returned 409: Error, {...}")
+          if (!gateBody && typeof (error as any)?.message === 'string') {
+            const m = (error as any).message.match(/\{[\s\S]*\}$/);
+            if (m) {
+              try { gateBody = JSON.parse(m[0]); } catch { /* ignore */ }
+            }
+          }
+        } catch { /* ignore detection errors */ }
+        if (gateBody?.code === 'CONFIRM_NON_COMMISSION_AGENT_CREDIT') {
+          setPendingNonCommissionConfirm({
+            message: gateBody.message,
+            suggested_category: gateBody.suggested_category,
+            chosen_category: gateBody.chosen_category,
+          });
+          const e = new Error('__CONFIRM_NON_COMMISSION__');
+          (e as any).__silent = true;
+          throw e;
         }
         const msg = await extractFromErrorObject(error, 'Something went wrong');
         if (msg.includes('Unauthorized')) throw new Error('You do not have permission. Please log in again.');
