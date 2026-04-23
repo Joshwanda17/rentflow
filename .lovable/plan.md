@@ -1,72 +1,171 @@
 
+## Plan: Fix the current financial-action errors and remove the remaining silent failures
 
-## Plan: Fix Silent Failures on CFO Wallet Deduction & Direct Debit
+### What I found
 
-### What's broken
+There are two different problems happening at once:
 
-The CFO clicks **Deduct from Wallet** (or **Direct Debit**) → button does nothing visible → toast doesn't fire → silent failure. This is happening because the edge function is returning a 400 with an error message the UI is not surfacing.
+1. **Backend wallet routing bug**
+   - `wallet-deduction` is trying to use category `float_retraction`.
+   - Edge logs show:
+     ```text
+     Category "float_retraction" is not in the locked allowlist
+     ```
+   - That means the new float-overflow split logic was added in the edge function, but the category was never registered in the platform’s locked ledger rules.
 
-### Concrete evidence (from edge logs)
+2. **Some buttons still fail silently because the UI only checks `error`, not `data?.error`**
+   - Several deposit/withdrawal approval screens still call `supabase.functions.invoke(...)` directly.
+   - Many of them only handle SDK transport errors, so a structured backend response like:
+     ```json
+     { "error": "Insufficient withdrawable balance..." }
+     ```
+     can still be missed.
 
+There is also a third important detail:
+
+3. **CFO direct debit is not fully fixed yet**
+   - Logs show `cfo-direct-credit` still hitting:
+     ```text
+     new row for relation "wallets" violates check constraint "wallets_balance_check"
+     ```
+   - The current debit split logic still depends on a float fallback category that is not fully aligned with the router/allowlist setup.
+
+### Implementation plan
+
+#### 1) Fix float-backed debits with a valid ledger category
+Use an existing production category instead of the unregistered `float_retraction`.
+
+- Update:
+  - `supabase/functions/wallet-deduction/index.ts`
+  - `supabase/functions/cfo-direct-credit/index.ts`
+- Replace the float-overflow debit leg from `float_retraction` to an already approved float cash-out category:
+  - `agent_float_settlement`
+- Then update the wallet router so that `agent_float_settlement` is explicitly treated as a **float bucket** category.
+
+Why this path:
+- `agent_float_settlement` already exists in the strict allowlist / locked categories.
+- It avoids inventing a brand-new category and reduces the chance of another strict-mode failure.
+
+#### 2) Patch the wallet router so float settlement actually drains float
+Create a database migration that updates `wallet_route_for_category(...)` so:
+
+```text
+agent_float_settlement -> float bucket
+sign follows direction
 ```
-wallet-deduction → Ledger RPC error: code=23514
-"new row for relation 'wallets' violates check constraint 'wallets_buckets_nonneg'"
-Failing row: withdrawable_balance=-60,000, float_balance=100,000
+
+This ensures that when the edge functions split a debit:
+- first leg drains `withdrawable`
+- overflow leg drains `float`
+
+instead of trying to route back into `withdrawable` and tripping wallet balance checks.
+
+#### 3) Keep bucket-aware prechecks in the edge functions
+For both:
+- `wallet-deduction`
+- `cfo-direct-credit` debit branch
+
+Use this rule:
+
+```text
+if withdrawable >= amount:
+  use single withdrawable debit
+else if withdrawable + float >= amount:
+  split debit into withdrawable portion + float portion
+else:
+  return structured 400 error with bucket breakdown
 ```
 
-Wallet `b6c0bc4e-...` has:
-- `balance = 100,000`
-- `withdrawable_balance = 0` ← empty
-- `float_balance = 100,000` ← full
+Expected backend error shape:
+```json
+{
+  "error": "Insufficient balance. Withdrawable: UGX X, Float: UGX Y, Requested: UGX Z"
+}
+```
 
-CFO is trying to deduct UGX 60,000. The router sends `wallet_deduction (cash_out)` to the **withdrawable** bucket (verified: `wallet_route_for_category` returns `(withdrawable, -1)`), so `apply_wallet_movement` does `0 - 60,000 = -60,000`, the `wallets_buckets_nonneg` CHECK rejects it, the whole transaction rolls back, and the user sees nothing because the UI's mutation handler isn't extracting the structured error.
+#### 4) Roll out the global edge-error wrapper to the approval buttons
+Adopt `src/lib/invokeEdgeFunction.ts` for the financial actions that still use raw `supabase.functions.invoke(...)`.
 
-### Root cause (two layers)
+Priority callsites:
 
-1. **Bucket-blind balance check.** `wallet-deduction/index.ts` line 108 only checks `wallet.balance >= amount` (the *total*). It never checks the specific bucket the deduction will draw from. When float holds the money but the route targets withdrawable, the deduction fails at the DB layer.
+**Deposit approval / rejection**
+- `src/components/manager/DepositRequestsManager.tsx`
+- `src/pages/DepositsManagement.tsx`
+- `src/components/agent/PendingDepositsSection.tsx`
+- `src/components/financial-ops/DepositStatsPanel.tsx`
+- `src/components/financial-ops/TidVerification.tsx`
 
-2. **Silent UI failure.** The deduction/CFO-debit dialogs are not running the error response through `extractEdgeFunctionError` (or equivalent), so the structured `{ error: "..." }` body returned with status 400 is dropped on the floor — no toast, no log visible to the operator.
+**Withdrawal approval / rejection**
+- `src/components/financial-ops/FinOpsWithdrawalVerification.tsx`
+- `src/components/cfo/CFOWithdrawalApprovals.tsx`
+- `src/components/financial-ops/FloatPayoutVerification.tsx`
 
-A third issue (cfo-direct-credit) is the same shape: when CFO debits an agent whose money sits in `float`, the same bucket violation occurs.
+**Already-related financial actions worth aligning**
+- `src/components/financial-ops/WalletDeductionPanel.tsx`
+- `src/components/cfo/DirectCreditTool.tsx` (preserve its special 409 confirmation flow for non-commission agent credits)
 
-### Fix (3 parts)
+The goal is:
+- every edge failure shows a toast
+- every structured backend error body is surfaced
+- no button appears to do nothing
 
-**1. Make `wallet-deduction` bucket-aware (server-side, no UI change needed)**
+#### 5) Handle partial-success batch responses properly
+Some deposit bulk actions return `data.results` rather than a single hard failure.
 
-In `supabase/functions/wallet-deduction/index.ts`:
-- Fetch all three buckets (`withdrawable_balance`, `float_balance`, `advance_balance`) instead of just `balance`.
-- If `withdrawable_balance >= amount` → keep the current single ledger entry (routes through withdrawable as today).
-- If `withdrawable_balance < amount` but `withdrawable + float >= amount` → split the deduction into **two ledger entries**: one `wallet_deduction` for the withdrawable portion and one `float_retraction` (already in allowlist, routes to `float`) for the remainder. Both balance against the platform leg.
-- If total still insufficient → return a clear `{ error: "Insufficient ... withdrawable: X, float: Y, requested: Z" }` with status 400.
-
-**2. Make `cfo-direct-credit` bucket-aware on debit**
-
-Same logic in the `op === "debit"` branch: if `walletCat` routes to withdrawable but the bucket is empty, either (a) auto-split between withdrawable and float (`float_retraction` for the float portion), or (b) when `walletCat = 'wallet_transfer'` / `system_balance_correction` — categories that already route to float for agents — the existing path is fine. Add a pre-check that picks the right category based on actual bucket holdings.
-
-**3. Surface backend errors in the UI**
-
-Touch the two callsites:
-- `src/components/cfo/WalletDeductionDialog.tsx` (or whichever calls `wallet-deduction`)
-- `src/components/cfo/CFODirectCreditDialog.tsx` (or equivalent for `cfo-direct-credit`)
-
-Wrap the `supabase.functions.invoke` response with `extractEdgeFunctionError(...)` (already exists in `src/lib/extractEdgeFunctionError.ts`) and pipe the result into `toast.error(...)`. This guarantees every backend rejection becomes a visible toast — no more silent buttons, even for future edge cases.
-
-### Verification
-
-1. Re-run the failed deduction: UGX 60,000 from a wallet with `withdrawable=0, float=100,000` → succeeds with split entries (withdrawable -0, float -60,000) and balance becomes 40,000 in float.
-2. Try a deduction larger than total balance → toast shows: *"Insufficient balance. Withdrawable: UGX 0, Float: UGX 100,000, Requested: UGX 200,000"*.
-3. CFO direct debit on an agent with float-only balance → succeeds via float route; toast confirms.
-4. Existing successful flows (deduction from a wallet with sufficient withdrawable) → unchanged.
+For bulk approve/reject screens:
+- parse `results`
+- show per-item backend error summaries when present
+- avoid generic messages like “Failed to approve 1 deposit” when the backend already returned the exact reason
 
 ### Files to change
 
-- `supabase/functions/wallet-deduction/index.ts` — bucket-aware balance check + auto-split ledger entries.
-- `supabase/functions/cfo-direct-credit/index.ts` — same bucket-aware logic in debit branch.
-- `src/components/cfo/WalletDeductionDialog.tsx` (and the CFO direct-debit dialog component, exact filename to confirm in implementation) — use `extractEdgeFunctionError` to show real error messages in toasts.
+**Backend**
+- `supabase/functions/wallet-deduction/index.ts`
+- `supabase/functions/cfo-direct-credit/index.ts`
+- new migration updating `wallet_route_for_category(...)`
 
-### Risks & mitigations
+**Frontend**
+- `src/lib/invokeEdgeFunction.ts` (only if a small enhancement is needed for special-case handling)
+- `src/components/manager/DepositRequestsManager.tsx`
+- `src/pages/DepositsManagement.tsx`
+- `src/components/agent/PendingDepositsSection.tsx`
+- `src/components/financial-ops/DepositStatsPanel.tsx`
+- `src/components/financial-ops/TidVerification.tsx`
+- `src/components/financial-ops/FinOpsWithdrawalVerification.tsx`
+- `src/components/cfo/CFOWithdrawalApprovals.tsx`
+- `src/components/financial-ops/FloatPayoutVerification.tsx`
+- `src/components/financial-ops/WalletDeductionPanel.tsx`
+- `src/components/cfo/DirectCreditTool.tsx`
 
-- **Risk**: Auto-splitting a deduction across two buckets could confuse downstream reporting. **Mitigation**: Use the existing `float_retraction` category for the float portion (already an allowlisted, audited flow); each leg is independently traceable in `general_ledger`.
-- **Risk**: Touching `cfo-direct-credit` could affect the credit branch. **Mitigation**: The change is scoped strictly to the `op === "debit"` branch; credits remain untouched.
-- **Risk**: UI changes might mask new errors. **Mitigation**: We keep `console.error` alongside the toast so error remain in browser logs.
+### Verification checklist
 
+1. **Wallet deduction from float-backed wallet**
+   - user has `withdrawable=0`, `float>0`
+   - deduction succeeds by draining float through valid category routing
+
+2. **CFO direct debit**
+   - debit against user with float-backed funds no longer throws `wallets_balance_check`
+   - if insufficient total funds, toast shows exact backend message
+
+3. **Confirm deposit buttons**
+   - forced backend rejection always shows the structured reason in a toast
+   - no silent confirm/reject actions
+
+4. **Withdrawal approval buttons in Financial Ops**
+   - approve/reject always show backend errors
+   - `INSUFFICIENT_WITHDRAWABLE`, permission failures, and state conflicts all surface visibly
+
+5. **Batch deposit actions**
+   - mixed-result responses show exact failure reasons, not only a generic fail count
+
+### Technical note
+
+Current evidence strongly indicates the main runtime break is not just “missing toasts”:
+```text
+wallet-deduction -> Category "float_retraction" is not in the locked allowlist
+cfo-direct-credit -> wallets_balance_check violation
+```
+
+So the fix needs both layers:
+- backend category/router correction
+- shared frontend error surfacing
