@@ -312,7 +312,7 @@ export function AgentOpsDashboard() {
 
   // HOME VIEW
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-[calc(env(safe-area-inset-bottom)+72px)] sm:pb-0">
       {/* Greeting header */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
