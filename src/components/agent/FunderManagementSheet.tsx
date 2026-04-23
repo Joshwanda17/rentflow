@@ -62,12 +62,6 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
     if (open && user) fetchFunders();
   }, [open, user]);
 
-  useFunderAccountsRealtime({
-    agentId: user?.id,
-    onChange: fetchFunders,
-    enabled: open && !!user,
-  });
-
   const fetchFunders = async () => {
     if (!user) return;
     setLoading(true);
