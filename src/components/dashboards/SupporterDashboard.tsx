@@ -145,11 +145,7 @@ export default function SupporterDashboard({
       window.scrollTo({ top: 0, behavior: 'smooth' });
       toast({
         title: '🎉 Welcome to Welile Supporters!',
-        description: 'Terms accepted. A copy has been sent to your email.',
-      });
-      // Send agreement terms to their email automatically
-      supabase.functions.invoke('send-supporter-agreement-email').then(({ error }) => {
-        if (error) console.error('Failed to send agreement email:', error);
+        description: 'Terms accepted.',
       });
       setTimeout(() => setJustAccepted(false), 5000);
     }
