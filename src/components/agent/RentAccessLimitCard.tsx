@@ -382,13 +382,15 @@ export function RentAccessLimitCard({
           {/* How-it-works */}
           {showHow && (
             <div className="rounded-xl bg-background/70 backdrop-blur border border-border/50 p-3 text-xs space-y-1 animate-fade-in">
-              <p className="font-bold text-foreground">How the limit is calculated</p>
+              <p className="font-bold text-foreground">How much money can you get?</p>
               <p className="text-muted-foreground">
-                <span className="font-semibold text-foreground">Base</span> = monthly rent × 12
+                We start with your <span className="font-semibold text-foreground">monthly rent × 12 months</span>.
               </p>
-              <p className="text-success">+5% of base for every day you pay on time</p>
-              <p className="text-destructive">−5% of base for every missed day</p>
-              <p className="text-muted-foreground pt-1">Pay daily, grow your limit. Miss days, it shrinks.</p>
+              <p className="text-success">✅ Pay rent today → you get more money tomorrow (+5%)</p>
+              <p className="text-destructive">❌ Miss a day → the money you can get goes down (−5%)</p>
+              <p className="text-muted-foreground pt-1 font-medium">
+                Pay every day. The more you pay, the more rent Welile can give you.
+              </p>
             </div>
           )}
         </div>
