@@ -446,7 +446,6 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             .eq('record_id', portfolio.id);
           const paymentNumber = (priorCompounds ?? 0); // includes the one we just inserted? insert above already happened, so this is the cycle index
 
-          const compactPortfolio = portfolio.id.replace(/-/g, '').slice(0, 8).toUpperCase();
           const compoundIso = new Date().toISOString();
           const compoundDate = new Date(compoundIso).toLocaleDateString('en-GB', {
             day: '2-digit', month: 'long', year: 'numeric',
@@ -459,7 +458,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
               idempotencyKey: `partner-compound-${detailPartner.profile.id}-${portfolio.id}-${paymentNumber}`,
               templateData: {
                 partner_name: detailPartner.profile.full_name || 'Partner',
-                portfolio_id: `PF-${compactPortfolio}`,
+                portfolio_id: portfolio.portfolio_code || portfolio.id,
                 compound_date: compoundDate,
                 initial_partnership_amount: portfolio.investment_amount,
                 roi_return: `${portfolio.roi_percentage}%`,
@@ -3246,7 +3245,6 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
             .eq('recipient_email', recipientEmail)
             .eq('status', 'sent');
 
-          const compactPortfolio = p.portfolioId.replace(/-/g, '').slice(0, 8).toUpperCase();
           const compoundDate = new Date().toLocaleDateString('en-GB', {
             day: '2-digit', month: 'long', year: 'numeric',
           });
@@ -3258,7 +3256,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
               idempotencyKey: `partner-compound-${p.investorId}-${p.portfolioId}-${paymentNumber}`,
               templateData: {
                 partner_name: p.name || 'Partner',
-                portfolio_id: `PF-${compactPortfolio}`,
+                portfolio_id: p.portfolioName || p.portfolioId,
                 compound_date: compoundDate,
                 initial_partnership_amount: p.investmentAmount,
                 roi_return: `${p.roiPercentage}%`,
@@ -3303,7 +3301,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
       setCompoundConfirmation({
         open: true,
         partnerName: p.name || 'Partner',
-        portfolioLabel: p.portfolioName || `PF-${p.portfolioId.slice(0, 8).toUpperCase()}`,
+        portfolioLabel: p.portfolioName || p.portfolioId,
         roiAmount,
         newPrincipal: newAmount,
         refId,
