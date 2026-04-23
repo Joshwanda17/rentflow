@@ -3245,7 +3245,6 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
             .eq('recipient_email', recipientEmail)
             .eq('status', 'sent');
 
-          const compactPortfolio = p.portfolioId.replace(/-/g, '').slice(0, 8).toUpperCase();
           const compoundDate = new Date().toLocaleDateString('en-GB', {
             day: '2-digit', month: 'long', year: 'numeric',
           });
@@ -3257,7 +3256,7 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
               idempotencyKey: `partner-compound-${p.investorId}-${p.portfolioId}-${paymentNumber}`,
               templateData: {
                 partner_name: p.name || 'Partner',
-                portfolio_id: `PF-${compactPortfolio}`,
+                portfolio_id: p.portfolioName || p.portfolioId,
                 compound_date: compoundDate,
                 initial_partnership_amount: p.investmentAmount,
                 roi_return: `${p.roiPercentage}%`,
