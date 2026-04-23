@@ -1,79 +1,72 @@
 
 
-## Plan: Restore Agent Float — Fix Misrouted Float Credits
+## Plan: Fix Silent Failures on CFO Wallet Deduction & Direct Debit
 
-### The Problem
+### What's broken
 
-For agents, money meant to fund tenant rent payments (operational float = company money) has been routed into the `withdrawable_balance` bucket instead of `float_balance`. The UI's `useAgentBalances` hook then reads withdrawable, treats every shilling above their commission ledger as "other / unclassified," and the "Float Allocation" RPC sees `float_balance = 0` and blocks rent disbursements.
+The CFO clicks **Deduct from Wallet** (or **Direct Debit**) → button does nothing visible → toast doesn't fire → silent failure. This is happening because the edge function is returning a 400 with an error message the UI is not surfacing.
 
-### Concrete Examples (from live DB)
+### Concrete evidence (from edge logs)
 
-| Agent | Wallet Balance | Withdrawable | Float | Ledger Commission |
-|---|---|---|---|---|
-| LUKODDA JOSEPH | 34,000,000 | 34,000,000 | 0 | 74,017,562 |
-| ATUHAIRE CAROLYNE | 5,340,397 | 5,340,397 | 0 | 295,000 |
-| Akampurira Onesmus | 1,647,200 | 1,647,200 | 0 | 3,677,033 |
-| Katongole James | 2,400,000 | 2,400,000 | 0 | 10,059,997 |
+```
+wallet-deduction → Ledger RPC error: code=23514
+"new row for relation 'wallets' violates check constraint 'wallets_buckets_nonneg'"
+Failing row: withdrawable_balance=-60,000, float_balance=100,000
+```
 
-In every case `float_balance = 0` despite the agent clearly holding company money. Withdrawable inflated by float credits is also why the previous "lock commission" error appeared.
+Wallet `b6c0bc4e-...` has:
+- `balance = 100,000`
+- `withdrawable_balance = 0` ← empty
+- `float_balance = 100,000` ← full
 
-### Root Cause
+CFO is trying to deduct UGX 60,000. The router sends `wallet_deduction (cash_out)` to the **withdrawable** bucket (verified: `wallet_route_for_category` returns `(withdrawable, -1)`), so `apply_wallet_movement` does `0 - 60,000 = -60,000`, the `wallets_buckets_nonneg` CHECK rejects it, the whole transaction rolls back, and the user sees nothing because the UI's mutation handler isn't extracting the structured error.
 
-`wallet_route_for_category` routes these credit categories to **withdrawable** for ALL users, but for **agents** they are float deposits:
+### Root cause (two layers)
 
-1. `wallet_deposit` — agent cash deposits at the merchant code (the explicit "Operations Float" funding flow)
-2. `wallet_transfer` — portfolio top-up funding routed to the agent's wallet for client investments
-3. `roi_wallet_credit` — ROI proceeds being held to be paid out to a partner
-4. `system_balance_correction` / `cfo_direct_credit` — when description says "operational float" / "portfolio top-up"
+1. **Bucket-blind balance check.** `wallet-deduction/index.ts` line 108 only checks `wallet.balance >= amount` (the *total*). It never checks the specific bucket the deduction will draw from. When float holds the money but the route targets withdrawable, the deduction fails at the DB layer.
 
-There is no role-aware routing. The router treats an agent's wallet identical to a tenant's wallet.
+2. **Silent UI failure.** The deduction/CFO-debit dialogs are not running the error response through `extractEdgeFunctionError` (or equivalent), so the structured `{ error: "..." }` body returned with status 400 is dropped on the floor — no toast, no log visible to the operator.
 
-### The Fix (3 parts)
+A third issue (cfo-direct-credit) is the same shape: when CFO debits an agent whose money sits in `float`, the same bucket violation occurs.
 
-**1. Make routing role-aware in `wallet_route_for_category`** (or add a sibling helper invoked by `apply_wallet_movement`):
+### Fix (3 parts)
 
-For users with the `agent` role, route the following credit categories to **`float`** instead of `withdrawable`:
-- `wallet_deposit` (agent cash float top-ups — non-commission)
-- `wallet_transfer` (portfolio top-up funding)
-- `roi_wallet_credit` (partner ROI being held)
-- `agent_proxy_investment` (cash_in side, when funds are being held for a partner)
-- `pool_capital_received`, `partner_funding`, `supporter_capital`, `supporter_rent_fund`
+**1. Make `wallet-deduction` bucket-aware (server-side, no UI change needed)**
 
-Keep these routing to **withdrawable** for agents (real personal earnings):
-- `agent_commission_earned`, `agent_commission`, `agent_bonus`
-- `partner_commission`, `referral_bonus`, `proxy_investment_commission`
-- `agent_investment_commission`, `salary_payout`
+In `supabase/functions/wallet-deduction/index.ts`:
+- Fetch all three buckets (`withdrawable_balance`, `float_balance`, `advance_balance`) instead of just `balance`.
+- If `withdrawable_balance >= amount` → keep the current single ledger entry (routes through withdrawable as today).
+- If `withdrawable_balance < amount` but `withdrawable + float >= amount` → split the deduction into **two ledger entries**: one `wallet_deduction` for the withdrawable portion and one `float_retraction` (already in allowlist, routes to `float`) for the remainder. Both balance against the platform leg.
+- If total still insufficient → return a clear `{ error: "Insufficient ... withdrawable: X, float: Y, requested: Z" }` with status 400.
 
-For non-agents: behavior unchanged.
+**2. Make `cfo-direct-credit` bucket-aware on debit**
 
-**2. One-time reconciliation migration** — for every agent wallet, recompute the correct split from the ledger using the new rules and rewrite the bucket fields atomically (using the `wallet.sync_authorized` session flag). Move misclassified withdrawable funds into `float_balance`. Preserve the invariant `balance = withdrawable + float + advance` (the existing `trg_enforce_wallet_balance_invariant` will keep it safe).
+Same logic in the `op === "debit"` branch: if `walletCat` routes to withdrawable but the bucket is empty, either (a) auto-split between withdrawable and float (`float_retraction` for the float portion), or (b) when `walletCat = 'wallet_transfer'` / `system_balance_correction` — categories that already route to float for agents — the existing path is fine. Add a pre-check that picks the right category based on actual bucket holdings.
 
-After reconciliation, expected outcomes:
-- LUKODDA JOSEPH: withdrawable ≈ 0 (no commission earned has been withdrawn yet sits as "other"), float ≈ 34M
-- ATUHAIRE CAROLYNE: withdrawable ≈ 295K (commission), float ≈ 5,045K
-- Akampurira Onesmus: withdrawable ≈ matches commission earned-minus-spent, float ≈ rest
+**3. Surface backend errors in the UI**
 
-**3. Update `useAgentBalances` hook** — already mostly correct. Once routing is fixed, the "drift warning" between withdrawable and commission will naturally vanish because `withdrawable` will only contain real commission. Remove the legacy `otherBalance` fallback wording (or keep it as a safety net for future drift but it should always be 0 after the fix).
+Touch the two callsites:
+- `src/components/cfo/WalletDeductionDialog.tsx` (or whichever calls `wallet-deduction`)
+- `src/components/cfo/CFODirectCreditDialog.tsx` (or equivalent for `cfo-direct-credit`)
 
-### Verification Steps
+Wrap the `supabase.functions.invoke` response with `extractEdgeFunctionError(...)` (already exists in `src/lib/extractEdgeFunctionError.ts`) and pipe the result into `toast.error(...)`. This guarantees every backend rejection becomes a visible toast — no more silent buttons, even for future edge cases.
 
-After the migration runs we'll re-query the agent wallet table and confirm:
-1. `float_balance > 0` for every agent who has received a `wallet_deposit` or `wallet_transfer` credit.
-2. `withdrawable_balance` ≈ ledger commission balance for each agent (no drift).
-3. The "Float allocation blocked — would require commission funds" error disappears for the affected agents.
-4. `balance = withdrawable + float + advance` invariant holds (enforced by existing trigger).
+### Verification
 
-### Files to Change
+1. Re-run the failed deduction: UGX 60,000 from a wallet with `withdrawable=0, float=100,000` → succeeds with split entries (withdrawable -0, float -60,000) and balance becomes 40,000 in float.
+2. Try a deduction larger than total balance → toast shows: *"Insufficient balance. Withdrawable: UGX 0, Float: UGX 100,000, Requested: UGX 200,000"*.
+3. CFO direct debit on an agent with float-only balance → succeeds via float route; toast confirms.
+4. Existing successful flows (deduction from a wallet with sufficient withdrawable) → unchanged.
 
-- `supabase/migrations/<new>.sql`
-  - Replace `wallet_route_for_category` with a role-aware version (takes `p_user_id`)
-  - Update `apply_wallet_movement` to pass `p_user_id` into the router
-  - One-time reconciliation block: for each agent, recompute `withdrawable / float` from ledger and `UPDATE wallets` under `set_config('wallet.sync_authorized','true',true)`
-- `src/hooks/useAgentBalances.ts` — minor: simplify `otherBalance` (should be ~0 post-fix), keep warning log as a safety monitor.
+### Files to change
 
-### Risks & Mitigations
+- `supabase/functions/wallet-deduction/index.ts` — bucket-aware balance check + auto-split ledger entries.
+- `supabase/functions/cfo-direct-credit/index.ts` — same bucket-aware logic in debit branch.
+- `src/components/cfo/WalletDeductionDialog.tsx` (and the CFO direct-debit dialog component, exact filename to confirm in implementation) — use `extractEdgeFunctionError` to show real error messages in toasts.
 
-- **Risk**: Mis-routing a category breaks future credits. **Mitigation**: HARD-FAIL is preserved for unknown categories; we only re-route known ones for the `agent` role.
-- **Risk**: Reconciliation moves funds an agent already attempted to withdraw. **Mitigation**: We only move credits whose categories indicate float-purpose; commission-earning categories stay in withdrawable. Existing `wallet_withdrawal` debits already came out of withdrawable so the math nets correctly.
-- **Risk**: Wallet sole-writer rule. **Mitigation**: All updates go through `apply_wallet_movement` semantics (set sync_authorized flag inside the migration block).
+### Risks & mitigations
+
+- **Risk**: Auto-splitting a deduction across two buckets could confuse downstream reporting. **Mitigation**: Use the existing `float_retraction` category for the float portion (already an allowlisted, audited flow); each leg is independently traceable in `general_ledger`.
+- **Risk**: Touching `cfo-direct-credit` could affect the credit branch. **Mitigation**: The change is scoped strictly to the `op === "debit"` branch; credits remain untouched.
+- **Risk**: UI changes might mask new errors. **Mitigation**: We keep `console.error` alongside the toast so error remain in browser logs.
 
