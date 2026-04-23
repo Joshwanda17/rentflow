@@ -145,7 +145,12 @@ export function DepositRequestsManager() {
         },
       });
 
-      if (error) throw error;
+      if (error || data?.error) {
+        const { extractEdgeFunctionError } = await import('@/lib/extractEdgeFunctionError');
+        const msg = await extractEdgeFunctionError({ error, data }, 'Failed to approve deposit');
+        console.error('[DepositRequestsManager] approve failed:', msg, error);
+        throw new Error(msg);
+      }
       toast.success(`Approved deposit of ${formatUGX(deposit.amount)}`);
       setApproveTid('');
       fetchDeposits();
@@ -168,7 +173,7 @@ export function DepositRequestsManager() {
     setRejectDialog({ open: false, deposit: null });
 
     try {
-      const { error } = await supabase.functions.invoke('approve-deposit', {
+      const { data, error } = await supabase.functions.invoke('approve-deposit', {
         body: {
           deposit_request_id: deposit.id,
           action: 'reject',
@@ -177,7 +182,12 @@ export function DepositRequestsManager() {
         },
       });
 
-      if (error) throw error;
+      if (error || data?.error) {
+        const { extractEdgeFunctionError } = await import('@/lib/extractEdgeFunctionError');
+        const msg = await extractEdgeFunctionError({ error, data }, 'Failed to reject deposit');
+        console.error('[DepositRequestsManager] reject failed:', msg, error);
+        throw new Error(msg);
+      }
       toast.success('Deposit request rejected');
       setRejectionReason('');
       fetchDeposits();
