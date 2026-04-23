@@ -12767,6 +12767,7 @@ export type Database = {
           phone: string
         }[]
       }
+      test_wallet_drift_fix: { Args: never; Returns: Json }
       update_agent_collection_streak: {
         Args: { p_agent_id: string }
         Returns: undefined
