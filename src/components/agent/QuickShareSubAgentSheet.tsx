@@ -28,8 +28,7 @@ export function QuickShareSubAgentSheet({ open, onOpenChange }: QuickShareSubAge
     return `🚀 Join me on Welile as a Sub-Agent!
 
 💰 What you'll earn:
-• UGX 500 instant bonus on signup
-• 4% commission on every rent collection
+• 8% commission on every rent collection
 • Build your own team & earn even more
 
 ✨ FREE to join — no fees!
@@ -80,7 +79,7 @@ Let's grow together! 🤝`;
             {[
               { step: '1', text: 'Share this link with anyone' },
               { step: '2', text: 'They sign up as a NEW agent' },
-              { step: '3', text: 'You earn 1% of all their collections forever' },
+              { step: '3', text: 'You instantly earn UGX 10,000 + 2% of all their collections forever' },
             ].map(s => (
               <div key={s.step} className="flex items-center gap-3 py-1.5">
                 <Badge className="h-6 w-6 rounded-full p-0 flex items-center justify-center bg-warning text-warning-foreground text-xs font-bold">
