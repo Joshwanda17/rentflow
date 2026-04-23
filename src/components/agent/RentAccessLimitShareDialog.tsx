@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import {
   Loader2, MessageCircle, Image as ImageIcon, FileText, Copy, CheckCircle2, ExternalLink,
-  ArrowLeft, Eye, ShieldCheck, RotateCw, AlertTriangle,
+  ArrowLeft, Eye, ShieldCheck, RotateCw, AlertTriangle, Phone, Check, CheckCheck,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
