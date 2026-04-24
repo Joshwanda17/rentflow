@@ -27,6 +27,7 @@ import { VacancyAnalytics } from './VacancyAnalytics';
 import { TenantMatchingQueue } from './landlord-ops/TenantMatchingQueue';
 import { DealPipeline } from './landlord-ops/DealPipeline';
 import { ListingBonusApprovalQueue } from './ListingBonusApprovalQueue';
+import { VerificationTimelinePanel } from './landlord-ops/VerificationTimelinePanel';
 import { EmptyHouseActionDialog } from './landlord-ops/EmptyHouseActionDialog';
 import { Trash2, XCircle, Pencil } from 'lucide-react';
 import { EditLandlordDialog } from './landlord-ops/EditLandlordDialog';
@@ -1201,6 +1202,7 @@ export function LandlordOpsDashboard() {
         <BackButton />
         <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> Verification Queue ({unverifiedListings.length})</h2>
         <ListingBonusApprovalQueue filter="all" />
+        <VerificationTimelinePanel />
         <div className="space-y-2">
           {unverifiedListings.map(house => (
             <div key={house.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
@@ -1216,7 +1218,7 @@ export function LandlordOpsDashboard() {
               )}
               <Button size="sm" className="w-full h-11 gap-2 font-bold" onClick={() => handleVerifyListing(house)} disabled={verifying === house.id}>
                 {verifying === house.id ? <div className="h-4 w-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-                Verify → CFO
+                Verify → Auto-Pay UGX 5K
               </Button>
             </div>
           ))}
