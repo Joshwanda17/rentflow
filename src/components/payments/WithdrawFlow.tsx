@@ -154,8 +154,6 @@ export default function WithdrawFlow({
     if (!user) return;
 
     try {
-      const ref = `WTH-${Date.now()}`;
-
       const insertData: any = {
         user_id: user.id,
         amount: amount,
@@ -165,15 +163,22 @@ export default function WithdrawFlow({
         mobile_money_provider: payoutMode === 'mobile_money' ? momoProvider.toLowerCase() : (payoutMode === 'bank_transfer' ? 'bank' : 'cash'),
       };
 
-      const { error: requestError } = await supabase
+      const { data: insertedRow, error: requestError } = await supabase
         .from('withdrawal_requests')
-        .insert(insertData);
+        .insert(insertData)
+        .select('id')
+        .single();
 
       if (requestError) {
         throw new Error(requestError.message || 'Failed to submit withdrawal request');
       }
 
-      setWithdrawalRef(ref);
+      // Stable request ID derived from the DB UUID. NOT a transaction ID —
+      // the real provider TID is entered by Financial Ops at approval time.
+      const requestId = insertedRow?.id
+        ? `REQ-${String(insertedRow.id).replace(/-/g, '').slice(0, 12).toUpperCase()}`
+        : '';
+      setWithdrawalRef(requestId);
       setPaymentStatus('success');
       toast.success('Withdrawal request submitted! Please wait for manager approval before funds are released.');
       onSuccess?.();
@@ -198,10 +203,10 @@ export default function WithdrawFlow({
             body: {
               templateName: 'returns-disbursement-confirmation',
               recipientEmail: email,
-              idempotencyKey: `partner-withdraw-${user.id}-${ref}`,
+              idempotencyKey: `partner-withdraw-${user.id}-${insertedRow?.id ?? requestId}`,
               templateData: {
                 partner_name: profileRes.data?.full_name || 'Partner',
-                transaction_id: ref,
+                request_id: requestId,
                 portfolio_code: portfolioRes.data?.portfolio_code || '',
                 amount,
                 currency: 'UGX',
@@ -602,7 +607,7 @@ export default function WithdrawFlow({
             currency={currency}
             fees={0}
             recipient={getPayoutSummary()}
-            reference={withdrawalRef || `WTH-${Date.now()}`}
+            reference={withdrawalRef || 'PENDING'}
             method={payoutMode === 'mobile_money' ? 'Mobile Money' : payoutMode === 'bank_transfer' ? 'Bank Transfer' : 'Cash Pickup'}
             date={new Date()}
             onDownload={() => {}}
