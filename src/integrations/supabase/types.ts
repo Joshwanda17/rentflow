@@ -3888,6 +3888,7 @@ export type Database = {
           notes: string | null
           processed_by: string | null
           provider: string | null
+          purpose_audit: Json | null
           rejected_at: string | null
           rejection_reason: string | null
           status: string
@@ -3909,6 +3910,7 @@ export type Database = {
           notes?: string | null
           processed_by?: string | null
           provider?: string | null
+          purpose_audit?: Json | null
           rejected_at?: string | null
           rejection_reason?: string | null
           status?: string
@@ -3930,6 +3932,7 @@ export type Database = {
           notes?: string | null
           processed_by?: string | null
           provider?: string | null
+          purpose_audit?: Json | null
           rejected_at?: string | null
           rejection_reason?: string | null
           status?: string
