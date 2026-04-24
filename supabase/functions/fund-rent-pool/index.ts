@@ -252,7 +252,7 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
       body: JSON.stringify({
         userIds: [user.id],
-        payload: { title: "✅ Rent Pool Funded", body: `UGX ${amount.toLocaleString()} successfully funded to rent pool`, url: "/dashboard", type: "success" },
+        payload: { title: "✅ Rent Pool Funded", body: `UGX ${amount.toLocaleString()} successfully funded to rent pool`, url: "/funder", type: "success" },
       }),
     }).catch(() => {});
 
