@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { roleToSlug } from '@/lib/roleRoutes';
 
 export default function Index() {
-  const { user, loading } = useAuth();
+  const { user, loading, role: authRole } = useAuth();
   const [searchParams] = useSearchParams();
   
   const ref = searchParams.get('ref');
@@ -21,8 +21,8 @@ export default function Index() {
   // Auth finished loading — use LIVE auth state
   if (user) {
     // Already logged in — send them to their persona dashboard.
-    // useAuth().role may not be set yet on cold load; fall back to /tenant.
-    return <Navigate to={roleToSlug(useAuth().role)} replace />;
+    // authRole may not be set yet on cold load; helper falls back to /tenant.
+    return <Navigate to={roleToSlug(authRole)} replace />;
   }
 
   // Not logged in — send referral/role links to auth
