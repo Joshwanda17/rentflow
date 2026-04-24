@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Users, Home, UserCheck, Briefcase } from 'lucide-react';
+import { Users, Home, UserCheck, Briefcase, Building2, Moon } from 'lucide-react';
 import { useCFOImpactMetrics } from '@/hooks/useCFOImpactMetrics';
 import { Card, CardContent } from '@/components/ui/card';
 import { CFOImpactDrilldownSheet } from '@/components/cfo/CFOImpactDrilldownSheet';
@@ -106,6 +106,26 @@ export function CFOImpactKPIStrip() {
             iconColor="text-purple-600"
             loading={isLoading}
             onClick={() => setDrilldown('partners')}
+          />
+          <ImpactTile
+            icon={Building2}
+            label="Active Landlords"
+            value={fmtCount(data?.landlordsActive ?? 0)}
+            sublabel="paid in last 90 days"
+            iconBg="bg-teal-100 dark:bg-teal-900/30"
+            iconColor="text-teal-600"
+            loading={isLoading}
+            onClick={() => setDrilldown('landlords_active')}
+          />
+          <ImpactTile
+            icon={Moon}
+            label="Dormant Landlords"
+            value={fmtCount(data?.landlordsDormant ?? 0)}
+            sublabel="no rent in 90+ days"
+            iconBg="bg-slate-100 dark:bg-slate-900/30"
+            iconColor="text-slate-600"
+            loading={isLoading}
+            onClick={() => setDrilldown('landlords_dormant')}
           />
         </div>
       </CardContent>
