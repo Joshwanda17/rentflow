@@ -36,7 +36,7 @@ export default function MobileBottomNav({ currentRole, onManagerHubChange, activ
   const handleTap = () => { hapticTap(); };
 
   // Manager bottom nav: hub switching when on the manager dashboard
-  if (currentRole === 'manager' && currentPath === '/manager' && onManagerHubChange) {
+  if (currentRole === 'manager' && currentPath === '/dashboard/manager' && onManagerHubChange) {
     const managerItems = [
       { id: 'home' as const, icon: Home, label: 'Home' },
       { id: 'wallets' as const, icon: Wallet, label: 'Wallets' },

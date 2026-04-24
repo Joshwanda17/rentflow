@@ -160,7 +160,7 @@ export default function BroadcastMessageDialog({ trigger }: BroadcastMessageDial
 
       // Notify managers about broadcast (fire-and-forget)
       supabase.functions.invoke('notify-managers', {
-        body: { title: '📢 Broadcast Sent', body: `Broadcast message sent to ${successCount} users`, url: '/manager' }
+        body: { title: '📢 Broadcast Sent', body: `Broadcast message sent to ${successCount} users`, url: '/dashboard/manager' }
       }).catch(() => {});
 
       toast.success(`Message sent to ${successCount} users!`, {

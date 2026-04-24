@@ -137,7 +137,7 @@ export default function DepositHistory() {
               <p className="text-sm text-muted-foreground mb-4">
                 You haven't made any deposit requests yet.
               </p>
-              <Button onClick={() => navigate('/tenant')}>
+              <Button onClick={() => navigate('/dashboard/tenant')}>
                 Make a Deposit
               </Button>
             </CardContent>

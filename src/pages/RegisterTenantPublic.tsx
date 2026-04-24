@@ -234,7 +234,7 @@ export default function RegisterTenantPublic() {
           }
           // Persistent session is configured at the client level (localStorage + autoRefresh),
           // so the user stays signed in across browser restarts until they explicitly sign out.
-          navigate('/tenant', { replace: true });
+          navigate('/dashboard/tenant', { replace: true });
           return;
         } catch (signInErr) {
           console.warn('[RegisterTenantPublic] Auto sign-in threw:', signInErr);

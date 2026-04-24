@@ -89,7 +89,7 @@ Let's build a better future together! 🏡`;
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b">
         <div className="flex items-center gap-3 p-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/tenant')}>
+          <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard/tenant')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex items-center gap-2">

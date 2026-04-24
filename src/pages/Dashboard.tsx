@@ -154,7 +154,7 @@ function DashboardContent() {
     const preferred = getPreferredDefaultRole();
     if (preferred !== 'auto') return;
     if (urlRole !== 'supporter' && roles.includes('supporter')) {
-      navigate('/funder', { replace: true });
+      navigate('/dashboard/funder', { replace: true });
     }
     hasAutoDefaulted.current = true;
   }, [loading, user, roles, urlRole, isQualifiedInvestor, navigate]);

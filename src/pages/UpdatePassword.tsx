@@ -105,7 +105,7 @@ export default function UpdatePassword() {
         
         // Redirect to dashboard after 2 seconds
         setTimeout(() => {
-          navigate('/tenant');
+          navigate('/dashboard/tenant');
         }, 2000);
       }
     } catch (err) {

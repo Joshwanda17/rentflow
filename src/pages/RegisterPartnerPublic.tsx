@@ -159,7 +159,7 @@ export default function RegisterPartnerPublic() {
             return;
           }
           // Persistent session — user stays signed in across browser restarts until explicit sign-out.
-          navigate('/tenant', { replace: true });
+          navigate('/dashboard/tenant', { replace: true });
           return;
         } catch (signInErr) {
           console.warn('[RegisterPartnerPublic] Auto sign-in threw:', signInErr);
