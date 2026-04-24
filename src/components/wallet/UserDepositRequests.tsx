@@ -80,10 +80,10 @@ export function UserDepositRequests() {
 
         const profileMap = new Map(profiles?.map(p => [p.id, p.full_name]) || []);
 
-        const enrichedRequests = data.map(d => ({
+        const enrichedRequests = data.map((d: any) => ({
           ...d,
           agent_name: profileMap.get(d.agent_id) || 'Agent',
-        }));
+        })) as DepositRequest[];
 
         setRequests(enrichedRequests);
       } else {
