@@ -114,6 +114,31 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (existingApproval) {
+      // Already paid → idempotent success
+      if (existingApproval.status === "paid") {
+        return new Response(JSON.stringify({
+          success: true,
+          message: "Bonus already paid (idempotent)",
+          already_paid: true,
+          approval_id: existingApproval.id,
+          status: existingApproval.status,
+        }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Failed earlier → surface clearly so an admin can clear it via the CFO override
+      if (existingApproval.status === "failed") {
+        return new Response(JSON.stringify({
+          error: "A previous auto-pay attempt failed for this listing. Please review and retry from the CFO bonus queue.",
+          approval_id: existingApproval.id,
+          status: existingApproval.status,
+        }), {
+          status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // pending_credit / pending_cfo / pending_landlord_ops / approved / rejected
       return new Response(JSON.stringify({
         message: `Bonus approval already ${existingApproval.status}`,
         approval_id: existingApproval.id,
@@ -125,39 +150,19 @@ Deno.serve(async (req) => {
 
     const now = new Date().toISOString();
 
-    // Step 1: Verify the listing (mark as verified)
-    await adminClient
-      .from("house_listings")
-      .update({
-        verified: true,
-        verified_at: now,
-        verified_by: managerId,
-      })
-      .eq("id", listing_id);
-
-    // Also verify landlord if present
-    if (listing.landlord_id) {
-      await adminClient
-        .from("landlords")
-        .update({ verified: true, verified_at: now, verified_by: managerId })
-        .eq("id", listing.landlord_id);
-    }
-
-    // Step 2: Create approval row marked PAID (Landlord Ops auto-self-approves on verification)
+    // ─── Step 1: Claim the slot (status=pending_credit) BEFORE any side effects ───
+    // The unique constraint on (listing_id) makes this our serialization point and
+    // also our idempotency key. We do NOT mark anything paid or verified yet.
     const { data: approval, error: approvalErr } = await adminClient
       .from("listing_bonus_approvals")
       .insert({
         listing_id: listing_id,
         agent_id: agentId,
         amount: LISTING_BONUS,
-        status: "paid",
+        status: "pending_credit",
         landlord_ops_approved_by: managerId,
         landlord_ops_approved_at: now,
         landlord_ops_notes: notes || `Verified by Landlord Ops`,
-        cfo_approved_by: managerId,
-        cfo_approved_at: now,
-        cfo_notes: "Auto-approved on Landlord Ops verification",
-        paid_at: now,
       })
       .select("id")
       .single();
@@ -193,7 +198,12 @@ Deno.serve(async (req) => {
       throw approvalErr;
     }
 
-    // Step 3: Post balanced ledger entries (same legs as approve-listing-bonus)
+    const approvalId = approval!.id;
+
+    // ─── Step 2: Post balanced ledger entries (same legs as approve-listing-bonus) ───
+    // If this fails, we mark the approval row as 'failed' and DO NOT touch the
+    // listing/landlord verified flags or paid_at — nothing about money or
+    // verification appears successful to anyone.
     const { data: txGroupId, error: ledgerErr } = await adminClient.rpc("create_ledger_transaction", {
       entries: [
         {
@@ -203,7 +213,7 @@ Deno.serve(async (req) => {
           category: "agent_commission_earned",
           ledger_scope: "wallet",
           source_table: "listing_bonus_approvals",
-          source_id: approval?.id,
+          source_id: approvalId,
           description: `UGX ${LISTING_BONUS.toLocaleString()} house listing bonus — auto-paid on verification`,
           currency: "UGX",
           transaction_date: now,
@@ -214,7 +224,7 @@ Deno.serve(async (req) => {
           category: "agent_commission_earned",
           ledger_scope: "platform",
           source_table: "listing_bonus_approvals",
-          source_id: approval?.id,
+          source_id: approvalId,
           description: "Platform expense: agent listing bonus (auto-paid on Landlord Ops verification)",
           currency: "UGX",
           transaction_date: now,
@@ -224,7 +234,92 @@ Deno.serve(async (req) => {
 
     if (ledgerErr) {
       console.error("[credit-listing-bonus] Ledger write failed:", ledgerErr.message);
-      throw new Error(`Ledger credit failed: ${ledgerErr.message}`);
+
+      // ─── ROLLBACK: park the approval row as 'failed' so it isn't paid and isn't
+      // re-triable via the unique-constraint short-circuit. An admin can clear
+      // it manually via approve-listing-bonus or by deleting the failed row.
+      const { error: rollbackErr } = await adminClient
+        .from("listing_bonus_approvals")
+        .update({
+          status: "failed",
+          rejection_reason: `Ledger write failed: ${ledgerErr.message}`,
+        })
+        .eq("id", approvalId);
+
+      if (rollbackErr) {
+        console.error("[credit-listing-bonus] CRITICAL: rollback marking failed:", rollbackErr.message);
+      }
+
+      // Audit the failure for CFO review
+      await adminClient.from("audit_logs").insert({
+        user_id: managerId,
+        action_type: "listing_bonus_auto_pay_failed",
+        table_name: "listing_bonus_approvals",
+        record_id: approvalId,
+        metadata: {
+          agent_id: agentId,
+          listing_id,
+          listing_title: listing.title,
+          ledger_error: ledgerErr.message,
+          reason: "Ledger write failed; approval rolled back to status=failed; verification flags NOT set",
+        },
+      });
+
+      return new Response(JSON.stringify({
+        error: `Ledger credit failed — bonus rolled back: ${ledgerErr.message}`,
+        approval_id: approvalId,
+        rolled_back: true,
+      }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ─── Step 3: Ledger succeeded — promote approval to PAID and apply verifications ───
+    const { error: promoteErr } = await adminClient
+      .from("listing_bonus_approvals")
+      .update({
+        status: "paid",
+        cfo_approved_by: managerId,
+        cfo_approved_at: now,
+        cfo_notes: "Auto-approved on Landlord Ops verification",
+        paid_at: now,
+      })
+      .eq("id", approvalId);
+
+    if (promoteErr) {
+      // Ledger already wrote; surface clearly but DO NOT roll back ledger
+      // (would require a compensating reversal RPC we don't have). The row
+      // stays in pending_credit with a warning log for CFO reconciliation.
+      console.error("[credit-listing-bonus] CRITICAL: ledger written but approval not promoted to paid:", promoteErr.message);
+      await adminClient.from("audit_logs").insert({
+        user_id: managerId,
+        action_type: "listing_bonus_promote_to_paid_failed",
+        table_name: "listing_bonus_approvals",
+        record_id: approvalId,
+        metadata: {
+          agent_id: agentId,
+          tx_group_id: txGroupId,
+          promote_error: promoteErr.message,
+          reason: "Ledger written; approval row left in pending_credit — needs CFO reconciliation",
+        },
+      });
+    }
+
+    // Mark the listing as verified now that money has actually moved
+    await adminClient
+      .from("house_listings")
+      .update({
+        verified: true,
+        verified_at: now,
+        verified_by: managerId,
+      })
+      .eq("id", listing_id);
+
+    if (listing.landlord_id) {
+      await adminClient
+        .from("landlords")
+        .update({ verified: true, verified_at: now, verified_by: managerId })
+        .eq("id", listing.landlord_id);
     }
 
     // Step 4: Mark listing as bonus paid
@@ -248,7 +343,7 @@ Deno.serve(async (req) => {
       p_agent_id: agentId,
       p_tenant_id: null,
       p_event_type: "house_listed",
-      p_source_id: approval?.id,
+      p_source_id: approvalId,
     }).then(({ error: bonusErr }: any) => {
       if (bonusErr) console.error("[credit-listing-bonus] Event bonus ledger error:", bonusErr.message);
     });
@@ -262,7 +357,7 @@ Deno.serve(async (req) => {
       metadata: {
         listing_id,
         bonus_amount: LISTING_BONUS,
-        approval_id: approval?.id,
+        approval_id: approvalId,
         tx_group_id: txGroupId,
       },
     });
@@ -272,7 +367,7 @@ Deno.serve(async (req) => {
       user_id: managerId,
       action_type: "listing_bonus_auto_paid",
       table_name: "listing_bonus_approvals",
-      record_id: approval?.id || listing_id,
+      record_id: approvalId,
       metadata: {
         agent_id: agentId,
         bonus_amount: LISTING_BONUS,
@@ -296,7 +391,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({
       success: true,
       message: "Listing verified — UGX 5,000 credited to agent commission wallet",
-      approval_id: approval?.id,
+      approval_id: approvalId,
       bonus: LISTING_BONUS,
       agent_id: agentId,
       listing_title: listing.title,
