@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import ExecutiveDashboardLayout from '@/components/layout/ExecutiveDashboardLayout';
+import { usePersistedActiveTab } from '@/hooks/usePersistedActiveTab';
 import HROverview from '@/components/hr/HROverview';
 import HREmployeeDirectory from '@/components/hr/HREmployeeDirectory';
 import HRUserManagement from '@/components/hr/HRUserManagement';
@@ -11,7 +11,7 @@ import HRDepartments from '@/components/hr/HRDepartments';
 import HRInternshipApplications from '@/components/hr/HRInternshipApplications';
 
 export default function HRDashboard() {
-  const [activeSection, setActiveSection] = useState('overview');
+  const [activeSection, setActiveSection] = usePersistedActiveTab('hr');
 
   const renderContent = () => {
     switch (activeSection) {

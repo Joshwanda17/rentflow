@@ -1,11 +1,11 @@
-import { useState } from 'react';
 import ExecutiveDashboardLayout from '@/components/layout/ExecutiveDashboardLayout';
+import { usePersistedActiveTab } from '@/hooks/usePersistedActiveTab';
 import { CEODashboard } from '@/components/executive/CEODashboard';
 import { StaffPerformancePanel } from '@/components/executive/StaffPerformancePanel';
 import { AngelPoolManagementPanel } from '@/components/executive/AngelPoolManagementPanel';
 
 export default function CEODashboardPage() {
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = usePersistedActiveTab('ceo');
 
   const renderContent = () => {
     switch (activeTab) {

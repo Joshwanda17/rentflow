@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useCurrency } from '@/hooks/useCurrency';
 import ExecutiveDashboardLayout from '@/components/layout/ExecutiveDashboardLayout';
@@ -47,27 +47,11 @@ import { LedgerHealthPanel } from '@/components/cfo/LedgerHealthPanel';
 import { FieldCashExposureCard } from '@/components/cfo/FieldCashExposureCard';
 import { CFOAgentOpsFloatSender } from '@/components/cfo/CFOAgentOpsFloatSender';
 import { CFOImpactKPIStrip } from '@/components/cfo/CFOImpactKPIStrip';
+import { usePersistedActiveTab } from '@/hooks/usePersistedActiveTab';
 
 export default function CFODashboardPage() {
   const { currency, setCurrency, getCurrencyByCode } = useCurrency();
-  const STORAGE_KEY = 'cfo:activeTab';
-  const [activeTab, setActiveTabState] = useState<string>(() => {
-    if (typeof window === 'undefined') return 'overview';
-    try {
-      return window.localStorage.getItem(STORAGE_KEY) || 'overview';
-    } catch {
-      return 'overview';
-    }
-  });
-
-  const setActiveTab = (tab: string) => {
-    setActiveTabState(tab);
-    try {
-      window.localStorage.setItem(STORAGE_KEY, tab);
-    } catch {
-      /* storage unavailable — ignore */
-    }
-  };
+  const [activeTab, setActiveTab] = usePersistedActiveTab('cfo');
 
   // Force UGX on CFO dashboard — financial reporting must always be in base currency
   useEffect(() => {
