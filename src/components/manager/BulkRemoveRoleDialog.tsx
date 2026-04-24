@@ -71,7 +71,7 @@ export default function BulkRemoveRoleDialog({
           payload: {
             title: `🔔 Role Removed: ${roleLabels[role] || role}`,
             body: `Your ${role} role has been removed. Some features may no longer be accessible.`,
-            url: '/dashboard',
+            url: '/tenant',
             type: 'role_change'
           }
         }

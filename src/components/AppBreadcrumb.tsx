@@ -18,7 +18,11 @@ const routeLabels: Record<string, string> = {
   '/': 'Home',
   '/auth': 'Sign In',
   '/select-role': 'Select Role',
-  '/dashboard': 'Dashboard',
+  '/tenant': 'Dashboard',
+  '/agent': 'Dashboard',
+  '/landlord': 'Dashboard',
+  '/funder': 'Dashboard',
+  '/manager': 'Dashboard',
   '/manager-access': 'Manager Access',
 };
 

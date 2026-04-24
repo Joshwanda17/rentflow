@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
       body: JSON.stringify({
         userIds: [user.id],
-        payload: { title: "✅ Credit Draw Processed", body: `UGX ${amount.toLocaleString()} credit draw approved`, url: "/dashboard", type: "success" },
+        payload: { title: "✅ Credit Draw Processed", body: `UGX ${amount.toLocaleString()} credit draw approved`, url: "/tenant", type: "success" },
       }),
     }).catch(() => {});
 

@@ -80,7 +80,7 @@ export function MobileRoleEditor({
             body: action === 'added' 
               ? `You've been granted the ${role} role!`
               : `Your ${role} role has been removed.`,
-            url: '/dashboard' 
+            url: '/tenant' 
           }
         }
       });

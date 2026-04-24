@@ -124,7 +124,7 @@ export default function FlashSales() {
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <Link to={user ? "/dashboard" : "/auth"}>
+            <Link to={user ? "/tenant" : "/auth"}>
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Button variant="outline" size="sm" className="gap-2">
                   <ArrowLeft className="h-4 w-4" />
@@ -238,7 +238,7 @@ export default function FlashSales() {
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
               Check back soon for amazing deals! Our agents are always adding new discounted products.
             </p>
-            <Link to="/dashboard">
+            <Link to="/tenant">
               <Button className="gap-2">
                 <ShoppingBag className="h-4 w-4" />
                 Browse All Products

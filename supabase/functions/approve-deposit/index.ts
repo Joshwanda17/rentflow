@@ -595,7 +595,7 @@ Deno.serve(async (req) => {
                     user_id: depositRequest.agent_id,
                     title: "Tenant Debt Cleared! ✅",
                     body: `${tenantName}'s debt of UGX ${debtCleared.toLocaleString()} auto-cleared from deposit.`,
-                    url: "/dashboard",
+                    url: "/agent",
                   }),
                 });
               } catch (pushErr) {
@@ -710,7 +710,7 @@ Deno.serve(async (req) => {
           headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
           body: JSON.stringify({
             userIds: [r.user_id],
-            payload: { title: "✅ Deposit Approved", body: `Your deposit of UGX ${r.amount.toLocaleString()} has been approved`, url: "/dashboard", type: "success" },
+            payload: { title: "✅ Deposit Approved", body: `Your deposit of UGX ${r.amount.toLocaleString()} has been approved`, url: "/agent", type: "success" },
           }),
         }).catch(() => {});
       }

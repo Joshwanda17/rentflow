@@ -29,6 +29,7 @@ import {
 import { cn } from '@/lib/utils';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
 import { AppRole } from '@/hooks/useAuth';
+import { roleToSlug } from '@/lib/roleRoutes';
 
 interface MobileQuickMenuProps {
   currentRole: AppRole;
@@ -45,7 +46,7 @@ interface MenuItem {
 
 // Role-specific menu configurations
 const defaultMenu: MenuItem[] = [
-  { icon: Home, label: 'Home', path: '/dashboard', color: 'bg-blue-500', description: 'Dashboard' },
+  { icon: Home, label: 'Home', path: '/tenant', color: 'bg-blue-500', description: 'Dashboard' },
   { icon: Settings, label: 'Settings', path: '/settings', color: 'bg-slate-500', description: 'Account settings' },
 ];
 
@@ -61,7 +62,7 @@ const menuConfigs: Partial<Record<AppRole, MenuItem[]>> = {
     { icon: MapPin, label: 'Locations', path: '/manager-access?tab=locations', color: 'bg-red-500', description: 'User locations' },
   ],
   tenant: [
-    { icon: Home, label: 'Home', path: '/dashboard', color: 'bg-blue-500', description: 'Dashboard' },
+    { icon: Home, label: 'Home', path: '/tenant', color: 'bg-blue-500', description: 'Dashboard' },
     { icon: Calculator, label: 'Calculator', path: '/calculator', color: 'bg-green-500', description: 'Rent calculator' },
     { icon: Receipt, label: 'Receipts', path: '/my-receipts', color: 'bg-purple-500', description: 'My receipts' },
     { icon: Banknote, label: 'My Loans', path: '/my-loans', color: 'bg-orange-500', description: 'View loans' },
@@ -71,7 +72,7 @@ const menuConfigs: Partial<Record<AppRole, MenuItem[]>> = {
     { icon: Settings, label: 'Settings', path: '/settings', color: 'bg-slate-500', description: 'Account settings' },
   ],
   agent: [
-    { icon: Home, label: 'Home', path: '/dashboard', color: 'bg-blue-500', description: 'Dashboard' },
+    { icon: Home, label: 'Home', path: '/agent', color: 'bg-blue-500', description: 'Dashboard' },
     { icon: UserPlus, label: 'Register', path: '/agent-registrations', color: 'bg-green-500', description: 'Register users' },
     { icon: ChartBar, label: 'Analytics', path: '/agent-analytics', color: 'bg-purple-500', description: 'View analytics' },
     { icon: Wallet, label: 'Earnings', path: '/agent-earnings', color: 'bg-amber-500', description: 'My earnings' },
@@ -81,9 +82,9 @@ const menuConfigs: Partial<Record<AppRole, MenuItem[]>> = {
     { icon: Settings, label: 'Settings', path: '/settings', color: 'bg-slate-500', description: 'Account settings' },
   ],
   supporter: [
-    { icon: Home, label: 'Home', path: '/dashboard', color: 'bg-blue-500', description: 'Dashboard' },
-    { icon: PiggyBank, label: 'Support', path: '/dashboard', color: 'bg-green-500', description: 'My contributions' },
-    { icon: Heart, label: 'Fund', path: '/dashboard', color: 'bg-pink-500', description: 'Fund tenants' },
+    { icon: Home, label: 'Home', path: '/funder', color: 'bg-blue-500', description: 'Dashboard' },
+    { icon: PiggyBank, label: 'Support', path: '/funder', color: 'bg-green-500', description: 'My contributions' },
+    { icon: Heart, label: 'Fund', path: '/funder', color: 'bg-pink-500', description: 'Fund tenants' },
     { icon: History, label: 'History', path: '/transaction-history', color: 'bg-teal-500', description: 'Transactions' },
     { icon: Store, label: 'Shop', path: '/marketplace', color: 'bg-purple-500', description: 'Marketplace' },
     { icon: Gift, label: 'Referrals', path: '/referrals', color: 'bg-amber-500', description: 'Earn rewards' },
@@ -91,8 +92,8 @@ const menuConfigs: Partial<Record<AppRole, MenuItem[]>> = {
     { icon: Settings, label: 'Settings', path: '/settings', color: 'bg-slate-500', description: 'Account settings' },
   ],
   landlord: [
-    { icon: Home, label: 'Home', path: '/dashboard', color: 'bg-blue-500', description: 'Dashboard' },
-    { icon: Building, label: 'Tenants', path: '/dashboard', color: 'bg-green-500', description: 'My tenants' },
+    { icon: Home, label: 'Home', path: '/landlord', color: 'bg-blue-500', description: 'Dashboard' },
+    { icon: Building, label: 'Tenants', path: '/landlord', color: 'bg-green-500', description: 'My tenants' },
     { icon: Wallet, label: 'Payments', path: '/transaction-history', color: 'bg-purple-500', description: 'View payments' },
     { icon: History, label: 'History', path: '/transaction-history', color: 'bg-teal-500', description: 'Transactions' },
     { icon: Store, label: 'Shop', path: '/marketplace', color: 'bg-pink-500', description: 'Marketplace' },

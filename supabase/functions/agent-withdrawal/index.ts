@@ -239,7 +239,7 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
       body: JSON.stringify({
         userIds: [agentId],
-        payload: { title: "✅ Withdrawal Processed", body: `UGX ${amount.toLocaleString()} withdrawal completed`, url: "/dashboard", type: "success" },
+        payload: { title: "✅ Withdrawal Processed", body: `UGX ${amount.toLocaleString()} withdrawal completed`, url: "/agent", type: "success" },
       }),
     }).catch(() => {});
 

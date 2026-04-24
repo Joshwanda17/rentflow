@@ -231,7 +231,7 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
       body: JSON.stringify({
         userIds: [senderId],
-        payload: { title: "✅ Transfer Sent", body: `UGX ${amount.toLocaleString()} sent successfully`, url: "/dashboard", type: "success" },
+        payload: { title: "✅ Transfer Sent", body: `UGX ${amount.toLocaleString()} sent successfully`, url: "/tenant", type: "success" },
       }),
     }).catch(() => {});
     fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
@@ -239,7 +239,7 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
       body: JSON.stringify({
         userIds: [resolvedRecipientId],
-        payload: { title: "💰 Transfer Received", body: `UGX ${amount.toLocaleString()} received in your wallet`, url: "/dashboard", type: "success" },
+        payload: { title: "💰 Transfer Received", body: `UGX ${amount.toLocaleString()} received in your wallet`, url: "/tenant", type: "success" },
       }),
     }).catch(() => {});
 

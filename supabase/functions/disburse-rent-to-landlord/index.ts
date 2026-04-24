@@ -309,7 +309,7 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
       body: JSON.stringify({
         userIds: [request.tenant_id],
-        payload: { title: "🏠 Rent Disbursed", body: `UGX ${request.rent_amount.toLocaleString()} disbursed to ${landlord?.name || 'your landlord'}`, url: "/dashboard", type: "success" },
+        payload: { title: "🏠 Rent Disbursed", body: `UGX ${request.rent_amount.toLocaleString()} disbursed to ${landlord?.name || 'your landlord'}`, url: "/tenant", type: "success" },
       }),
     }).catch(() => {});
 

@@ -444,7 +444,7 @@ Deno.serve(async (req) => {
         payload: {
           title: "✅ Withdrawal Approved",
           body: `UGX ${amount.toLocaleString()} has been sent to you via ${payment_method}`,
-          url: "/dashboard",
+          url: "/agent",
           type: "success",
         },
       }),
