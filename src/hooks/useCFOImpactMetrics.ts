@@ -6,6 +6,8 @@ export interface CFOImpactMetrics {
   tenantsImpacted: number;
   agentsEarning: number;
   partnersWithPortfolios: number;
+  landlordsActive: number;
+  landlordsDormant: number;
   asOf: string | null;
   fromCache: boolean;
 }
@@ -23,7 +25,7 @@ export function useCFOImpactMetrics() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('daily_platform_stats')
-        .select('total_users, tenants_impacted_total, agents_earning_30d, partners_with_portfolios, stat_date')
+        .select('total_users, tenants_impacted_total, agents_earning_30d, partners_with_portfolios, landlords_active_90d, landlords_dormant, stat_date')
         .order('stat_date', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -35,6 +37,8 @@ export function useCFOImpactMetrics() {
         tenantsImpacted: (data as any)?.tenants_impacted_total ?? 0,
         agentsEarning: (data as any)?.agents_earning_30d ?? 0,
         partnersWithPortfolios: (data as any)?.partners_with_portfolios ?? 0,
+        landlordsActive: (data as any)?.landlords_active_90d ?? 0,
+        landlordsDormant: (data as any)?.landlords_dormant ?? 0,
         asOf: (data as any)?.stat_date ?? null,
         fromCache: true,
       };

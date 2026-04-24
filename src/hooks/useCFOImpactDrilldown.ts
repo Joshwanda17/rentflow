@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
-export type ImpactMetric = 'users' | 'tenants' | 'agents' | 'partners';
+export type ImpactMetric = 'users' | 'tenants' | 'agents' | 'partners' | 'landlords_active' | 'landlords_dormant';
 
 export interface DrilldownRecord {
   id: string;
@@ -140,18 +140,19 @@ export function useCFOImpactDrilldown(
       }
 
       // partners
-      let q = supabase
+      if (metric === 'partners') {
+        let q = supabase
         .from('investor_portfolios')
         .select('investor_id, investment_amount, status, created_at, portfolio_code', { count: 'exact' })
         .eq('status', 'active')
         .gt('investment_amount', 0)
         .order('created_at', { ascending: false })
         .limit(PAGE_SIZE);
-      if (fromIso) q = q.gte('created_at', fromIso);
-      if (toIso) q = q.lte('created_at', toIso);
-      const { data, count, error } = await q;
-      if (error) throw error;
-      const rows = data || [];
+        if (fromIso) q = q.gte('created_at', fromIso);
+        if (toIso) q = q.lte('created_at', toIso);
+        const { data, count, error } = await q;
+        if (error) throw error;
+        const rows = data || [];
       // Aggregate per investor
       const agg = new Map<string, { total: number; last: string; codes: number }>();
       for (const r of rows as any[]) {
@@ -180,7 +181,42 @@ export function useCFOImpactDrilldown(
           };
         })
         .sort((a, b) => (b.amount || 0) - (a.amount || 0));
-      return { records, total: records.length, truncated: (count ?? 0) > PAGE_SIZE };
+        return { records, total: records.length, truncated: (count ?? 0) > PAGE_SIZE };
+      }
+
+      // landlords_active / landlords_dormant
+      const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      let lq = supabase
+        .from('landlords')
+        .select('id, name, phone, monthly_rent, rent_last_paid_at, rent_last_paid_amount, rent_balance_due, created_at, property_address', { count: 'exact' })
+        .limit(PAGE_SIZE);
+
+      if (metric === 'landlords_active') {
+        lq = lq.gte('rent_last_paid_at', ninetyDaysAgo).order('rent_last_paid_at', { ascending: false });
+      } else {
+        // dormant: never paid OR last paid before 90d ago
+        lq = lq.or(`rent_last_paid_at.is.null,rent_last_paid_at.lt.${ninetyDaysAgo}`).order('created_at', { ascending: false });
+      }
+
+      // Date range applies to landlord registration (created_at)
+      if (fromIso) lq = lq.gte('created_at', fromIso);
+      if (toIso) lq = lq.lte('created_at', toIso);
+
+      const { data: lData, count: lCount, error: lErr } = await lq;
+      if (lErr) throw lErr;
+      const lRecords: DrilldownRecord[] = (lData || []).map((r: any) => ({
+        id: r.id,
+        name: r.name || 'Unnamed',
+        phone: r.phone || null,
+        amount: metric === 'landlords_active'
+          ? Number(r.rent_last_paid_amount || 0)
+          : Number(r.rent_balance_due || 0),
+        date: metric === 'landlords_active' ? (r.rent_last_paid_at || r.created_at) : r.created_at,
+        meta: metric === 'landlords_active'
+          ? (r.property_address ? `📍 ${r.property_address.slice(0, 40)}` : 'last paid')
+          : (r.rent_last_paid_at ? `last paid ${new Date(r.rent_last_paid_at).toLocaleDateString()}` : 'never paid'),
+      }));
+      return { records: lRecords, total: lCount ?? lRecords.length, truncated: (lCount ?? 0) > PAGE_SIZE };
     },
   });
 }
