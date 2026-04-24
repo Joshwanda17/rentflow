@@ -270,12 +270,16 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           </motion.div>
 
           {/* Wallet Hero Card */}
-          <UnifiedWalletHeroCard
-            balance={wallet?.balance ?? 0}
-            role="tenant"
-            secondaryLabel="Used for Rent"
-            secondaryValue={formatUGX(rentRequests.find(r => ['approved', 'funded', 'disbursed', 'repaying'].includes(r.status))?.rent_amount ?? 0)}
-          />
+          {wallet ? (
+            <UnifiedWalletHeroCard
+              balance={wallet?.balance ?? 0}
+              role="tenant"
+              secondaryLabel="Used for Rent"
+              secondaryValue={formatUGX(rentRequests.find(r => ['approved', 'funded', 'disbursed', 'repaying'].includes(r.status))?.rent_amount ?? 0)}
+            />
+          ) : (
+            <WalletHeroSkeleton />
+          )}
           
 
           {/* Verification Checklist */}

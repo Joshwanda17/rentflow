@@ -326,7 +326,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         </div>
 
         {/* Wallet Hero Card — always visible */}
-        <UnifiedWalletHeroCard
+        {wallet ? (
+          <UnifiedWalletHeroCard
           balance={walletFloatBalance + commissionBalance + (otherBalance ?? 0)}
           role="agent"
           floatBalance={walletFloatBalance}
@@ -362,7 +363,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               </button>
             </div>
           }
-        />
+          />
+        ) : (
+          <WalletHeroSkeleton />
+        )}
 
         {/* Tab Navigation */}
         <AgentHubTabs active={activeTab} onChange={setActiveTab} />
