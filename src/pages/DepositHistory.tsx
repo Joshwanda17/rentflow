@@ -10,6 +10,8 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { downloadDepositReceipt, buildDepositReceiptWhatsApp, type DepositReceiptData } from '@/lib/receiptPdf';
 import { shareViaWhatsApp } from '@/lib/shareReceipt';
+import { useAuth } from '@/hooks/useAuth';
+import { canViewDepositPurpose } from '@/lib/depositPurposeVisibility';
 
 interface DepositRequest {
   id: string;
@@ -70,6 +72,7 @@ const purposeBadgeClass = (p: string | null) => {
 
 export default function DepositHistory() {
   const navigate = useNavigate();
+  const { role } = useAuth();
   const [deposits, setDeposits] = useState<DepositRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -257,8 +260,12 @@ export default function DepositHistory() {
                   </div>
                 )}
 
-                {/* ─── Purpose Audit Trail ─── */}
-                {(deposit.purpose_audit || deposit.deposit_purpose) && (
+                {/* ─── Purpose Audit Trail (role-scoped) ─── */}
+                {(() => {
+                  const purpose =
+                    deposit.purpose_audit?.chosen_purpose ?? deposit.deposit_purpose ?? null;
+                  if (!canViewDepositPurpose(purpose, role)) return null;
+                  return (
                   <div className="p-3 rounded-lg border border-primary/20 bg-primary/5 space-y-1.5">
                     <div className="flex items-center gap-2 text-xs font-semibold text-primary">
                       <ShieldCheck className="h-3.5 w-3.5" />
@@ -268,9 +275,7 @@ export default function DepositHistory() {
                       <div className="flex justify-between gap-2">
                         <span>Chosen purpose:</span>
                         <span className="font-medium text-foreground">
-                          {PURPOSE_LABELS[
-                            deposit.purpose_audit?.chosen_purpose ?? deposit.deposit_purpose ?? ''
-                          ] ?? deposit.purpose_audit?.chosen_purpose ?? deposit.deposit_purpose}
+                          {PURPOSE_LABELS[purpose ?? ''] ?? purpose}
                         </span>
                       </div>
                       {deposit.purpose_audit?.chosen_at && (
@@ -300,7 +305,8 @@ export default function DepositHistory() {
                       )}
                     </div>
                   </div>
-                )}
+                  );
+                })()}
 
                 {/* Receipt Actions */}
                 <div className="flex gap-2 pt-2 border-t border-border/50">
