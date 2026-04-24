@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Clock, CheckCircle2, XCircle, Loader2, Phone, Calendar, Hash, Download, MessageCircle, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Clock, CheckCircle2, XCircle, Loader2, Phone, Calendar, Hash, Download, MessageCircle, ShieldCheck, Target } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { downloadDepositReceipt, buildDepositReceiptWhatsApp, type DepositReceiptData } from '@/lib/receiptPdf';
@@ -45,6 +45,27 @@ const ENTRY_POINT_LABELS: Record<string, string> = {
   gate: 'Forced choice screen',
   default: 'Pre-selected default',
   in_form: 'Picked in form',
+};
+
+const purposeLabel = (d: DepositRequest): string | null => {
+  const p = d.purpose_audit?.chosen_purpose ?? d.deposit_purpose ?? null;
+  if (!p) return null;
+  return PURPOSE_LABELS[p] ?? p;
+};
+
+const purposeBadgeClass = (p: string | null) => {
+  switch (p) {
+    case 'operational_float':
+      return 'bg-primary/15 text-primary border-primary/30';
+    case 'personal_deposit':
+      return 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30';
+    case 'partnership_deposit':
+      return 'bg-violet-500/15 text-violet-700 border-violet-500/30';
+    case 'personal_rent_repayment':
+      return 'bg-amber-500/15 text-amber-700 border-amber-500/30';
+    default:
+      return 'bg-muted text-muted-foreground border-border';
+  }
 };
 
 export default function DepositHistory() {
@@ -173,9 +194,20 @@ export default function DepositHistory() {
                     <CardTitle className="text-xl">
                       {formatCurrency(deposit.amount)}
                     </CardTitle>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       {getStatusBadge(deposit.status)}
                       {getProviderBadge(deposit.provider)}
+                      {purposeLabel(deposit) && (
+                        <Badge
+                          variant="outline"
+                          className={purposeBadgeClass(
+                            deposit.purpose_audit?.chosen_purpose ?? deposit.deposit_purpose ?? null
+                          )}
+                        >
+                          <Target className="h-3 w-3 mr-1" />
+                          {purposeLabel(deposit)}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -286,6 +318,7 @@ export default function DepositHistory() {
                         createdAt: deposit.created_at,
                         approvedAt: deposit.approved_at,
                         notes: deposit.notes,
+                        purpose: purposeLabel(deposit),
                       };
                       downloadDepositReceipt(receiptData);
                       toast.success('Receipt downloaded!');
@@ -308,6 +341,7 @@ export default function DepositHistory() {
                         createdAt: deposit.created_at,
                         approvedAt: deposit.approved_at,
                         notes: deposit.notes,
+                        purpose: purposeLabel(deposit),
                       };
                       const text = buildDepositReceiptWhatsApp(receiptData);
                       shareViaWhatsApp(text);
