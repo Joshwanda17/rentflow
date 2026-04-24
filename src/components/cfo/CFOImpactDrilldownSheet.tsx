@@ -159,7 +159,7 @@ export function CFOImpactDrilldownSheet({ open, onOpenChange, metric }: Props) {
           </div>
 
           {data?.truncated && (
-            <p className="text-[11px] text-amber-600">
+            <p className="text-[11px] text-warning">
               Showing first 200 records — narrow the date range to see more.
             </p>
           )}
