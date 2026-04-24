@@ -24,7 +24,7 @@ interface DepositRequest {
 const PURPOSE_LABELS: Record<string, string> = {
   operational_float: 'Operational Float',
   personal_deposit: 'Personal Deposit',
-  partnership_deposit: 'Partnership Deposit',
+  partnership_deposit: 'Supporter Wallet Top-Up',
   personal_rent_repayment: 'Personal Rent Repayment',
   other: 'Other',
 };
