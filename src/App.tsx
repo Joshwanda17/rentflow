@@ -44,6 +44,7 @@ import Index from "./pages/Index";
 const Landing = lazy(() => import("./pages/Landing"));
 const Auth = lazy(() => import("./pages/Auth"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
+const DashboardRedirect = lazy(() => import("./pages/DashboardRedirect"));
 const SelectRole = lazy(() => import("./pages/SelectRole"));
 const TransactionHistory = lazy(() => import("./pages/TransactionHistory"));
 const Settings = lazy(() => import("./pages/Settings"));
