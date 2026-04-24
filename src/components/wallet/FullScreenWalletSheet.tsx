@@ -184,7 +184,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
             <div className="p-4 space-y-4">
               {/* Purple gradient balance card */}
               <Card className="overflow-hidden border-0 shadow-lg">
-                <div className="bg-gradient-to-br from-[hsl(270,80%,55%)] via-[hsl(265,75%,50%)] to-[hsl(280,70%,40%)] p-6 text-center">
+                <div className="portfolio-hero-card p-6 text-center">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/70 mb-2">
                     {balanceLabel}
                   </p>

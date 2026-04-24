@@ -675,6 +675,7 @@ input, textarea, select, button {
 
 /* Portfolio hero card — Premium fintech style */
 .portfolio-hero-card {
+  background-color: hsl(271 81% 44%);
   background: linear-gradient(145deg, hsl(271 81% 52%), hsl(271 81% 44%), hsl(260 70% 38%));
   color: hsl(var(--primary-foreground));
   box-shadow: 
@@ -682,6 +683,8 @@ input, textarea, select, button {
     0 0 0 1px hsl(271 81% 60% / 0.15) inset;
   will-change: auto;
   contain: layout style;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 
 /* Legacy fallback */
@@ -869,5 +872,5 @@ input[type="checkbox"], input[type="radio"] {
 @media print {
   nav, header, footer, .no-print { display: none !important; }
   body { background: white !important; }
-  * { color: black !important; box-shadow: none !important; }
+  .printable, .printable * { color: black !important; box-shadow: none !important; }
 }
