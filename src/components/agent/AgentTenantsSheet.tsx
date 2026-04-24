@@ -449,6 +449,52 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     } catch { toast({ title: 'Error sharing', variant: 'destructive' }); }
   };
 
+  // One-tap renew: re-post a rent request using the data from a completed cycle.
+  // No new info is requested — landlord, tenant, house category etc. are reused.
+  const handleRenew = async (tenant: Tenant, req: TenantRentRequest) => {
+    if (!user) return;
+    if (!req.landlord_id) {
+      toast({ title: 'Cannot renew', description: 'Landlord info missing on prior request.', variant: 'destructive' });
+      return;
+    }
+    setRenewingReqId(req.id);
+    try {
+      const fees = calculateRentRepayment(req.rent_amount, req.duration_days);
+      const { error } = await supabase.from('rent_requests').insert({
+        tenant_id: tenant.id,
+        agent_id: user.id,
+        landlord_id: req.landlord_id,
+        lc1_id: req.lc1_id ?? null,
+        rent_amount: fees.rentAmount,
+        duration_days: fees.durationDays,
+        access_fee: fees.accessFee,
+        request_fee: fees.requestFee,
+        total_repayment: fees.totalRepayment,
+        daily_repayment: fees.dailyRepayment,
+        status: 'pending',
+        house_category: req.house_category ?? req.landlord?.house_category ?? null,
+        tenant_no_smartphone: req.tenant_no_smartphone ?? false,
+        request_latitude: req.request_latitude ?? req.landlord?.latitude ?? null,
+        request_longitude: req.request_longitude ?? req.landlord?.longitude ?? null,
+      } as any);
+      if (error) throw error;
+      toast({ title: 'Rent request renewed ✅', description: `Posted for ${tenant.full_name}` });
+      // Force-refresh this tenant's requests
+      setTenantRequests(prev => {
+        const updated = { ...prev };
+        delete updated[tenant.id];
+        return updated;
+      });
+      fetchTenantRequests(tenant.id);
+      fetchTenants();
+    } catch (err: any) {
+      console.error('Renew failed:', err);
+      toast({ title: 'Renew failed', description: err?.message || 'Try again', variant: 'destructive' });
+    } finally {
+      setRenewingReqId(null);
+    }
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[92vh] rounded-t-3xl flex flex-col p-0 gap-0">
