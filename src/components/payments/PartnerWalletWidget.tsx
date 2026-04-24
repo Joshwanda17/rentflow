@@ -68,7 +68,14 @@ export default function PartnerWalletWidget({
       </Card>
 
       <FundTenantsFlow open={showFundTenants} onOpenChange={setShowFundTenants} walletBalance={availableBalance} />
-      <DepositFlow open={showDeposit} onOpenChange={setShowDeposit} walletBalance={availableBalance} />
+      <DepositFlow
+        open={showDeposit}
+        onOpenChange={setShowDeposit}
+        walletBalance={availableBalance}
+        allowedPurposes={['personal_deposit']}
+        defaultPurpose="personal_deposit"
+        lockPurpose
+      />
       <WithdrawFlow open={showWithdraw} onOpenChange={setShowWithdraw} availableBalance={availableBalance} roiBalance={roiEarned} onSuccess={() => setShowWithdraw(false)} />
     </>
   );
