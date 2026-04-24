@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Upload, Loader2, Receipt, CheckCircle, Calendar, Clock } from 'lucide-react';
+import { Upload, Loader2, Receipt, CheckCircle, Calendar, Clock, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -28,6 +28,14 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
   const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [errorDetails, setErrorDetails] = useState<{
+    title: string;
+    message: string;
+    code?: string;
+    hint?: string;
+    details?: string;
+    raw?: string;
+  } | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -57,9 +65,11 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorDetails(null);
     
     if (!user || !amount || !partner || !transactionId || !reason.trim()) {
       toast.error('Please fill in all required fields including reason');
+      setErrorDetails({ title: 'Missing fields', message: 'Please fill in all required fields including reason.' });
       return;
     }
 
@@ -119,6 +129,7 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
       if (!validation.valid) {
         const msg = validation.errors.map(e => e.message).join('; ');
         toast.error(`Validation: ${msg}`);
+        setErrorDetails({ title: 'Validation failed', message: msg });
         setIsSubmitting(false);
         return;
       }
@@ -153,12 +164,35 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
 
     } catch (error: any) {
       console.error('Error submitting payment:', error);
+      const rawDump = (() => {
+        try { return JSON.stringify(error, Object.getOwnPropertyNames(error), 2); } catch { return String(error); }
+      })();
       if (error?.code === '23505' || /duplicate key|already (been )?(used|submitted)|unique/i.test(error?.message || '')) {
         toast.error('This transaction reference has already been submitted', {
           description: 'Each MoMo or bank reference can only be used once. Double-check the reference and try again.',
         });
+        setErrorDetails({
+          title: 'Duplicate transaction reference',
+          message: 'Each MoMo or bank reference can only be used once.',
+          code: error?.code,
+          hint: error?.hint,
+          details: error?.details,
+          raw: rawDump,
+        });
       } else {
-        toast.error(error.message || 'Failed to submit payment confirmation');
+        toast.error(error?.message || 'Failed to submit payment confirmation', {
+          description: [error?.code && `Code: ${error.code}`, error?.hint && `Hint: ${error.hint}`, error?.details && `Details: ${error.details}`]
+            .filter(Boolean).join(' • ') || undefined,
+          duration: 12000,
+        });
+        setErrorDetails({
+          title: 'Submission failed',
+          message: error?.message || 'Unknown error occurred while submitting deposit.',
+          code: error?.code,
+          hint: error?.hint,
+          details: error?.details,
+          raw: rawDump,
+        });
       }
     } finally {
       setIsSubmitting(false);
@@ -187,6 +221,30 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {errorDetails && (
+            <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 space-y-2">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-destructive">{errorDetails.title}</p>
+                  <p className="text-xs text-destructive/90 mt-0.5 break-words">{errorDetails.message}</p>
+                  {(errorDetails.code || errorDetails.hint || errorDetails.details) && (
+                    <div className="mt-1 text-[11px] text-destructive/80 space-y-0.5 font-mono break-words">
+                      {errorDetails.code && <div>code: {errorDetails.code}</div>}
+                      {errorDetails.hint && <div>hint: {errorDetails.hint}</div>}
+                      {errorDetails.details && <div>details: {errorDetails.details}</div>}
+                    </div>
+                  )}
+                  {errorDetails.raw && (
+                    <details className="mt-2">
+                      <summary className="text-[11px] text-destructive/80 cursor-pointer">Show raw error</summary>
+                      <pre className="mt-1 text-[10px] bg-background/60 p-2 rounded overflow-auto max-h-48 whitespace-pre-wrap break-words">{errorDetails.raw}</pre>
+                    </details>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="amount">Amount Paid (UGX) *</Label>
