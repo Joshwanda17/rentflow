@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, CheckCircle2, Phone, Calendar, Clock, Hash, AlertCircle, History, Building2, Banknote, Upload, Receipt, Copy } from 'lucide-react';
+import { Loader2, CheckCircle2, Phone, Calendar, Clock, Hash, AlertCircle, History, Building2, Banknote, Upload, Receipt, Copy, ShieldAlert } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -22,6 +22,13 @@ interface DepositFlowProps {
   allowedPurposes?: DepositPurpose[];
   /** Hide the purpose grid behind a "Change purpose" link. */
   lockPurpose?: boolean;
+  /**
+   * Force a mandatory purpose-choice screen BEFORE the channel/form.
+   * When true: no defaultPurpose is applied, and the user must explicitly
+   * pick a purpose (from allowedPurposes) before continuing. Eliminates
+   * the "tap-through and mis-bucket" failure mode for agents.
+   */
+  requirePurposeChoice?: boolean;
 }
 
 const DEPOSIT_PURPOSES: { id: DepositPurpose; label: string; emoji: string; desc: string }[] = [
@@ -50,9 +57,11 @@ const BANK_DETAILS = {
 
 const QUICK_AMOUNTS = [50000, 100000, 250000, 500000];
 
-export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowedPurposes, lockPurpose }: DepositFlowProps) {
+export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowedPurposes, lockPurpose, requirePurposeChoice }: DepositFlowProps) {
   const navigate = useNavigate();
-  const [step, setStep] = useState<'channel' | 'form' | 'submitting' | 'success'>('channel');
+  const [step, setStep] = useState<'purpose' | 'channel' | 'form' | 'submitting' | 'success'>(
+    requirePurposeChoice ? 'purpose' : 'channel'
+  );
   const [channel, setChannel] = useState<DepositChannel>('momo');
   const [momoProvider, setMomoProvider] = useState<'mtn' | 'airtel'>('mtn');
   const [amount, setAmount] = useState('');
@@ -62,7 +71,9 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   const [transactionDate, setTransactionDate] = useState('');
   const [transactionTime, setTransactionTime] = useState('');
   const [reason, setReason] = useState('');
-  const [depositPurpose, setDepositPurpose] = useState<DepositPurpose | ''>(defaultPurpose ?? '');
+  const [depositPurpose, setDepositPurpose] = useState<DepositPurpose | ''>(
+    requirePurposeChoice ? '' : (defaultPurpose ?? '')
+  );
   const [showPurposeGrid, setShowPurposeGrid] = useState<boolean>(!lockPurpose);
   const [bankSlipFile, setBankSlipFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -70,13 +81,21 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
 
   // Re-apply default when dialog re-opens
   useEffect(() => {
+    if (open && requirePurposeChoice) {
+      // Force a fresh choice every time the dialog opens
+      setStep('purpose');
+      setDepositPurpose('');
+      setReason('');
+      setShowPurposeGrid(false);
+      return;
+    }
     if (open && defaultPurpose) {
       setDepositPurpose(defaultPurpose);
       const purposeLabel = DEPOSIT_PURPOSES.find(p => p.id === defaultPurpose)?.label;
       if (purposeLabel && defaultPurpose !== 'other') setReason(purposeLabel);
       setShowPurposeGrid(!lockPurpose);
     }
-  }, [open, defaultPurpose, lockPurpose]);
+  }, [open, defaultPurpose, lockPurpose, requirePurposeChoice]);
 
   const validateTid = (value: string, provider?: 'mtn' | 'airtel') => {
     const upper = value.trim().toUpperCase();
@@ -230,7 +249,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   };
 
   const handleClose = () => {
-    setStep('channel');
+    setStep(requirePurposeChoice ? 'purpose' : 'channel');
     setChannel('momo');
     setMomoProvider('mtn');
     setAmount('');
@@ -240,7 +259,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     setTransactionDate('');
     setTransactionTime('');
     setReason('');
-    setDepositPurpose(defaultPurpose ?? '');
+    setDepositPurpose(requirePurposeChoice ? '' : (defaultPurpose ?? ''));
     setShowPurposeGrid(!lockPurpose);
     setBankSlipFile(null);
     onOpenChange(false);
