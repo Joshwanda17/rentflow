@@ -401,28 +401,32 @@ export default function SupporterDashboard({
           <MerchantCodePills />
 
           {/* ═══ PORTFOLIO HERO CARD ═══ */}
-          <UnifiedWalletHeroCard
-            balance={wallet?.balance ?? 0}
-            role="supporter"
-            secondaryLabel="Invested"
-            secondaryValue={_formatUGX(totalRentContributed)}
-            houses={virtualHouses.length}
-            returnPerMonth={_formatUGX(totalRoiEarned)}
-            deployed={_formatUGX(totalRentContributed)}
-            onOpenWallet={() => setShowWallet(true)}
-            onHousesTap={() => {
-              const el = document.getElementById('my-houses');
-              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }}
-            onReturnTap={() => {
-              setInvestmentsTab('accounts');
-              setShowInvestments(true);
-            }}
-            onDeployedTap={() => {
-              setInvestmentsTab('accounts');
-              setShowInvestments(true);
-            }}
-          />
+          {wallet ? (
+            <UnifiedWalletHeroCard
+              balance={wallet?.balance ?? 0}
+              role="supporter"
+              secondaryLabel="Invested"
+              secondaryValue={_formatUGX(totalRentContributed)}
+              houses={virtualHouses.length}
+              returnPerMonth={_formatUGX(totalRoiEarned)}
+              deployed={_formatUGX(totalRentContributed)}
+              onOpenWallet={() => setShowWallet(true)}
+              onHousesTap={() => {
+                const el = document.getElementById('my-houses');
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              onReturnTap={() => {
+                setInvestmentsTab('accounts');
+                setShowInvestments(true);
+              }}
+              onDeployedTap={() => {
+                setInvestmentsTab('accounts');
+                setShowInvestments(true);
+              }}
+            />
+          ) : (
+            <WalletHeroSkeleton />
+          )}
 
           <VerificationChecklist userId={user.id} highlightRole="supporter" compact />
 
@@ -465,7 +469,14 @@ export default function SupporterDashboard({
             </div>
             {!effectiveHasAccepted && <LockedOverlay onAcceptClick={() => setShowAgreementModal(true)} />}
             <WidgetErrorBoundary label="Capital opportunities">
-              <FunderCapitalOpportunities />
+              {loading && virtualHouses.length === 0 ? (
+                <div className="space-y-3">
+                  <WidgetCardSkeleton />
+                  <WidgetCardSkeleton />
+                </div>
+              ) : (
+                <FunderCapitalOpportunities />
+              )}
             </WidgetErrorBoundary>
           </div>
 
