@@ -307,11 +307,11 @@ export default function SelectRole() {
         {redirectMessage && (
           <div
             role="alert"
-            className="mb-4 flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-left"
+            className="mb-4 flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/10 p-4 text-left"
           >
-            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
             <div className="space-y-0.5">
-              <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+              <p className="text-sm font-semibold text-warning">
                 Dashboard not available
               </p>
               <p className="text-xs text-muted-foreground">{redirectMessage}</p>
