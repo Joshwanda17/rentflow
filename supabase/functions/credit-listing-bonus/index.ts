@@ -49,17 +49,17 @@ Deno.serve(async (req) => {
     const guardBlock = await checkTreasuryGuard(adminClient, "credit");
     if (guardBlock) return guardBlock;
 
-    // Verify Landlord Ops / manager role
-    const { data: roleCheck, error: roleErr } = await adminClient
+    // Verify Landlord Ops / manager role (user may have multiple matching roles)
+    const { data: roleRows, error: roleErr } = await adminClient
       .from("user_roles")
       .select("role")
       .eq("user_id", managerId)
       .in("role", ["manager", "coo", "super_admin", "operations", "employee"])
-      .maybeSingle();
+      .limit(1);
 
-    console.log("[credit-listing-bonus] Role check result:", JSON.stringify(roleCheck), "error:", roleErr?.message);
+    console.log("[credit-listing-bonus] Role check rows:", JSON.stringify(roleRows), "error:", roleErr?.message);
 
-    if (!roleCheck) {
+    if (!roleRows || roleRows.length === 0) {
       return new Response(JSON.stringify({ error: "Only internal staff can verify listings" }), {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
