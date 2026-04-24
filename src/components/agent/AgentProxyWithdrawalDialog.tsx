@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,11 +27,14 @@ export function AgentProxyWithdrawalDialog({
   const [amount, setAmount] = useState<number>(0);
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
+  const isSubmittingRef = useRef(false);
+  const clientRequestIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (open) {
       setAmount(0);
       setReason('');
+      clientRequestIdRef.current = null;
     }
   }, [open]);
 
@@ -42,8 +45,17 @@ export function AgentProxyWithdrawalDialog({
 
   const handleSubmit = async () => {
     if (!user || !isValid) return;
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
     setLoading(true);
     try {
+      if (!clientRequestIdRef.current) {
+        clientRequestIdRef.current =
+          (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      }
+      const clientRequestId = clientRequestIdRef.current;
       // Insert with agent's user_id so the deduction trigger hits the AGENT's wallet
       // (where ROI funds actually sit), and tag the partner via proxy_partner_id
       const { error } = await supabase.from('withdrawal_requests').insert({
@@ -52,8 +64,12 @@ export function AgentProxyWithdrawalDialog({
         status: 'pending' as const,
         reason: `[Agent proxy: ${user.id}] ${reason.trim()}`,
         proxy_partner_id: funderId,
+        client_request_id: clientRequestId,
       } as any);
-      if (error) throw error;
+      if (error) {
+        // Idempotency: collapse retried inserts into one row
+        if ((error as any).code !== '23505') throw error;
+      }
 
       // Get the newly created withdrawal request ID for audit
       const { data: newRow } = await supabase
@@ -85,10 +101,12 @@ export function AgentProxyWithdrawalDialog({
       });
       onOpenChange(false);
       onSuccess?.();
+      clientRequestIdRef.current = null;
     } catch (err: any) {
       toast.error('Failed to submit', { description: err.message });
     } finally {
       setLoading(false);
+      isSubmittingRef.current = false;
     }
   };
 

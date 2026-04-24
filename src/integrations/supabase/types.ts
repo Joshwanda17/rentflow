@@ -11733,6 +11733,7 @@ export type Database = {
           bank_name: string | null
           cfo_approved_at: string | null
           cfo_approved_by: string | null
+          client_request_id: string | null
           coo_approved_at: string | null
           coo_approved_by: string | null
           created_at: string
@@ -11777,6 +11778,7 @@ export type Database = {
           bank_name?: string | null
           cfo_approved_at?: string | null
           cfo_approved_by?: string | null
+          client_request_id?: string | null
           coo_approved_at?: string | null
           coo_approved_by?: string | null
           created_at?: string
@@ -11821,6 +11823,7 @@ export type Database = {
           bank_name?: string | null
           cfo_approved_at?: string | null
           cfo_approved_by?: string | null
+          client_request_id?: string | null
           coo_approved_at?: string | null
           coo_approved_by?: string | null
           created_at?: string

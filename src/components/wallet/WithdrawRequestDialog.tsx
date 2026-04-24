@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { WithdrawalStepTracker } from './WithdrawalStepTracker';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -50,6 +50,8 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
   const [success, setSuccess] = useState(false);
   const [workingHoursStatus, setWorkingHoursStatus] = useState(checkWorkingHours());
   const [pendingAmount, setPendingAmount] = useState(0);
+  const isSubmittingRef = useRef(false);
+  const clientRequestIdRef = useRef<string | null>(null);
 
   const [payoutMode, setPayoutMode] = useState<PayoutMode | null>(null);
   const [momoNumber, setMomoNumber] = useState('');
@@ -141,16 +143,28 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
 
   const handleSubmit = async () => {
     if (!user) { toast.error('Please log in first'); return; }
+    // Re-entrant guard: prevent double-tap / rapid double submission
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
     const currentStatus = checkWorkingHours();
-    if (!currentStatus.isOpen) { toast.error(currentStatus.message); setWorkingHoursStatus(currentStatus); return; }
-    
-    if (availableBalance < 500) { toast.error('Available balance must be at least UGX 500'); return; }
-    if (amount < 500) { toast.error('Minimum withdrawal is UGX 500'); return; }
-    if (amount > availableBalance) { toast.error(`Insufficient available balance. You have UGX ${pendingAmount.toLocaleString()} in pending withdrawals.`); return; }
-    if (!isPayoutValid()) { toast.error('Please complete payout details'); return; }
+    if (!currentStatus.isOpen) { toast.error(currentStatus.message); setWorkingHoursStatus(currentStatus); isSubmittingRef.current = false; return; }
+    if (availableBalance < 500) { toast.error('Available balance must be at least UGX 500'); isSubmittingRef.current = false; return; }
+    if (amount < 500) { toast.error('Minimum withdrawal is UGX 500'); isSubmittingRef.current = false; return; }
+    if (amount > availableBalance) { toast.error(`Insufficient available balance. You have UGX ${pendingAmount.toLocaleString()} in pending withdrawals.`); isSubmittingRef.current = false; return; }
+    if (!isPayoutValid()) { toast.error('Please complete payout details'); isSubmittingRef.current = false; return; }
 
     setLoading(true);
-    const MAX_RETRIES = 3;
+    // Stable idempotency key for the lifetime of this submission attempt.
+    // Reused across network retries so the DB unique index on (user_id, client_request_id)
+    // collapses any duplicate inserts into a single row.
+    if (!clientRequestIdRef.current) {
+      clientRequestIdRef.current =
+        (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    }
+    const clientRequestId = clientRequestIdRef.current;
+    const MAX_RETRIES = 2;
     let lastError: any = null;
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -169,9 +183,18 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
           bank_account_number: payoutMode === 'bank' ? bankAccountNumber.trim() : null,
           agent_location: payoutMode === 'cash' ? 'Nearest Agent' : null,
           reason: reason.trim(),
+          client_request_id: clientRequestId,
           ...(linkedParty ? { linked_party: linkedParty } : {}),
         } as any);
-        if (error) throw error;
+        if (error) {
+          // 23505 = unique_violation. Means a previous attempt already committed
+          // this exact submission server-side. Treat as success.
+          if ((error as any).code === '23505') {
+            console.info('[WithdrawRequestDialog] Duplicate suppressed by idempotency key');
+          } else {
+            throw error;
+          }
+        }
 
         // No wallet deduction or ledger insert here — that happens at approval time
         // via the approve-withdrawal edge function (ledger-first architecture)
@@ -289,6 +312,8 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
         toast.success('Withdrawal request submitted! 🎉');
         onSuccess?.();
         setLoading(false);
+        isSubmittingRef.current = false;
+        clientRequestIdRef.current = null;
         return;
       } catch (error: any) {
         lastError = error;
@@ -305,6 +330,8 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
     const isNetworkError = lastError instanceof TypeError && lastError.message === 'Failed to fetch';
     toast.error(isNetworkError ? 'Network error — check your internet and try again' : (lastError?.message || 'Failed to submit request'));
     setLoading(false);
+    isSubmittingRef.current = false;
+    // Keep clientRequestIdRef so a manual retry by the user re-uses the same key
   };
 
   const handleClose = () => {
