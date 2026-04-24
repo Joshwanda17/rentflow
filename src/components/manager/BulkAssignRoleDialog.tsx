@@ -89,7 +89,7 @@ export default function BulkAssignRoleDialog({
           payload: {
             title: `✨ New Role: ${roleLabels[role] || role}`,
             body: `You've been granted the ${role} role! New features are now available in your dashboard.`,
-            url: '/dashboard',
+            url: '/tenant',
             type: 'role_change'
           }
         }

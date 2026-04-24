@@ -284,7 +284,7 @@ export function InlineRoleToggle({
             payload: {
               title: `✨ New Role: ${roles.find(r => r.value === role)?.emoji} ${role}`,
               body: `You've been granted the ${role} role!`,
-              url: '/dashboard',
+              url: '/tenant',
               type: 'role_change'
             }
           }
@@ -331,7 +331,7 @@ export function InlineRoleToggle({
             payload: {
               title: `Role Removed: ${role}`,
               body: `Your ${role} role has been removed.`,
-              url: '/dashboard',
+              url: '/tenant',
               type: 'role_change'
             }
           }

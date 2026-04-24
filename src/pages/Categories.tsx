@@ -175,7 +175,7 @@ export default function Categories() {
               </motion.div>
             </Link>
             <ThemeToggle />
-            <Link to={user ? "/dashboard" : "/auth"}>
+            <Link to={user ? "/tenant" : "/auth"}>
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Button variant="outline" size="sm" className="gap-2">
                   <ArrowLeft className="h-4 w-4" />
