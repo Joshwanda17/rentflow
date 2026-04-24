@@ -227,9 +227,6 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
         </button>
       )}
 
-      {/* ── PLATFORM IMPACT KPIs ── */}
-      <CFOImpactKPIStrip />
-
       {/* ── 3 KEY NUMBERS ── */}
       <div className="grid grid-cols-1 gap-3">
         <MetricCard
