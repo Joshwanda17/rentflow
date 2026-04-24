@@ -114,6 +114,31 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (existingApproval) {
+      // Already paid → idempotent success
+      if (existingApproval.status === "paid") {
+        return new Response(JSON.stringify({
+          success: true,
+          message: "Bonus already paid (idempotent)",
+          already_paid: true,
+          approval_id: existingApproval.id,
+          status: existingApproval.status,
+        }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Failed earlier → surface clearly so an admin can clear it via the CFO override
+      if (existingApproval.status === "failed") {
+        return new Response(JSON.stringify({
+          error: "A previous auto-pay attempt failed for this listing. Please review and retry from the CFO bonus queue.",
+          approval_id: existingApproval.id,
+          status: existingApproval.status,
+        }), {
+          status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // pending_credit / pending_cfo / pending_landlord_ops / approved / rejected
       return new Response(JSON.stringify({
         message: `Bonus approval already ${existingApproval.status}`,
         approval_id: existingApproval.id,
