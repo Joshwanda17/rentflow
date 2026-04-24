@@ -12065,6 +12065,10 @@ export type Database = {
         Args: { _user_id: string }
         Returns: boolean
       }
+      can_view_agent_data: {
+        Args: { _target_agent_id: string; _viewer_id: string }
+        Returns: boolean
+      }
       capture_trust_signal: {
         Args: {
           p_accuracy?: number
