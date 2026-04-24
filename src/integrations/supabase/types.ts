@@ -562,6 +562,54 @@ export type Database = {
           },
         ]
       }
+      agent_capabilities: {
+        Row: {
+          agent_id: string
+          capability: string
+          context_id: string | null
+          context_type: string | null
+          created_at: string
+          granted_at: string
+          granted_by: string | null
+          id: string
+          metadata: Json
+          revoked_at: string | null
+          revoked_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          capability: string
+          context_id?: string | null
+          context_type?: string | null
+          created_at?: string
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          metadata?: Json
+          revoked_at?: string | null
+          revoked_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          capability?: string
+          context_id?: string | null
+          context_type?: string | null
+          created_at?: string
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          metadata?: Json
+          revoked_at?: string | null
+          revoked_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       agent_collection_streaks: {
         Row: {
           agent_id: string
@@ -11818,6 +11866,80 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_relationships: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string | null
+          id: string | null
+          parent_agent_id: string | null
+          rejection_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          source: string | null
+          status: string | null
+          sub_agent_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          id?: string | null
+          parent_agent_id?: string | null
+          rejection_reason?: string | null
+          revoked_at?: never
+          revoked_by?: never
+          source?: string | null
+          status?: string | null
+          sub_agent_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          id?: string | null
+          parent_agent_id?: string | null
+          rejection_reason?: string | null
+          revoked_at?: never
+          revoked_by?: never
+          source?: string | null
+          status?: string | null
+          sub_agent_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_subagents_verified_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_subagents_verified_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_subagents_verified_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_subagents_verified_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       manager_profiles: {
         Row: {
           avatar_url: string | null
@@ -11938,6 +12060,7 @@ export type Database = {
         Args: { _tenant_id: string }
         Returns: Json
       }
+      can_process_cashout: { Args: { _agent_id: string }; Returns: boolean }
       can_read_landlord_payout_receipts: {
         Args: { _user_id: string }
         Returns: boolean
@@ -12499,6 +12622,10 @@ export type Database = {
       }
       get_wallet_totals: { Args: never; Returns: Json }
       get_withdrawable_total: { Args: { p_user_id: string }; Returns: number }
+      has_agent_capability: {
+        Args: { _agent_id: string; _capability: string }
+        Returns: boolean
+      }
       has_dashboard_access: {
         Args: { _dashboard: string; _user_id: string }
         Returns: boolean
@@ -12515,6 +12642,12 @@ export type Database = {
         Args: { _conversation_id: string; _user_id: string }
         Returns: boolean
       }
+      is_parent_agent: { Args: { _agent_id: string }; Returns: boolean }
+      is_proxy_for: {
+        Args: { _agent_id: string; _beneficiary_id: string }
+        Returns: boolean
+      }
+      is_sub_agent: { Args: { _agent_id: string }; Returns: boolean }
       is_supporter: { Args: never; Returns: boolean }
       is_tenant_locked: { Args: { _user_id: string }; Returns: boolean }
       log_system_event:
