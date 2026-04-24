@@ -19,6 +19,7 @@ import { useOtpVerification } from '@/hooks/useOtpVerification';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { roleToSlug } from '@/lib/roleRoutes';
 
 const VALID_SIGNUP_ROLES = ['tenant', 'agent', 'landlord', 'supporter'] as const;
 
@@ -63,7 +64,7 @@ export default function Auth() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, loading: authLoading, signIn: authSignIn } = useAuth();
+  const { user, loading: authLoading, signIn: authSignIn, roles: authRoles } = useAuth();
   const [emailLoginLoading, setEmailLoginLoading] = useState(false);
 
   // Internship funnel: auto-fill from query params and switch to signup
@@ -98,9 +99,9 @@ export default function Auth() {
 
   useEffect(() => {
     if (!authLoading && user) {
-      navigate('/dashboard', { replace: true });
+      navigate(roleToSlug(authRoles[0]), { replace: true });
     }
-  }, [authLoading, user, navigate]);
+  }, [authLoading, user, authRoles, navigate]);
 
   // Login mode: 'password' (phone+pw), 'email', 'otp'
   const [loginMode, setLoginMode] = useState<'password' | 'otp' | 'email'>('password');

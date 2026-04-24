@@ -10,6 +10,7 @@ import { Home, Users, Wallet, Building2, Shield, Check, ArrowLeft, Sparkles } fr
 import { Link } from 'react-router-dom';
 import WelileLogo from '@/components/WelileLogo';
 import { supabase } from '@/integrations/supabase/client';
+import { roleToSlug } from '@/lib/roleRoutes';
 
 const MANAGER_ACCESS_CODE = 'Manager@welile';
 
@@ -116,7 +117,7 @@ export default function SelectRole() {
         title: 'Welcome!',
         description: `You're now set up as a ${becomeRole}. Redirecting to dashboard...`
       });
-      navigate('/dashboard');
+      navigate(roleToSlug(becomeRole));
     } else {
       setAutoSubmitting(false);
       toast({
@@ -134,7 +135,7 @@ export default function SelectRole() {
     if (!user) {
       navigate('/auth');
     } else if (roles.length > 0) {
-      navigate('/dashboard');
+      navigate(roleToSlug(roles[0]));
     }
   }, [user, roles, loading, navigate]);
 
@@ -262,7 +263,7 @@ export default function SelectRole() {
       });
     }
     
-    navigate('/dashboard');
+    navigate(roleToSlug(selectedRoles[0]));
     setIsLoading(false);
   };
 
