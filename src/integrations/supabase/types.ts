@@ -13077,6 +13077,7 @@ export type Database = {
         | "login_success"
         | "listing_created"
         | "listing_approved"
+        | "deposit_failed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -13315,6 +13316,7 @@ export const Constants = {
         "login_success",
         "listing_created",
         "listing_approved",
+        "deposit_failed",
       ],
     },
   },
