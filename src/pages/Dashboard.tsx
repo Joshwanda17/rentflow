@@ -65,6 +65,7 @@ const OfflineFallback = ({ cachedRole, onRetry }: { cachedRole?: AppRole | null;
 function DashboardContent() {
   const { user, role, roles, loading, signOut, switchRole, addRole, grantAndSwitchRole } = useAuth();
   const [pendingRole, setPendingRole] = useState<AppRole | null>(null);
+  const navigate = useNavigate();
 
   // Clear pendingRole when the active role matches it
   useEffect(() => {
@@ -103,7 +104,6 @@ function DashboardContent() {
   }, [role, roles, pendingRole, switchRole, grantAndSwitchRole, navigate]);
 
   const { profile } = useProfile();
-  const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   
