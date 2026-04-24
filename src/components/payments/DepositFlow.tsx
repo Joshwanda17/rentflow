@@ -403,17 +403,18 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           </div>
         ) : (
           /* ─── Form ─── */
-          <div className="space-y-4">
+          <div className="space-y-4 w-full max-w-full">
             {/* Back to channel */}
-            <button onClick={() => setStep('channel')} className="text-xs text-primary font-medium flex items-center gap-1">
-              ← Change deposit method ({getProviderLabel()})
+            <button onClick={() => setStep('channel')} className="text-xs text-primary font-medium flex items-center gap-1 flex-wrap break-words">
+              <span>←</span>
+              <span className="break-words">Change deposit method ({getProviderLabel()})</span>
             </button>
 
             {/* ─── MoMo Instructions (Tab-Based) ─── */}
             {channel === 'momo' && (
               <div className="space-y-3">
                 {/* Provider Tabs */}
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => { setMomoProvider('mtn'); validateTid(transactionId, 'mtn'); }}
@@ -519,9 +520,9 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                     ['Currency', BANK_DETAILS.currency],
                     ['SWIFT Code', BANK_DETAILS.swiftCode],
                   ].map(([label, value]) => (
-                    <div key={label} className="flex justify-between">
-                      <span className="text-muted-foreground">{label}</span>
-                      <span className="font-mono font-semibold text-right">{value}</span>
+                    <div key={label} className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-0.5 sm:gap-2">
+                      <span className="text-muted-foreground shrink-0">{label}</span>
+                      <span className="font-mono font-semibold sm:text-right break-all">{value}</span>
                     </div>
                   ))}
                 </div>
@@ -556,9 +557,9 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             <div className="space-y-2">
               <Label className="text-xs">Amount (UGX)</Label>
               <Input type="number" placeholder="Enter amount" value={amount} onChange={(e) => setAmount(e.target.value)} min="500" className="text-lg font-semibold h-11" />
-              <div className="flex flex-wrap gap-1.5">
+              <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-1.5">
                 {QUICK_AMOUNTS.map((amt) => (
-                  <Button key={amt} type="button" variant={amount === String(amt) ? 'default' : 'outline'} size="sm" className="text-xs h-7" onClick={() => setAmount(String(amt))}>
+                  <Button key={amt} type="button" variant={amount === String(amt) ? 'default' : 'outline'} size="sm" className="text-xs h-7 w-full sm:w-auto" onClick={() => setAmount(String(amt))}>
                     {formatCurrency(amt)}
                   </Button>
                 ))}
@@ -652,7 +653,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             )}
 
             {/* ─── Date & Time ─── */}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center gap-1"><Calendar className="h-3.5 w-3.5" /> Date</Label>
                 <Input type="date" value={transactionDate} onChange={(e) => setTransactionDate(e.target.value)} min={sevenDaysAgo} max={today} className="h-10 text-xs" />
@@ -665,7 +666,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
 
             {/* ─── Deposit Purpose ─── */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <Label className="text-xs flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" /> Deposit Purpose *</Label>
                 {lockPurpose && depositPurpose && (
                   <button
@@ -678,18 +679,18 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 )}
               </div>
               {lockPurpose && depositPurpose && !showPurposeGrid && (
-                <div className="flex items-center gap-2 p-2.5 rounded-xl border-2 border-primary bg-primary/10">
-                  <span className="text-base">{DEPOSIT_PURPOSES.find(p => p.id === depositPurpose)?.emoji}</span>
-                  <div className="min-w-0">
+                <div className="flex items-start gap-2 p-2.5 rounded-xl border-2 border-primary bg-primary/10">
+                  <span className="text-base shrink-0">{DEPOSIT_PURPOSES.find(p => p.id === depositPurpose)?.emoji}</span>
+                  <div className="min-w-0 flex-1">
                     <p className="font-semibold text-xs">{DEPOSIT_PURPOSES.find(p => p.id === depositPurpose)?.label}</p>
-                    <p className="text-[10px] text-muted-foreground truncate">
+                    <p className="text-[10px] text-muted-foreground break-words">
                       {DEPOSIT_PURPOSES.find(p => p.id === depositPurpose)?.desc}
                     </p>
                   </div>
                 </div>
               )}
               {(showPurposeGrid || !lockPurpose) && (
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {DEPOSIT_PURPOSES.filter(p => !allowedPurposes || allowedPurposes.includes(p.id)).map((p) => (
                   <button
                     key={p.id}
@@ -702,16 +703,16 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                       setPurposeChosenAt(new Date().toISOString());
                       setPurposeEntryPoint((prev) => (prev === 'gate' ? 'gate' : 'in_form'));
                     }}
-                    className={`flex items-center gap-2 p-2.5 rounded-xl border-2 text-left transition-all text-xs ${
+                    className={`flex items-start gap-2 p-2.5 rounded-xl border-2 text-left transition-all text-xs ${
                       depositPurpose === p.id
                         ? 'border-primary bg-primary/10 shadow-sm'
                         : 'border-border hover:border-primary/40'
                     }`}
                   >
-                    <span className="text-base">{p.emoji}</span>
-                    <div className="min-w-0">
-                      <p className="font-semibold truncate">{p.label}</p>
-                      <p className="text-[10px] text-muted-foreground truncate">{p.desc}</p>
+                    <span className="text-base shrink-0">{p.emoji}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold break-words">{p.label}</p>
+                      <p className="text-[10px] text-muted-foreground break-words line-clamp-2">{p.desc}</p>
                     </div>
                   </button>
                 ))}
