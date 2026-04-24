@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, AppRole } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Home, Users, Wallet, Building2, Shield, Check, ArrowLeft, Sparkles } from 'lucide-react';
+import { Home, Users, Wallet, Building2, Shield, Check, ArrowLeft, Sparkles, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import WelileLogo from '@/components/WelileLogo';
 import { supabase } from '@/integrations/supabase/client';
