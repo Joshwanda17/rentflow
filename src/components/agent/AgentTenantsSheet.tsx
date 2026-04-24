@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp, ArrowLeft, Shield, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
-import { formatUGX } from '@/lib/rentCalculations';
+import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
 import { generateWelileAiId, getRiskTierLabel } from '@/lib/welileAiId';
 import { format, startOfDay } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -40,6 +40,12 @@ interface TenantRentRequest {
   created_at: string;
   disbursed_at: string | null;
   registration_type: string | null;
+  landlord_id?: string | null;
+  lc1_id?: string | null;
+  house_category?: string | null;
+  tenant_no_smartphone?: boolean | null;
+  request_latitude?: number | null;
+  request_longitude?: number | null;
   landlord?: { name: string; property_address: string; house_category?: string; latitude?: number; longitude?: number } | null;
 }
 
