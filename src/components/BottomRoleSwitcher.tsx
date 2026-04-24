@@ -40,8 +40,8 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
   const staffRole = roles.find(r => STAFF_ROLES.includes(r));
 
   const isRoleGated = (role: AppRole): boolean => {
-    // Public roles (tenant, agent, supporter, landlord) are always available
-    if (['tenant', 'agent', 'supporter', 'landlord'].includes(role)) return false;
+    // Strict ownership: a role is gated unless the user actually holds it.
+    // The dev-only "unlock all" preference still bypasses the gate.
     if (areAllRolesUnlocked()) return false;
     if (roles.includes(role)) return false;
     return true;

@@ -63,7 +63,7 @@ const OfflineFallback = ({ cachedRole, onRetry }: { cachedRole?: AppRole | null;
 );
 
 function DashboardContent() {
-  const { user, role, roles, loading, signOut, switchRole, addRole, grantAndSwitchRole } = useAuth();
+  const { user, role, roles, loading, signOut, switchRole, addRole } = useAuth();
   const [pendingRole, setPendingRole] = useState<AppRole | null>(null);
   const navigate = useNavigate();
 
@@ -77,31 +77,24 @@ function DashboardContent() {
   const handlePublicRoleSwitch = useCallback(async (newRole: AppRole) => {
     if (newRole === role && !pendingRole) return;
     if (pendingRole) return; // Already switching, ignore taps
-    
-    const publicRoles: AppRole[] = ['tenant', 'agent', 'landlord', 'supporter'];
-    if (!publicRoles.includes(newRole) && !roles.includes(newRole)) {
-      return; // Non-public role they don't have — block
+
+    // STRICT OWNERSHIP: only roles the user actually holds may switch.
+    // Public roles are NO LONGER auto-granted on tap — that was a silent
+    // privilege escalation. Users must apply via ApplyForRoleDialog (handled
+    // by the switcher components).
+    if (!roles.includes(newRole)) {
+      console.warn('[Dashboard] Blocked switch to unowned role:', newRole);
+      return;
     }
 
     setPendingRole(newRole);
-
-    if (publicRoles.includes(newRole)) {
-      // Use atomic grant-and-switch to avoid race condition
-      const { error } = await grantAndSwitchRole(newRole);
-      if (error) {
-        console.warn('[Dashboard] Failed to switch role:', error.message);
-        setPendingRole(null);
-        return;
-      }
-    } else {
-      switchRole(newRole);
-    }
+    switchRole(newRole);
 
     // URL is the source of truth for which persona dashboard renders, so
     // every role switch (header dropdown, bottom switcher, etc.) must
     // also update the address bar to the matching `/dashboard/{role}` slug.
     navigate(roleToSlug(newRole), { replace: true });
-  }, [role, roles, pendingRole, switchRole, grantAndSwitchRole, navigate]);
+  }, [role, roles, pendingRole, switchRole, navigate]);
 
   const { profile } = useProfile();
   const location = useLocation();

@@ -22,6 +22,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import ApplyForRoleDialog from '@/components/ApplyForRoleDialog';
+import { useAuth } from '@/hooks/useAuth';
+import { useRoleAccessRequests } from '@/hooks/useRoleAccessRequests';
 
 type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager' | 'ceo' | 'coo' | 'cfo' | 'cto' | 'cmo' | 'crm' | 'employee' | 'operations' | 'super_admin' | 'hr';
 
@@ -62,10 +65,14 @@ const PUBLIC_ROLES: AppRole[] = ['tenant', 'agent', 'landlord', 'supporter'];
 const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, onRoleChange, onAddRole, variant = 'header' }: RoleSwitcherProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { hasApplied, requestRole } = useRoleAccessRequests(user?.id);
   const [codeDialogOpen, setCodeDialogOpen] = useState(false);
   const [pendingRole, setPendingRole] = useState<AppRole | null>(null);
   const [accessCode, setAccessCode] = useState('');
   const [isAdding, setIsAdding] = useState(false);
+  const [applyDialogOpen, setApplyDialogOpen] = useState(false);
+  const [applyRole, setApplyRole] = useState<AppRole | null>(null);
 
   const handleSwitch = async (role: AppRole) => {
     if (role === currentRole) return;
@@ -96,21 +103,10 @@ const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, o
       return;
     }
 
-    // Public role — auto-add
-    if (!onAddRole) return;
-    setIsAdding(true);
-    const { error } = await onAddRole(role);
-    setIsAdding(false);
-
-    if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-      return;
-    }
-
-    toast({ title: 'Role Added', description: `You now have access to the ${roleConfig[role].label} dashboard` });
-    onRoleChange(role);
-    const route = roleDashboardRoutes[role];
-    navigate(route || roleToSlug(role));
+    // Public role they don't have yet — open the Apply dialog instead of
+    // silently granting. Strict ownership: nothing is auto-granted on tap.
+    setApplyRole(role);
+    setApplyDialogOpen(true);
   };
 
   const confirmAccessCode = async () => {
@@ -189,6 +185,7 @@ const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, o
               const config = roleConfig[role];
               const isActive = role === currentRole;
               const hasRole = availableRoles.includes(role);
+              const pending = !hasRole && PUBLIC_ROLES.includes(role) && hasApplied(role);
               return (
                 <button
                   key={role}
@@ -204,13 +201,21 @@ const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, o
                   )}
                 >
                   <span className="text-base">{config.emoji}</span>
-                  <span className="truncate">{config.label}</span>
+                  <span className="truncate">{pending ? 'Pending' : config.label}</span>
+                  {!hasRole && !pending && <Lock className="h-3 w-3 opacity-60" />}
                 </button>
               );
             })}
           </div>
         </div>
         {accessCodeDialog}
+        <ApplyForRoleDialog
+          open={applyDialogOpen}
+          onOpenChange={setApplyDialogOpen}
+          role={applyRole}
+          hasApplied={applyRole ? hasApplied(applyRole) : false}
+          onApply={requestRole}
+        />
       </>
     );
   }
@@ -235,6 +240,7 @@ const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, o
             const config = roleConfig[role];
             const isActive = role === currentRole;
             const hasRole = availableRoles.includes(role);
+            const pending = !hasRole && hasApplied(role);
             return (
               <DropdownMenuItem
                 key={role}
@@ -247,7 +253,11 @@ const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, o
               >
                 <span className="text-sm">{config.emoji}</span>
                 <span className="flex-1">{config.label}</span>
-                {!hasRole && <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">New</span>}
+                {!hasRole && (
+                  pending
+                    ? <span className="text-[10px] px-1.5 py-0.5 rounded bg-warning/15 text-warning">Pending</span>
+                    : <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground flex items-center gap-1"><Lock className="h-2.5 w-2.5" />Apply</span>
+                )}
               </DropdownMenuItem>
             );
           })}
@@ -279,6 +289,13 @@ const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, o
         </DropdownMenuContent>
       </DropdownMenu>
       {accessCodeDialog}
+      <ApplyForRoleDialog
+        open={applyDialogOpen}
+        onOpenChange={setApplyDialogOpen}
+        role={applyRole}
+        hasApplied={applyRole ? hasApplied(applyRole) : false}
+        onApply={requestRole}
+      />
     </>
   );
 });
