@@ -243,18 +243,19 @@ function DashboardContent() {
     }
   }, [user, loading, roles, cachedRoles, navigate]);
 
-  // Use cached role for instant display while loading
+  // URL is the source of truth. Fall back to auth.role only when URL doesn't
+  // map to a persona (shouldn't normally happen on persona routes).
   const getDefaultRole = (availableRoles: AppRole[]): AppRole | null => {
     if (availableRoles.length === 0) return null;
-    // Check user's preferred default role
     const preferred = getPreferredDefaultRole();
     if (preferred !== 'auto' && availableRoles.includes(preferred as AppRole)) return preferred as AppRole;
-    // Fallback to supporter
     if (availableRoles.includes('supporter')) return 'supporter';
     return availableRoles[0];
   };
-  
-  const displayRole = role || (showCachedUI && cachedRoles.length > 0 ? getDefaultRole(cachedRoles) : null);
+
+  const displayRole = urlRole
+    || role
+    || (showCachedUI && cachedRoles.length > 0 ? getDefaultRole(cachedRoles) : null);
   const displayRoles = roles.length > 0 ? roles : cachedRoles;
 
   // 🚫 FROZEN ACCOUNT - Block all access
