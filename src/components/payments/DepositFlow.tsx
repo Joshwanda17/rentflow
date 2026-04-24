@@ -337,6 +337,8 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                       if (p.id !== 'other') setReason(p.label);
                       else setReason('');
                       setShowPurposeGrid(false);
+                      setPurposeChosenAt(new Date().toISOString());
+                      setPurposeEntryPoint('gate');
                       setStep('channel');
                     }}
                     className="flex items-start gap-3 p-4 rounded-xl border-2 border-border text-left transition-all hover:border-primary hover:bg-primary/5 hover:shadow-md active:scale-[0.98] touch-manipulation"
@@ -697,6 +699,8 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                       if (p.id !== 'other') setReason(p.label);
                       else setReason('');
                       if (lockPurpose) setShowPurposeGrid(false);
+                      setPurposeChosenAt(new Date().toISOString());
+                      setPurposeEntryPoint((prev) => (prev === 'gate' ? 'gate' : 'in_form'));
                     }}
                     className={`flex items-center gap-2 p-2.5 rounded-xl border-2 text-left transition-all text-xs ${
                       depositPurpose === p.id
