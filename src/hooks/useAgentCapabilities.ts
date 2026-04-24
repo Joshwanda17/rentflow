@@ -20,7 +20,8 @@ export type Capability =
   | 'manage_subagents'
   | 'approve_subagents'
   | 'request_float'
-  | 'view_agent_dashboard';
+  | 'view_agent_dashboard'
+  | 'view_subagent_data';
 
 interface CapabilitiesResult {
   capabilities: Set<Capability>;
