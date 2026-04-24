@@ -78,6 +78,12 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
   useEffect(() => {
     const fetchPending = async () => {
       if (!user || !open) { setPendingAmount(0); return; }
+      // For proxy-partner withdrawals (linkedParty set), the wallet balance
+      // passed in is the per-partner ROI amount, NOT the agent's own wallet.
+      // Subtracting unrelated pending wallet withdrawals would incorrectly
+      // zero out the available balance. Skip the pending check here — the
+      // per-partner balance is already authoritative.
+      if (linkedParty) { setPendingAmount(0); return; }
       try {
         const { data } = await supabase
           .from('withdrawal_requests')
@@ -89,7 +95,7 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
       } catch { setPendingAmount(0); }
     };
     fetchPending();
-  }, [user, open]);
+  }, [user, open, linkedParty]);
 
 
   useEffect(() => {
