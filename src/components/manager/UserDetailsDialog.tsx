@@ -260,9 +260,12 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
         .from('operations_departments')
         .select('department')
         .eq('user_id', user.id);
-      // Normalize to lowercase to match the canonical keys used by the Operations Dashboard router.
+      // DB stores values as `<dept>_ops` (agent_ops, tenant_ops, landlord_ops, partner_ops).
+      // Normalize to bare key (agent, tenant, landlord, partner) for UI matching.
       setOperationsDepartments(
-        (data || []).map(d => String(d.department || '').trim().toLowerCase())
+        (data || []).map(d =>
+          String(d.department || '').trim().toLowerCase().replace(/_ops$/, '')
+        )
       );
     } catch (e) {
       console.error('Error fetching ops departments:', e);
@@ -273,20 +276,22 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
     if (!user) return;
     setTogglingDept(dept);
     const key = dept.toLowerCase();
+    // DB requires the `_ops` suffix per check constraint.
+    const dbValue = `${key}_ops`;
     try {
       if (operationsDepartments.includes(key)) {
         const { error } = await supabase
           .from('operations_departments')
           .delete()
           .eq('user_id', user.id)
-          .eq('department', key);
+          .eq('department', dbValue);
         if (error) throw error;
         setOperationsDepartments(prev => prev.filter(d => d !== key));
         toast.success(`Removed ${dept} department`);
       } else {
         const { error } = await supabase
           .from('operations_departments')
-          .insert({ user_id: user.id, department: key });
+          .insert({ user_id: user.id, department: dbValue });
         if (error) throw error;
         setOperationsDepartments(prev => [...prev, key]);
         toast.success(`Added ${dept} department`);

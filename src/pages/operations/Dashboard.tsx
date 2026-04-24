@@ -28,9 +28,14 @@ export default function OperationsDashboard() {
         .select('department')
         .eq('user_id', user.id);
       if (error) console.error('Failed to load operations departments:', error);
-      // Normalize to lowercase so 'Agent' / 'agent' / 'AGENT' all match departmentConfig keys.
+      // DB stores values like `agent_ops`, `tenant_ops`. Strip the `_ops` suffix to match
+      // departmentConfig keys (agent, tenant, landlord, partner, financial, company).
       const deps = Array.from(
-        new Set((data ?? []).map(d => String(d.department || '').trim().toLowerCase()).filter(Boolean))
+        new Set(
+          (data ?? [])
+            .map(d => String(d.department || '').trim().toLowerCase().replace(/_ops$/, ''))
+            .filter(Boolean)
+        )
       );
       setDepartments(deps);
       setLoading(false);
