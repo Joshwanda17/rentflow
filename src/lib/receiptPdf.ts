@@ -80,6 +80,8 @@ export interface DepositReceiptData {
   notes?: string | null;
   depositorName?: string;
   recipientName?: string;
+  /** Human-readable deposit purpose label, e.g. "Operational Float". */
+  purpose?: string | null;
 }
 
 export async function generateDepositReceiptPdf(data: DepositReceiptData): Promise<JsPDFType> {
@@ -108,6 +110,7 @@ export async function generateDepositReceiptPdf(data: DepositReceiptData): Promi
 
   if (data.depositorName) y = addRow(doc, y, 'Depositor', data.depositorName);
   if (data.recipientName) y = addRow(doc, y, 'Recipient', data.recipientName);
+  if (data.purpose) y = addRow(doc, y, 'Purpose', data.purpose);
   if (data.provider) y = addRow(doc, y, 'Provider', data.provider.toUpperCase());
   if (data.transactionId) y = addRow(doc, y, 'Transaction ID', data.transactionId);
   if (data.transactionDate) y = addRow(doc, y, 'Transaction Date', format(new Date(data.transactionDate), 'MMM d, yyyy h:mm a'));
@@ -136,6 +139,7 @@ export function buildDepositReceiptWhatsApp(data: DepositReceiptData): string {
   ];
   if (data.provider) lines.push(`📱 *Provider:* ${data.provider.toUpperCase()}`);
   if (data.transactionId) lines.push(`🔗 *Txn ID:* ${data.transactionId}`);
+  if (data.purpose) lines.push(`🎯 *Purpose:* ${data.purpose}`);
   if (data.depositorName) lines.push(`👤 *Depositor:* ${data.depositorName}`);
   if (data.recipientName) lines.push(`👤 *Recipient:* ${data.recipientName}`);
   lines.push(`📅 *Date:* ${format(new Date(data.createdAt), 'MMM d, yyyy h:mm a')}`);

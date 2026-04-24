@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Clock, CheckCircle2, XCircle, Wallet, ChevronDown, ChevronUp } from 'lucide-react';
+import { Clock, CheckCircle2, XCircle, Wallet, ChevronDown, ChevronUp, Target } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
@@ -17,7 +17,32 @@ interface DepositRequest {
   rejection_reason?: string;
   agent_name?: string;
   notes?: string;
+  deposit_purpose?: string | null;
+  purpose_audit?: { chosen_purpose?: string } | null;
 }
+
+const PURPOSE_LABELS: Record<string, string> = {
+  operational_float: 'Operational Float',
+  personal_deposit: 'Personal Deposit',
+  partnership_deposit: 'Partnership Deposit',
+  personal_rent_repayment: 'Personal Rent Repayment',
+  other: 'Other',
+};
+
+const purposeBadgeClass = (p: string | null | undefined) => {
+  switch (p) {
+    case 'operational_float':
+      return 'bg-primary/15 text-primary border-primary/30';
+    case 'personal_deposit':
+      return 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30';
+    case 'partnership_deposit':
+      return 'bg-violet-500/15 text-violet-700 border-violet-500/30';
+    case 'personal_rent_repayment':
+      return 'bg-amber-500/15 text-amber-700 border-amber-500/30';
+    default:
+      return 'bg-muted text-muted-foreground border-border';
+  }
+};
 
 export function UserDepositRequests() {
   const { user } = useAuth();
@@ -55,10 +80,10 @@ export function UserDepositRequests() {
 
         const profileMap = new Map(profiles?.map(p => [p.id, p.full_name]) || []);
 
-        const enrichedRequests = data.map(d => ({
+        const enrichedRequests = data.map((d: any) => ({
           ...d,
           agent_name: profileMap.get(d.agent_id) || 'Agent',
-        }));
+        })) as DepositRequest[];
 
         setRequests(enrichedRequests);
       } else {
@@ -167,6 +192,19 @@ export function UserDepositRequests() {
                         <p className="text-xs text-muted-foreground">
                           via {request.agent_name}
                         </p>
+                        {(() => {
+                          const p = request.purpose_audit?.chosen_purpose ?? request.deposit_purpose ?? null;
+                          if (!p) return null;
+                          return (
+                            <Badge
+                              variant="outline"
+                              className={`mt-1 text-[10px] px-1.5 py-0 h-4 ${purposeBadgeClass(p)}`}
+                            >
+                              <Target className="h-2.5 w-2.5 mr-0.5" />
+                              {PURPOSE_LABELS[p] ?? p}
+                            </Badge>
+                          );
+                        })()}
                         {request.notes && (
                           <p className="text-xs text-muted-foreground italic">
                             "{request.notes}"
