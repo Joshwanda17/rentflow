@@ -124,13 +124,10 @@ Deno.serve(async (req) => {
     for (const depositRequest of depositRequests) {
       try {
         if (action === "approve") {
-          // Update status
-          await supabaseAdmin
-            .from("deposit_requests")
-            .update({ status: "approved", approved_at: new Date().toISOString(), processed_by: user.id })
-            .eq("id", depositRequest.id);
-
-          // Ensure wallet row exists (sync_wallet_from_ledger handles actual balance)
+          // Ensure wallet row exists (sync_wallet_from_ledger handles actual balance).
+          // We intentionally do NOT mark the request 'approved' yet — only after the
+          // wallet-deposit ledger RPC succeeds. This prevents a "phantom-approved"
+          // request with no corresponding wallet credit if the RPC fails.
           await supabaseAdmin
             .from("wallets")
             .upsert({ user_id: depositRequest.user_id, balance: 0, updated_at: new Date().toISOString() }, { onConflict: "user_id", ignoreDuplicates: true });
@@ -167,8 +164,37 @@ Deno.serve(async (req) => {
 
           if (depositLedgerErr) {
             console.error(`[approve-deposit] Deposit ledger entry failed for ${depositRequest.id}:`, depositLedgerErr.message);
+            // Phantom-approved guard: keep the request out of 'approved' state and
+            // mark it 'failed' with a reason so ops can retry rather than the user
+            // seeing an "approved" deposit they never received.
+            await supabaseAdmin
+              .from("deposit_requests")
+              .update({
+                status: "failed",
+                rejection_reason: `Ledger credit failed: ${depositLedgerErr.message?.slice(0, 500) || 'unknown error'}`,
+                processed_by: user.id,
+              })
+              .eq("id", depositRequest.id);
+
+            await supabaseAdmin.from("audit_logs").insert({
+              action_type: "approve_failed",
+              table_name: "deposit_requests",
+              record_id: depositRequest.id,
+              performed_by: user.id,
+              old_values: { status: "pending" },
+              new_values: { status: "failed" },
+              reason: `Wallet credit RPC failed: ${depositLedgerErr.message?.slice(0, 500) || 'unknown'}`,
+              metadata: { amount: depositRequest.amount, user_id: depositRequest.user_id },
+            });
+
             throw new Error(`Deposit ledger entry failed: ${depositLedgerErr.message}`);
           }
+
+          // ✅ Ledger credit confirmed — NOW mark the request approved.
+          await supabaseAdmin
+            .from("deposit_requests")
+            .update({ status: "approved", approved_at: new Date().toISOString(), processed_by: user.id })
+            .eq("id", depositRequest.id);
 
           // ── Operational Float Sweep ──
           // If an agent deposits with purpose=operational_float, sweep the credited
