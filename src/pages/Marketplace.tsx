@@ -127,7 +127,7 @@ export default function Marketplace() {
                   
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link to={user ? "/tenant" : "/auth"} className="flex items-center gap-2 cursor-pointer">
+                    <Link to={user ? "/dashboard/tenant" : "/auth"} className="flex items-center gap-2 cursor-pointer">
                       <ArrowLeft className="h-4 w-4" />
                       {user ? 'Dashboard' : 'Sign In'}
                     </Link>

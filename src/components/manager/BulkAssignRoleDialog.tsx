@@ -89,7 +89,7 @@ export default function BulkAssignRoleDialog({
           payload: {
             title: `✨ New Role: ${roleLabels[role] || role}`,
             body: `You've been granted the ${role} role! New features are now available in your dashboard.`,
-            url: '/tenant',
+            url: '/dashboard/tenant',
             type: 'role_change'
           }
         }
@@ -149,7 +149,7 @@ export default function BulkAssignRoleDialog({
         await sendBulkNotifications(successfulUserIds, selectedRole);
         // Notify managers (fire-and-forget)
         supabase.functions.invoke('notify-managers', {
-          body: { title: '👤 Bulk Role Assigned', body: `${selectedRole} role assigned to ${successfulUserIds.length} user(s)`, url: '/manager' }
+          body: { title: '👤 Bulk Role Assigned', body: `${selectedRole} role assigned to ${successfulUserIds.length} user(s)`, url: '/dashboard/manager' }
         }).catch(() => {});
       }
 

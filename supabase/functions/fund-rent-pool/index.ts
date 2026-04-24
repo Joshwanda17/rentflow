@@ -243,7 +243,7 @@ Deno.serve(async (req) => {
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
-      body: JSON.stringify({ title: "🏦 Rent Pool Funded", body: "Activity: rent pool funded", url: "/manager" }),
+      body: JSON.stringify({ title: "🏦 Rent Pool Funded", body: "Activity: rent pool funded", url: "/dashboard/manager" }),
     }).catch(() => {});
 
     // Push notification to supporter (fire-and-forget)
@@ -252,7 +252,7 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
       body: JSON.stringify({
         userIds: [user.id],
-        payload: { title: "✅ Rent Pool Funded", body: `UGX ${amount.toLocaleString()} successfully funded to rent pool`, url: "/funder", type: "success" },
+        payload: { title: "✅ Rent Pool Funded", body: `UGX ${amount.toLocaleString()} successfully funded to rent pool`, url: "/dashboard/funder", type: "success" },
       }),
     }).catch(() => {});
 

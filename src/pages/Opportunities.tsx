@@ -12,7 +12,7 @@ export default function Opportunities() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => navigate('/tenant')}
+          onClick={() => navigate('/dashboard/tenant')}
           className="shrink-0"
         >
           <ArrowLeft className="h-5 w-5" />
@@ -26,7 +26,7 @@ export default function Opportunities() {
           <p className="text-sm text-muted-foreground">
             Tap the Opportunities card on your home screen to explore available houses.
           </p>
-          <Button variant="outline" className="mt-4" onClick={() => navigate('/tenant')}>
+          <Button variant="outline" className="mt-4" onClick={() => navigate('/dashboard/tenant')}>
             Go to Dashboard
           </Button>
         </div>

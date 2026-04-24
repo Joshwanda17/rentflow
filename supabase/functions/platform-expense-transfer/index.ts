@@ -192,7 +192,7 @@ Deno.serve(async (req) => {
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
-      body: JSON.stringify({ title: "💳 Platform Expense", body: "Activity: expense transfer", url: "/manager" }),
+      body: JSON.stringify({ title: "💳 Platform Expense", body: "Activity: expense transfer", url: "/dashboard/manager" }),
     }).catch(() => {});
 
     return new Response(JSON.stringify({ error: 'Unknown action' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });

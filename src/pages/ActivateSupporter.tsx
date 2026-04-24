@@ -282,7 +282,7 @@ export default function ActivateSupporter() {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email: activatedEmail, password: newPassword || password });
       if (error) throw error;
-      navigate('/funder');
+      navigate('/dashboard/funder');
     } catch {
       toast({ title: 'Login Failed', description: 'Please try logging in manually.', variant: 'destructive' });
       navigate('/auth');

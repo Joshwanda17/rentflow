@@ -239,7 +239,7 @@ Deno.serve(async (req) => {
     fetch(`${fnUrl}/functions/v1/notify-managers`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${fnKey}` },
-      body: JSON.stringify({ title: "👤 Tenant Registered", body: "Activity: new tenant", url: "/manager" }),
+      body: JSON.stringify({ title: "👤 Tenant Registered", body: "Activity: new tenant", url: "/dashboard/manager" }),
     }).catch(() => {});
 
 

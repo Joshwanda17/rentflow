@@ -284,7 +284,7 @@ export function InlineRoleToggle({
             payload: {
               title: `✨ New Role: ${roles.find(r => r.value === role)?.emoji} ${role}`,
               body: `You've been granted the ${role} role!`,
-              url: '/tenant',
+              url: '/dashboard/tenant',
               type: 'role_change'
             }
           }
@@ -293,7 +293,7 @@ export function InlineRoleToggle({
       
       // Notify managers about role change (fire-and-forget)
       supabase.functions.invoke('send-push-notification', {
-        body: { userIds: await fetchManagerIds(), payload: { title: '👤 Role Added', body: `${role} role added to ${userName}`, url: '/manager', type: 'info' } }
+        body: { userIds: await fetchManagerIds(), payload: { title: '👤 Role Added', body: `${role} role added to ${userName}`, url: '/dashboard/manager', type: 'info' } }
       }).catch(() => {});
       
       hapticSuccess();
@@ -331,7 +331,7 @@ export function InlineRoleToggle({
             payload: {
               title: `Role Removed: ${role}`,
               body: `Your ${role} role has been removed.`,
-              url: '/tenant',
+              url: '/dashboard/tenant',
               type: 'role_change'
             }
           }
@@ -340,7 +340,7 @@ export function InlineRoleToggle({
       
       // Notify managers about role change (fire-and-forget)
       supabase.functions.invoke('send-push-notification', {
-        body: { userIds: await fetchManagerIds(), payload: { title: '🔒 Role Removed', body: `${role} role removed from ${userName}`, url: '/manager', type: 'info' } }
+        body: { userIds: await fetchManagerIds(), payload: { title: '🔒 Role Removed', body: `${role} role removed from ${userName}`, url: '/dashboard/manager', type: 'info' } }
       }).catch(() => {});
       
       hapticSuccess();

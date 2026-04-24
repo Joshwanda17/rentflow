@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
-      body: JSON.stringify({ title: "🗑️ User Deleted", body: "Activity: user deleted", url: "/manager" }),
+      body: JSON.stringify({ title: "🗑️ User Deleted", body: "Activity: user deleted", url: "/dashboard/manager" }),
     }).catch(() => {});
 
 

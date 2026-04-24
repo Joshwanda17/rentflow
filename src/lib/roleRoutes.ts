@@ -1,41 +1,50 @@
 import type { AppRole } from '@/hooks/auth/types';
 
 /**
- * Persona-specific URL slugs. The `supporter` role is exposed publicly as
- * `/funder` (BOU/CMA terminology); the internal role name stays `supporter`.
+ * Persona-specific URL slugs nested under `/dashboard`. The `supporter` role
+ * is exposed publicly as `/dashboard/funder` (BOU/CMA terminology); the
+ * internal role name stays `supporter`.
  */
-export const PERSONA_SLUGS = ['/tenant', '/agent', '/landlord', '/funder', '/manager'] as const;
+export const PERSONA_SLUGS = [
+  '/dashboard/tenant',
+  '/dashboard/agent',
+  '/dashboard/landlord',
+  '/dashboard/funder',
+  '/dashboard/manager',
+] as const;
 export type PersonaSlug = typeof PERSONA_SLUGS[number];
 
 const ROLE_TO_SLUG: Record<string, PersonaSlug> = {
-  tenant: '/tenant',
-  agent: '/agent',
-  landlord: '/landlord',
-  supporter: '/funder',
-  manager: '/manager',
+  tenant: '/dashboard/tenant',
+  agent: '/dashboard/agent',
+  landlord: '/dashboard/landlord',
+  supporter: '/dashboard/funder',
+  manager: '/dashboard/manager',
 };
 
 const SLUG_TO_ROLE: Record<PersonaSlug, AppRole> = {
-  '/tenant': 'tenant',
-  '/agent': 'agent',
-  '/landlord': 'landlord',
-  '/funder': 'supporter',
-  '/manager': 'manager',
+  '/dashboard/tenant': 'tenant',
+  '/dashboard/agent': 'agent',
+  '/dashboard/landlord': 'landlord',
+  '/dashboard/funder': 'supporter',
+  '/dashboard/manager': 'manager',
 };
 
-/** Map an internal AppRole to its persona URL slug. Falls back to `/tenant`. */
+/** Map an internal AppRole to its persona URL slug. Falls back to `/dashboard/tenant`. */
 export function roleToSlug(role: AppRole | null | undefined): PersonaSlug {
-  if (!role) return '/tenant';
-  return ROLE_TO_SLUG[role] ?? '/tenant';
+  if (!role) return '/dashboard/tenant';
+  return ROLE_TO_SLUG[role] ?? '/dashboard/tenant';
 }
 
 /**
- * Read the persona role from a pathname (e.g. "/agent" → "agent",
- * "/funder/anything" → "supporter"). Returns null if no persona match.
+ * Read the persona role from a pathname (e.g. "/dashboard/agent" → "agent",
+ * "/dashboard/funder/anything" → "supporter"). Returns null if no persona match.
  */
 export function slugToRole(pathname: string): AppRole | null {
-  const seg = '/' + (pathname.split('/').filter(Boolean)[0] ?? '');
-  return SLUG_TO_ROLE[seg as PersonaSlug] ?? null;
+  const parts = pathname.split('/').filter(Boolean);
+  if (parts[0] !== 'dashboard' || !parts[1]) return null;
+  const seg = `/dashboard/${parts[1]}` as PersonaSlug;
+  return SLUG_TO_ROLE[seg] ?? null;
 }
 
 export function isPersonaSlug(pathname: string): boolean {

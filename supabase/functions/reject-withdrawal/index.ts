@@ -219,7 +219,7 @@ Deno.serve(async (req) => {
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
-      body: JSON.stringify({ title: "❌ Withdrawal Rejected", body: "Activity: withdrawal rejected", url: "/manager" }),
+      body: JSON.stringify({ title: "❌ Withdrawal Rejected", body: "Activity: withdrawal rejected", url: "/dashboard/manager" }),
     }).catch(() => {});
 
     return new Response(JSON.stringify({ success: true, results }), {

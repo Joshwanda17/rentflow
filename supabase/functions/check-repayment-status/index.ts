@@ -163,7 +163,7 @@ Deno.serve(async (req) => {
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
-      body: JSON.stringify({ title: "⚠️ Repayment Check", body: "Activity: repayment status checked", url: "/manager" }),
+      body: JSON.stringify({ title: "⚠️ Repayment Check", body: "Activity: repayment status checked", url: "/dashboard/manager" }),
     }).catch(() => {});
 
 
