@@ -46,6 +46,7 @@ import { AgentFloatManagement } from '@/components/cfo/AgentFloatManagement';
 import { LedgerHealthPanel } from '@/components/cfo/LedgerHealthPanel';
 import { FieldCashExposureCard } from '@/components/cfo/FieldCashExposureCard';
 import { CFOAgentOpsFloatSender } from '@/components/cfo/CFOAgentOpsFloatSender';
+import { CFOImpactKPIStrip } from '@/components/cfo/CFOImpactKPIStrip';
 
 export default function CFODashboardPage() {
   const { currency, setCurrency, getCurrencyByCode } = useCurrency();
@@ -181,6 +182,18 @@ export default function CFODashboardPage() {
         return <LedgerHealthPanel />;
       case 'revenue-expenses':
         return <RevenueExpenseDashboard />;
+      case 'platform-impact':
+        return (
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-xl font-semibold">Platform Impact</h2>
+              <p className="text-sm text-muted-foreground">
+                People and partners actively using Welile. Tap any tile for the underlying records.
+              </p>
+            </div>
+            <CFOImpactKPIStrip />
+          </div>
+        );
       default:
         return <CFOOverviewDashboard onTabChange={setActiveTab} />;
     }
