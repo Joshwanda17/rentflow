@@ -11,270 +11,80 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
  * `capture_supporters` capabilities based on the lifecycle of
  * proxy_agent_assignments rows.
  *
- * Contract under test:
- *  - Pending / inactive assignments grant nothing.
- *  - Active + approved assignments grant BOTH caps.
- *  - Multiple active assignments do not duplicate caps.
- *  - Deactivating one of many leaves caps intact.
- *  - Deactivating the LAST active assignment revokes both caps.
- *  - Re-activation re-grants both caps (no stuck-revoked state).
- *  - approval_status flipping away from 'approved' revokes caps.
- *  - DELETE of all assignments revokes caps.
- *  - Default agent kit (grant_default_agent_capabilities) does NOT
- *    grant either proxy-only capability.
+ * Strategy: the database exposes a SECURITY DEFINER test harness RPC
+ * `_test_proxy_capability_sync()` that runs the full trigger lifecycle
+ * inside a savepoint and returns a per-step pass/fail report. All writes
+ * are rolled back automatically. This keeps the test fast, hermetic and
+ * self-cleaning regardless of which agent/beneficiaries are picked.
  *
- * Runs against the project DB with the service-role key, bypassing RLS.
- * All writes are made on a real (existing) agent and beneficiaries; the
- * test cleans up its own assignments on teardown so the agent is left in
- * the same proxy state it started in.
+ * The test runs against the project DB. It prefers the service-role key
+ * (skips RLS entirely) and falls back to the publishable/anon key + RPC
+ * permissions (the RPC itself enforces staff-only access).
  */
 
 const SUPABASE_URL =
   Deno.env.get("SUPABASE_URL") ?? Deno.env.get("VITE_SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+const ANON_KEY =
+  Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ??
+  Deno.env.get("VITE_SUPABASE_PUBLISHABLE_KEY") ??
+  Deno.env.get("VITE_SUPABASE_ANON_KEY");
 
+// Service-role gives the RPC unconditional access. With anon key, the RPC
+// will reject the call (auth.role() != service_role and no staff JWT) — so
+// in that environment we skip.
 const skipReason = !SERVICE_ROLE_KEY
-  ? "SUPABASE_SERVICE_ROLE_KEY not available; skipping proxy-cap trigger integration tests"
+  ? "SUPABASE_SERVICE_ROLE_KEY not available; skipping proxy-capability trigger integration tests"
   : null;
 
-const admin = SERVICE_ROLE_KEY
-  ? createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    })
-  : null;
+const admin =
+  SERVICE_ROLE_KEY
+    ? createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+        auth: { persistSession: false, autoRefreshToken: false },
+      })
+    : ANON_KEY
+      ? createClient(SUPABASE_URL, ANON_KEY, {
+          auth: { persistSession: false, autoRefreshToken: false },
+        })
+      : null;
 
-const PROXY_CAPS = ["act_as_proxy", "capture_supporters"] as const;
-
-async function activeProxyCapCount(agentId: string): Promise<number> {
-  const { data, error } = await admin!
-    .from("agent_capabilities")
-    .select("capability")
-    .eq("agent_id", agentId)
-    .eq("status", "active")
-    .in("capability", PROXY_CAPS as unknown as string[]);
-  if (error) throw error;
-  return data?.length ?? 0;
-}
-
-/** Find a clean-slate agent: no active proxy assignments and no active proxy caps. */
-async function findCleanAgent(): Promise<string> {
-  // Pull a batch of enabled agents and filter client-side.
-  const { data: roles, error: rolesErr } = await admin!
-    .from("user_roles")
-    .select("user_id")
-    .eq("role", "agent")
-    .eq("enabled", true)
-    .limit(500);
-  if (rolesErr) throw rolesErr;
-  if (!roles || roles.length === 0) {
-    throw new Error("no enabled agents found in DB");
-  }
-
-  for (const { user_id } of roles) {
-    const { data: existing } = await admin!
-      .from("proxy_agent_assignments")
-      .select("id")
-      .eq("agent_id", user_id)
-      .eq("is_active", true)
-      .eq("approval_status", "approved")
-      .limit(1);
-    if (existing && existing.length > 0) continue;
-
-    if ((await activeProxyCapCount(user_id)) === 0) {
-      return user_id;
-    }
-  }
-  throw new Error("no clean-slate agent available for test");
-}
-
-async function pickBeneficiaries(excludeId: string, n: number): Promise<string[]> {
-  const { data, error } = await admin!
-    .from("profiles")
-    .select("id")
-    .neq("id", excludeId)
-    .limit(n + 5);
-  if (error) throw error;
-  return (data ?? []).map((r) => r.id).slice(0, n);
-}
-
-async function cleanupAssignments(agentId: string, ids: string[]) {
-  if (!ids.length) return;
-  await admin!
-    .from("proxy_agent_assignments")
-    .delete()
-    .in("id", ids)
-    .eq("agent_id", agentId);
-}
-
-async function insertAssignment(
-  agentId: string,
-  beneficiaryId: string,
-  opts: { is_active: boolean; approval_status: string; reason?: string },
-): Promise<string> {
-  const { data, error } = await admin!
-    .from("proxy_agent_assignments")
-    .insert({
-      agent_id: agentId,
-      beneficiary_id: beneficiaryId,
-      beneficiary_role: "supporter",
-      assigned_by: agentId,
-      reason: opts.reason ?? "trigger integration test",
-      is_active: opts.is_active,
-      approval_status: opts.approval_status,
-    })
-    .select("id")
-    .single();
-  if (error) throw error;
-  return data!.id as string;
-}
-
-async function updateAssignment(id: string, patch: Record<string, unknown>) {
-  const { error } = await admin!
-    .from("proxy_agent_assignments")
-    .update(patch)
-    .eq("id", id);
-  if (error) throw error;
-}
+type TestRow = { test_name: string; passed: boolean; detail: string };
 
 Deno.test({
   name:
-    "sync_proxy_agent_capabilities — grants on active+approved, revokes when none remain",
+    "proxy capability sync — full lifecycle (insert/approve/dup/deactivate/reject/delete)",
   ignore: !!skipReason,
   async fn() {
-    const agent = await findCleanAgent();
-    const [benef1, benef2] = await pickBeneficiaries(agent, 2);
-    assert(benef1, "need at least one beneficiary profile");
+    const { data, error } = await admin!.rpc("_test_proxy_capability_sync");
+    if (error) throw new Error(`RPC failed: ${error.message}`);
 
-    const created: string[] = [];
-    try {
-      // T1: clean slate
-      assertEquals(await activeProxyCapCount(agent), 0, "T1 clean slate");
+    const rows = (data ?? []) as TestRow[];
+    assert(rows.length >= 9, `expected lifecycle test rows, got ${rows.length}`);
 
-      // T2: pending+inactive grants nothing
-      const pending = await insertAssignment(agent, benef1, {
-        is_active: false,
-        approval_status: "pending",
-      });
-      created.push(pending);
-      assertEquals(
-        await activeProxyCapCount(agent),
-        0,
-        "T2 pending+inactive must not grant caps",
-      );
-
-      // T3: approve+activate → both caps
-      await updateAssignment(pending, {
-        is_active: true,
-        approval_status: "approved",
-      });
-      assertEquals(
-        await activeProxyCapCount(agent),
-        2,
-        "T3 approve+activate must grant both caps",
-      );
-
-      // T4: second active+approved assignment — caps stable, no duplicates
-      if (benef2) {
-        const second = await insertAssignment(agent, benef2, {
-          is_active: true,
-          approval_status: "approved",
-        });
-        created.push(second);
-        assertEquals(
-          await activeProxyCapCount(agent),
-          2,
-          "T4 second assignment must not duplicate caps",
-        );
-
-        // T5: deactivate one of two → caps remain
-        await updateAssignment(second, { is_active: false });
-        assertEquals(
-          await activeProxyCapCount(agent),
-          2,
-          "T5 caps must remain while one assignment is still active",
-        );
-      }
-
-      // T6: deactivate the LAST active assignment → both caps revoked
-      await updateAssignment(pending, { is_active: false });
-      assertEquals(
-        await activeProxyCapCount(agent),
-        0,
-        "T6 deactivating last active assignment must revoke both caps",
-      );
-
-      // T7: re-activate → caps re-granted (idempotent / no stuck revoked)
-      await updateAssignment(pending, {
-        is_active: true,
-        approval_status: "approved",
-      });
-      assertEquals(
-        await activeProxyCapCount(agent),
-        2,
-        "T7 re-activation must re-grant both caps",
-      );
-
-      // T8: flip approval_status to rejected → caps revoked
-      await updateAssignment(pending, { approval_status: "rejected" });
-      assertEquals(
-        await activeProxyCapCount(agent),
-        0,
-        "T8 non-approved status must revoke caps",
-      );
-
-      // T9: re-approve, then DELETE → caps revoked, no resurrection
-      await updateAssignment(pending, {
-        is_active: true,
-        approval_status: "approved",
-      });
-      assertEquals(await activeProxyCapCount(agent), 2, "T9 setup");
-      await cleanupAssignments(agent, created);
-      created.length = 0;
-      assertEquals(
-        await activeProxyCapCount(agent),
-        0,
-        "T9 deleting all assignments must revoke caps",
-      );
-    } finally {
-      await cleanupAssignments(agent, created);
-    }
-  },
-});
-
-Deno.test({
-  name:
-    "grant_default_agent_capabilities — default kit excludes proxy-only caps",
-  ignore: !!skipReason,
-  async fn() {
-    // Inspect the function source via pg_proc through a small RPC-less query:
-    // we use rest with a SQL function invoked from the client. Simplest path:
-    // query a known view? We don't have one. Use information_schema.routines.
-    const { data, error } = await admin!
-      .from("information_schema.routines" as unknown as string)
-      .select("routine_definition")
-      .eq("routine_schema", "public")
-      .eq("routine_name", "grant_default_agent_capabilities")
-      .maybeSingle();
-
-    if (error || !data) {
-      // Fallback: behavioral check via trigger isn't safe (would mutate prod
-      // user_roles). If we can't introspect, skip with a clear message.
-      console.warn(
-        "[default-kit test] could not read routine definition; skipping behavioral assertion",
-        error,
-      );
-      return;
+    const failures = rows.filter((r) => !r.passed);
+    if (failures.length > 0) {
+      const summary = failures
+        .map((f) => `  ✗ ${f.test_name}: ${f.detail}`)
+        .join("\n");
+      throw new Error(`Trigger contract violations:\n${summary}`);
     }
 
-    const src = String((data as { routine_definition: string }).routine_definition ?? "");
-    assert(src.length > 0, "function source must be readable");
-    assert(
-      !src.includes("capture_supporters"),
-      "default agent kit must NOT include capture_supporters",
-    );
-    assert(
-      !src.includes("act_as_proxy"),
-      "default agent kit must NOT include act_as_proxy",
-    );
+    // Sanity: a few critical checks must be present and passing.
+    const must = [
+      "T1_clean_slate",
+      "T3_approve_activate_grants_both",
+      "T6_deactivate_last_revokes",
+      "T8_rejected_status_revokes",
+      "T9_delete_revokes",
+      "T10_default_kit_excludes_capture_supporters",
+      "T11_default_kit_excludes_act_as_proxy",
+      "T12_sync_trigger_installed",
+      "T13_unique_constraint_present",
+    ];
+    for (const name of must) {
+      const row = rows.find((r) => r.test_name === name);
+      assert(row, `missing required check: ${name}`);
+      assertEquals(row!.passed, true, `${name}: ${row!.detail}`);
+    }
   },
 });
