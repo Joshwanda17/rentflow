@@ -1,75 +1,53 @@
 
 
-## Plan: Add a "Sub Agents" tab on the Agent dashboard
+## Goal
 
-Add a fifth tab to the Agent Hub tab bar that lists all of the agent's sub-agents, each tagged to the parent agent (the signed-in agent), with their tenant counts visible.
+Replace `/dashboard` with persona-specific URLs. URL becomes the source of truth for which persona is shown, but the existing tab UX inside `Dashboard.tsx` is kept — taps update the URL and the same component renders the right sub-dashboard. `/dashboard` is removed entirely; every caller is updated to a persona slug.
 
-### What changes
+## Final URL map
 
-#### 1) Tab bar update — `src/components/agent/AgentHubTabs.tsx`
-- Extend `AgentHubTab` union: `'home' | 'money' | 'tenants' | 'grow' | 'subagents'`.
-- Add a new tab entry after **Grow**:
-  - id: `subagents`
-  - icon: `UsersRound` (lucide)
-  - label: `Sub Agents`
-- Update the grid from `grid-cols-4` to `grid-cols-5` so all five tabs fit on mobile, with tighter padding/icon sizes already used.
+| Persona | New URL | Notes |
+|---|---|---|
+| Tenant | `/tenant` | |
+| Agent | `/agent` | |
+| Landlord | `/landlord` | |
+| Funder (internal `supporter` role) | `/funder` | URL uses BOU/CMA term; internal role name unchanged |
+| Manager | `/manager` | |
 
-#### 2) Agent dashboard panel — `src/components/dashboards/AgentDashboard.tsx`
-- Add a new conditional block after the existing `activeTab === 'grow'` panel:
-  ```tsx
-  {activeTab === 'subagents' && (
-    <div className="space-y-5 animate-in fade-in duration-200">
-      <SubAgentsPanel agentId={user.id} />
-    </div>
-  )}
-  ```
-- Import the new panel component.
+Executive routes (`/ceo/dashboard`, `/cfo/dashboard`, etc.) are untouched — they're already isolated.
 
-#### 3) New panel — `src/components/agent/SubAgentsPanel.tsx`
-Reuse existing data plumbing (we already have `SubAgentsList` and `SubAgentInvitesList` that do the heavy lifting). The panel will:
+## Behaviour
 
-- Header strip showing:
-  - Parent agent name + avatar (the signed-in agent) with a "Lead Agent" badge so the parent-child tagging is visible
-  - Total sub-agents
-  - Total tenants across all sub-agents
-- Pending invites section (`SubAgentInvitesList`) — only renders if invites exist
-- Active sub-agents section (`SubAgentsList`) — already shows per-sub-agent tenant counts and earnings
-- Empty state: when zero sub-agents and zero invites, show a friendly card with an "Invite Sub-Agent" CTA that triggers the existing invite flow (uses the `handleInviteSubAgent` handler already wired in `AgentDashboard`)
+1. **One component, five routes.** `Dashboard.tsx` stays as-is structurally. `App.tsx` mounts the same `<Dashboard />` at `/tenant`, `/agent`, `/landlord`, `/funder`, `/manager`. The component reads the persona from `useLocation().pathname` (via a tiny `slugToRole` helper) and uses that as the source of truth instead of the previous mix of `role`/`displayRole`.
+2. **Tabs still feel like tabs.** `BottomRoleSwitcher.handleSwitch` keeps calling the existing `handlePublicRoleSwitch` (so the auth `switchRole`/`grantAndSwitchRole` flow still runs and `useAuth().role` stays in sync), and on success it also `navigate(slug)` so the URL updates. Same animations, same gated-role apply dialog, no flicker — just the URL now matches the active tab.
+3. **`/dashboard` is gone.** The route is removed from `App.tsx`. No redirect, no compat layer.
+4. **All 47 callers updated.** Every `navigate('/dashboard')` and `navigate('/dashboard?role=X')` is rewritten:
+   - Plain `navigate('/dashboard')` → `navigate(roleToSlug(role))` using current `useAuth().role`, falling back to `/tenant` when role is unknown (e.g. fresh post-signup).
+   - `navigate('/dashboard?role=supporter')` → `navigate('/funder')` directly.
+   - `navigate('/dashboard?role=tenant')` → `navigate('/tenant')`, etc.
+   - "Back to dashboard" buttons in sub-pages (`AgentEarnings`, `TransactionHistory`, `OrderHistory`, `FinancialStatement`, `AgentRegistrations`, `ExecutiveHub`, `ManagerAccess`, `DepositHistory`) → use the helper.
+5. **Login / signup landing.** `Index.tsx`, `Auth.tsx`, `RegisterTenantPublic.tsx`, `RegisterPartnerPublic.tsx`, `ActivateSupporter.tsx`, `ActivatePartner.tsx` resolve the persona slug from `useAuth().role` (or the `role` param they already pass) and `Navigate` straight to it.
+6. **Unknown / no role.** Hitting `/agent` (or any persona) without that role and without "all roles unlocked" → redirect to `/select-role` (current behaviour preserved). No silent role grants from URL.
+7. **Auto-default qualified investors.** The existing "if `isQualifiedInvestor` and on auto, switch to supporter" effect is kept, but instead of calling `switchRole('supporter')` it calls `navigate('/funder', { replace: true })` once per session.
 
-Tagging-to-parent visualization:
-- Each sub-agent row keeps the existing layout but adds a small subtitle line: `Reports to: {parent agent full name}` so the link to the lead agent is explicit on screen.
-- Total tenants is derived by summing `tenants_count` across the sub-agents already loaded by `SubAgentsList`. We will lift that aggregate up through a small callback prop `onSummary({ count, totalTenants })` so the header can render the total without duplicating the query.
+## Files
 
-#### 4) Minor enhancement — `src/components/agent/SubAgentsList.tsx`
-- Add an optional `onSummary?: (s: { count: number; totalTenants: number; totalEarnings: number }) => void` prop and call it after the enrichment step.
-- Add an optional `parentAgentName?: string` prop. When provided, render the "Reports to: …" subtitle under each sub-agent name.
-- No behavior change when these props are omitted (existing usages stay intact).
+**New**
+- `src/lib/roleRoutes.ts` — `roleToSlug(role)`, `slugToRole(pathname)`, `PERSONA_SLUGS = ['tenant','agent','landlord','funder','manager']`. Single source of truth, ~20 lines.
 
-### ASCII layout
+**Edited**
+- `src/App.tsx` — remove `/dashboard` route, add five persona routes pointing at `<Dashboard />`.
+- `src/pages/Dashboard.tsx` — derive `displayRole` from URL slug instead of `useAuth().role`; keep all frozen / offline / loading / cached-roles logic; auto-default effect navigates instead of switchRole.
+- `src/components/BottomRoleSwitcher.tsx` — after successful `onRoleChange(role)`, also `navigate(roleToSlug(role))`. Active-tab detection reads URL.
+- `src/pages/Index.tsx`, `src/pages/ActivateSupporter.tsx`, `src/pages/ActivatePartner.tsx`, `src/pages/RegisterTenantPublic.tsx`, `src/pages/RegisterPartnerPublic.tsx` — navigate to persona slug.
+- The 47 files containing `navigate('/dashboard'…)` — mechanical rewrite to `navigate(roleToSlug(role))` (or a hard slug where the destination is fixed, e.g. ActivateSupporter → `/funder`).
 
-```text
-[ Home ] [ Money ] [ Tenants ] [ Grow ] [ Sub Agents* ]
+**Untouched**
+- All executive routes, `RoleGuard`, `roleDashboardRoutes`, internal role names, auth flows, sub-dashboard components.
 
-Sub Agents tab:
-┌─────────────────────────────────────────────┐
-│  Lead Agent: Grace Paul Ochieng             │
-│  Sub-Agents: 4    Total Tenants: 37         │
-└─────────────────────────────────────────────┘
-[ Pending Invites (if any) ]
-[ My Sub-Agents list                          ]
-   • Name — 12 tenants — Reports to: Grace P. │
-```
+## Risk + mitigation
 
-### Files to change
-
-- `src/components/agent/AgentHubTabs.tsx` (add `subagents` tab, switch to 5-col grid)
-- `src/components/dashboards/AgentDashboard.tsx` (render the new panel)
-- `src/components/agent/SubAgentsList.tsx` (optional `onSummary` + `parentAgentName` props)
-- `src/components/agent/SubAgentsPanel.tsx` (new file)
-
-### Notes
-
-- No backend / RLS changes needed — the data comes from the existing `agent_subagents`, `referrals`, `profiles`, `agent_earnings`, and `rent_requests` queries already used by `SubAgentsList`.
-- Tenant counts already exist per-sub-agent; the new total is just a client-side sum.
-- Empty state CTA reuses the existing invite-sub-agent handler in `AgentDashboard`, so no new invite flow is introduced.
+- **Bookmarks / external links to `/dashboard`** → Add a single `<Route path="/dashboard" element={<Navigate to="/tenant" replace />} />` *only as a last-line catch* OR drop entirely per your direction. Confirm: I'll drop entirely. Old bookmarks 404 to React Router's `NotFound`, which is acceptable since users will re-enter via auth.
+- **SMS / email deep links from production** containing `/dashboard?role=X` → these will break. If any are live, we either keep a one-line redirect or update the templates. I'll grep `supabase/functions` for `/dashboard` references during implementation and fix the templates in the same pass; no separate compat route.
+- **Mechanical rewrite scale (47 files)** → all are simple substitutions; no logic changes. I'll group them by pattern and batch the edits.
 
