@@ -176,16 +176,44 @@ Deno.serve(async (req) => {
               })
               .eq("id", depositRequest.id);
 
+            // Audit trail — schema-correct insert (audit_logs has: user_id,
+            // action_type, table_name, record_id, metadata). All contextual
+            // detail (old/new state, reason) lives in metadata.
             await supabaseAdmin.from("audit_logs").insert({
+              user_id: user.id,
               action_type: "approve_failed",
               table_name: "deposit_requests",
               record_id: depositRequest.id,
-              performed_by: user.id,
-              old_values: { status: "pending" },
-              new_values: { status: "failed" },
-              reason: `Wallet credit RPC failed: ${depositLedgerErr.message?.slice(0, 500) || 'unknown'}`,
-              metadata: { amount: depositRequest.amount, user_id: depositRequest.user_id },
+              metadata: {
+                amount: depositRequest.amount,
+                target_user_id: depositRequest.user_id,
+                old_status: "pending",
+                new_status: "failed",
+                reason: `Wallet credit RPC failed: ${depositLedgerErr.message?.slice(0, 500) || 'unknown'}`,
+                deposit_purpose: depositRequest.deposit_purpose ?? null,
+                provider: depositRequest.provider ?? null,
+                transaction_id: depositRequest.transaction_id ?? null,
+              },
             });
+
+            // Monitoring signal — emit deposit_failed so ops dashboards see
+            // stuck deposits without scraping audit_logs.
+            await logSystemEvent(
+              supabaseAdmin,
+              "deposit_failed",
+              depositRequest.user_id,
+              "deposit_requests",
+              depositRequest.id,
+              {
+                amount: depositRequest.amount,
+                processed_by: user.id,
+                rpc: "create_ledger_transaction",
+                error: depositLedgerErr.message?.slice(0, 500) || "unknown",
+                provider: depositRequest.provider ?? null,
+                transaction_id: depositRequest.transaction_id ?? null,
+                deposit_purpose: depositRequest.deposit_purpose ?? null,
+              },
+            );
 
             throw new Error(`Deposit ledger entry failed: ${depositLedgerErr.message}`);
           }
@@ -301,8 +329,8 @@ Deno.serve(async (req) => {
                     action_type: 'auto_routed_to_float',
                     table_name: 'deposit_requests',
                     record_id: depositRequest.id,
-                    reason: `Agent deposit ${depositRequest.id} (UGX ${sweepAmount}) had no/ambiguous purpose — auto-routed to operational float by approve-deposit safety net.`,
                     metadata: {
+                      reason: `Agent deposit ${depositRequest.id} (UGX ${sweepAmount}) had no/ambiguous purpose — auto-routed to operational float by approve-deposit safety net.`,
                       agent_id: depositRequest.user_id,
                       amount: sweepAmount,
                       original_purpose: depositRequest.deposit_purpose ?? null,
