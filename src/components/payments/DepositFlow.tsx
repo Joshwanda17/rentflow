@@ -78,6 +78,11 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   const [bankSlipFile, setBankSlipFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tidError, setTidError] = useState('');
+  // Audit: capture the exact moment the user picked the purpose + which UI surface asked them.
+  const [purposeChosenAt, setPurposeChosenAt] = useState<string | null>(null);
+  const [purposeEntryPoint, setPurposeEntryPoint] = useState<'gate' | 'default' | 'in_form'>(
+    requirePurposeChoice ? 'gate' : (defaultPurpose ? 'default' : 'in_form')
+  );
 
   // Re-apply default when dialog re-opens
   useEffect(() => {
@@ -87,6 +92,8 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       setDepositPurpose('');
       setReason('');
       setShowPurposeGrid(false);
+      setPurposeChosenAt(null);
+      setPurposeEntryPoint('gate');
       return;
     }
     if (open && defaultPurpose) {
@@ -94,6 +101,8 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       const purposeLabel = DEPOSIT_PURPOSES.find(p => p.id === defaultPurpose)?.label;
       if (purposeLabel && defaultPurpose !== 'other') setReason(purposeLabel);
       setShowPurposeGrid(!lockPurpose);
+      setPurposeChosenAt(new Date().toISOString());
+      setPurposeEntryPoint('default');
     }
   }, [open, defaultPurpose, lockPurpose, requirePurposeChoice]);
 
@@ -224,6 +233,13 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           transaction_date: txDateTime.toISOString(),
           notes,
           deposit_purpose: depositPurpose,
+          purpose_audit: {
+            chosen_purpose: depositPurpose,
+            chosen_at: purposeChosenAt ?? new Date().toISOString(),
+            chosen_by: user.id,
+            entry_point: purposeEntryPoint,
+            required_choice: !!requirePurposeChoice,
+          },
         } as any);
 
       if (depositError) throw depositError;
