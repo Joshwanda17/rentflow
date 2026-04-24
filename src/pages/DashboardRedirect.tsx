@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth, type AppRole } from '@/hooks/useAuth';
 import { roleToSlug, slugToRole } from '@/lib/roleRoutes';
+import { getPreferredDefaultRole } from '@/hooks/useAppPreferences';
 import { Loader2 } from 'lucide-react';
 
 /**
@@ -48,7 +49,11 @@ export default function DashboardRedirect() {
     }
 
     // Pick the first hint the user actually still holds.
-    const candidates: Array<AppRole | null> = [pathHint, queryHint, role];
+    // Priority: explicit URL/query hint → user's chosen default → cached auth.role.
+    const preferred = getPreferredDefaultRole();
+    const preferredRole: AppRole | null =
+      preferred !== 'auto' ? (preferred as AppRole) : null;
+    const candidates: Array<AppRole | null> = [pathHint, queryHint, preferredRole, role];
     const honored = candidates.find((c): c is AppRole => !!c && roles.includes(c));
     if (honored) {
       navigate(roleToSlug(honored), { replace: true });
