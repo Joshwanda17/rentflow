@@ -43,7 +43,7 @@ export default function DashboardRedirect() {
 
     // No roles at all → onboarding picker. This is the lost-roles case.
     if (roles.length === 0) {
-      navigate('/select-role', { replace: true });
+      navigate('/select-role', { replace: true, state: { reason: 'no-roles' } });
       return;
     }
 
@@ -61,7 +61,18 @@ export default function DashboardRedirect() {
     // so they can choose from what they DO have, instead of landing on
     // a broken dashboard screen.
     if (pathHint || queryHint || hasUnknownPathSlug) {
-      navigate('/select-role', { replace: true });
+      const requestedSlug = hasUnknownPathSlug
+        ? location.pathname
+        : queryHint
+          ? `/dashboard/${queryHint === 'supporter' ? 'funder' : queryHint}`
+          : location.pathname;
+      navigate('/select-role', {
+        replace: true,
+        state: {
+          reason: hasUnknownPathSlug ? 'unknown-slug' : 'role-not-held',
+          requestedSlug,
+        },
+      });
       return;
     }
 
