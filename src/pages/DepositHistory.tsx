@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Clock, CheckCircle2, XCircle, Loader2, Phone, Calendar, Hash, Download, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Clock, CheckCircle2, XCircle, Loader2, Phone, Calendar, Hash, Download, MessageCircle, ShieldCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { downloadDepositReceipt, buildDepositReceiptWhatsApp, type DepositReceiptData } from '@/lib/receiptPdf';
@@ -23,7 +23,29 @@ interface DepositRequest {
   rejection_reason: string | null;
   approved_at: string | null;
   rejected_at: string | null;
+  deposit_purpose?: string | null;
+  purpose_audit?: {
+    chosen_purpose?: string;
+    chosen_at?: string;
+    chosen_by?: string;
+    entry_point?: 'gate' | 'default' | 'in_form';
+    required_choice?: boolean;
+  } | null;
 }
+
+const PURPOSE_LABELS: Record<string, string> = {
+  operational_float: 'Operational Float',
+  personal_deposit: 'Personal Deposit',
+  partnership_deposit: 'Partnership Deposit',
+  personal_rent_repayment: 'Personal Rent Repayment',
+  other: 'Other',
+};
+
+const ENTRY_POINT_LABELS: Record<string, string> = {
+  gate: 'Forced choice screen',
+  default: 'Pre-selected default',
+  in_form: 'Picked in form',
+};
 
 export default function DepositHistory() {
   const navigate = useNavigate();
@@ -49,7 +71,7 @@ export default function DepositHistory() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setDeposits(data || []);
+      setDeposits((data || []) as unknown as DepositRequest[]);
     } catch (error) {
       console.error('Error fetching deposits:', error);
     } finally {
@@ -200,6 +222,51 @@ export default function DepositHistory() {
                     <p className="text-sm text-destructive">
                       <strong>Rejection reason:</strong> {deposit.rejection_reason}
                     </p>
+                  </div>
+                )}
+
+                {/* ─── Purpose Audit Trail ─── */}
+                {(deposit.purpose_audit || deposit.deposit_purpose) && (
+                  <div className="p-3 rounded-lg border border-primary/20 bg-primary/5 space-y-1.5">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-primary">
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      Purpose Audit
+                    </div>
+                    <div className="grid gap-1 text-[11px] text-muted-foreground">
+                      <div className="flex justify-between gap-2">
+                        <span>Chosen purpose:</span>
+                        <span className="font-medium text-foreground">
+                          {PURPOSE_LABELS[
+                            deposit.purpose_audit?.chosen_purpose ?? deposit.deposit_purpose ?? ''
+                          ] ?? deposit.purpose_audit?.chosen_purpose ?? deposit.deposit_purpose}
+                        </span>
+                      </div>
+                      {deposit.purpose_audit?.chosen_at && (
+                        <div className="flex justify-between gap-2">
+                          <span>Chosen at:</span>
+                          <span className="font-medium text-foreground">
+                            {format(new Date(deposit.purpose_audit.chosen_at), 'MMM d, yyyy h:mm:ss a')}
+                          </span>
+                        </div>
+                      )}
+                      {deposit.purpose_audit?.entry_point && (
+                        <div className="flex justify-between gap-2">
+                          <span>How chosen:</span>
+                          <span className="font-medium text-foreground">
+                            {ENTRY_POINT_LABELS[deposit.purpose_audit.entry_point] ?? deposit.purpose_audit.entry_point}
+                            {deposit.purpose_audit.required_choice ? ' (required)' : ''}
+                          </span>
+                        </div>
+                      )}
+                      {deposit.purpose_audit?.chosen_by && (
+                        <div className="flex justify-between gap-2">
+                          <span>Chosen by:</span>
+                          <span className="font-mono text-[10px] text-foreground truncate max-w-[60%]">
+                            {deposit.purpose_audit.chosen_by}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
