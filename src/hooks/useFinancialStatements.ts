@@ -403,12 +403,19 @@ async function generateStatementsRaw(activeFilters: StatementFilters): Promise<F
       const requestFees = sumWithDirectionFallback(platformIn, platformOut, ['tenant_request_fee', 'request_fee', 'registration_fee_collected']);
       const otherServiceIncome = sumWithDirectionFallback(platformIn, platformOut, ['platform_service_income', 'landlord_platform_fee', 'management_fee']);
       const platformRewards = sumWithDirectionFallback(platformOut, platformIn, ['supporter_platform_rewards', 'supporter_reward', 'investment_reward', 'roi_payout', 'roi_expense']);
-      const agentCommissions = sumWithDirectionFallback(platformOut, platformIn, ['agent_commission_payout', 'agent_commission', 'agent_commission_earned', 'agent_payout', 'agent_approval_bonus']);
+      // Agent commissions = direct payouts only. `agent_commission_earned` (which
+      // includes the auto-paid UGX 5,000 listing bonus) is reclassified below as
+      // a TRANSACTION EXPENSE — it is a per-event platform cost of acquiring a
+      // listing, not a revenue-share commission. It is NEVER counted as revenue.
+      const agentCommissions = sumWithDirectionFallback(platformOut, platformIn, ['agent_commission_payout', 'agent_commission', 'agent_payout', 'agent_approval_bonus']);
       // Referral & agent bonuses (production + legacy)
       const referralBonuses = sumBy(walletIn, ['referral_bonus']) + sumBy(platformOut, ['referral_bonus']);
       const agentBonuses = sumBy(walletIn, ['agent_bonus']) + sumBy(platformOut, ['agent_bonus']);
       const totalIncentiveCosts = referralBonuses + agentBonuses;
-      const transactionExpenses = sumWithDirectionFallback(platformOut, platformIn, ['transaction_platform_expenses']);
+      // Transaction expenses = per-transaction platform costs. Includes listing
+      // bonuses (posted under `agent_commission_earned` by credit-listing-bonus)
+      // alongside the dedicated `transaction_platform_expenses` bucket.
+      const transactionExpenses = sumWithDirectionFallback(platformOut, platformIn, ['transaction_platform_expenses', 'agent_commission_earned']);
       const generalOperating = sumWithDirectionFallback(platformOut, platformIn, ['operational_expenses', 'platform_expense']);
       const payrollExpenses = sumWithDirectionFallback(platformOut, platformIn, ['salary_payment', 'employee_advance', 'payroll_expense']);
       const agentRequisitions = sumWithDirectionFallback(platformOut, platformIn, ['agent_requisition']);
