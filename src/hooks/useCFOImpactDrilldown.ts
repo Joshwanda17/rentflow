@@ -208,7 +208,7 @@ export function useCFOImpactDrilldown(
       const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
       let lq = supabase
         .from('landlords')
-        .select('id, name, phone, monthly_rent, rent_last_paid_at, rent_last_paid_amount, rent_balance_due, created_at, property_address', { count: 'exact' })
+        .select('id, name, phone, monthly_rent, rent_last_paid_at, rent_last_paid_amount, rent_balance_due, created_at, property_address, region, district, house_number, verified, ready_to_receive', { count: 'exact' })
         .limit(PAGE_SIZE);
 
       if (metric === 'landlords_active') {
@@ -222,21 +222,87 @@ export function useCFOImpactDrilldown(
       if (fromIso) lq = lq.gte('created_at', fromIso);
       if (toIso) lq = lq.lte('created_at', toIso);
 
+      // Region filter (exact match)
+      if (landlordFilters?.region && landlordFilters.region !== 'all') {
+        lq = lq.eq('region', landlordFilters.region);
+      }
+
+      // Property text filter — match address, house number, or district
+      const propQ = landlordFilters?.property?.trim();
+      if (propQ) {
+        const safe = propQ.replace(/[%,()]/g, ' ');
+        lq = lq.or(
+          `property_address.ilike.%${safe}%,house_number.ilike.%${safe}%,district.ilike.%${safe}%`,
+        );
+      }
+
+      // Account status filter
+      switch (landlordFilters?.accountStatus) {
+        case 'verified':
+          lq = lq.eq('verified', true);
+          break;
+        case 'unverified':
+          lq = lq.or('verified.is.null,verified.eq.false');
+          break;
+        case 'ready':
+          lq = lq.eq('ready_to_receive', true);
+          break;
+        case 'not_ready':
+          lq = lq.or('ready_to_receive.is.null,ready_to_receive.eq.false');
+          break;
+      }
+
       const { data: lData, count: lCount, error: lErr } = await lq;
       if (lErr) throw lErr;
-      const lRecords: DrilldownRecord[] = (lData || []).map((r: any) => ({
-        id: r.id,
-        name: r.name || 'Unnamed',
-        phone: r.phone || null,
-        amount: metric === 'landlords_active'
-          ? Number(r.rent_last_paid_amount || 0)
-          : Number(r.rent_balance_due || 0),
-        date: metric === 'landlords_active' ? (r.rent_last_paid_at || r.created_at) : r.created_at,
-        meta: metric === 'landlords_active'
-          ? (r.property_address ? `📍 ${r.property_address.slice(0, 40)}` : 'last paid')
-          : (r.rent_last_paid_at ? `last paid ${new Date(r.rent_last_paid_at).toLocaleDateString()}` : 'never paid'),
-      }));
-      return { records: lRecords, total: lCount ?? lRecords.length, truncated: (lCount ?? 0) > PAGE_SIZE };
+      const lRecords: DrilldownRecord[] = (lData || []).map((r: any) => {
+        const locBits = [r.region, r.district].filter(Boolean).join(' · ');
+        const statusBits: string[] = [];
+        if (r.verified) statusBits.push('✓ verified');
+        if (r.ready_to_receive) statusBits.push('💸 ready');
+        const propertyBit = r.property_address
+          ? `📍 ${r.property_address.slice(0, 40)}`
+          : r.house_number
+            ? `🏠 ${r.house_number}`
+            : null;
+        const metaParts =
+          metric === 'landlords_active'
+            ? [propertyBit, locBits, statusBits.join(' ')].filter(Boolean)
+            : [
+                r.rent_last_paid_at
+                  ? `last paid ${new Date(r.rent_last_paid_at).toLocaleDateString()}`
+                  : 'never paid',
+                locBits,
+                statusBits.join(' '),
+              ].filter(Boolean);
+        return {
+          id: r.id,
+          name: r.name || 'Unnamed',
+          phone: r.phone || null,
+          amount:
+            metric === 'landlords_active'
+              ? Number(r.rent_last_paid_amount || 0)
+              : Number(r.rent_balance_due || 0),
+          date: metric === 'landlords_active' ? r.rent_last_paid_at || r.created_at : r.created_at,
+          meta: metaParts.join(' · '),
+        };
+      });
+
+      // Pull distinct regions for filter chips (unfiltered, capped at 50)
+      const { data: regionRows } = await supabase
+        .from('landlords')
+        .select('region')
+        .not('region', 'is', null)
+        .limit(2000);
+      const regions = [...new Set((regionRows || []).map((r: any) => r.region).filter(Boolean))]
+        .sort()
+        .slice(0, 50);
+
+      return {
+        records: lRecords,
+        total: lCount ?? lRecords.length,
+        truncated: (lCount ?? 0) > PAGE_SIZE,
+        regions,
+      };
     },
   });
 }
