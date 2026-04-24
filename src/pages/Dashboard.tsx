@@ -65,6 +65,7 @@ const OfflineFallback = ({ cachedRole, onRetry }: { cachedRole?: AppRole | null;
 function DashboardContent() {
   const { user, role, roles, loading, signOut, switchRole, addRole, grantAndSwitchRole } = useAuth();
   const [pendingRole, setPendingRole] = useState<AppRole | null>(null);
+  const navigate = useNavigate();
 
   // Clear pendingRole when the active role matches it
   useEffect(() => {
@@ -95,10 +96,14 @@ function DashboardContent() {
     } else {
       switchRole(newRole);
     }
-  }, [role, roles, pendingRole, switchRole, grantAndSwitchRole]);
+
+    // URL is the source of truth for which persona dashboard renders, so
+    // every role switch (header dropdown, bottom switcher, etc.) must
+    // also update the address bar to the matching `/dashboard/{role}` slug.
+    navigate(roleToSlug(newRole), { replace: true });
+  }, [role, roles, pendingRole, switchRole, grantAndSwitchRole, navigate]);
 
   const { profile } = useProfile();
-  const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   
