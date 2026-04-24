@@ -18,6 +18,7 @@ interface BonusApproval {
   landlord_ops_approved_by: string | null;
   landlord_ops_approved_at: string | null;
   landlord_ops_notes: string | null;
+  cfo_approved_by: string | null;
   cfo_approved_at: string | null;
   paid_at: string | null;
   created_at: string;
@@ -53,8 +54,20 @@ export function ListingBonusApprovalQueue({ filter = 'pending_cfo' }: Props) {
       const { data } = await query;
       if (!data?.length) return [];
 
-      const agentIds = [...new Set(data.map(d => d.agent_id))];
-      const listingIds = [...new Set(data.map(d => d.listing_id))];
+      // Hide auto-paid rows (Landlord Ops verification self-approvals) from CFO queue —
+      // those are already credited; only true pending/manual rows belong here.
+      const filtered = data.filter(d => {
+        const isAutoPaid =
+          d.status === 'paid' &&
+          d.landlord_ops_approved_by &&
+          d.cfo_approved_by &&
+          d.landlord_ops_approved_by === d.cfo_approved_by;
+        return !isAutoPaid;
+      });
+      if (!filtered.length) return [];
+
+      const agentIds = [...new Set(filtered.map(d => d.agent_id))];
+      const listingIds = [...new Set(filtered.map(d => d.listing_id))];
 
       const [agentsRes, listingsRes] = await Promise.all([
         supabase.from('profiles').select('id, full_name').in('id', agentIds),
@@ -64,7 +77,7 @@ export function ListingBonusApprovalQueue({ filter = 'pending_cfo' }: Props) {
       const agentMap = new Map((agentsRes.data || []).map(p => [p.id, p.full_name]));
       const listingMap = new Map((listingsRes.data || []).map(l => [l.id, l.title]));
 
-      return data.map(d => ({
+      return filtered.map(d => ({
         ...d,
         agent_name: agentMap.get(d.agent_id) || 'Unknown',
         listing_title: listingMap.get(d.listing_id) || 'Unknown',

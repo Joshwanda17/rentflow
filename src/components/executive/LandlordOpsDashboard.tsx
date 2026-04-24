@@ -623,8 +623,8 @@ export function LandlordOpsDashboard() {
         toast({ title: '✅ Already Verified', description: 'This listing was already verified and bonus paid.' });
       } else {
         toast({
-          title: '✅ Verified → Forwarded to CFO',
-          description: `${listing.title} verified. UGX 5,000 bonus sent to CFO for approval.`,
+          title: '✅ Verified → UGX 5,000 Credited',
+          description: `${listing.title} verified. UGX 5,000 instantly credited to the agent's commission wallet.`,
         });
       }
       refetch();
