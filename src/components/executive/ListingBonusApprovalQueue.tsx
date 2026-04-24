@@ -266,3 +266,146 @@ export function ListingBonusApprovalQueue({ filter = 'pending_cfo' }: Props) {
     </Card>
   );
 }
+
+/**
+ * Joins listing titles, agent names, and (for hidden rows) the actor name
+ * who stamped the row, then runs the CFO-queue classifier so the UI can
+ * always render the WHY beside the WHAT.
+ */
+async function enrich(visibleRaw: any[], hiddenRaw: any[]): Promise<Classified> {
+  const all = [...visibleRaw, ...hiddenRaw];
+  if (!all.length) return { visible: [], hidden: [] };
+
+  const agentIds = [...new Set(all.map(d => d.agent_id))];
+  const listingIds = [...new Set(all.map(d => d.listing_id))];
+  const actorIds = [
+    ...new Set(
+      hiddenRaw
+        .flatMap(d => [d.cfo_approved_by, d.landlord_ops_approved_by])
+        .filter(Boolean) as string[],
+    ),
+  ];
+
+  const [agentsRes, listingsRes, actorsRes] = await Promise.all([
+    supabase.from('profiles').select('id, full_name').in('id', agentIds),
+    supabase.from('house_listings').select('id, title').in('id', listingIds),
+    actorIds.length
+      ? supabase.from('profiles').select('id, full_name').in('id', actorIds)
+      : Promise.resolve({ data: [] as any[] }),
+  ]);
+
+  const agentMap = new Map((agentsRes.data || []).map(p => [p.id, p.full_name]));
+  const listingMap = new Map((listingsRes.data || []).map(l => [l.id, l.title]));
+  const actorMap = new Map((actorsRes.data || []).map((p: any) => [p.id, p.full_name]));
+
+  const visible: BonusApproval[] = visibleRaw.map(d => ({
+    ...d,
+    agent_name: agentMap.get(d.agent_id) || 'Unknown',
+    listing_title: listingMap.get(d.listing_id) || 'Unknown',
+  }));
+
+  const hidden: BonusApproval[] = hiddenRaw.map(d => {
+    const { reason } = classifyForCfoQueue(d);
+    // Attribute the hide to whoever stamped CFO (auto-pay self-approves with manager id;
+    // manual CFO approval also stamps cfo_approved_by). Fall back to landlord_ops actor.
+    const actorId = d.cfo_approved_by || d.landlord_ops_approved_by;
+    return {
+      ...d,
+      agent_name: agentMap.get(d.agent_id) || 'Unknown',
+      listing_title: listingMap.get(d.listing_id) || 'Unknown',
+      hide_reason: reason,
+      hide_actor_name: actorId ? (actorMap.get(actorId) || null) : null,
+    };
+  });
+
+  return { visible, hidden };
+}
+
+/**
+ * Collapsible footer that lists every bonus row hidden from the CFO action
+ * queue, with the rule that excluded it and who stamped it. Lets finance
+ * staff trust the filter — never silent, always auditable.
+ */
+function HiddenDisclosure({ rows }: { rows: BonusApproval[] }) {
+  const [open, setOpen] = useState(false);
+
+  // Group by reason for a clean summary
+  const groups = rows.reduce<Record<string, BonusApproval[]>>((acc, r) => {
+    const key = r.hide_reason || 'Hidden';
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(r);
+    return acc;
+  }, {});
+
+  return (
+    <div className="rounded-xl border border-dashed border-muted-foreground/30 bg-muted/20 p-3 mt-3">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between gap-2 text-left min-h-[32px]"
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <EyeOff className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <span className="text-xs font-medium text-foreground">
+            {rows.length} bonus {rows.length === 1 ? 'row' : 'rows'} hidden from this queue
+          </span>
+          <Badge className="bg-muted text-muted-foreground border-0 text-[9px]">Why?</Badge>
+        </div>
+        {open ? (
+          <ChevronUp className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        ) : (
+          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        )}
+      </button>
+
+      {open && (
+        <div className="mt-3 space-y-3">
+          {Object.entries(groups).map(([reason, items]) => (
+            <div key={reason} className="space-y-1.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {reason}{' '}
+                <span className="text-foreground">({items.length})</span>
+              </p>
+              <div className="space-y-1">
+                {items.slice(0, 10).map(r => (
+                  <div
+                    key={r.id}
+                    className="flex items-center justify-between gap-2 text-[11px] px-2 py-1.5 rounded-lg bg-card border border-border"
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <Home className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <span className="truncate font-medium">{r.listing_title}</span>
+                      <span className="text-muted-foreground shrink-0">→ {r.agent_name}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {r.hide_actor_name && (
+                        <span className="text-[10px] text-muted-foreground">
+                          by <span className="text-foreground font-medium">{r.hide_actor_name}</span>
+                        </span>
+                      )}
+                      <Badge
+                        className={`text-[9px] border-0 ${
+                          r.status === 'paid'
+                            ? 'bg-green-500/15 text-green-700'
+                            : r.status === 'failed'
+                              ? 'bg-red-500/15 text-red-700'
+                              : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {r.status}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+                {items.length > 10 && (
+                  <p className="text-[10px] text-muted-foreground text-center pt-1">
+                    + {items.length - 10} more
+                  </p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
