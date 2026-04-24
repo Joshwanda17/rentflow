@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { Users, Home, UserCheck, Briefcase } from 'lucide-react';
 import { useCFOImpactMetrics } from '@/hooks/useCFOImpactMetrics';
 import { Card, CardContent } from '@/components/ui/card';
+import { CFOImpactDrilldownSheet } from '@/components/cfo/CFOImpactDrilldownSheet';
+import type { ImpactMetric } from '@/hooks/useCFOImpactDrilldown';
 
 const fmtCount = (n: number) => {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -16,11 +19,17 @@ interface ImpactTileProps {
   iconBg: string;
   iconColor: string;
   loading?: boolean;
+  onClick?: () => void;
 }
 
-function ImpactTile({ icon: Icon, label, value, sublabel, iconBg, iconColor, loading }: ImpactTileProps) {
+function ImpactTile({ icon: Icon, label, value, sublabel, iconBg, iconColor, loading, onClick }: ImpactTileProps) {
   return (
-    <div className="flex items-start gap-2.5 p-3 rounded-xl bg-card border border-border min-w-0">
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!onClick}
+      className="flex items-start gap-2.5 p-3 rounded-xl bg-card border border-border min-w-0 text-left transition-colors hover:bg-accent/40 disabled:cursor-default disabled:hover:bg-card"
+    >
       <div className={`h-9 w-9 rounded-lg ${iconBg} flex items-center justify-center shrink-0`}>
         <Icon className={`h-4.5 w-4.5 ${iconColor}`} />
       </div>
@@ -33,7 +42,7 @@ function ImpactTile({ icon: Icon, label, value, sublabel, iconBg, iconColor, loa
         )}
         <p className="text-[10px] text-muted-foreground truncate">{sublabel}</p>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -43,8 +52,10 @@ function ImpactTile({ icon: Icon, label, value, sublabel, iconBg, iconColor, loa
  */
 export function CFOImpactKPIStrip() {
   const { data, isLoading } = useCFOImpactMetrics();
+  const [drilldown, setDrilldown] = useState<ImpactMetric | null>(null);
 
   return (
+    <>
     <Card className="rounded-2xl">
       <CardContent className="p-3">
         <div className="flex items-center justify-between mb-2 px-1">
@@ -64,6 +75,7 @@ export function CFOImpactKPIStrip() {
             iconBg="bg-blue-100 dark:bg-blue-900/30"
             iconColor="text-blue-600"
             loading={isLoading}
+            onClick={() => setDrilldown('users')}
           />
           <ImpactTile
             icon={Home}
@@ -73,6 +85,7 @@ export function CFOImpactKPIStrip() {
             iconBg="bg-emerald-100 dark:bg-emerald-900/30"
             iconColor="text-emerald-600"
             loading={isLoading}
+            onClick={() => setDrilldown('tenants')}
           />
           <ImpactTile
             icon={UserCheck}
@@ -82,6 +95,7 @@ export function CFOImpactKPIStrip() {
             iconBg="bg-amber-100 dark:bg-amber-900/30"
             iconColor="text-amber-600"
             loading={isLoading}
+            onClick={() => setDrilldown('agents')}
           />
           <ImpactTile
             icon={Briefcase}
@@ -91,9 +105,16 @@ export function CFOImpactKPIStrip() {
             iconBg="bg-purple-100 dark:bg-purple-900/30"
             iconColor="text-purple-600"
             loading={isLoading}
+            onClick={() => setDrilldown('partners')}
           />
         </div>
       </CardContent>
     </Card>
+    <CFOImpactDrilldownSheet
+      open={drilldown !== null}
+      onOpenChange={(o) => !o && setDrilldown(null)}
+      metric={drilldown}
+    />
+    </>
   );
 }
