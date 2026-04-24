@@ -71,7 +71,7 @@ export default function DepositHistory() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setDeposits(data || []);
+      setDeposits((data || []) as unknown as DepositRequest[]);
     } catch (error) {
       console.error('Error fetching deposits:', error);
     } finally {
