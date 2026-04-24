@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp, ArrowLeft, Shield, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
-import { formatUGX } from '@/lib/rentCalculations';
+import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
 import { generateWelileAiId, getRiskTierLabel } from '@/lib/welileAiId';
 import { format, startOfDay } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -40,6 +40,12 @@ interface TenantRentRequest {
   created_at: string;
   disbursed_at: string | null;
   registration_type: string | null;
+  landlord_id?: string | null;
+  lc1_id?: string | null;
+  house_category?: string | null;
+  tenant_no_smartphone?: boolean | null;
+  request_latitude?: number | null;
+  request_longitude?: number | null;
   landlord?: { name: string; property_address: string; house_category?: string; latitude?: number; longitude?: number } | null;
 }
 
@@ -133,6 +139,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [tenantContext, setTenantContext] = useState<Record<string, { landlordName: string; propertyAddress: string; completedCount: number; totalRequests: number }>>({});
   const [renewDialogOpen, setRenewDialogOpen] = useState(false);
   const [renewPrefill, setRenewPrefill] = useState<{ name: string; phone: string; amount: string } | null>(null);
+  const [renewingReqId, setRenewingReqId] = useState<string | null>(null);
   const [collectDialogOpen, setCollectDialogOpen] = useState(false);
   const [collectTarget, setCollectTarget] = useState<{ tenant: Tenant; reqId: string; owing: number } | null>(null);
   const [behaviorCardOpen, setBehaviorCardOpen] = useState(false);
@@ -250,7 +257,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     try {
       const { data, error } = await supabase
         .from('rent_requests')
-        .select('id, rent_amount, total_repayment, duration_days, daily_repayment, amount_repaid, status, created_at, disbursed_at, registration_type, landlord:landlords(name, property_address, house_category, latitude, longitude)')
+        .select('id, rent_amount, total_repayment, duration_days, daily_repayment, amount_repaid, status, created_at, disbursed_at, registration_type, landlord_id, lc1_id, house_category, tenant_no_smartphone, request_latitude, request_longitude, landlord:landlords(name, property_address, house_category, latitude, longitude)')
         .eq('tenant_id', tenantId)
         .in('status', ['pending', 'approved', 'disbursed', 'repaying', 'completed'])
         .order('created_at', { ascending: false })
@@ -440,6 +447,52 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         startDate: format(new Date(req.disbursed_at || req.created_at), 'dd MMM yyyy'), schedule: scheduleDays,
       }, tenant.phone);
     } catch { toast({ title: 'Error sharing', variant: 'destructive' }); }
+  };
+
+  // One-tap renew: re-post a rent request using the data from a completed cycle.
+  // No new info is requested — landlord, tenant, house category etc. are reused.
+  const handleRenew = async (tenant: Tenant, req: TenantRentRequest) => {
+    if (!user) return;
+    if (!req.landlord_id) {
+      toast({ title: 'Cannot renew', description: 'Landlord info missing on prior request.', variant: 'destructive' });
+      return;
+    }
+    setRenewingReqId(req.id);
+    try {
+      const fees = calculateRentRepayment(req.rent_amount, req.duration_days);
+      const { error } = await supabase.from('rent_requests').insert({
+        tenant_id: tenant.id,
+        agent_id: user.id,
+        landlord_id: req.landlord_id,
+        lc1_id: req.lc1_id ?? null,
+        rent_amount: fees.rentAmount,
+        duration_days: fees.durationDays,
+        access_fee: fees.accessFee,
+        request_fee: fees.requestFee,
+        total_repayment: fees.totalRepayment,
+        daily_repayment: fees.dailyRepayment,
+        status: 'pending',
+        house_category: req.house_category ?? req.landlord?.house_category ?? null,
+        tenant_no_smartphone: req.tenant_no_smartphone ?? false,
+        request_latitude: req.request_latitude ?? req.landlord?.latitude ?? null,
+        request_longitude: req.request_longitude ?? req.landlord?.longitude ?? null,
+      } as any);
+      if (error) throw error;
+      toast({ title: 'Rent request renewed ✅', description: `Posted for ${tenant.full_name}` });
+      // Force-refresh this tenant's requests
+      setTenantRequests(prev => {
+        const updated = { ...prev };
+        delete updated[tenant.id];
+        return updated;
+      });
+      fetchTenantRequests(tenant.id);
+      fetchTenants();
+    } catch (err: any) {
+      console.error('Renew failed:', err);
+      toast({ title: 'Renew failed', description: err?.message || 'Try again', variant: 'destructive' });
+    } finally {
+      setRenewingReqId(null);
+    }
   };
 
   return (
@@ -908,15 +961,17 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                                     </button>
                                     {req.status === 'completed' ? (
                                       <button
-                                        onClick={() => {
-                                          setRenewPrefill({ name: tenant.full_name, phone: tenant.phone, amount: String(req.rent_amount) });
-                                          setRenewDialogOpen(true);
-                                        }}
-                                        className="flex items-center justify-center gap-2 h-11 rounded-xl bg-primary text-primary-foreground font-semibold text-sm active:scale-95 transition-transform"
+                                        onClick={() => handleRenew(tenant, req)}
+                                        disabled={renewingReqId === req.id}
+                                        className="flex items-center justify-center gap-2 h-11 rounded-xl bg-primary text-primary-foreground font-semibold text-sm active:scale-95 transition-transform disabled:opacity-60"
                                         style={{ touchAction: 'manipulation' }}
                                       >
-                                        <RefreshCw className="h-4 w-4" />
-                                        Renew
+                                        {renewingReqId === req.id ? (
+                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                          <RefreshCw className="h-4 w-4" />
+                                        )}
+                                        {renewingReqId === req.id ? 'Renewing…' : 'Renew'}
                                       </button>
                                     ) : (
                                       <button
