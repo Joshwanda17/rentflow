@@ -13,7 +13,11 @@ import {
 const SNAPSHOT_DB = 'welile-snapshot';
 const SNAPSHOT_STORE = 'snapshot';
 const SNAPSHOT_DB_VERSION = 2; // Bumped for expanded schema
-const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
+// Two-tier cache TTLs: wallet/profile refresh sooner; non-critical can sit longer.
+const CRITICAL_TTL_MS = 60 * 1000;       // 1 minute — wallet/profile
+const EXTENDED_TTL_MS = 5 * 60 * 1000;   // 5 minutes — analytics/lists/notifications
+// Backwards-compat export for any external imports.
+const CACHE_TTL_MS = CRITICAL_TTL_MS;
 
 export interface UserSnapshot {
   userId: string;
@@ -48,6 +52,8 @@ export interface UserSnapshot {
   supporterReferrals: any[];
   investmentAccount: any | null;
 }
+
+type Tier = 'critical' | 'extended' | 'all';
 
 let dbInstance: IDBDatabase | null = null;
 
