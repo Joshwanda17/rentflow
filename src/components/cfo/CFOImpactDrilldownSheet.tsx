@@ -7,8 +7,19 @@ import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { useCFOImpactDrilldown, type ImpactMetric } from '@/hooks/useCFOImpactDrilldown';
+import {
+  useCFOImpactDrilldown,
+  type ImpactMetric,
+  type LandlordFilters,
+} from '@/hooks/useCFOImpactDrilldown';
 import { toast } from 'sonner';
 
 const META: Record<ImpactMetric, { title: string; emoji: string; amountLabel: string }> = {
@@ -33,8 +44,17 @@ export function CFOImpactDrilldownSheet({ open, onOpenChange, metric }: Props) {
   const [from, setFrom] = useState<Date | undefined>(undefined);
   const [to, setTo] = useState<Date | undefined>(undefined);
   const [search, setSearch] = useState('');
+  const [propertyQuery, setPropertyQuery] = useState('');
+  const [region, setRegion] = useState<string>('all');
+  const [accountStatus, setAccountStatus] =
+    useState<NonNullable<LandlordFilters['accountStatus']>>('all');
 
-  const { data, isLoading } = useCFOImpactDrilldown(metric, from, to, open);
+  const isLandlordMetric = metric === 'landlords_active' || metric === 'landlords_dormant';
+  const landlordFilters: LandlordFilters | undefined = isLandlordMetric
+    ? { property: propertyQuery, region, accountStatus }
+    : undefined;
+
+  const { data, isLoading } = useCFOImpactDrilldown(metric, from, to, open, landlordFilters);
 
   const filtered = useMemo(() => {
     if (!data?.records) return [];
@@ -81,6 +101,12 @@ export function CFOImpactDrilldownSheet({ open, onOpenChange, metric }: Props) {
     a.click();
     URL.revokeObjectURL(url);
     toast.success(`Exported ${filtered.length} rows`);
+  };
+
+  const resetLandlordFilters = () => {
+    setPropertyQuery('');
+    setRegion('all');
+    setAccountStatus('all');
   };
 
   if (!metric) return null;
@@ -142,6 +168,63 @@ export function CFOImpactDrilldownSheet({ open, onOpenChange, metric }: Props) {
               </PopoverContent>
             </Popover>
           </div>
+
+          {/* Landlord-specific filters */}
+          {isLandlordMetric && (
+            <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Landlord filters
+                </p>
+                {(propertyQuery || region !== 'all' || accountStatus !== 'all') && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-[11px]"
+                    onClick={resetLandlordFilters}
+                  >
+                    Reset
+                  </Button>
+                )}
+              </div>
+              <Input
+                placeholder="Property address, house # or district…"
+                value={propertyQuery}
+                onChange={(e) => setPropertyQuery(e.target.value)}
+                className="h-9 text-xs"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <Select value={region} onValueChange={setRegion}>
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="Region" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[60] bg-popover">
+                    <SelectItem value="all">All regions</SelectItem>
+                    {(data?.regions || []).map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {r}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={accountStatus}
+                  onValueChange={(v) => setAccountStatus(v as typeof accountStatus)}
+                >
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="Account status" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[60] bg-popover">
+                    <SelectItem value="all">Any status</SelectItem>
+                    <SelectItem value="verified">Verified</SelectItem>
+                    <SelectItem value="unverified">Unverified</SelectItem>
+                    <SelectItem value="ready">Ready to receive</SelectItem>
+                    <SelectItem value="not_ready">Not ready</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
 
           {/* Search + export */}
           <div className="flex gap-2">
