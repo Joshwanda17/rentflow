@@ -3627,39 +3627,48 @@ export type Database = {
       daily_platform_stats: {
         Row: {
           active_users_30d: number
+          agents_earning_30d: number
           created_at: string
           daily_transaction_volume: number
           id: string
           new_users_today: number
+          partners_with_portfolios: number
           referral_pct: number
           retention_pct: number
           stat_date: string
+          tenants_impacted_total: number
           total_users: number
           updated_at: string
           users_by_role: Json | null
         }
         Insert: {
           active_users_30d?: number
+          agents_earning_30d?: number
           created_at?: string
           daily_transaction_volume?: number
           id?: string
           new_users_today?: number
+          partners_with_portfolios?: number
           referral_pct?: number
           retention_pct?: number
           stat_date?: string
+          tenants_impacted_total?: number
           total_users?: number
           updated_at?: string
           users_by_role?: Json | null
         }
         Update: {
           active_users_30d?: number
+          agents_earning_30d?: number
           created_at?: string
           daily_transaction_volume?: number
           id?: string
           new_users_today?: number
+          partners_with_portfolios?: number
           referral_pct?: number
           retention_pct?: number
           stat_date?: string
+          tenants_impacted_total?: number
           total_users?: number
           updated_at?: string
           users_by_role?: Json | null
