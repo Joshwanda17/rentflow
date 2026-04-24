@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, CheckCircle2, Eye, EyeOff, ArrowRight, AlertCircle, UserPlus, KeyRound, Copy, MessageCircle, MapPin, Navigation } from 'lucide-react';
 import WelileLogo from '@/components/WelileLogo';
+import { roleToSlug } from '@/lib/roleRoutes';
 
 type PageState = 'loading' | 'invalid' | 'activated-already' | 'ready' | 'profile-setup' | 'success' | 'forgot-password' | 'password-reset';
 

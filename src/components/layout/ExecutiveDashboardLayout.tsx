@@ -23,7 +23,7 @@ export default function ExecutiveDashboardLayout({
   onTabChange,
   children,
 }: ExecutiveDashboardLayoutProps) {
-  const { user, roles, signOut, switchRole, addRole, role } = useAuth();
+  const { user, roles, signOut, switchRole, addRole } = useAuth();
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [checkingProfile, setCheckingProfile] = useState(true);
@@ -54,12 +54,12 @@ export default function ExecutiveDashboardLayout({
     if (route) {
       navigate(route);
     } else {
-      navigate(roleToSlug(role));
+      navigate(roleToSlug(newRole));
     }
   };
 
   const handleExit = () => {
-    navigate(roleToSlug(role));
+    navigate(roleToSlug(role as AppRole));
   };
 
   const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => (
