@@ -525,7 +525,7 @@ export default function FundTenantsFlow({
             currency="UGX"
             fees={0}
             recipient={`${fundResult?.tenants_funded || selectedIds.length} Tenant(s)`}
-            reference={`FUND-${Date.now()}`}
+            reference={transactionId ? `TID${transactionId}` : 'PENDING'}
             method="Welile Wallet"
             date={new Date()}
             onDownload={() => {}}
