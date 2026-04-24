@@ -595,7 +595,7 @@ Deno.serve(async (req) => {
                     user_id: depositRequest.agent_id,
                     title: "Tenant Debt Cleared! ✅",
                     body: `${tenantName}'s debt of UGX ${debtCleared.toLocaleString()} auto-cleared from deposit.`,
-                    url: "/agent",
+                    url: "/dashboard/agent",
                   }),
                 });
               } catch (pushErr) {
@@ -699,7 +699,7 @@ Deno.serve(async (req) => {
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
-      body: JSON.stringify({ title: "💰 Deposit Processed", body: "Activity: deposit", url: "/manager" }),
+      body: JSON.stringify({ title: "💰 Deposit Processed", body: "Activity: deposit", url: "/dashboard/manager" }),
     }).catch(() => {});
 
     // Push notification to each approved user (fire-and-forget)
@@ -710,7 +710,7 @@ Deno.serve(async (req) => {
           headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
           body: JSON.stringify({
             userIds: [r.user_id],
-            payload: { title: "✅ Deposit Approved", body: `Your deposit of UGX ${r.amount.toLocaleString()} has been approved`, url: "/agent", type: "success" },
+            payload: { title: "✅ Deposit Approved", body: `Your deposit of UGX ${r.amount.toLocaleString()} has been approved`, url: "/dashboard/agent", type: "success" },
           }),
         }).catch(() => {});
       }

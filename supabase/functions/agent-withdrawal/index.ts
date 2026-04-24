@@ -231,7 +231,7 @@ Deno.serve(async (req) => {
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
-      body: JSON.stringify({ title: "💸 Agent Withdrawal", body: "Activity: withdrawal", url: "/manager" }),
+      body: JSON.stringify({ title: "💸 Agent Withdrawal", body: "Activity: withdrawal", url: "/dashboard/manager" }),
     }).catch(() => {});
 
     fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
@@ -239,7 +239,7 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
       body: JSON.stringify({
         userIds: [agentId],
-        payload: { title: "✅ Withdrawal Processed", body: `UGX ${amount.toLocaleString()} withdrawal completed`, url: "/agent", type: "success" },
+        payload: { title: "✅ Withdrawal Processed", body: `UGX ${amount.toLocaleString()} withdrawal completed`, url: "/dashboard/agent", type: "success" },
       }),
     }).catch(() => {});
 

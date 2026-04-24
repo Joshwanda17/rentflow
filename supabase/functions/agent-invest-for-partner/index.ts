@@ -378,7 +378,7 @@ Deno.serve(async (req) => {
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
-      body: JSON.stringify({ title: "📊 Agent Investment Activated", body: `${agentName} activated portfolio for ${partnerName}`, url: "/manager" }),
+      body: JSON.stringify({ title: "📊 Agent Investment Activated", body: `${agentName} activated portfolio for ${partnerName}`, url: "/dashboard/manager" }),
     }).catch(() => {});
 
     // Notify COO / Partner Ops users (fire-and-forget)

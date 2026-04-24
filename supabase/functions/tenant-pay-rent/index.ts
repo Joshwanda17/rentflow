@@ -212,7 +212,7 @@ Deno.serve(async (req) => {
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
-      body: JSON.stringify({ title: "🏠 Rent Payment", body: "Activity: rent payment", url: "/manager" }),
+      body: JSON.stringify({ title: "🏠 Rent Payment", body: "Activity: rent payment", url: "/dashboard/manager" }),
     }).catch(() => {});
 
     // Push notification to tenant (fire-and-forget)
@@ -221,7 +221,7 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
       body: JSON.stringify({
         userIds: [tenantId],
-        payload: { title: "✅ Rent Payment Confirmed", body: `UGX ${payAmount.toLocaleString()} rent payment processed`, url: "/tenant", type: "success" },
+        payload: { title: "✅ Rent Payment Confirmed", body: `UGX ${payAmount.toLocaleString()} rent payment processed`, url: "/dashboard/tenant", type: "success" },
       }),
     }).catch(() => {});
 

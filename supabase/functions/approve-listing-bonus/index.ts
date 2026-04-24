@@ -186,7 +186,7 @@ Deno.serve(async (req) => {
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
-      body: JSON.stringify({ title: "🏡 Listing Bonus Approved", body: "Activity: listing bonus approved", url: "/manager" }),
+      body: JSON.stringify({ title: "🏡 Listing Bonus Approved", body: "Activity: listing bonus approved", url: "/dashboard/manager" }),
     }).catch(() => {});
 
 

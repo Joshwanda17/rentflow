@@ -637,7 +637,7 @@ Deno.serve(async (req) => {
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
-      body: JSON.stringify({ title: "💰 Agent Deposit", body: "Activity: deposit", url: "/manager" }),
+      body: JSON.stringify({ title: "💰 Agent Deposit", body: "Activity: deposit", url: "/dashboard/manager" }),
     }).catch(() => {});
 
     // Push notification to agent & tenant (fire-and-forget)
@@ -646,7 +646,7 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
       body: JSON.stringify({
         userIds: [agentId],
-        payload: { title: "✅ Deposit Recorded", body: `UGX ${amount.toLocaleString()} deposit processed successfully`, url: "/agent", type: "success" },
+        payload: { title: "✅ Deposit Recorded", body: `UGX ${amount.toLocaleString()} deposit processed successfully`, url: "/dashboard/agent", type: "success" },
       }),
     }).catch(() => {});
     fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
@@ -654,7 +654,7 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${supabaseServiceKey}` },
       body: JSON.stringify({
         userIds: [targetUserId],
-        payload: { title: "💰 Deposit Received", body: `UGX ${amount.toLocaleString()} deposited to your account`, url: "/agent", type: "success" },
+        payload: { title: "💰 Deposit Received", body: `UGX ${amount.toLocaleString()} deposited to your account`, url: "/dashboard/agent", type: "success" },
       }),
     }).catch(() => {});
 

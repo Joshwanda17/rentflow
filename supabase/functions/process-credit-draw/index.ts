@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
-      body: JSON.stringify({ title: "📋 Credit Draw", body: "Activity: credit draw", url: "/manager" }),
+      body: JSON.stringify({ title: "📋 Credit Draw", body: "Activity: credit draw", url: "/dashboard/manager" }),
     }).catch(() => {});
 
     fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
       body: JSON.stringify({
         userIds: [user.id],
-        payload: { title: "✅ Credit Draw Processed", body: `UGX ${amount.toLocaleString()} credit draw approved`, url: "/tenant", type: "success" },
+        payload: { title: "✅ Credit Draw Processed", body: `UGX ${amount.toLocaleString()} credit draw approved`, url: "/dashboard/tenant", type: "success" },
       }),
     }).catch(() => {});
 

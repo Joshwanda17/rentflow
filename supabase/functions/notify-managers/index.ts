@@ -73,7 +73,7 @@ serve(async (req) => {
         payload: {
           title,
           body,
-          url: url || "/manager",
+          url: url || "/dashboard/manager",
           type: type || "info",
         },
       }),

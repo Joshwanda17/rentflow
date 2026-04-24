@@ -261,7 +261,7 @@ Deno.serve(async (req) => {
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
-      body: JSON.stringify({ title: "📊 Portfolio Top-Up", body: "Activity: portfolio top-up", url: "/manager" }),
+      body: JSON.stringify({ title: "📊 Portfolio Top-Up", body: "Activity: portfolio top-up", url: "/dashboard/manager" }),
     }).catch(() => {});
 
     // Push notification to partner (fire-and-forget)
@@ -270,7 +270,7 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
       body: JSON.stringify({
         userIds: [user.id],
-        payload: { title: "✅ Portfolio Top-Up Confirmed", body: `UGX ${topupAmount.toLocaleString()} portfolio top-up submitted`, url: "/funder", type: "success" },
+        payload: { title: "✅ Portfolio Top-Up Confirmed", body: `UGX ${topupAmount.toLocaleString()} portfolio top-up submitted`, url: "/dashboard/funder", type: "success" },
       }),
     }).catch(() => {});
 

@@ -151,7 +151,7 @@ Deno.serve(async (req) => {
     fetch(`${supabaseUrl}/functions/v1/notify-managers`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceRoleKey}` },
-      body: JSON.stringify({ title: "👤 Employee Registered", body: "Activity: new employee", url: "/manager" }),
+      body: JSON.stringify({ title: "👤 Employee Registered", body: "Activity: new employee", url: "/dashboard/manager" }),
     }).catch(() => {});
 
 
