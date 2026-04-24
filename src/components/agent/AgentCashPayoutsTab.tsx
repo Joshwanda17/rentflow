@@ -16,6 +16,7 @@ import {
 import { toast } from 'sonner';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { WithdrawalPayoutCard } from '@/components/withdrawals/WithdrawalPayoutCard';
+import { useAgentCapabilities } from '@/hooks/useAgentCapabilities';
 
 export function AgentCashPayoutsTab() {
   const { user } = useAuth();
@@ -23,6 +24,7 @@ export function AgentCashPayoutsTab() {
   const [payoutCode, setPayoutCode] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [verifiedPayout, setVerifiedPayout] = useState<any>(null);
+  const { has, isLoading: capsLoading } = useAgentCapabilities();
 
   // Check if this agent is a cashout agent
   const { data: isCashoutAgent } = useQuery({
@@ -229,7 +231,11 @@ export function AgentCashPayoutsTab() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  if (!isCashoutAgent) return null;
+  // Capability gate: must hold `process_cash_out` AND have an active cashout_agents row.
+  // Capability is auto-granted by trigger when an active cashout_agents record exists,
+  // and revoked when deactivated — so this is a defense-in-depth check.
+  if (capsLoading) return null;
+  if (!isCashoutAgent || !has('process_cash_out')) return null;
 
   // My ACTIVE claims (claimed by me, awaiting my confirmation) — shown separately
   // at the top so I can complete them. They are EXCLUDED from the main queue and

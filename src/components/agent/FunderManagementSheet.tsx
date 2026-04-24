@@ -16,6 +16,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { usePhoneDuplicateCheck } from '@/hooks/usePhoneDuplicateCheck';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { useFunderAccountsRealtime } from '@/hooks/useFunderAccountsRealtime';
+import { useAgentCapabilities } from '@/hooks/useAgentCapabilities';
 import {
   Users, Loader2, Phone, Send, HandCoins, UserPlus, AlertCircle,
 } from 'lucide-react';
@@ -44,6 +45,7 @@ interface FunderStats {
 export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { has, isLoading: capsLoading } = useAgentCapabilities();
   const [funders, setFunders] = useState<LinkedFunder[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedFunder, setSelectedFunder] = useState<LinkedFunder | null>(null);
