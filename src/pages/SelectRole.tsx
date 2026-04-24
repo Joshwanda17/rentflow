@@ -70,7 +70,26 @@ export default function SelectRole() {
   
   const { addRole, user, roles, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+
+  // Banner shown when DashboardRedirect bounces a user here because their
+  // requested dashboard URL was invalid or they no longer hold that role.
+  const redirectState = (location.state ?? null) as
+    | { reason?: 'unknown-slug' | 'role-not-held' | 'no-roles'; requestedSlug?: string }
+    | null;
+  const redirectReason = redirectState?.reason ?? null;
+  const redirectMessage = (() => {
+    if (!redirectReason) return null;
+    if (redirectReason === 'no-roles') {
+      return "Your account doesn't have a dashboard role yet — pick one below to get started.";
+    }
+    if (redirectReason === 'unknown-slug') {
+      return `The link you opened (${redirectState?.requestedSlug ?? 'that URL'}) isn't a valid dashboard. Choose a role below to continue.`;
+    }
+    // role-not-held
+    return `You no longer have access to ${redirectState?.requestedSlug ?? 'that dashboard'}. Pick one of your active roles below.`;
+  })();
 
   const [autoSubmitting, setAutoSubmitting] = useState(false);
 
