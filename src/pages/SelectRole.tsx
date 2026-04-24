@@ -304,6 +304,21 @@ export default function SelectRole() {
           <p className="text-muted-foreground">Choose your role(s) on the platform</p>
         </div>
 
+        {redirectMessage && (
+          <div
+            role="alert"
+            className="mb-4 flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-left"
+          >
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+            <div className="space-y-0.5">
+              <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+                Dashboard not available
+              </p>
+              <p className="text-xs text-muted-foreground">{redirectMessage}</p>
+            </div>
+          </div>
+        )}
+
         {isSubAgentSignup && (
           <div className="mb-4 p-4 rounded-xl bg-orange-500/10 border border-orange-500/20">
             <div className="flex items-center justify-center gap-2 text-orange-600">
