@@ -191,9 +191,14 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
     }
   };
 
-  if (loading && !hasCachedData) {
+  // Progressive rendering: header + skeleton placeholders render immediately;
+  // individual widgets reveal as their data arrives. The legacy full-page
+  // skeleton is kept for the rare empty-cache *offline* case only.
+  const showFullSkeleton = loading && !hasCachedData && !isOnline;
+  if (showFullSkeleton) {
     return <TenantDashboardSkeleton />;
   }
+  const dataLoading = loading && !hasCachedData;
 
   const handleRefresh = async () => {
     await Promise.all([fetchData(), refreshWallet()]);
