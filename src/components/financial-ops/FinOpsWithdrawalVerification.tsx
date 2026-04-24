@@ -19,6 +19,7 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
+import { AlertDialogAction } from '@/components/ui/alert-dialog';
 
 interface WithdrawalRequest {
   id: string;
@@ -523,13 +524,18 @@ export function FinOpsWithdrawalVerification() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <Button
-              onClick={handleApprove}
-              disabled={!!processing || reference.trim().length < 3 || !paymentMethod}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
-            >
-              {processing ? 'Processing...' : selected?.status === 'rejected' ? 'Re-Approve & Complete' : 'Approve & Complete'}
-            </Button>
+            <AlertDialogAction asChild>
+              <Button
+                onClick={(event) => {
+                  event.preventDefault();
+                  void handleApprove();
+                }}
+                disabled={!!processing || reference.trim().length < 3 || !paymentMethod}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                {processing ? 'Processing...' : selected?.status === 'rejected' ? 'Re-Approve & Complete' : 'Approve & Complete'}
+              </Button>
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

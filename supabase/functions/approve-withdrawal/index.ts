@@ -142,12 +142,17 @@ Deno.serve(async (req) => {
       console.error("[approve-withdrawal] reconcile_wallet_from_ledger failed:", (reconErr as Error).message);
     }
 
+    const loadWallet = async () => {
+      const { data } = await admin
+        .from("wallets")
+        .select("balance, withdrawable_balance, float_balance, advance_balance")
+        .eq("user_id", fundingUserId)
+        .maybeSingle();
+      return data;
+    };
+
     // 3-BUCKET WALLET MODEL: withdrawals can ONLY draw from withdrawable_balance.
-    const { data: wallet } = await admin
-      .from("wallets")
-      .select("balance, withdrawable_balance, float_balance, advance_balance")
-      .eq("user_id", fundingUserId)
-      .single();
+    let wallet = await loadWallet();
 
     // Reverse any pre-existing 'withdrawal_pending' holds for this request before re-checking.
     const { data: pendingHolds } = await admin
@@ -160,91 +165,34 @@ Deno.serve(async (req) => {
 
     const totalPendingHold = (pendingHolds || []).reduce((sum: number, h: any) => sum + Number(h.amount), 0);
 
+    if (pendingHolds && pendingHolds.length > 0) {
+      for (const hold of pendingHolds) {
+        await admin.from("general_ledger").delete().eq("id", hold.id);
+      }
+
+      try {
+        await admin.rpc("reconcile_wallet_from_ledger", { p_user_id: fundingUserId });
+      } catch (reconErr) {
+        console.error(
+          "[approve-withdrawal] reconcile_wallet_from_ledger failed after releasing pending holds:",
+          (reconErr as Error).message,
+        );
+      }
+
+      wallet = await loadWallet();
+    }
+
     const walletBalance = Number(wallet?.balance ?? 0);
     const walletWithdrawable = Number((wallet as any)?.withdrawable_balance ?? 0);
     const walletFloat = Number((wallet as any)?.float_balance ?? 0);
     const walletAdvance = Number((wallet as any)?.advance_balance ?? 0);
 
-    let healedWithdrawable = walletWithdrawable;
-
-    if (!isProxyPayout && walletWithdrawable + totalPendingHold < amount) {
-      const { data: commissionRows, error: commissionErr } = await admin
-        .from("general_ledger")
-        .select("amount, direction, category")
-        .eq("user_id", fundingUserId)
-        .eq("ledger_scope", "wallet")
-        .in("category", [
-          "agent_commission_earned",
-          "agent_commission",
-          "agent_bonus",
-          "partner_commission",
-          "referral_bonus",
-          "proxy_investment_commission",
-          "agent_commission_withdrawal",
-          "agent_commission_used_for_rent",
-        ]);
-
-      if (!commissionErr && commissionRows) {
-        let commissionLedgerBalance = 0;
-        for (const row of commissionRows as any[]) {
-          const rowAmount = Number(row.amount) || 0;
-          const isIn = row.direction === "cash_in" || row.direction === "credit";
-          const isOut = row.direction === "cash_out" || row.direction === "debit";
-
-          if (
-            isIn &&
-            [
-              "agent_commission_earned",
-              "agent_commission",
-              "agent_bonus",
-              "partner_commission",
-              "referral_bonus",
-              "proxy_investment_commission",
-            ].includes(row.category)
-          ) {
-            commissionLedgerBalance += rowAmount;
-          } else if (
-            isOut &&
-            ["agent_commission_withdrawal", "agent_commission_used_for_rent"].includes(row.category)
-          ) {
-            commissionLedgerBalance -= rowAmount;
-          }
-        }
-
-        commissionLedgerBalance = Math.max(0, commissionLedgerBalance);
-        const totalBuckets = walletWithdrawable + walletFloat + walletAdvance;
-        const unallocatedBalance = Math.max(0, walletBalance - totalBuckets);
-        const recoverableGap = Math.max(0, commissionLedgerBalance - walletWithdrawable);
-        const selfHealAmount = Math.min(unallocatedBalance, recoverableGap);
-
-        if (selfHealAmount > 0) {
-          healedWithdrawable = walletWithdrawable + selfHealAmount;
-          const { error: walletFixErr } = await admin
-            .from("wallets")
-            .update({
-              withdrawable_balance: healedWithdrawable,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("user_id", fundingUserId);
-
-          if (walletFixErr) {
-            console.error("[approve-withdrawal] wallet bucket self-heal failed:", walletFixErr);
-            healedWithdrawable = walletWithdrawable;
-          } else {
-            console.log(
-              `[approve-withdrawal] self-healed withdrawable bucket for ${fundingUserId} by ${selfHealAmount}`
-            );
-          }
-        }
-      }
-    }
-
     // Withdrawable = withdrawable_balance + advance_balance. Float is locked
     // operational money. For proxy payouts, float is also spendable because
     // those funds are partner funds parked in the agent wallet.
-    const withdrawable = healedWithdrawable + walletAdvance + totalPendingHold;
+    const withdrawable = walletWithdrawable + walletAdvance;
     const totalSpendable = isProxyPayout
-      ? Math.max(walletBalance, healedWithdrawable + walletAdvance + walletFloat) + totalPendingHold
+      ? Math.max(walletBalance, walletWithdrawable + walletAdvance + walletFloat)
       : withdrawable;
     const effectiveBalance = totalSpendable;
 
@@ -259,13 +207,6 @@ Deno.serve(async (req) => {
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
-    }
-
-    // Reverse the pending hold entries so the final withdrawal entry is the sole deduction
-    if (pendingHolds && pendingHolds.length > 0) {
-      for (const hold of pendingHolds) {
-        await admin.from("general_ledger").delete().eq("id", hold.id);
-      }
     }
 
     // Get beneficiary profile for audit / notifications
@@ -309,51 +250,20 @@ Deno.serve(async (req) => {
 
     if (ledgerErr) {
       console.error("[approve-withdrawal] Ledger RPC error:", ledgerErr);
-      return new Response(JSON.stringify({ error: "Failed to record ledger entry: " + (ledgerErr.message || "unknown") }), {
-        status: 500,
+      const ledgerMessage = ledgerErr.message || "unknown";
+      const isInsufficientBalance = ledgerMessage.includes("wallets_buckets_nonneg");
+      return new Response(JSON.stringify({
+        error: isInsufficientBalance
+          ? `Insufficient withdrawable balance. Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}.`
+          : "Failed to record ledger entry: " + ledgerMessage,
+        code: isInsufficientBalance ? "INSUFFICIENT_WITHDRAWABLE" : "LEDGER_WRITE_FAILED",
+        available: Math.round(totalSpendable),
+        wallet_total: Math.round(walletBalance),
+        requested: amount,
+      }), {
+        status: isInsufficientBalance ? 400 : 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
-    }
-
-    {
-      // Drain order: withdrawable_balance first, then advance_balance, then
-      // (proxy payouts only) float_balance. Float is otherwise never touched.
-      let remaining = amount;
-      let nextWithdrawable = healedWithdrawable;
-      let nextAdvance = walletAdvance;
-      let nextFloat = walletFloat;
-
-      const fromWithdrawable = Math.min(nextWithdrawable, remaining);
-      nextWithdrawable -= fromWithdrawable;
-      remaining -= fromWithdrawable;
-
-      const fromAdvance = Math.min(nextAdvance, remaining);
-      nextAdvance -= fromAdvance;
-      remaining -= fromAdvance;
-
-      if (isProxyPayout && remaining > 0) {
-        const fromFloat = Math.min(nextFloat, remaining);
-        nextFloat -= fromFloat;
-        remaining -= fromFloat;
-      }
-
-      const { error: walletUpdateErr } = await admin
-        .from("wallets")
-        .update({
-          withdrawable_balance: nextWithdrawable,
-          advance_balance: nextAdvance,
-          float_balance: nextFloat,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", fundingUserId);
-
-      if (walletUpdateErr) {
-        console.error("[approve-withdrawal] Failed to decrement withdrawable bucket:", walletUpdateErr);
-        return new Response(JSON.stringify({ error: "Withdrawal recorded but wallet bucket update failed" }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
     }
 
     // Update withdrawal request status
@@ -393,7 +303,7 @@ Deno.serve(async (req) => {
         txn_group_id: txnGroupId,
         previous_balance: effectiveBalance,
         new_balance: effectiveBalance - amount,
-        pending_hold_reversed: totalPendingHold,
+        pending_hold_released: totalPendingHold,
       },
     });
 
