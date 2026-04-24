@@ -13,7 +13,11 @@ import {
 const SNAPSHOT_DB = 'welile-snapshot';
 const SNAPSHOT_STORE = 'snapshot';
 const SNAPSHOT_DB_VERSION = 2; // Bumped for expanded schema
-const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
+// Two-tier cache TTLs: wallet/profile refresh sooner; non-critical can sit longer.
+const CRITICAL_TTL_MS = 60 * 1000;       // 1 minute — wallet/profile
+const EXTENDED_TTL_MS = 5 * 60 * 1000;   // 5 minutes — analytics/lists/notifications
+// Backwards-compat export for any external imports.
+const CACHE_TTL_MS = CRITICAL_TTL_MS;
 
 export interface UserSnapshot {
   userId: string;
@@ -48,6 +52,8 @@ export interface UserSnapshot {
   supporterReferrals: any[];
   investmentAccount: any | null;
 }
+
+type Tier = 'critical' | 'extended' | 'all';
 
 let dbInstance: IDBDatabase | null = null;
 
@@ -152,6 +158,52 @@ export function useUserSnapshot(userId: string | undefined) {
   const [snapshot, setSnapshot] = useState<UserSnapshot>(emptySnapshot);
   const [loading, setLoading] = useState(true);
   const [lastFetched, setLastFetched] = useState<number | null>(null);
+  // Per-tier ready flags drive progressive UI.
+  const [criticalReady, setCriticalReady] = useState(false);
+  const [extendedReady, setExtendedReady] = useState(false);
+  // Per-tier error state so widgets can show a localised retry.
+  const [criticalError, setCriticalError] = useState<string | null>(null);
+  const [extendedError, setExtendedError] = useState<string | null>(null);
+
+  const fetchTier = useCallback(async (tier: Tier, force = false) => {
+    if (!userId) return;
+    if (!navigator.onLine) return; // caller handled cached display
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const res = await supabase.functions.invoke(`user-snapshot?tier=${tier}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (res.error) {
+        const msg = res.error.message || `Failed to load ${tier} data`;
+        if (tier === 'critical') setCriticalError(msg);
+        if (tier === 'extended') setExtendedError(msg);
+        return;
+      }
+      const partial = (res.data || {}) as Partial<UserSnapshot>;
+      setSnapshot((prev) => {
+        const next = { ...prev, ...partial } as UserSnapshot;
+        // Persist merged snapshot + fan out to per-domain stores.
+        void setCachedSnapshot(userId, next);
+        void hydrateOfflineStores(next);
+        return next;
+      });
+      setLastFetched(Date.now());
+      if (tier === 'critical' || tier === 'all') {
+        setCriticalReady(true);
+        setCriticalError(null);
+      }
+      if (tier === 'extended' || tier === 'all') {
+        setExtendedReady(true);
+        setExtendedError(null);
+      }
+    } catch (err) {
+      console.error(`[Snapshot] ${tier} fetch failed:`, err);
+      const msg = err instanceof Error ? err.message : 'Network error';
+      if (tier === 'critical') setCriticalError(msg);
+      if (tier === 'extended') setExtendedError(msg);
+    }
+  }, [userId]);
 
   const fetchSnapshot = useCallback(async (force = false) => {
     if (!userId) return;
@@ -162,49 +214,37 @@ export function useUserSnapshot(userId: string | undefined) {
       setSnapshot(cached.data);
       setLastFetched(cached.cachedAt);
       setLoading(false);
-
-      // If cache is fresh and not forced, skip network call
-      if (!force && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
-        return;
-      }
+      // Cached data counts as "ready" for first paint; we'll still revalidate
+      // in the background based on per-tier TTLs.
+      setCriticalReady(true);
+      setExtendedReady(true);
     }
 
-    // If offline, stop here (we already showed cached data above)
     if (!navigator.onLine) {
       setLoading(false);
       return;
     }
 
-    // Background refresh — don't set loading=true if we have cached data
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { setLoading(false); return; }
+    const cacheAge = cached ? Date.now() - cached.cachedAt : Infinity;
+    const needsCritical = force || cacheAge > CRITICAL_TTL_MS;
+    const needsExtended = force || cacheAge > EXTENDED_TTL_MS;
 
-      const res = await supabase.functions.invoke('user-snapshot', {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-
-      if (res.error) {
-        console.error('[Snapshot] fetch error:', res.error);
-        setLoading(false);
-        return;
-      }
-
-      const data = res.data as UserSnapshot;
-      setSnapshot(data);
-      setLastFetched(Date.now());
-
-      // Cache snapshot + fan-out to offline stores in parallel
-      await Promise.allSettled([
-        setCachedSnapshot(userId, data),
-        hydrateOfflineStores(data),
-      ]);
-    } catch (err) {
-      console.error('[Snapshot] unexpected error:', err);
-    } finally {
+    if (!needsCritical && !needsExtended) {
       setLoading(false);
+      return;
     }
-  }, [userId]);
+
+    // Stage 1: critical (wallet + profile) — awaited so first paint happens fast.
+    if (needsCritical) {
+      await fetchTier('critical', force);
+    }
+    setLoading(false);
+
+    // Stage 2: extended (everything else) — fire-and-forget in background.
+    if (needsExtended) {
+      void fetchTier('extended', force);
+    }
+  }, [userId, fetchTier]);
 
   useEffect(() => {
     if (userId) {
@@ -212,5 +252,34 @@ export function useUserSnapshot(userId: string | undefined) {
     }
   }, [userId, fetchSnapshot]);
 
-  return { snapshot, loading, refresh: () => fetchSnapshot(true), lastFetched };
+  // Refresh on tab focus if data is stale (no aggressive polling).
+  useEffect(() => {
+    if (!userId) return;
+    const onFocus = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (!lastFetched) return;
+      if (Date.now() - lastFetched > CRITICAL_TTL_MS) {
+        void fetchSnapshot(false);
+      }
+    };
+    document.addEventListener('visibilitychange', onFocus);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', onFocus);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [userId, lastFetched, fetchSnapshot]);
+
+  return {
+    snapshot,
+    loading,
+    criticalReady,
+    extendedReady,
+    criticalError,
+    extendedError,
+    refresh: () => fetchSnapshot(true),
+    refreshCritical: () => fetchTier('critical', true),
+    refreshExtended: () => fetchTier('extended', true),
+    lastFetched,
+  };
 }

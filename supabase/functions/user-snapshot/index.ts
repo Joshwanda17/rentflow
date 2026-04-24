@@ -45,7 +45,17 @@ Deno.serve(async (req) => {
     // Service-role client for data queries (bypasses RLS)
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // userId already set from getClaims above
+    // ── Tier selection ────────────────────────────────────────────
+    // critical → wallet + profile + roles only (fastest first paint)
+    // extended → everything else (background fill)
+    // all      → both (legacy, default)
+    const url = new URL(req.url);
+    const tier = (url.searchParams.get("tier") || "all").toLowerCase() as
+      | "critical"
+      | "extended"
+      | "all";
+    const wantCritical = tier === "critical" || tier === "all";
+    const wantExtended = tier === "extended" || tier === "all";
 
     // Fetch user roles first to determine what data to fetch
     const { data: roles } = await supabase
@@ -60,19 +70,23 @@ Deno.serve(async (req) => {
     // ── Batch ALL queries in parallel ──────────────────────────────
     const queries: Record<string, Promise<any>> = {};
 
-    // ── Universal data (every user) ───────────────────────────────
-    queries.profile = supabase
+    // ── CRITICAL tier: profile + wallet only ─────────────────────
+    if (wantCritical) {
+      queries.profile = supabase
       .from("profiles")
       .select("id, full_name, phone, email, city, country, avatar_url, mobile_money_number, mobile_money_provider, monthly_rent, verified, national_id, rent_discount_active, is_frozen, country_code, agent_type")
       .eq("id", userId)
       .maybeSingle();
 
-    queries.wallet = supabase
+      queries.wallet = supabase
       .from("wallets")
       .select("id, user_id, balance, updated_at")
       .eq("user_id", userId)
       .maybeSingle();
+    }
 
+    // ── EXTENDED tier: everything else ───────────────────────────
+    if (wantExtended) {
     queries.notifications = supabase
       .from("notifications")
       .select("id, title, message, type, is_read, created_at, metadata")
@@ -174,6 +188,7 @@ Deno.serve(async (req) => {
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(30);
+    } // end wantExtended
 
     // ── Execute all queries in parallel ───────────────────────────
     const results: Record<string, any> = {};
@@ -197,9 +212,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Enrich referrals with profile data (name, phone, city)
+    // Enrich referrals with profile data (name, phone, city) — extended only
     let enrichedReferrals = results.referrals || [];
-    if (enrichedReferrals.length > 0) {
+    if (wantExtended && enrichedReferrals.length > 0) {
       const referredIds = enrichedReferrals.map((r: any) => r.referred_id);
       const { data: referredProfiles } = await supabase
         .from("profiles")
@@ -232,40 +247,39 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Build expanded snapshot
-    const snapshot = {
+    // Build snapshot — fields outside the requested tier are omitted so the
+    // client merger never overwrites fresher extended data with `null`/`[]`.
+    const snapshot: Record<string, unknown> = {
       userId,
       roles: activeRoles,
       fetchedAt: new Date().toISOString(),
       version: 2, // Schema version for client-side compatibility
-
-      // Universal
-      profile: results.profile || null,
-      wallet: results.wallet || null,
-      notifications: results.notifications || [],
-      recentTransactions: results.recentTransactions || [],
-
-      // Referrals
-      referrals: enrichedReferrals,
-      referralCount: results.referralCount?.count ?? (enrichedReferrals.length || 0),
-
-      // Agent data
-      subAgents: results.subAgents || [],
-      pendingSubAgentInvites: results.pendingSubAgentInvites || [],
-      userInvites: results.userInvites || [],
-      linkSignups: results.linkSignups || [],
-      earningsSummary: results.earningsSummary || [],
-      agentEarnings: results.agentEarnings || [],
-
-      // Tenant data
-      landlords: results.landlords || [],
-      rentRequests: results.rentRequests || [],
-      repayments: results.repayments || [],
-
-      // Supporter data
-      supporterReferrals: results.supporterReferrals || [],
-      investmentAccount: null, // table removed
+      tier,
     };
+
+    if (wantCritical) {
+      snapshot.profile = results.profile || null;
+      snapshot.wallet = results.wallet || null;
+    }
+
+    if (wantExtended) {
+      snapshot.notifications = results.notifications || [];
+      snapshot.recentTransactions = results.recentTransactions || [];
+      snapshot.referrals = enrichedReferrals;
+      snapshot.referralCount =
+        results.referralCount?.count ?? (enrichedReferrals.length || 0);
+      snapshot.subAgents = results.subAgents || [];
+      snapshot.pendingSubAgentInvites = results.pendingSubAgentInvites || [];
+      snapshot.userInvites = results.userInvites || [];
+      snapshot.linkSignups = results.linkSignups || [];
+      snapshot.earningsSummary = results.earningsSummary || [];
+      snapshot.agentEarnings = results.agentEarnings || [];
+      snapshot.landlords = results.landlords || [];
+      snapshot.rentRequests = results.rentRequests || [];
+      snapshot.repayments = results.repayments || [];
+      snapshot.supporterReferrals = results.supporterReferrals || [];
+      snapshot.investmentAccount = null; // table removed
+    }
 
     return new Response(JSON.stringify(snapshot), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
