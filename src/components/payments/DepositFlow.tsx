@@ -34,7 +34,7 @@ interface DepositFlowProps {
 const DEPOSIT_PURPOSES: { id: DepositPurpose; label: string; emoji: string; desc: string }[] = [
   { id: 'operational_float', emoji: '🏘️', label: 'Operational Float', desc: 'Cash collected from tenants in the field' },
   { id: 'personal_deposit', emoji: '💰', label: 'Personal Deposit', desc: 'Your own money top-up' },
-  { id: 'partnership_deposit', emoji: '🤝', label: 'Partnership Deposit', desc: 'Money from or for a supporter/partner' },
+  { id: 'partnership_deposit', emoji: '🤝', label: 'Supporter Wallet Top-Up', desc: 'Top up your supporter wallet. Funds stay in your wallet until you choose to fund tenants or build a portfolio.' },
   { id: 'personal_rent_repayment', emoji: '🏠', label: 'Personal Rent Repayment', desc: 'Paying your own rent' },
   { id: 'other', emoji: '📝', label: 'Other', desc: 'Specify your own reason' },
 ];
