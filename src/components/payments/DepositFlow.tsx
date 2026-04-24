@@ -213,7 +213,16 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       setStep('success');
     } catch (error: any) {
       console.error('Deposit error:', error);
-      toast.error(error.message || 'Failed to submit deposit');
+      // Postgres unique violation — TID already used (possibly by another user, hidden by RLS)
+      if (error?.code === '23505' || /duplicate key|already (been )?(used|submitted)/i.test(error?.message || '')) {
+        toast.error('This transaction reference has already been submitted', {
+          description: 'Each MoMo / bank reference can only be used once. Please double-check the TID on your SMS receipt, or use a different transaction.',
+        });
+      } else {
+        toast.error('Failed to submit deposit', {
+          description: error?.message || 'Please try again or contact support.',
+        });
+      }
       setStep('form');
     } finally {
       setIsSubmitting(false);
