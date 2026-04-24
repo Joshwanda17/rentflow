@@ -26,6 +26,14 @@ export default function DashboardRedirect() {
   const queryHint = new URLSearchParams(location.search).get('role') as AppRole | null;
   const pathHint = slugToRole(location.pathname); // null for bare `/dashboard`
 
+  // Detect `/dashboard/<unknown-slug>` so we can route those users to the
+  // role picker rather than silently dropping them on their default
+  // dashboard. A bare `/dashboard` (no second segment) is NOT considered
+  // unknown — it's the legacy entry point and should fall through.
+  const segments = location.pathname.split('/').filter(Boolean);
+  const hasUnknownPathSlug =
+    segments[0] === 'dashboard' && segments.length > 1 && pathHint === null;
+
   useEffect(() => {
     if (loading) return;
     if (!user) {
@@ -48,16 +56,18 @@ export default function DashboardRedirect() {
     }
 
     // A specific persona was requested but the user no longer has it
-    // (revoked access, expired link). Send them to the role picker so
-    // they can choose from what they DO have, instead of breaking.
-    if (pathHint || queryHint) {
+    // (revoked access, expired link) OR the URL contains an unknown
+    // persona slug like `/dashboard/foo`. Send them to the role picker
+    // so they can choose from what they DO have, instead of landing on
+    // a broken dashboard screen.
+    if (pathHint || queryHint || hasUnknownPathSlug) {
       navigate('/select-role', { replace: true });
       return;
     }
 
     // Bare `/dashboard` with no hint: forward to the first available role.
     navigate(roleToSlug(roles[0]), { replace: true });
-  }, [loading, user, role, roles, pathHint, queryHint, navigate]);
+  }, [loading, user, role, roles, pathHint, queryHint, hasUnknownPathSlug, navigate]);
 
   // While auth resolves, show the same skeleton the dashboard uses so
   // there is no flash of empty content.
