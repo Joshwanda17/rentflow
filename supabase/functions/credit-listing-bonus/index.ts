@@ -283,6 +283,7 @@ Deno.serve(async (req) => {
         cfo_approved_at: now,
         cfo_notes: "Auto-approved on Landlord Ops verification",
         paid_at: now,
+        ledger_entry_id: txGroupId,
       })
       .eq("id", approvalId);
 
