@@ -22,6 +22,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import ApplyForRoleDialog from '@/components/ApplyForRoleDialog';
+import { useAuth } from '@/hooks/useAuth';
+import { useRoleAccessRequests } from '@/hooks/useRoleAccessRequests';
 
 type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager' | 'ceo' | 'coo' | 'cfo' | 'cto' | 'cmo' | 'crm' | 'employee' | 'operations' | 'super_admin' | 'hr';
 
@@ -62,10 +65,14 @@ const PUBLIC_ROLES: AppRole[] = ['tenant', 'agent', 'landlord', 'supporter'];
 const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, onRoleChange, onAddRole, variant = 'header' }: RoleSwitcherProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { hasApplied, requestRole } = useRoleAccessRequests(user?.id);
   const [codeDialogOpen, setCodeDialogOpen] = useState(false);
   const [pendingRole, setPendingRole] = useState<AppRole | null>(null);
   const [accessCode, setAccessCode] = useState('');
   const [isAdding, setIsAdding] = useState(false);
+  const [applyDialogOpen, setApplyDialogOpen] = useState(false);
+  const [applyRole, setApplyRole] = useState<AppRole | null>(null);
 
   const handleSwitch = async (role: AppRole) => {
     if (role === currentRole) return;
@@ -96,21 +103,10 @@ const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, o
       return;
     }
 
-    // Public role — auto-add
-    if (!onAddRole) return;
-    setIsAdding(true);
-    const { error } = await onAddRole(role);
-    setIsAdding(false);
-
-    if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-      return;
-    }
-
-    toast({ title: 'Role Added', description: `You now have access to the ${roleConfig[role].label} dashboard` });
-    onRoleChange(role);
-    const route = roleDashboardRoutes[role];
-    navigate(route || roleToSlug(role));
+    // Public role they don't have yet — open the Apply dialog instead of
+    // silently granting. Strict ownership: nothing is auto-granted on tap.
+    setApplyRole(role);
+    setApplyDialogOpen(true);
   };
 
   const confirmAccessCode = async () => {
