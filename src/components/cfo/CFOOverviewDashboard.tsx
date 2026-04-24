@@ -10,7 +10,6 @@ import { KPIBreakdownSheet } from '@/components/cfo/KPIBreakdownSheet';
 import { GroupedKPIBreakdownSheet } from '@/components/cfo/GroupedKPIBreakdownSheet';
 import { ROIPayableForecast } from '@/components/cfo/ROIPayableForecast';
 import { CFOActionsLog } from '@/components/cfo/CFOActionsLog';
-import { CFOImpactKPIStrip } from '@/components/cfo/CFOImpactKPIStrip';
 
 interface CFOOverviewDashboardProps {
   onTabChange?: (tab: string) => void;
