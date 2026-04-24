@@ -1,53 +1,101 @@
+# Fix Landlord Ops Verification + Auto-Pay Listing Bonus
 
+## What's Wrong
 
-## Goal
+### Issue 1: "Only internal staff can verify listings" 403
+The deployed `.limit(1)` fix is correct, but the function is still brittle:
+1. **Treasury Guard runs BEFORE role check** — if `credits_paused` ever toggles on, Landlord Ops sees a confusing 423 instead of the real authorization status.
+2. **Role allow-list omits `landlord_ops` permission grants** — a staffer with only `staff_permissions.permitted_dashboard='landlord_ops'` (no base ops role) gets rejected.
 
-Replace `/dashboard` with persona-specific URLs. URL becomes the source of truth for which persona is shown, but the existing tab UX inside `Dashboard.tsx` is kept — taps update the URL and the same component renders the right sub-dashboard. `/dashboard` is removed entirely; every caller is updated to a persona slug.
+### Issue 2: Two-step approval is a needless bottleneck
+Today: Landlord Ops verifies → row sits in `pending_cfo` → CFO must manually approve → agent finally gets UGX 5,000. Historical data shows 2 bonuses stuck pending forever. For a flat UGX 5,000 verification incentive, the CFO step adds no value.
 
-## Final URL map
+---
 
-| Persona | New URL | Notes |
+## The Fix (3 parts)
+
+### Part 1 — Resilient role check (`credit-listing-bonus`)
+- Reorder: **role check FIRST**, treasury guard SECOND.
+- Expand allow-list to accept either:
+  - base role in `(manager, coo, super_admin, operations, employee, ceo)`, OR
+  - `staff_permissions` row with `permitted_dashboard='landlord_ops'`.
+- Improve error message to include the user ID that was checked.
+
+### Part 2 — Auto-credit on verification (skip CFO queue)
+Replace the "create pending_cfo row" path with a direct ledger write inside `credit-listing-bonus`:
+
+1. Verify listing + landlord (unchanged).
+2. Insert `listing_bonus_approvals` row with `status='paid'`, `landlord_ops_approved_*` AND `cfo_approved_by=managerId` (auto-self-approved with note "auto-approved on verification"), `paid_at=now()`.
+3. Call `create_ledger_transaction` RPC with the same balanced legs the existing `approve-listing-bonus` uses:
+   - `cash_in` UGX 5,000 → agent wallet, category `agent_commission_earned`, scope `wallet`
+   - `cash_out` UGX 5,000 → platform, category `agent_commission_earned`, scope `platform`
+4. Insert `agent_earnings` row (matches `credit-landlord-verification-bonus` pattern).
+5. Notify agent: "Listing verified — UGX 5,000 credited to your commission wallet."
+6. Audit log `action_type='listing_bonus_auto_paid'`.
+
+**Treasury Guard override (per your confirmation):** Listing bonus auto-credit bypasses `credits_paused` — this is a fixed verification incentive funded from existing platform float, not a discretionary disbursement.
+
+### Part 3 — Keep CFO queue as manual override
+- `approve-listing-bonus` stays untouched for edge cases (bulk historical fixes, disputes).
+- `ListingBonusApprovalQueue` UI: filter out `status='paid'` rows where `landlord_ops_approved_by = cfo_approved_by` (auto-paid signature). Show only true pending/rejected ones.
+
+---
+
+## Files to Edit
+
+1. **`supabase/functions/credit-listing-bonus/index.ts`** — reorder checks, expand role allow-list (add `staff_permissions` query + `ceo`), remove treasury guard for the auto-credit path, replace pending-CFO insert with ledger write + `agent_earnings` insert + agent notification + audit log.
+2. **`src/components/executive/LandlordOpsDashboard.tsx`** — toast text: "✅ Verified → UGX 5,000 credited to agent" (remove "forwarded to CFO" copy).
+3. **`src/components/executive/ListingBonusApprovalQueue.tsx`** — hide auto-paid rows (where `landlord_ops_approved_by = cfo_approved_by` and `status='paid'`).
+
+## Files NOT Touched
+- `approve-listing-bonus/index.ts` (manual CFO override)
+- Any migration / RLS / schema
+- Agent dashboards (already read from `agent_earnings` + wallet)
+- Trust scoring (already triggered by `agent_commission_earned`)
+
+---
+
+## Impact Assessment
+
+| Area | Change | Risk |
 |---|---|---|
-| Tenant | `/tenant` | |
-| Agent | `/agent` | |
-| Landlord | `/landlord` | |
-| Funder (internal `supporter` role) | `/funder` | URL uses BOU/CMA term; internal role name unchanged |
-| Manager | `/manager` | |
+| `credit-listing-bonus` | Reorder + ledger write + agent_earnings insert | Medium — touches money flow. Mitigated by reusing exact RPC pattern from `approve-listing-bonus` |
+| Landlord Ops toast | Copy update | Low |
+| CFO queue UI | Filter auto-paid rows | Low |
+| Treasury Guard | Bypassed for this flow per your confirmation | Low — single-purpose UGX 5K incentive, fully funded |
+| Ledger | One auto-credit per verification, identical legs to existing CFO path | None |
+| Trust score | `agent_commission_earned` already wired | None |
+| Backward compat | Existing `pending_cfo` rows still work via CFO queue | None |
 
-Executive routes (`/ceo/dashboard`, `/cfo/dashboard`, etc.) are untouched — they're already isolated.
+---
 
-## Behaviour
+## Technical Details
 
-1. **One component, five routes.** `Dashboard.tsx` stays as-is structurally. `App.tsx` mounts the same `<Dashboard />` at `/tenant`, `/agent`, `/landlord`, `/funder`, `/manager`. The component reads the persona from `useLocation().pathname` (via a tiny `slugToRole` helper) and uses that as the source of truth instead of the previous mix of `role`/`displayRole`.
-2. **Tabs still feel like tabs.** `BottomRoleSwitcher.handleSwitch` keeps calling the existing `handlePublicRoleSwitch` (so the auth `switchRole`/`grantAndSwitchRole` flow still runs and `useAuth().role` stays in sync), and on success it also `navigate(slug)` so the URL updates. Same animations, same gated-role apply dialog, no flicker — just the URL now matches the active tab.
-3. **`/dashboard` is gone.** The route is removed from `App.tsx`. No redirect, no compat layer.
-4. **All 47 callers updated.** Every `navigate('/dashboard')` and `navigate('/dashboard?role=X')` is rewritten:
-   - Plain `navigate('/dashboard')` → `navigate(roleToSlug(role))` using current `useAuth().role`, falling back to `/tenant` when role is unknown (e.g. fresh post-signup).
-   - `navigate('/dashboard?role=supporter')` → `navigate('/funder')` directly.
-   - `navigate('/dashboard?role=tenant')` → `navigate('/tenant')`, etc.
-   - "Back to dashboard" buttons in sub-pages (`AgentEarnings`, `TransactionHistory`, `OrderHistory`, `FinancialStatement`, `AgentRegistrations`, `ExecutiveHub`, `ManagerAccess`, `DepositHistory`) → use the helper.
-5. **Login / signup landing.** `Index.tsx`, `Auth.tsx`, `RegisterTenantPublic.tsx`, `RegisterPartnerPublic.tsx`, `ActivateSupporter.tsx`, `ActivatePartner.tsx` resolve the persona slug from `useAuth().role` (or the `role` param they already pass) and `Navigate` straight to it.
-6. **Unknown / no role.** Hitting `/agent` (or any persona) without that role and without "all roles unlocked" → redirect to `/select-role` (current behaviour preserved). No silent role grants from URL.
-7. **Auto-default qualified investors.** The existing "if `isQualifiedInvestor` and on auto, switch to supporter" effect is kept, but instead of calling `switchRole('supporter')` it calls `navigate('/funder', { replace: true })` once per session.
+**Ledger entries shape (matches `approve-listing-bonus`):**
+```
+[
+  { account: agent_wallet_id, cash_in: 5000, cash_out: 0, category: 'agent_commission_earned', scope: 'wallet' },
+  { account: platform_account, cash_in: 0, cash_out: 5000, category: 'agent_commission_earned', scope: 'platform' }
+]
+```
+- `entries` passed as raw JSON array (NOT `JSON.stringify`'d) per ledger serialization standard.
+- Reason field: `"Listing verification bonus — auto-paid on Landlord Ops verification"` (≥10 chars).
 
-## Files
+**Role check query (replaces current `.in()` only):**
+```sql
+SELECT 1
+FROM user_roles ur
+WHERE ur.user_id = $1
+  AND ur.enabled = true
+  AND ur.role IN ('manager','coo','super_admin','operations','employee','ceo')
+UNION
+SELECT 1
+FROM staff_permissions sp
+WHERE sp.user_id = $1
+  AND sp.permitted_dashboard = 'landlord_ops'
+LIMIT 1;
+```
+(Implemented as two parallel Supabase queries since the JS client doesn't compose UNION cleanly.)
 
-**New**
-- `src/lib/roleRoutes.ts` — `roleToSlug(role)`, `slugToRole(pathname)`, `PERSONA_SLUGS = ['tenant','agent','landlord','funder','manager']`. Single source of truth, ~20 lines.
-
-**Edited**
-- `src/App.tsx` — remove `/dashboard` route, add five persona routes pointing at `<Dashboard />`.
-- `src/pages/Dashboard.tsx` — derive `displayRole` from URL slug instead of `useAuth().role`; keep all frozen / offline / loading / cached-roles logic; auto-default effect navigates instead of switchRole.
-- `src/components/BottomRoleSwitcher.tsx` — after successful `onRoleChange(role)`, also `navigate(roleToSlug(role))`. Active-tab detection reads URL.
-- `src/pages/Index.tsx`, `src/pages/ActivateSupporter.tsx`, `src/pages/ActivatePartner.tsx`, `src/pages/RegisterTenantPublic.tsx`, `src/pages/RegisterPartnerPublic.tsx` — navigate to persona slug.
-- The 47 files containing `navigate('/dashboard'…)` — mechanical rewrite to `navigate(roleToSlug(role))` (or a hard slug where the destination is fixed, e.g. ActivateSupporter → `/funder`).
-
-**Untouched**
-- All executive routes, `RoleGuard`, `roleDashboardRoutes`, internal role names, auth flows, sub-dashboard components.
-
-## Risk + mitigation
-
-- **Bookmarks / external links to `/dashboard`** → Add a single `<Route path="/dashboard" element={<Navigate to="/tenant" replace />} />` *only as a last-line catch* OR drop entirely per your direction. Confirm: I'll drop entirely. Old bookmarks 404 to React Router's `NotFound`, which is acceptable since users will re-enter via auth.
-- **SMS / email deep links from production** containing `/dashboard?role=X` → these will break. If any are live, we either keep a one-line redirect or update the templates. I'll grep `supabase/functions` for `/dashboard` references during implementation and fix the templates in the same pass; no separate compat route.
-- **Mechanical rewrite scale (47 files)** → all are simple substitutions; no logic changes. I'll group them by pattern and batch the edits.
-
+**Auto-paid signature for UI filter:**
+`status = 'paid' AND landlord_ops_approved_by = cfo_approved_by AND landlord_ops_notes ILIKE '%auto%'`
