@@ -329,8 +329,8 @@ Deno.serve(async (req) => {
                     action_type: 'auto_routed_to_float',
                     table_name: 'deposit_requests',
                     record_id: depositRequest.id,
-                    reason: `Agent deposit ${depositRequest.id} (UGX ${sweepAmount}) had no/ambiguous purpose — auto-routed to operational float by approve-deposit safety net.`,
                     metadata: {
+                      reason: `Agent deposit ${depositRequest.id} (UGX ${sweepAmount}) had no/ambiguous purpose — auto-routed to operational float by approve-deposit safety net.`,
                       agent_id: depositRequest.user_id,
                       amount: sweepAmount,
                       original_purpose: depositRequest.deposit_purpose ?? null,
