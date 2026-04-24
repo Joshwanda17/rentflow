@@ -71,7 +71,7 @@ export default function BulkRemoveRoleDialog({
           payload: {
             title: `🔔 Role Removed: ${roleLabels[role] || role}`,
             body: `Your ${role} role has been removed. Some features may no longer be accessible.`,
-            url: '/tenant',
+            url: '/dashboard/tenant',
             type: 'role_change'
           }
         }
@@ -134,7 +134,7 @@ export default function BulkRemoveRoleDialog({
         await sendBulkNotifications(successfulUserIds, selectedRole);
         // Notify managers (fire-and-forget)
         supabase.functions.invoke('notify-managers', {
-          body: { title: '🔒 Bulk Role Removed', body: `${selectedRole} role removed from ${successfulUserIds.length} user(s)`, url: '/manager' }
+          body: { title: '🔒 Bulk Role Removed', body: `${selectedRole} role removed from ${successfulUserIds.length} user(s)`, url: '/dashboard/manager' }
         }).catch(() => {});
       }
 
