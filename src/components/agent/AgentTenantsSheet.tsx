@@ -961,15 +961,17 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                                     </button>
                                     {req.status === 'completed' ? (
                                       <button
-                                        onClick={() => {
-                                          setRenewPrefill({ name: tenant.full_name, phone: tenant.phone, amount: String(req.rent_amount) });
-                                          setRenewDialogOpen(true);
-                                        }}
-                                        className="flex items-center justify-center gap-2 h-11 rounded-xl bg-primary text-primary-foreground font-semibold text-sm active:scale-95 transition-transform"
+                                        onClick={() => handleRenew(tenant, req)}
+                                        disabled={renewingReqId === req.id}
+                                        className="flex items-center justify-center gap-2 h-11 rounded-xl bg-primary text-primary-foreground font-semibold text-sm active:scale-95 transition-transform disabled:opacity-60"
                                         style={{ touchAction: 'manipulation' }}
                                       >
-                                        <RefreshCw className="h-4 w-4" />
-                                        Renew
+                                        {renewingReqId === req.id ? (
+                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                          <RefreshCw className="h-4 w-4" />
+                                        )}
+                                        {renewingReqId === req.id ? 'Renewing…' : 'Renew'}
                                       </button>
                                     ) : (
                                       <button
