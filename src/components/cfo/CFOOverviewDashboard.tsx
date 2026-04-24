@@ -10,7 +10,6 @@ import { KPIBreakdownSheet } from '@/components/cfo/KPIBreakdownSheet';
 import { GroupedKPIBreakdownSheet } from '@/components/cfo/GroupedKPIBreakdownSheet';
 import { ROIPayableForecast } from '@/components/cfo/ROIPayableForecast';
 import { CFOActionsLog } from '@/components/cfo/CFOActionsLog';
-import { CFOImpactKPIStrip } from '@/components/cfo/CFOImpactKPIStrip';
 
 interface CFOOverviewDashboardProps {
   onTabChange?: (tab: string) => void;
@@ -227,9 +226,6 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
           <ArrowUpRight className="h-5 w-5 opacity-60 shrink-0" />
         </button>
       )}
-
-      {/* ── PLATFORM IMPACT KPIs ── */}
-      <CFOImpactKPIStrip />
 
       {/* ── 3 KEY NUMBERS ── */}
       <div className="grid grid-cols-1 gap-3">
