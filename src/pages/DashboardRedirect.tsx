@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { roleToSlug } from '@/lib/roleRoutes';
-import DashboardLoadingFallback from '@/components/DashboardLoadingFallback';
+import { Loader2 } from 'lucide-react';
 
 /**
  * Catch-all redirect for the legacy `/dashboard` URL.
@@ -41,5 +41,9 @@ export default function DashboardRedirect() {
   // While auth resolves, show the same skeleton the dashboard uses so
   // there is no flash of empty content.
   if (!loading && !user) return <Navigate to="/auth" replace />;
-  return <DashboardLoadingFallback />;
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    </div>
+  );
 }
