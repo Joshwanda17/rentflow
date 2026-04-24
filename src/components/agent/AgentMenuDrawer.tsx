@@ -221,7 +221,7 @@ export function AgentMenuDrawer({
       label: '📊 Earnings',
       items: [
         { icon: BarChart3, label: 'Partner Dashboard', description: 'Partners & commissions', onClick: onOpenPartnerDashboard, accent: 'emerald-500', badge: 'New' },
-        { icon: TrendingUp, label: 'Credit Access', description: 'View your credit limit', path: '/dashboard', accent: 'purple-500', badge: '📊' },
+        { icon: TrendingUp, label: 'Credit Access', description: 'View your credit limit', path: '/agent', accent: 'purple-500', badge: '📊' },
         { icon: Trophy, label: 'Rank System', description: 'Levels & badges', onClick: onOpenEarningsRank, accent: 'amber-500' },
         { icon: TrendingUp, label: 'My Earnings', description: 'Detailed breakdown', path: '/earnings', accent: 'success' },
         { icon: Target, label: 'Goals', description: 'Track targets', path: '/agent-analytics', accent: 'primary' },

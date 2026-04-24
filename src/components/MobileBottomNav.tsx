@@ -4,6 +4,7 @@ import { Home, Menu, Settings, Store, Users, FileText, Wallet, Shield } from 'lu
 import { AppRole } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
+import { roleToSlug } from '@/lib/roleRoutes';
 import WelileAIChatDrawer from '@/components/ai-chat/WelileAIChatDrawer';
 import MobileManagerMenu from '@/components/manager/MobileManagerMenu';
 
@@ -28,13 +29,14 @@ export default function MobileBottomNav({ currentRole, onManagerHubChange, activ
   const location = useLocation();
   const currentPath = location.pathname;
   const currentSearch = location.search;
+  const personaSlug = roleToSlug(currentRole);
   const [aiOpen, setAiOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   
   const handleTap = () => { hapticTap(); };
 
-  // Manager bottom nav: hub switching when on dashboard
-  if (currentRole === 'manager' && currentPath === '/dashboard' && onManagerHubChange) {
+  // Manager bottom nav: hub switching when on the manager dashboard
+  if (currentRole === 'manager' && currentPath === '/manager' && onManagerHubChange) {
     const managerItems = [
       { id: 'home' as const, icon: Home, label: 'Home' },
       { id: 'wallets' as const, icon: Wallet, label: 'Wallets' },
@@ -88,7 +90,7 @@ export default function MobileBottomNav({ currentRole, onManagerHubChange, activ
 
   // Standard nav for all roles
   const getNavItems = () => {
-    const baseItems = [{ href: '/dashboard', icon: Home, label: 'Home', active: currentPath === '/dashboard' }];
+    const baseItems = [{ href: personaSlug, icon: Home, label: 'Home', active: currentPath === personaSlug }];
 
     if (currentRole === 'manager') {
       return [...baseItems,

@@ -10,7 +10,7 @@ interface RoleGuardProps {
   redirectTo?: string;
 }
 
-export default function RoleGuard({ allowedRoles, children, redirectTo = '/dashboard' }: RoleGuardProps) {
+export default function RoleGuard({ allowedRoles, children, redirectTo = '/tenant' }: RoleGuardProps) {
   const { user, roles, loading } = useAuth();
   const loggedRef = useRef(false);
 
