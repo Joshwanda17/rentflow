@@ -3631,6 +3631,8 @@ export type Database = {
           created_at: string
           daily_transaction_volume: number
           id: string
+          landlords_active_90d: number
+          landlords_dormant: number
           new_users_today: number
           partners_with_portfolios: number
           referral_pct: number
@@ -3647,6 +3649,8 @@ export type Database = {
           created_at?: string
           daily_transaction_volume?: number
           id?: string
+          landlords_active_90d?: number
+          landlords_dormant?: number
           new_users_today?: number
           partners_with_portfolios?: number
           referral_pct?: number
@@ -3663,6 +3667,8 @@ export type Database = {
           created_at?: string
           daily_transaction_volume?: number
           id?: string
+          landlords_active_90d?: number
+          landlords_dormant?: number
           new_users_today?: number
           partners_with_portfolios?: number
           referral_pct?: number

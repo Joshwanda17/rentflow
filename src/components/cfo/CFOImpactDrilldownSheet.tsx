@@ -16,6 +16,8 @@ const META: Record<ImpactMetric, { title: string; emoji: string; amountLabel: st
   tenants: { title: 'Tenants Impacted', emoji: '🏠', amountLabel: 'Last Rent (UGX)' },
   agents: { title: 'Agents Earning', emoji: '👤', amountLabel: 'Earned (UGX)' },
   partners: { title: 'Active Partners', emoji: '💼', amountLabel: 'Invested (UGX)' },
+  landlords_active: { title: 'Active Landlords (90d)', emoji: '🏘️', amountLabel: 'Last Rent (UGX)' },
+  landlords_dormant: { title: 'Dormant Landlords', emoji: '😴', amountLabel: 'Balance Due (UGX)' },
 };
 
 const fmtMoney = (n: number) =>
