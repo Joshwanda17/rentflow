@@ -162,7 +162,36 @@ Deno.serve(async (req) => {
       .select("id")
       .single();
 
-    if (approvalErr) throw approvalErr;
+    if (approvalErr) {
+      // Idempotency: unique-violation on (listing_id) means another concurrent
+      // invocation already created the approval row. Treat as already-paid and
+      // return the existing record instead of double-crediting the ledger.
+      const isUniqueViolation =
+        (approvalErr as any).code === "23505" ||
+        /duplicate key|unique constraint/i.test(approvalErr.message || "");
+
+      if (isUniqueViolation) {
+        const { data: existing } = await adminClient
+          .from("listing_bonus_approvals")
+          .select("id, status")
+          .eq("listing_id", listing_id)
+          .maybeSingle();
+        console.log(
+          `[credit-listing-bonus] Idempotent hit — approval already exists for listing ${listing_id}:`,
+          JSON.stringify(existing),
+        );
+        return new Response(JSON.stringify({
+          success: true,
+          message: "Bonus already paid (idempotent)",
+          already_paid: true,
+          approval_id: existing?.id,
+          status: existing?.status,
+        }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      throw approvalErr;
+    }
 
     // Step 3: Post balanced ledger entries (same legs as approve-listing-bonus)
     const { data: txGroupId, error: ledgerErr } = await adminClient.rpc("create_ledger_transaction", {
