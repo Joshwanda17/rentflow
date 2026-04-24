@@ -447,7 +447,9 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
         onOpenChange={setDepositOpen}
         {...(isAgent
           ? { allowedPurposes: ['operational_float', 'personal_deposit'] as const, lockPurpose: true, requirePurposeChoice: true }
-          : {})}
+          : role === 'supporter'
+            ? { allowedPurposes: ['partnership_deposit'] as const, defaultPurpose: 'partnership_deposit' as const, lockPurpose: true }
+            : {})}
       />
       <RequestMoneyDialog 
         open={requestOpen} 
