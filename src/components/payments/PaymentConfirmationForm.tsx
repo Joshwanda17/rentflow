@@ -221,6 +221,30 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {errorDetails && (
+            <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 space-y-2">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-destructive">{errorDetails.title}</p>
+                  <p className="text-xs text-destructive/90 mt-0.5 break-words">{errorDetails.message}</p>
+                  {(errorDetails.code || errorDetails.hint || errorDetails.details) && (
+                    <div className="mt-1 text-[11px] text-destructive/80 space-y-0.5 font-mono break-words">
+                      {errorDetails.code && <div>code: {errorDetails.code}</div>}
+                      {errorDetails.hint && <div>hint: {errorDetails.hint}</div>}
+                      {errorDetails.details && <div>details: {errorDetails.details}</div>}
+                    </div>
+                  )}
+                  {errorDetails.raw && (
+                    <details className="mt-2">
+                      <summary className="text-[11px] text-destructive/80 cursor-pointer">Show raw error</summary>
+                      <pre className="mt-1 text-[10px] bg-background/60 p-2 rounded overflow-auto max-h-48 whitespace-pre-wrap break-words">{errorDetails.raw}</pre>
+                    </details>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="amount">Amount Paid (UGX) *</Label>
