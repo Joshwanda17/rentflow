@@ -259,7 +259,7 @@ export default function ActivateSupporter() {
         toast({ title: '🎉 Welcome to Welile!', description: 'Redirecting to your dashboard...' });
         // Navigate with role param so Dashboard switches to the correct role (e.g. supporter)
         const activatedRole = inviteDetails?.role || 'supporter';
-        navigate(`/dashboard?role=${activatedRole}`);
+        navigate(roleToSlug(activatedRole as any));
       }
     } catch (error: any) {
       toast({
@@ -281,7 +281,7 @@ export default function ActivateSupporter() {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email: activatedEmail, password: newPassword || password });
       if (error) throw error;
-      navigate('/dashboard');
+      navigate('/funder');
     } catch {
       toast({ title: 'Login Failed', description: 'Please try logging in manually.', variant: 'destructive' });
       navigate('/auth');

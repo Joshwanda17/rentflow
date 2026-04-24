@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { Home, Users, Wallet, Building2, Shield, ChevronDown, Lock } from 'lucide-react';
 import { hapticTap } from '@/lib/haptics';
 import { roleDashboardRoutes } from '@/components/layout/executiveSidebarConfig';
+import { roleToSlug } from '@/lib/roleRoutes';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -80,7 +81,7 @@ const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, o
       }
       onRoleChange(role);
       const route = roleDashboardRoutes[role];
-      navigate(route || '/dashboard');
+      navigate(route || roleToSlug(role));
       return;
     }
 
@@ -109,7 +110,7 @@ const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, o
     toast({ title: 'Role Added', description: `You now have access to the ${roleConfig[role].label} dashboard` });
     onRoleChange(role);
     const route = roleDashboardRoutes[role];
-    navigate(route || '/dashboard');
+    navigate(route || roleToSlug(role));
   };
 
   const confirmAccessCode = async () => {
@@ -137,7 +138,7 @@ const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, o
     } else {
       onRoleChange(pendingRole);
       const route = roleDashboardRoutes[pendingRole];
-      navigate(route || '/dashboard');
+      navigate(route || roleToSlug(pendingRole));
     }
     setPendingRole(null);
   };
