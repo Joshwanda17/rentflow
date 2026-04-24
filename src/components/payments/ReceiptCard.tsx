@@ -108,16 +108,6 @@ export default function ReceiptCard({
             <span>{format(date, 'MMM d, yyyy HH:mm')}</span>
           </div>
           <div className="flex justify-between text-sm items-center">
-            <span className="text-muted-foreground">Reference</span>
-            <button 
-              onClick={handleCopyReference}
-              className="flex items-center gap-1 font-mono text-xs hover:text-primary transition-colors"
-            >
-              {reference.slice(0, 16)}...
-              <Copy className="w-3 h-3" />
-            </button>
-          </div>
-          <div className="flex justify-between text-sm items-center">
             <span className="text-muted-foreground">Status</span>
             <StatusBadge status={status} size="sm" />
           </div>
