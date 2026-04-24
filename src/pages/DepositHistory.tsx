@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -136,7 +137,7 @@ export default function DepositHistory() {
               <p className="text-sm text-muted-foreground mb-4">
                 You haven't made any deposit requests yet.
               </p>
-              <Button onClick={() => navigate('/dashboard')}>
+              <Button onClick={() => navigate('/tenant')}>
                 Make a Deposit
               </Button>
             </CardContent>

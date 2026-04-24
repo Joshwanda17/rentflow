@@ -3,6 +3,7 @@ import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -73,7 +74,7 @@ const roleConfig: Record<string, { label: string; icon: React.ElementType; color
 
 export default function AgentRegistrations() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const { toast } = useToast();
   const [invites, setInvites] = useState<UserInvite[]>([]);
   const [loading, setLoading] = useState(true);
@@ -247,7 +248,7 @@ Just click the link and enter your password to get started!`;
         <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b">
           <div className="flex items-center justify-between p-4 gap-2 min-w-0">
             <div className="flex items-center gap-2 min-w-0 flex-1">
-              <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={() => navigate('/dashboard')}>
+              <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={() => navigate(roleToSlug(role))}>
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <div className="min-w-0">

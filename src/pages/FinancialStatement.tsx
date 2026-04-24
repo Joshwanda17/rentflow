@@ -8,6 +8,7 @@ import {
   X, Wallet, TrendingUp, TrendingDown, Loader2
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -32,7 +33,7 @@ interface StatementEntry {
 
 export default function FinancialStatement() {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, role } = useAuth();
   const [entries, setEntries] = useState<StatementEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState<Date | undefined>(
@@ -228,7 +229,7 @@ export default function FinancialStatement() {
       <div className="container mx-auto px-4 py-6 max-w-4xl">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
+          <Button variant="ghost" size="icon" onClick={() => navigate(roleToSlug(role))}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1">

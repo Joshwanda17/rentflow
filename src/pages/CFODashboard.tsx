@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -36,7 +37,7 @@ import { RentCollectionsFeed } from '@/components/cfo/RentCollectionsFeed';
 import { AgentPerformanceRankings } from '@/components/cfo/AgentPerformanceRankings';
 import { CFOPartnerInvestments } from '@/components/cfo/CFOPartnerInvestments';
 export default function CFODashboard() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, role } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
 
@@ -64,7 +65,7 @@ export default function CFODashboard() {
   }
 
   if (!user) { navigate('/auth'); return null; }
-  if (isManager === false) { navigate('/dashboard'); return null; }
+  if (isManager === false) { navigate(roleToSlug(role)); return null; }
 
   const tabs = [
     { id: 'overview', label: 'Pending Approvals', icon: Bell },

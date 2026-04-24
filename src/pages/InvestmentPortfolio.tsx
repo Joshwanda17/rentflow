@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -45,7 +46,7 @@ interface InvestmentAccount {
 
 export default function InvestmentPortfolio() {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, role } = useAuth();
   const { formatAmount } = useCurrency();
   const [loading, setLoading] = useState(true);
   const [accounts, setAccounts] = useState<InvestmentAccount[]>([]);
@@ -258,7 +259,7 @@ export default function InvestmentPortfolio() {
               <p className="text-sm text-muted-foreground mb-5 max-w-[240px] mx-auto">
                 Start supporting tenants to build your investment portfolio
               </p>
-              <Button size="lg" className="min-h-[48px] text-sm font-bold rounded-xl px-6" onClick={() => navigate('/dashboard')}>
+              <Button size="lg" className="min-h-[48px] text-sm font-bold rounded-xl px-6" onClick={() => navigate(roleToSlug(role))}>
                 <Target className="h-4 w-4 mr-2" />
                 Browse Opportunities
               </Button>

@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Heart, ArrowLeft, Loader2, Trash2, Percent, Tag } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { ProductCard } from '@/components/marketplace/ProductCard';
 
 interface Product {
@@ -31,7 +32,7 @@ type FilterType = 'all' | 'on_sale';
 
 export default function Wishlist() {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, role } = useAuth();
   const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [wishlistIds, setWishlistIds] = useState<Set<string>>(new Set());
@@ -195,7 +196,7 @@ export default function Wishlist() {
                 <p className="text-sm text-muted-foreground mb-6">
                   Save products you like by clicking the heart icon
                 </p>
-                <Button onClick={() => navigate('/dashboard')}>
+                <Button onClick={() => navigate(roleToSlug(role))}>
                   Browse Products
                 </Button>
               </div>

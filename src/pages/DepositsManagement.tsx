@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -136,7 +137,7 @@ export default function DepositsManagement() {
   // Redirect non-managers
   useEffect(() => {
     if (!authLoading && (!user || role !== 'manager')) {
-      navigate('/dashboard');
+      navigate(roleToSlug(role));
     }
   }, [user, role, authLoading, navigate]);
 

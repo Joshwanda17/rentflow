@@ -1,4 +1,5 @@
 import { useAuth } from "@/hooks/useAuth";
+import { roleToSlug } from '@/lib/roleRoutes';
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,7 +8,7 @@ import { ArrowLeft, ClipboardList } from "lucide-react";
 import { AuditLogViewer } from "@/components/manager/AuditLogViewer";
 
 export default function AuditLog() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, role } = useAuth();
   const navigate = useNavigate();
 
   const { data: isManager } = useQuery({
@@ -39,7 +40,7 @@ export default function AuditLog() {
   }
 
   if (isManager === false) {
-    navigate("/dashboard");
+    navigate(roleToSlug(role));
     return null;
   }
 

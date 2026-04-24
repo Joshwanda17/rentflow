@@ -25,6 +25,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useAuth } from '@/hooks/useAuth';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { usePresence } from '@/hooks/usePresence';
 import { cn } from '@/lib/utils';
 import { format, isToday, isYesterday } from 'date-fns';
@@ -79,7 +80,7 @@ const getStatusText = (user: UserWithRating): string => {
 
 export default function UserManagement() {
   const navigate = useNavigate();
-  const { user, roles } = useAuth();
+  const { user, roles, role } = useAuth();
   const { onlineUsers, isOnline } = usePresence();
   const [users, setUsers] = useState<UserWithRating[]>([]);
   const [loading, setLoading] = useState(true);
@@ -206,7 +207,7 @@ Just click the link and enter your password to get started!`;
   // Check if user is manager
   useEffect(() => {
     if (!roles.includes('manager')) {
-      navigate('/dashboard');
+      navigate(roleToSlug(role));
     }
   }, [roles, navigate]);
 

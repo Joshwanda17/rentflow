@@ -9,6 +9,7 @@ import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, User
 import { useHapticSettings, hapticIntensityOptions } from '@/hooks/useHapticSettings';
 import { hapticSelection } from '@/lib/haptics';
 import { useAuth, AppRole } from '@/hooks/useAuth';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -85,7 +86,7 @@ const SECTIONS: { id: SettingsSection; label: string; icon: typeof User }[] = [
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { user, roles, loading: authLoading } = useAuth();
+  const { user, roles, loading: authLoading, role } = useAuth();
   const { fontSize, setFontSize } = useFontSize();
   const { intensity: hapticIntensity, setIntensity: setHapticIntensity } = useHapticSettings();
   const { preferences, updatePreference, resetPreferences } = useAppPreferences();
@@ -196,13 +197,13 @@ export default function Settings() {
         {/* Header */}
         <div className="sticky top-0 z-30 bg-background -mx-4 px-4 border-b border-border/30 mb-2">
           <div className="flex items-center gap-3 pt-2 pb-2">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} className="rounded-xl h-10 w-10 shrink-0">
+            <Button variant="ghost" size="icon" onClick={() => navigate(roleToSlug(role))} className="rounded-xl h-10 w-10 shrink-0">
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex-1 min-w-0">
               <h1 className="text-xl font-bold tracking-tight">Settings</h1>
             </div>
-            <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')} className="rounded-xl gap-1.5 text-xs shrink-0">
+            <Button variant="outline" size="sm" onClick={() => navigate(roleToSlug(role))} className="rounded-xl gap-1.5 text-xs shrink-0">
               <Home className="h-3.5 w-3.5" /> Home
             </Button>
           </div>

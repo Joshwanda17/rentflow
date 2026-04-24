@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -158,7 +159,7 @@ export default function RegisterPartnerPublic() {
             return;
           }
           // Persistent session — user stays signed in across browser restarts until explicit sign-out.
-          navigate('/dashboard', { replace: true });
+          navigate('/tenant', { replace: true });
           return;
         } catch (signInErr) {
           console.warn('[RegisterPartnerPublic] Auto sign-in threw:', signInErr);

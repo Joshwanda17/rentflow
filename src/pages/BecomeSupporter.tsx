@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { usePhoneDuplicateCheck } from '@/hooks/usePhoneDuplicateCheck';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -57,7 +58,7 @@ export default function BecomeSupporter() {
   const [isLoading, setIsLoading] = useState(false);
   const [referrerName, setReferrerName] = useState<string | null>(null);
   
-  const { signUpWithoutRole, signIn, user, roles, addRole } = useAuth();
+  const { signUpWithoutRole, signIn, user, roles, addRole, role } = useAuth();
   const { isDuplicate, isChecking: isCheckingDuplicate, duplicateMessage } = usePhoneDuplicateCheck(phone, 400);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -86,7 +87,7 @@ export default function BecomeSupporter() {
     if (user) {
       if (roles.includes('supporter')) {
         // Already a supporter, go to dashboard
-        navigate('/dashboard');
+        navigate(roleToSlug(role));
       } else {
         // User exists but not a supporter, add the role
         handleAddSupporterRole();
@@ -134,7 +135,7 @@ export default function BecomeSupporter() {
         title: '🎉 Welcome, Supporter!', 
         description: 'You are now a Tenant Supporter. Start investing today!' 
       });
-      navigate('/dashboard');
+      navigate(roleToSlug(role));
     }
   };
 

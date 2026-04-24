@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useStaffPermissions } from '@/hooks/useStaffPermissions';
 import { useAuth } from '@/hooks/useAuth';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 
@@ -41,7 +42,7 @@ const operationsDashboards: DashboardCard[] = [
 
 export default function AdminDashboardPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const { hasPermission, loading } = useStaffPermissions();
   const loggedRef = useRef(false);
 
@@ -74,7 +75,7 @@ export default function AdminDashboardPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => { if (window.history.length > 1) { navigate(-1); } else { navigate('/dashboard'); } }}
+            onClick={() => { if (window.history.length > 1) { navigate(-1); } else { navigate(roleToSlug(role)); } }}
             className="gap-2 text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />

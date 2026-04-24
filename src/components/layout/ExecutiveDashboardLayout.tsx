@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, type AppRole } from '@/hooks/useAuth';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { LogOut, Menu, X, ArrowLeft, Loader2 } from 'lucide-react';
@@ -22,7 +23,7 @@ export default function ExecutiveDashboardLayout({
   onTabChange,
   children,
 }: ExecutiveDashboardLayoutProps) {
-  const { user, roles, signOut, switchRole, addRole } = useAuth();
+  const { user, roles, signOut, switchRole, addRole, role } = useAuth();
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [checkingProfile, setCheckingProfile] = useState(true);
@@ -53,12 +54,12 @@ export default function ExecutiveDashboardLayout({
     if (route) {
       navigate(route);
     } else {
-      navigate('/dashboard');
+      navigate(roleToSlug(role));
     }
   };
 
   const handleExit = () => {
-    navigate('/dashboard');
+    navigate(roleToSlug(role));
   };
 
   const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => (

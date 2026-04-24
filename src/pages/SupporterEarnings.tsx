@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -57,7 +58,7 @@ interface PaymentProofSummary {
 
 export default function SupporterEarnings() {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, role } = useAuth();
   const [loading, setLoading] = useState(true);
   const [roiPayments, setRoiPayments] = useState<ROIPayment[]>([]);
   const [paymentProofs, setPaymentProofs] = useState<PaymentProofSummary[]>([]);
@@ -442,7 +443,7 @@ export default function SupporterEarnings() {
                       <Button 
                         size="sm" 
                         className="mt-4"
-                        onClick={() => navigate('/dashboard')}
+                        onClick={() => navigate(roleToSlug(role))}
                       >
                         Start Investing
                       </Button>

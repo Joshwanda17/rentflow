@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { supabase } from '@/integrations/supabase/client';
 import { hapticTap } from '@/lib/haptics';
 import { useManagerPWAInstall } from '@/hooks/useManagerPWAInstall';
@@ -109,7 +110,7 @@ export default function ManagerLogin() {
 
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { switchRole, roles } = useAuth();
+  const { switchRole, roles, role } = useAuth();
   const { canInstall, isInstalled, showIOSGuide, setShowIOSGuide, installApp } = useManagerPWAInstall();
 
   useEffect(() => {
@@ -232,7 +233,7 @@ export default function ManagerLogin() {
       switchRole('manager');
     }
 
-    navigate('/dashboard');
+    navigate(roleToSlug(role));
   };
 
   const getInitials = (name: string) => {

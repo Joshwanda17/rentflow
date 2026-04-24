@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, Search, UserPlus, RefreshCw, Users, Printer, Home } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import RegisterEmployeeDialog from '@/components/admin/RegisterEmployeeDialog';
@@ -48,7 +49,7 @@ const roleColors: Record<string, string> = {
 
 export default function AdminUsersPage() {
   const navigate = useNavigate();
-  const { roles } = useAuth();
+  const { roles, role } = useAuth();
   const [staff, setStaff] = useState<StaffUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -59,7 +60,7 @@ export default function AdminUsersPage() {
   const canAccess = roles.some(r => ['super_admin', 'manager', 'cto'].includes(r));
 
   useEffect(() => {
-    if (!canAccess) navigate('/dashboard');
+    if (!canAccess) navigate(roleToSlug(role));
   }, [canAccess, navigate]);
 
   const fetchStaff = useCallback(async () => {
@@ -165,7 +166,7 @@ export default function AdminUsersPage() {
       {/* Header */}
       <div className="sticky top-0 z-40 bg-card border-b border-border safe-area-top no-print">
         <div className="flex items-center gap-3 px-4 py-3">
-          <button onClick={() => navigate('/dashboard')} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+          <button onClick={() => navigate(roleToSlug(role))} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
             <Home className="h-5 w-5 text-muted-foreground" />
           </button>
           <div className="flex-1 min-w-0">
