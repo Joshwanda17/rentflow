@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { getLocationData } from '@/hooks/useGeolocation';
 import { generatePhoneEmailVariants, cleanPhoneNumber, isValidPhoneNumber, getTriedPhoneFormats } from '@/lib/phoneUtils';
 import { validateSignUp, validateFullName } from '@/lib/authValidation';
+import { roleToSlug } from '@/lib/roleRoutes';
 
 const VALID_SIGNUP_ROLES = ['tenant', 'agent', 'landlord', 'supporter'] as const;
 
@@ -82,7 +83,7 @@ export function useAuthForm() {
     // If roles already loaded, navigate immediately
     if (roles.length > 0) {
       if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
-      navigate('/dashboard', { replace: true });
+      navigate(roleToSlug(roles[0]), { replace: true });
       return;
     }
 
@@ -90,7 +91,7 @@ export function useAuthForm() {
     if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
     redirectTimerRef.current = setTimeout(() => {
       if (roles.length > 0) {
-        navigate('/dashboard', { replace: true });
+        navigate(roleToSlug(roles[0]), { replace: true });
       } else {
         navigate('/select-role', { replace: true });
       }

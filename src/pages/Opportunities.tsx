@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -11,7 +12,7 @@ export default function Opportunities() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => navigate('/dashboard')}
+          onClick={() => navigate('/tenant')}
           className="shrink-0"
         >
           <ArrowLeft className="h-5 w-5" />
@@ -25,7 +26,7 @@ export default function Opportunities() {
           <p className="text-sm text-muted-foreground">
             Tap the Opportunities card on your home screen to explore available houses.
           </p>
-          <Button variant="outline" className="mt-4" onClick={() => navigate('/dashboard#opportunities')}>
+          <Button variant="outline" className="mt-4" onClick={() => navigate('/tenant')}>
             Go to Dashboard
           </Button>
         </div>

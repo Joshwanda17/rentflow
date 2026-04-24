@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 import COODetailLayout, { KPICard, SectionTitle } from '@/components/coo/COODetailLayout';
@@ -35,13 +36,13 @@ const detailColumns: COOColumn<UserRow>[] = [
 ];
 
 export default function ActiveUsersDetail() {
-  const { user, roles, loading } = useAuth();
+  const { user, roles, loading, role } = useAuth();
   const navigate = useNavigate();
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!loading && (!user || !roles.includes('manager'))) { navigate('/dashboard'); return; }
+    if (!loading && (!user || !roles.includes('manager'))) { navigate(roleToSlug(role)); return; }
     if (user && roles.includes('manager')) fetchData();
   }, [user, loading, roles]);
 

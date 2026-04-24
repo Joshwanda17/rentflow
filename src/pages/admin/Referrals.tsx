@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -64,7 +65,7 @@ const STATUS_META = {
 
 export default function AdminReferralsPage() {
   const navigate = useNavigate();
-  const { roles, loading: authLoading } = useAuth();
+  const { roles, loading: authLoading, role } = useAuth();
   const { toast } = useToast();
 
   const canAccess = roles.some(r => ['super_admin', 'manager', 'cfo', 'coo', 'cto'].includes(r));
@@ -76,7 +77,7 @@ export default function AdminReferralsPage() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    if (!authLoading && !canAccess) navigate('/dashboard', { replace: true });
+    if (!authLoading && !canAccess) navigate(roleToSlug(role), { replace: true });
   }, [authLoading, canAccess, navigate]);
 
   const load = async () => {

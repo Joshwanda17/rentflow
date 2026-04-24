@@ -1,4 +1,5 @@
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Download } from 'lucide-react';
 import { CEODashboard } from '@/components/executive/CEODashboard';
@@ -32,7 +33,7 @@ export default function ExecutiveHub() {
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-30 bg-card/95 backdrop-blur border-b border-border px-4 py-3">
         <div className="max-w-7xl mx-auto flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} className="shrink-0">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/tenant')} className="shrink-0">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="min-w-0 flex-1">

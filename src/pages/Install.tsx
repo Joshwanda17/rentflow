@@ -9,12 +9,13 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { useAuth } from '@/hooks/useAuth';
+import { roleToSlug } from '@/lib/roleRoutes';
 
 export default function Install() {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
   const { hasPrompt: isInstallable, isInstalled, promptInstall, isIOS } = usePWAInstall();
-  const { user, loading } = useAuth();
+  const { user, loading, role } = useAuth();
   
   const appUrl = window.location.origin;
   const installUrl = `${appUrl}/install`;
@@ -25,7 +26,7 @@ export default function Install() {
       const timer = setTimeout(() => {
         if (user) {
           // User is logged in, go to dashboard
-          navigate('/dashboard', { replace: true });
+          navigate(roleToSlug(role), { replace: true });
         } else {
           // Not logged in, go to auth
           navigate('/auth', { replace: true });
@@ -46,7 +47,7 @@ export default function Install() {
       if (installed) {
         if (user) {
           toast.success('App installed! Opening dashboard...');
-          navigate('/dashboard', { replace: true });
+          navigate(roleToSlug(role), { replace: true });
         } else {
           toast.success('App installed! Redirecting to login...');
           navigate('/auth', { replace: true });

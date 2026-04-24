@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -233,7 +234,7 @@ export default function RegisterTenantPublic() {
           }
           // Persistent session is configured at the client level (localStorage + autoRefresh),
           // so the user stays signed in across browser restarts until they explicitly sign out.
-          navigate('/dashboard', { replace: true });
+          navigate('/tenant', { replace: true });
           return;
         } catch (signInErr) {
           console.warn('[RegisterTenantPublic] Auto sign-in threw:', signInErr);

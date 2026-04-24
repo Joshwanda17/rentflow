@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Home, Calculator, CheckCircle2, Banknote, TrendingUp, Building2, MapPin, Hammer, CreditCard, Clock, Share2, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -88,7 +89,7 @@ Let's build a better future together! 🏡`;
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b">
         <div className="flex items-center gap-3 p-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
+          <Button variant="ghost" size="icon" onClick={() => navigate('/tenant')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex items-center gap-2">

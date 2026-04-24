@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -122,7 +123,7 @@ export default function ManagerAccess() {
 
   useEffect(() => {
     if (!loading && (!user || role !== 'manager')) {
-      navigate('/dashboard');
+      navigate(roleToSlug(role));
     }
   }, [user, role, loading, navigate]);
 
@@ -368,7 +369,7 @@ export default function ManagerAccess() {
             <Button 
               variant="ghost" 
               size="icon" 
-              onClick={() => navigate('/dashboard')}
+              onClick={() => navigate(roleToSlug(role))}
               className="text-white/90 hover:text-white hover:bg-white/10"
             >
               <ArrowLeft className="h-5 w-5" />

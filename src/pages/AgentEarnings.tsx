@@ -10,6 +10,7 @@ import {
   PiggyBank, Award, ChevronDown, ChevronUp, Info,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { useAgentEarnings, EarningBreakdown, DetailedEarning } from '@/hooks/useAgentEarnings';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
@@ -52,7 +53,7 @@ export default function AgentEarnings() {
     if (!authLoading && !user) {
       navigate('/auth');
     } else if (!authLoading && role !== 'agent') {
-      navigate('/dashboard');
+      navigate(roleToSlug(role));
     }
   }, [user, role, authLoading, navigate]);
 
@@ -231,7 +232,7 @@ export default function AgentEarnings() {
       <div className="container mx-auto px-4 py-6 max-w-2xl">
         {/* Header */}
         <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
+          <Button variant="ghost" size="icon" onClick={() => navigate(roleToSlug(role))}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1">

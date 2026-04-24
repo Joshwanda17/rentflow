@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Users, TrendingUp, Home, Banknote, ShieldCheck, UserPlus, 
@@ -111,7 +112,7 @@ export default function COODashboard() {
       return;
     }
     if (!loading && user && !roles.includes('manager')) {
-      navigate('/dashboard');
+      navigate(roleToSlug(role));
       return;
     }
     if (user && roles.includes('manager')) fetchMetrics();
@@ -366,7 +367,7 @@ export default function COODashboard() {
       {/* Header */}
       <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-lg border-b border-border">
         <div className="flex items-center gap-3 p-4">
-          <button onClick={() => navigate('/dashboard')} className="p-2 -ml-2 rounded-xl hover:bg-muted active:scale-95">
+          <button onClick={() => navigate(roleToSlug(role))} className="p-2 -ml-2 rounded-xl hover:bg-muted active:scale-95">
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div className="flex-1">

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
@@ -104,7 +105,7 @@ export default function UpdatePassword() {
         
         // Redirect to dashboard after 2 seconds
         setTimeout(() => {
-          navigate('/dashboard');
+          navigate('/tenant');
         }, 2000);
       }
     } catch (err) {

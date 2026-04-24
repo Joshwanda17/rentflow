@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -61,7 +62,7 @@ interface WatchedOpportunity {
 }
 
 export default function MyWatchlist() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, role } = useAuth();
   const navigate = useNavigate();
   const { formatAmount } = useCurrency();
   const { toast } = useToast();
@@ -462,7 +463,7 @@ export default function MyWatchlist() {
               <p className="text-sm text-muted-foreground mb-4">
                 Save opportunities you're interested in to track their verification status
               </p>
-              <Button onClick={() => navigate('/dashboard')}>
+              <Button onClick={() => navigate(roleToSlug(role))}>
                 Browse Opportunities
               </Button>
             </motion.div>

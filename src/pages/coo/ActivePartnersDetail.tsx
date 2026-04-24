@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllUserIdsByRole, batchedQuery } from '@/lib/supabaseBatchUtils';
 import { Loader2, MoreHorizontal, TrendingUp, Trash2, Wallet, Pencil, ShieldOff, UserX } from 'lucide-react';
@@ -38,7 +39,7 @@ interface PartnerRow {
 const MIN_INVEST = 50000;
 
 export default function ActivePartnersDetail() {
-  const { user, roles, loading } = useAuth();
+  const { user, roles, loading, role } = useAuth();
   const navigate = useNavigate();
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -68,7 +69,7 @@ export default function ActivePartnersDetail() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!loading && (!user || !roles.includes('manager'))) { navigate('/dashboard'); return; }
+    if (!loading && (!user || !roles.includes('manager'))) { navigate(roleToSlug(role)); return; }
     if (user && roles.includes('manager')) fetchData();
   }, [user, loading, roles]);
 

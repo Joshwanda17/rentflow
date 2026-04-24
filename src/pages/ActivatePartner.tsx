@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Shield, TrendingUp, Loader2, CheckCircle, ArrowRight } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { toast } from 'sonner';
+import { roleToSlug } from '@/lib/roleRoutes';
 
 export default function ActivatePartner() {
   const [searchParams] = useSearchParams();
@@ -114,7 +115,7 @@ export default function ActivatePartner() {
       toast.success('Your investment account is now active!');
       // Land them on the supporter dashboard immediately — all 4 public roles
       // are now granted, so RoleSwitcher will let them access the others too.
-      setTimeout(() => navigate('/dashboard?role=supporter'), 1200);
+      setTimeout(() => navigate('/funder'), 1200);
     } catch (err: any) {
       toast.error(err.message || 'Activation failed');
     } finally {
@@ -195,7 +196,7 @@ export default function ActivatePartner() {
               <p className="text-sm text-emerald-600">
                 Deposit {formatUGX(Number(note.amount))} into your wallet to start earning 15% monthly returns.
               </p>
-              <Button onClick={() => navigate('/dashboard')} className="w-full gap-2">
+              <Button onClick={() => navigate('/funder')} className="w-full gap-2">
                 Go to Dashboard <ArrowRight className="h-4 w-4" />
               </Button>
             </CardContent>

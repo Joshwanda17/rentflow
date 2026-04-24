@@ -16,6 +16,7 @@ import {
   DollarSign
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { supabase } from '@/integrations/supabase/client';
 import { TransactionReceipt } from '@/components/wallet/TransactionReceipt';
 import { TransactionHistorySkeleton } from '@/components/skeletons/DashboardSkeletons';
@@ -43,7 +44,7 @@ type TransactionType = 'all' | 'sent' | 'received';
 
 export default function TransactionHistory() {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, role } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -239,7 +240,7 @@ export default function TransactionHistory() {
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate(roleToSlug(role))}
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>

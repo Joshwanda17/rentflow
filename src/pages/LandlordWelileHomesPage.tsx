@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -54,7 +55,7 @@ function calculate5YearProjection(monthlyRent: number): number {
 
 export default function LandlordWelileHomesPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
 
   const { data: tenants = [], isLoading } = useQuery({
     queryKey: ['landlord-welile-homes-tenants-full', user?.id],
@@ -122,7 +123,7 @@ export default function LandlordWelileHomesPage() {
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b">
         <div className="flex items-center gap-3 p-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
+          <Button variant="ghost" size="icon" onClick={() => navigate(roleToSlug(role))}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex items-center gap-2 flex-1">

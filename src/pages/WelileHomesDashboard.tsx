@@ -9,6 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -38,7 +39,7 @@ function calculateProjectedSavings(monthlyRent: number, months: number): number[
 
 export default function WelileHomesDashboard() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const queryClient = useQueryClient();
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showWithdrawalDialog, setShowWithdrawalDialog] = useState(false);
@@ -191,7 +192,7 @@ Let's build a better future together! 🏡`;
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b">
         <div className="flex items-center gap-3 p-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
+          <Button variant="ghost" size="icon" onClick={() => navigate(roleToSlug(role))}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex items-center gap-2 flex-1">
@@ -385,7 +386,7 @@ Let's build a better future together! 🏡`;
                   </div>
                 </div>
                 <Button 
-                  onClick={() => navigate('/dashboard')}
+                  onClick={() => navigate(roleToSlug(role))}
                   variant="outline"
                   className="w-full border-emerald-300 text-emerald-700 hover:bg-emerald-50 h-12"
                 >
