@@ -263,7 +263,14 @@ function AppRoutes() {
           <Route path="/r/:code" element={<ResolveShortLink />} />
           <Route path="/profile/:aiId" element={<HolisticProfile />} />
           <Route path="/id/:aiId" element={<HolisticProfile publicMode />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+          {/* Persona-specific dashboards. URL is the source of truth for which
+              public-role view to render. Internal `supporter` role is exposed
+              as `/funder` (BOU/CMA terminology). */}
+          <Route path="/tenant" element={<Dashboard />} />
+          <Route path="/agent" element={<Dashboard />} />
+          <Route path="/landlord" element={<Dashboard />} />
+          <Route path="/funder" element={<Dashboard />} />
+          <Route path="/manager" element={<Dashboard />} />
           <Route path="/select-role" element={<SelectRole />} />
           <Route path="/transactions" element={<TransactionHistory />} />
           <Route path="/financial-statement" element={<FinancialStatement />} />
