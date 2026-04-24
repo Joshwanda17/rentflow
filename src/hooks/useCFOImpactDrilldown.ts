@@ -16,6 +16,17 @@ export interface DrilldownResult {
   records: DrilldownRecord[];
   total: number;
   truncated: boolean;
+  /** All distinct regions in the underlying data, for populating filter chips. */
+  regions?: string[];
+}
+
+export interface LandlordFilters {
+  /** Free-text search against property_address / house_number / district */
+  property?: string;
+  /** Exact region match (e.g. "Central", "Western") */
+  region?: string;
+  /** Account status: verified, unverified, ready (ready_to_receive=true), not_ready */
+  accountStatus?: 'all' | 'verified' | 'unverified' | 'ready' | 'not_ready';
 }
 
 const PAGE_SIZE = 200;
@@ -29,9 +40,18 @@ export function useCFOImpactDrilldown(
   from: Date | undefined,
   to: Date | undefined,
   enabled: boolean,
+  landlordFilters?: LandlordFilters,
 ) {
   return useQuery<DrilldownResult>({
-    queryKey: ['cfo-impact-drilldown', metric, from?.toISOString() ?? null, to?.toISOString() ?? null],
+    queryKey: [
+      'cfo-impact-drilldown',
+      metric,
+      from?.toISOString() ?? null,
+      to?.toISOString() ?? null,
+      landlordFilters?.property ?? null,
+      landlordFilters?.region ?? null,
+      landlordFilters?.accountStatus ?? null,
+    ],
     enabled: enabled && !!metric,
     staleTime: 60 * 1000,
     queryFn: async () => {
