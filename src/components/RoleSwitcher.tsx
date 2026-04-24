@@ -185,6 +185,7 @@ const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, o
               const config = roleConfig[role];
               const isActive = role === currentRole;
               const hasRole = availableRoles.includes(role);
+              const pending = !hasRole && PUBLIC_ROLES.includes(role) && hasApplied(role);
               return (
                 <button
                   key={role}
@@ -200,13 +201,21 @@ const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, o
                   )}
                 >
                   <span className="text-base">{config.emoji}</span>
-                  <span className="truncate">{config.label}</span>
+                  <span className="truncate">{pending ? 'Pending' : config.label}</span>
+                  {!hasRole && !pending && <Lock className="h-3 w-3 opacity-60" />}
                 </button>
               );
             })}
           </div>
         </div>
         {accessCodeDialog}
+        <ApplyForRoleDialog
+          open={applyDialogOpen}
+          onOpenChange={setApplyDialogOpen}
+          role={applyRole}
+          hasApplied={applyRole ? hasApplied(applyRole) : false}
+          onApply={requestRole}
+        />
       </>
     );
   }
@@ -231,6 +240,7 @@ const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, o
             const config = roleConfig[role];
             const isActive = role === currentRole;
             const hasRole = availableRoles.includes(role);
+            const pending = !hasRole && hasApplied(role);
             return (
               <DropdownMenuItem
                 key={role}
@@ -243,7 +253,11 @@ const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, o
               >
                 <span className="text-sm">{config.emoji}</span>
                 <span className="flex-1">{config.label}</span>
-                {!hasRole && <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">New</span>}
+                {!hasRole && (
+                  pending
+                    ? <span className="text-[10px] px-1.5 py-0.5 rounded bg-warning/15 text-warning">Pending</span>
+                    : <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground flex items-center gap-1"><Lock className="h-2.5 w-2.5" />Apply</span>
+                )}
               </DropdownMenuItem>
             );
           })}
@@ -275,6 +289,13 @@ const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, o
         </DropdownMenuContent>
       </DropdownMenu>
       {accessCodeDialog}
+      <ApplyForRoleDialog
+        open={applyDialogOpen}
+        onOpenChange={setApplyDialogOpen}
+        role={applyRole}
+        hasApplied={applyRole ? hasApplied(applyRole) : false}
+        onApply={requestRole}
+      />
     </>
   );
 });
