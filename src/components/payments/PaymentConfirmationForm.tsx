@@ -102,13 +102,16 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
       const transactionDateTime = new Date(`${transactionDate}T${transactionTime}:00`);
 
       // Build payload with correct types
+      const normalizedTransactionId = transactionId.trim().toUpperCase();
+
       const depositPayload = {
         user_id: user.id,
         amount: parseFloat(amount),
-        transaction_id: transactionId.trim(),
+        transaction_id: normalizedTransactionId,
         transaction_date: transactionDateTime.toISOString(),
         provider: partner || null,
         notes: reason.trim(),
+        deposit_purpose: dashboardType === 'supporter' ? 'partnership_deposit' : 'other',
       };
 
       // Contract-driven pre-submit validation
@@ -121,14 +124,12 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
       }
 
       // Insert payment confirmation
-      const { data: newConfirmation, error } = await supabase
+      const { error } = await supabase
         .from('deposit_requests')
         .insert({
           ...depositPayload,
           status: confirmationStatus,
-        } as any)
-        .select()
-        .single();
+        } as any);
 
 
       if (error) throw error;
@@ -152,7 +153,13 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
 
     } catch (error: any) {
       console.error('Error submitting payment:', error);
-      toast.error(error.message || 'Failed to submit payment confirmation');
+      if (error?.code === '23505' || /duplicate key|already (been )?(used|submitted)|unique/i.test(error?.message || '')) {
+        toast.error('This transaction reference has already been submitted', {
+          description: 'Each MoMo or bank reference can only be used once. Double-check the reference and try again.',
+        });
+      } else {
+        toast.error(error.message || 'Failed to submit payment confirmation');
+      }
     } finally {
       setIsSubmitting(false);
     }
