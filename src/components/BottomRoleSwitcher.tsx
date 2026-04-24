@@ -6,6 +6,7 @@ import { hapticTap } from '@/lib/haptics';
 import { AppRole } from '@/hooks/useAuth';
 import { useAuth } from '@/hooks/useAuth';
 import { roleDashboardRoutes } from '@/components/layout/executiveSidebarConfig';
+import { roleToSlug } from '@/lib/roleRoutes';
 import { useDeployedCapital } from '@/hooks/useDeployedCapital';
 import { useRoleAccessRequests } from '@/hooks/useRoleAccessRequests';
 import { areAllRolesUnlocked } from '@/hooks/useAppPreferences';
@@ -58,6 +59,8 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
     }
 
     onRoleChange(role);
+    // Sync URL with the new persona — URL is the source of truth.
+    navigate(roleToSlug(role));
   };
 
   const handleStaffNav = () => {
