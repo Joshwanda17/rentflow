@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
@@ -7,7 +7,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { CheckCircle2, XCircle, Loader2, Home, Banknote } from 'lucide-react';
+import {
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  Home,
+  Banknote,
+  EyeOff,
+  ChevronDown,
+  ChevronUp,
+  Info,
+  ShieldCheck,
+} from 'lucide-react';
 
 interface BonusApproval {
   id: string;
@@ -25,11 +36,46 @@ interface BonusApproval {
   // joined
   agent_name?: string;
   listing_title?: string;
+  // hidden-row metadata
+  hide_reason?: string | null;
+  hide_actor_name?: string | null;
 }
 
 interface Props {
   /** 'pending_cfo' for CFO dashboard, 'all' for landlord ops */
   filter?: 'pending_cfo' | 'all';
+}
+
+type Classified = {
+  visible: BonusApproval[];
+  hidden: BonusApproval[];
+};
+
+/**
+ * Determines whether an approval row should be hidden from the CFO action queue,
+ * and returns a human-readable reason if so. Centralizing this keeps the filter
+ * rule and the disclosure UI in lock-step — finance staff can always see WHY a
+ * row was filtered, never just THAT it was.
+ */
+function classifyForCfoQueue(row: BonusApproval): { hidden: boolean; reason: string | null } {
+  const sameActor =
+    !!row.landlord_ops_approved_by &&
+    !!row.cfo_approved_by &&
+    row.landlord_ops_approved_by === row.cfo_approved_by;
+
+  if (row.status === 'paid' && sameActor) {
+    return {
+      hidden: true,
+      reason: 'Auto-paid on Landlord Ops verification (same actor on both stamps — no CFO review needed)',
+    };
+  }
+  if (row.status === 'paid' && !sameActor) {
+    return { hidden: true, reason: 'Already paid via manual CFO approval' };
+  }
+  if (row.status === 'failed') {
+    return { hidden: true, reason: 'Ledger write failed and was rolled back — needs admin retry, not CFO approval' };
+  }
+  return { hidden: false, reason: null };
 }
 
 export function ListingBonusApprovalQueue({ filter = 'pending_cfo' }: Props) {
@@ -38,50 +84,41 @@ export function ListingBonusApprovalQueue({ filter = 'pending_cfo' }: Props) {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [rejectNotes, setRejectNotes] = useState<Record<string, string>>({});
 
-  const { data: approvals, isLoading } = useQuery({
+  const { data: classified, isLoading } = useQuery<Classified>({
     queryKey: ['listing-bonus-approvals', filter],
     queryFn: async () => {
-      let query = supabase
+      // For the CFO queue we need both pending_cfo rows AND a recent sample of
+      // hidden rows so we can disclose what was filtered out and why. For the
+      // 'all' (Landlord Ops) view we just take everything recent.
+      let pendingPromise = supabase
         .from('listing_bonus_approvals')
         .select('*')
+        .eq('status', 'pending_cfo')
         .order('created_at', { ascending: false })
         .limit(100);
 
-      if (filter === 'pending_cfo') {
-        query = query.eq('status', 'pending_cfo');
+      // Hidden = paid (auto or manual) or failed, recent slice for transparency
+      let hiddenPromise = supabase
+        .from('listing_bonus_approvals')
+        .select('*')
+        .in('status', ['paid', 'failed'])
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (filter === 'all') {
+        // 'all' view: one query for everything; no separate hidden bucket needed
+        const { data } = await supabase
+          .from('listing_bonus_approvals')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(100);
+        return await enrich(data || [], []);
       }
 
-      const { data } = await query;
-      if (!data?.length) return [];
-
-      // Hide auto-paid rows (Landlord Ops verification self-approvals) from CFO queue —
-      // those are already credited; only true pending/manual rows belong here.
-      const filtered = data.filter(d => {
-        const isAutoPaid =
-          d.status === 'paid' &&
-          d.landlord_ops_approved_by &&
-          d.cfo_approved_by &&
-          d.landlord_ops_approved_by === d.cfo_approved_by;
-        return !isAutoPaid;
-      });
-      if (!filtered.length) return [];
-
-      const agentIds = [...new Set(filtered.map(d => d.agent_id))];
-      const listingIds = [...new Set(filtered.map(d => d.listing_id))];
-
-      const [agentsRes, listingsRes] = await Promise.all([
-        supabase.from('profiles').select('id, full_name').in('id', agentIds),
-        supabase.from('house_listings').select('id, title').in('id', listingIds),
-      ]);
-
-      const agentMap = new Map((agentsRes.data || []).map(p => [p.id, p.full_name]));
-      const listingMap = new Map((listingsRes.data || []).map(l => [l.id, l.title]));
-
-      return filtered.map(d => ({
-        ...d,
-        agent_name: agentMap.get(d.agent_id) || 'Unknown',
-        listing_title: listingMap.get(d.listing_id) || 'Unknown',
-      })) as BonusApproval[];
+      const [pendingRes, hiddenRes] = await Promise.all([pendingPromise, hiddenPromise]);
+      const pendingRows = pendingRes.data || [];
+      const hiddenRowsRaw = hiddenRes.data || [];
+      return await enrich(pendingRows, hiddenRowsRaw);
     },
     staleTime: 15000,
   });
@@ -113,15 +150,18 @@ export function ListingBonusApprovalQueue({ filter = 'pending_cfo' }: Props) {
     }
   };
 
-  const pending = (approvals || []).filter(a => a.status === 'pending_cfo');
-  const processed = (approvals || []).filter(a => a.status !== 'pending_cfo');
+  const visible = classified?.visible || [];
+  const hidden = classified?.hidden || [];
+  const pending = visible.filter(a => a.status === 'pending_cfo');
+  const processed = visible.filter(a => a.status !== 'pending_cfo');
 
   if (isLoading) {
     return <Skeleton className="h-24 w-full rounded-xl" />;
   }
 
-  if (filter === 'pending_cfo' && pending.length === 0) {
-    return null; // Don't show if nothing pending
+  // For CFO queue, render even when nothing pending IF there are hidden rows to disclose
+  if (filter === 'pending_cfo' && pending.length === 0 && hidden.length === 0) {
+    return null;
   }
 
   return (
@@ -194,6 +234,11 @@ export function ListingBonusApprovalQueue({ filter = 'pending_cfo' }: Props) {
             )}
           </div>
         ))}
+
+        {/* ─── HIDDEN ROW DISCLOSURE (CFO queue only) ─── */}
+        {filter === 'pending_cfo' && hidden.length > 0 && (
+          <HiddenDisclosure rows={hidden} />
+        )}
 
         {/* Show processed history when viewing all */}
         {filter === 'all' && processed.length > 0 && (
