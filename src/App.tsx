@@ -31,6 +31,7 @@ const FeatureFlagsProvider = lazyWithRetry(() => import("@/contexts/FeatureFlags
 
 // Lazy load optional UI components
 const Toaster = lazyWithRetry(() => import("@/components/ui/toaster").then(m => ({ default: m.Toaster })));
+const SonnerToaster = lazyWithRetry(() => import("@/components/ui/sonner").then(m => ({ default: m.Toaster })));
 import MaintenanceBanner from "@/components/MaintenanceBanner";
 
 const DeferredExtras = lazyWithRetry(() => import("@/components/DeferredExtras"));
@@ -493,6 +494,7 @@ const App = () => {
                         <FloatingToolbar />
                         <PWAInstallPrompt />
                         <Toaster />
+                        <SonnerToaster />
                         
                       </Suspense>
                     </CurrencyProvider>
