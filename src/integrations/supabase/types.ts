@@ -12019,6 +12019,14 @@ export type Database = {
       }
     }
     Functions: {
+      _test_proxy_capability_sync: {
+        Args: never
+        Returns: {
+          detail: string
+          passed: boolean
+          test_name: string
+        }[]
+      }
       agent_allocate_tenant_payment: {
         Args: {
           p_agent_id: string
