@@ -44,6 +44,7 @@ import Index from "./pages/Index";
 const Landing = lazy(() => import("./pages/Landing"));
 const Auth = lazy(() => import("./pages/Auth"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
+const DashboardRedirect = lazy(() => import("./pages/DashboardRedirect"));
 const SelectRole = lazy(() => import("./pages/SelectRole"));
 const TransactionHistory = lazy(() => import("./pages/TransactionHistory"));
 const Settings = lazy(() => import("./pages/Settings"));
@@ -266,11 +267,16 @@ function AppRoutes() {
           {/* Persona-specific dashboards. URL is the source of truth for which
               public-role view to render. Internal `supporter` role is exposed
               as `/dashboard/funder` (BOU/CMA terminology). */}
+          {/* Legacy catch-all: forward bare `/dashboard` (and any unknown
+              persona slug under `/dashboard/*`) to the user's persona slug.
+              Keeps old home-screen icons / SMS / email links working. */}
+          <Route path="/dashboard" element={<DashboardRedirect />} />
           <Route path="/dashboard/tenant" element={<Dashboard />} />
           <Route path="/dashboard/agent" element={<Dashboard />} />
           <Route path="/dashboard/landlord" element={<Dashboard />} />
           <Route path="/dashboard/funder" element={<Dashboard />} />
           <Route path="/dashboard/manager" element={<Dashboard />} />
+          <Route path="/dashboard/*" element={<DashboardRedirect />} />
           <Route path="/select-role" element={<SelectRole />} />
           <Route path="/transactions" element={<TransactionHistory />} />
           <Route path="/financial-statement" element={<FinancialStatement />} />
