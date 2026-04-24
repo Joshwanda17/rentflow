@@ -51,6 +51,8 @@ const SCENARIO_COLORS = [
 
 export function InvestmentCalculator() {
   const { currency, formatAmount, isLoadingRates, lastUpdated, refreshRates, usdRate } = useCurrency();
+  const [mode, setMode] = useState<'invest' | 'earn'>('invest');
+  const [investAmount, setInvestAmount] = useState(1_000_000);
   const [desiredEarnings, setDesiredEarnings] = useState(150000);
   const [duration, setDuration] = useState(12);
   const [isCompounding, setIsCompounding] = useState(false);
@@ -100,7 +102,8 @@ export function InvestmentCalculator() {
   }, [savedScenarios]);
 
   const calculations = useMemo(() => {
-    const requiredContribution = Math.ceil(desiredEarnings / REWARD_RATE);
+    const requiredContribution =
+      mode === 'invest' ? Math.max(0, investAmount) : Math.ceil(desiredEarnings / REWARD_RATE);
     const monthlyReward = requiredContribution * REWARD_RATE;
     const quarterlyReward = monthlyReward * 3;
     const yearlyReward = monthlyReward * 12;
@@ -111,7 +114,7 @@ export function InvestmentCalculator() {
       quarterlyReward,
       yearlyReward,
     };
-  }, [desiredEarnings]);
+  }, [mode, investAmount, desiredEarnings]);
 
   const projections = useMemo((): MonthlyProjection[] => {
     const results: MonthlyProjection[] = [];
@@ -496,7 +499,9 @@ export function InvestmentCalculator() {
               </h1>
               
               <p className="text-muted-foreground text-xs sm:text-sm max-w-lg mx-auto">
-                Set your earnings goal and see how much to contribute
+                {mode === 'invest'
+                  ? 'Enter an amount and duration to project your earnings'
+                  : 'Set your earnings goal and see how much to contribute'}
               </p>
             </div>
 
@@ -528,41 +533,105 @@ export function InvestmentCalculator() {
 
             {/* Calculator Input - Compact */}
             <div className="space-y-3 sm:space-y-5 max-w-md mx-auto">
-              {/* Earnings Goal */}
-              <div className="space-y-1.5">
-                <Label className="text-center block text-[11px] sm:text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                  I want to earn monthly
-                </Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs sm:text-sm text-muted-foreground font-bold">
-                    UGX
-                  </span>
-                  <Input
-                    type="text"
-                    value={desiredEarnings.toLocaleString()}
-                    onChange={(e) => {
-                      const value = parseInt(e.target.value.replace(/,/g, '')) || 0;
-                      setDesiredEarnings(Math.max(0, Math.min(value, 30000000000)));
-                    }}
-                    className="pl-11 sm:pl-14 text-lg sm:text-2xl font-black h-12 sm:h-16 bg-background border-2 border-primary/30 focus:border-primary rounded-xl text-center"
-                  />
-                </div>
-                <Slider
-                  value={[desiredEarnings]}
-                  onValueChange={([value]) => setDesiredEarnings(value)}
-                  min={50000}
-                  max={30000000000}
-                  step={100000}
-                  className="py-2 sm:py-3"
-                />
-                <div className="flex justify-between text-[10px] text-muted-foreground">
-                  <span>50K</span>
-                  <span className="text-primary flex items-center gap-0.5">
-                    <Zap className="h-2.5 w-2.5" /> Slide to adjust
-                  </span>
-                  <span>30B</span>
-                </div>
+              {/* Mode toggle */}
+              <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-muted/60 border border-border">
+                <button
+                  type="button"
+                  onClick={() => setMode('invest')}
+                  className={`min-h-[40px] rounded-lg text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-colors ${
+                    mode === 'invest'
+                      ? 'bg-primary text-primary-foreground shadow'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  I have an amount
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode('earn')}
+                  className={`min-h-[40px] rounded-lg text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-colors ${
+                    mode === 'earn'
+                      ? 'bg-primary text-primary-foreground shadow'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  I have a goal
+                </button>
               </div>
+
+              {mode === 'invest' ? (
+                /* Investment Amount */
+                <div className="space-y-1.5">
+                  <Label className="text-center block text-[11px] sm:text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                    I want to invest
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs sm:text-sm text-muted-foreground font-bold">
+                      UGX
+                    </span>
+                    <Input
+                      type="text"
+                      value={investAmount.toLocaleString()}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value.replace(/,/g, '')) || 0;
+                        setInvestAmount(Math.max(0, Math.min(value, 300000000)));
+                      }}
+                      className="pl-11 sm:pl-14 text-lg sm:text-2xl font-black h-12 sm:h-16 bg-background border-2 border-primary/30 focus:border-primary rounded-xl text-center"
+                    />
+                  </div>
+                  <Slider
+                    value={[investAmount]}
+                    onValueChange={([value]) => setInvestAmount(value)}
+                    min={50000}
+                    max={300000000}
+                    step={50000}
+                    className="py-2 sm:py-3"
+                  />
+                  <div className="flex justify-between text-[10px] text-muted-foreground">
+                    <span>50K</span>
+                    <span className="text-primary flex items-center gap-0.5">
+                      <Zap className="h-2.5 w-2.5" /> Slide to adjust
+                    </span>
+                    <span>300M</span>
+                  </div>
+                </div>
+              ) : (
+                /* Earnings Goal */
+                <div className="space-y-1.5">
+                  <Label className="text-center block text-[11px] sm:text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                    I want to earn monthly
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs sm:text-sm text-muted-foreground font-bold">
+                      UGX
+                    </span>
+                    <Input
+                      type="text"
+                      value={desiredEarnings.toLocaleString()}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value.replace(/,/g, '')) || 0;
+                        setDesiredEarnings(Math.max(0, Math.min(value, 30000000000)));
+                      }}
+                      className="pl-11 sm:pl-14 text-lg sm:text-2xl font-black h-12 sm:h-16 bg-background border-2 border-primary/30 focus:border-primary rounded-xl text-center"
+                    />
+                  </div>
+                  <Slider
+                    value={[desiredEarnings]}
+                    onValueChange={([value]) => setDesiredEarnings(value)}
+                    min={50000}
+                    max={30000000000}
+                    step={100000}
+                    className="py-2 sm:py-3"
+                  />
+                  <div className="flex justify-between text-[10px] text-muted-foreground">
+                    <span>50K</span>
+                    <span className="text-primary flex items-center gap-0.5">
+                      <Zap className="h-2.5 w-2.5" /> Slide to adjust
+                    </span>
+                    <span>30B</span>
+                  </div>
+                </div>
+              )}
 
               {/* Duration */}
               <div className="space-y-1.5">
