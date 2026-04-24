@@ -53,6 +53,7 @@ import { CommissionCelebrationModal } from '@/components/agent/CommissionCelebra
 import { useBusinessAdvanceCommissionListener } from '@/hooks/useBusinessAdvanceCommissionListener';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
+import { WalletHeroSkeleton, MetricRowSkeleton, ListSectionSkeleton } from '@/components/skeletons/SectionSkeletons';
 
 import { hapticTap } from '@/lib/haptics';
 import { AgentAgreementBanner } from '@/components/agent/agreement';
@@ -325,7 +326,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         </div>
 
         {/* Wallet Hero Card — always visible */}
-        <UnifiedWalletHeroCard
+        {wallet ? (
+          <UnifiedWalletHeroCard
           balance={walletFloatBalance + commissionBalance + (otherBalance ?? 0)}
           role="agent"
           floatBalance={walletFloatBalance}
@@ -361,7 +363,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               </button>
             </div>
           }
-        />
+          />
+        ) : (
+          <WalletHeroSkeleton />
+        )}
 
         {/* Tab Navigation */}
         <AgentHubTabs active={activeTab} onChange={setActiveTab} />

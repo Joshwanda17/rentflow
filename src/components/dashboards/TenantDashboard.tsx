@@ -21,6 +21,7 @@ import DashboardHeader from '@/components/DashboardHeader';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { TenantDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
+import { WalletHeroSkeleton, ListSectionSkeleton } from '@/components/skeletons/SectionSkeletons';
 import { PayLandlordDialog } from '@/components/wallet/PayLandlordDialog';
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
 import { WalletDisclaimer } from '@/components/wallet/WalletDisclaimer';
@@ -269,12 +270,16 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           </motion.div>
 
           {/* Wallet Hero Card */}
-          <UnifiedWalletHeroCard
-            balance={wallet?.balance ?? 0}
-            role="tenant"
-            secondaryLabel="Used for Rent"
-            secondaryValue={formatUGX(rentRequests.find(r => ['approved', 'funded', 'disbursed', 'repaying'].includes(r.status))?.rent_amount ?? 0)}
-          />
+          {wallet ? (
+            <UnifiedWalletHeroCard
+              balance={wallet?.balance ?? 0}
+              role="tenant"
+              secondaryLabel="Used for Rent"
+              secondaryValue={formatUGX(rentRequests.find(r => ['approved', 'funded', 'disbursed', 'repaying'].includes(r.status))?.rent_amount ?? 0)}
+            />
+          ) : (
+            <WalletHeroSkeleton />
+          )}
           
 
           {/* Verification Checklist */}

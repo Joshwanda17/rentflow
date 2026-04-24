@@ -4,8 +4,9 @@ import { useAuth, type AppRole } from '@/hooks/useAuth';
 import { roleToSlug } from '@/lib/roleRoutes';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import { LogOut, Menu, X, ArrowLeft, Loader2 } from 'lucide-react';
+import { LogOut, Menu, X, ArrowLeft } from 'lucide-react';
 import RoleSwitcher from '@/components/RoleSwitcher';
+import { SidebarSkeleton, TopBarSkeleton } from '@/components/skeletons/SectionSkeletons';
 import { executiveSidebarConfig, roleLabels, roleDashboardRoutes } from './executiveSidebarConfig';
 import type { SidebarSection } from './executiveSidebarConfig';
 
@@ -115,8 +116,21 @@ export default function ExecutiveDashboardLayout({
 
   if (checkingProfile) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      <div className="h-screen bg-background flex flex-col overflow-hidden">
+        <TopBarSkeleton />
+        <div className="flex flex-1 min-h-0 overflow-hidden">
+          <SidebarSkeleton />
+          <main className="flex-1 p-4 sm:p-6 max-w-7xl mx-auto w-full space-y-4">
+            <div className="h-8 w-48 rounded bg-muted/50 animate-pulse" />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="h-24 rounded-xl bg-muted/40 animate-pulse" />
+              <div className="h-24 rounded-xl bg-muted/40 animate-pulse" />
+              <div className="h-24 rounded-xl bg-muted/40 animate-pulse" />
+              <div className="h-24 rounded-xl bg-muted/40 animate-pulse" />
+            </div>
+            <div className="h-64 rounded-xl bg-muted/30 animate-pulse" />
+          </main>
+        </div>
       </div>
     );
   }
