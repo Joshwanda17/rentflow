@@ -63,7 +63,7 @@ const OfflineFallback = ({ cachedRole, onRetry }: { cachedRole?: AppRole | null;
 );
 
 function DashboardContent() {
-  const { user, role, roles, loading, signOut, switchRole, addRole, grantAndSwitchRole } = useAuth();
+  const { user, role, roles, loading, signOut, switchRole, addRole } = useAuth();
   const [pendingRole, setPendingRole] = useState<AppRole | null>(null);
   const navigate = useNavigate();
 
