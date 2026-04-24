@@ -50,7 +50,24 @@ import { CFOImpactKPIStrip } from '@/components/cfo/CFOImpactKPIStrip';
 
 export default function CFODashboardPage() {
   const { currency, setCurrency, getCurrencyByCode } = useCurrency();
-  const [activeTab, setActiveTab] = useState('overview');
+  const STORAGE_KEY = 'cfo:activeTab';
+  const [activeTab, setActiveTabState] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'overview';
+    try {
+      return window.localStorage.getItem(STORAGE_KEY) || 'overview';
+    } catch {
+      return 'overview';
+    }
+  });
+
+  const setActiveTab = (tab: string) => {
+    setActiveTabState(tab);
+    try {
+      window.localStorage.setItem(STORAGE_KEY, tab);
+    } catch {
+      /* storage unavailable — ignore */
+    }
+  };
 
   // Force UGX on CFO dashboard — financial reporting must always be in base currency
   useEffect(() => {
