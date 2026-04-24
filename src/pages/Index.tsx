@@ -1,5 +1,6 @@
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { roleToSlug } from '@/lib/roleRoutes';
 
 export default function Index() {
   const { user, loading } = useAuth();
@@ -19,8 +20,9 @@ export default function Index() {
 
   // Auth finished loading — use LIVE auth state
   if (user) {
-    // Already logged in — always go to dashboard; dashboard handles role checks
-    return <Navigate to="/dashboard" replace />;
+    // Already logged in — send them to their persona dashboard.
+    // useAuth().role may not be set yet on cold load; fall back to /tenant.
+    return <Navigate to={roleToSlug(useAuth().role)} replace />;
   }
 
   // Not logged in — send referral/role links to auth
