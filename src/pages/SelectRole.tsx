@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, AppRole } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Home, Users, Wallet, Building2, Shield, Check, ArrowLeft, Sparkles } from 'lucide-react';
+import { Home, Users, Wallet, Building2, Shield, Check, ArrowLeft, Sparkles, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import WelileLogo from '@/components/WelileLogo';
 import { supabase } from '@/integrations/supabase/client';
@@ -70,7 +70,26 @@ export default function SelectRole() {
   
   const { addRole, user, roles, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+
+  // Banner shown when DashboardRedirect bounces a user here because their
+  // requested dashboard URL was invalid or they no longer hold that role.
+  const redirectState = (location.state ?? null) as
+    | { reason?: 'unknown-slug' | 'role-not-held' | 'no-roles'; requestedSlug?: string }
+    | null;
+  const redirectReason = redirectState?.reason ?? null;
+  const redirectMessage = (() => {
+    if (!redirectReason) return null;
+    if (redirectReason === 'no-roles') {
+      return "Your account doesn't have a dashboard role yet — pick one below to get started.";
+    }
+    if (redirectReason === 'unknown-slug') {
+      return `The link you opened (${redirectState?.requestedSlug ?? 'that URL'}) isn't a valid dashboard. Choose a role below to continue.`;
+    }
+    // role-not-held
+    return `You no longer have access to ${redirectState?.requestedSlug ?? 'that dashboard'}. Pick one of your active roles below.`;
+  })();
 
   const [autoSubmitting, setAutoSubmitting] = useState(false);
 
@@ -284,6 +303,21 @@ export default function SelectRole() {
           </div>
           <p className="text-muted-foreground">Choose your role(s) on the platform</p>
         </div>
+
+        {redirectMessage && (
+          <div
+            role="alert"
+            className="mb-4 flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/10 p-4 text-left"
+          >
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
+            <div className="space-y-0.5">
+              <p className="text-sm font-semibold text-warning">
+                Dashboard not available
+              </p>
+              <p className="text-xs text-muted-foreground">{redirectMessage}</p>
+            </div>
+          </div>
+        )}
 
         {isSubAgentSignup && (
           <div className="mb-4 p-4 rounded-xl bg-orange-500/10 border border-orange-500/20">
