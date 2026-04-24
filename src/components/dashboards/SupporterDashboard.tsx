@@ -60,6 +60,7 @@ import { NotificationBell } from '@/components/supporter/NotificationBell';
 import { InviteAndEarnCard } from '@/components/shared/InviteAndEarnCard';
 import { useInactivityLock } from '@/hooks/useInactivityLock';
 import { SupporterInactivityLock } from '@/components/supporter/SupporterInactivityLock';
+import { WidgetErrorBoundary } from '@/components/shared/WidgetErrorBoundary';
 
 
 interface SupporterDashboardProps {
@@ -458,7 +459,9 @@ export default function SupporterDashboard({
               <h2 className="text-sm font-black text-foreground tracking-tight">Capital Opportunities</h2>
             </div>
             {!effectiveHasAccepted && <LockedOverlay onAcceptClick={() => setShowAgreementModal(true)} />}
-            <FunderCapitalOpportunities />
+            <WidgetErrorBoundary label="Capital opportunities">
+              <FunderCapitalOpportunities />
+            </WidgetErrorBoundary>
           </div>
 
           {/* ═══ MY FUNDED HOUSES (collapsible) ═══ */}
@@ -490,11 +493,13 @@ export default function SupporterDashboard({
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="pt-3">
-                    <VirtualHousesFeed
-                      houses={virtualHouses}
-                      loading={loading}
-                      onHouseTap={handleHouseTap}
-                    />
+                    <WidgetErrorBoundary label="My houses">
+                      <VirtualHousesFeed
+                        houses={virtualHouses}
+                        loading={loading}
+                        onHouseTap={handleHouseTap}
+                      />
+                    </WidgetErrorBoundary>
                   </div>
                 </CollapsibleContent>
               </Collapsible>
