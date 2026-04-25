@@ -316,40 +316,38 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
           </DialogDescription>
         </DialogHeader>
 
-        <div className="px-6 py-5 space-y-5">
-          {/* Today's running total — calm, single number */}
-          <div className="rounded-3xl bg-muted/40 p-5">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">
-              Today
-            </p>
-            <p className="text-4xl font-bold tracking-tight tabular-nums mt-1">
-              {formatUGX(grandTotal)}
-            </p>
-            <div className="flex items-center justify-between gap-3 mt-3">
-              <p className="text-sm text-muted-foreground">
-                {entries.length} payment{entries.length === 1 ? '' : 's'}
-                {queuedCount > 0 && ` · ${queuedCount} waiting to send`}
+        <div className="px-6 py-5 space-y-6">
+          {/* Compact today summary — single line, no hero block */}
+          <div className="flex items-baseline justify-between gap-3 -mt-1">
+            <div className="min-w-0">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">
+                Today
               </p>
-              {queuedCount > 0 && (
-                <Button
-                  size="sm"
-                  variant="default"
-                  onClick={handleSync}
-                  disabled={syncing || !online}
-                  className="gap-1.5 h-9 rounded-full px-4"
-                >
-                  {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudUpload className="h-4 w-4" />}
-                  Send now
-                </Button>
-              )}
+              <p className="text-2xl font-bold tabular-nums tracking-tight leading-tight mt-0.5">
+                {formatUGX(grandTotal)}
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  · {entries.length} payment{entries.length === 1 ? '' : 's'}
+                </span>
+              </p>
             </div>
+            {queuedCount > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleSync}
+                disabled={syncing || !online}
+                className="gap-1.5 h-9 rounded-full px-3 shrink-0"
+              >
+                {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudUpload className="h-4 w-4" />}
+                Send {queuedCount}
+              </Button>
+            )}
           </div>
 
           {/* STEP 1 — Tenant */}
           <section className="space-y-2.5">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-semibold text-foreground">
-                <span className="text-muted-foreground font-normal mr-1">1.</span>
+              <Label className="text-base font-semibold text-foreground">
                 Who paid?
               </Label>
               {tenants.length > 0 && (
@@ -446,8 +444,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
 
           {/* STEP 2 — Amount */}
           <section className="space-y-2.5">
-            <Label className="text-sm font-semibold text-foreground">
-              <span className="text-muted-foreground font-normal mr-1">2.</span>
+            <Label className="text-base font-semibold text-foreground">
               How much?
             </Label>
             <div className="relative">
@@ -512,65 +509,63 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
 
           <Separator />
 
-          {/* Captured list */}
-          <section className="space-y-2.5">
-            <Label className="text-sm font-semibold text-foreground">
-              Recent payments {entries.length > 0 && (
-                <span className="text-muted-foreground font-normal">({entries.length})</span>
-              )}
-            </Label>
-            {entries.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">
-                No payments recorded yet.
-              </p>
-            ) : (
-              <ScrollArea className="max-h-72">
-                <ul className="space-y-2 pr-2">
-                  {entries.map(e => (
-                    <li
-                      key={e.id}
-                      className="flex items-center justify-between gap-2 rounded-2xl border bg-card px-4 py-3"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-semibold truncate">{e.tenantName}</p>
-                          {e.syncState === 'synced' && (
-                            <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                          )}
-                          {e.syncState === 'error' && (
-                            <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
-                          )}
-                          {e.syncState === 'queued' && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 font-medium shrink-0">
-                              Waiting
-                            </span>
-                          )}
+          {/* Captured list — collapsed by default to keep main flow simple */}
+          {entries.length > 0 && (
+            <details className="rounded-2xl border bg-muted/20 group">
+              <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground select-none flex items-center justify-between">
+                <span>Recent payments ({entries.length})</span>
+                <span className="text-xs text-muted-foreground group-open:hidden">Show</span>
+                <span className="text-xs text-muted-foreground hidden group-open:inline">Hide</span>
+              </summary>
+              <div className="px-3 pb-3">
+                <ScrollArea className="max-h-72">
+                  <ul className="space-y-2 pr-2">
+                    {entries.map(e => (
+                      <li
+                        key={e.id}
+                        className="flex items-center justify-between gap-2 rounded-2xl border bg-card px-4 py-3"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold truncate">{e.tenantName}</p>
+                            {e.syncState === 'synced' && (
+                              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                            )}
+                            {e.syncState === 'error' && (
+                              <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+                            )}
+                            {e.syncState === 'queued' && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 font-medium shrink-0">
+                                Waiting
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {new Date(e.capturedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {e.tenantPhone ? ` · ${e.tenantPhone}` : ''}
+                          </p>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {new Date(e.capturedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          {e.tenantPhone ? ` · ${e.tenantPhone}` : ''}
+                        <p className="text-base font-bold tabular-nums shrink-0">
+                          {formatUGX(e.amount)}
                         </p>
-                      </div>
-                      <p className="text-base font-bold tabular-nums shrink-0">
-                        {formatUGX(e.amount)}
-                      </p>
-                      {e.syncState !== 'synced' && (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-9 w-9 rounded-full shrink-0"
-                          onClick={() => handleDelete(e.id)}
-                          aria-label="Delete"
-                        >
-                          <Trash2 className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </ScrollArea>
-            )}
-          </section>
+                        {e.syncState !== 'synced' && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-9 w-9 rounded-full shrink-0"
+                            onClick={() => handleDelete(e.id)}
+                            aria-label="Delete"
+                          >
+                            <Trash2 className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </ScrollArea>
+              </div>
+            </details>
+          )}
         </div>
       </DialogContent>
     </Dialog>
