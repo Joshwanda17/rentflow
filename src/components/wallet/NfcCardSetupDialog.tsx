@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
+import welileCardImage from '@/assets/welile-card.png';
 
 interface NfcCardSetupDialogProps {
   open: boolean;
@@ -256,36 +257,17 @@ export function NfcCardSetupDialog({ open, onOpenChange }: NfcCardSetupDialogPro
 
         {step === 'existing' && existingCard && (
           <div className="space-y-4">
-            {/* Visual card */}
-            <div
-              className="relative w-full aspect-[1.586/1] rounded-2xl overflow-hidden shadow-xl"
-              style={{
-                background:
-                  'linear-gradient(135deg, hsl(270 70% 22%) 0%, hsl(270 65% 30%) 100%)',
-              }}
-            >
-              {/* Wave overlays mimicking the brand card */}
-              <div
-                className="absolute inset-0 pointer-events-none"
-                style={{
-                  background:
-                    'radial-gradient(ellipse 120% 60% at 30% 110%, hsl(270 60% 55% / 0.55) 0%, transparent 55%), radial-gradient(ellipse 100% 50% at 80% 20%, hsl(270 60% 60% / 0.35) 0%, transparent 55%), radial-gradient(ellipse 80% 40% at 110% 80%, hsl(270 55% 50% / 0.45) 0%, transparent 60%)',
-                }}
+            {/* Visual card — uses brand artwork as background */}
+            <div className="relative w-full aspect-[1.586/1] rounded-2xl overflow-hidden shadow-xl">
+              <img
+                src={welileCardImage}
+                alt="Welile Card"
+                className="absolute inset-0 w-full h-full object-cover"
+                draggable={false}
               />
-              {/* Logo + Tap to Pay */}
-              <div className="absolute top-4 left-4 flex items-baseline gap-0.5">
-                <span className="text-white text-2xl font-extrabold tracking-tight">Welile</span>
-                <span className="text-white text-[10px] font-semibold">TM</span>
-              </div>
-              <div className="absolute top-4 right-4 flex items-center gap-2 text-white">
-                <span className="text-xs font-medium">Tap to Pay</span>
-                <div className="h-6 w-6 rounded-full border border-white/80 flex items-center justify-center">
-                  <Wifi className="h-3 w-3 rotate-90" />
-                </div>
-              </div>
-              {/* Card Holder — 16,16pt left aligned, fontsize 9, bold */}
+              {/* Card Holder — 16pt from left, 16pt from bottom, fontsize 9, bold, left aligned */}
               <div
-                className="absolute text-white font-bold"
+                className="absolute text-white font-bold text-left"
                 style={{ left: 16, bottom: 16, fontSize: 9, lineHeight: 1.2 }}
               >
                 {holderName}
