@@ -753,8 +753,25 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
    * Returns null when the query isn't a short phone-y query, so the UI can
    * cheaply skip rendering. Computed independently of `filtered` so it
    * stays correct even when the per-query result cache short-circuits.
+   *
+   * Two count modes are exposed via `tailHintMode`:
+   *  - 'tenants': raw count of tenants whose phone ends in the typed digits
+   *               (1:1 with the result list — matches what the query returns).
+   *  - 'buckets': distinct (tailLen+1)-digit groups — i.e. how many different
+   *               "next-digit-out" prefixes share this tail. Tells the agent
+   *               "if I type one more digit, this is how many groups it
+   *               could collapse to." Phones with no extra digit (the typed
+   *               tail IS the full normalized phone) collapse into a single
+   *               '∅' bucket so they don't get double-counted.
    */
-  const tailShareHint = useMemo<{ count: number; tailLen: number; digits: string } | null>(() => {
+  type TailHintMode = 'tenants' | 'buckets';
+  const [tailHintMode, setTailHintMode] = useState<TailHintMode>('tenants');
+  const tailShareHint = useMemo<{
+    tenantCount: number;
+    bucketCount: number;
+    tailLen: number;
+    digits: string;
+  } | null>(() => {
     const raw = debouncedSearch.trim();
     if (!raw) return null;
     const phoneQ = normalizePhone(raw);
@@ -765,11 +782,25 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     const stripped = raw.replace(/[\s\-+()]/g, '');
     const digitsOnly = stripped.replace(/\D+/g, '');
     if (digitsOnly.length < stripped.length - 1) return null;
-    let count = 0;
+    let tenantCount = 0;
+    // Bucket key: the (tailLen+1)-digit suffix of the phone. Phones whose
+    // full normalized form is exactly the query digits go into the special
+    // '∅' bucket (no "next digit out" exists). Single-pass O(N), no
+    // sort/array allocation in the hot loop.
+    const buckets = new Set<string>();
+    const wider = phoneQ.length + 1;
     for (const x of tenantIndex) {
-      if (x.phone && x.phone.endsWith(phoneQ)) count++;
+      const p = x.phone;
+      if (!p || !p.endsWith(phoneQ)) continue;
+      tenantCount++;
+      buckets.add(p.length >= wider ? p.slice(-wider) : '∅');
     }
-    return { count, tailLen: phoneQ.length, digits: phoneQ };
+    return {
+      tenantCount,
+      bucketCount: buckets.size,
+      tailLen: phoneQ.length,
+      digits: phoneQ,
+    };
   }, [debouncedSearch, tenantIndex]);
 
   /**
