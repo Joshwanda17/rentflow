@@ -599,6 +599,37 @@ function CommissionBreakdown({
                 )}
               </div>
             </div>
+
+            {/* Source-of-truth label */}
+            <div className="px-3 py-1.5 border-t bg-background/40 text-[10px] text-muted-foreground flex items-start gap-1.5">
+              <Info className="h-3 w-3 shrink-0 mt-0.5" />
+              <div className="min-w-0 leading-snug">
+                <span className="font-semibold">Source of truth:</span>{' '}
+                {isVerified ? (
+                  recordedTagged > 0 ? (
+                    <>
+                      Verified batch — comparing against the recorded{' '}
+                      <span className="font-mono">tagged_total</span> (
+                      <span className="font-mono">{formatUGX(recordedTagged)}</span>) and the
+                      per-tenant commission audit captured at verify time.
+                    </>
+                  ) : (
+                    <>
+                      Verified batch — no <span className="font-mono">tagged_total</span> recorded,
+                      falling back to <span className="font-mono">declared_total</span> (
+                      <span className="font-mono">{formatUGX(declared)}</span>).
+                    </>
+                  )
+                ) : (
+                  <>
+                    Pending batch — comparing against{' '}
+                    <span className="font-mono">declared_total</span> (
+                    <span className="font-mono">{formatUGX(declared)}</span>); commission is the
+                    estimate that will be booked on verify at {ratePct}%.
+                  </>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Pre-verify ledger impact preview */}
