@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -410,6 +411,28 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
       /* noop */
     }
   }, [browseStatusStorageKey]);
+
+  /**
+   * Detect whether localStorage is actually writable in this browsing
+   * context. Safari Private mode, locked-down enterprise profiles, and
+   * "block all cookies/site data" settings all surface as a thrown
+   * SecurityError / QuotaExceededError on `setItem` even when the
+   * `localStorage` object itself exists. We only need this signal once
+   * per mount — drives a small "Saved in this session" badge so the
+   * agent isn't surprised when their tenant filter resets after refresh.
+   */
+  const [localStorageBlocked, setLocalStorageBlocked] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const probeKey = '__welile_ls_probe__';
+      window.localStorage.setItem(probeKey, '1');
+      window.localStorage.removeItem(probeKey);
+      setLocalStorageBlocked(false);
+    } catch {
+      setLocalStorageBlocked(true);
+    }
+  }, []);
 
   /* Cloud sync master switch — declared here (above the cloud effects)
    * because the read + write effects below gate on it. The localStorage
@@ -2434,6 +2457,38 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                           <RefreshCcw className="h-3 w-3" />
                           Reset
                         </button>
+                      )}
+                      {/*
+                       * "Saved in this session" badge — only renders when
+                       * the localStorage probe failed (Safari Private,
+                       * blocked site data, locked-down profile). Signals
+                       * that the chip selection won't survive refresh so
+                       * the agent isn't surprised, without crowding the
+                       * row in the normal case. Tooltip carries the
+                       * actionable detail for power users.
+                       */}
+                      {localStorageBlocked && (
+                        <TooltipProvider delayDuration={200}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge
+                                variant="warning"
+                                size="sm"
+                                className="gap-1 cursor-help"
+                                aria-label="Local storage is blocked. Your tenant filter will reset when you refresh."
+                              >
+                                <CloudOff className="h-3 w-3" />
+                                Saved in this session
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-[11px] max-w-[240px]">
+                              <div className="font-medium">Local storage is blocked</div>
+                              <div className="text-muted-foreground mt-0.5">
+                                Your tenant filter will reset when you refresh or reopen this app.
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       )}
                       {/*
                        * Picker preferences popover — gear icon at the
