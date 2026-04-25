@@ -494,13 +494,13 @@ describe('scoreTenantMatchDebug — per-lane diagnostic output', () => {
     expect(d.phoneLane.score).toBe(115);
   });
 
-  it('reports the fuzzy variant that produced a fallback hit', () => {
-    // Query has a stray country-code-with-extra-zero prefix; strict
-    // normalization wouldn't land cleanly but the fuzzy variant should.
-    const d = scoreTenantMatchDebug('00256772123456', T('Alice', '0772 123 456'));
-    expect(d.phoneLane.reason).toMatch(/^fuzzy-/);
-    expect(d.phoneLane.fuzzyVariant).toBeTruthy();
-    expect(d.bestMatchFallback).toBe(true);
+  it('leaves fuzzyVariant null when the strict path produced the score', () => {
+    // Strict normalization handles this query cleanly, so the fuzzy fallback
+    // never fires — debug output should reflect that.
+    const d = scoreTenantMatchDebug('+256 772 123 456', T('Alice', '0772 123 456'));
+    expect(d.phoneLane.fuzzyVariant).toBeNull();
+    expect(d.bestMatchFallback).toBe(false);
+    expect(d.phoneLane.reason).toBe('exact');
   });
 
   it('breaks down a name-word-prefix hit', () => {
