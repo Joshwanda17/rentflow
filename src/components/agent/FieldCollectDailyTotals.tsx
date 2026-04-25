@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { getEntries, type FieldEntry } from '@/lib/fieldCollectStore';
+import { getEntries, onFieldCollectChange, type FieldEntry } from '@/lib/fieldCollectStore';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -111,6 +111,18 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
     const iv = window.setInterval(refresh, 4000);
     return () => window.clearInterval(iv);
   }, [refresh, live]);
+
+  /**
+   * Instant refresh on save/update/delete from anywhere in the app
+   * (e.g. TenantFieldCollectDialog, FieldCollectDialog, sync worker).
+   * Decoupled via the field-collect change event bus.
+   */
+  useEffect(() => {
+    return onFieldCollectChange((detail) => {
+      if (detail.agentId && user?.id && detail.agentId !== user.id) return;
+      refresh();
+    });
+  }, [refresh, user?.id]);
 
   const isToday = isSameDay(selectedDate, new Date());
 
