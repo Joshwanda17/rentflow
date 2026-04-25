@@ -9,8 +9,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import {
-  Loader2, WifiOff, Wifi, CloudUpload, Search, Plus, Trash2,
-  CheckCircle2, AlertCircle, RefreshCcw,
+  Loader2, WifiOff, Wifi, Search, Trash2,
+  CheckCircle2, AlertCircle, RefreshCcw, ChevronLeft, ChevronRight,
+  User, Banknote, ClipboardCheck, Home, KeyRound, Sparkles,
 } from 'lucide-react';
 import {
   cacheTenants, getCachedTenants, addEntry, deleteEntry, getEntries,
@@ -26,6 +27,16 @@ interface FieldCollectDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+type Step = 1 | 2 | 3;
+
+type Purpose = 'rent' | 'deposit' | 'other';
+
+const PURPOSES: { id: Purpose; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: 'rent', label: 'Rent', icon: Home },
+  { id: 'deposit', label: 'Deposit', icon: KeyRound },
+  { id: 'other', label: 'Other', icon: Sparkles },
+];
+
 export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogProps) {
   const { user } = useAuth();
   const [online, setOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
@@ -38,8 +49,10 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   const [walkupPhone, setWalkupPhone] = useState('');
   const [amount, setAmount] = useState('');
   const [notes, setNotes] = useState('');
+  const [purpose, setPurpose] = useState<Purpose>('rent');
+  const [step, setStep] = useState<Step>(1);
   const [saving, setSaving] = useState(false);
-  const [syncing, setSyncing] = useState(false);
+  const [, setSyncing] = useState(false);
 
   /* Online/offline tracking */
   useEffect(() => {
@@ -132,7 +145,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   }, [tenants, search]);
 
   const queuedCount = entries.filter(e => e.syncState !== 'synced').length;
-  const grandTotal = useMemo(() => entries.reduce((sum, e) => sum + Number(e.amount || 0), 0), [entries]);
+  void queuedCount;
 
   const resetForm = () => {
     setPicked(null);
@@ -141,6 +154,8 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     setAmount('');
     setNotes('');
     setSearch('');
+    setPurpose('rent');
+    setStep(1);
   };
 
   const handleSave = async () => {
@@ -148,17 +163,23 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     const amt = Number(amount);
     if (!Number.isFinite(amt) || amt <= 0) {
       toast.error('Enter a valid amount');
+      setStep(2);
       return;
     }
     const tName = picked?.fullName || walkupName.trim();
     const tPhone = picked?.phone || (walkupPhone.trim() || null);
     if (!tName) {
       toast.error('Pick a tenant or enter a name');
+      setStep(1);
       return;
     }
 
     setSaving(true);
     try {
+      const purposeLabel = PURPOSES.find(p => p.id === purpose)?.label ?? 'Rent';
+      const composedNote = notes.trim()
+        ? `${purposeLabel} · ${notes.trim()}`
+        : purposeLabel;
       const entry: FieldEntry = {
         id: newClientUuid(),
         agentId: user.id,
@@ -166,7 +187,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
         tenantName: tName,
         tenantPhone: tPhone,
         amount: amt,
-        notes: notes.trim() || null,
+        notes: composedNote,
         capturedAt: Date.now(),
         syncState: 'queued',
       };
@@ -293,6 +314,37 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [online, open, user?.id]);
 
+  /* Reset wizard when dialog closes */
+  useEffect(() => {
+    if (!open) resetForm();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const tenantPicked = !!picked || !!walkupName.trim();
+  const amountValid = Number(amount) > 0;
+  const tenantLabel = picked?.fullName || walkupName.trim() || 'No tenant';
+  const tenantPhoneLabel = picked?.phone || walkupPhone.trim() || null;
+  const purposeLabel = PURPOSES.find(p => p.id === purpose)?.label ?? 'Rent';
+
+  const goNext = () => {
+    if (step === 1) {
+      if (!tenantPicked) {
+        toast.error('Pick a tenant or enter a name');
+        return;
+      }
+      setStep(2);
+    } else if (step === 2) {
+      if (!amountValid) {
+        toast.error('Enter a valid amount');
+        return;
+      }
+      setStep(3);
+    }
+  };
+  const goBack = () => {
+    if (step > 1) setStep((step - 1) as Step);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -302,6 +354,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
           'w-screen h-[100dvh] max-w-none rounded-none translate-x-0 translate-y-0 left-0 top-0 sm:left-[50%] sm:top-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%]',
           // Tablet/desktop: roomy modal
           'sm:w-full sm:max-w-lg sm:h-auto sm:max-h-[92vh] sm:rounded-3xl',
+          'flex flex-col',
         )}
       >
         {/* Sticky header */}
@@ -320,189 +373,265 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
               {online ? 'Online' : 'Saving offline'}
             </span>
           </div>
-          <DialogDescription className="text-sm text-left">
-            Record a cash payment from a tenant. Works without internet.
+          <DialogDescription className="sr-only">
+            Record a cash payment from a tenant in three guided steps. Works without internet.
           </DialogDescription>
+
+          {/* Step indicator */}
+          <div className="flex items-center gap-2 mt-3" role="progressbar" aria-valuemin={1} aria-valuemax={3} aria-valuenow={step}>
+            {[1, 2, 3].map((i) => {
+              const done = i < step;
+              const active = i === step;
+              return (
+                <div key={i} className="flex-1 flex items-center gap-2 min-w-0">
+                  <div
+                    className={cn(
+                      'h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 border',
+                      done && 'bg-primary text-primary-foreground border-primary',
+                      active && 'bg-primary/10 text-primary border-primary',
+                      !done && !active && 'bg-muted text-muted-foreground border-transparent',
+                    )}
+                  >
+                    {done ? <CheckCircle2 className="h-4 w-4" /> : i}
+                  </div>
+                  {i < 3 && (
+                    <div className={cn('h-0.5 flex-1 rounded-full', done ? 'bg-primary' : 'bg-muted')} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground mt-2 text-left">
+            Step {step} of 3 ·{' '}
+            {step === 1 && 'Choose tenant'}
+            {step === 2 && 'Enter amount'}
+            {step === 3 && 'Confirm & save'}
+          </p>
         </DialogHeader>
 
         {/* Scrollable body — leaves room for sticky save bar at bottom */}
-        <div className="px-5 sm:px-6 py-5 space-y-6 overflow-y-auto flex-1 pb-32 sm:pb-6">
-          {/* Compact today summary — single line, no hero block */}
-          <div className="flex items-baseline justify-between gap-3 -mt-1">
-            <div className="min-w-0">
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">
-                Today
-              </p>
-              <p className="text-2xl sm:text-3xl font-bold tabular-nums tracking-tight leading-tight mt-0.5">
-                {formatUGX(grandTotal)}
-                <span className="ml-2 text-xs font-normal text-muted-foreground">
-                  · {entries.length} payment{entries.length === 1 ? '' : 's'}
-                </span>
-              </p>
-            </div>
-            {queuedCount > 0 && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleSync}
-                disabled={syncing || !online}
-                className="gap-1.5 h-10 rounded-full px-4 shrink-0"
-              >
-                {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudUpload className="h-4 w-4" />}
-                Send {queuedCount}
-              </Button>
-            )}
-          </div>
+        <div className="px-5 sm:px-6 py-5 space-y-5 overflow-y-auto flex-1 pb-32 sm:pb-5">
+          {/* ───── STEP 1 — Tenant ───── */}
+          {step === 1 && (
+            <section className="space-y-3" aria-labelledby="step1-title">
+              <div className="flex items-center justify-between">
+                <Label id="step1-title" className="text-lg font-bold tracking-tight">
+                  Who paid?
+                </Label>
+                {tenants.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={refreshTenantCache}
+                    disabled={!online || tenantsLoading}
+                    className="text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1 disabled:opacity-50"
+                  >
+                    <RefreshCcw className={cn('h-3 w-3', tenantsLoading && 'animate-spin')} />
+                    Refresh
+                  </button>
+                )}
+              </div>
 
-          {/* STEP 1 — Tenant */}
-          <section className="space-y-2.5">
-            <div className="flex items-center justify-between">
-              <Label className="text-base font-semibold text-foreground">
-                Who paid?
+              {picked ? (
+                <div className="flex items-center justify-between rounded-2xl bg-primary/5 border border-primary/20 px-4 py-4 min-h-[64px]">
+                  <div className="min-w-0 flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                      <User className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-base sm:text-lg font-semibold truncate">{picked.fullName}</p>
+                      <p className="text-xs text-muted-foreground truncate">{picked.phone || 'No phone'}</p>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-10 px-4 rounded-full"
+                    onClick={() => { setPicked(null); setSearch(''); }}
+                  >
+                    Change
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <div className="relative">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      value={search}
+                      onChange={e => { setSearch(e.target.value); setPicked(null); }}
+                      placeholder={tenants.length ? 'Search name or phone' : 'Connect to load tenants'}
+                      className="pl-11 h-14 text-base rounded-2xl"
+                      autoComplete="off"
+                      autoFocus
+                    />
+                  </div>
+
+                  {(search || tenants.length > 0) && (
+                    <div className="rounded-2xl border max-h-72 overflow-y-auto">
+                      {filtered.length === 0 ? (
+                        <p className="p-4 text-sm text-muted-foreground text-center">
+                          No match. Use walk-up below.
+                        </p>
+                      ) : filtered.map(t => (
+                        <button
+                          key={t.tenantId}
+                          onClick={() => { setPicked(t); setSearch(t.fullName); }}
+                          className="w-full text-left px-4 py-4 min-h-[60px] hover:bg-accent border-b last:border-b-0 flex items-center justify-between gap-2 active:bg-accent/80 touch-manipulation"
+                          style={{ WebkitTapHighlightColor: 'transparent' }}
+                        >
+                          <div className="min-w-0">
+                            <p className="text-base font-semibold truncate">{t.fullName}</p>
+                            <p className="text-xs text-muted-foreground truncate">{t.phone || 'No phone'}</p>
+                          </div>
+                          {t.monthlyRent ? (
+                            <span className="text-xs text-muted-foreground shrink-0 tabular-nums">
+                              {formatUGX(t.monthlyRent)}/mo
+                            </span>
+                          ) : null}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Walk-up fallback */}
+                  <details className="text-sm rounded-2xl border bg-muted/20 px-4 py-3 group">
+                    <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground select-none">
+                      Tenant not in the list?
+                    </summary>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <Input
+                        value={walkupName}
+                        onChange={e => { setWalkupName(e.target.value); setPicked(null); }}
+                        placeholder="Name"
+                        maxLength={100}
+                        className="h-12 rounded-xl text-base"
+                      />
+                      <Input
+                        value={walkupPhone}
+                        onChange={e => setWalkupPhone(e.target.value.replace(/[^\d+\s-]/g, '').slice(0, 20))}
+                        placeholder="Phone"
+                        inputMode="tel"
+                        className="h-12 rounded-xl text-base"
+                      />
+                    </div>
+                  </details>
+                </>
+              )}
+            </section>
+          )}
+
+          {/* ───── STEP 2 — Amount ───── */}
+          {step === 2 && (
+            <section className="space-y-3" aria-labelledby="step2-title">
+              <Label id="step2-title" className="text-lg font-bold tracking-tight">
+                How much did {picked?.fullName?.split(' ')[0] || walkupName.trim().split(' ')[0] || 'they'} pay?
               </Label>
-              {tenants.length > 0 && (
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base font-semibold text-muted-foreground pointer-events-none">
+                  UGX
+                </span>
+                <Input
+                  value={amount ? Number(amount).toLocaleString() : ''}
+                  onChange={e => setAmount(e.target.value.replace(/[^\d]/g, '').slice(0, 12))}
+                  inputMode="numeric"
+                  placeholder="0"
+                  className="pl-16 h-[72px] sm:h-16 text-4xl sm:text-3xl font-bold tabular-nums rounded-2xl text-right pr-5"
+                  autoFocus
+                />
+              </div>
+              {/* Quick-amount chips */}
+              <div className="grid grid-cols-4 gap-2">
+                {[10000, 50000, 100000, 200000].map(v => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setAmount(String((Number(amount) || 0) + v))}
+                    className="h-12 rounded-full border bg-card text-sm font-semibold hover:bg-accent active:bg-accent/80 transition-colors tabular-nums touch-manipulation"
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    +{(v / 1000)}k
+                  </button>
+                ))}
+              </div>
+              {amount && (
                 <button
                   type="button"
-                  onClick={refreshTenantCache}
-                  disabled={!online || tenantsLoading}
-                  className="text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1 disabled:opacity-50"
+                  onClick={() => setAmount('')}
+                  className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
                 >
-                  <RefreshCcw className={cn('h-3 w-3', tenantsLoading && 'animate-spin')} />
-                  Refresh
+                  Clear amount
                 </button>
               )}
-            </div>
+            </section>
+          )}
 
-            {picked ? (
-              <div className="flex items-center justify-between rounded-2xl bg-primary/5 border border-primary/20 px-4 py-4 min-h-[64px]">
-                <div className="min-w-0">
-                  <p className="text-base sm:text-lg font-semibold truncate">{picked.fullName}</p>
-                  <p className="text-xs text-muted-foreground truncate">{picked.phone || 'No phone'}</p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-10 px-4 rounded-full"
-                  onClick={() => { setPicked(null); setSearch(''); }}
-                >
-                  Change
-                </Button>
+          {/* ───── STEP 3 — Confirm ───── */}
+          {step === 3 && (
+            <section className="space-y-4" aria-labelledby="step3-title">
+              <Label id="step3-title" className="text-lg font-bold tracking-tight">
+                What's this payment for?
+              </Label>
+
+              <div className="grid grid-cols-3 gap-2">
+                {PURPOSES.map(p => {
+                  const Icon = p.icon;
+                  const active = purpose === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setPurpose(p.id)}
+                      aria-pressed={active}
+                      className={cn(
+                        'rounded-2xl border px-3 py-4 flex flex-col items-center gap-2 touch-manipulation transition-all min-h-[88px]',
+                        active
+                          ? 'bg-primary/10 border-primary text-primary shadow-sm'
+                          : 'bg-card hover:bg-accent active:bg-accent/80 border-border',
+                      )}
+                      style={{ WebkitTapHighlightColor: 'transparent' }}
+                    >
+                      <Icon className="h-6 w-6" />
+                      <span className="text-sm font-semibold">{p.label}</span>
+                    </button>
+                  );
+                })}
               </div>
-            ) : (
-              <>
-                <div className="relative">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    value={search}
-                    onChange={e => { setSearch(e.target.value); setPicked(null); }}
-                    placeholder={tenants.length ? 'Search name or phone' : 'Connect to load tenants'}
-                    className="pl-11 h-14 text-base rounded-2xl"
-                    autoComplete="off"
-                  />
-                </div>
 
-                {search && (
-                  <div className="rounded-2xl border max-h-64 overflow-y-auto">
-                    {filtered.length === 0 ? (
-                      <p className="p-4 text-sm text-muted-foreground text-center">
-                        No match. Use walk-up below.
-                      </p>
-                    ) : filtered.map(t => (
-                      <button
-                        key={t.tenantId}
-                        onClick={() => { setPicked(t); setSearch(t.fullName); }}
-                        className="w-full text-left px-4 py-4 min-h-[60px] hover:bg-accent border-b last:border-b-0 flex items-center justify-between gap-2 active:bg-accent/80 touch-manipulation"
-                        style={{ WebkitTapHighlightColor: 'transparent' }}
-                      >
-                        <div className="min-w-0">
-                          <p className="text-base font-semibold truncate">{t.fullName}</p>
-                          <p className="text-xs text-muted-foreground truncate">{t.phone || 'No phone'}</p>
-                        </div>
-                        {t.monthlyRent ? (
-                          <span className="text-xs text-muted-foreground shrink-0 tabular-nums">
-                            {formatUGX(t.monthlyRent)}/mo
-                          </span>
-                        ) : null}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Walk-up fallback */}
-                <details className="text-sm rounded-2xl border bg-muted/20 px-4 py-3 group">
-                  <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground select-none">
-                    Tenant not in the list?
-                  </summary>
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <Input
-                      value={walkupName}
-                      onChange={e => setWalkupName(e.target.value)}
-                      placeholder="Name"
-                      className="h-12 rounded-xl text-base"
-                    />
-                    <Input
-                      value={walkupPhone}
-                      onChange={e => setWalkupPhone(e.target.value)}
-                      placeholder="Phone"
-                      inputMode="tel"
-                      className="h-12 rounded-xl text-base"
-                    />
-                  </div>
-                </details>
-              </>
-            )}
-          </section>
-
-          {/* STEP 2 — Amount */}
-          <section className="space-y-2.5">
-            <Label className="text-base font-semibold text-foreground">
-              How much?
-            </Label>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base font-semibold text-muted-foreground pointer-events-none">
-                UGX
-              </span>
               <Input
-                value={amount ? Number(amount).toLocaleString() : ''}
-                onChange={e => setAmount(e.target.value.replace(/[^\d]/g, ''))}
-                inputMode="numeric"
-                placeholder="0"
-                className="pl-16 h-[72px] sm:h-16 text-4xl sm:text-3xl font-bold tabular-nums rounded-2xl text-right pr-5"
+                value={notes}
+                onChange={e => setNotes(e.target.value.slice(0, 140))}
+                placeholder="Add a note (optional)"
+                maxLength={140}
+                className="h-12 rounded-2xl text-sm"
               />
-            </div>
-            {/* Quick-amount chips */}
-            <div className="grid grid-cols-4 gap-2">
-              {[10000, 50000, 100000, 200000].map(v => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setAmount(String((Number(amount) || 0) + v))}
-                  className="h-12 rounded-full border bg-card text-sm font-semibold hover:bg-accent active:bg-accent/80 transition-colors tabular-nums touch-manipulation"
-                  style={{ WebkitTapHighlightColor: 'transparent' }}
-                >
-                  +{(v / 1000)}k
-                </button>
-              ))}
-            </div>
-            <Input
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              placeholder="Add a note (optional)"
-              maxLength={140}
-              className="h-12 rounded-2xl text-sm"
-            />
-          </section>
 
-          {/* Inline save (visible on tablet/desktop where there's no sticky bar) */}
-          <Button
-            onClick={handleSave}
-            disabled={saving || !amount || (!picked && !walkupName.trim())}
-            className="hidden sm:flex w-full gap-2 h-14 text-base font-semibold rounded-2xl"
-            size="lg"
-          >
-            {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
-            Save payment
-          </Button>
+              {/* Summary card */}
+              <div className="rounded-2xl border bg-muted/30 p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                    <ClipboardCheck className="h-3.5 w-3.5" />
+                    Review
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    className="text-xs text-primary font-semibold hover:underline"
+                  >
+                    Edit
+                  </button>
+                </div>
+                <div className="space-y-2.5">
+                  <SummaryRow icon={User} label="Tenant" value={tenantLabel} sub={tenantPhoneLabel} />
+                  <SummaryRow
+                    icon={Banknote}
+                    label="Amount"
+                    value={formatUGX(Number(amount) || 0)}
+                    valueClassName="text-2xl font-bold tabular-nums tracking-tight"
+                  />
+                  <SummaryRow icon={Sparkles} label="Purpose" value={purposeLabel} sub={notes.trim() || null} />
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* Daily totals — collapsible to keep main flow simple */}
           <details className="rounded-2xl border bg-muted/20 group">
@@ -580,23 +709,81 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
           )}
         </div>
 
-        {/* Sticky bottom save bar — mobile-first thumb reach */}
+        {/* Sticky wizard footer — Back / Next or Save */}
         <div
-          className="sm:hidden sticky bottom-0 left-0 right-0 px-4 py-3 bg-background/95 backdrop-blur border-t z-10"
+          className="sticky bottom-0 left-0 right-0 px-4 sm:px-6 py-3 bg-background/95 backdrop-blur border-t z-10 flex items-center gap-2"
           style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.75rem)' }}
         >
-          <Button
-            onClick={handleSave}
-            disabled={saving || !amount || (!picked && !walkupName.trim())}
-            className="w-full gap-2 h-14 text-base font-semibold rounded-2xl shadow-lg shadow-primary/20"
-            size="lg"
-          >
-            {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
-            {amount ? `Save ${formatUGX(Number(amount))}` : 'Save payment'}
-          </Button>
+          {step > 1 && (
+            <Button
+              type="button"
+              onClick={goBack}
+              variant="outline"
+              size="lg"
+              className="h-14 px-5 rounded-2xl gap-1.5 font-semibold"
+              disabled={saving}
+            >
+              <ChevronLeft className="h-5 w-5" />
+              Back
+            </Button>
+          )}
+          {step < 3 ? (
+            <Button
+              type="button"
+              onClick={goNext}
+              size="lg"
+              className="flex-1 h-14 text-base font-semibold rounded-2xl gap-1.5"
+              disabled={
+                (step === 1 && !tenantPicked) ||
+                (step === 2 && !amountValid)
+              }
+            >
+              Next
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              onClick={handleSave}
+              size="lg"
+              disabled={saving || !amountValid || !tenantPicked}
+              className="flex-1 h-14 text-base font-semibold rounded-2xl gap-2 shadow-lg shadow-primary/20"
+            >
+              {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <CheckCircle2 className="h-5 w-5" />}
+              Save {formatUGX(Number(amount) || 0)}
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Compact label/value row used in the Review summary card. */
+function SummaryRow({
+  icon: Icon,
+  label,
+  value,
+  sub,
+  valueClassName,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  sub?: string | null;
+  valueClassName?: string;
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <div className="h-8 w-8 rounded-full bg-background border flex items-center justify-center shrink-0 mt-0.5">
+        <Icon className="h-4 w-4 text-muted-foreground" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">{label}</p>
+        <p className={cn('text-base font-semibold leading-tight mt-0.5 truncate', valueClassName)}>{value}</p>
+        {sub && <p className="text-xs text-muted-foreground mt-0.5 truncate">{sub}</p>}
+      </div>
+    </div>
   );
 }
 
