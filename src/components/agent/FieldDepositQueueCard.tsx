@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { Banknote, ChevronRight, Clock, CheckCircle2, AlertCircle, Send, Wallet, XCircle, ShieldCheck, ChevronDown, Loader2, Coins, AlertTriangle, FileText, ArrowDownRight, ArrowUpRight, Info } from 'lucide-react';
+import { Banknote, ChevronRight, Clock, CheckCircle2, AlertCircle, Send, Wallet, XCircle, ShieldCheck, ChevronDown, Loader2, Coins, AlertTriangle, FileText, ArrowDownRight, ArrowUpRight, Info, Download, FileSpreadsheet } from 'lucide-react';
 import {
   listAgentBatches,
   type FieldDepositBatch,
@@ -20,6 +20,13 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { FieldDepositWizardDialog } from '@/components/agent/FieldDepositWizardDialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { toast } from 'sonner';
 
 /**
  * Tolerance (in UGX) for reconciliation comparisons. Repayment / commission
