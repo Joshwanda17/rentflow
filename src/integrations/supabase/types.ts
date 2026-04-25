@@ -4384,6 +4384,72 @@ export type Database = {
           },
         ]
       }
+      field_collections: {
+        Row: {
+          agent_id: string
+          amount: number
+          captured_at: string
+          client_uuid: string
+          confirmed_at: string | null
+          confirmed_collection_id: string | null
+          created_at: string
+          id: string
+          latitude: number | null
+          location_name: string | null
+          longitude: number | null
+          notes: string | null
+          rejected_reason: string | null
+          status: string
+          synced_at: string
+          tenant_id: string | null
+          tenant_name: string
+          tenant_phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          captured_at?: string
+          client_uuid: string
+          confirmed_at?: string | null
+          confirmed_collection_id?: string | null
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          location_name?: string | null
+          longitude?: number | null
+          notes?: string | null
+          rejected_reason?: string | null
+          status?: string
+          synced_at?: string
+          tenant_id?: string | null
+          tenant_name: string
+          tenant_phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          captured_at?: string
+          client_uuid?: string
+          confirmed_at?: string | null
+          confirmed_collection_id?: string | null
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          location_name?: string | null
+          longitude?: number | null
+          notes?: string | null
+          rejected_reason?: string | null
+          status?: string
+          synced_at?: string
+          tenant_id?: string | null
+          tenant_name?: string
+          tenant_phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       financial_agents: {
         Row: {
           agent_id: string
