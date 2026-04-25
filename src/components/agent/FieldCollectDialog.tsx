@@ -38,22 +38,113 @@ const PURPOSES: { id: Purpose; label: string; icon: React.ComponentType<{ classN
   { id: 'other', label: 'Other', icon: Sparkles },
 ];
 
-/** Wrap matching substring in <mark> for visual hint inside suggestions. */
-function highlightMatch(text: string, query: string): React.ReactNode {
-  const q = query.trim();
-  if (!q) return text;
-  const lower = text.toLowerCase();
-  const idx = lower.indexOf(q.toLowerCase());
-  if (idx === -1) return text;
+/** Render text with the matched span wrapped in <mark>. */
+function renderHighlighted(text: string, start: number, end: number): React.ReactNode {
+  if (start < 0 || end <= start) return text;
   return (
     <>
-      {text.slice(0, idx)}
-      <mark className="bg-primary/15 text-foreground rounded px-0.5">
-        {text.slice(idx, idx + q.length)}
+      {text.slice(0, start)}
+      <mark className="bg-primary/20 text-foreground rounded px-0.5 font-semibold">
+        {text.slice(start, end)}
       </mark>
-      {text.slice(idx + q.length)}
+      {text.slice(end)}
     </>
   );
+}
+
+/**
+ * Highlight the matching part of a tenant name. Uses normalized comparison so
+ * "obrien" highlights inside "O'Brien" and "jose" inside "José". Falls back
+ * to a plain case-insensitive substring search if normalization can't locate
+ * the query (e.g. when the query has been split across whitespace).
+ */
+function highlightName(text: string, query: string): React.ReactNode {
+  const q = query.trim();
+  if (!q) return text;
+
+  // 1. Try normalized match — walk both strings in parallel, mapping each
+  //    source character to its normalized form, and find a contiguous span
+  //    in the original text whose normalized projection equals the query.
+  const qNorm = normalizeName(q);
+  if (qNorm) {
+    const map: { src: number; norm: string }[] = [];
+    let normRun = '';
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const cleaned = ch.replace(/[^a-z0-9\s]+/g, ' ');
+      // Collapse runs of whitespace (matches normalizeName) by skipping
+      // additional whitespace once the previous emitted char was a space.
+      const prev = normRun[normRun.length - 1];
+      const emit = cleaned === ' ' && prev === ' ' ? '' : cleaned;
+      map.push({ src: i, norm: emit });
+      normRun += emit;
+    }
+    const trimmedNorm = normRun.trim();
+    const trimOffset = normRun.indexOf(trimmedNorm);
+    const idx = trimmedNorm.indexOf(qNorm);
+    if (idx !== -1) {
+      // Walk the map to find the source-text positions for [start, end) of the
+      // normalized hit.
+      const targetStart = trimOffset + idx;
+      const targetEnd = targetStart + qNorm.length;
+      let cursor = 0;
+      let srcStart = -1;
+      let srcEnd = -1;
+      for (let i = 0; i < map.length; i++) {
+        const len = map[i].norm.length;
+        if (srcStart === -1 && cursor + len > targetStart) srcStart = map[i].src;
+        if (cursor + len >= targetEnd) { srcEnd = map[i].src + 1; break; }
+        cursor += len;
+      }
+      if (srcStart !== -1 && srcEnd !== -1) return renderHighlighted(text, srcStart, srcEnd);
+    }
+  }
+
+  // 2. Fallback: plain case-insensitive substring.
+  const idx = text.toLowerCase().indexOf(q.toLowerCase());
+  if (idx === -1) return text;
+  return renderHighlighted(text, idx, idx + q.length);
+}
+
+/**
+ * Highlight the matching part of a phone number. Compares only digits so
+ * "0772" finds "+256 772 123 456" and the highlighted span covers the
+ * formatted digits (and intervening spaces/dashes) in the original text.
+ */
+function highlightPhone(text: string, query: string): React.ReactNode {
+  const q = query.trim();
+  if (!q) return text;
+  const qDigits = q.replace(/\D+/g, '');
+  if (!qDigits) return text;
+
+  // Map each character in the original text to its digit position.
+  const digits: string[] = [];
+  const digitToSrc: number[] = [];
+  for (let i = 0; i < text.length; i++) {
+    if (/\d/.test(text[i])) {
+      digits.push(text[i]);
+      digitToSrc.push(i);
+    }
+  }
+  const digitsStr = digits.join('');
+
+  // Try the query as typed first, then with leading "0" stripped, then
+  // with leading "256" stripped — covers "0772…", "+256 772…" and "772…".
+  const candidates = [qDigits];
+  if (qDigits.startsWith('0')) candidates.push(qDigits.slice(1));
+  if (qDigits.startsWith('256')) candidates.push(qDigits.slice(3));
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const idx = digitsStr.indexOf(candidate);
+    if (idx !== -1) {
+      const srcStart = digitToSrc[idx];
+      const srcEnd = digitToSrc[idx + candidate.length - 1] + 1;
+      return renderHighlighted(text, srcStart, srcEnd);
+    }
+  }
+
+  return text;
 }
 
 /**
