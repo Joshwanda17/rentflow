@@ -40,13 +40,36 @@ const PURPOSES: { id: Purpose; label: string; icon: React.ComponentType<{ classN
   { id: 'other', label: 'Other', icon: Sparkles },
 ];
 
-/** Render text with the matched span wrapped in <mark>. */
-function renderHighlighted(text: string, start: number, end: number): React.ReactNode {
+/**
+ * Highlight "lanes" — color-code which kind of match was hit so agents can see
+ * at a glance *why* a tenant appears.
+ *
+ *   phone        → success/green       (digit match in phone column)
+ *   name-prefix  → primary/blue, bold  (full-string starts with query)
+ *   name-word    → primary/blue        (start of any name word, e.g. "Jane S…")
+ *   name-sub     → amber/warning       (mid-word substring — weakest signal)
+ */
+type HighlightKind = 'phone' | 'name-prefix' | 'name-word' | 'name-sub';
+
+const HIGHLIGHT_CLASS: Record<HighlightKind, string> = {
+  phone:         'bg-success/20 text-success-foreground rounded px-0.5 font-semibold',
+  'name-prefix': 'bg-primary/25 text-foreground rounded px-0.5 font-bold underline decoration-primary/60 underline-offset-2',
+  'name-word':   'bg-primary/20 text-foreground rounded px-0.5 font-semibold',
+  'name-sub':    'bg-warning/20 text-foreground rounded px-0.5 font-medium',
+};
+
+/** Render text with the matched span wrapped in a color-coded <mark>. */
+function renderHighlighted(
+  text: string,
+  start: number,
+  end: number,
+  kind: HighlightKind = 'name-word',
+): React.ReactNode {
   if (start < 0 || end <= start) return text;
   return (
     <>
       {text.slice(0, start)}
-      <mark className="bg-primary/20 text-foreground rounded px-0.5 font-semibold">
+      <mark className={HIGHLIGHT_CLASS[kind]}>
         {text.slice(start, end)}
       </mark>
       {text.slice(end)}
@@ -98,14 +121,28 @@ function highlightName(text: string, query: string): React.ReactNode {
         if (cursor + len >= targetEnd) { srcEnd = map[i].src + 1; break; }
         cursor += len;
       }
-      if (srcStart !== -1 && srcEnd !== -1) return renderHighlighted(text, srcStart, srcEnd);
+      if (srcStart !== -1 && srcEnd !== -1) {
+        // Decide which name lane drove the match so we can color-code it.
+        // - 'name-prefix' if the normalized hit is at the very start of the trimmed name
+        // - 'name-word' if it sits at the start of any word (after a space)
+        // - 'name-sub' otherwise (mid-word substring)
+        let kind: HighlightKind = 'name-sub';
+        if (idx === 0) kind = 'name-prefix';
+        else if (trimmedNorm[idx - 1] === ' ') kind = 'name-word';
+        return renderHighlighted(text, srcStart, srcEnd, kind);
+      }
     }
   }
 
   // 2. Fallback: plain case-insensitive substring.
   const idx = text.toLowerCase().indexOf(q.toLowerCase());
   if (idx === -1) return text;
-  return renderHighlighted(text, idx, idx + q.length);
+  // Same lane heuristic on the raw string for the fallback path.
+  const lower = text.toLowerCase();
+  let kind: HighlightKind = 'name-sub';
+  if (idx === 0) kind = 'name-prefix';
+  else if (lower[idx - 1] === ' ') kind = 'name-word';
+  return renderHighlighted(text, idx, idx + q.length, kind);
 }
 
 /**
@@ -142,7 +179,7 @@ function highlightPhone(text: string, query: string): React.ReactNode {
     if (idx !== -1) {
       const srcStart = digitToSrc[idx];
       const srcEnd = digitToSrc[idx + candidate.length - 1] + 1;
-      return renderHighlighted(text, srcStart, srcEnd);
+      return renderHighlighted(text, srcStart, srcEnd, 'phone');
     }
   }
 
