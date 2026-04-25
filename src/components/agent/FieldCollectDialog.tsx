@@ -1264,12 +1264,32 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                             search.replace(/[\s\-+()]/g, '').length - 1;
                         const isAmbiguous = filtered.length > 0 && (filtered[0] as any).ambiguous;
                         if (filtered.length === 0) {
+                          // Short digit query suppression: when 3–4 digits matched
+                          // exactly one tenant, we hide it for safety (see the
+                          // suppression block in the `filtered` memo). Tell the agent
+                          // exactly how many more digits to type — "2 more" / "1 more"
+                          // — instead of the generic "type more digits" prompt.
+                          const digitsTyped = phoneQ.length;
+                          const digitsNeeded = isShortDigitQuery ? Math.max(5 - digitsTyped, 1) : 0;
                           return (
-                            <p className="p-4 text-sm text-muted-foreground text-center">
-                              {isShortDigitQuery
-                                ? 'Too few digits to be sure. Type more digits or search by name.'
-                                : 'No match. Use walk-up below.'}
-                            </p>
+                            isShortDigitQuery ? (
+                              <div className="p-4 space-y-1 text-center">
+                                <p className="text-sm font-medium text-foreground">
+                                  Type{' '}
+                                  <span className="font-bold text-primary">
+                                    {digitsNeeded} more digit{digitsNeeded === 1 ? '' : 's'}
+                                  </span>{' '}
+                                  to confirm the tenant.
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {digitsTyped} digit{digitsTyped === 1 ? '' : 's'} isn't enough to be sure — or search by name.
+                                </p>
+                              </div>
+                            ) : (
+                              <p className="p-4 text-sm text-muted-foreground text-center">
+                                No match. Use walk-up below.
+                              </p>
+                            )
                           );
                         }
                         const virtualItems = rowVirtualizer.getVirtualItems();
