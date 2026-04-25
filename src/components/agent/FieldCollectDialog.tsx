@@ -478,6 +478,24 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
      * digits or switch to name search — preventing an accidental mis-pick.
      */
     const isShortPhoneQuery = isPhoneQuery && phoneQ.length >= 3 && phoneQ.length <= 4;
+    /**
+     * For short (3–4 digit) phone queries we run a tail-N matcher with
+     * uniqueness-aware ranking. Pre-compute, ONCE per query:
+     *   - the set of candidate phones whose tail matches (drives `sharedCount`)
+     *   - a Map<phone, sharedCount> so the per-tenant scorer below can pick a
+     *     `phoneScore` that boosts tenants whose tail is more unique within
+     *     the result set.
+     *
+     * Why this matters: with the old scoring, every tenant ending in "456"
+     * tied at score 110 and the visible order was effectively random. Now a
+     * tenant whose tail is shared by 1 other ranks above one shared by 8.
+     */
+    const tailCounts: Map<string, number> = isShortPhoneQuery
+      ? tailSharedCounts(
+          tenantIndex.map(x => x.phone).filter((p): p is string => !!p),
+          phoneQ,
+        )
+      : new Map();
     const scored = tenantIndex
       .map(({ t, name, phone, nameWords }) => {
         let score = 0;
@@ -486,10 +504,21 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
         let bestMatchFallback = false;
         // Phone matches always outrank name matches when the query is phone-y.
         if (isShortPhoneQuery && phone) {
-          // Short query → only match the tail of the phone (last digits the
-          // agent remembers). Anything-anywhere matching produces too many
-          // false positives on 3–4 digit queries.
-          if (phone.endsWith(phoneQ)) phoneScore = 110;
+          // Short query → use the explicit tail-N matcher. The matcher picks
+          // tail length = query length (3 → tail-3, 4 → tail-4) and reports
+          // whether the tail aligns to a phone "block boundary" the agent
+          // typically dictates. Ranking nudges:
+          //   base       = 110          (any tail hit)
+          //   boundary   = +5           (block-aligned tail)
+          //   uniqueness = +0..10       (10 / sharedCount, capped at 10)
+          // The uniqueness term means a tail shared by 1 tenant adds +10,
+          // by 2 adds +5, by 5 adds +2 — pushing rare tails to the top.
+          const tm = tailMatch(phone, phoneQ);
+          if (tm) {
+            const shared = tailCounts.get(phone) ?? 1;
+            const uniqueness = Math.min(10, Math.round(10 / Math.max(shared, 1)));
+            phoneScore = 110 + (tm.boundary ? 5 : 0) + uniqueness;
+          }
         } else if (isPhoneQuery && phone && phone.includes(phoneQ)) {
           if (phone === phoneQ) phoneScore = 200;          // exact full match — pin to top
           else if (phone.startsWith(phoneQ)) phoneScore = 150; // prefix match
