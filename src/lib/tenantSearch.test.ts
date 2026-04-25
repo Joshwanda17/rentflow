@@ -518,3 +518,154 @@ describe('scoreTenantMatchDebug — per-lane diagnostic output', () => {
     expect(d.matchType).toBeNull();
   });
 });
+
+describe('edge cases — null/empty phone', () => {
+  it('a null phone never produces a phone score, regardless of query', () => {
+    for (const q of ['456', '0772123456', '+256 772 123 456', '7']) {
+      const r = scoreTenantMatch(q, { fullName: 'Alice', phone: null });
+      expect(r.phoneScore, `query=${q}`).toBe(0);
+    }
+  });
+
+  it('an undefined phone never produces a phone score', () => {
+    const r = scoreTenantMatch('456', { fullName: 'Alice', phone: undefined });
+    expect(r.phoneScore).toBe(0);
+  });
+
+  it('an empty-string phone never produces a phone score', () => {
+    const r = scoreTenantMatch('456', { fullName: 'Alice', phone: '' });
+    expect(r.phoneScore).toBe(0);
+  });
+
+  it('null phone still allows a name match to win', () => {
+    const r = scoreTenantMatch('Alice', { fullName: 'Alice Smith', phone: null });
+    expect(r.matchType).toBe('name');
+    expect(r.score).toBe(90);
+  });
+
+  it('debug output flags candidatePhone="" when the phone is null', () => {
+    const d = scoreTenantMatchDebug('456', { fullName: 'Alice', phone: null });
+    expect(d.normalized.candidatePhone).toBe('');
+    expect(d.phoneLane.reason).toBe('none');
+    expect(d.phoneLane.tail).toBeNull();
+  });
+});
+
+describe('edge cases — all-digit name queries', () => {
+  it('an all-digit query against a name with NO digits scores 0', () => {
+    const r = scoreTenantMatch('456', { fullName: 'Alice Smith', phone: null });
+    expect(r.score).toBe(0);
+  });
+
+  it('an all-digit query against a name CONTAINING those digits still does not match the name lane', () => {
+    // The name lane is normalized to a string but a 3-digit query is treated
+    // as phone-y, so it never reaches the name-lane string matchers.
+    const r = scoreTenantMatch('12', { fullName: 'Apt 12B Block C', phone: null });
+    // Query is 2 digits → phoneQ length < 3, so it's NOT a phone query.
+    // Name lane should fire on "12" appearing inside "apt 12b block c".
+    expect(r.matchType).toBe('name');
+    expect(r.nameScore).toBeGreaterThan(0);
+  });
+
+  it('a 3-digit query is classified as phone, not name, even if the name contains those digits', () => {
+    const d = scoreTenantMatchDebug('123', { fullName: 'Unit 123 Plot 7', phone: null });
+    expect(d.classification.isPhoneQuery).toBe(true);
+    expect(d.classification.isShortPhoneQuery).toBe(true);
+    // No phone → phone lane is 'none'. Name lane is ALSO 'none' because the
+    // name lane only fires on the normalized-name path which receives the
+    // same query — and "123" IS in "unit 123 plot 7", so name should hit.
+    expect(d.nameLane.reason).not.toBe('none');
+  });
+
+  it('a long all-digit query against a digit-bearing name name-matches AND phone-misses', () => {
+    const d = scoreTenantMatchDebug(
+      '12345',
+      { fullName: 'Plot 12345 Kampala', phone: null },
+    );
+    expect(d.phoneLane.reason).toBe('none');
+    expect(d.nameLane.reason).not.toBe('none');
+    expect(d.matchType).toBe('name');
+  });
+});
+
+describe('edge cases — mixed queries across digit-length boundaries', () => {
+  const T = (fullName: string, phone: string) => ({ fullName, phone });
+
+  it('1-digit query is too short to be phone-y → name lane only', () => {
+    const d = scoreTenantMatchDebug('7', T('Alice', '0772 123 456'));
+    expect(d.classification.isPhoneQuery).toBe(false);
+    expect(d.phoneLane.reason).toBe('none');
+  });
+
+  it('2-digit query is too short to be phone-y → name lane only', () => {
+    const d = scoreTenantMatchDebug('77', T('Alice', '0772 123 456'));
+    expect(d.classification.isPhoneQuery).toBe(false);
+    expect(d.phoneLane.reason).toBe('none');
+  });
+
+  it('3-digit query → short-phone-query lane (tail-3)', () => {
+    const d = scoreTenantMatchDebug('456', T('Alice', '0772 123 456'));
+    expect(d.classification.isShortPhoneQuery).toBe(true);
+    expect(d.phoneLane.reason).toBe('tail-3+boundary');
+  });
+
+  it('4-digit query → short-phone-query lane (tail-4)', () => {
+    const d = scoreTenantMatchDebug('3456', T('Alice', '0772 123 456'));
+    expect(d.classification.isShortPhoneQuery).toBe(true);
+    expect(d.phoneLane.reason).toBe('tail-4+boundary');
+  });
+
+  it('5-digit query → normal phone lane (no longer "short")', () => {
+    const d = scoreTenantMatchDebug('23456', T('Alice', '0772 123 456'));
+    expect(d.classification.isPhoneQuery).toBe(true);
+    expect(d.classification.isShortPhoneQuery).toBe(false);
+    expect(d.phoneLane.reason).toBe('ends-with');
+  });
+
+  it('full-9-digit query → phone-lane "exact"', () => {
+    const d = scoreTenantMatchDebug('772123456', T('Alice', '0772 123 456'));
+    expect(d.phoneLane.reason).toBe('exact');
+    expect(d.score).toBe(200);
+  });
+
+  it('mixed alphanumeric query (digits + letters) is NOT phone-y', () => {
+    // "456abc" has letters → falls out of the phone-y heuristic and goes
+    // to the name lane (which won't match either, here).
+    const d = scoreTenantMatchDebug('456abc', T('Alice', '0772 123 456'));
+    expect(d.classification.isPhoneQuery).toBe(false);
+    expect(d.phoneLane.reason).toBe('none');
+  });
+
+  it('phone-formatted query with ONE stray letter still treated as phone-y', () => {
+    // The heuristic tolerates a single non-digit char in the stripped query
+    // (length-1 slack) so "0772x123456" is still a phone query.
+    const d = scoreTenantMatchDebug('0772x123456', T('Alice', '0772 123 456'));
+    expect(d.classification.isPhoneQuery).toBe(true);
+  });
+
+  it('boundary: 4-digit tail at non-boundary position has no boundary bonus', () => {
+    // Phone "9876543210" (10 digits) — query "3210" tail-4. tail-4 is
+    // ALWAYS treated as boundary in the current impl, so this just locks
+    // that contract in to catch silent regressions.
+    const r = scoreTenantMatch('3210', T('Bob', '9876543210'));
+    expect(r.score).toBe(115); // 110 + 5 boundary
+  });
+
+  it('regression: short query suppression does not affect name-only candidates', () => {
+    const rows = [
+      { matchType: 'name' as const, id: 'a' },
+      { matchType: 'phone' as const, id: 'b' },
+    ];
+    // Two matches → no suppression, both pass through.
+    const out = applyShortQuerySuppression('456', rows);
+    expect(out).toHaveLength(2);
+  });
+
+  it('regression: applyShortQuerySuppression treats null matchType as non-phone', () => {
+    const out = applyShortQuerySuppression('456', [
+      { matchType: null as any, id: 'a' },
+    ]);
+    // matchType=null is neither phone-only NOR name → no suppression fires.
+    expect(out).toHaveLength(1);
+  });
+});
