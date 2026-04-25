@@ -1128,6 +1128,17 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                                   )}
                                 </>
                               )}
+                              {/*
+                               * When there is no search query, show a neutral
+                               * "Recent" chip on the top suggestions so agents
+                               * still understand why these tenants appear first
+                               * (most recent / default order, not a search match).
+                               */}
+                              {idx < 3 && !search && (
+                                <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
+                                  Recent
+                                </span>
+                              )}
                             </div>
                             <p className="text-xs text-muted-foreground truncate">
                               {t.phone ? highlightPhone(t.phone, search) : 'No phone'}
