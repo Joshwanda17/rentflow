@@ -24,7 +24,14 @@ import {
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
 import { FieldCollectDailyTotals } from '@/components/agent/FieldCollectDailyTotals';
-import { normalizeName, normalizePhone, tenantListFingerprint, phoneVariants } from '@/lib/tenantSearch';
+import {
+  normalizeName,
+  normalizePhone,
+  tenantListFingerprint,
+  phoneVariants,
+  tailMatch,
+  tailSharedCounts,
+} from '@/lib/tenantSearch';
 
 interface FieldCollectDialogProps {
   open: boolean;
