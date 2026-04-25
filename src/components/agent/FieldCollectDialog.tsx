@@ -595,24 +595,82 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
               </div>
 
               {picked ? (
-                <div className="flex items-center justify-between rounded-2xl bg-primary/5 border border-primary/20 px-4 py-4 min-h-[64px]">
-                  <div className="min-w-0 flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                      <User className="h-5 w-5" />
+                <div className="rounded-2xl bg-primary/5 border border-primary/20 px-4 py-4 space-y-3">
+                  <div className="flex items-center justify-between gap-2 min-h-[48px]">
+                    <div className="min-w-0 flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                        <User className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-base sm:text-lg font-semibold truncate">{picked.fullName}</p>
+                        <p className="text-xs text-muted-foreground truncate">{picked.phone || 'No phone'}</p>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-base sm:text-lg font-semibold truncate">{picked.fullName}</p>
-                      <p className="text-xs text-muted-foreground truncate">{picked.phone || 'No phone'}</p>
-                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-10 px-4 rounded-full"
+                      onClick={() => { setPicked(null); setSearch(''); }}
+                    >
+                      Change
+                    </Button>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-10 px-4 rounded-full"
-                    onClick={() => { setPicked(null); setSearch(''); }}
-                  >
-                    Change
-                  </Button>
+
+                  {/* Last-payment preview — quiet helper to avoid double-recording */}
+                  {lastEntryForPicked ? (
+                    <div className="rounded-xl border bg-background/70 px-3 py-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          Last payment
+                        </span>
+                        <span
+                          className={cn(
+                            'inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full',
+                            lastEntryForPicked.syncState === 'synced'
+                              ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                              : lastEntryForPicked.syncState === 'queued'
+                              ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400'
+                              : 'bg-destructive/10 text-destructive',
+                          )}
+                        >
+                          {lastEntryForPicked.syncState === 'synced' && 'Sent'}
+                          {lastEntryForPicked.syncState === 'queued' && 'Waiting'}
+                          {lastEntryForPicked.syncState === 'error' && 'Failed'}
+                          {lastEntryForPicked.syncState === 'duplicate' && 'Duplicate'}
+                        </span>
+                      </div>
+                      <div className="flex items-baseline justify-between gap-2 mt-1">
+                        <p className="text-base font-bold tabular-nums">
+                          {formatUGX(lastEntryForPicked.amount)}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {(() => {
+                            const ms = Date.now() - lastEntryForPicked.capturedAt;
+                            const mins = Math.floor(ms / 60_000);
+                            if (mins < 1) return 'Just now';
+                            if (mins < 60) return `${mins}m ago`;
+                            const hrs = Math.floor(mins / 60);
+                            if (hrs < 24) return `${hrs}h ago`;
+                            const days = Math.floor(hrs / 24);
+                            if (days < 7) return `${days}d ago`;
+                            return new Date(lastEntryForPicked.capturedAt).toLocaleDateString();
+                          })()}
+                          {' · '}
+                          {new Date(lastEntryForPicked.capturedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                      {lastEntryForPicked.notes && (
+                        <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">
+                          “{lastEntryForPicked.notes}”
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-dashed bg-background/40 px-3 py-2 text-[11px] text-muted-foreground text-center">
+                      No previous collection on this device.
+                    </div>
+                  )}
                 </div>
               ) : (
                 <>
