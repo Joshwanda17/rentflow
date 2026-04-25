@@ -172,6 +172,20 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
             )}
           </AnimatePresence>
 
+          {/* Field Deposits (agent cash → float) */}
+          <button
+            onClick={() => setView('field_deposits')}
+            className="flex items-center gap-4 p-5 rounded-2xl border-2 border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40 transition-all text-left min-h-[80px]"
+          >
+            <div className="h-12 w-12 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+              <Wallet className="h-6 w-6 text-primary" />
+            </div>
+            <div className="flex-1">
+              <p className="font-bold text-base">Field Deposits</p>
+              <p className="text-xs text-muted-foreground">Verify agent cash deposits & auto-allocate rent</p>
+            </div>
+          </button>
+
 
           {/* Withdrawals & Payouts */}
           <button
