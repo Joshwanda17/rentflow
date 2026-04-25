@@ -368,6 +368,26 @@ function CommissionBreakdown({
     (allocationDetail?.tenants ?? []).map((t) => [t.item_id, t]),
   );
 
+  // Commission reconciliation:
+  //  - For verified batches, the authoritative recorded commission is the
+  //    sum of per-tenant commissions captured in the allocation audit row.
+  //  - For pending batches, expected commission = effectiveRate × tagged_total
+  //    (or declared total if not yet tagged) — what *will* be booked on verify.
+  const recordedCommissionTotal = (allocationDetail?.tenants ?? []).reduce(
+    (s, t) => s + Number(t.commission || 0),
+    0,
+  );
+  const expectedCommissionTarget =
+    isVerified && recordedCommissionTotal > 0
+      ? recordedCommissionTotal
+      : Math.round(matchTarget * effectiveRate);
+  const commissionTargetLabel =
+    isVerified && recordedCommissionTotal > 0
+      ? "batch's recorded commission total"
+      : `expected commission (${ratePct}% × ${matchTargetLabel})`;
+  const commissionDelta = totalCommission - expectedCommissionTarget;
+  const commissionMatches = items !== null && Math.abs(commissionDelta) < 1;
+
   return (
     <div className="mt-3 ml-12 rounded-lg border bg-muted/30 overflow-hidden">
       <div className="px-3 py-2 flex items-center justify-between border-b bg-background/40">
@@ -472,6 +492,46 @@ function CommissionBreakdown({
                     <span className="font-mono font-semibold">{formatUGX(matchTarget)}</span>) by{' '}
                     <span className="font-mono font-semibold">{formatUGX(Math.abs(repaymentDelta))}</span>
                     {!isVerified && repaymentDelta < 0 ? ' — surplus stays as agent float on verify.' : '.'}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Commission reconciliation */}
+            <div
+              className={cn(
+                'px-3 py-2 border-t text-[11px] flex items-start gap-1.5',
+                commissionMatches
+                  ? 'bg-emerald-500/5 text-emerald-700 dark:text-emerald-400'
+                  : 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+              )}
+            >
+              {commissionMatches ? (
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+              ) : (
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+              )}
+              <div className="min-w-0 flex-1">
+                {commissionMatches ? (
+                  <span>
+                    Commission matches the {commissionTargetLabel} of{' '}
+                    <span className="font-mono font-semibold">
+                      {formatUGX(expectedCommissionTarget)}
+                    </span>
+                    .
+                  </span>
+                ) : (
+                  <span>
+                    Commission {commissionDelta > 0 ? 'exceeds' : 'falls short of'} the{' '}
+                    {commissionTargetLabel} (
+                    <span className="font-mono font-semibold">
+                      {formatUGX(expectedCommissionTarget)}
+                    </span>
+                    ) by{' '}
+                    <span className="font-mono font-semibold">
+                      {formatUGX(Math.abs(commissionDelta))}
+                    </span>
+                    .
                   </span>
                 )}
               </div>
