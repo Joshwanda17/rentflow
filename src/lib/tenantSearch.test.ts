@@ -6,6 +6,7 @@ import {
   scoreTenantMatch,
   tailMatch,
   tailSharedCounts,
+  applyShortQuerySuppression,
 } from './tenantSearch';
 
 describe('normalizeName', () => {
@@ -338,5 +339,119 @@ describe('tailSharedCounts — uniqueness ranking input', () => {
   it('handles a single tenant cleanly', () => {
     const counts = tailSharedCounts(['772123456'], '456');
     expect(counts.get('772123456')).toBe(1);
+  });
+});
+
+describe('short digit query — tail-only matching across phone formats', () => {
+  // Helper: shorthand for a tenant input the scorer expects.
+  const T = (fullName: string, phone: string) => ({ fullName, phone });
+
+  it('3-digit query matches the tail across "+256", "0", spaced and dashed forms', () => {
+    const formats = [
+      '+256 772 123 456',
+      '0772 123 456',
+      '0772-123-456',
+      '772123456',
+      '+256-772-123456',
+      '00256772123456',
+    ];
+    for (const fmt of formats) {
+      const r = scoreTenantMatch('456', T('Alice', fmt));
+      expect(r.matchType, `format=${fmt}`).toBe('phone');
+      // 3-digit tail is block-aligned ⇒ base 110 + boundary 5 = 115.
+      expect(r.score, `format=${fmt}`).toBe(115);
+    }
+  });
+
+  it('4-digit query matches tail-4 (not anywhere in the middle)', () => {
+    const tail = scoreTenantMatch('3456', T('Alice', '+256 772 123 456'));
+    const middle = scoreTenantMatch('7212', T('Alice', '+256 772 123 456'));
+    expect(tail.matchType).toBe('phone');
+    expect(tail.score).toBe(115); // 110 base + 5 boundary
+    expect(middle.score).toBe(0); // middle suppressed for short queries
+  });
+
+  it('3-digit query NEVER matches a phone whose tail differs', () => {
+    const r = scoreTenantMatch('456', T('Bob', '0772 123 999'));
+    expect(r.score).toBe(0);
+  });
+
+  it('short digit queries treat the same UG number written 6 ways identically', () => {
+    const variants = [
+      '+256 772 123 456',
+      '+256-772-123-456',
+      '256772123456',
+      '0772123456',
+      '0772 123 456',
+      '772123456',
+    ];
+    const scores = variants.map(v => scoreTenantMatch('456', T('Alice', v)).score);
+    // All formats must produce the SAME score — no format-related drift.
+    expect(new Set(scores).size).toBe(1);
+    expect(scores[0]).toBe(115);
+  });
+
+  it('a 5-digit query escapes short-query mode and uses normal lane scoring', () => {
+    // 5+ digits → no longer "short", so the regular phone-lane scoring kicks in
+    // (tail match = 130, not 110+5).
+    const r = scoreTenantMatch('23456', T('Alice', '0772 123 456'));
+    expect(r.matchType).toBe('phone');
+    expect(r.score).toBe(130);
+  });
+});
+
+describe('applyShortQuerySuppression — single-candidate safety net', () => {
+  // Lightweight scored row matching what the dialog's filter memo produces.
+  const row = (matchType: 'phone' | 'name' | 'both' | null, id = 'x') =>
+    ({ id, matchType });
+
+  it('returns empty when a 3-digit query yields exactly one phone-only match', () => {
+    const out = applyShortQuerySuppression('456', [row('phone')]);
+    expect(out).toEqual([]);
+  });
+
+  it('returns empty when a 4-digit query yields exactly one phone-only match', () => {
+    const out = applyShortQuerySuppression('3456', [row('phone')]);
+    expect(out).toEqual([]);
+  });
+
+  it('passes through when the short query has TWO or more phone matches', () => {
+    const rows = [row('phone', 'a'), row('phone', 'b')];
+    const out = applyShortQuerySuppression('456', rows);
+    expect(out).toHaveLength(2);
+  });
+
+  it('passes through a single match when it ALSO matches by name (matchType="both")', () => {
+    const out = applyShortQuerySuppression('456', [row('both')]);
+    expect(out).toHaveLength(1);
+  });
+
+  it('passes through a single name-only match (only phone-only singletons are suppressed)', () => {
+    const out = applyShortQuerySuppression('456', [row('name')]);
+    expect(out).toHaveLength(1);
+  });
+
+  it('does NOT suppress when the query is 5+ digits (no longer short)', () => {
+    const out = applyShortQuerySuppression('23456', [row('phone')]);
+    expect(out).toHaveLength(1);
+  });
+
+  it('does NOT suppress when the query is a name (non-phone)', () => {
+    const out = applyShortQuerySuppression('Ali', [row('name')]);
+    expect(out).toHaveLength(1);
+  });
+
+  it('suppression behavior is identical across phone-formatted short queries', () => {
+    // Each of these normalizes to a 3-digit phoneQ — all should suppress a
+    // single phone-only match.
+    const queries = ['456', ' 456 ', '+456', '(456)', '4-5-6'];
+    for (const q of queries) {
+      const out = applyShortQuerySuppression(q, [row('phone')]);
+      expect(out, `query=${JSON.stringify(q)}`).toEqual([]);
+    }
+  });
+
+  it('handles the empty result list cleanly', () => {
+    expect(applyShortQuerySuppression('456', [])).toEqual([]);
   });
 });
