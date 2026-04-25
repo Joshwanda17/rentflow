@@ -128,7 +128,7 @@ export function FieldDepositVerifyDialog({ batch, open, onClose, onResolved }: P
                 <span className="font-mono">{formatUGX(taggedTotal)}</span>
               </div>
               {surplus > 0 && (
-                <div className="flex justify-between text-amber-600 dark:text-amber-400">
+                <div className="flex justify-between text-warning">
                   <span className="flex items-center gap-1">
                     <AlertTriangle className="h-3.5 w-3.5" /> Surplus → unallocated float
                   </span>
