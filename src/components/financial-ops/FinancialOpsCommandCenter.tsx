@@ -14,18 +14,19 @@ import { LedgerHub } from '@/components/ledgers/LedgerHub';
 import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
 import { DepositStatsPanel } from './DepositStatsPanel';
 import { WalletOverviewCard } from './WalletOverviewCard';
+import { FieldDepositVerificationQueue } from './FieldDepositVerificationQueue';
 
 
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
 import { AgentRequisitionForm } from './AgentRequisitionForm';
 import { 
   ShieldCheck, Banknote, ArrowLeft, ChevronDown, ChevronUp,
-  ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, MinusCircle, FileText
+  ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, MinusCircle, FileText, Wallet
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { AnimatePresence } from 'framer-motion';
 
-type View = 'home' | 'deposits';
+type View = 'home' | 'deposits' | 'field_deposits';
 type Tool = null | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit' | 'withdrawals' | 'opportunities' | 'deductions' | 'requisitions';
 
 const supportTools = [
@@ -68,6 +69,24 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
     );
   }
 
+  // Sub-view: Field Deposits (agent cash → float)
+  if (view === 'field_deposits') {
+    return (
+      <div className="space-y-4">
+        <button onClick={() => setView('home')} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft className="h-4 w-4" /> Back
+        </button>
+        <h2 className="text-lg font-bold flex items-center gap-2">
+          <Wallet className="h-5 w-5 text-primary" />
+          Field Deposits
+        </h2>
+        <p className="text-xs text-muted-foreground -mt-2">
+          Agent cash collections deposited via MTN, Airtel, bank or cash merchant. Verifying credits agent float, allocates rent to tagged tenants, and posts agent commission instantly.
+        </p>
+        <FieldDepositVerificationQueue />
+      </div>
+    );
+  }
 
 
   // Sub-view: Active tool
