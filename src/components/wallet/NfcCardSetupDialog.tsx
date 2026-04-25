@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, CreditCard, ShieldCheck, FileDown, FileJson, CheckCircle2, Plus, Trash2, Wifi } from 'lucide-react';
+import { Loader2, CreditCard, ShieldCheck, FileDown, FileJson, CheckCircle2, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
