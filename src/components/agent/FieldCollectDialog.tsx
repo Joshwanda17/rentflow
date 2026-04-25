@@ -50,6 +50,44 @@ const PURPOSES: { id: Purpose; label: string; icon: React.ComponentType<{ classN
 ];
 
 /**
+ * Module-scoped scoring cache. Lives outside the component so it survives
+ * dialog close → reopen cycles within a single page session — repeated
+ * searches feel instant because we skip rescoring entirely on cache hits.
+ *
+ * Safety / correctness:
+ *   • Keyed by `${agentId}::${cacheKey}` so different agents on the same
+ *     device (rare, but possible) never see each other's results.
+ *   • Bucketed by `fingerprint` (tenant list hash). Whenever the agent's
+ *     tenant list changes — new tenant synced, edits, deletions — the
+ *     fingerprint flips and we wipe their bucket atomically.
+ *   • LRU-bounded per agent at SEARCH_CACHE_MAX entries. Map iteration
+ *     order = insertion order, so dropping `keys().next()` evicts the
+ *     oldest entry in O(1).
+ *   • Memory: cleared on full page reload (it's a JS Map, not persisted),
+ *     which is the right tradeoff — long-lived sessions get the speedup,
+ *     reloads get a clean slate.
+ */
+type FilteredRow = {
+  t: CachedTenant;
+  score: number;
+  matchType: 'phone' | 'name' | 'both' | null;
+  ambiguous: boolean;
+  bestMatchFallback: boolean;
+};
+const SEARCH_CACHE_MAX = 50;
+type SearchCacheBucket = { fingerprint: string; entries: Map<string, FilteredRow[]> };
+const searchCacheByAgent = new Map<string, SearchCacheBucket>();
+
+function getSearchCache(agentId: string, fingerprint: string): Map<string, FilteredRow[]> {
+  let bucket = searchCacheByAgent.get(agentId);
+  if (!bucket || bucket.fingerprint !== fingerprint) {
+    bucket = { fingerprint, entries: new Map() };
+    searchCacheByAgent.set(agentId, bucket);
+  }
+  return bucket.entries;
+}
+
+/**
  * Highlight "lanes" — color-code which kind of match was hit so agents can see
  * at a glance *why* a tenant appears.
  *
