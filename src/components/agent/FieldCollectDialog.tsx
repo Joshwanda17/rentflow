@@ -318,20 +318,36 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   const filtered = useMemo(() => {
     const raw = search.trim();
     const q = normalizeName(raw);
-    if (!q) return tenants.slice(0, 8).map(t => ({ t, score: 0, matchType: null as 'phone' | 'name' | 'both' | null }));
+    if (!q) return tenants.slice(0, 8).map(t => ({ t, score: 0, matchType: null as 'phone' | 'name' | 'both' | null, ambiguous: false }));
     const phoneQ = normalizePhone(raw);
     // Treat the query as "phone-y" if the user typed mostly digits — even
     // with spaces, dashes, plus signs or a leading 0/256.
     const isPhoneQuery = phoneQ.length >= 3 && /\d/.test(raw) && raw.replace(/[\s\-+()]/g, '').replace(/\D+/g, '').length >= raw.replace(/[\s\-+()]/g, '').length - 1;
+    /**
+     * Short phone queries (3–4 digits) are inherently ambiguous: the agent is
+     * usually recalling only the tail of the number ("…456"). To avoid the
+     * dangerous case where the search lands on the *wrong* tenant by chance,
+     * we restrict short phone-y queries to **last-N-digits** matches and
+     * require at least 2 candidates before showing them. If only one tenant
+     * matches, we suppress the result so the agent is forced to type more
+     * digits or switch to name search — preventing an accidental mis-pick.
+     */
+    const isShortPhoneQuery = isPhoneQuery && phoneQ.length >= 3 && phoneQ.length <= 4;
     const scored = tenantIndex
       .map(({ t, name, phone, nameWords }) => {
         let score = 0;
         let phoneScore = 0;
         let nameScore = 0;
         // Phone matches always outrank name matches when the query is phone-y.
-        if (isPhoneQuery && phone && phone.includes(phoneQ)) {
+        if (isShortPhoneQuery && phone) {
+          // Short query → only match the tail of the phone (last digits the
+          // agent remembers). Anything-anywhere matching produces too many
+          // false positives on 3–4 digit queries.
+          if (phone.endsWith(phoneQ)) phoneScore = 110;
+        } else if (isPhoneQuery && phone && phone.includes(phoneQ)) {
           if (phone === phoneQ) phoneScore = 200;          // exact full match — pin to top
           else if (phone.startsWith(phoneQ)) phoneScore = 150; // prefix match
+          else if (phone.endsWith(phoneQ)) phoneScore = 130; // tail match (e.g. last 4-7)
           else phoneScore = 110;                            // substring match
         } else if (phoneQ && phone && phone.includes(phoneQ)) {
           // Mixed query (digits + letters) — phone still helps but doesn't dominate.
@@ -357,7 +373,23 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
       .filter(s => s.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, 12);
-    return scored;
+
+    // Safety net for short digit queries: only surface phone-only matches
+    // when there are ≥2 candidates. If a short query produces a single phone
+    // hit (with no name overlap), suppress it and show nothing — the empty
+    // state will tell the agent to type more digits.
+    if (isShortPhoneQuery) {
+      const phoneOnly = scored.filter(s => s.matchType === 'phone');
+      const nameAny = scored.filter(s => s.matchType === 'name' || s.matchType === 'both');
+      if (phoneOnly.length === 1 && nameAny.length === 0) {
+        return [] as typeof scored;
+      }
+    }
+
+    // Tag every row in the result set as ambiguous when the query is a short
+    // digit query and there are multiple candidates — drives the UI hint.
+    const ambiguous = isShortPhoneQuery && scored.length > 1;
+    return scored.map(s => ({ ...s, ambiguous }));
   }, [tenantIndex, tenants, search]);
 
   /** Just the tenant rows — used by keyboard nav & recents merge. */
@@ -1043,11 +1075,34 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                       id="tenant-suggestion-list"
                       role="listbox"
                     >
-                      {filtered.length === 0 ? (
-                        <p className="p-4 text-sm text-muted-foreground text-center">
-                          No match. Use walk-up below.
-                        </p>
-                      ) : filtered.map(({ t, matchType }, idx) => {
+                      {(() => {
+                        // Detect a short digit-only query (3–4 digits). Drives both the
+                        // empty-state hint and the "type more digits" prompt the agent
+                        // sees when a single match was suppressed for safety.
+                        const phoneQ = normalizePhone(search);
+                        const isShortDigitQuery =
+                          phoneQ.length >= 3 && phoneQ.length <= 4 &&
+                          /\d/.test(search) &&
+                          search.replace(/[\s\-+()]/g, '').replace(/\D+/g, '').length >=
+                            search.replace(/[\s\-+()]/g, '').length - 1;
+                        const isAmbiguous = filtered.length > 0 && (filtered[0] as any).ambiguous;
+                        if (filtered.length === 0) {
+                          return (
+                            <p className="p-4 text-sm text-muted-foreground text-center">
+                              {isShortDigitQuery
+                                ? 'Too few digits to be sure. Type more digits or search by name.'
+                                : 'No match. Use walk-up below.'}
+                            </p>
+                          );
+                        }
+                        return (
+                          <>
+                            {isAmbiguous && (
+                              <div className="px-4 py-2 text-[11px] font-medium text-warning bg-warning/10 border-b">
+                                {filtered.length} possible matches for "{search}" — pick carefully or type more digits.
+                              </div>
+                            )}
+                            {filtered.map(({ t, matchType }, idx) => {
                         const optIdx = keyboardOptions.findIndex(o => o.tenantId === t.tenantId);
                         const isActive = optIdx === activeIdx;
                         return (
@@ -1106,7 +1161,10 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                           ) : null}
                         </button>
                         );
-                      })}
+                            })}
+                          </>
+                        );
+                      })()}
                     </div>
                   )}
 
