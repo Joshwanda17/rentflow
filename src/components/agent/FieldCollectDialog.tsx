@@ -508,6 +508,234 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     })();
   }, [browseStatus, user?.id]);
 
+  /* =====================================================================
+   * Picker preferences: "last updated" timestamp + cloud sync toggle +
+   * display timezone.
+   *
+   * All three preferences live in the same per-user `user_ui_preferences`
+   * row family used by `browseStatus`, plus a localStorage mirror under
+   * `welile.fieldCollect.<key>:<userId>` so the picker is responsive
+   * offline and on first paint.
+   *
+   * Why a single block instead of three separate ones:
+   *   The three preferences are conceptually one "picker settings" group
+   *   exposed via the same gear popover. Co-locating them keeps the
+   *   load/save plumbing readable and prevents drift in the cloud-sync
+   *   gating logic (e.g. respecting `cloudSyncEnabled` for the timezone
+   *   write too).
+   * ===================================================================== */
+
+  /**
+   * Timestamp (ms since epoch) of the most recent `browseStatus` write —
+   * local OR cloud, whichever is newer. Drives the tooltip copy
+   * "Filter saved 3 minutes ago". Null = filter has never been saved
+   * (default 'all' state with no prior selection).
+   */
+  const [browseStatusUpdatedAt, setBrowseStatusUpdatedAt] = useState<number | null>(null);
+
+  /**
+   * Per-user, per-device localStorage key for the "last updated"
+   * timestamp. Stored separately from the value so legacy clients that
+   * only know how to read the raw 'all'/'active'/'inactive' string keep
+   * working without a parser bump.
+   */
+  const browseStatusUpdatedAtStorageKey = user?.id
+    ? `welile.fieldCollect.browseStatus.updatedAt:${user.id}`
+    : null;
+
+  /* Hydrate the local timestamp once user.id is known. */
+  const hasHydratedUpdatedAtRef = useRef(false);
+  useEffect(() => {
+    if (hasHydratedUpdatedAtRef.current) return;
+    if (!browseStatusUpdatedAtStorageKey || typeof window === 'undefined') return;
+    hasHydratedUpdatedAtRef.current = true;
+    try {
+      const raw = window.localStorage.getItem(browseStatusUpdatedAtStorageKey);
+      const n = raw ? Number(raw) : NaN;
+      if (Number.isFinite(n) && n > 0) setBrowseStatusUpdatedAt(n);
+    } catch { /* noop */ }
+  }, [browseStatusUpdatedAtStorageKey]);
+
+  /* Stamp the local timestamp on every chip change AFTER the initial
+   * cloud hydrate. We piggy-back on `browseStatus` so the timestamp
+   * always reflects a real user-driven change rather than mount-time
+   * hydration. */
+  useEffect(() => {
+    if (!hasCloudHydratedRef.current) return;
+    const now = Date.now();
+    setBrowseStatusUpdatedAt(now);
+    if (browseStatusUpdatedAtStorageKey && typeof window !== 'undefined') {
+      try { window.localStorage.setItem(browseStatusUpdatedAtStorageKey, String(now)); }
+      catch { /* noop */ }
+    }
+  }, [browseStatus, browseStatusUpdatedAtStorageKey]);
+
+  /**
+   * Cloud sync master switch. Defaults to ENABLED on every fresh sign-in.
+   * When disabled, the existing cloud read/write effects short-circuit
+   * via the gates below, so the picker still works fully against
+   * localStorage but nothing leaves the device.
+   *
+   * Persisted as a per-user localStorage flag rather than in
+   * `user_ui_preferences` because the toggle's whole purpose is to
+   * *control* what hits that table — bootstrapping it from the same
+   * table would be circular.
+   */
+  const cloudSyncStorageKey = user?.id
+    ? `welile.fieldCollect.cloudSync:${user.id}`
+    : null;
+  const [cloudSyncEnabled, setCloudSyncEnabled] = useState<boolean>(true);
+  const hasHydratedCloudSyncRef = useRef(false);
+  useEffect(() => {
+    if (hasHydratedCloudSyncRef.current) return;
+    if (!cloudSyncStorageKey || typeof window === 'undefined') return;
+    hasHydratedCloudSyncRef.current = true;
+    try {
+      const raw = window.localStorage.getItem(cloudSyncStorageKey);
+      // Only the literal 'off' disables; anything else (missing,
+      // garbled) keeps the safe default (enabled).
+      if (raw === 'off') setCloudSyncEnabled(false);
+    } catch { /* noop */ }
+  }, [cloudSyncStorageKey]);
+  useEffect(() => {
+    if (!cloudSyncStorageKey || typeof window === 'undefined') return;
+    try {
+      if (cloudSyncEnabled) window.localStorage.removeItem(cloudSyncStorageKey);
+      else window.localStorage.setItem(cloudSyncStorageKey, 'off');
+    } catch { /* noop */ }
+  }, [cloudSyncEnabled, cloudSyncStorageKey]);
+
+  /**
+   * Display timezone for the "last updated" tooltip.
+   *
+   * - Default `'auto'` resolves at render time to the browser's
+   *   `Intl.DateTimeFormat().resolvedOptions().timeZone`, so untouched
+   *   users always see local time without any setup.
+   * - Override values are full IANA zone IDs (e.g. `Africa/Kampala`).
+   * - Persisted both locally (per-user) and to cloud, mirroring the
+   *   `browseStatus` pattern so the preference follows the agent across
+   *   devices when cloud sync is enabled.
+   */
+  const TIMEZONE_OPTIONS: { id: string; label: string }[] = [
+    { id: 'auto',                  label: 'Auto (device timezone)' },
+    { id: 'Africa/Kampala',        label: 'Kampala — EAT (UTC+3)' },
+    { id: 'Africa/Nairobi',        label: 'Nairobi — EAT (UTC+3)' },
+    { id: 'Africa/Lagos',          label: 'Lagos — WAT (UTC+1)' },
+    { id: 'Africa/Johannesburg',   label: 'Johannesburg — SAST (UTC+2)' },
+    { id: 'Europe/London',         label: 'London — GMT/BST' },
+    { id: 'America/New_York',      label: 'New York — ET' },
+    { id: 'UTC',                   label: 'UTC' },
+  ];
+  const displayTimezoneStorageKey = user?.id
+    ? `welile.fieldCollect.displayTimezone:${user.id}`
+    : null;
+  const displayTimezonePrefKey = 'fieldCollect.displayTimezone';
+  const [displayTimezone, setDisplayTimezone] = useState<string>('auto');
+  const hasHydratedTzRef = useRef(false);
+  useEffect(() => {
+    if (hasHydratedTzRef.current) return;
+    if (!displayTimezoneStorageKey || typeof window === 'undefined') return;
+    hasHydratedTzRef.current = true;
+    try {
+      const raw = window.localStorage.getItem(displayTimezoneStorageKey);
+      if (raw && (raw === 'auto' || TIMEZONE_OPTIONS.some(o => o.id === raw))) {
+        setDisplayTimezone(raw);
+      }
+    } catch { /* noop */ }
+  }, [displayTimezoneStorageKey]);
+  useEffect(() => {
+    if (!displayTimezoneStorageKey || typeof window === 'undefined') return;
+    try {
+      if (displayTimezone === 'auto') {
+        window.localStorage.removeItem(displayTimezoneStorageKey);
+      } else {
+        window.localStorage.setItem(displayTimezoneStorageKey, displayTimezone);
+      }
+    } catch { /* noop */ }
+  }, [displayTimezone, displayTimezoneStorageKey]);
+
+  /* Cloud hydrate + push for the timezone preference. Runs once per
+   * sign-in like `browseStatus`. Respects the cloud-sync master switch.
+   */
+  const hasCloudHydratedTzRef = useRef(false);
+  useEffect(() => {
+    if (hasCloudHydratedTzRef.current) return;
+    if (!user?.id) return;
+    if (!cloudSyncEnabled) return;
+    hasCloudHydratedTzRef.current = true;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('user_ui_preferences')
+          .select('value')
+          .eq('user_id', user.id)
+          .eq('key', displayTimezonePrefKey)
+          .maybeSingle();
+        if (cancelled || error || !data?.value) return;
+        if (data.value === 'auto' || TIMEZONE_OPTIONS.some(o => o.id === data.value)) {
+          setDisplayTimezone(data.value as string);
+        }
+      } catch (err) {
+        console.warn('[FieldCollectDialog] cloud tz hydrate failed', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id, cloudSyncEnabled]);
+  useEffect(() => {
+    if (!user?.id) return;
+    if (!hasCloudHydratedTzRef.current) return;
+    if (!cloudSyncEnabled) return;
+    (async () => {
+      try {
+        if (displayTimezone === 'auto') {
+          await supabase
+            .from('user_ui_preferences')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('key', displayTimezonePrefKey);
+        } else {
+          await supabase
+            .from('user_ui_preferences')
+            .upsert(
+              { user_id: user.id, key: displayTimezonePrefKey, value: displayTimezone },
+              { onConflict: 'user_id,key' },
+            );
+        }
+      } catch (err) {
+        console.warn('[FieldCollectDialog] cloud tz write failed', err);
+      }
+    })();
+  }, [displayTimezone, user?.id, cloudSyncEnabled]);
+
+  /**
+   * Resolve `'auto'` to the browser's actual zone for display purposes.
+   * Memoized because `Intl.DateTimeFormat().resolvedOptions()` is a
+   * non-trivial allocation we don't want on every keystroke.
+   */
+  const resolvedDisplayTimezone = useMemo(() => {
+    if (displayTimezone !== 'auto') return displayTimezone;
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; }
+    catch { return 'UTC'; }
+  }, [displayTimezone]);
+
+  /* Format an absolute date string in the resolved timezone, e.g.
+   * "Apr 25, 2026, 14:32 EAT". `timeZoneName: 'short'` adds the abbr. */
+  const formatInTz = useCallback((ts: number): string => {
+    try {
+      return new Intl.DateTimeFormat(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+        timeZone: resolvedDisplayTimezone,
+        timeZoneName: 'short',
+      }).format(new Date(ts));
+    } catch {
+      // Fallback to date-fns local formatting if the IANA id is rejected
+      // (extremely rare — usually a typo in a future override).
+      return formatDate(new Date(ts), 'PP p');
+    }
+  }, [resolvedDisplayTimezone]);
+
   const [browsePage, setBrowsePage] = useState(0);
 
   /**
