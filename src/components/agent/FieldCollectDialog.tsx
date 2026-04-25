@@ -373,12 +373,29 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     setEntries(await getEntries(user.id));
   }, [user?.id]);
 
+  /**
+   * Persisted "frequent / recent" pick log, hydrated from IndexedDB whenever
+   * the dialog opens. Drives the new "Recent" rail above the virtualized
+   * results so frequently picked tenants survive reloads — even ones the
+   * agent never saved a collection for.
+   *
+   * Each `pickTenant` call also nudges this state optimistically (see the
+   * `pickTenant` callback below), so the rail re-orders instantly without
+   * waiting for the IDB read on the next open.
+   */
+  const [persistedPicks, setPersistedPicks] = useState<TenantPickRecord[]>([]);
+  const refreshPersistedPicks = useCallback(async () => {
+    if (!user?.id) return;
+    setPersistedPicks(await getRecentPicks(user.id));
+  }, [user?.id]);
+
   useEffect(() => {
     if (open) {
       refreshTenantCache();
       refreshEntries();
+      refreshPersistedPicks();
     }
-  }, [open, refreshTenantCache, refreshEntries]);
+  }, [open, refreshTenantCache, refreshEntries, refreshPersistedPicks]);
 
   /* Filter tenants */
   /**
