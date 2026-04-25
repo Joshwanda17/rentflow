@@ -267,8 +267,43 @@ export async function rejectBatchAsFinOps(batchId: string, reason: string) {
   return data;
 }
 
-/** Commission rate applied per tenant repayment in process_verified_field_deposit RPC. */
-export const FIELD_DEPOSIT_COMMISSION_RATE = 0.10;
+/**
+ * Fallback commission rate used ONLY when stored config cannot be loaded.
+ * The authoritative rate lives in `field_deposit_commission_config` and is
+ * fetched via `getFieldDepositCommissionConfig()`. The UI must display a
+ * warning whenever this fallback is in effect.
+ */
+export const FIELD_DEPOSIT_COMMISSION_RATE_FALLBACK = 0.10;
+
+/** @deprecated Prefer `getFieldDepositCommissionConfig()`. Kept for backwards compatibility. */
+export const FIELD_DEPOSIT_COMMISSION_RATE = FIELD_DEPOSIT_COMMISSION_RATE_FALLBACK;
+
+export interface FieldDepositCommissionConfig {
+  rate: number;
+  min_rate: number;
+  max_rate: number;
+  notes: string | null;
+  updated_at: string;
+}
+
+/**
+ * Returns the active stored commission configuration, or `null` when no
+ * config row exists. Callers should warn the user when `null` is returned —
+ * the verification RPC will hard-fail in that case.
+ */
+export async function getFieldDepositCommissionConfig(): Promise<FieldDepositCommissionConfig | null> {
+  const { data, error } = await (supabase as any).rpc('get_field_deposit_commission_config');
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return null;
+  return {
+    rate: Number(row.rate),
+    min_rate: Number(row.min_rate),
+    max_rate: Number(row.max_rate),
+    notes: row.notes ?? null,
+    updated_at: row.updated_at,
+  };
+}
 
 /** Loads tagged items (with tenant name/phone) for a single batch. */
 export async function listBatchItems(batchId: string): Promise<BatchItemDetail[]> {

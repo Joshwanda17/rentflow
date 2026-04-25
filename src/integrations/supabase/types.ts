@@ -4621,6 +4621,42 @@ export type Database = {
         }
         Relationships: []
       }
+      field_deposit_commission_config: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          max_rate: number
+          min_rate: number
+          notes: string | null
+          rate: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          max_rate?: number
+          min_rate?: number
+          notes?: string | null
+          rate: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          max_rate?: number
+          min_rate?: number
+          notes?: string | null
+          rate?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       financial_agents: {
         Row: {
           agent_id: string
@@ -12750,6 +12786,16 @@ export type Database = {
         Args: { phone_variants: string[] }
         Returns: {
           email: string
+        }[]
+      }
+      get_field_deposit_commission_config: {
+        Args: never
+        Returns: {
+          max_rate: number
+          min_rate: number
+          notes: string
+          rate: number
+          updated_at: string
         }[]
       }
       get_financial_ops_pulse: { Args: never; Returns: Json }

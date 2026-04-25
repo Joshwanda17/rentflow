@@ -6,7 +6,9 @@ import {
   type FieldDepositBatch,
   type BatchItemDetail,
   listBatchItems,
-  FIELD_DEPOSIT_COMMISSION_RATE,
+  FIELD_DEPOSIT_COMMISSION_RATE_FALLBACK,
+  getFieldDepositCommissionConfig,
+  type FieldDepositCommissionConfig,
   channelLabel,
   statusLabel,
   getBatchAllocationDetail,
@@ -34,6 +36,17 @@ export function FieldDepositQueueCard({ onSubmitProof }: FieldDepositQueueCardPr
   const [loading, setLoading] = useState(true);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [proofForBatch, setProofForBatch] = useState<FieldDepositBatch | null>(null);
+  const [commissionConfig, setCommissionConfig] = useState<FieldDepositCommissionConfig | null>(null);
+  const [commissionConfigLoaded, setCommissionConfigLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getFieldDepositCommissionConfig()
+      .then((cfg) => { if (!cancelled) setCommissionConfig(cfg); })
+      .catch(() => { if (!cancelled) setCommissionConfig(null); })
+      .finally(() => { if (!cancelled) setCommissionConfigLoaded(true); });
+    return () => { cancelled = true; };
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!user?.id) return;
@@ -119,7 +132,13 @@ export function FieldDepositQueueCard({ onSubmitProof }: FieldDepositQueueCardPr
             </button>
           ) : (
             recent.map(b => (
-              <BatchRow key={b.id} batch={b} onSubmitProof={() => handleProof(b)} />
+              <BatchRow
+                key={b.id}
+                batch={b}
+                onSubmitProof={() => handleProof(b)}
+                commissionConfig={commissionConfig}
+                commissionConfigLoaded={commissionConfigLoaded}
+              />
             ))
           )}
         </div>
@@ -166,7 +185,17 @@ function StatusTile({
   );
 }
 
-function BatchRow({ batch, onSubmitProof }: { batch: FieldDepositBatch; onSubmitProof: () => void }) {
+function BatchRow({
+  batch,
+  onSubmitProof,
+  commissionConfig,
+  commissionConfigLoaded,
+}: {
+  batch: FieldDepositBatch;
+  onSubmitProof: () => void;
+  commissionConfig: FieldDepositCommissionConfig | null;
+  commissionConfigLoaded: boolean;
+}) {
   const isAwaiting = batch.status === 'awaiting_proof';
   const isPending = batch.status === 'pending_finops_verification';
   const isVerified = batch.status === 'verified';
@@ -283,6 +312,8 @@ function BatchRow({ batch, onSubmitProof }: { batch: FieldDepositBatch; onSubmit
           isVerified={isVerified}
           batch={batch}
           allocationDetail={allocationDetail}
+          commissionConfig={commissionConfig}
+          commissionConfigLoaded={commissionConfigLoaded}
         />
       )}
     </div>
@@ -296,6 +327,8 @@ function CommissionBreakdown({
   isVerified,
   batch,
   allocationDetail,
+  commissionConfig,
+  commissionConfigLoaded,
 }: {
   items: BatchItemDetail[] | null;
   loading: boolean;
@@ -303,11 +336,24 @@ function CommissionBreakdown({
   isVerified: boolean;
   batch: FieldDepositBatch;
   allocationDetail: { generated_at: string; tenants: AllocationTenantBreakdown[] } | null;
+  commissionConfig: FieldDepositCommissionConfig | null;
+  commissionConfigLoaded: boolean;
 }) {
-  const ratePct = Math.round(FIELD_DEPOSIT_COMMISSION_RATE * 100);
+  // Prefer the rate that was actually recorded at verify time (audit truth).
+  // Otherwise use the stored config. Fallback constant only kicks in if the
+  // RPC fails AND the batch has no recorded rate — UI surfaces a warning.
+  const recordedRate =
+    typeof allocationDetail === 'object' && allocationDetail
+      ? Number((allocationDetail as any)?.commission_rate ?? NaN)
+      : NaN;
+  const effectiveRate = Number.isFinite(recordedRate) && recordedRate > 0
+    ? recordedRate
+    : commissionConfig?.rate ?? FIELD_DEPOSIT_COMMISSION_RATE_FALLBACK;
+  const usingFallback = commissionConfigLoaded && !commissionConfig && !(Number.isFinite(recordedRate) && recordedRate > 0);
+  const ratePct = +(effectiveRate * 100).toFixed(2);
   const totalRepayment = items?.reduce((s, i) => s + i.amount, 0) ?? 0;
   const totalCommission =
-    items?.reduce((s, i) => s + Math.round(i.amount * FIELD_DEPOSIT_COMMISSION_RATE), 0) ?? 0;
+    items?.reduce((s, i) => s + Math.round(i.amount * effectiveRate), 0) ?? 0;
   const declared = Number(batch.declared_total || 0);
   const recordedTagged = Number(batch.tagged_total || 0);
   // Match against authoritative batch numbers:
@@ -334,6 +380,20 @@ function CommissionBreakdown({
         </span>
       </div>
 
+      {usingFallback && (
+        <div className="px-3 py-2 border-b bg-destructive/10 text-destructive flex items-start gap-1.5 text-[11px]">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+          <div className="min-w-0">
+            <div className="font-semibold">Commission config missing</div>
+            <div className="opacity-90 leading-snug mt-0.5">
+              No active <span className="font-mono">field_deposit_commission_config</span> row was
+              found. Showing the {ratePct}% fallback rate — Finance will be unable to verify this
+              batch until an operator restores the config.
+            </div>
+          </div>
+        </div>
+      )}
+
       {loading && (
         <div className="px-3 py-3 flex items-center gap-2 text-xs text-muted-foreground">
           <Loader2 className="h-3 w-3 animate-spin" /> Loading tenants…
@@ -356,7 +416,7 @@ function CommissionBreakdown({
           </div>
           <ul className="divide-y">
             {items.map((it) => {
-              const comm = Math.round(it.amount * FIELD_DEPOSIT_COMMISSION_RATE);
+              const comm = Math.round(it.amount * effectiveRate);
               const audit = auditByItem.get(it.id);
               return (
                 <li key={it.id} className="grid grid-cols-[1fr_auto_auto] gap-3 px-3 py-2 text-xs items-center">
