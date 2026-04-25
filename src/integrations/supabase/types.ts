@@ -6682,6 +6682,48 @@ export type Database = {
         }
         Relationships: []
       }
+      nfc_cards: {
+        Row: {
+          card_id: string
+          created_at: string
+          hmac_signature_preview: string | null
+          id: string
+          last_used_at: string | null
+          pin_hash: string
+          pinless_limit: number
+          revoked_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          card_id: string
+          created_at?: string
+          hmac_signature_preview?: string | null
+          id?: string
+          last_used_at?: string | null
+          pin_hash: string
+          pinless_limit?: number
+          revoked_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          card_id?: string
+          created_at?: string
+          hmac_signature_preview?: string | null
+          id?: string
+          last_used_at?: string | null
+          pin_hash?: string
+          pinless_limit?: number
+          revoked_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string | null
