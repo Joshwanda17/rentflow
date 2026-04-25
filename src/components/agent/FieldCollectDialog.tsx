@@ -870,14 +870,27 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
    * the full caseload. Recomputes only when the filter, tenant list, or
    * captured-entry set changes; it's an O(N) scan with no allocations.
    */
-  const browseFilteredCount = useMemo(() => {
-    if (browseStatus === 'all') return tenants.length;
+  /**
+   * All three filter-chip counts computed in a single O(N) pass over the
+   * caseload, so the chips can show "Active 12 · Inactive 5 · All 17"
+   * without three separate scans. `browseFilteredCount` is derived from
+   * the same memo to keep the toolbar count + page math consistent with
+   * what the chips advertise.
+   */
+  const browseStatusCounts = useMemo(() => {
     const activeIds = new Set<string>();
     for (const e of entries) if (e.tenantId) activeIds.add(e.tenantId);
-    return browseStatus === 'active'
-      ? tenants.reduce((n, t) => n + (activeIds.has(t.tenantId) ? 1 : 0), 0)
-      : tenants.reduce((n, t) => n + (activeIds.has(t.tenantId) ? 0 : 1), 0);
-  }, [tenants, entries, browseStatus]);
+    let active = 0;
+    for (const t of tenants) if (activeIds.has(t.tenantId)) active++;
+    const all = tenants.length;
+    return { all, active, inactive: all - active };
+  }, [tenants, entries]);
+  const browseFilteredCount =
+    browseStatus === 'all'
+      ? browseStatusCounts.all
+      : browseStatus === 'active'
+        ? browseStatusCounts.active
+        : browseStatusCounts.inactive;
   const browsePageCount = useMemo(
     () => Math.max(1, Math.ceil(browseFilteredCount / BROWSE_PAGE_SIZE)),
     [browseFilteredCount],
