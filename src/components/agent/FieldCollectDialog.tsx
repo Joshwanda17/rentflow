@@ -708,7 +708,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     // digit query and there are multiple candidates — drives the UI hint.
     const ambiguous = isShortPhoneQuery && scored.length > 1;
     return storeAndReturn(scored.map(s => ({ ...s, ambiguous })));
-  }, [tenantIndex, tenants, debouncedSearch, fingerprint, entries, browseSort, browsePage]);
+  }, [tenantIndex, tenants, debouncedSearch, fingerprint, entries, browseSort, browsePage, user?.id]);
 
   /**
    * Browse-mode pager metadata. Only meaningful when the search box is empty
