@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { Banknote, ChevronRight, Clock, CheckCircle2, AlertCircle, Send, Wallet } from 'lucide-react';
+import { Banknote, ChevronRight, Clock, CheckCircle2, AlertCircle, Send, Wallet, XCircle, ShieldCheck } from 'lucide-react';
 import {
   listAgentBatches,
   type FieldDepositBatch,
@@ -168,7 +168,7 @@ function BatchRow({ batch, onSubmitProof }: { batch: FieldDepositBatch; onSubmit
   const isCancelled = batch.status === 'cancelled';
 
   return (
-    <div className="px-4 py-3 flex items-center gap-3">
+    <div className="px-4 py-3 flex items-start gap-3">
       <div className={cn(
         'h-9 w-9 rounded-lg flex items-center justify-center shrink-0',
         isVerified && 'bg-emerald-500/10 text-emerald-600',
@@ -178,29 +178,73 @@ function BatchRow({ batch, onSubmitProof }: { batch: FieldDepositBatch; onSubmit
         isCancelled && 'bg-muted text-muted-foreground',
       )}>
         {isVerified ? <CheckCircle2 className="h-4 w-4" /> :
-         isRejected ? <AlertCircle className="h-4 w-4" /> :
-         isPending ? <Send className="h-4 w-4" /> :
+         isRejected ? <XCircle className="h-4 w-4" /> :
+         isPending ? <ShieldCheck className="h-4 w-4" /> :
+         isAwaiting ? <Clock className="h-4 w-4" /> :
          <Banknote className="h-4 w-4" />}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <p className="font-semibold text-sm truncate">{formatUGX(Number(batch.declared_total))}</p>
           <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal shrink-0">
             {channelLabel(batch.channel)}
           </Badge>
+          <StatusPill batch={batch} />
         </div>
-        <p className="text-[11px] text-muted-foreground truncate">
-          {statusLabel(batch.status)}
-          {batch.proof_reference ? ` · Ref ${batch.proof_reference}` : ''}
-        </p>
+        {batch.proof_reference && (
+          <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+            Ref <span className="font-mono">{batch.proof_reference}</span>
+          </p>
+        )}
+        {isRejected && batch.rejection_reason && (
+          <div className="mt-1.5 rounded-md border border-destructive/30 bg-destructive/5 px-2 py-1.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-destructive flex items-center gap-1">
+              <AlertCircle className="h-3 w-3" />
+              Rejection reason
+            </p>
+            <p className="text-[11px] text-destructive/90 mt-0.5 leading-snug">
+              {batch.rejection_reason}
+            </p>
+          </div>
+        )}
       </div>
       {isAwaiting ? (
         <Button size="sm" variant="outline" className="h-7 text-xs gap-1 shrink-0" onClick={onSubmitProof}>
           Add proof
           <ChevronRight className="h-3 w-3" />
         </Button>
+      ) : isRejected ? (
+        <Button size="sm" variant="outline" className="h-7 text-xs gap-1 shrink-0" onClick={onSubmitProof}>
+          Resubmit
+          <ChevronRight className="h-3 w-3" />
+        </Button>
       ) : null}
     </div>
+  );
+}
+
+function StatusPill({ batch }: { batch: FieldDepositBatch }) {
+  const s = batch.status;
+  const cfg = (() => {
+    switch (s) {
+      case 'awaiting_proof':
+        return { label: 'Pending proof', cls: 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400' };
+      case 'pending_finops_verification':
+        return { label: 'Pending Finance review', cls: 'border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400' };
+      case 'verified':
+        return { label: 'Verified', cls: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' };
+      case 'rejected':
+        return { label: 'Rejected', cls: 'border-destructive/30 bg-destructive/10 text-destructive' };
+      case 'cancelled':
+        return { label: 'Cancelled', cls: 'border-muted-foreground/30 bg-muted text-muted-foreground' };
+      default:
+        return { label: statusLabel(s), cls: 'border-border bg-muted text-muted-foreground' };
+    }
+  })();
+  return (
+    <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 h-4 font-medium shrink-0', cfg.cls)}>
+      {cfg.label}
+    </Badge>
   );
 }
 
