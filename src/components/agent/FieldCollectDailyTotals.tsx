@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { getEntries, onFieldCollectChange, type FieldEntry } from '@/lib/fieldCollectStore';
+import { getEntries, onFieldCollectChange, deleteEntry, updateEntry, type FieldEntry } from '@/lib/fieldCollectStore';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle2, Clock, FileWarning, CalendarDays, RefreshCcw, FileText, FileSpreadsheet, CalendarIcon, Settings2, RotateCcw, MoreHorizontal, CalendarRange } from 'lucide-react';
+import { CheckCircle2, Clock, FileWarning, CalendarDays, RefreshCcw, FileText, FileSpreadsheet, CalendarIcon, Settings2, RotateCcw, MoreHorizontal, CalendarRange, Loader2, SkipForward } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FieldCollectDailyDetailsSheet } from '@/components/agent/FieldCollectDailyDetailsSheet';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Bucket {
   label: string;
