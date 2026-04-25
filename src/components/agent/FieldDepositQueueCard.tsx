@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { Banknote, ChevronRight, Clock, CheckCircle2, AlertCircle, Send, Wallet, XCircle, ShieldCheck, ChevronDown, Loader2, Coins, AlertTriangle } from 'lucide-react';
+import { Banknote, ChevronRight, Clock, CheckCircle2, AlertCircle, Send, Wallet, XCircle, ShieldCheck, ChevronDown, Loader2, Coins, AlertTriangle, FileText, ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import {
   listAgentBatches,
   type FieldDepositBatch,
@@ -417,8 +417,111 @@ function CommissionBreakdown({
               </div>
             </div>
           </div>
+
+          {/* Pre-verify ledger impact preview */}
+          {!isVerified && (
+            <LedgerImpactPreview
+              declared={declared}
+              totalAllocated={totalRepayment}
+              totalCommission={totalCommission}
+              ratePct={ratePct}
+            />
+          )}
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * Shows the exact ledger lines that will be booked when Finance verifies this batch.
+ * Mirrors the categories used by `process_verified_field_deposit`:
+ *   • agent_float_deposit       (cash-in to agent float)
+ *   • agent_float_used_for_rent (settlement against tenant repayments)
+ *   • agent_commission_earned   (platform expense → agent reward, 10% of repayments)
+ */
+function LedgerImpactPreview({
+  declared,
+  totalAllocated,
+  totalCommission,
+  ratePct,
+}: {
+  declared: number;
+  totalAllocated: number;
+  totalCommission: number;
+  ratePct: number;
+}) {
+  const surplus = Math.max(0, declared - totalAllocated);
+  const lines: { dir: 'in' | 'out'; category: string; label: string; amount: number; note?: string }[] = [
+    {
+      dir: 'in',
+      category: 'agent_float_deposit',
+      label: 'Agent float credit (declared cash banked)',
+      amount: declared,
+    },
+    {
+      dir: 'out',
+      category: 'agent_float_used_for_rent',
+      label: 'Float settled against tenant repayments',
+      amount: totalAllocated,
+      note: surplus > 0 ? `Surplus ${formatUGX(surplus)} stays as agent float` : undefined,
+    },
+    {
+      dir: 'out',
+      category: 'agent_commission_earned',
+      label: `Platform expense → agent commission (${ratePct}% of repayments)`,
+      amount: totalCommission,
+    },
+  ];
+
+  return (
+    <div className="border-t bg-primary/[0.03]">
+      <div className="px-3 py-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground border-b">
+        <FileText className="h-3 w-3" />
+        Ledger impact preview · books on Finance verify
+      </div>
+      <ul className="divide-y">
+        {lines.map((l) => (
+          <li key={l.category} className="px-3 py-2 grid grid-cols-[auto_1fr_auto] gap-2 items-start text-xs">
+            <span
+              className={cn(
+                'h-5 w-5 rounded-md flex items-center justify-center mt-0.5',
+                l.dir === 'in'
+                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                  : 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+              )}
+              title={l.dir === 'in' ? 'Cash in' : 'Cash out / expense'}
+            >
+              {l.dir === 'in' ? (
+                <ArrowDownRight className="h-3 w-3" />
+              ) : (
+                <ArrowUpRight className="h-3 w-3" />
+              )}
+            </span>
+            <div className="min-w-0">
+              <div className="font-medium leading-tight">{l.label}</div>
+              <div className="text-[10px] text-muted-foreground font-mono mt-0.5">{l.category}</div>
+              {l.note && (
+                <div className="text-[10px] text-muted-foreground mt-0.5">{l.note}</div>
+              )}
+            </div>
+            <span
+              className={cn(
+                'font-mono text-right whitespace-nowrap',
+                l.dir === 'in'
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-amber-700 dark:text-amber-400',
+              )}
+            >
+              {l.dir === 'in' ? '+' : '−'}
+              {formatUGX(l.amount)}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <div className="px-3 py-1.5 text-[10px] text-muted-foreground border-t">
+        Double-entry: cash-in equals cash-out + commission expense booked to platform earnings.
+      </div>
     </div>
   );
 }
