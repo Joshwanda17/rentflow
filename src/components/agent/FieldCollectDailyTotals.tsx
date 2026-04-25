@@ -201,6 +201,48 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
 
   const dateLabel = isToday ? "Today's totals" : format(selectedDate, 'PPP');
 
+  // Initial-load skeleton: matches the real layout to avoid jump
+  if (initialLoading) {
+    return (
+      <div
+        className={cn(
+          'space-y-3',
+          !isInline && 'rounded-2xl border bg-card p-4',
+          className,
+        )}
+        aria-busy="true"
+        aria-live="polite"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-7 w-32" />
+            <Skeleton className="h-3 w-40" />
+          </div>
+          <div className="flex gap-1.5">
+            <Skeleton className="h-7 w-16 rounded-md" />
+            <Skeleton className="h-7 w-16 rounded-md" />
+          </div>
+        </div>
+        <Separator />
+        <div className="grid grid-cols-2 gap-2">
+          <Skeleton className="h-16 rounded-lg" />
+          <Skeleton className="h-16 rounded-lg" />
+        </div>
+        <Skeleton className="h-1.5 w-full rounded-full" />
+        <div>
+          <Skeleton className="h-3 w-20 mb-1.5" />
+          <div className="grid grid-cols-3 gap-2">
+            <Skeleton className="h-14 rounded-lg" />
+            <Skeleton className="h-14 rounded-lg" />
+            <Skeleton className="h-14 rounded-lg" />
+          </div>
+        </div>
+        <Skeleton className="h-4 w-24 mx-auto" />
+      </div>
+    );
+  }
+
   const dateSelector = (
     <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
       <PopoverTrigger asChild>
