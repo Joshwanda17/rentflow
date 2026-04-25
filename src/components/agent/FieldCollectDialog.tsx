@@ -273,6 +273,21 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   const [walkupPhone, setWalkupPhone] = useState('');
   const [amount, setAmount] = useState('');
   const [notes, setNotes] = useState('');
+
+  /**
+   * Tail-share warning threshold. When a short (3–4 digit) phone query
+   * matches MORE than this many tenants by tail digits, the picker shows
+   * a strong warning chip + tooltip recommending the agent type more
+   * digits to avoid mis-picking. Wrapped in `useState` (not a const) so
+   * a future settings UI could let agents/managers raise or lower it
+   * without touching this component — the value flows through the same
+   * memo path either way.
+   *
+   * Default of 10 was chosen because below ~10 the agent can usually
+   * eyeball the right name out of the result list; above 10 the wrong-
+   * pick risk dominates and the safer answer is "narrow the query".
+   */
+  const [tailWarnThreshold] = useState<number>(10);
   const [purpose, setPurpose] = useState<Purpose>('rent');
   const [step, setStep] = useState<Step>(1);
   const [saving, setSaving] = useState(false);
