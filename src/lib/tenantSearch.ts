@@ -64,7 +64,41 @@ export function normalizePhone(raw: string | null | undefined): string {
  * messy inputs like "+2560772 123 456", "0256 772…", or "+256-0-772…" still
  * find the right tenant.
  */
+/**
+ * Tiny module-scoped LRU memo for `phoneVariants`. The function is pure (its
+ * output depends only on `raw`) and is called for every tenant search query —
+ * messy phone inputs like "+256 077…" reduce to the same set of variants
+ * across rescores, so caching the array shaves a couple of allocations and a
+ * regex pass per query. Returned arrays are conceptually frozen — callers
+ * read but never mutate them.
+ *
+ * Bounded at PHONE_VARIANTS_CACHE_MAX entries with insertion-order eviction
+ * (Map iteration order = insertion order, so `keys().next()` gives the
+ * oldest key in O(1)).
+ */
+const PHONE_VARIANTS_CACHE_MAX = 200;
+const phoneVariantsCache = new Map<string, ReadonlyArray<string>>();
+
 export function phoneVariants(raw: string | null | undefined): string[] {
+  const key = raw ?? '';
+  const cached = phoneVariantsCache.get(key);
+  if (cached) {
+    // LRU touch so frequently-typed prefixes survive eviction.
+    phoneVariantsCache.delete(key);
+    phoneVariantsCache.set(key, cached);
+    // Slice on read so accidental caller mutation never poisons the cache.
+    return cached.slice();
+  }
+  const computed = computePhoneVariants(raw);
+  phoneVariantsCache.set(key, computed);
+  if (phoneVariantsCache.size > PHONE_VARIANTS_CACHE_MAX) {
+    const oldest = phoneVariantsCache.keys().next().value;
+    if (oldest !== undefined) phoneVariantsCache.delete(oldest);
+  }
+  return computed.slice();
+}
+
+function computePhoneVariants(raw: string | null | undefined): string[] {
   const out = new Set<string>();
   const base = normalizePhone(raw);
   if (base) out.add(base);
@@ -92,6 +126,64 @@ export function phoneVariants(raw: string | null | undefined): string[] {
     if (c.length > 9) out.add(c.slice(-9));
   }
   return [...out].filter(Boolean);
+}
+
+/**
+ * Per-query fuzzy fallback resolver. Given a raw phone-y query, returns a
+ * function that maps a candidate `phone` (already normalized to digits) to
+ * the best fuzzy hit `{ score, variant }` or `null`.
+ *
+ * Why a closure: the per-tenant scorer in `FieldCollectDialog` walks every
+ * tenant for every query. Most tenants share long phone prefixes (e.g. all
+ * MTN numbers start with "077…"), so the same `(query, phone)` lookup
+ * repeats across rescores and across nearby queries. By caching at the
+ * `(query, phone)` granularity we collapse the inner triple-condition loop
+ * (`exact / endsWith / includes`) into a single Map.get on warm data.
+ *
+ * Cache eviction: bounded per-query map; whole resolver is GC'd when the
+ * caller drops it (one resolver per query). The outer LRU bounds how many
+ * resolvers we keep across rescores.
+ */
+const FUZZY_RESOLVER_CACHE_MAX = 32;
+type FuzzyHit = { score: number; variant: string };
+type FuzzyResolver = (phone: string) => FuzzyHit | null;
+const fuzzyResolverCache = new Map<string, FuzzyResolver>();
+
+export function getFuzzyPhoneResolver(raw: string | null | undefined): FuzzyResolver {
+  const key = raw ?? '';
+  const cached = fuzzyResolverCache.get(key);
+  if (cached) {
+    fuzzyResolverCache.delete(key);
+    fuzzyResolverCache.set(key, cached);
+    return cached;
+  }
+  const variants = phoneVariants(raw).filter(v => v.length >= 4);
+  const phoneHitCache = new Map<string, FuzzyHit | null>();
+  const resolver: FuzzyResolver = (phone: string) => {
+    if (!phone || variants.length === 0) return null;
+    const hit = phoneHitCache.get(phone);
+    if (hit !== undefined) return hit;
+    let best: FuzzyHit | null = null;
+    for (const v of variants) {
+      if (phone === v) { best = { score: 60, variant: v }; break; }
+      if (v.length >= 6 && phone.endsWith(v)) { best = { score: 55, variant: v }; break; }
+      if (v.length >= 7 && phone.includes(v)) { best = { score: 50, variant: v }; break; }
+    }
+    phoneHitCache.set(phone, best);
+    return best;
+  };
+  fuzzyResolverCache.set(key, resolver);
+  if (fuzzyResolverCache.size > FUZZY_RESOLVER_CACHE_MAX) {
+    const oldest = fuzzyResolverCache.keys().next().value;
+    if (oldest !== undefined) fuzzyResolverCache.delete(oldest);
+  }
+  return resolver;
+}
+
+/** Test-only: clear all module-level caches. Exported for unit tests. */
+export function __clearTenantSearchCaches(): void {
+  phoneVariantsCache.clear();
+  fuzzyResolverCache.clear();
 }
 
 /**
