@@ -641,6 +641,10 @@ function CommissionBreakdown({
                     estimate that will be booked on verify at {ratePct}%.
                   </>
                 )}
+                <span className="block mt-0.5 opacity-80">
+                  Match tolerance:{' '}
+                  <span className="font-mono">±{formatUGX(RECONCILE_TOLERANCE_UGX)}</span> (rounding-safe).
+                </span>
               </div>
             </div>
           </div>
