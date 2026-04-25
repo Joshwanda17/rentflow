@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { FieldCollectDailyDetailsSheet } from '@/components/agent/FieldCollectDailyDetailsSheet';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { FieldCollectReconciliationSheet } from '@/components/agent/FieldCollectReconciliationSheet';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,6 +48,8 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<number>(Date.now());
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [reconcileOpen, setReconcileOpen] = useState(false);
+  const [dupPopoverOpen, setDupPopoverOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
