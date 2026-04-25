@@ -146,8 +146,8 @@ export function RequestMoneyDialog({ open, onOpenChange, onSuccess }: RequestMon
   const stopScanner = async () => {
     try {
       if (scannerRef.current) {
-        await scannerRef.current.stop().catch(() => {});
-        await scannerRef.current.clear().catch(() => {});
+        try { await scannerRef.current.stop(); } catch { /* ignore */ }
+        try { scannerRef.current.clear(); } catch { /* ignore */ }
         scannerRef.current = null;
       }
     } catch { /* ignore */ }
