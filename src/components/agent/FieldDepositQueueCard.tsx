@@ -9,7 +9,10 @@ import {
   FIELD_DEPOSIT_COMMISSION_RATE,
   channelLabel,
   statusLabel,
+  getBatchAllocationDetail,
+  type AllocationTenantBreakdown,
 } from '@/lib/fieldDepositBatches';
+import { format } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -173,6 +176,10 @@ function BatchRow({ batch, onSubmitProof }: { batch: FieldDepositBatch; onSubmit
   const [expanded, setExpanded] = useState(false);
   const [items, setItems] = useState<BatchItemDetail[] | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
+  const [allocationDetail, setAllocationDetail] = useState<{
+    generated_at: string;
+    tenants: AllocationTenantBreakdown[];
+  } | null>(null);
 
   const toggle = async () => {
     if (!canExpand) return;
@@ -180,7 +187,12 @@ function BatchRow({ batch, onSubmitProof }: { batch: FieldDepositBatch; onSubmit
     setExpanded(next);
     if (next && items === null && !loadErr) {
       try {
-        setItems(await listBatchItems(batch.id));
+        const [its, alloc] = await Promise.all([
+          listBatchItems(batch.id),
+          isVerified ? getBatchAllocationDetail(batch.id) : Promise.resolve(null),
+        ]);
+        setItems(its);
+        setAllocationDetail(alloc);
       } catch (e: any) {
         setLoadErr(e?.message ?? 'Failed to load items');
       }
@@ -270,6 +282,7 @@ function BatchRow({ batch, onSubmitProof }: { batch: FieldDepositBatch; onSubmit
           error={loadErr}
           isVerified={isVerified}
           batch={batch}
+          allocationDetail={allocationDetail}
         />
       )}
     </div>
@@ -282,12 +295,14 @@ function CommissionBreakdown({
   error,
   isVerified,
   batch,
+  allocationDetail,
 }: {
   items: BatchItemDetail[] | null;
   loading: boolean;
   error: string | null;
   isVerified: boolean;
   batch: FieldDepositBatch;
+  allocationDetail: { generated_at: string; tenants: AllocationTenantBreakdown[] } | null;
 }) {
   const ratePct = Math.round(FIELD_DEPOSIT_COMMISSION_RATE * 100);
   const totalRepayment = items?.reduce((s, i) => s + i.amount, 0) ?? 0;
@@ -301,6 +316,11 @@ function CommissionBreakdown({
   const matchTargetLabel = isVerified && recordedTagged > 0 ? 'recorded tagged total' : 'declared total';
   const repaymentDelta = totalRepayment - matchTarget;
   const repaymentMatches = items !== null && Math.abs(repaymentDelta) < 1;
+
+  // Build a quick lookup from item_id → audit detail (per-tenant generation timestamp)
+  const auditByItem = new Map<string, AllocationTenantBreakdown>(
+    (allocationDetail?.tenants ?? []).map((t) => [t.item_id, t]),
+  );
 
   return (
     <div className="mt-3 ml-12 rounded-lg border bg-muted/30 overflow-hidden">
@@ -337,9 +357,17 @@ function CommissionBreakdown({
           <ul className="divide-y">
             {items.map((it) => {
               const comm = Math.round(it.amount * FIELD_DEPOSIT_COMMISSION_RATE);
+              const audit = auditByItem.get(it.id);
               return (
                 <li key={it.id} className="grid grid-cols-[1fr_auto_auto] gap-3 px-3 py-2 text-xs items-center">
-                  <span className="truncate font-medium">{it.tenant_name ?? '—'}</span>
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">{it.tenant_name ?? '—'}</div>
+                    {audit?.generated_at && (
+                      <div className="text-[10px] text-muted-foreground mt-0.5">
+                        Generated {format(new Date(audit.generated_at), 'MMM d, HH:mm')}
+                      </div>
+                    )}
+                  </div>
                   <span className="font-mono text-right">{formatUGX(it.amount)}</span>
                   <span className="font-mono text-right text-emerald-600 dark:text-emerald-400 min-w-[80px]">
                     +{formatUGX(comm)}
