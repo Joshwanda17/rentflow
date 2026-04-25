@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { Banknote, ChevronRight, Clock, CheckCircle2, AlertCircle, Send, Wallet, XCircle, ShieldCheck, ChevronDown, Loader2, Coins, AlertTriangle, FileText, ArrowDownRight, ArrowUpRight } from 'lucide-react';
+import { Banknote, ChevronRight, Clock, CheckCircle2, AlertCircle, Send, Wallet, XCircle, ShieldCheck, ChevronDown, Loader2, Coins, AlertTriangle, FileText, ArrowDownRight, ArrowUpRight, Info } from 'lucide-react';
 import {
   listAgentBatches,
   type FieldDepositBatch,
