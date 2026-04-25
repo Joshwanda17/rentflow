@@ -213,28 +213,6 @@ export function exportDailyTotalsPdf({ date, agentName, entries }: DayTotalsExpo
   y += 12;
   doc.setFont('helvetica', 'normal');
 
-  const statusLabel = (s: FieldEntry['syncState']): string => {
-    switch (s) {
-      case 'synced': return 'Sent';
-      case 'queued': return 'Waiting';
-      case 'error': return 'Failed';
-      case 'duplicate': return 'Duplicate';
-      default: return s;
-    }
-  };
-
-  /**
-   * Reference shown to the agent:
-   *  - synced     → server receipt id (RCT-prefixed short id)
-   *  - duplicate  → server id it collided with (DUP-)
-   *  - queued/error → local client id (LOC-) so the entry can still be looked up
-   */
-  const referenceFor = (e: FieldEntry): string => {
-    if (e.serverId) return `RCT-${e.serverId.slice(0, 8).toUpperCase()}`;
-    if (e.duplicateOfServerId) return `DUP-${e.duplicateOfServerId.slice(0, 8).toUpperCase()}`;
-    return `LOC-${e.id.slice(0, 8).toUpperCase()}`;
-  };
-
   const sorted = [...entries].sort((a, b) => a.capturedAt - b.capturedAt);
   if (sorted.length === 0) {
     doc.setTextColor(120);
