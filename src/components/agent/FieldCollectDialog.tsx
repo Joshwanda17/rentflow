@@ -294,28 +294,10 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
    * to a single hidden row.
    */
   const listScrollRef = useRef<HTMLDivElement | null>(null);
-  /**
-   * Per-query result cache. Keyed by the trimmed, lowercased search string so
-   * "Alice", "alice ", and "ALICE" all share one entry. Reused as long as the
-   * underlying tenant list hasn't changed (tracked via `fingerprint` below) so
-   * the agent can backspace, retype, or toggle between two queries without
-   * paying the full O(N) scoring cost again.
-   *
-   * Bounded at SEARCH_CACHE_MAX entries — when the cap is hit we drop the
-   * oldest insertion to keep memory in check during long sessions of rapid
-   * typing. Map iteration order = insertion order, so `keys().next()` gives
-   * us the oldest key for cheap LRU-style eviction.
-   */
-  type FilteredRow = {
-    t: CachedTenant;
-    score: number;
-    matchType: 'phone' | 'name' | 'both' | null;
-    ambiguous: boolean;
-    bestMatchFallback: boolean;
-  };
-  const SEARCH_CACHE_MAX = 50;
-  const searchCacheRef = useRef<Map<string, FilteredRow[]>>(new Map());
-  const searchCacheFingerprintRef = useRef<string>('');
+  // Per-query result cache lives at module scope (see top of file) so it
+  // persists across dialog open/close cycles — repeated searches stay
+  // instant. Invalidation is handled by the agent + fingerprint key inside
+  // `getSearchCache`.
   /**
    * Ref to the tenant search input. Used by the section-level type-to-search
    * handler so a printable key pressed anywhere in Step 1 (e.g. while focus is
