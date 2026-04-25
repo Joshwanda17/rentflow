@@ -134,16 +134,60 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   }, [open, refreshTenantCache, refreshEntries]);
 
   /* Filter tenants */
+  /**
+   * Quick search suggestions:
+   *  - Empty query → first 8 tenants alphabetically as a passive list
+   *  - With query  → score by phone-match > name-prefix > word-prefix > substring
+   *    so the most likely tap candidate sits at the top.
+   */
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return tenants.slice(0, 8);
-    return tenants
-      .filter(t =>
-        t.fullName.toLowerCase().includes(q) ||
-        (t.phone || '').includes(q.replace(/\s+/g, ''))
-      )
-      .slice(0, 12);
+    const phoneQ = q.replace(/\D+/g, '');
+    const scored = tenants
+      .map(t => {
+        const name = t.fullName.toLowerCase();
+        const phone = (t.phone || '').replace(/\D+/g, '');
+        let score = 0;
+        if (phoneQ && phone && phone.includes(phoneQ)) {
+          score = phone.startsWith(phoneQ) ? 100 : 70;
+        } else if (name.startsWith(q)) {
+          score = 90;
+        } else if (name.split(/\s+/).some(w => w.startsWith(q))) {
+          score = 80;
+        } else if (name.includes(q)) {
+          score = 50;
+        }
+        return { t, score };
+      })
+      .filter(s => s.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 12)
+      .map(s => s.t);
+    return scored;
   }, [tenants, search]);
+
+  /**
+   * Recent tenants — derived from this agent's prior captured entries
+   * (queued or synced). Distinct tenants by id, most-recent first, max 5.
+   * Only shown when the search box is empty and no tenant is picked.
+   */
+  const recentTenants = useMemo(() => {
+    if (!entries.length || !tenants.length) return [];
+    const tenantById = new Map(tenants.map(t => [t.tenantId, t]));
+    const seen = new Set<string>();
+    const out: CachedTenant[] = [];
+    const sorted = [...entries].sort((a, b) => b.capturedAt - a.capturedAt);
+    for (const e of sorted) {
+      if (!e.tenantId || seen.has(e.tenantId)) continue;
+      const t = tenantById.get(e.tenantId);
+      if (!t) continue;
+      seen.add(e.tenantId);
+      out.push(t);
+      if (out.length >= 5) break;
+    }
+    return out;
+  }, [entries, tenants]);
 
   const queuedCount = entries.filter(e => e.syncState !== 'synced').length;
   void queuedCount;
