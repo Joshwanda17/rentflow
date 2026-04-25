@@ -861,23 +861,66 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
                   const failCount = breakdown.failed.count;
                   const steps = [
                     {
+                      key: 'duplicate' as const,
                       label: dupCount > 0
                         ? `Check the ${dupCount} payment${dupCount === 1 ? '' : 's'} already on the server`
                         : 'Check duplicate payments',
                       done: dupCount === 0,
                       active: dupCount > 0,
+                      action: dupCount > 0
+                        ? {
+                            label: 'Skip',
+                            busy: resolvingAction === 'skip' || resolvingAction === 'auto',
+                            onClick: async () => {
+                              setResolvingAction('skip');
+                              try {
+                                const n = await skipAllDuplicates();
+                                await refreshTodayTotals();
+                                if (n > 0) toast.success(`${n} duplicate${n === 1 ? '' : 's'} skipped — server version kept`);
+                                else toast.info('No duplicates to skip');
+                              } finally {
+                                setResolvingAction(null);
+                              }
+                            },
+                          }
+                        : null,
                     },
                     {
+                      key: 'failed' as const,
                       label: failCount > 0
                         ? `Retry the ${failCount} payment${failCount === 1 ? '' : 's'} that did not send`
                         : 'Retry failed payments',
                       done: failCount === 0,
                       active: dupCount === 0 && failCount > 0,
+                      action: failCount > 0
+                        ? {
+                            label: 'Retry',
+                            busy: resolvingAction === 'retry' || resolvingAction === 'auto',
+                            onClick: async () => {
+                              setResolvingAction('retry');
+                              try {
+                                const r = await retryAllFailed();
+                                await refreshTodayTotals();
+                                const parts: string[] = [];
+                                if (r.ok) parts.push(`${r.ok} sent`);
+                                if (r.dup) parts.push(`${r.dup} new duplicate${r.dup === 1 ? '' : 's'}`);
+                                if (r.fail) parts.push(`${r.fail} still failing`);
+                                if (parts.length === 0) toast.info('Nothing to retry');
+                                else if (r.fail || r.dup) toast.warning(parts.join(' · '));
+                                else toast.success(parts.join(' · '));
+                              } finally {
+                                setResolvingAction(null);
+                              }
+                            },
+                          }
+                        : null,
                     },
                     {
+                      key: 'confirm' as const,
                       label: 'Confirm today\'s total matches your cash on hand',
                       done: false,
                       active: dupCount === 0 && failCount === 0,
+                      action: null,
                     },
                   ];
                   return (
@@ -902,7 +945,26 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
                           >
                             {s.done ? '✓' : i + 1}
                           </span>
-                          <span className="min-w-0">{s.label}</span>
+                          <span className="min-w-0 flex-1">{s.label}</span>
+                          {s.action && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={!!resolvingAction}
+                              onClick={s.action.onClick}
+                              className="h-6 px-2 text-[10px] font-medium shrink-0 -my-0.5"
+                            >
+                              {s.action.busy ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : s.key === 'duplicate' ? (
+                                <SkipForward className="h-3 w-3 mr-1" />
+                              ) : (
+                                <RefreshCcw className="h-3 w-3 mr-1" />
+                              )}
+                              {!s.action.busy && s.action.label}
+                            </Button>
+                          )}
                         </li>
                       ))}
                     </ol>
