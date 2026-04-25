@@ -823,6 +823,17 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                             Paid up ✓
                           </Badge>
                         )}
+                        {/* Per-tenant offline Field Collect */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => { e.stopPropagation(); setFieldCollectTarget(tenant); }}
+                          className="mt-1.5 h-7 px-2 gap-1 text-[11px] font-semibold border-primary/40 text-primary hover:bg-primary/10"
+                          title="Record offline collection"
+                        >
+                          <Banknote className="h-3 w-3" />
+                          Field Collect
+                        </Button>
                       </div>
                     </div>
                   </button>
