@@ -674,3 +674,167 @@ describe('edge cases — mixed queries across digit-length boundaries', () => {
     expect(out).toHaveLength(1);
   });
 });
+
+describe('ranking snapshots — representative queries against a fixed tenant list', () => {
+  /**
+   * Fixed cast of tenants chosen to exercise every scoring lane:
+   *   - Two tenants ending in "456" (tail collisions)
+   *   - One tenant whose phone STARTS with the query
+   *   - One tenant whose name starts with "Ali"
+   *   - One tenant whose surname starts with "Ali" (word-prefix lane)
+   *   - One tenant where "ali" only appears mid-name (contains lane)
+   *   - A messy-format phone for normalization coverage
+   *   - A no-name-no-phone-match decoy
+   *
+   * Snapshots lock the sorted output for representative queries. Any
+   * ranking change (rule weights, lane ordering, normalization tweaks)
+   * will surface as a snapshot diff that the developer must intentionally
+   * accept with `vitest -u`.
+   */
+  const TENANTS = [
+    { fullName: 'Alice Mukasa',     phone: '+256 772 123 456' }, // tail-456, name 'Ali' starts
+    { fullName: 'Bob Aliyu',        phone: '0712 999 456' },     // tail-456, surname starts 'Ali'
+    { fullName: 'Charles Nakamura', phone: '0772 555 000' },     // phone starts-with 077
+    { fullName: 'Daniel Kalingo',   phone: '0700 111 222' },     // contains 'ali' mid-name
+    { fullName: 'Eve Tumusiime',    phone: '+256-787-654-321' }, // messy format
+    { fullName: 'Frank Owino',      phone: '0701 999 888' },     // pure decoy
+  ] as const;
+
+  /**
+   * Score every tenant, drop zero-score rows, sort by score desc with a
+   * stable tiebreaker on name, and return a compact tuple form that's
+   * snapshot-friendly. Mirrors the dialog's ranking pipeline.
+   */
+  const rank = (query: string) =>
+    TENANTS
+      .map(t => {
+        const r = scoreTenantMatch(query, t);
+        return {
+          name: t.fullName,
+          phone: t.phone,
+          score: r.score,
+          matchType: r.matchType,
+        };
+      })
+      .filter(r => r.score > 0)
+      .sort((a, b) => (b.score - a.score) || a.name.localeCompare(b.name));
+
+  it('snapshots: 3-digit tail query "456" (short-query lane, two candidates)', () => {
+    expect(rank('456')).toMatchInlineSnapshot(`
+      [
+        {
+          "matchType": "phone",
+          "name": "Alice Mukasa",
+          "phone": "+256 772 123 456",
+          "score": 115,
+        },
+        {
+          "matchType": "phone",
+          "name": "Bob Aliyu",
+          "phone": "0712 999 456",
+          "score": 115,
+        },
+      ]
+    `);
+  });
+
+  it('snapshots: 4-digit tail query "3456"', () => {
+    expect(rank('3456')).toMatchInlineSnapshot(`
+      [
+        {
+          "matchType": "phone",
+          "name": "Alice Mukasa",
+          "phone": "+256 772 123 456",
+          "score": 115,
+        },
+      ]
+    `);
+  });
+
+  it('snapshots: 5-digit query "23456" (escapes short mode → ends-with lane)', () => {
+    expect(rank('23456')).toMatchInlineSnapshot(`
+      [
+        {
+          "matchType": "phone",
+          "name": "Alice Mukasa",
+          "phone": "+256 772 123 456",
+          "score": 130,
+        },
+      ]
+    `);
+  });
+
+  it('snapshots: phone prefix query "0772" (starts-with lane wins)', () => {
+    expect(rank('0772')).toMatchInlineSnapshot(`
+      [
+        {
+          "matchType": "phone",
+          "name": "Alice Mukasa",
+          "phone": "+256 772 123 456",
+          "score": 150,
+        },
+        {
+          "matchType": "phone",
+          "name": "Charles Nakamura",
+          "phone": "0772 555 000",
+          "score": 150,
+        },
+      ]
+    `);
+  });
+
+  it('snapshots: full phone "0772 123 456" → exact match (200)', () => {
+    expect(rank('0772 123 456')).toMatchInlineSnapshot(`
+      [
+        {
+          "matchType": "phone",
+          "name": "Alice Mukasa",
+          "phone": "+256 772 123 456",
+          "score": 200,
+        },
+      ]
+    `);
+  });
+
+  it('snapshots: name prefix query "Ali" (starts-with > word-prefix > contains)', () => {
+    expect(rank('Ali')).toMatchInlineSnapshot(`
+      [
+        {
+          "matchType": "name",
+          "name": "Alice Mukasa",
+          "phone": "+256 772 123 456",
+          "score": 90,
+        },
+        {
+          "matchType": "name",
+          "name": "Bob Aliyu",
+          "phone": "0712 999 456",
+          "score": 80,
+        },
+        {
+          "matchType": "name",
+          "name": "Daniel Kalingo",
+          "phone": "0700 111 222",
+          "score": 50,
+        },
+      ]
+    `);
+  });
+
+  it('snapshots: international format query "+256 787" (normalization)', () => {
+    expect(rank('+256 787')).toMatchInlineSnapshot(`
+      [
+        {
+          "matchType": "phone",
+          "name": "Eve Tumusiime",
+          "phone": "+256-787-654-321",
+          "score": 150,
+        },
+      ]
+    `);
+  });
+
+  it('snapshots: query that matches NO tenant returns []', () => {
+    expect(rank('zzz999nope')).toMatchInlineSnapshot(`[]`);
+  });
+});
