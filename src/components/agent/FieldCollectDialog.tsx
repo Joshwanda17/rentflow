@@ -12,7 +12,7 @@ import {
   Loader2, WifiOff, Wifi, Search, Trash2,
   CheckCircle2, AlertCircle, RefreshCcw, ChevronLeft, ChevronRight,
   User, Banknote, ClipboardCheck, Home, KeyRound, Sparkles,
-  HelpCircle, ChevronDown,
+  HelpCircle, ChevronDown, Clock, X,
 } from 'lucide-react';
 import {
   cacheTenants, getCachedTenants, addEntry, deleteEntry, getEntries,
@@ -37,6 +37,24 @@ const PURPOSES: { id: Purpose; label: string; icon: React.ComponentType<{ classN
   { id: 'deposit', label: 'Deposit', icon: KeyRound },
   { id: 'other', label: 'Other', icon: Sparkles },
 ];
+
+/** Wrap matching substring in <mark> for visual hint inside suggestions. */
+function highlightMatch(text: string, query: string): React.ReactNode {
+  const q = query.trim();
+  if (!q) return text;
+  const lower = text.toLowerCase();
+  const idx = lower.indexOf(q.toLowerCase());
+  if (idx === -1) return text;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark className="bg-primary/15 text-foreground rounded px-0.5">
+        {text.slice(idx, idx + q.length)}
+      </mark>
+      {text.slice(idx + q.length)}
+    </>
+  );
+}
 
 export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogProps) {
   const { user } = useAuth();
@@ -134,16 +152,60 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   }, [open, refreshTenantCache, refreshEntries]);
 
   /* Filter tenants */
+  /**
+   * Quick search suggestions:
+   *  - Empty query → first 8 tenants alphabetically as a passive list
+   *  - With query  → score by phone-match > name-prefix > word-prefix > substring
+   *    so the most likely tap candidate sits at the top.
+   */
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return tenants.slice(0, 8);
-    return tenants
-      .filter(t =>
-        t.fullName.toLowerCase().includes(q) ||
-        (t.phone || '').includes(q.replace(/\s+/g, ''))
-      )
-      .slice(0, 12);
+    const phoneQ = q.replace(/\D+/g, '');
+    const scored = tenants
+      .map(t => {
+        const name = t.fullName.toLowerCase();
+        const phone = (t.phone || '').replace(/\D+/g, '');
+        let score = 0;
+        if (phoneQ && phone && phone.includes(phoneQ)) {
+          score = phone.startsWith(phoneQ) ? 100 : 70;
+        } else if (name.startsWith(q)) {
+          score = 90;
+        } else if (name.split(/\s+/).some(w => w.startsWith(q))) {
+          score = 80;
+        } else if (name.includes(q)) {
+          score = 50;
+        }
+        return { t, score };
+      })
+      .filter(s => s.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 12)
+      .map(s => s.t);
+    return scored;
   }, [tenants, search]);
+
+  /**
+   * Recent tenants — derived from this agent's prior captured entries
+   * (queued or synced). Distinct tenants by id, most-recent first, max 5.
+   * Only shown when the search box is empty and no tenant is picked.
+   */
+  const recentTenants = useMemo(() => {
+    if (!entries.length || !tenants.length) return [];
+    const tenantById = new Map(tenants.map(t => [t.tenantId, t]));
+    const seen = new Set<string>();
+    const out: CachedTenant[] = [];
+    const sorted = [...entries].sort((a, b) => b.capturedAt - a.capturedAt);
+    for (const e of sorted) {
+      if (!e.tenantId || seen.has(e.tenantId)) continue;
+      const t = tenantById.get(e.tenantId);
+      if (!t) continue;
+      seen.add(e.tenantId);
+      out.push(t);
+      if (out.length >= 5) break;
+    }
+    return out;
+  }, [entries, tenants]);
 
   const queuedCount = entries.filter(e => e.syncState !== 'synced').length;
   void queuedCount;
@@ -533,16 +595,63 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                 </div>
               ) : (
                 <>
+                  {/* Recent tenants — shown only when no query and at least one chip */}
+                  {!search && recentTenants.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        Recent
+                      </div>
+                      <div className="flex gap-2 overflow-x-auto -mx-1 px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                        {recentTenants.map(t => {
+                          const initials = t.fullName
+                            .split(/\s+/)
+                            .filter(Boolean)
+                            .slice(0, 2)
+                            .map(s => s[0]?.toUpperCase())
+                            .join('') || '?';
+                          return (
+                            <button
+                              key={`recent-${t.tenantId}`}
+                              type="button"
+                              onClick={() => { setPicked(t); setSearch(t.fullName); }}
+                              className="shrink-0 flex items-center gap-2 rounded-full border bg-card hover:bg-accent active:bg-accent/80 pl-1.5 pr-3.5 py-1.5 min-h-[40px] transition-colors touch-manipulation"
+                              style={{ WebkitTapHighlightColor: 'transparent' }}
+                              aria-label={`Quick pick ${t.fullName}`}
+                            >
+                              <span className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[11px] font-bold">
+                                {initials}
+                              </span>
+                              <span className="text-sm font-medium max-w-[140px] truncate">
+                                {t.fullName.split(' ')[0]}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       value={search}
                       onChange={e => { setSearch(e.target.value); setPicked(null); }}
                       placeholder={tenants.length ? 'Search name or phone' : 'Connect to load tenants'}
-                      className="pl-11 h-14 text-base rounded-2xl"
+                      className="pl-11 pr-11 h-14 text-base rounded-2xl"
                       autoComplete="off"
                       autoFocus
                     />
+                    {search && (
+                      <button
+                        type="button"
+                        onClick={() => setSearch('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground"
+                        aria-label="Clear search"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
 
                   {(search || tenants.length > 0) && (
@@ -551,16 +660,27 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                         <p className="p-4 text-sm text-muted-foreground text-center">
                           No match. Use walk-up below.
                         </p>
-                      ) : filtered.map(t => (
+                      ) : filtered.map((t, idx) => (
                         <button
                           key={t.tenantId}
                           onClick={() => { setPicked(t); setSearch(t.fullName); }}
                           className="w-full text-left px-4 py-4 min-h-[60px] hover:bg-accent border-b last:border-b-0 flex items-center justify-between gap-2 active:bg-accent/80 touch-manipulation"
                           style={{ WebkitTapHighlightColor: 'transparent' }}
                         >
-                          <div className="min-w-0">
-                            <p className="text-base font-semibold truncate">{t.fullName}</p>
-                            <p className="text-xs text-muted-foreground truncate">{t.phone || 'No phone'}</p>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <p className="text-base font-semibold truncate">
+                                {highlightMatch(t.fullName, search)}
+                              </p>
+                              {idx === 0 && search && (
+                                <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                                  Best match
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {t.phone ? highlightMatch(t.phone, search) : 'No phone'}
+                            </p>
                           </div>
                           {t.monthlyRent ? (
                             <span className="text-xs text-muted-foreground shrink-0 tabular-nums">
