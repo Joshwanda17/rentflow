@@ -331,8 +331,46 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
    */
   type BrowseStatus = 'all' | 'active' | 'inactive';
   const BROWSE_PAGE_SIZE = 100;
+  /**
+   * Persisted-key for the Active/Inactive/All chip selection. Scoped per
+   * agent so a shared device doesn't leak one agent's filter preference
+   * to another. The picker's `Sort` and `Page` intentionally stay
+   * session-only — those are navigation state, not preferences.
+   */
+  const browseStatusStorageKey = user?.id
+    ? `welile.fieldCollect.browseStatus:${user.id}`
+    : null;
   const [browseSort, setBrowseSort] = useState<BrowseSort>('recent');
-  const [browseStatus, setBrowseStatus] = useState<BrowseStatus>('all');
+  const [browseStatus, setBrowseStatus] = useState<BrowseStatus>(() => {
+    // Lazy initializer so we read localStorage exactly once per mount.
+    // Guards: SSR-safe (typeof window), user-scoped key, and validates
+    // the stored value against the union — anything weird falls back
+    // to 'all' so a corrupted entry never breaks the picker.
+    if (typeof window === 'undefined' || !user?.id) return 'all';
+    try {
+      const raw = window.localStorage.getItem(`welile.fieldCollect.browseStatus:${user.id}`);
+      if (raw === 'all' || raw === 'active' || raw === 'inactive') return raw;
+    } catch {
+      // localStorage can throw in private mode / quota-exceeded — ignore.
+    }
+    return 'all';
+  });
+
+  /**
+   * Persist the chip selection whenever it changes. Skips writes when
+   * we don't yet know the user (avoids polluting the unscoped key) and
+   * swallows quota/private-mode errors so a write failure never crashes
+   * the picker — preference persistence is best-effort UX, not data.
+   */
+  useEffect(() => {
+    if (!browseStatusStorageKey || typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(browseStatusStorageKey, browseStatus);
+    } catch {
+      /* noop — see above */
+    }
+  }, [browseStatus, browseStatusStorageKey]);
+
   const [browsePage, setBrowsePage] = useState(0);
 
   /* Online/offline tracking */
