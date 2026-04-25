@@ -33,10 +33,28 @@ export interface FieldEntry {
   latitude?: number | null;
   longitude?: number | null;
   capturedAt: number;    // ms epoch
-  /** 'queued' = needs sync, 'synced' = pushed to server pending review, 'error' = failed last sync */
-  syncState: 'queued' | 'synced' | 'error';
+  /**
+   * 'queued'    = needs sync
+   * 'synced'    = pushed to server pending review
+   * 'error'    = failed last sync (will retry)
+   * 'duplicate' = server rejected as duplicate of an already-uploaded receipt
+   *              (idempotency key collision — needs human reconciliation)
+   */
+  syncState: 'queued' | 'synced' | 'error' | 'duplicate';
   syncError?: string | null;
   serverId?: string | null;
+  /** When syncState='duplicate', the server-side field_collections.id this entry collided with */
+  duplicateOfServerId?: string | null;
+  /** Snapshot of the server record at the moment the duplicate was detected (for side-by-side review) */
+  duplicateServerSnapshot?: {
+    amount: number;
+    capturedAt: string;
+    tenantName: string | null;
+    status: string;
+    createdAt: string;
+  } | null;
+  /** Last sync attempt timestamp (ms epoch) — used for backoff / display */
+  lastSyncAt?: number | null;
 }
 
 function openDb(): Promise<IDBDatabase> {
@@ -154,6 +172,11 @@ export async function getEntries(agentId: string): Promise<FieldEntry[]> {
 export async function getQueuedEntries(agentId: string): Promise<FieldEntry[]> {
   const all = await getEntries(agentId);
   return all.filter(e => e.syncState === 'queued' || e.syncState === 'error');
+}
+
+export async function getDuplicateEntries(agentId: string): Promise<FieldEntry[]> {
+  const all = await getEntries(agentId);
+  return all.filter(e => e.syncState === 'duplicate');
 }
 
 /** UUID v4 — works without crypto.randomUUID on older mobile WebViews */
