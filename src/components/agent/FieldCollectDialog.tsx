@@ -121,14 +121,28 @@ function highlightName(text: string, query: string): React.ReactNode {
         if (cursor + len >= targetEnd) { srcEnd = map[i].src + 1; break; }
         cursor += len;
       }
-      if (srcStart !== -1 && srcEnd !== -1) return renderHighlighted(text, srcStart, srcEnd);
+      if (srcStart !== -1 && srcEnd !== -1) {
+        // Decide which name lane drove the match so we can color-code it.
+        // - 'name-prefix' if the normalized hit is at the very start of the trimmed name
+        // - 'name-word' if it sits at the start of any word (after a space)
+        // - 'name-sub' otherwise (mid-word substring)
+        let kind: HighlightKind = 'name-sub';
+        if (idx === 0) kind = 'name-prefix';
+        else if (trimmedNorm[idx - 1] === ' ') kind = 'name-word';
+        return renderHighlighted(text, srcStart, srcEnd, kind);
+      }
     }
   }
 
   // 2. Fallback: plain case-insensitive substring.
   const idx = text.toLowerCase().indexOf(q.toLowerCase());
   if (idx === -1) return text;
-  return renderHighlighted(text, idx, idx + q.length);
+  // Same lane heuristic on the raw string for the fallback path.
+  const lower = text.toLowerCase();
+  let kind: HighlightKind = 'name-sub';
+  if (idx === 0) kind = 'name-prefix';
+  else if (lower[idx - 1] === ' ') kind = 'name-word';
+  return renderHighlighted(text, idx, idx + q.length, kind);
 }
 
 /**
@@ -165,7 +179,7 @@ function highlightPhone(text: string, query: string): React.ReactNode {
     if (idx !== -1) {
       const srcStart = digitToSrc[idx];
       const srcEnd = digitToSrc[idx + candidate.length - 1] + 1;
-      return renderHighlighted(text, srcStart, srcEnd);
+      return renderHighlighted(text, srcStart, srcEnd, 'phone');
     }
   }
 
