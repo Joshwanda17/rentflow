@@ -254,18 +254,11 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     return scored;
   }, [tenants, search]);
 
-  /** Just the tenant rows from the scored result, used everywhere it was used before. */
+  /** Just the tenant rows — used by keyboard nav & recents merge. */
   const filteredTenants = useMemo<CachedTenant[]>(
     () => filtered.map(s => s.t),
     [filtered],
   );
-
-  /** Lookup of match type by tenantId so render code can show chips per row. */
-  const matchTypeById = useMemo(() => {
-    const m = new Map<string, 'phone' | 'name' | 'both'>();
-    for (const s of filtered) if (s.matchType) m.set(s.t.tenantId, s.matchType);
-    return m;
-  }, [filtered]);
 
   /**
    * Recent tenants — derived from this agent's prior captured entries
@@ -296,11 +289,11 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
    * only the scored suggestions remain.
    */
   const keyboardOptions = useMemo<CachedTenant[]>(() => {
-    if (search.trim()) return filtered;
+    if (search.trim()) return filteredTenants;
     // Avoid duplicates between recents and the alphabetical default list.
     const recentIds = new Set(recentTenants.map(t => t.tenantId));
-    return [...recentTenants, ...filtered.filter(t => !recentIds.has(t.tenantId))];
-  }, [search, filtered, recentTenants]);
+    return [...recentTenants, ...filteredTenants.filter(t => !recentIds.has(t.tenantId))];
+  }, [search, filteredTenants, recentTenants]);
 
   /* Reset highlight whenever the option list shape changes */
   useEffect(() => {
