@@ -114,6 +114,13 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
    */
   const [activeIdx, setActiveIdx] = useState(0);
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  /**
+   * Ref to the tenant search input. Used by the section-level type-to-search
+   * handler so a printable key pressed anywhere in Step 1 (e.g. while focus is
+   * on a "Recent" chip) routes that character into the search input and
+   * snaps the highlight to the first match.
+   */
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   /* Online/offline tracking */
   useEffect(() => {
