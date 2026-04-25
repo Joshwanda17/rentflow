@@ -499,6 +499,137 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
 
   const [browsePage, setBrowsePage] = useState(0);
 
+  /**
+   * Persisted search query (cross-device).
+   *
+   * Why we persist this:
+   *   The "mode" of the picker (browse vs. search) is derived from whether
+   *   the search box has content — empty = browse, non-empty = search. So
+   *   persisting the query string ALONE restores both the query and the
+   *   mode the agent was last in. No separate `mode` flag needed.
+   *
+   * Storage layering mirrors `browseStatus` above:
+   *   - localStorage (per-agent key) → instant offline cache; populated on
+   *     dialog mount before cloud responds so the box never flashes empty.
+   *   - `user_ui_preferences` row    → durable cross-device source of truth;
+   *     pulled once per login, written on every change (debounced).
+   *
+   * Empty string is stored as "absence of preference" (key removed locally,
+   * row deleted in cloud) to keep storage clean and treat "fresh start" as
+   * the natural default.
+   */
+  const searchQueryStorageKey = user?.id
+    ? `welile.fieldCollect.searchQuery:${user.id}`
+    : null;
+  const searchQueryPrefKey = 'fieldCollect.searchQuery';
+  const hasSearchCloudHydratedRef = useRef(false);
+
+  /**
+   * Restore the saved query whenever the dialog opens. Pulled from
+   * localStorage synchronously inside the effect (not via lazy state
+   * initializer) because `search` already drives a debounced scoring
+   * pipeline and toggling it via `setSearch` correctly retriggers the
+   * dependent memos. Skips when there's already a query in flight (so a
+   * fast re-open after typing doesn't snap back to the previous saved
+   * value).
+   */
+  useEffect(() => {
+    if (!open) return;
+    if (!searchQueryStorageKey || typeof window === 'undefined') return;
+    if (search) return; // user already started typing in this session
+    try {
+      const raw = window.localStorage.getItem(searchQueryStorageKey);
+      if (raw) setSearch(raw);
+    } catch {
+      /* private mode / quota — ignore */
+    }
+    // Intentionally only react to `open` flipping true; `search` is excluded
+    // so the restore doesn't fight with user typing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, searchQueryStorageKey]);
+
+  /**
+   * Persist the query to localStorage on every change. Debounced via the
+   * existing `debouncedSearch` mirror so we don't thrash storage on every
+   * keystroke. Empty query removes the key (see header comment).
+   */
+  useEffect(() => {
+    if (!searchQueryStorageKey || typeof window === 'undefined') return;
+    try {
+      if (!debouncedSearch) {
+        window.localStorage.removeItem(searchQueryStorageKey);
+      } else {
+        window.localStorage.setItem(searchQueryStorageKey, debouncedSearch);
+      }
+    } catch {
+      /* noop */
+    }
+  }, [debouncedSearch, searchQueryStorageKey]);
+
+  /**
+   * Cloud hydrate (once per login). Cloud value wins over local on first
+   * read and is mirrored back to localStorage so this device matches what
+   * the agent's other devices show on the next cold open.
+   */
+  useEffect(() => {
+    if (hasSearchCloudHydratedRef.current) return;
+    if (!user?.id) return;
+    hasSearchCloudHydratedRef.current = true;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('user_ui_preferences')
+          .select('value')
+          .eq('user_id', user.id)
+          .eq('key', searchQueryPrefKey)
+          .maybeSingle();
+        if (cancelled || error || !data) return;
+        const cloudValue = typeof data.value === 'string' ? data.value : '';
+        if (!cloudValue) return;
+        // Only adopt cloud value if the user hasn't already typed in this
+        // session — preserves typing intent on slow networks.
+        setSearch(prev => (prev ? prev : cloudValue));
+        if (typeof window !== 'undefined' && searchQueryStorageKey) {
+          try { window.localStorage.setItem(searchQueryStorageKey, cloudValue); } catch { /* noop */ }
+        }
+      } catch (err) {
+        console.warn('[FieldCollectDialog] cloud search hydrate failed', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id, searchQueryStorageKey]);
+
+  /**
+   * Push debounced query changes to the cloud row. Skips writes before
+   * cloud hydration completes so the local cache value doesn't overwrite a
+   * fresher cloud value on first mount (same guard as `browseStatus`).
+   */
+  useEffect(() => {
+    if (!user?.id) return;
+    if (!hasSearchCloudHydratedRef.current) return;
+    (async () => {
+      try {
+        if (!debouncedSearch) {
+          await supabase
+            .from('user_ui_preferences')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('key', searchQueryPrefKey);
+        } else {
+          await supabase
+            .from('user_ui_preferences')
+            .upsert(
+              { user_id: user.id, key: searchQueryPrefKey, value: debouncedSearch },
+              { onConflict: 'user_id,key' },
+            );
+        }
+      } catch (err) {
+        console.warn('[FieldCollectDialog] cloud search write failed', err);
+      }
+    })();
+  }, [debouncedSearch, user?.id]);
+
   /* Online/offline tracking */
   useEffect(() => {
     const on = () => setOnline(true);
