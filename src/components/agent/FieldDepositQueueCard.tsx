@@ -1,9 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { Banknote, ChevronRight, Clock, CheckCircle2, AlertCircle, Send, Wallet, XCircle, ShieldCheck } from 'lucide-react';
+import { Banknote, ChevronRight, Clock, CheckCircle2, AlertCircle, Send, Wallet, XCircle, ShieldCheck, ChevronDown, Loader2, Coins } from 'lucide-react';
 import {
   listAgentBatches,
   type FieldDepositBatch,
+  type BatchItemDetail,
+  listBatchItems,
+  FIELD_DEPOSIT_COMMISSION_RATE,
   channelLabel,
   statusLabel,
 } from '@/lib/fieldDepositBatches';
@@ -166,30 +169,69 @@ function BatchRow({ batch, onSubmitProof }: { batch: FieldDepositBatch; onSubmit
   const isVerified = batch.status === 'verified';
   const isRejected = batch.status === 'rejected';
   const isCancelled = batch.status === 'cancelled';
+  const canExpand = !isAwaiting; // only batches with proof/verification have meaningful detail
+  const [expanded, setExpanded] = useState(false);
+  const [items, setItems] = useState<BatchItemDetail[] | null>(null);
+  const [loadErr, setLoadErr] = useState<string | null>(null);
+
+  const toggle = async () => {
+    if (!canExpand) return;
+    const next = !expanded;
+    setExpanded(next);
+    if (next && items === null && !loadErr) {
+      try {
+        setItems(await listBatchItems(batch.id));
+      } catch (e: any) {
+        setLoadErr(e?.message ?? 'Failed to load items');
+      }
+    }
+  };
 
   return (
-    <div className="px-4 py-3 flex items-start gap-3">
-      <div className={cn(
+    <div className="px-4 py-3">
+      <div className="flex items-start gap-3">
+      <button
+        type="button"
+        onClick={toggle}
+        disabled={!canExpand}
+        className={cn(
         'h-9 w-9 rounded-lg flex items-center justify-center shrink-0',
         isVerified && 'bg-emerald-500/10 text-emerald-600',
         isRejected && 'bg-red-500/10 text-red-600',
         isAwaiting && 'bg-amber-500/10 text-amber-600',
         isPending && 'bg-blue-500/10 text-blue-600',
         isCancelled && 'bg-muted text-muted-foreground',
+        canExpand && 'hover:opacity-80 transition-opacity cursor-pointer',
       )}>
         {isVerified ? <CheckCircle2 className="h-4 w-4" /> :
          isRejected ? <XCircle className="h-4 w-4" /> :
          isPending ? <ShieldCheck className="h-4 w-4" /> :
          isAwaiting ? <Clock className="h-4 w-4" /> :
          <Banknote className="h-4 w-4" />}
-      </div>
-      <div className="min-w-0 flex-1">
+      </button>
+      <button
+        type="button"
+        onClick={toggle}
+        disabled={!canExpand}
+        className={cn(
+          'min-w-0 flex-1 text-left',
+          canExpand && 'hover:opacity-90 transition-opacity cursor-pointer',
+        )}
+      >
         <div className="flex items-center gap-2 flex-wrap">
           <p className="font-semibold text-sm truncate">{formatUGX(Number(batch.declared_total))}</p>
           <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-normal shrink-0">
             {channelLabel(batch.channel)}
           </Badge>
           <StatusPill batch={batch} />
+          {canExpand && (
+            <ChevronDown
+              className={cn(
+                'h-3 w-3 text-muted-foreground transition-transform shrink-0',
+                expanded && 'rotate-180',
+              )}
+            />
+          )}
         </div>
         {batch.proof_reference && (
           <p className="text-[11px] text-muted-foreground truncate mt-0.5">
@@ -207,7 +249,7 @@ function BatchRow({ batch, onSubmitProof }: { batch: FieldDepositBatch; onSubmit
             </p>
           </div>
         )}
-      </div>
+      </button>
       {isAwaiting ? (
         <Button size="sm" variant="outline" className="h-7 text-xs gap-1 shrink-0" onClick={onSubmitProof}>
           Add proof
@@ -219,6 +261,91 @@ function BatchRow({ batch, onSubmitProof }: { batch: FieldDepositBatch; onSubmit
           <ChevronRight className="h-3 w-3" />
         </Button>
       ) : null}
+      </div>
+
+      {expanded && canExpand && (
+        <CommissionBreakdown
+          items={items}
+          loading={items === null && !loadErr}
+          error={loadErr}
+          isVerified={isVerified}
+        />
+      )}
+    </div>
+  );
+}
+
+function CommissionBreakdown({
+  items,
+  loading,
+  error,
+  isVerified,
+}: {
+  items: BatchItemDetail[] | null;
+  loading: boolean;
+  error: string | null;
+  isVerified: boolean;
+}) {
+  const ratePct = Math.round(FIELD_DEPOSIT_COMMISSION_RATE * 100);
+  const totalRepayment = items?.reduce((s, i) => s + i.amount, 0) ?? 0;
+  const totalCommission =
+    items?.reduce((s, i) => s + Math.round(i.amount * FIELD_DEPOSIT_COMMISSION_RATE), 0) ?? 0;
+
+  return (
+    <div className="mt-3 ml-12 rounded-lg border bg-muted/30 overflow-hidden">
+      <div className="px-3 py-2 flex items-center justify-between border-b bg-background/40">
+        <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <Coins className="h-3 w-3" />
+          Commission breakdown · {ratePct}% per repayment
+        </div>
+        <span className="text-[10px] text-muted-foreground">
+          {isVerified ? 'Recorded as expense' : 'Estimate (on verify)'}
+        </span>
+      </div>
+
+      {loading && (
+        <div className="px-3 py-3 flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="h-3 w-3 animate-spin" /> Loading tenants…
+        </div>
+      )}
+      {error && <div className="px-3 py-3 text-xs text-destructive">{error}</div>}
+
+      {items && items.length === 0 && (
+        <div className="px-3 py-3 text-xs text-muted-foreground text-center">
+          No tenants tagged in this batch.
+        </div>
+      )}
+
+      {items && items.length > 0 && (
+        <>
+          <div className="grid grid-cols-[1fr_auto_auto] gap-3 px-3 py-1.5 text-[10px] uppercase tracking-wide text-muted-foreground border-b">
+            <span>Tenant</span>
+            <span className="text-right">Repayment</span>
+            <span className="text-right min-w-[80px]">Commission</span>
+          </div>
+          <ul className="divide-y">
+            {items.map((it) => {
+              const comm = Math.round(it.amount * FIELD_DEPOSIT_COMMISSION_RATE);
+              return (
+                <li key={it.id} className="grid grid-cols-[1fr_auto_auto] gap-3 px-3 py-2 text-xs items-center">
+                  <span className="truncate font-medium">{it.tenant_name ?? '—'}</span>
+                  <span className="font-mono text-right">{formatUGX(it.amount)}</span>
+                  <span className="font-mono text-right text-emerald-600 dark:text-emerald-400 min-w-[80px]">
+                    +{formatUGX(comm)}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="grid grid-cols-[1fr_auto_auto] gap-3 px-3 py-2 text-xs items-center bg-background/60 border-t font-semibold">
+            <span>Total</span>
+            <span className="font-mono text-right">{formatUGX(totalRepayment)}</span>
+            <span className="font-mono text-right text-emerald-600 dark:text-emerald-400 min-w-[80px]">
+              +{formatUGX(totalCommission)}
+            </span>
+          </div>
+        </>
+      )}
     </div>
   );
 }

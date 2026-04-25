@@ -267,6 +267,26 @@ export async function rejectBatchAsFinOps(batchId: string, reason: string) {
   return data;
 }
 
+/** Commission rate applied per tenant repayment in process_verified_field_deposit RPC. */
+export const FIELD_DEPOSIT_COMMISSION_RATE = 0.10;
+
+/** Loads tagged items (with tenant name/phone) for a single batch. */
+export async function listBatchItems(batchId: string): Promise<BatchItemDetail[]> {
+  const { data, error } = await supabase
+    .from('field_deposit_batch_items')
+    .select('id, amount, field_collection_id, field_collections(tenant_name, tenant_phone)')
+    .eq('batch_id', batchId)
+    .order('amount', { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((it: any) => ({
+    id: it.id,
+    amount: Number(it.amount ?? 0),
+    field_collection_id: it.field_collection_id,
+    tenant_name: it.field_collections?.tenant_name ?? null,
+    tenant_phone: it.field_collections?.tenant_phone ?? null,
+  }));
+}
+
 /* --------------------------------------------------------------------- */
 /* Audit trail                                                           */
 /* --------------------------------------------------------------------- */
