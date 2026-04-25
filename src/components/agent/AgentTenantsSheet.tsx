@@ -143,6 +143,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [renewingReqId, setRenewingReqId] = useState<string | null>(null);
   const [collectDialogOpen, setCollectDialogOpen] = useState(false);
   const [collectTarget, setCollectTarget] = useState<{ tenant: Tenant; reqId: string; owing: number } | null>(null);
+  const [fieldCollectTarget, setFieldCollectTarget] = useState<Tenant | null>(null);
   const [behaviorCardOpen, setBehaviorCardOpen] = useState(false);
   const [behaviorData, setBehaviorData] = useState<any>(null);
   const [profileTenantId, setProfileTenantId] = useState<string | null>(null);
