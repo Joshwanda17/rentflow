@@ -748,7 +748,9 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                         Recent
                       </div>
                       <div className="flex gap-2 overflow-x-auto -mx-1 px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                        {recentTenants.map(t => {
+                        {recentTenants.map((t) => {
+                          const optIdx = keyboardOptions.findIndex(o => o.tenantId === t.tenantId);
+                          const isActive = optIdx === activeIdx;
                           const initials = t.fullName
                             .split(/\s+/)
                             .filter(Boolean)
@@ -758,9 +760,16 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                           return (
                             <button
                               key={`recent-${t.tenantId}`}
+                              ref={el => { if (optIdx >= 0) optionRefs.current[optIdx] = el; }}
                               type="button"
-                              onClick={() => { setPicked(t); setSearch(t.fullName); }}
-                              className="shrink-0 flex items-center gap-2 rounded-full border bg-card hover:bg-accent active:bg-accent/80 pl-1.5 pr-3.5 py-1.5 min-h-[40px] transition-colors touch-manipulation"
+                              onClick={() => pickTenant(t)}
+                              onMouseEnter={() => optIdx >= 0 && setActiveIdx(optIdx)}
+                              role="option"
+                              aria-selected={isActive}
+                              className={cn(
+                                'shrink-0 flex items-center gap-2 rounded-full border bg-card hover:bg-accent active:bg-accent/80 pl-1.5 pr-3.5 py-1.5 min-h-[40px] transition-colors touch-manipulation',
+                                isActive && 'ring-2 ring-primary border-primary bg-accent',
+                              )}
                               style={{ WebkitTapHighlightColor: 'transparent' }}
                               aria-label={`Quick pick ${t.fullName}`}
                             >
@@ -782,10 +791,19 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                     <Input
                       value={search}
                       onChange={e => { setSearch(e.target.value); setPicked(null); }}
+                      onKeyDown={handleSearchKeyDown}
                       placeholder={tenants.length ? 'Search name or phone' : 'Connect to load tenants'}
                       className="pl-11 pr-11 h-14 text-base rounded-2xl"
                       autoComplete="off"
                       autoFocus
+                      role="combobox"
+                      aria-expanded={keyboardOptions.length > 0}
+                      aria-controls="tenant-suggestion-list"
+                      aria-activedescendant={
+                        keyboardOptions[activeIdx]
+                          ? `tenant-opt-${keyboardOptions[activeIdx].tenantId}`
+                          : undefined
+                      }
                     />
                     {search && (
                       <button
@@ -800,16 +818,31 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                   </div>
 
                   {(search || tenants.length > 0) && (
-                    <div className="rounded-2xl border max-h-72 overflow-y-auto">
+                    <div
+                      className="rounded-2xl border max-h-72 overflow-y-auto"
+                      id="tenant-suggestion-list"
+                      role="listbox"
+                    >
                       {filtered.length === 0 ? (
                         <p className="p-4 text-sm text-muted-foreground text-center">
                           No match. Use walk-up below.
                         </p>
-                      ) : filtered.map((t, idx) => (
+                      ) : filtered.map((t, idx) => {
+                        const optIdx = keyboardOptions.findIndex(o => o.tenantId === t.tenantId);
+                        const isActive = optIdx === activeIdx;
+                        return (
                         <button
                           key={t.tenantId}
-                          onClick={() => { setPicked(t); setSearch(t.fullName); }}
-                          className="w-full text-left px-4 py-4 min-h-[60px] hover:bg-accent border-b last:border-b-0 flex items-center justify-between gap-2 active:bg-accent/80 touch-manipulation"
+                          id={`tenant-opt-${t.tenantId}`}
+                          ref={el => { if (optIdx >= 0) optionRefs.current[optIdx] = el; }}
+                          onClick={() => pickTenant(t)}
+                          onMouseEnter={() => optIdx >= 0 && setActiveIdx(optIdx)}
+                          role="option"
+                          aria-selected={isActive}
+                          className={cn(
+                            'w-full text-left px-4 py-4 min-h-[60px] border-b last:border-b-0 flex items-center justify-between gap-2 active:bg-accent/80 touch-manipulation transition-colors',
+                            isActive ? 'bg-accent' : 'hover:bg-accent',
+                          )}
                           style={{ WebkitTapHighlightColor: 'transparent' }}
                         >
                           <div className="min-w-0 flex-1">
@@ -833,7 +866,8 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                             </span>
                           ) : null}
                         </button>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
 
