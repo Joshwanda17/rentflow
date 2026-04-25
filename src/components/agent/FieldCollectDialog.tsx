@@ -1626,7 +1626,6 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                    *   2–4        → primary (small set; pickable from list)
                    *   5+         → warning (highly ambiguous; type more digits)
                    */}
-                  {tailShareHint && (
                   {tailShareHint && (() => {
                     // Pick the count to display + label based on the active mode.
                     // 'tenants' matches what the result list shows 1:1.
