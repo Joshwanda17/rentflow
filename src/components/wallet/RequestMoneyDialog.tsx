@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Dialog,
@@ -12,10 +12,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { Loader2, HandCoins, Phone, Coins, FileText, CheckCircle, Send } from 'lucide-react';
+import {
+  Loader2, HandCoins, Phone, Coins, FileText, Send,
+  Contact, Nfc, ScanLine, ShieldCheck, XCircle, KeyRound,
+} from 'lucide-react';
+import { Html5Qrcode } from 'html5-qrcode';
 
 interface RequestMoneyDialogProps {
   open: boolean;
@@ -41,6 +46,8 @@ const itemVariants = {
   },
 };
 
+type TapStage = 'idle' | 'waiting' | 'processing' | 'pin' | 'success' | 'failed';
+
 export function RequestMoneyDialog({ open, onOpenChange, onSuccess }: RequestMoneyDialogProps) {
   const { user } = useAuth();
   const [phone, setPhone] = useState('');
@@ -49,6 +56,19 @@ export function RequestMoneyDialog({ open, onOpenChange, onSuccess }: RequestMon
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [recipientName, setRecipientName] = useState('');
+
+  // Tap to Pay state
+  const [tab, setTab] = useState<'contact' | 'tap'>('contact');
+  const [tapMode, setTapMode] = useState<'tap' | 'scan'>('tap');
+  const [tapAmount, setTapAmount] = useState('');
+  const [tapReason, setTapReason] = useState('');
+  const [tapStage, setTapStage] = useState<TapStage>('idle');
+  const [tapError, setTapError] = useState<string | null>(null);
+  const [tapPin, setTapPin] = useState('');
+  const [pendingCard, setPendingCard] = useState<any>(null);
+  const nfcAbortRef = useRef<AbortController | null>(null);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const scannerElId = 'tap-qr-reader';
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-UG', {
@@ -123,6 +143,185 @@ export function RequestMoneyDialog({ open, onOpenChange, onSuccess }: RequestMon
     }, 1500);
   };
 
+  const stopScanner = async () => {
+    try {
+      if (scannerRef.current) {
+        try { await scannerRef.current.stop(); } catch { /* ignore */ }
+        try { scannerRef.current.clear(); } catch { /* ignore */ }
+        scannerRef.current = null;
+      }
+    } catch { /* ignore */ }
+  };
+
+  const stopNfc = () => {
+    try { nfcAbortRef.current?.abort(); } catch { /* ignore */ }
+    nfcAbortRef.current = null;
+  };
+
+  const resetTap = async () => {
+    await stopScanner();
+    stopNfc();
+    setTapStage('idle');
+    setTapError(null);
+    setTapPin('');
+    setPendingCard(null);
+  };
+
+  const processCard = async (card: any, pinValue?: string) => {
+    const amt = Math.floor(Number(tapAmount));
+    if (!amt || amt <= 0) {
+      setTapError('Enter a valid amount first');
+      setTapStage('failed');
+      return;
+    }
+    setTapStage('processing');
+    setTapError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-nfc-card', {
+        body: { card, amount: amt, pin: pinValue ?? null, reason: tapReason || null },
+      });
+      if (error) throw error;
+      const payload: any = data;
+      if (payload?.pin_required) {
+        setPendingCard(card);
+        setTapStage('pin');
+        return;
+      }
+      if (!payload?.success) {
+        throw new Error(payload?.error || 'Payment failed');
+      }
+      setTapStage('success');
+      toast.success(`Charged ${formatCurrency(amt)} to card`);
+      setTimeout(async () => {
+        await resetTap();
+        setTapAmount('');
+        setTapReason('');
+        onOpenChange(false);
+        onSuccess?.();
+      }, 1500);
+    } catch (e: any) {
+      const msg = e?.context?.error || e?.message || 'Card verification failed';
+      // If edge function returned 401 with pin_required in body
+      if (typeof msg === 'string' && msg.toLowerCase().includes('pin required')) {
+        setPendingCard(card);
+        setTapStage('pin');
+        setTapError(null);
+        return;
+      }
+      setTapError(typeof msg === 'string' ? msg : 'Card verification failed');
+      setTapStage('failed');
+    }
+  };
+
+  const startNfcTap = async () => {
+    const amt = Math.floor(Number(tapAmount));
+    if (!amt || amt <= 0) {
+      toast.error('Enter a valid amount first');
+      return;
+    }
+    setTapError(null);
+    setTapStage('waiting');
+
+    // @ts-ignore — NDEFReader is experimental
+    const NDEF = (window as any).NDEFReader;
+    if (!NDEF) {
+      // Fallback: simulate after delay so the flow is still testable on non-NFC devices
+      setTimeout(() => {
+        setTapError('NFC not supported on this device. Use Scan to Pay instead.');
+        setTapStage('failed');
+      }, 1200);
+      return;
+    }
+    try {
+      const reader = new NDEF();
+      const ctrl = new AbortController();
+      nfcAbortRef.current = ctrl;
+      await reader.scan({ signal: ctrl.signal });
+      reader.onreading = (event: any) => {
+        try {
+          const decoder = new TextDecoder();
+          let text = '';
+          for (const record of event.message.records) {
+            if (record.recordType === 'text' || record.recordType === 'mime') {
+              text = decoder.decode(record.data);
+              break;
+            }
+          }
+          const card = JSON.parse(text);
+          stopNfc();
+          processCard(card);
+        } catch {
+          setTapError('Could not read card payload');
+          setTapStage('failed');
+          stopNfc();
+        }
+      };
+      reader.onreadingerror = () => {
+        setTapError('Failed to read card');
+        setTapStage('failed');
+        stopNfc();
+      };
+    } catch (e: any) {
+      setTapError(e?.message || 'NFC permission denied');
+      setTapStage('failed');
+    }
+  };
+
+  const startQrScan = async () => {
+    const amt = Math.floor(Number(tapAmount));
+    if (!amt || amt <= 0) {
+      toast.error('Enter a valid amount first');
+      return;
+    }
+    setTapError(null);
+    setTapStage('waiting');
+    // Wait next tick so the reader element is in the DOM
+    setTimeout(async () => {
+      try {
+        const el = document.getElementById(scannerElId);
+        if (!el) throw new Error('Scanner not ready');
+        const scanner = new Html5Qrcode(scannerElId);
+        scannerRef.current = scanner;
+        await scanner.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 220, height: 220 } },
+          async (decoded) => {
+            try {
+              const card = JSON.parse(decoded);
+              await stopScanner();
+              processCard(card);
+            } catch {
+              await stopScanner();
+              setTapError('Invalid QR code');
+              setTapStage('failed');
+            }
+          },
+          () => { /* ignore frame errors */ }
+        );
+      } catch (e: any) {
+        setTapError(e?.message || 'Camera permission denied');
+        setTapStage('failed');
+      }
+    }, 100);
+  };
+
+  const submitPin = async () => {
+    if (!/^\d{4,6}$/.test(tapPin)) {
+      setTapError('PIN must be 4-6 digits');
+      return;
+    }
+    if (!pendingCard) return;
+    await processCard(pendingCard, tapPin);
+  };
+
+  useEffect(() => {
+    if (!open) {
+      resetTap();
+    }
+    return () => { stopScanner(); stopNfc(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   const handleClose = (value: boolean) => {
     if (!value) {
       setPhone('');
@@ -130,6 +329,9 @@ export function RequestMoneyDialog({ open, onOpenChange, onSuccess }: RequestMon
       setDescription('');
       setSuccess(false);
       setRecipientName('');
+      setTapAmount('');
+      setTapReason('');
+      resetTap();
     }
     onOpenChange(value);
   };
@@ -193,13 +395,24 @@ export function RequestMoneyDialog({ open, onOpenChange, onSuccess }: RequestMon
                   Request Money
                 </DialogTitle>
                 <DialogDescription>
-                  Request money from someone on Welile. They'll need to approve it.
+                  Request from a contact, or charge a Welile NFC card directly.
                 </DialogDescription>
               </DialogHeader>
 
+              <Tabs value={tab} onValueChange={(v) => setTab(v as 'contact' | 'tap')} className="mt-4">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="contact" className="gap-2">
+                    <Contact className="h-4 w-4" /> Contact
+                  </TabsTrigger>
+                  <TabsTrigger value="tap" className="gap-2">
+                    <Nfc className="h-4 w-4" /> Tap to Pay
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="contact" className="mt-4">
               <motion.form 
                 onSubmit={handleSubmit} 
-                className="space-y-4 mt-4"
+                className="space-y-4"
                 variants={formVariants}
                 initial="hidden"
                 animate="visible"
@@ -272,6 +485,172 @@ export function RequestMoneyDialog({ open, onOpenChange, onSuccess }: RequestMon
                   </DialogFooter>
                 </motion.div>
               </motion.form>
+                </TabsContent>
+
+                <TabsContent value="tap" className="mt-4 space-y-4">
+                  {/* Amount + reason */}
+                  <div className="space-y-2">
+                    <Label htmlFor="tap-amount" className="flex items-center gap-2">
+                      <Coins className="h-3.5 w-3.5 text-muted-foreground" />
+                      Amount (UGX)
+                    </Label>
+                    <Input
+                      id="tap-amount"
+                      type="number"
+                      min={1}
+                      placeholder="Enter amount"
+                      value={tapAmount}
+                      onChange={(e) => setTapAmount(e.target.value)}
+                      disabled={tapStage !== 'idle' && tapStage !== 'failed'}
+                      className="bg-background/50 border-border/50 text-lg font-medium"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="tap-reason" className="flex items-center gap-2">
+                      <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                      Reason (Optional)
+                    </Label>
+                    <Input
+                      id="tap-reason"
+                      placeholder="What's this for?"
+                      value={tapReason}
+                      onChange={(e) => setTapReason(e.target.value)}
+                      disabled={tapStage !== 'idle' && tapStage !== 'failed'}
+                      className="bg-background/50 border-border/50"
+                    />
+                  </div>
+
+                  {/* Mode selector */}
+                  {(tapStage === 'idle' || tapStage === 'failed') && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        type="button"
+                        variant={tapMode === 'tap' ? 'default' : 'outline'}
+                        onClick={() => setTapMode('tap')}
+                        className="gap-2"
+                      >
+                        <Nfc className="h-4 w-4" /> Tap to Pay
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={tapMode === 'scan' ? 'default' : 'outline'}
+                        onClick={() => setTapMode('scan')}
+                        className="gap-2"
+                      >
+                        <ScanLine className="h-4 w-4" /> Scan to Pay
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Stage UI */}
+                  <div className="rounded-lg border border-border/50 bg-background/40 p-4 min-h-[180px] flex flex-col items-center justify-center text-center">
+                    {tapStage === 'idle' && (
+                      <div className="space-y-3">
+                        <p className="text-sm text-muted-foreground">
+                          {tapMode === 'tap'
+                            ? 'Hold the NFC card against the back of your phone after starting.'
+                            : 'Point your camera at the card QR code after starting.'}
+                        </p>
+                        <Button
+                          type="button"
+                          onClick={tapMode === 'tap' ? startNfcTap : startQrScan}
+                          className="gap-2"
+                        >
+                          {tapMode === 'tap' ? <Nfc className="h-4 w-4" /> : <ScanLine className="h-4 w-4" />}
+                          Start {tapMode === 'tap' ? 'Tap' : 'Scan'}
+                        </Button>
+                      </div>
+                    )}
+
+                    {tapStage === 'waiting' && tapMode === 'tap' && (
+                      <div className="space-y-3 flex flex-col items-center">
+                        <motion.div
+                          animate={{ scale: [1, 1.15, 1], opacity: [0.6, 1, 0.6] }}
+                          transition={{ repeat: Infinity, duration: 1.4 }}
+                          className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center"
+                        >
+                          <Nfc className="h-8 w-8 text-primary" />
+                        </motion.div>
+                        <p className="text-sm font-medium">Waiting for card…</p>
+                        <p className="text-xs text-muted-foreground">Tap the card to the back of your phone</p>
+                      </div>
+                    )}
+
+                    {tapStage === 'waiting' && tapMode === 'scan' && (
+                      <div className="w-full space-y-2">
+                        <div id={scannerElId} className="w-full rounded-md overflow-hidden" />
+                        <p className="text-xs text-muted-foreground">Align the QR inside the frame</p>
+                      </div>
+                    )}
+
+                    {tapStage === 'processing' && (
+                      <div className="space-y-3 flex flex-col items-center">
+                        <Loader2 className="h-10 w-10 text-primary animate-spin" />
+                        <p className="text-sm font-medium">Processing payment…</p>
+                      </div>
+                    )}
+
+                    {tapStage === 'pin' && (
+                      <div className="w-full space-y-3">
+                        <div className="flex items-center justify-center gap-2 text-warning">
+                          <KeyRound className="h-5 w-5" />
+                          <p className="text-sm font-medium">PIN required for this amount</p>
+                        </div>
+                        <Input
+                          inputMode="numeric"
+                          pattern="\d*"
+                          maxLength={6}
+                          autoFocus
+                          placeholder="Enter card PIN"
+                          value={tapPin}
+                          onChange={(e) => setTapPin(e.target.value.replace(/\D/g, ''))}
+                          className="text-center text-lg tracking-[0.5em]"
+                        />
+                        {tapError && <p className="text-xs text-destructive">{tapError}</p>}
+                        <Button type="button" onClick={submitPin} className="w-full gap-2">
+                          <ShieldCheck className="h-4 w-4" /> Verify & Pay
+                        </Button>
+                      </div>
+                    )}
+
+                    {tapStage === 'success' && (
+                      <div className="space-y-3 flex flex-col items-center">
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ type: 'spring' as const, stiffness: 300, damping: 18 }}
+                          className="w-16 h-16 rounded-full bg-success/20 flex items-center justify-center"
+                        >
+                          <ShieldCheck className="h-8 w-8 text-success" />
+                        </motion.div>
+                        <p className="text-sm font-semibold">Payment Successful</p>
+                        <p className="text-xs text-muted-foreground">
+                          Charged {formatCurrency(Math.floor(Number(tapAmount) || 0))}
+                        </p>
+                      </div>
+                    )}
+
+                    {tapStage === 'failed' && (
+                      <div className="space-y-3 flex flex-col items-center">
+                        <div className="w-16 h-16 rounded-full bg-destructive/20 flex items-center justify-center">
+                          <XCircle className="h-8 w-8 text-destructive" />
+                        </div>
+                        <p className="text-sm font-semibold">Payment Failed</p>
+                        {tapError && <p className="text-xs text-muted-foreground">{tapError}</p>}
+                        <Button type="button" variant="outline" size="sm" onClick={resetTap}>
+                          Try Again
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  <DialogFooter className="gap-2 sm:gap-0">
+                    <Button type="button" variant="outline" onClick={() => handleClose(false)}>
+                      Close
+                    </Button>
+                  </DialogFooter>
+                </TabsContent>
+              </Tabs>
             </motion.div>
           )}
         </AnimatePresence>
