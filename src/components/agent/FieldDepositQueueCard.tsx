@@ -408,6 +408,123 @@ function CommissionBreakdown({
   const commissionMatches =
     items !== null && Math.abs(commissionDelta) <= RECONCILE_TOLERANCE_UGX;
 
+  // ----- Export handlers -------------------------------------------------
+  const buildExportRows = useCallback(() => {
+    return (items ?? []).map((it) => {
+      const audit = auditByItem.get(it.id);
+      return {
+        tenant: it.tenant_name ?? '—',
+        repayment: it.amount,
+        commission: Math.round(it.amount * effectiveRate),
+        recordedRepayment: audit ? Number(audit.repayment || 0) : null,
+        recordedCommission: audit ? Number(audit.commission || 0) : null,
+        generatedAt: audit?.generated_at ?? null,
+      };
+    });
+  }, [items, auditByItem, effectiveRate]);
+
+  const fileBase = `field-deposit-${batch.id.slice(0, 8)}-reconciliation`;
+
+  const triggerDownload = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const csvEscape = (v: unknown) => {
+    const s = v === null || v === undefined ? '' : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+
+  const handleExportCSV = () => {
+    const rows = buildExportRows();
+    const lines: string[] = [];
+    lines.push(`Field Deposit Reconciliation`);
+    lines.push(`Batch ID,${csvEscape(batch.id)}`);
+    lines.push(`Channel,${csvEscape(channelLabel(batch.channel))}`);
+    lines.push(`Status,${csvEscape(statusLabel(batch.status))}`);
+    lines.push(`Commission rate,${ratePct}%`);
+    lines.push(`Match target (${csvEscape(matchTargetLabel)}),${matchTarget}`);
+    lines.push('');
+    lines.push(['Tenant', 'Repayment (UGX)', 'Commission (UGX)', 'Recorded repayment', 'Recorded commission', 'Generated at'].map(csvEscape).join(','));
+    for (const r of rows) {
+      lines.push([
+        r.tenant,
+        r.repayment,
+        r.commission,
+        r.recordedRepayment ?? '',
+        r.recordedCommission ?? '',
+        r.generatedAt ?? '',
+      ].map(csvEscape).join(','));
+    }
+    lines.push('');
+    lines.push(`Total repayments,${totalRepayment}`);
+    lines.push(`Total commission,${totalCommission}`);
+    lines.push(`Repayment reconciliation,${repaymentMatches ? 'MATCH' : 'MISMATCH'},delta,${repaymentDelta}`);
+    lines.push(`Commission reconciliation,${commissionMatches ? 'MATCH' : 'MISMATCH'},delta,${commissionDelta}`);
+    triggerDownload(new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' }), `${fileBase}.csv`);
+    toast.success('CSV exported');
+  };
+
+  const handleExportPDF = async () => {
+    try {
+      const [{ default: jsPDF }, autoTableMod] = await Promise.all([
+        import('jspdf'),
+        import('jspdf-autotable'),
+      ]);
+      const autoTable = (autoTableMod as any).default ?? (autoTableMod as any);
+      const doc = new jsPDF();
+      doc.setFontSize(14);
+      doc.text('Field Deposit Reconciliation', 14, 16);
+      doc.setFontSize(9);
+      doc.text(`Batch: ${batch.id}`, 14, 24);
+      doc.text(`Channel: ${channelLabel(batch.channel)}`, 14, 30);
+      doc.text(`Status: ${statusLabel(batch.status)}`, 14, 36);
+      doc.text(`Commission rate: ${ratePct}%`, 14, 42);
+      doc.text(`Match target (${matchTargetLabel}): ${formatUGX(matchTarget)}`, 14, 48);
+
+      const rows = buildExportRows();
+      autoTable(doc, {
+        startY: 56,
+        head: [['Tenant', 'Repayment', 'Commission', 'Generated']],
+        body: rows.map((r) => [
+          r.tenant,
+          formatUGX(r.repayment),
+          formatUGX(r.commission),
+          r.generatedAt ? format(new Date(r.generatedAt), 'MMM d, HH:mm') : '—',
+        ]),
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [60, 60, 60] },
+      });
+
+      const endY = (doc as any).lastAutoTable?.finalY ?? 60;
+      doc.setFontSize(10);
+      doc.text(`Total repayments: ${formatUGX(totalRepayment)}`, 14, endY + 8);
+      doc.text(`Total commission: ${formatUGX(totalCommission)}`, 14, endY + 14);
+      doc.text(
+        `Repayment: ${repaymentMatches ? 'MATCH' : 'MISMATCH'} (delta ${formatUGX(Math.abs(repaymentDelta))})`,
+        14,
+        endY + 22,
+      );
+      doc.text(
+        `Commission: ${commissionMatches ? 'MATCH' : 'MISMATCH'} (delta ${formatUGX(Math.abs(commissionDelta))})`,
+        14,
+        endY + 28,
+      );
+
+      doc.save(`${fileBase}.pdf`);
+      toast.success('PDF exported');
+    } catch (err) {
+      toast.error('Could not generate PDF');
+      console.error(err);
+    }
+  };
+
   return (
     <div className="mt-3 ml-12 rounded-lg border bg-muted/30 overflow-hidden">
       <div className="px-3 py-2 flex items-center justify-between border-b bg-background/40">
@@ -415,9 +532,35 @@ function CommissionBreakdown({
           <Coins className="h-3 w-3" />
           Commission breakdown · {ratePct}% per repayment
         </div>
-        <span className="text-[10px] text-muted-foreground">
-          {isVerified ? 'Recorded as expense' : 'Estimate (on verify)'}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-muted-foreground">
+            {isVerified ? 'Recorded as expense' : 'Estimate (on verify)'}
+          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-6 text-[10px] gap-1 px-2"
+                disabled={!items || items.length === 0}
+              >
+                <Download className="h-3 w-3" />
+                Export
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="text-xs">
+              <DropdownMenuItem onClick={handleExportCSV} className="gap-2">
+                <FileSpreadsheet className="h-3.5 w-3.5" />
+                Download CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportPDF} className="gap-2">
+                <FileText className="h-3.5 w-3.5" />
+                Download PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {usingFallback && (
