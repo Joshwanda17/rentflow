@@ -23,6 +23,7 @@ import {
   rejectBatchAsFinOps,
   verifyBatchAsFinOps,
 } from '@/lib/fieldDepositBatches';
+import { FieldDepositAuditTrail } from './FieldDepositAuditTrail';
 
 interface Props {
   batch: PendingBatch | null;
@@ -264,6 +265,8 @@ export function FieldDepositVerifyDialog({ batch, open, onClose, onResolved }: P
                 rows={2}
               />
             </div>
+
+            <FieldDepositAuditTrail batchId={batch.id} />
           </div>
         </ScrollArea>
 

@@ -266,3 +266,62 @@ export async function rejectBatchAsFinOps(batchId: string, reason: string) {
   if (data?.error) throw new Error(data.error);
   return data;
 }
+
+/* --------------------------------------------------------------------- */
+/* Audit trail                                                           */
+/* --------------------------------------------------------------------- */
+
+export type BatchAuditEvent =
+  | 'created'
+  | 'proof_submitted'
+  | 'finops_verified'
+  | 'allocation_completed'
+  | 'rejected'
+  | 'cancelled';
+
+export interface BatchAuditEntry {
+  id: string;
+  batch_id: string;
+  event: BatchAuditEvent;
+  actor_id: string | null;
+  actor_role: string | null;
+  actor_name: string | null;
+  details: Record<string, any>;
+  created_at: string;
+}
+
+const AUDIT_EVENT_LABEL: Record<BatchAuditEvent, string> = {
+  created: 'Batch created',
+  proof_submitted: 'Proof submitted',
+  finops_verified: 'Finance verified',
+  allocation_completed: 'Allocation completed',
+  rejected: 'Rejected',
+  cancelled: 'Cancelled',
+};
+export const auditEventLabel = (e: BatchAuditEvent) => AUDIT_EVENT_LABEL[e] ?? e;
+
+export async function listBatchAuditTrail(batchId: string): Promise<BatchAuditEntry[]> {
+  const { data, error } = await (supabase as any)
+    .from('field_deposit_batch_audit')
+    .select('id, batch_id, event, actor_id, actor_role, details, created_at')
+    .eq('batch_id', batchId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  const rows = (data ?? []) as BatchAuditEntry[];
+  if (rows.length === 0) return [];
+
+  const actorIds = Array.from(
+    new Set(rows.map((r) => r.actor_id).filter((x): x is string => !!x)),
+  );
+  if (actorIds.length === 0) return rows;
+
+  const { data: profs } = await supabase
+    .from('profiles')
+    .select('id, full_name')
+    .in('id', actorIds);
+  const nameMap = new Map((profs ?? []).map((p: any) => [p.id, p.full_name]));
+  return rows.map((r) => ({
+    ...r,
+    actor_name: r.actor_id ? (nameMap.get(r.actor_id) as string) ?? null : null,
+  }));
+}

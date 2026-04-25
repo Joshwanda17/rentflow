@@ -4461,6 +4461,44 @@ export type Database = {
           },
         ]
       }
+      field_deposit_batch_audit: {
+        Row: {
+          actor_id: string | null
+          actor_role: string | null
+          batch_id: string
+          created_at: string
+          details: Json
+          event: string
+          id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_role?: string | null
+          batch_id: string
+          created_at?: string
+          details?: Json
+          event: string
+          id?: string
+        }
+        Update: {
+          actor_id?: string | null
+          actor_role?: string | null
+          batch_id?: string
+          created_at?: string
+          details?: Json
+          event?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_deposit_batch_audit_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "field_deposit_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       field_deposit_batch_items: {
         Row: {
           agent_collection_id: string | null
