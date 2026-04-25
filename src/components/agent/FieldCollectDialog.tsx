@@ -301,179 +301,273 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[92vh] overflow-y-auto p-0">
-        <DialogHeader className="px-5 pt-5 pb-3 sticky top-0 bg-background z-10 border-b">
+        <DialogHeader className="px-6 pt-6 pb-4 sticky top-0 bg-background z-10 border-b">
           <div className="flex items-center justify-between gap-3">
-            <div>
-              <DialogTitle className="flex items-center gap-2">
-                <Banknote className="h-5 w-5 text-primary" />
-                Field Collect
-              </DialogTitle>
-              <DialogDescription>Record cash collections offline. Sync later.</DialogDescription>
-            </div>
-            <Badge variant={online ? 'default' : 'secondary'} className={cn('gap-1', !online && 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30')}>
+            <DialogTitle className="text-xl font-semibold">Collect cash</DialogTitle>
+            <span
+              className={cn(
+                'inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full font-medium',
+                online
+                  ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                  : 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+              )}
+            >
               {online ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
-              {online ? 'Online' : 'Offline'}
-            </Badge>
+              {online ? 'Online' : 'Saving offline'}
+            </span>
           </div>
+          <DialogDescription className="text-sm">
+            Record a cash payment from a tenant. Works without internet.
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="px-5 py-4 space-y-4">
-          {/* Today's running total */}
-          <div className="rounded-2xl border bg-gradient-to-br from-primary/10 to-primary/5 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground">Today on this device</p>
-                <p className="text-3xl font-bold tracking-tight">{formatUGX(grandTotal)}</p>
-                <p className="text-[11px] text-muted-foreground mt-1">
-                  {entries.length} entr{entries.length === 1 ? 'y' : 'ies'} · {queuedCount} pending sync ({formatUGX(queuedTotal)})
-                </p>
-              </div>
-              <Button
-                size="sm"
-                variant={queuedCount ? 'default' : 'outline'}
-                onClick={handleSync}
-                disabled={syncing || !online || queuedCount === 0}
-                className="gap-1.5"
-              >
-                {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudUpload className="h-4 w-4" />}
-                Sync
-              </Button>
+        <div className="px-6 py-5 space-y-5">
+          {/* Today's running total — calm, single number */}
+          <div className="rounded-3xl bg-muted/40 p-5">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">
+              Today
+            </p>
+            <p className="text-4xl font-bold tracking-tight tabular-nums mt-1">
+              {formatUGX(grandTotal)}
+            </p>
+            <div className="flex items-center justify-between gap-3 mt-3">
+              <p className="text-sm text-muted-foreground">
+                {entries.length} payment{entries.length === 1 ? '' : 's'}
+                {queuedCount > 0 && ` · ${queuedCount} waiting to send`}
+              </p>
+              {queuedCount > 0 && (
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={handleSync}
+                  disabled={syncing || !online}
+                  className="gap-1.5 h-9 rounded-full px-4"
+                >
+                  {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudUpload className="h-4 w-4" />}
+                  Send now
+                </Button>
+              )}
             </div>
           </div>
 
-          {/* Daily totals — synced vs pending, by session */}
-          <FieldCollectDailyTotals key={entries.length + ':' + queuedCount} />
-
-          {/* Tenant picker */}
-          <div className="space-y-2">
+          {/* STEP 1 — Tenant */}
+          <section className="space-y-2.5">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-semibold">Tenant</Label>
-              <button
-                type="button"
-                onClick={refreshTenantCache}
-                disabled={!online || tenantsLoading}
-                className="text-[11px] text-primary inline-flex items-center gap-1 disabled:opacity-50"
-              >
-                <RefreshCcw className={cn('h-3 w-3', tenantsLoading && 'animate-spin')} />
-                Refresh list
-              </button>
+              <Label className="text-sm font-semibold text-foreground">
+                <span className="text-muted-foreground font-normal mr-1">1.</span>
+                Who paid?
+              </Label>
+              {tenants.length > 0 && (
+                <button
+                  type="button"
+                  onClick={refreshTenantCache}
+                  disabled={!online || tenantsLoading}
+                  className="text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1 disabled:opacity-50"
+                >
+                  <RefreshCcw className={cn('h-3 w-3', tenantsLoading && 'animate-spin')} />
+                  Refresh
+                </button>
+              )}
             </div>
 
+            {picked ? (
+              <div className="flex items-center justify-between rounded-2xl bg-primary/5 border border-primary/20 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-base font-semibold truncate">{picked.fullName}</p>
+                  <p className="text-xs text-muted-foreground truncate">{picked.phone || 'No phone'}</p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 rounded-full"
+                  onClick={() => { setPicked(null); setSearch(''); }}
+                >
+                  Change
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={search}
+                    onChange={e => { setSearch(e.target.value); setPicked(null); }}
+                    placeholder={tenants.length ? 'Search name or phone' : 'Connect to load tenants'}
+                    className="pl-11 h-12 text-base rounded-2xl"
+                    autoComplete="off"
+                  />
+                </div>
+
+                {search && (
+                  <div className="rounded-2xl border max-h-56 overflow-y-auto">
+                    {filtered.length === 0 ? (
+                      <p className="p-4 text-sm text-muted-foreground text-center">
+                        No match. Use walk-up below.
+                      </p>
+                    ) : filtered.map(t => (
+                      <button
+                        key={t.tenantId}
+                        onClick={() => { setPicked(t); setSearch(t.fullName); }}
+                        className="w-full text-left px-4 py-3 hover:bg-accent border-b last:border-b-0 flex items-center justify-between gap-2 active:bg-accent/80"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold truncate">{t.fullName}</p>
+                          <p className="text-xs text-muted-foreground truncate">{t.phone || 'No phone'}</p>
+                        </div>
+                        {t.monthlyRent ? (
+                          <span className="text-xs text-muted-foreground shrink-0 tabular-nums">
+                            {formatUGX(t.monthlyRent)}/mo
+                          </span>
+                        ) : null}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Walk-up fallback */}
+                <details className="text-sm rounded-2xl border bg-muted/20 px-4 py-3 group">
+                  <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground select-none">
+                    Tenant not in the list?
+                  </summary>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <Input
+                      value={walkupName}
+                      onChange={e => setWalkupName(e.target.value)}
+                      placeholder="Name"
+                      className="h-11 rounded-xl"
+                    />
+                    <Input
+                      value={walkupPhone}
+                      onChange={e => setWalkupPhone(e.target.value)}
+                      placeholder="Phone"
+                      inputMode="tel"
+                      className="h-11 rounded-xl"
+                    />
+                  </div>
+                </details>
+              </>
+            )}
+          </section>
+
+          {/* STEP 2 — Amount */}
+          <section className="space-y-2.5">
+            <Label className="text-sm font-semibold text-foreground">
+              <span className="text-muted-foreground font-normal mr-1">2.</span>
+              How much?
+            </Label>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-base font-semibold text-muted-foreground pointer-events-none">
+                UGX
+              </span>
               <Input
-                value={search}
-                onChange={e => { setSearch(e.target.value); setPicked(null); }}
-                placeholder={tenants.length ? 'Search by name or phone…' : 'No cached tenants yet — go online to load'}
-                className="pl-9"
-                autoComplete="off"
+                value={amount ? Number(amount).toLocaleString() : ''}
+                onChange={e => setAmount(e.target.value.replace(/[^\d]/g, ''))}
+                inputMode="numeric"
+                placeholder="0"
+                className="pl-16 h-16 text-3xl font-bold tabular-nums rounded-2xl text-right pr-5"
               />
             </div>
-
-            {!picked && search && (
-              <div className="rounded-xl border max-h-48 overflow-y-auto">
-                {filtered.length === 0 ? (
-                  <p className="p-3 text-xs text-muted-foreground text-center">No matches in cache. Use walk-up below.</p>
-                ) : filtered.map(t => (
-                  <button
-                    key={t.tenantId}
-                    onClick={() => { setPicked(t); setSearch(t.fullName); }}
-                    className="w-full text-left px-3 py-2 hover:bg-accent border-b last:border-b-0 flex items-center justify-between gap-2"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{t.fullName}</p>
-                      <p className="text-[11px] text-muted-foreground truncate">{t.phone || 'No phone'}</p>
-                    </div>
-                    {t.monthlyRent ? <span className="text-[11px] text-muted-foreground shrink-0">{formatUGX(t.monthlyRent)}/mo</span> : null}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {picked && (
-              <div className="flex items-center justify-between rounded-xl bg-primary/10 border border-primary/30 px-3 py-2">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold truncate">{picked.fullName}</p>
-                  <p className="text-[11px] text-muted-foreground truncate">{picked.phone || 'No phone'}</p>
-                </div>
-                <Button size="sm" variant="ghost" onClick={() => { setPicked(null); setSearch(''); }}>Change</Button>
-              </div>
-            )}
-
-            {/* Walk-up fallback */}
-            {!picked && (
-              <details className="text-xs">
-                <summary className="cursor-pointer text-muted-foreground hover:text-foreground">Walk-up tenant (not in list)</summary>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  <Input value={walkupName} onChange={e => setWalkupName(e.target.value)} placeholder="Name" />
-                  <Input value={walkupPhone} onChange={e => setWalkupPhone(e.target.value)} placeholder="Phone (optional)" inputMode="tel" />
-                </div>
-                <p className="text-[10px] text-muted-foreground mt-1">Will be matched manually after sync.</p>
-              </details>
-            )}
-          </div>
-
-          {/* Amount + notes */}
-          <div className="space-y-2">
-            <Label className="text-sm font-semibold">Amount (UGX)</Label>
-            <Input
-              value={amount}
-              onChange={e => setAmount(e.target.value.replace(/[^\d]/g, ''))}
-              inputMode="numeric"
-              placeholder="e.g. 50000"
-              className="text-lg font-semibold"
-            />
+            {/* Quick-amount chips */}
+            <div className="grid grid-cols-4 gap-2">
+              {[10000, 50000, 100000, 200000].map(v => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setAmount(String((Number(amount) || 0) + v))}
+                  className="h-10 rounded-full border bg-card text-xs font-medium hover:bg-accent active:bg-accent/80 transition-colors tabular-nums"
+                >
+                  +{(v / 1000)}k
+                </button>
+              ))}
+            </div>
             <Input
               value={notes}
               onChange={e => setNotes(e.target.value)}
-              placeholder="Note (optional)"
+              placeholder="Add a note (optional)"
               maxLength={140}
-              className="text-sm"
+              className="h-11 rounded-2xl text-sm"
             />
-            <Button
-              onClick={handleSave}
-              disabled={saving || !amount || (!picked && !walkupName.trim())}
-              className="w-full gap-2"
-              size="lg"
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Save collection
-            </Button>
-          </div>
+          </section>
+
+          {/* Save action */}
+          <Button
+            onClick={handleSave}
+            disabled={saving || !amount || (!picked && !walkupName.trim())}
+            className="w-full gap-2 h-14 text-base font-semibold rounded-2xl"
+            size="lg"
+          >
+            {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
+            Save payment
+          </Button>
+
+          {/* Daily totals — collapsible to keep main flow simple */}
+          <details className="rounded-2xl border bg-muted/20 group">
+            <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground select-none flex items-center justify-between">
+              <span>Today's breakdown & sync status</span>
+              <span className="text-xs text-muted-foreground group-open:hidden">Show</span>
+              <span className="text-xs text-muted-foreground hidden group-open:inline">Hide</span>
+            </summary>
+            <div className="px-3 pb-3">
+              <FieldCollectDailyTotals
+                key={entries.length + ':' + queuedCount}
+                variant="inline"
+              />
+            </div>
+          </details>
 
           <Separator />
 
           {/* Captured list */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-semibold">Captured ({entries.length})</Label>
-            </div>
+          <section className="space-y-2.5">
+            <Label className="text-sm font-semibold text-foreground">
+              Recent payments {entries.length > 0 && (
+                <span className="text-muted-foreground font-normal">({entries.length})</span>
+              )}
+            </Label>
             {entries.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-6">No collections yet today.</p>
+              <p className="text-sm text-muted-foreground text-center py-8">
+                No payments recorded yet.
+              </p>
             ) : (
               <ScrollArea className="max-h-72">
-                <ul className="space-y-1.5 pr-2">
+                <ul className="space-y-2 pr-2">
                   {entries.map(e => (
-                    <li key={e.id} className="flex items-center justify-between gap-2 rounded-lg border bg-card px-3 py-2">
+                    <li
+                      key={e.id}
+                      className="flex items-center justify-between gap-2 rounded-2xl border bg-card px-4 py-3"
+                    >
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium truncate">{e.tenantName}</p>
-                          {e.syncState === 'synced' && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />}
-                          {e.syncState === 'error' && <AlertCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />}
-                          {e.syncState === 'queued' && <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />}
+                          <p className="text-sm font-semibold truncate">{e.tenantName}</p>
+                          {e.syncState === 'synced' && (
+                            <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                          )}
+                          {e.syncState === 'error' && (
+                            <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+                          )}
+                          {e.syncState === 'queued' && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 font-medium shrink-0">
+                              Waiting
+                            </span>
+                          )}
                         </div>
-                        <p className="text-[10px] text-muted-foreground">
+                        <p className="text-xs text-muted-foreground mt-0.5">
                           {new Date(e.capturedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           {e.tenantPhone ? ` · ${e.tenantPhone}` : ''}
-                          {e.syncState === 'error' && e.syncError ? ` · ${e.syncError.slice(0, 40)}` : ''}
                         </p>
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-sm font-semibold">{formatUGX(e.amount)}</p>
-                      </div>
+                      <p className="text-base font-bold tabular-nums shrink-0">
+                        {formatUGX(e.amount)}
+                      </p>
                       {e.syncState !== 'synced' && (
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleDelete(e.id)}>
-                          <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-9 w-9 rounded-full shrink-0"
+                          onClick={() => handleDelete(e.id)}
+                          aria-label="Delete"
+                        >
+                          <Trash2 className="h-4 w-4 text-muted-foreground" />
                         </Button>
                       )}
                     </li>
@@ -481,12 +575,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                 </ul>
               </ScrollArea>
             )}
-          </div>
-
-          <p className="text-[10px] text-muted-foreground text-center pt-1">
-            <MapPin className="inline h-3 w-3 mr-0.5" />
-            Synced entries land in your <span className="font-semibold">Pending Field Collections</span> queue for online confirmation.
-          </p>
+          </section>
         </div>
       </DialogContent>
     </Dialog>
