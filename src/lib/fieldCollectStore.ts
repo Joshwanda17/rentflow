@@ -8,9 +8,15 @@
  */
 
 const DB_NAME = 'welile-field-collect';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_TENANTS = 'tenants';
 const STORE_ENTRIES = 'entries';
+/**
+ * Persisted normalized phone/name index for the tenant picker.
+ * Keyed by [agentId, fingerprint] so we re-use the cache across reloads
+ * as long as the underlying tenant list (ids) hasn't changed.
+ */
+const STORE_TENANT_NORM = 'tenant_norm_cache';
 
 export interface CachedTenant {
   agentId: string;
@@ -71,6 +77,10 @@ function openDb(): Promise<IDBDatabase> {
         s.createIndex('by_agent', 'agentId', { unique: false });
         s.createIndex('by_agent_state', ['agentId', 'syncState'], { unique: false });
       }
+      if (!db.objectStoreNames.contains(STORE_TENANT_NORM)) {
+        const s = db.createObjectStore(STORE_TENANT_NORM, { keyPath: ['agentId', 'fingerprint'] });
+        s.createIndex('by_agent', 'agentId', { unique: false });
+      }
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -126,6 +136,90 @@ export async function getCachedTenants(agentId: string): Promise<CachedTenant[]>
     req.onsuccess = () => resolve((req.result || []) as CachedTenant[]);
     req.onerror = () => reject(req.error);
   });
+}
+
+/* ----------------- Normalized tenant index cache -----------------
+ *
+ * The picker pre-computes normalized phone/name strings for every cached
+ * tenant. That work is cheap per-tenant but adds up for agents with
+ * thousands of tenants — and we'd otherwise redo it on every cold start.
+ *
+ * We persist the computed entries keyed by a fingerprint of the tenant
+ * list (ids + names + phones). On reload the picker can hydrate the
+ * index synchronously-ish (one IndexedDB read) and only recompute when
+ * the underlying list actually changes.
+ */
+
+export interface NormalizedTenantEntry {
+  tenantId: string;
+  name: string;
+  phone: string;
+  nameWords: string[];
+}
+
+interface NormalizedIndexRecord {
+  agentId: string;
+  fingerprint: string;
+  entries: NormalizedTenantEntry[];
+  cachedAt: number;
+}
+
+export async function getCachedNormalizedIndex(
+  agentId: string,
+  fingerprint: string,
+): Promise<NormalizedTenantEntry[] | null> {
+  try {
+    const db = await openDb();
+    return await new Promise<NormalizedTenantEntry[] | null>((resolve, reject) => {
+      const t = db.transaction(STORE_TENANT_NORM, 'readonly');
+      const s = t.objectStore(STORE_TENANT_NORM);
+      const req = s.get([agentId, fingerprint]);
+      req.onsuccess = () => {
+        const rec = req.result as NormalizedIndexRecord | undefined;
+        resolve(rec?.entries ?? null);
+      };
+      req.onerror = () => reject(req.error);
+    });
+  } catch (e) {
+    console.warn('getCachedNormalizedIndex failed', e);
+    return null;
+  }
+}
+
+export async function saveCachedNormalizedIndex(
+  agentId: string,
+  fingerprint: string,
+  entries: NormalizedTenantEntry[],
+): Promise<void> {
+  try {
+    const db = await openDb();
+    await new Promise<void>((resolve, reject) => {
+      const t = db.transaction(STORE_TENANT_NORM, 'readwrite');
+      const s = t.objectStore(STORE_TENANT_NORM);
+      // Drop any prior fingerprints for this agent so the cache stays small.
+      const idx = s.index('by_agent');
+      const cursorReq = idx.openCursor(IDBKeyRange.only(agentId));
+      cursorReq.onsuccess = () => {
+        const cur = cursorReq.result;
+        if (cur) {
+          cur.delete();
+          cur.continue();
+        } else {
+          const rec: NormalizedIndexRecord = {
+            agentId,
+            fingerprint,
+            entries,
+            cachedAt: Date.now(),
+          };
+          s.put(rec);
+        }
+      };
+      t.oncomplete = () => resolve();
+      t.onerror = () => reject(t.error);
+    });
+  } catch (e) {
+    console.warn('saveCachedNormalizedIndex failed', e);
+  }
 }
 
 /* ----------------- Entries queue ----------------- */
