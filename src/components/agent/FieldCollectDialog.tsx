@@ -365,7 +365,14 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   useEffect(() => {
     if (!browseStatusStorageKey || typeof window === 'undefined') return;
     try {
-      window.localStorage.setItem(browseStatusStorageKey, browseStatus);
+      // Treat 'all' as the absence of a preference: removing the key
+      // (instead of writing it) keeps localStorage clean after Reset
+      // and makes "no key set" semantically equivalent to "default".
+      if (browseStatus === 'all') {
+        window.localStorage.removeItem(browseStatusStorageKey);
+      } else {
+        window.localStorage.setItem(browseStatusStorageKey, browseStatus);
+      }
     } catch {
       /* noop — see above */
     }
@@ -870,27 +877,14 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
    * the full caseload. Recomputes only when the filter, tenant list, or
    * captured-entry set changes; it's an O(N) scan with no allocations.
    */
-  /**
-   * All three filter-chip counts computed in a single O(N) pass over the
-   * caseload, so the chips can show "Active 12 · Inactive 5 · All 17"
-   * without three separate scans. `browseFilteredCount` is derived from
-   * the same memo to keep the toolbar count + page math consistent with
-   * what the chips advertise.
-   */
-  const browseStatusCounts = useMemo(() => {
+  const browseFilteredCount = useMemo(() => {
+    if (browseStatus === 'all') return tenants.length;
     const activeIds = new Set<string>();
     for (const e of entries) if (e.tenantId) activeIds.add(e.tenantId);
-    let active = 0;
-    for (const t of tenants) if (activeIds.has(t.tenantId)) active++;
-    const all = tenants.length;
-    return { all, active, inactive: all - active };
-  }, [tenants, entries]);
-  const browseFilteredCount =
-    browseStatus === 'all'
-      ? browseStatusCounts.all
-      : browseStatus === 'active'
-        ? browseStatusCounts.active
-        : browseStatusCounts.inactive;
+    return browseStatus === 'active'
+      ? tenants.reduce((n, t) => n + (activeIds.has(t.tenantId) ? 1 : 0), 0)
+      : tenants.reduce((n, t) => n + (activeIds.has(t.tenantId) ? 0 : 1), 0);
+  }, [tenants, entries, browseStatus]);
   const browsePageCount = useMemo(
     () => Math.max(1, Math.ceil(browseFilteredCount / BROWSE_PAGE_SIZE)),
     [browseFilteredCount],
@@ -1876,7 +1870,6 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                             role="tab"
                             aria-selected={browseStatus === opt}
                             onClick={() => setBrowseStatus(opt)}
-                            aria-label={`${opt} tenants: ${browseStatusCounts[opt].toLocaleString()}`}
                             className={cn(
                               'inline-flex items-center gap-1 px-3 h-7 rounded-full font-medium capitalize transition-colors',
                               browseStatus === opt
@@ -1884,29 +1877,46 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                                 : 'text-muted-foreground hover:text-foreground',
                             )}
                           >
-                            <span>{opt}</span>
-                            {/*
-                             * Per-chip count pill. Uses a soft inline pill so
-                             * it reads as part of the label (not a separate
-                             * badge), and switches to a higher-contrast tone
-                             * when its chip is selected so the active count
-                             * stays legible against the elevated chip
-                             * background. tabular-nums keeps the digits from
-                             * jittering when counts change between renders.
-                             */}
-                            <span
-                              className={cn(
-                                'tabular-nums text-[10px] px-1.5 rounded-full',
-                                browseStatus === opt
-                                  ? 'bg-muted text-foreground'
-                                  : 'bg-background/60 text-muted-foreground',
-                              )}
-                            >
-                              {browseStatusCounts[opt].toLocaleString()}
-                            </span>
+                            {opt}
                           </button>
                         ))}
                       </div>
+                      <span
+                        className="text-muted-foreground tabular-nums"
+                        aria-live="polite"
+                      >
+                        {browseFilteredCount.toLocaleString()} tenant{browseFilteredCount === 1 ? '' : 's'}
+                      </span>
+                      {/*
+                       * Reset chip — clears the persisted Active/Inactive/All
+                       * preference and returns the picker to the 'all'
+                       * default. Only renders when the current selection
+                       * differs from the default so it doesn't add noise
+                       * when nothing's been customized. Wipes the same
+                       * per-agent localStorage key the persistence
+                       * effect writes to, so a future dialog open won't
+                       * silently re-restore the cleared preference.
+                       */}
+                      {browseStatus !== 'all' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBrowseStatus('all');
+                            if (browseStatusStorageKey && typeof window !== 'undefined') {
+                              try {
+                                window.localStorage.removeItem(browseStatusStorageKey);
+                              } catch {
+                                /* noop — private mode / quota; UI already reset */
+                              }
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 h-7 px-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                          aria-label="Reset status filter to default"
+                        >
+                          <RefreshCcw className="h-3 w-3" />
+                          Reset
+                        </button>
+                      )}
                     </div>
                   )}
 
