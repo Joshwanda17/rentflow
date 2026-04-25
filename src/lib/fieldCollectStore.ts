@@ -130,6 +130,33 @@ export async function getCachedTenants(agentId: string): Promise<CachedTenant[]>
 
 /* ----------------- Entries queue ----------------- */
 
+/**
+ * Lightweight pub/sub so any UI can refresh the moment an entry changes.
+ * Consumers should subscribe via `onFieldCollectChange` and re-fetch via `getEntries`.
+ */
+export type FieldCollectChangeAction = 'add' | 'update' | 'delete';
+export const FIELD_COLLECT_CHANGE_EVENT = 'welile:field-collect-change';
+
+function emitFieldCollectChange(action: FieldCollectChangeAction, agentId?: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.dispatchEvent(
+      new CustomEvent(FIELD_COLLECT_CHANGE_EVENT, { detail: { action, agentId } }),
+    );
+  } catch {
+    /* ignore — environments without CustomEvent */
+  }
+}
+
+export function onFieldCollectChange(
+  handler: (detail: { action: FieldCollectChangeAction; agentId?: string }) => void,
+): () => void {
+  if (typeof window === 'undefined') return () => {};
+  const listener = (e: Event) => handler((e as CustomEvent).detail);
+  window.addEventListener(FIELD_COLLECT_CHANGE_EVENT, listener);
+  return () => window.removeEventListener(FIELD_COLLECT_CHANGE_EVENT, listener);
+}
+
 export async function addEntry(entry: FieldEntry): Promise<void> {
   await tx(STORE_ENTRIES, 'readwrite', (s) => s.put(entry));
   emitFieldCollectChange('add', entry.agentId);
