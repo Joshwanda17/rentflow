@@ -32,6 +32,7 @@ import {
   phoneVariants,
   tailMatch,
   tailSharedCounts,
+  getFuzzyPhoneResolver,
 } from '@/lib/tenantSearch';
 
 interface FieldCollectDialogProps {
@@ -574,6 +575,12 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     const fuzzyVariants = /\d/.test(raw)
       ? phoneVariants(raw).filter(v => v.length >= 4)
       : [];
+    // Per-query fuzzy resolver — memoized at module scope keyed by `raw`,
+    // and itself memoizes `(phone → best hit)` internally. So when the
+    // agent retypes a messy phone and the cache has been invalidated by a
+    // tenant list refresh, we still skip the inner triple-condition loop
+    // for any phone we've already tested under this query.
+    const resolveFuzzyPhone = fuzzyVariants.length ? getFuzzyPhoneResolver(raw) : null;
     /**
      * Short phone queries (3–4 digits) are inherently ambiguous: the agent is
      * usually recalling only the tail of the number ("…456"). To avoid the
@@ -635,12 +642,14 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
           phoneScore = phone.startsWith(phoneQ) ? 100 : 70;
         }
         // Fuzzy fallback: messy phone input that strict normalization didn't
-        // match. Tag the row so the UI can show a "Best match" chip.
-        if (phoneScore === 0 && phone && fuzzyVariants.length) {
-          for (const v of fuzzyVariants) {
-            if (phone === v) { phoneScore = 60; bestMatchFallback = true; break; }
-            if (v.length >= 6 && phone.endsWith(v)) { phoneScore = 55; bestMatchFallback = true; break; }
-            if (v.length >= 7 && phone.includes(v)) { phoneScore = 50; bestMatchFallback = true; break; }
+        // match. Delegated to a memoized resolver so repeated (query,phone)
+        // lookups across rescores collapse to a single Map.get. Tag the row
+        // so the UI can show a "Best match" chip.
+        if (phoneScore === 0 && phone && resolveFuzzyPhone) {
+          const hit = resolveFuzzyPhone(phone);
+          if (hit) {
+            phoneScore = hit.score;
+            bestMatchFallback = true;
           }
         }
         // Name scoring runs in addition so a tenant matching both ranks higher.
