@@ -345,3 +345,41 @@ export async function listBatchAuditTrail(batchId: string): Promise<BatchAuditEn
     actor_name: r.actor_id ? (nameMap.get(r.actor_id) as string) ?? null : null,
   }));
 }
+
+export interface AllocationTenantBreakdown {
+  item_id: string;
+  tenant_id: string | null;
+  tenant_name: string | null;
+  tenant_phone: string | null;
+  repayment: number;
+  commission: number;
+  generated_at: string;
+}
+
+/** Returns the per-tenant audit detail captured at verify time, if present. */
+export async function getBatchAllocationDetail(
+  batchId: string,
+): Promise<{ generated_at: string; tenants: AllocationTenantBreakdown[] } | null> {
+  const { data, error } = await (supabase as any)
+    .from('field_deposit_batch_audit')
+    .select('details, created_at')
+    .eq('batch_id', batchId)
+    .eq('event', 'allocation_completed')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const tenants: AllocationTenantBreakdown[] = Array.isArray(data.details?.tenants)
+    ? data.details.tenants.map((t: any) => ({
+        item_id: t.item_id,
+        tenant_id: t.tenant_id ?? null,
+        tenant_name: t.tenant_name ?? null,
+        tenant_phone: t.tenant_phone ?? null,
+        repayment: Number(t.repayment ?? 0),
+        commission: Number(t.commission ?? 0),
+        generated_at: t.generated_at ?? data.created_at,
+      }))
+    : [];
+  return { generated_at: data.created_at, tenants };
+}
