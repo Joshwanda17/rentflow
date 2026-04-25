@@ -41,3 +41,8 @@ jobs:
 
       - name: Run tenantSearch unit tests
         run: bunx vitest run src/lib/tenantSearch.test.ts --reporter=verbose
+
+      - name: Run tenantSearch performance regression test
+        # Hard latency budget on a 5,000-tenant list. Fails the build if a
+        # change causes search ranking to regress past 50ms p50 / 100ms p99.
+        run: bunx vitest run src/lib/tenantSearch.perf.test.ts --reporter=verbose
