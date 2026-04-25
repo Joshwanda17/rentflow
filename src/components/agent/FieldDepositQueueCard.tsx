@@ -373,7 +373,7 @@ function CommissionBreakdown({
   const matchTarget = isVerified && recordedTagged > 0 ? recordedTagged : declared;
   const matchTargetLabel = isVerified && recordedTagged > 0 ? 'recorded tagged total' : 'declared total';
   const repaymentDelta = totalRepayment - matchTarget;
-  const repaymentMatches = items !== null && Math.abs(repaymentDelta) < 1;
+  const repaymentMatches = items !== null && Math.abs(repaymentDelta) <= RECONCILE_TOLERANCE_UGX;
 
   // Build a quick lookup from item_id → audit detail (per-tenant generation timestamp)
   const auditByItem = new Map<string, AllocationTenantBreakdown>(
@@ -398,7 +398,8 @@ function CommissionBreakdown({
       ? "batch's recorded commission total"
       : `expected commission (${ratePct}% × ${matchTargetLabel})`;
   const commissionDelta = totalCommission - expectedCommissionTarget;
-  const commissionMatches = items !== null && Math.abs(commissionDelta) < 1;
+  const commissionMatches =
+    items !== null && Math.abs(commissionDelta) <= RECONCILE_TOLERANCE_UGX;
 
   return (
     <div className="mt-3 ml-12 rounded-lg border bg-muted/30 overflow-hidden">
