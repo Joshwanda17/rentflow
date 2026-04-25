@@ -10,13 +10,21 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { formatDistanceToNow } from 'date-fns';
-import { safeStorage } from '@/lib/safeStorage';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Switch } from '@/components/ui/switch';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { formatDistanceToNow, format as formatDate } from 'date-fns';
 import {
   Loader2, WifiOff, Wifi, Search, Trash2,
   CheckCircle2, AlertCircle, RefreshCcw, ChevronLeft, ChevronRight,
   User, Banknote, ClipboardCheck, Home, KeyRound, Sparkles,
-  HelpCircle, ChevronDown, Clock, X,
+  HelpCircle, ChevronDown, Clock, X, Settings2, Cloud, CloudOff, Globe2,
 } from 'lucide-react';
 import {
   cacheTenants, getCachedTenants, addEntry, deleteEntry, getEntries,
@@ -345,35 +353,39 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     : null;
   const [browseSort, setBrowseSort] = useState<BrowseSort>('recent');
   const [browseStatus, setBrowseStatus] = useState<BrowseStatus>(() => {
-    // Lazy initializer so we read storage exactly once per mount.
-    // Routed through `safeStorage` which transparently falls back to an
-    // in-memory map when localStorage is blocked (Safari Private mode,
-    // permission denied webviews, quota exceeded). Validates the stored
-    // value against the union — anything weird falls back to 'all' so a
-    // corrupted entry never breaks the picker.
-    if (!user?.id) return 'all';
-    const raw = safeStorage.getItem(`welile.fieldCollect.browseStatus:${user.id}`);
-    if (raw === 'all' || raw === 'active' || raw === 'inactive') return raw;
+    // Lazy initializer so we read localStorage exactly once per mount.
+    // Guards: SSR-safe (typeof window), user-scoped key, and validates
+    // the stored value against the union — anything weird falls back
+    // to 'all' so a corrupted entry never breaks the picker.
+    if (typeof window === 'undefined' || !user?.id) return 'all';
+    try {
+      const raw = window.localStorage.getItem(`welile.fieldCollect.browseStatus:${user.id}`);
+      if (raw === 'all' || raw === 'active' || raw === 'inactive') return raw;
+    } catch {
+      // localStorage can throw in private mode / quota-exceeded — ignore.
+    }
     return 'all';
   });
 
   /**
    * Persist the chip selection whenever it changes. Skips writes when
    * we don't yet know the user (avoids polluting the unscoped key) and
-   * `safeStorage` swallows quota/private-mode errors so a write failure
-   * never crashes the picker — preference persistence is best-effort UX,
-   * not data. When localStorage is blocked the value still persists
-   * in-memory for the rest of the session.
+   * swallows quota/private-mode errors so a write failure never crashes
+   * the picker — preference persistence is best-effort UX, not data.
    */
   useEffect(() => {
-    if (!browseStatusStorageKey) return;
-    // Treat 'all' as the absence of a preference: removing the key
-    // (instead of writing it) keeps storage clean after Reset and makes
-    // "no key set" semantically equivalent to "default".
-    if (browseStatus === 'all') {
-      safeStorage.removeItem(browseStatusStorageKey);
-    } else {
-      safeStorage.setItem(browseStatusStorageKey, browseStatus);
+    if (!browseStatusStorageKey || typeof window === 'undefined') return;
+    try {
+      // Treat 'all' as the absence of a preference: removing the key
+      // (instead of writing it) keeps localStorage clean after Reset
+      // and makes "no key set" semantically equivalent to "default".
+      if (browseStatus === 'all') {
+        window.localStorage.removeItem(browseStatusStorageKey);
+      } else {
+        window.localStorage.setItem(browseStatusStorageKey, browseStatus);
+      }
+    } catch {
+      /* noop — see above */
     }
   }, [browseStatus, browseStatusStorageKey]);
 
@@ -387,13 +399,33 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   const hasHydratedStatusRef = useRef(false);
   useEffect(() => {
     if (hasHydratedStatusRef.current) return;
-    if (!browseStatusStorageKey) return;
+    if (!browseStatusStorageKey || typeof window === 'undefined') return;
     hasHydratedStatusRef.current = true;
-    const raw = safeStorage.getItem(browseStatusStorageKey);
-    if (raw === 'all' || raw === 'active' || raw === 'inactive') {
-      setBrowseStatus(raw);
+    try {
+      const raw = window.localStorage.getItem(browseStatusStorageKey);
+      if (raw === 'all' || raw === 'active' || raw === 'inactive') {
+        setBrowseStatus(raw);
+      }
+    } catch {
+      /* noop */
     }
   }, [browseStatusStorageKey]);
+
+  /* Cloud sync master switch — declared here (above the cloud effects)
+   * because the read + write effects below gate on it. The localStorage
+   * mirror + write-back effect for this flag live further down with the
+   * rest of the picker-prefs block. Default = enabled on every fresh
+   * sign-in. */
+  const cloudSyncStorageKey = user?.id
+    ? `welile.fieldCollect.cloudSync:${user.id}`
+    : null;
+  const [cloudSyncEnabled, setCloudSyncEnabled] = useState<boolean>(() => {
+    if (typeof window === 'undefined' || !user?.id) return true;
+    try {
+      const raw = window.localStorage.getItem(`welile.fieldCollect.cloudSync:${user.id}`);
+      return raw !== 'off';
+    } catch { return true; }
+  });
 
   /**
    * Cloud sync (cross-device).
@@ -423,25 +455,23 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   const hasCloudHydratedRef = useRef(false);
   const browseStatusPrefKey = 'fieldCollect.browseStatus';
 
-  /**
-   * Timestamp (ms) of the last write to the persisted status filter
-   * preference — local OR cloud, whichever is most recent. Drives the
-   * subtle "Updated <relative>" tooltip next to the count label so the
-   * agent can confirm their saved choice is fresh and not stale from a
-   * months-old session. Null = never saved (default 'all' state).
-   */
-  const [browseStatusUpdatedAt, setBrowseStatusUpdatedAt] = useState<number | null>(null);
-
   useEffect(() => {
     if (hasCloudHydratedRef.current) return;
     if (!user?.id) return;
+    if (!cloudSyncEnabled) {
+      // Cloud sync turned off → mark as "hydrated" anyway so the write
+      // effect below stops blocking on this gate (otherwise local-only
+      // chip changes would never trigger their own follow-on logic).
+      hasCloudHydratedRef.current = true;
+      return;
+    }
     hasCloudHydratedRef.current = true;
     let cancelled = false;
     (async () => {
       try {
         const { data, error } = await supabase
           .from('user_ui_preferences')
-          .select('value, updated_at')
+          .select('value')
           .eq('user_id', user.id)
           .eq('key', browseStatusPrefKey)
           .maybeSingle();
@@ -449,19 +479,17 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
         const cloudValue = data.value;
         if (cloudValue === 'all' || cloudValue === 'active' || cloudValue === 'inactive') {
           setBrowseStatus(cloudValue);
-          // Capture cloud-reported updated_at so the tooltip shows the
-          // *true* last-edit time — not just when this device hydrated.
-          if (data.updated_at) {
-            const t = new Date(data.updated_at as string).getTime();
-            if (Number.isFinite(t)) setBrowseStatusUpdatedAt(t);
-          }
-          // Mirror back to local storage (or memory fallback) so this
-          // device matches the cloud value on its next cold open.
-          if (browseStatusStorageKey) {
-            if (cloudValue === 'all') {
-              safeStorage.removeItem(browseStatusStorageKey);
-            } else {
-              safeStorage.setItem(browseStatusStorageKey, cloudValue);
+          // Mirror back to localStorage so this device matches the
+          // cloud value on its next offline cold start.
+          if (typeof window !== 'undefined' && browseStatusStorageKey) {
+            try {
+              if (cloudValue === 'all') {
+                window.localStorage.removeItem(browseStatusStorageKey);
+              } else {
+                window.localStorage.setItem(browseStatusStorageKey, cloudValue);
+              }
+            } catch {
+              /* noop */
             }
           }
         }
@@ -470,7 +498,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
       }
     })();
     return () => { cancelled = true; };
-  }, [user?.id, browseStatusStorageKey]);
+  }, [user?.id, browseStatusStorageKey, cloudSyncEnabled]);
 
   /**
    * Push every chip change to the cloud row (best-effort). Skips writes
@@ -480,6 +508,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   useEffect(() => {
     if (!user?.id) return;
     if (!hasCloudHydratedRef.current) return;
+    if (!cloudSyncEnabled) return;
     (async () => {
       try {
         if (browseStatus === 'all') {
@@ -489,9 +518,6 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
             .delete()
             .eq('user_id', user.id)
             .eq('key', browseStatusPrefKey);
-          // Reset the "last updated" indicator: an empty/default state
-          // shouldn't show a stale timestamp from a prior selection.
-          setBrowseStatusUpdatedAt(null);
         } else {
           await supabase
             .from('user_ui_preferences')
@@ -499,15 +525,226 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
               { user_id: user.id, key: browseStatusPrefKey, value: browseStatus },
               { onConflict: 'user_id,key' },
             );
-          // Stamp NOW optimistically — matches the row's server-side
-          // updated_at trigger to within the round-trip window.
-          setBrowseStatusUpdatedAt(Date.now());
         }
       } catch (err) {
         console.warn('[FieldCollectDialog] cloud pref write failed', err);
       }
     })();
-  }, [browseStatus, user?.id]);
+  }, [browseStatus, user?.id, cloudSyncEnabled]);
+
+  /* =====================================================================
+   * Picker preferences: "last updated" timestamp + cloud sync toggle +
+   * display timezone.
+   *
+   * All three preferences live in the same per-user `user_ui_preferences`
+   * row family used by `browseStatus`, plus a localStorage mirror under
+   * `welile.fieldCollect.<key>:<userId>` so the picker is responsive
+   * offline and on first paint.
+   *
+   * Why a single block instead of three separate ones:
+   *   The three preferences are conceptually one "picker settings" group
+   *   exposed via the same gear popover. Co-locating them keeps the
+   *   load/save plumbing readable and prevents drift in the cloud-sync
+   *   gating logic (e.g. respecting `cloudSyncEnabled` for the timezone
+   *   write too).
+   * ===================================================================== */
+
+  /**
+   * Timestamp (ms since epoch) of the most recent `browseStatus` write —
+   * local OR cloud, whichever is newer. Drives the tooltip copy
+   * "Filter saved 3 minutes ago". Null = filter has never been saved
+   * (default 'all' state with no prior selection).
+   */
+  const [browseStatusUpdatedAt, setBrowseStatusUpdatedAt] = useState<number | null>(null);
+
+  /**
+   * Per-user, per-device localStorage key for the "last updated"
+   * timestamp. Stored separately from the value so legacy clients that
+   * only know how to read the raw 'all'/'active'/'inactive' string keep
+   * working without a parser bump.
+   */
+  const browseStatusUpdatedAtStorageKey = user?.id
+    ? `welile.fieldCollect.browseStatus.updatedAt:${user.id}`
+    : null;
+
+  /* Hydrate the local timestamp once user.id is known. */
+  const hasHydratedUpdatedAtRef = useRef(false);
+  useEffect(() => {
+    if (hasHydratedUpdatedAtRef.current) return;
+    if (!browseStatusUpdatedAtStorageKey || typeof window === 'undefined') return;
+    hasHydratedUpdatedAtRef.current = true;
+    try {
+      const raw = window.localStorage.getItem(browseStatusUpdatedAtStorageKey);
+      const n = raw ? Number(raw) : NaN;
+      if (Number.isFinite(n) && n > 0) setBrowseStatusUpdatedAt(n);
+    } catch { /* noop */ }
+  }, [browseStatusUpdatedAtStorageKey]);
+
+  /* Stamp the local timestamp on every chip change AFTER the initial
+   * cloud hydrate. We piggy-back on `browseStatus` so the timestamp
+   * always reflects a real user-driven change rather than mount-time
+   * hydration. */
+  useEffect(() => {
+    if (!hasCloudHydratedRef.current) return;
+    const now = Date.now();
+    setBrowseStatusUpdatedAt(now);
+    if (browseStatusUpdatedAtStorageKey && typeof window !== 'undefined') {
+      try { window.localStorage.setItem(browseStatusUpdatedAtStorageKey, String(now)); }
+      catch { /* noop */ }
+    }
+  }, [browseStatus, browseStatusUpdatedAtStorageKey]);
+
+  /**
+   * Persist the cloud-sync master switch.
+   *
+   * (`cloudSyncEnabled` and `cloudSyncStorageKey` are declared higher up,
+   * above the cloud read/write effects that gate on them — see the
+   * "Cloud sync master switch" block earlier in this file. We only need
+   * the write-back effect here so toggle changes survive reload. The
+   * lazy initializer already handles initial hydration.)
+   *
+   * Default = enabled. We treat absence of the key as the default, so
+   * we delete the key when re-enabling rather than write 'on' — keeps
+   * localStorage clean for users who never touch the toggle.
+   */
+  useEffect(() => {
+    if (!cloudSyncStorageKey || typeof window === 'undefined') return;
+    try {
+      if (cloudSyncEnabled) window.localStorage.removeItem(cloudSyncStorageKey);
+      else window.localStorage.setItem(cloudSyncStorageKey, 'off');
+    } catch { /* noop */ }
+  }, [cloudSyncEnabled, cloudSyncStorageKey]);
+
+  /**
+   * Display timezone for the "last updated" tooltip.
+   *
+   * - Default `'auto'` resolves at render time to the browser's
+   *   `Intl.DateTimeFormat().resolvedOptions().timeZone`, so untouched
+   *   users always see local time without any setup.
+   * - Override values are full IANA zone IDs (e.g. `Africa/Kampala`).
+   * - Persisted both locally (per-user) and to cloud, mirroring the
+   *   `browseStatus` pattern so the preference follows the agent across
+   *   devices when cloud sync is enabled.
+   */
+  const TIMEZONE_OPTIONS: { id: string; label: string }[] = [
+    { id: 'auto',                  label: 'Auto (device timezone)' },
+    { id: 'Africa/Kampala',        label: 'Kampala — EAT (UTC+3)' },
+    { id: 'Africa/Nairobi',        label: 'Nairobi — EAT (UTC+3)' },
+    { id: 'Africa/Lagos',          label: 'Lagos — WAT (UTC+1)' },
+    { id: 'Africa/Johannesburg',   label: 'Johannesburg — SAST (UTC+2)' },
+    { id: 'Europe/London',         label: 'London — GMT/BST' },
+    { id: 'America/New_York',      label: 'New York — ET' },
+    { id: 'UTC',                   label: 'UTC' },
+  ];
+  const displayTimezoneStorageKey = user?.id
+    ? `welile.fieldCollect.displayTimezone:${user.id}`
+    : null;
+  const displayTimezonePrefKey = 'fieldCollect.displayTimezone';
+  const [displayTimezone, setDisplayTimezone] = useState<string>('auto');
+  const hasHydratedTzRef = useRef(false);
+  useEffect(() => {
+    if (hasHydratedTzRef.current) return;
+    if (!displayTimezoneStorageKey || typeof window === 'undefined') return;
+    hasHydratedTzRef.current = true;
+    try {
+      const raw = window.localStorage.getItem(displayTimezoneStorageKey);
+      if (raw && (raw === 'auto' || TIMEZONE_OPTIONS.some(o => o.id === raw))) {
+        setDisplayTimezone(raw);
+      }
+    } catch { /* noop */ }
+  }, [displayTimezoneStorageKey]);
+  useEffect(() => {
+    if (!displayTimezoneStorageKey || typeof window === 'undefined') return;
+    try {
+      if (displayTimezone === 'auto') {
+        window.localStorage.removeItem(displayTimezoneStorageKey);
+      } else {
+        window.localStorage.setItem(displayTimezoneStorageKey, displayTimezone);
+      }
+    } catch { /* noop */ }
+  }, [displayTimezone, displayTimezoneStorageKey]);
+
+  /* Cloud hydrate + push for the timezone preference. Runs once per
+   * sign-in like `browseStatus`. Respects the cloud-sync master switch.
+   */
+  const hasCloudHydratedTzRef = useRef(false);
+  useEffect(() => {
+    if (hasCloudHydratedTzRef.current) return;
+    if (!user?.id) return;
+    if (!cloudSyncEnabled) return;
+    hasCloudHydratedTzRef.current = true;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('user_ui_preferences')
+          .select('value')
+          .eq('user_id', user.id)
+          .eq('key', displayTimezonePrefKey)
+          .maybeSingle();
+        if (cancelled || error || !data?.value) return;
+        if (data.value === 'auto' || TIMEZONE_OPTIONS.some(o => o.id === data.value)) {
+          setDisplayTimezone(data.value as string);
+        }
+      } catch (err) {
+        console.warn('[FieldCollectDialog] cloud tz hydrate failed', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id, cloudSyncEnabled]);
+  useEffect(() => {
+    if (!user?.id) return;
+    if (!hasCloudHydratedTzRef.current) return;
+    if (!cloudSyncEnabled) return;
+    (async () => {
+      try {
+        if (displayTimezone === 'auto') {
+          await supabase
+            .from('user_ui_preferences')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('key', displayTimezonePrefKey);
+        } else {
+          await supabase
+            .from('user_ui_preferences')
+            .upsert(
+              { user_id: user.id, key: displayTimezonePrefKey, value: displayTimezone },
+              { onConflict: 'user_id,key' },
+            );
+        }
+      } catch (err) {
+        console.warn('[FieldCollectDialog] cloud tz write failed', err);
+      }
+    })();
+  }, [displayTimezone, user?.id, cloudSyncEnabled]);
+
+  /**
+   * Resolve `'auto'` to the browser's actual zone for display purposes.
+   * Memoized because `Intl.DateTimeFormat().resolvedOptions()` is a
+   * non-trivial allocation we don't want on every keystroke.
+   */
+  const resolvedDisplayTimezone = useMemo(() => {
+    if (displayTimezone !== 'auto') return displayTimezone;
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; }
+    catch { return 'UTC'; }
+  }, [displayTimezone]);
+
+  /* Format an absolute date string in the resolved timezone, e.g.
+   * "Apr 25, 2026, 14:32 EAT". `timeZoneName: 'short'` adds the abbr. */
+  const formatInTz = useCallback((ts: number): string => {
+    try {
+      return new Intl.DateTimeFormat(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+        timeZone: resolvedDisplayTimezone,
+        timeZoneName: 'short',
+      }).format(new Date(ts));
+    } catch {
+      // Fallback to date-fns local formatting if the IANA id is rejected
+      // (extremely rare — usually a typo in a future override).
+      return formatDate(new Date(ts), 'PP p');
+    }
+  }, [resolvedDisplayTimezone]);
 
   const [browsePage, setBrowsePage] = useState(0);
 
@@ -2126,14 +2363,13 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                         ))}
                       </div>
                       {/*
-                       * Tenant count + "Filter saved" tooltip.
-                       * Wrapping the count in a Tooltip surfaces *when* the
-                       * agent's persisted Active/Inactive selection was last
-                       * touched without adding a second visible chip. Only
-                       * shown when we have a real timestamp (i.e. a non-default
-                       * selection has been saved at least once); otherwise we
-                       * render the plain count to avoid a misleading dotted
-                       * underline that says nothing on hover.
+                       * Tenant count with a "Filter saved <relative>" tooltip
+                       * AND an exact timestamp rendered in the agent's
+                       * preferred timezone (set via the gear popover, default
+                       * = device timezone). The tooltip only appears once a
+                       * non-default selection has actually been saved — for
+                       * the untouched default 'all' state we render a plain
+                       * count to avoid a misleading dotted underline.
                        */}
                       {browseStatusUpdatedAt ? (
                         <TooltipProvider delayDuration={200}>
@@ -2142,13 +2378,22 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                               <span
                                 className="text-muted-foreground tabular-nums border-b border-dotted border-muted-foreground/40 cursor-help"
                                 aria-live="polite"
-                                aria-label={`${browseFilteredCount.toLocaleString()} tenants. Filter saved ${formatDistanceToNow(browseStatusUpdatedAt, { addSuffix: true })}`}
+                                aria-label={
+                                  `${browseFilteredCount.toLocaleString()} tenants. ` +
+                                  `Filter saved ${formatDistanceToNow(browseStatusUpdatedAt, { addSuffix: true })} ` +
+                                  `(${formatInTz(browseStatusUpdatedAt)}).`
+                                }
                               >
                                 {browseFilteredCount.toLocaleString()} tenant{browseFilteredCount === 1 ? '' : 's'}
                               </span>
                             </TooltipTrigger>
-                            <TooltipContent side="top" className="text-[11px]">
-                              Filter saved {formatDistanceToNow(browseStatusUpdatedAt, { addSuffix: true })}
+                            <TooltipContent side="top" className="text-[11px] max-w-[260px]">
+                              <div className="font-medium">
+                                Filter saved {formatDistanceToNow(browseStatusUpdatedAt, { addSuffix: true })}
+                              </div>
+                              <div className="text-muted-foreground mt-0.5">
+                                {formatInTz(browseStatusUpdatedAt)}
+                              </div>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
@@ -2175,11 +2420,12 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                           type="button"
                           onClick={() => {
                             setBrowseStatus('all');
-                            // Wipe the persisted (or in-memory fallback)
-                            // entry so a future open won't silently re-restore
-                            // the cleared selection. `safeStorage` is no-throw.
-                            if (browseStatusStorageKey) {
-                              safeStorage.removeItem(browseStatusStorageKey);
+                            if (browseStatusStorageKey && typeof window !== 'undefined') {
+                              try {
+                                window.localStorage.removeItem(browseStatusStorageKey);
+                              } catch {
+                                /* noop — private mode / quota; UI already reset */
+                              }
                             }
                           }}
                           className="inline-flex items-center gap-1 h-7 px-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
@@ -2189,6 +2435,89 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                           Reset
                         </button>
                       )}
+                      {/*
+                       * Picker preferences popover — gear icon at the
+                       * end of the row. Two settings:
+                       *   1. Cloud sync master toggle (Cloud / CloudOff icon)
+                       *   2. Display timezone for the "Filter saved" tooltip
+                       * Both are per-user; cloud-sync gates whether the
+                       * timezone preference also rides with the account.
+                       */}
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className="ml-auto inline-flex items-center justify-center h-7 w-7 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                            aria-label={`Picker preferences. Cloud sync ${cloudSyncEnabled ? 'enabled' : 'disabled'}.`}
+                          >
+                            {cloudSyncEnabled ? (
+                              <Cloud className="h-3.5 w-3.5" />
+                            ) : (
+                              <CloudOff className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          align="end"
+                          side="top"
+                          className="w-80 p-3 space-y-3"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 pr-2">
+                              <Label
+                                htmlFor="picker-cloud-sync-toggle"
+                                className="text-sm font-semibold flex items-center gap-1.5"
+                              >
+                                <Settings2 className="h-3.5 w-3.5 text-muted-foreground" />
+                                Cloud sync
+                              </Label>
+                              <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
+                                {cloudSyncEnabled
+                                  ? 'Picker filter & timezone follow you across devices.'
+                                  : 'Picker filter & timezone stay on this device only.'}
+                              </p>
+                            </div>
+                            <Switch
+                              id="picker-cloud-sync-toggle"
+                              checked={cloudSyncEnabled}
+                              onCheckedChange={(checked) => setCloudSyncEnabled(checked)}
+                              aria-label="Toggle picker filter cloud sync"
+                            />
+                          </div>
+
+                          <Separator />
+
+                          <div className="space-y-1.5">
+                            <Label
+                              htmlFor="picker-tz-select"
+                              className="text-sm font-semibold flex items-center gap-1.5"
+                            >
+                              <Globe2 className="h-3.5 w-3.5 text-muted-foreground" />
+                              Display timezone
+                            </Label>
+                            <p className="text-[11px] text-muted-foreground leading-snug">
+                              Used for the "Filter saved" timestamp on hover.
+                            </p>
+                            <Select value={displayTimezone} onValueChange={setDisplayTimezone}>
+                              <SelectTrigger id="picker-tz-select" className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="max-h-72">
+                                {TIMEZONE_OPTIONS.map(opt => (
+                                  <SelectItem key={opt.id} value={opt.id} className="text-xs">
+                                    {opt.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {displayTimezone === 'auto' && (
+                              <p className="text-[10px] text-muted-foreground pt-1">
+                                Resolved to <span className="font-medium">{resolvedDisplayTimezone}</span>
+                              </p>
+                            )}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   )}
 
