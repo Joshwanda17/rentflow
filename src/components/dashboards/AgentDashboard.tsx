@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { User } from '@supabase/supabase-js';
@@ -12,7 +11,6 @@ import { EarnedSinceLastWithdrawalCard } from '@/components/agent/EarnedSinceLas
 import { Button } from '@/components/ui/button';
 import { 
   UserPlus,
-  Wallet,
   Menu,
   WifiOff,
   RefreshCw,
@@ -31,7 +29,6 @@ import {
   UserCog,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
@@ -39,7 +36,6 @@ import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet
 import DepositFlow from '@/components/payments/DepositFlow';
 import WithdrawFlow from '@/components/payments/WithdrawFlow';
 import { SendMoneyDialog } from '@/components/wallet/SendMoneyDialog';
-import { WalletDisclaimer } from '@/components/wallet/WalletDisclaimer';
 
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
@@ -53,7 +49,7 @@ import { CommissionCelebrationModal } from '@/components/agent/CommissionCelebra
 import { useBusinessAdvanceCommissionListener } from '@/hooks/useBusinessAdvanceCommissionListener';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
-import { WalletHeroSkeleton, MetricRowSkeleton, ListSectionSkeleton } from '@/components/skeletons/SectionSkeletons';
+import { WalletHeroSkeleton } from '@/components/skeletons/SectionSkeletons';
 
 import { hapticTap } from '@/lib/haptics';
 import { AgentAgreementBanner } from '@/components/agent/agreement';
@@ -68,7 +64,6 @@ import { EarningsRankSystemSheet } from '@/components/agent/EarningsRankSystemSh
 import { AgentMenuDrawer } from '@/components/agent/AgentMenuDrawer';
 import { AgentHubTabs, type AgentHubTab } from '@/components/agent/AgentHubTabs';
 import { AgentActionInsights } from '@/components/agent/AgentActionInsights';
-import { DailyRentExpectedCard } from '@/components/agent/DailyRentExpectedCard';
 import { AgentManagedPropertyDialog } from '@/components/agent/AgentManagedPropertyDialog';
 import { AgentManagedPropertiesSheet } from '@/components/agent/AgentManagedPropertiesSheet';
 import { AgentLandlordPayoutDialog } from '@/components/agent/AgentLandlordPayoutDialog';
