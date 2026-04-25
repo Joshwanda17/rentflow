@@ -1183,7 +1183,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                                 {filtered.length} possible matches for "{search}" — pick carefully or type more digits.
                               </div>
                             )}
-                            {filtered.map(({ t, matchType }, idx) => {
+                            {filtered.map(({ t, matchType, bestMatchFallback }, idx) => {
                         const optIdx = keyboardOptions.findIndex(o => o.tenantId === t.tenantId);
                         const isActive = optIdx === activeIdx;
                         return (
@@ -1208,6 +1208,17 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                               </p>
                               {idx === 0 && search && (
                                 <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                                  Top result
+                                </span>
+                              )}
+                              {/*
+                               * Fuzzy fallback chip: strict normalization didn't
+                               * land on this row, but a relaxed phone-variant
+                               * comparison did. Tells the agent "we relaxed the
+                               * rules to find this — double-check before tapping".
+                               */}
+                              {bestMatchFallback && (
+                                <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide bg-warning/15 text-warning px-1.5 py-0.5 rounded ring-1 ring-warning/30">
                                   Best match
                                 </span>
                               )}
