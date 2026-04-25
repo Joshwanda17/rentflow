@@ -262,6 +262,22 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
    */
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
+  /**
+   * Browse-mode controls — only used when the search box is empty so the
+   * agent can flip through their full caseload of thousands of tenants
+   * without having to type. Both pieces of state persist for the dialog
+   * session (reset on close via `resetForm`/effect below).
+   *
+   *  - browseSort:  'recent' (default — last activity desc) or 'name' (A→Z)
+   *  - browsePage:  0-indexed page within the sorted list, 100 rows/page
+   *
+   * Search mode is unchanged: scoring + virtualized list still cap at 200.
+   */
+  type BrowseSort = 'recent' | 'name';
+  const BROWSE_PAGE_SIZE = 100;
+  const [browseSort, setBrowseSort] = useState<BrowseSort>('recent');
+  const [browsePage, setBrowsePage] = useState(0);
+
   /* Online/offline tracking */
   useEffect(() => {
     const on = () => setOnline(true);
