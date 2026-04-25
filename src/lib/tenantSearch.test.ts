@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeName, normalizePhone, phoneVariants, scoreTenantMatch } from './tenantSearch';
+import {
+  normalizeName,
+  normalizePhone,
+  phoneVariants,
+  scoreTenantMatch,
+  tailMatch,
+  tailSharedCounts,
+} from './tenantSearch';
 
 describe('normalizeName', () => {
   it('lowercases input', () => {
@@ -105,7 +112,8 @@ describe('scoreTenantMatch — short digit queries (3–4 digits)', () => {
     const tail = scoreTenantMatch('3456', T('Alice', '0772 123 456'));
     const middle = scoreTenantMatch('7212', T('Alice', '0772 123 456'));
     expect(tail.matchType).toBe('phone');
-    expect(tail.score).toBe(110);
+    // 4-digit tail is block-aligned ⇒ +5 boundary bonus on the base 110.
+    expect(tail.score).toBe(115);
     expect(middle.score).toBe(0); // middle hit suppressed for short queries
   });
 
@@ -286,5 +294,49 @@ describe('scoreTenantMatch — fuzzy phone fallback', () => {
   it('does not flag fallback for pure name matches', () => {
     const r = scoreTenantMatch('Alice', T('Alice', '0772 123 456'));
     expect(r.bestMatchFallback ?? false).toBe(false);
+  });
+});
+
+describe('tailMatch — explicit last-N-digits matcher', () => {
+  it('returns null when phone does not end with the query digits', () => {
+    expect(tailMatch('772123456', '999')).toBeNull();
+    expect(tailMatch('', '456')).toBeNull();
+    expect(tailMatch('772123456', '')).toBeNull();
+  });
+
+  it('returns tailLen equal to the query length on a hit', () => {
+    expect(tailMatch('772123456', '456')).toEqual({ tailLen: 3, boundary: true });
+    expect(tailMatch('772123456', '3456')).toEqual({ tailLen: 4, boundary: true });
+    expect(tailMatch('772123456', '23456')).toEqual({ tailLen: 5, boundary: false });
+  });
+
+  it('flags 6 and 7 digit tails as block-aligned too', () => {
+    expect(tailMatch('772123456', '123456')?.boundary).toBe(true);
+    expect(tailMatch('772123456', '2123456')?.boundary).toBe(true);
+  });
+});
+
+describe('tailSharedCounts — uniqueness ranking input', () => {
+  it('returns shared count for every tenant whose phone ends with the query', () => {
+    const counts = tailSharedCounts(
+      ['772123456', '712111456', '772999000', '700000456'],
+      '456',
+    );
+    // Three tenants end in "456" → all three share the bucket size 3.
+    expect(counts.get('772123456')).toBe(3);
+    expect(counts.get('712111456')).toBe(3);
+    expect(counts.get('700000456')).toBe(3);
+    // Non-matcher is absent.
+    expect(counts.has('772999000')).toBe(false);
+  });
+
+  it('returns an empty map for an empty query', () => {
+    const counts = tailSharedCounts(['772123456'], '');
+    expect(counts.size).toBe(0);
+  });
+
+  it('handles a single tenant cleanly', () => {
+    const counts = tailSharedCounts(['772123456'], '456');
+    expect(counts.get('772123456')).toBe(1);
   });
 });
