@@ -5,9 +5,22 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle2, Clock, AlertCircle, FileWarning, CalendarDays, RefreshCcw } from 'lucide-react';
+import { CheckCircle2, Clock, AlertCircle, FileWarning, CalendarDays, RefreshCcw, Download, FileText, FileSpreadsheet, CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FieldCollectDailyDetailsSheet } from '@/components/agent/FieldCollectDailyDetailsSheet';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { exportDailyTotalsCsv, exportDailyTotalsPdf } from '@/lib/fieldCollectExport';
+import { format, isSameDay } from 'date-fns';
+import { toast } from 'sonner';
 
 interface Bucket {
   label: string;
@@ -34,6 +47,12 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<number>(Date.now());
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!user?.id) return;
@@ -53,11 +72,28 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
     return () => window.clearInterval(iv);
   }, [refresh, live]);
 
+  const isToday = isSameDay(selectedDate, new Date());
+
   const today = useMemo(() => {
-    const start = new Date();
+    const start = new Date(selectedDate);
     start.setHours(0, 0, 0, 0);
-    return entries.filter(e => e.capturedAt >= start.getTime());
-  }, [entries]);
+    const end = new Date(selectedDate);
+    end.setHours(23, 59, 59, 999);
+    return entries.filter(e => e.capturedAt >= start.getTime() && e.capturedAt <= end.getTime());
+  }, [entries, selectedDate]);
+
+  const handleExport = useCallback((kind: 'csv' | 'pdf') => {
+    const agentName = (user?.user_metadata as any)?.full_name || user?.email || null;
+    const payload = { date: selectedDate, agentName, entries: today };
+    try {
+      if (kind === 'csv') exportDailyTotalsCsv(payload);
+      else exportDailyTotalsPdf(payload);
+      toast.success(`Exported ${today.length} entr${today.length === 1 ? 'y' : 'ies'} as ${kind.toUpperCase()}`);
+    } catch (err) {
+      console.error('[fieldCollect] export failed', err);
+      toast.error('Export failed');
+    }
+  }, [selectedDate, today, user]);
 
   const breakdown = useMemo(() => {
     const synced = today.filter(e => e.syncState === 'synced');
@@ -93,6 +129,73 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
 
   const isInline = variant === 'inline';
 
+  const dateLabel = isToday ? "Today's totals" : format(selectedDate, 'PPP');
+
+  const dateSelector = (
+    <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-7 px-2 text-[11px] gap-1"
+          aria-label="Pick date"
+        >
+          <CalendarIcon className="h-3 w-3" />
+          {isToday ? 'Today' : format(selectedDate, 'MMM d')}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="end">
+        <Calendar
+          mode="single"
+          selected={selectedDate}
+          onSelect={(d) => {
+            if (d) {
+              const nd = new Date(d);
+              nd.setHours(0, 0, 0, 0);
+              setSelectedDate(nd);
+              setDatePickerOpen(false);
+            }
+          }}
+          disabled={(d) => d > new Date()}
+          initialFocus
+          className={cn('p-3 pointer-events-auto')}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+
+  const exportMenu = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-7 px-2 text-[11px] gap-1"
+          aria-label="Export daily totals"
+        >
+          <Download className="h-3 w-3" />
+          Export
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuLabel className="text-[11px]">
+          {format(selectedDate, 'PPP')}
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => handleExport('csv')} className="gap-2 text-xs">
+          <FileSpreadsheet className="h-3.5 w-3.5" />
+          Download CSV
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleExport('pdf')} className="gap-2 text-xs">
+          <FileText className="h-3.5 w-3.5" />
+          Download PDF
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   if (breakdown.count === 0) {
     return (
       <div
@@ -103,8 +206,9 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
         )}
       >
         <CalendarDays className="h-4 w-4 mx-auto mb-1 opacity-60" />
-        No field collections yet today
-        <div className="mt-2">
+        {isToday ? 'No field collections yet today' : `No field collections on ${format(selectedDate, 'PPP')}`}
+        <div className="mt-2 flex items-center justify-center gap-1.5 flex-wrap">
+          {dateSelector}
           <Button
             type="button"
             size="sm"
@@ -134,7 +238,7 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
         <div>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <CalendarDays className="h-3.5 w-3.5" />
-            Today's totals
+            {dateLabel}
           </div>
           <p className="text-2xl font-bold tracking-tight mt-0.5">{formatUGX(breakdown.total)}</p>
           <p className="text-[11px] text-muted-foreground">
@@ -166,6 +270,8 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
               {breakdown.duplicate.count} dup
             </Badge>
           )}
+          {dateSelector}
+          {exportMenu}
           <Button
             type="button"
             size="sm"
