@@ -13,8 +13,9 @@ import {
   Loader2, WifiOff, Wifi, Search, Trash2,
   CheckCircle2, AlertCircle, RefreshCcw, ChevronLeft, ChevronRight,
   User, Banknote, ClipboardCheck, Home, KeyRound, Sparkles,
-  HelpCircle, ChevronDown, Clock, X,
+  HelpCircle, ChevronDown, Clock, X, AlertTriangle,
 } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
   cacheTenants, getCachedTenants, addEntry, deleteEntry, getEntries,
   getQueuedEntries, updateEntry, newClientUuid,
@@ -272,6 +273,21 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   const [walkupPhone, setWalkupPhone] = useState('');
   const [amount, setAmount] = useState('');
   const [notes, setNotes] = useState('');
+
+  /**
+   * Tail-share warning threshold. When a short (3–4 digit) phone query
+   * matches MORE than this many tenants by tail digits, the picker shows
+   * a strong warning chip + tooltip recommending the agent type more
+   * digits to avoid mis-picking. Wrapped in `useState` (not a const) so
+   * a future settings UI could let agents/managers raise or lower it
+   * without touching this component — the value flows through the same
+   * memo path either way.
+   *
+   * Default of 10 was chosen because below ~10 the agent can usually
+   * eyeball the right name out of the result list; above 10 the wrong-
+   * pick risk dominates and the safer answer is "narrow the query".
+   */
+  const [tailWarnThreshold] = useState<number>(10);
   const [purpose, setPurpose] = useState<Purpose>('rent');
   const [step, setStep] = useState<Step>(1);
   const [saving, setSaving] = useState(false);
@@ -319,20 +335,8 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
    * Search mode is unchanged: scoring + virtualized list still cap at 200.
    */
   type BrowseSort = 'recent' | 'name';
-  /**
-   * Browse-mode status filter — narrows the caseload to tenants the agent
-   * has worked with vs. ones still pending a first collection. Derived
-   * from already-loaded `entries` (queued OR synced count as "active") so
-   * we don't add a new business-logic surface or a new fetch.
-   *
-   *  - 'all'      → no filter (default, preserves prior behaviour)
-   *  - 'active'   → tenants with ≥1 captured entry
-   *  - 'inactive' → tenants with zero captured entries (new caseload)
-   */
-  type BrowseStatus = 'all' | 'active' | 'inactive';
   const BROWSE_PAGE_SIZE = 100;
   const [browseSort, setBrowseSort] = useState<BrowseSort>('recent');
-  const [browseStatus, setBrowseStatus] = useState<BrowseStatus>('all');
   const [browsePage, setBrowsePage] = useState(0);
 
   /* Online/offline tracking */
@@ -543,7 +547,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     // that produce identical scoring work.
     const cacheKey = q
       ? `q:${q}`
-      : `__browse__:${browseSort}:${browseStatus}:${browsePage}`;
+      : `__browse__:${browseSort}:${browsePage}`;
     const cached = cacheBucket.get(cacheKey);
     if (cached) {
       // LRU touch: re-insert moves this key to the most-recent position so it
@@ -584,17 +588,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
         const prev = lastByTenant.get(e.tenantId) ?? 0;
         if (e.capturedAt > prev) lastByTenant.set(e.tenantId, e.capturedAt);
       }
-      // Apply the status filter BEFORE sorting so the page-count and the
-      // "Page X of Y" pager reflect the narrowed set, not the full caseload.
-      // A tenant counts as "active" when they have any captured entry —
-      // that's the same signal the Recent sort and "Recent tenants" chip
-      // row already use, so the toggle stays semantically consistent.
-      const filteredByStatus = browseStatus === 'all'
-        ? tenants
-        : browseStatus === 'active'
-          ? tenants.filter(t => lastByTenant.has(t.tenantId))
-          : tenants.filter(t => !lastByTenant.has(t.tenantId));
-      const sorted = [...filteredByStatus].sort((a, b) => {
+      const sorted = [...tenants].sort((a, b) => {
         if (browseSort === 'name') {
           return a.fullName.localeCompare(b.fullName, undefined, { sensitivity: 'base' });
         }
@@ -739,39 +733,24 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     // digit query and there are multiple candidates — drives the UI hint.
     const ambiguous = isShortPhoneQuery && scored.length > 1;
     return storeAndReturn(scored.map(s => ({ ...s, ambiguous })));
-  }, [tenantIndex, tenants, debouncedSearch, fingerprint, entries, browseSort, browseStatus, browsePage, user?.id]);
+  }, [tenantIndex, tenants, debouncedSearch, fingerprint, entries, browseSort, browsePage, user?.id]);
 
   /**
-   * Tail-share hint metadata.
+   * Tail-share warning metadata.
    *
-   * When the agent has typed a short 3–4 digit phone query (the "I only
-   * remember the last few digits" path), surface how many tenants in their
-   * caseload share that exact tail. This is the same number that drives the
-   * uniqueness ranking inside the scorer — exposing it directly tells the
-   * agent at a glance whether they need to type more digits to disambiguate.
+   * When the agent has typed a short 3–4 digit phone query, count how
+   * many tenants in their caseload share that exact tail. The picker
+   * uses this to surface a strong "narrow your query" warning chip when
+   * the count crosses `tailWarnThreshold` — the wrong-pick risk gets
+   * material above ~10 candidates.
    *
-   * Returns null when the query isn't a short phone-y query, so the UI can
-   * cheaply skip rendering. Computed independently of `filtered` so it
-   * stays correct even when the per-query result cache short-circuits.
-   *
-   * Two count modes are exposed via `tailHintMode`:
-   *  - 'tenants': raw count of tenants whose phone ends in the typed digits
-   *               (1:1 with the result list — matches what the query returns).
-   *  - 'buckets': distinct (tailLen+1)-digit groups — i.e. how many different
-   *               "next-digit-out" prefixes share this tail. Tells the agent
-   *               "if I type one more digit, this is how many groups it
-   *               could collapse to." Phones with no extra digit (the typed
-   *               tail IS the full normalized phone) collapse into a single
-   *               '∅' bucket so they don't get double-counted.
+   * Returns null when the query isn't a short phone-y query (or when
+   * the count is BELOW the threshold) so the UI can cheaply skip
+   * rendering — we only ever pay for the chip when it actually helps.
+   * Computed independently of the result `filtered` memo so it stays
+   * correct even when the per-query result cache short-circuits.
    */
-  type TailHintMode = 'tenants' | 'buckets';
-  const [tailHintMode, setTailHintMode] = useState<TailHintMode>('tenants');
-  const tailShareHint = useMemo<{
-    tenantCount: number;
-    bucketCount: number;
-    tailLen: number;
-    digits: string;
-  } | null>(() => {
+  const tailWarn = useMemo<{ count: number; tailLen: number; digits: string } | null>(() => {
     const raw = debouncedSearch.trim();
     if (!raw) return null;
     const phoneQ = normalizePhone(raw);
@@ -782,45 +761,22 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     const stripped = raw.replace(/[\s\-+()]/g, '');
     const digitsOnly = stripped.replace(/\D+/g, '');
     if (digitsOnly.length < stripped.length - 1) return null;
-    let tenantCount = 0;
-    // Bucket key: the (tailLen+1)-digit suffix of the phone. Phones whose
-    // full normalized form is exactly the query digits go into the special
-    // '∅' bucket (no "next digit out" exists). Single-pass O(N), no
-    // sort/array allocation in the hot loop.
-    const buckets = new Set<string>();
-    const wider = phoneQ.length + 1;
+    let count = 0;
     for (const x of tenantIndex) {
-      const p = x.phone;
-      if (!p || !p.endsWith(phoneQ)) continue;
-      tenantCount++;
-      buckets.add(p.length >= wider ? p.slice(-wider) : '∅');
+      if (x.phone && x.phone.endsWith(phoneQ)) count++;
     }
-    return {
-      tenantCount,
-      bucketCount: buckets.size,
-      tailLen: phoneQ.length,
-      digits: phoneQ,
-    };
-  }, [debouncedSearch, tenantIndex]);
+    if (count <= tailWarnThreshold) return null;
+    return { count, tailLen: phoneQ.length, digits: phoneQ };
+  }, [debouncedSearch, tenantIndex, tailWarnThreshold]);
 
   /**
-   * Browse-mode active set size + pager metadata. The status filter
-   * (All / Active / Inactive) narrows the universe, so the page count and
-   * the count chip in the toolbar must reflect the FILTERED size — not
-   * the full caseload. Recomputes only when the filter, tenant list, or
-   * captured-entry set changes; it's an O(N) scan with no allocations.
+   * Browse-mode pager metadata. Only meaningful when the search box is empty
+   * — `pageCount` drives the Prev/Next button enabled state and the
+   * "Page X of Y" label.
    */
-  const browseFilteredCount = useMemo(() => {
-    if (browseStatus === 'all') return tenants.length;
-    const activeIds = new Set<string>();
-    for (const e of entries) if (e.tenantId) activeIds.add(e.tenantId);
-    return browseStatus === 'active'
-      ? tenants.reduce((n, t) => n + (activeIds.has(t.tenantId) ? 1 : 0), 0)
-      : tenants.reduce((n, t) => n + (activeIds.has(t.tenantId) ? 0 : 1), 0);
-  }, [tenants, entries, browseStatus]);
   const browsePageCount = useMemo(
-    () => Math.max(1, Math.ceil(browseFilteredCount / BROWSE_PAGE_SIZE)),
-    [browseFilteredCount],
+    () => Math.max(1, Math.ceil(tenants.length / BROWSE_PAGE_SIZE)),
+    [tenants.length],
   );
 
   /* Clamp the page if the tenant list shrinks under us. */
@@ -834,11 +790,6 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   useEffect(() => {
     setBrowsePage(0);
   }, [browseSort]);
-  /* Same idea for the status toggle: flipping All → Active should land
-   * on page 1 of the narrowed list, not page 7 of the old one. */
-  useEffect(() => {
-    setBrowsePage(0);
-  }, [browseStatus]);
   useEffect(() => {
     if (search) setBrowsePage(0);
   }, [search]);
@@ -1614,89 +1565,44 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                   </div>
 
                   {/*
-                   * Tail-share hint. Visible only when the agent has typed a
-                   * 3–4 digit phone-y query — the same range that triggers
-                   * the dialog's "short phone query" disambiguation rules.
-                   * Tells them how many tenants in their caseload end in
-                   * those exact digits so they know whether to type more.
-                   *
-                   * Color cues:
-                   *   0 matches  → muted (no help; probably typo / wrong digits)
-                   *   1 match    → success (unique tail; only one candidate)
-                   *   2–4        → primary (small set; pickable from list)
-                   *   5+         → warning (highly ambiguous; type more digits)
+                   * Tail-share danger warning. Only renders when a short
+                   * (3–4 digit) phone query matches MORE than the
+                   * configured `tailWarnThreshold` tenants — at that
+                   * point eyeballing the right one becomes risky and the
+                   * agent should narrow before picking. Tooltip explains
+                   * the exact threshold and why it matters; the chip
+                   * itself is keyboard-focusable so the tooltip works for
+                   * touch + keyboard, not just hover.
                    */}
-                  {tailShareHint && (() => {
-                    // Pick the count to display + label based on the active mode.
-                    // 'tenants' matches what the result list shows 1:1.
-                    // 'buckets' counts distinct (tailLen+1)-digit groups —
-                    // i.e. how many "next-digit-out" prefixes share the tail,
-                    // which is what would narrow to if the agent typed one
-                    // more digit. Color thresholds reuse the same
-                    // 0/1/2-4/5+ severity buckets so the visual semantics
-                    // (good/ok/risky) stay consistent across modes.
-                    const count = tailHintMode === 'tenants'
-                      ? tailShareHint.tenantCount
-                      : tailShareHint.bucketCount;
-                    const noun = tailHintMode === 'tenants' ? 'tenant' : 'bucket';
-                    const verb = tailHintMode === 'tenants' ? 'end in' : 'share';
-                    return (
-                      <div className="flex items-center gap-2">
-                        <div
-                          role="status"
+                  {tailWarn && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          role="alert"
                           aria-live="polite"
+                          onClick={() => searchInputRef.current?.focus()}
                           className={cn(
-                            'flex flex-1 items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium tabular-nums',
-                            count === 0 && 'bg-muted/50 text-muted-foreground',
-                            count === 1 && 'bg-success/10 text-success',
-                            count >= 2 && count <= 4 && 'bg-primary/10 text-primary',
-                            count >= 5 && 'bg-warning/15 text-warning-foreground border border-warning/30',
+                            'flex w-full items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium tabular-nums',
+                            'bg-destructive/10 text-destructive border border-destructive/30',
+                            'hover:bg-destructive/15 transition-colors text-left',
                           )}
                         >
-                          <span className="font-mono opacity-70">…{tailShareHint.digits}</span>
+                          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                          <span className="font-mono opacity-80">…{tailWarn.digits}</span>
                           <span>·</span>
-                          <span>
-                            {count === 0 && `No ${noun}s ${verb} these ${tailShareHint.tailLen} digits`}
-                            {count === 1 && `1 ${noun} ${verb}s these ${tailShareHint.tailLen} digits`}
-                            {count >= 2 && (
-                              <>
-                                {count} {noun}s {verb} these {tailShareHint.tailLen} digits
-                                {count >= 5 && ' — type more to narrow'}
-                              </>
-                            )}
+                          <span className="flex-1">
+                            {tailWarn.count} tenants share these {tailWarn.tailLen} digits — type more to avoid mis-picking
                           </span>
-                        </div>
-                        {/* Mode toggle — lets the agent flip between counting
-                          * raw tenants (matches the result list) and counting
-                          * distinct tail-digit buckets (predicts what one
-                          * more digit would narrow to). Compact pill so it
-                          * doesn't compete with the hint label visually. */}
-                        <div
-                          role="tablist"
-                          aria-label="Tail-share count mode"
-                          className="inline-flex shrink-0 rounded-full bg-muted p-0.5 text-[11px]"
-                        >
-                          {(['tenants', 'buckets'] as const).map(opt => (
-                            <button
-                              key={opt}
-                              type="button"
-                              role="tab"
-                              aria-selected={tailHintMode === opt}
-                              onClick={() => setTailHintMode(opt)}
-                              className={cn(
-                                'px-2.5 h-6 rounded-full font-medium capitalize transition-colors',
-                                tailHintMode === opt
-                                  ? 'bg-background text-foreground shadow-sm'
-                                  : 'text-muted-foreground hover:text-foreground',
-                              )}
-                            >
-                              {opt}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })()}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="max-w-[260px] text-xs">
+                        Above {tailWarnThreshold} matches the wrong-pick risk gets material.
+                        Add 1–2 more digits (or switch to name search) so the agent
+                        confirms the right tenant before recording a collection.
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
 
                   {/*
                    * Browse-mode toolbar. Only shown when the search box is
@@ -1712,8 +1618,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                    * + 200-row cap still drives that path.
                    */}
                   {!search && tenants.length > BROWSE_PAGE_SIZE && (
-                    <div className="space-y-1.5 px-1 text-xs">
-                      <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center justify-between gap-2 px-1 text-xs">
                       <div
                         role="tablist"
                         aria-label="Sort tenants"
@@ -1772,43 +1677,6 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                         >
                           <ChevronRight className="h-4 w-4" />
                         </button>
-                      </div>
-                      </div>
-                      {/* Status quick-filter — narrows the browse universe to
-                       * tenants the agent has worked with vs. ones still
-                       * pending a first collection. Recomputes the page
-                       * count + clamps to page 0 (handled in the effect
-                       * above) so paging stays fast and accurate. */}
-                      <div className="flex items-center justify-between gap-2">
-                        <div
-                          role="tablist"
-                          aria-label="Filter tenants by status"
-                          className="inline-flex rounded-full bg-muted p-0.5"
-                        >
-                          {(['all', 'active', 'inactive'] as const).map(opt => (
-                            <button
-                              key={opt}
-                              type="button"
-                              role="tab"
-                              aria-selected={browseStatus === opt}
-                              onClick={() => setBrowseStatus(opt)}
-                              className={cn(
-                                'inline-flex items-center gap-1 px-3 h-7 rounded-full font-medium capitalize transition-colors',
-                                browseStatus === opt
-                                  ? 'bg-background text-foreground shadow-sm'
-                                  : 'text-muted-foreground hover:text-foreground',
-                              )}
-                            >
-                              {opt}
-                            </button>
-                          ))}
-                        </div>
-                        <span
-                          className="text-muted-foreground tabular-nums"
-                          aria-live="polite"
-                        >
-                          {browseFilteredCount.toLocaleString()} tenant{browseFilteredCount === 1 ? '' : 's'}
-                        </span>
                       </div>
                     </div>
                   )}
