@@ -207,6 +207,23 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
    *  - With query  → score by phone-match > name-prefix > word-prefix > substring
    *    so the most likely tap candidate sits at the top.
    */
+  /**
+   * Pre-normalized index over the tenant cache. Computed once per tenant-list
+   * change so each keystroke does O(N) string comparisons against already-
+   * normalized values instead of re-running normalizeName/normalizePhone for
+   * every tenant on every render. Significant speed-up for agents with
+   * hundreds/thousands of cached tenants.
+   */
+  const tenantIndex = useMemo(
+    () => tenants.map(t => ({
+      t,
+      name: normalizeName(t.fullName),
+      phone: normalizePhone(t.phone),
+      nameWords: normalizeName(t.fullName).split(' ').filter(Boolean),
+    })),
+    [tenants],
+  );
+
   const filtered = useMemo(() => {
     const raw = search.trim();
     const q = normalizeName(raw);
@@ -215,10 +232,8 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     // Treat the query as "phone-y" if the user typed mostly digits — even
     // with spaces, dashes, plus signs or a leading 0/256.
     const isPhoneQuery = phoneQ.length >= 3 && /\d/.test(raw) && raw.replace(/[\s\-+()]/g, '').replace(/\D+/g, '').length >= raw.replace(/[\s\-+()]/g, '').length - 1;
-    const scored = tenants
-      .map(t => {
-        const name = normalizeName(t.fullName);
-        const phone = normalizePhone(t.phone);
+    const scored = tenantIndex
+      .map(({ t, name, phone, nameWords }) => {
         let score = 0;
         let phoneScore = 0;
         let nameScore = 0;
@@ -234,7 +249,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
         // Name scoring runs in addition so a tenant matching both ranks higher.
         if (name.startsWith(q)) {
           nameScore = 90;
-        } else if (name.split(' ').some(w => w.startsWith(q))) {
+        } else if (nameWords.some(w => w.startsWith(q))) {
           nameScore = 80;
         } else if (name.includes(q)) {
           nameScore = 50;
@@ -252,7 +267,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
       .sort((a, b) => b.score - a.score)
       .slice(0, 12);
     return scored;
-  }, [tenants, search]);
+  }, [tenantIndex, tenants, search]);
 
   /** Just the tenant rows — used by keyboard nav & recents merge. */
   const filteredTenants = useMemo<CachedTenant[]>(
