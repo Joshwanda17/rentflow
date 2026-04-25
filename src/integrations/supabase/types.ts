@@ -11968,6 +11968,7 @@ export type Database = {
       }
       welile_trust_score_cache: {
         Row: {
+          agent_earned_vouch_ugx: number
           ai_id: string
           borrowing_limit_ugx: number
           breakdown: Json
@@ -11980,6 +11981,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          agent_earned_vouch_ugx?: number
           ai_id: string
           borrowing_limit_ugx?: number
           breakdown?: Json
@@ -11992,6 +11994,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          agent_earned_vouch_ugx?: number
           ai_id?: string
           borrowing_limit_ugx?: number
           breakdown?: Json
@@ -12731,6 +12734,10 @@ export type Database = {
           withdrawable_balance: number
         }[]
       }
+      get_agent_vouch_limit_ugx: {
+        Args: { p_agent_id: string }
+        Returns: number
+      }
       get_agent_workload_summary: { Args: never; Returns: Json }
       get_agents_hub:
         | {
@@ -13124,6 +13131,10 @@ export type Database = {
         }[]
       }
       recalculate_credit_limit: { Args: { p_user_id: string }; Returns: number }
+      recompute_agent_earned_vouch: {
+        Args: { p_agent_id: string }
+        Returns: number
+      }
       recompute_trust_score: { Args: { p_user_id: string }; Returns: undefined }
       recompute_trust_scores_batch: {
         Args: { p_limit?: number }
@@ -13362,6 +13373,8 @@ export type Database = {
               sign: number
             }[]
           }
+      welile_agent_vouch_multiplier: { Args: never; Returns: number }
+      welile_default_agent_vouch_floor_ugx: { Args: never; Returns: number }
     }
     Enums: {
       ai_priority: "low" | "medium" | "high" | "critical"
