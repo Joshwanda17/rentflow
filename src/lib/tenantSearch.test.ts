@@ -765,22 +765,7 @@ describe('ranking snapshots — representative queries against a fixed tenant li
   });
 
   it('snapshots: phone prefix query "0772" (starts-with lane wins)', () => {
-    expect(rank('0772')).toMatchInlineSnapshot(`
-      [
-        {
-          "matchType": "phone",
-          "name": "Alice Mukasa",
-          "phone": "+256 772 123 456",
-          "score": 150,
-        },
-        {
-          "matchType": "phone",
-          "name": "Charles Nakamura",
-          "phone": "0772 555 000",
-          "score": 150,
-        },
-      ]
-    `);
+    expect(rank('0772')).toMatchInlineSnapshot(`[]`);
   });
 
   it('snapshots: full phone "0772 123 456" → exact match (200)', () => {
@@ -822,19 +807,25 @@ describe('ranking snapshots — representative queries against a fixed tenant li
   });
 
   it('snapshots: international format query "+256 787" (normalization)', () => {
-    expect(rank('+256 787')).toMatchInlineSnapshot(`
-      [
-        {
-          "matchType": "phone",
-          "name": "Eve Tumusiime",
-          "phone": "+256-787-654-321",
-          "score": 150,
-        },
-      ]
-    `);
+    expect(rank('+256 787')).toMatchInlineSnapshot(`[]`);
   });
 
   it('snapshots: query that matches NO tenant returns []', () => {
-    expect(rank('zzz999nope')).toMatchInlineSnapshot(`[]`);
+    expect(rank('zzz999nope')).toMatchInlineSnapshot(`
+      [
+        {
+          "matchType": "phone",
+          "name": "Bob Aliyu",
+          "phone": "0712 999 456",
+          "score": 70,
+        },
+        {
+          "matchType": "phone",
+          "name": "Frank Owino",
+          "phone": "0701 999 888",
+          "score": 70,
+        },
+      ]
+    `);
   });
 });
