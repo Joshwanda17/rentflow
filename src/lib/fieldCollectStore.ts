@@ -8,7 +8,7 @@
  */
 
 const DB_NAME = 'welile-field-collect';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE_TENANTS = 'tenants';
 const STORE_ENTRIES = 'entries';
 /**
@@ -17,6 +17,14 @@ const STORE_ENTRIES = 'entries';
  * as long as the underlying tenant list (ids) hasn't changed.
  */
 const STORE_TENANT_NORM = 'tenant_norm_cache';
+/**
+ * Persisted "recent / frequent tenants" pick log for the picker.
+ * One row per (agentId, tenantId) tracking pickCount + lastPickedAt so a
+ * tenant the agent reaches for often surfaces at the top across reloads,
+ * even before they've recorded a new field collection. Keyed by
+ * [agentId, tenantId] for O(1) bump on every pick.
+ */
+const STORE_TENANT_PICKS = 'tenant_picks';
 
 export interface CachedTenant {
   agentId: string;
@@ -79,6 +87,10 @@ function openDb(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(STORE_TENANT_NORM)) {
         const s = db.createObjectStore(STORE_TENANT_NORM, { keyPath: ['agentId', 'fingerprint'] });
+        s.createIndex('by_agent', 'agentId', { unique: false });
+      }
+      if (!db.objectStoreNames.contains(STORE_TENANT_PICKS)) {
+        const s = db.createObjectStore(STORE_TENANT_PICKS, { keyPath: ['agentId', 'tenantId'] });
         s.createIndex('by_agent', 'agentId', { unique: false });
       }
     };
@@ -315,4 +327,99 @@ export function newClientUuid(): string {
   bytes[8] = (bytes[8] & 0x3f) | 0x80;
   const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
   return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+}
+
+/* ----------------- Tenant pick log -----------------
+ *
+ * Tracks how often (and how recently) the agent has tapped each tenant in
+ * the picker so we can surface a persistent "Recent" section that survives
+ * reloads. Independent of the entries queue: a tenant counts as "picked"
+ * the moment the agent opens them in the dialog, even if they back out
+ * before saving an amount.
+ */
+
+export interface TenantPickRecord {
+  agentId: string;
+  tenantId: string;
+  pickCount: number;
+  lastPickedAt: number;
+}
+
+/** Hard cap so the store never grows unbounded for an agent that's been
+ *  using the app for years. Trim down to MAX_KEEP after every bump. */
+const PICK_LOG_MAX = 200;
+const PICK_LOG_KEEP = 100;
+
+/** Increment (or insert) the pick log for one tenant. Fire-and-forget — the
+ *  caller doesn't await this on the hot path. */
+export async function bumpTenantPick(agentId: string, tenantId: string): Promise<void> {
+  if (!agentId || !tenantId) return;
+  try {
+    const db = await openDb();
+    await new Promise<void>((resolve, reject) => {
+      const t = db.transaction(STORE_TENANT_PICKS, 'readwrite');
+      const s = t.objectStore(STORE_TENANT_PICKS);
+      const getReq = s.get([agentId, tenantId]);
+      getReq.onsuccess = () => {
+        const cur = getReq.result as TenantPickRecord | undefined;
+        const next: TenantPickRecord = {
+          agentId,
+          tenantId,
+          pickCount: (cur?.pickCount ?? 0) + 1,
+          lastPickedAt: Date.now(),
+        };
+        s.put(next);
+      };
+      t.oncomplete = () => resolve();
+      t.onerror = () => reject(t.error);
+    });
+    // Trim opportunistically when we cross the cap. Cheap relative to the
+    // many writes it follows, and keeps cold-start reads bounded.
+    void trimTenantPicks(agentId);
+  } catch (e) {
+    console.warn('bumpTenantPick failed', e);
+  }
+}
+
+/** Read the agent's full pick log, sorted by most-recently-picked first.
+ *  Callers usually combine `pickCount` + `lastPickedAt` to rank. */
+export async function getRecentPicks(agentId: string): Promise<TenantPickRecord[]> {
+  if (!agentId) return [];
+  try {
+    const db = await openDb();
+    return await new Promise<TenantPickRecord[]>((resolve, reject) => {
+      const t = db.transaction(STORE_TENANT_PICKS, 'readonly');
+      const s = t.objectStore(STORE_TENANT_PICKS).index('by_agent');
+      const req = s.getAll(IDBKeyRange.only(agentId));
+      req.onsuccess = () => {
+        const all = (req.result || []) as TenantPickRecord[];
+        all.sort((a, b) => b.lastPickedAt - a.lastPickedAt);
+        resolve(all);
+      };
+      req.onerror = () => reject(req.error);
+    });
+  } catch (e) {
+    console.warn('getRecentPicks failed', e);
+    return [];
+  }
+}
+
+/** Drop the oldest pick rows once the agent crosses PICK_LOG_MAX so the
+ *  store stays bounded. Called fire-and-forget after each bump. */
+async function trimTenantPicks(agentId: string): Promise<void> {
+  try {
+    const all = await getRecentPicks(agentId);
+    if (all.length <= PICK_LOG_MAX) return;
+    const toDelete = all.slice(PICK_LOG_KEEP); // keep the freshest PICK_LOG_KEEP
+    const db = await openDb();
+    await new Promise<void>((resolve, reject) => {
+      const t = db.transaction(STORE_TENANT_PICKS, 'readwrite');
+      const s = t.objectStore(STORE_TENANT_PICKS);
+      for (const r of toDelete) s.delete([r.agentId, r.tenantId]);
+      t.oncomplete = () => resolve();
+      t.onerror = () => reject(t.error);
+    });
+  } catch {
+    /* best-effort cleanup */
+  }
 }

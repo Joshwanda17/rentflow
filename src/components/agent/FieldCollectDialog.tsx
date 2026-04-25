@@ -19,7 +19,8 @@ import {
   cacheTenants, getCachedTenants, addEntry, deleteEntry, getEntries,
   getQueuedEntries, updateEntry, newClientUuid,
   getCachedNormalizedIndex, saveCachedNormalizedIndex,
-  type CachedTenant, type FieldEntry, type NormalizedTenantEntry,
+  bumpTenantPick, getRecentPicks,
+  type CachedTenant, type FieldEntry, type NormalizedTenantEntry, type TenantPickRecord,
 } from '@/lib/fieldCollectStore';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
@@ -372,12 +373,29 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     setEntries(await getEntries(user.id));
   }, [user?.id]);
 
+  /**
+   * Persisted "frequent / recent" pick log, hydrated from IndexedDB whenever
+   * the dialog opens. Drives the new "Recent" rail above the virtualized
+   * results so frequently picked tenants survive reloads — even ones the
+   * agent never saved a collection for.
+   *
+   * Each `pickTenant` call also nudges this state optimistically (see the
+   * `pickTenant` callback below), so the rail re-orders instantly without
+   * waiting for the IDB read on the next open.
+   */
+  const [persistedPicks, setPersistedPicks] = useState<TenantPickRecord[]>([]);
+  const refreshPersistedPicks = useCallback(async () => {
+    if (!user?.id) return;
+    setPersistedPicks(await getRecentPicks(user.id));
+  }, [user?.id]);
+
   useEffect(() => {
     if (open) {
       refreshTenantCache();
       refreshEntries();
+      refreshPersistedPicks();
     }
-  }, [open, refreshTenantCache, refreshEntries]);
+  }, [open, refreshTenantCache, refreshEntries, refreshPersistedPicks]);
 
   /* Filter tenants */
   /**
@@ -718,6 +736,54 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   }, [entries, tenants]);
 
   /**
+   * Persistent "Recent / Frequent" tenants — sourced from the IndexedDB
+   * pick log (`persistedPicks`), merged with the entry-derived recents so
+   * a tenant the agent saved a collection for AND tapped multiple times
+   * counts on both signals.
+   *
+   * Ranking: combined score of `pickCount` (heavier — habitual taps) +
+   * a recency decay (`lastPickedAt` within 14 days adds a small boost).
+   * Capped at 8 so the rail stays glanceable on a phone.
+   *
+   * Survives reloads because `persistedPicks` is hydrated from IndexedDB
+   * on every open. Hidden while the agent is searching so it doesn't
+   * compete with the scored suggestions.
+   */
+  const persistentRecentTenants = useMemo<CachedTenant[]>(() => {
+    if (!tenants.length) return [];
+    const tenantById = new Map(tenants.map(t => [t.tenantId, t]));
+    // Aggregate signal-per-tenant: prefer the IDB pick log; fall back to a
+    // synthetic "1 pick at capturedAt" for entry-derived recents that the
+    // pick log hasn't seen yet (covers older agents installed before the
+    // pick log shipped).
+    const score = new Map<string, { count: number; last: number }>();
+    for (const p of persistedPicks) {
+      score.set(p.tenantId, { count: p.pickCount, last: p.lastPickedAt });
+    }
+    for (const e of entries) {
+      if (!e.tenantId) continue;
+      const cur = score.get(e.tenantId);
+      if (!cur) score.set(e.tenantId, { count: 1, last: e.capturedAt });
+      else if (e.capturedAt > cur.last) cur.last = e.capturedAt;
+    }
+    const now = Date.now();
+    const TWO_WEEKS = 14 * 24 * 60 * 60 * 1000;
+    const ranked = [...score.entries()]
+      .map(([tenantId, s]) => {
+        const t = tenantById.get(tenantId);
+        if (!t) return null;
+        // Frequency dominates, recency is a small tiebreaker (≤ +5).
+        const recencyBoost = Math.max(0, 5 - (now - s.last) / TWO_WEEKS * 5);
+        return { t, rank: s.count * 10 + recencyBoost };
+      })
+      .filter((x): x is { t: CachedTenant; rank: number } => x !== null)
+      .sort((a, b) => b.rank - a.rank)
+      .slice(0, 8)
+      .map(x => x.t);
+    return ranked;
+  }, [persistedPicks, entries, tenants]);
+
+  /**
    * Combined keyboard-navigable option list for Step 1.
    * Recents come first (prepended) so the most likely tap is at index 0
    * before the agent starts typing. Once they type, recents drop away and
@@ -808,7 +874,24 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   const pickTenant = useCallback((t: CachedTenant) => {
     setPicked(t);
     setSearch(t.fullName);
-  }, []);
+    // Persist this pick so the "Recent" rail surfaces it across reloads.
+    // Fire-and-forget — the IDB write must not block the UI.
+    if (user?.id && t.tenantId) {
+      void bumpTenantPick(user.id, t.tenantId);
+      // Optimistically nudge the in-memory pick log so the rail re-orders
+      // immediately. The async IDB read (on next open) will reconcile.
+      setPersistedPicks(prev => {
+        const now = Date.now();
+        const existing = prev.find(p => p.tenantId === t.tenantId);
+        const next = existing
+          ? prev.map(p => p.tenantId === t.tenantId
+              ? { ...p, pickCount: p.pickCount + 1, lastPickedAt: now }
+              : p)
+          : [...prev, { agentId: user.id!, tenantId: t.tenantId, pickCount: 1, lastPickedAt: now }];
+        return next;
+      });
+    }
+  }, [user?.id]);
 
   /**
    * Search-input keyboard handler: ArrowDown/Up cycle through the merged
@@ -1478,6 +1561,51 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                       id="tenant-suggestion-list"
                       role="listbox"
                     >
+                      {/*
+                       * Persistent "Recent" rail — pinned to the top of the
+                       * result container, ABOVE the virtualized list, so
+                       * frequently picked tenants are always one tap away.
+                       *
+                       * Sourced from the IndexedDB pick log so it survives
+                       * reloads (unlike the existing chip strip above the
+                       * input which only echoes today's saved entries).
+                       *
+                       * Hidden during search so it doesn't compete with the
+                       * scored results. Sticky positioning keeps it visible
+                       * even when the agent scrolls deep into the page.
+                       */}
+                      {!search && persistentRecentTenants.length > 0 && (
+                        <div className="sticky top-0 z-10 bg-card border-b">
+                          <div className="flex items-center gap-1.5 px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            Recent · saved across reloads
+                          </div>
+                          <div className="flex gap-1.5 overflow-x-auto px-3 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                            {persistentRecentTenants.map(t => {
+                              const initials = t.fullName
+                                .split(/\s+/).filter(Boolean).slice(0, 2)
+                                .map(s => s[0]?.toUpperCase()).join('') || '?';
+                              return (
+                                <button
+                                  key={`pin-recent-${t.tenantId}`}
+                                  type="button"
+                                  onClick={() => pickTenant(t)}
+                                  className="shrink-0 inline-flex items-center gap-1.5 rounded-full border bg-background hover:bg-accent active:bg-accent/80 pl-1 pr-3 py-1 min-h-[32px] transition-colors touch-manipulation"
+                                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                                  aria-label={`Quick pick ${t.fullName}`}
+                                >
+                                  <span className="h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">
+                                    {initials}
+                                  </span>
+                                  <span className="text-xs font-medium max-w-[110px] truncate">
+                                    {t.fullName.split(' ')[0]}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                       {(() => {
                         // Detect a short digit-only query (3–4 digits). Drives both the
                         // empty-state hint and the "type more digits" prompt the agent
