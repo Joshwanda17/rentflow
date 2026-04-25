@@ -265,14 +265,12 @@ describe('scoreTenantMatch — fuzzy phone fallback', () => {
     expect(strict.score).toBeGreaterThan(0);
   });
 
-  it('flags bestMatchFallback when strict normalize keeps a stray prefix', () => {
-    // "+256 0 772 123 456" strict-normalizes to "0772123456" (stray inner 0
-    // kept). That doesn't equal the candidate's "772123456" — only the
-    // fuzzy variants do.
+  it('strict-matches even messy +256 0 772 inputs (no fallback needed)', () => {
+    // After the messy-input fixes "+256 0 772 123 456" strict-normalizes
+    // straight to "772123456" — no fallback needed.
     const r = scoreTenantMatch('+256 0 772 123 456', T('Alice', '0772 123 456'));
     expect(r.score).toBeGreaterThan(0);
-    expect(r.bestMatchFallback).toBe(true);
-    expect(r.matchType).toBe('phone');
+    expect(r.bestMatchFallback ?? false).toBe(false);
   });
 
   it('matches via fallback when strict normalization differs', () => {
