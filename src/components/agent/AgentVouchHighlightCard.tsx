@@ -168,6 +168,17 @@ export function AgentVouchHighlightCard({ userId }: Props) {
             tone={collectionPct >= 80 ? 'good' : collectionPct >= 50 ? 'mid' : 'low'}
           />
 
+          {/*
+           * Earned vouch breakdown — surfaces the new field-collections
+           * driver so agents can see exactly how much extra vouch their
+           * collecting work has earned them. Self-fetching subcomponent
+           * keeps the parent simple and avoids re-fetching on unrelated
+           * re-renders. Always visible (no `qualifying >= 3` gate)
+           * because the 100k base + earned growth applies to every agent
+           * regardless of trust-score eligibility.
+           */}
+          <EarnedVouchBreakdown agentId={userId} />
+
           {/* Tier ladder */}
           <div className="rounded-xl border border-border/50 bg-card/60 p-2.5">
             <div className="flex items-center justify-between mb-1.5">
