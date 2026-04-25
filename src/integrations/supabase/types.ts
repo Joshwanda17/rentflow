@@ -13374,7 +13374,9 @@ export type Database = {
             }[]
           }
       welile_agent_vouch_multiplier: { Args: never; Returns: number }
-      welile_default_agent_vouch_floor_ugx: { Args: never; Returns: number }
+      welile_default_agent_vouch_floor_ugx:
+        | { Args: never; Returns: number }
+        | { Args: { p_agent_id: string }; Returns: number }
     }
     Enums: {
       ai_priority: "low" | "medium" | "high" | "critical"
