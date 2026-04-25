@@ -737,7 +737,11 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
 
           {/* ───── STEP 1 — Tenant ───── */}
           {step === 1 && (
-            <section className="space-y-3" aria-labelledby="step1-title">
+            <section
+              className="space-y-3"
+              aria-labelledby="step1-title"
+              onKeyDown={handleStep1TypeAhead}
+            >
               <div className="flex items-center justify-between">
                 <Label id="step1-title" className="text-lg font-bold tracking-tight">
                   Who paid?
