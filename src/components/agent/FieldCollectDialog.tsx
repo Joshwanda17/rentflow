@@ -220,29 +220,37 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
         const name = normalizeName(t.fullName);
         const phone = normalizePhone(t.phone);
         let score = 0;
+        let phoneScore = 0;
+        let nameScore = 0;
         // Phone matches always outrank name matches when the query is phone-y.
         if (isPhoneQuery && phone && phone.includes(phoneQ)) {
-          if (phone === phoneQ) score = 200;          // exact full match — pin to top
-          else if (phone.startsWith(phoneQ)) score = 150; // prefix match
-          else score = 110;                            // substring match
+          if (phone === phoneQ) phoneScore = 200;          // exact full match — pin to top
+          else if (phone.startsWith(phoneQ)) phoneScore = 150; // prefix match
+          else phoneScore = 110;                            // substring match
         } else if (phoneQ && phone && phone.includes(phoneQ)) {
           // Mixed query (digits + letters) — phone still helps but doesn't dominate.
-          score = phone.startsWith(phoneQ) ? 100 : 70;
+          phoneScore = phone.startsWith(phoneQ) ? 100 : 70;
         }
         // Name scoring runs in addition so a tenant matching both ranks higher.
         if (name.startsWith(q)) {
-          score = Math.max(score, 90);
+          nameScore = 90;
         } else if (name.split(' ').some(w => w.startsWith(q))) {
-          score = Math.max(score, 80);
+          nameScore = 80;
         } else if (name.includes(q)) {
-          score = Math.max(score, 50);
+          nameScore = 50;
         }
-        return { t, score };
+        score = Math.max(phoneScore, nameScore);
+        // Match type is whichever scoring lane won; ties (both > 0 with same score)
+        // are labeled 'both' so the agent sees the full picture on the top result.
+        let matchType: 'phone' | 'name' | 'both' | null = null;
+        if (phoneScore > 0 && nameScore > 0 && phoneScore === nameScore) matchType = 'both';
+        else if (phoneScore > nameScore) matchType = 'phone';
+        else if (nameScore > 0) matchType = 'name';
+        return { t, score, matchType };
       })
       .filter(s => s.score > 0)
       .sort((a, b) => b.score - a.score)
-      .slice(0, 12)
-      .map(s => s.t);
+      .slice(0, 12);
     return scored;
   }, [tenants, search]);
 
