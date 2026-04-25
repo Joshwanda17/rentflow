@@ -34,13 +34,62 @@ export function normalizeName(s: string): string {
  * "+256 772 123 456", "0772-123456", "0772 123 456" and "772123456" all
  * collapse to "772123456" for comparison. Returns the digits-only fallback
  * for non-UG numbers.
+ *
+ * Tolerates messy inputs:
+ *   - extra leading zeros ("00772…", "000256…")
+ *   - country code without `+` ("256772…")
+ *   - international "00" trunk prefix ("00256772…")
+ *   - whitespace, dashes, parens, plus signs anywhere
  */
 export function normalizePhone(raw: string | null | undefined): string {
-  const digits = (raw || '').replace(/\D+/g, '');
+  let digits = (raw || '').replace(/\D+/g, '');
   if (!digits) return '';
+  // International "00" trunk prefix → "+", e.g. "00256…" or "00044…"
+  if (digits.startsWith('00')) digits = digits.slice(2);
+  // Collapse runs of leading zeros down to a single zero so "00772…" → "0772…"
+  // and "000772…" → "0772…" still normalize correctly.
+  if (digits.startsWith('0')) digits = '0' + digits.replace(/^0+/, '');
   if (digits.startsWith('256')) return digits.slice(3);
   if (digits.startsWith('0') && digits.length >= 10) return digits.slice(1);
+  // Some users type the national 9-digit form with a stray country-code-like
+  // prefix that wasn't "256" — in that case fall through and return as-is.
   return digits;
+}
+
+/**
+ * Generate equivalent phone forms to try when strict `normalizePhone` doesn't
+ * land on the canonical 9-digit national number. Used as a fuzzy fallback so
+ * messy inputs like "+2560772 123 456", "0256 772…", or "+256-0-772…" still
+ * find the right tenant.
+ */
+export function phoneVariants(raw: string | null | undefined): string[] {
+  const out = new Set<string>();
+  const base = normalizePhone(raw);
+  if (base) out.add(base);
+
+  const digits = (raw || '').replace(/\D+/g, '');
+  if (!digits) return [...out];
+
+  // Try chopping every common prefix combination.
+  const candidates = new Set<string>([digits]);
+  // 00-trunk
+  if (digits.startsWith('00')) candidates.add(digits.slice(2));
+  // 256 country code
+  if (digits.startsWith('256')) candidates.add(digits.slice(3));
+  // 2560… variants ("+256 0 772…")
+  if (digits.startsWith('2560')) candidates.add(digits.slice(4));
+  // 00256… variants
+  if (digits.startsWith('00256')) candidates.add(digits.slice(5));
+  // Leading zero(s)
+  candidates.add(digits.replace(/^0+/, ''));
+
+  for (const c of candidates) {
+    if (c) out.add(c);
+    // Also try the last 9 digits (canonical UG national length) as a
+    // last-resort tail extraction.
+    if (c.length > 9) out.add(c.slice(-9));
+  }
+  return [...out].filter(Boolean);
 }
 
 export type MatchType = 'phone' | 'name' | 'both' | null;
@@ -55,6 +104,12 @@ export interface TenantMatchResult {
   matchType: MatchType;
   phoneScore: number;
   nameScore: number;
+  /**
+   * True when the phone match was found only via the fuzzy variants
+   * fallback (i.e. strict normalization didn't produce a hit). Drives the
+   * "Best match" chip in the UI so the agent knows we relaxed the rules.
+   */
+  bestMatchFallback?: boolean;
 }
 
 /**
@@ -98,6 +153,7 @@ export function scoreTenantMatch(rawQuery: string, candidate: TenantMatchInput):
 
   let phoneScore = 0;
   let nameScore = 0;
+  let bestMatchFallback = false;
 
   if (isShortPhoneQuery && phone) {
     if (phone.endsWith(phoneQ)) phoneScore = 110;
@@ -108,6 +164,19 @@ export function scoreTenantMatch(rawQuery: string, candidate: TenantMatchInput):
     else phoneScore = 110;
   } else if (phoneQ && phone && phone.includes(phoneQ)) {
     phoneScore = phone.startsWith(phoneQ) ? 100 : 70;
+  }
+
+  // Fuzzy fallback: strict normalization didn't find a phone hit, but the
+  // raw query still contains digits. Try every equivalent form and the last
+  // 6+ digits of the candidate so messy inputs (extra zeros, weird country
+  // code prefixes) still land on the right tenant.
+  if (phoneScore === 0 && phone && /\d/.test(raw)) {
+    const variants = phoneVariants(raw).filter(v => v.length >= 4);
+    for (const v of variants) {
+      if (phone === v) { phoneScore = 60; bestMatchFallback = true; break; }
+      if (phone.endsWith(v) && v.length >= 6) { phoneScore = 55; bestMatchFallback = true; break; }
+      if (phone.includes(v) && v.length >= 7) { phoneScore = 50; bestMatchFallback = true; break; }
+    }
   }
 
   if (q) {
@@ -122,7 +191,7 @@ export function scoreTenantMatch(rawQuery: string, candidate: TenantMatchInput):
   else if (phoneScore > nameScore) matchType = 'phone';
   else if (nameScore > 0) matchType = 'name';
 
-  return { score, matchType, phoneScore, nameScore };
+  return { score, matchType, phoneScore, nameScore, bestMatchFallback };
 }
 
 /**
