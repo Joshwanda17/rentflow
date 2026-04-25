@@ -770,6 +770,54 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   }, [debouncedSearch, tenantIndex, tailWarnThreshold]);
 
   /**
+   * Tail-match examples preview.
+   *
+   * For any short (3–4 digit) phone-y query, surface up to TWO sample
+   * tenants whose normalized phone ends with the typed digits — a
+   * "show your work" hint that lets the agent visually confirm the
+   * suffix logic is matching what they expect BEFORE they commit to
+   * picking from the result list. This is independent of the
+   * `tailWarn` threshold: even when only 2–3 tenants match, the
+   * preview still helps verify the digits are landing where the
+   * agent intended (e.g. spotting that "1234" matched a tenant
+   * whose number actually ends in "...91234" vs the one they meant).
+   *
+   * Returns null when the query isn't short+phone-y or when there
+   * are zero matches — in those cases there's nothing useful to
+   * preview and we skip the chip entirely.
+   *
+   * Cap is hard-coded at 2 examples: enough to confirm the rule,
+   * small enough to never crowd the picker. Stops scanning early
+   * once two are collected so the cost stays O(matches-until-2).
+   */
+  const tailExamples = useMemo<{
+    examples: Array<{ id: string; name: string; phone: string; tail: string; head: string }>;
+    digits: string;
+  } | null>(() => {
+    const raw = debouncedSearch.trim();
+    if (!raw) return null;
+    const phoneQ = normalizePhone(raw);
+    if (phoneQ.length < 3 || phoneQ.length > 4) return null;
+    const stripped = raw.replace(/[\s\-+()]/g, '');
+    const digitsOnly = stripped.replace(/\D+/g, '');
+    if (digitsOnly.length < stripped.length - 1) return null;
+    const examples: Array<{ id: string; name: string; phone: string; tail: string; head: string }> = [];
+    for (const x of tenantIndex) {
+      if (!x.phone || !x.phone.endsWith(phoneQ)) continue;
+      examples.push({
+        id: x.t.tenantId,
+        name: x.t.fullName,
+        phone: x.phone,
+        head: x.phone.slice(0, x.phone.length - phoneQ.length),
+        tail: phoneQ,
+      });
+      if (examples.length >= 2) break;
+    }
+    if (examples.length === 0) return null;
+    return { examples, digits: phoneQ };
+  }, [debouncedSearch, tenantIndex]);
+
+  /**
    * Browse-mode pager metadata. Only meaningful when the search box is empty
    * — `pageCount` drives the Prev/Next button enabled state and the
    * "Page X of Y" label.
@@ -1602,6 +1650,41 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                         confirms the right tenant before recording a collection.
                       </TooltipContent>
                     </Tooltip>
+                  )}
+
+                  {/*
+                   * Tail-match examples preview. Renders for ANY short
+                   * (3–4 digit) phone-y query with at least one match —
+                   * shows up to 2 sample tenants with the matched suffix
+                   * highlighted so the agent can visually confirm the
+                   * search is doing what they expect (e.g. spotting that
+                   * "1234" matched "...91234" vs the intended number)
+                   * BEFORE picking from the result list. Sits beside
+                   * the danger warning when both apply, so the agent
+                   * sees both "narrow your query" and proof of what
+                   * the current digits actually match.
+                   */}
+                  {tailExamples && (
+                    <div
+                      role="status"
+                      aria-live="polite"
+                      className="flex flex-col gap-1 px-3 py-2 rounded-lg text-xs bg-muted/50 border border-border"
+                    >
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
+                        Matching last {tailExamples.digits.length} digits
+                      </p>
+                      <ul className="space-y-0.5">
+                        {tailExamples.examples.map(ex => (
+                          <li key={ex.id} className="flex items-center gap-2 min-w-0">
+                            <span className="truncate text-foreground">{ex.name}</span>
+                            <span className="font-mono tabular-nums text-muted-foreground shrink-0">
+                              {ex.head}
+                              <span className="text-primary font-semibold">{ex.tail}</span>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   )}
 
                   {/*
