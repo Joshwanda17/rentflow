@@ -595,32 +595,18 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   }, [browseStatus, browseStatusUpdatedAtStorageKey]);
 
   /**
-   * Cloud sync master switch. Defaults to ENABLED on every fresh sign-in.
-   * When disabled, the existing cloud read/write effects short-circuit
-   * via the gates below, so the picker still works fully against
-   * localStorage but nothing leaves the device.
+   * Persist the cloud-sync master switch.
    *
-   * Persisted as a per-user localStorage flag rather than in
-   * `user_ui_preferences` because the toggle's whole purpose is to
-   * *control* what hits that table — bootstrapping it from the same
-   * table would be circular.
+   * (`cloudSyncEnabled` and `cloudSyncStorageKey` are declared higher up,
+   * above the cloud read/write effects that gate on them — see the
+   * "Cloud sync master switch" block earlier in this file. We only need
+   * the write-back effect here so toggle changes survive reload. The
+   * lazy initializer already handles initial hydration.)
+   *
+   * Default = enabled. We treat absence of the key as the default, so
+   * we delete the key when re-enabling rather than write 'on' — keeps
+   * localStorage clean for users who never touch the toggle.
    */
-  const cloudSyncStorageKey = user?.id
-    ? `welile.fieldCollect.cloudSync:${user.id}`
-    : null;
-  const [cloudSyncEnabled, setCloudSyncEnabled] = useState<boolean>(true);
-  const hasHydratedCloudSyncRef = useRef(false);
-  useEffect(() => {
-    if (hasHydratedCloudSyncRef.current) return;
-    if (!cloudSyncStorageKey || typeof window === 'undefined') return;
-    hasHydratedCloudSyncRef.current = true;
-    try {
-      const raw = window.localStorage.getItem(cloudSyncStorageKey);
-      // Only the literal 'off' disables; anything else (missing,
-      // garbled) keeps the safe default (enabled).
-      if (raw === 'off') setCloudSyncEnabled(false);
-    } catch { /* noop */ }
-  }, [cloudSyncStorageKey]);
   useEffect(() => {
     if (!cloudSyncStorageKey || typeof window === 'undefined') return;
     try {
