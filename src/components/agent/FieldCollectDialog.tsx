@@ -1561,6 +1561,51 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                       id="tenant-suggestion-list"
                       role="listbox"
                     >
+                      {/*
+                       * Persistent "Recent" rail — pinned to the top of the
+                       * result container, ABOVE the virtualized list, so
+                       * frequently picked tenants are always one tap away.
+                       *
+                       * Sourced from the IndexedDB pick log so it survives
+                       * reloads (unlike the existing chip strip above the
+                       * input which only echoes today's saved entries).
+                       *
+                       * Hidden during search so it doesn't compete with the
+                       * scored results. Sticky positioning keeps it visible
+                       * even when the agent scrolls deep into the page.
+                       */}
+                      {!search && persistentRecentTenants.length > 0 && (
+                        <div className="sticky top-0 z-10 bg-card border-b">
+                          <div className="flex items-center gap-1.5 px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            Recent · saved across reloads
+                          </div>
+                          <div className="flex gap-1.5 overflow-x-auto px-3 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                            {persistentRecentTenants.map(t => {
+                              const initials = t.fullName
+                                .split(/\s+/).filter(Boolean).slice(0, 2)
+                                .map(s => s[0]?.toUpperCase()).join('') || '?';
+                              return (
+                                <button
+                                  key={`pin-recent-${t.tenantId}`}
+                                  type="button"
+                                  onClick={() => pickTenant(t)}
+                                  className="shrink-0 inline-flex items-center gap-1.5 rounded-full border bg-background hover:bg-accent active:bg-accent/80 pl-1 pr-3 py-1 min-h-[32px] transition-colors touch-manipulation"
+                                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                                  aria-label={`Quick pick ${t.fullName}`}
+                                >
+                                  <span className="h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">
+                                    {initials}
+                                  </span>
+                                  <span className="text-xs font-medium max-w-[110px] truncate">
+                                    {t.fullName.split(' ')[0]}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                       {(() => {
                         // Detect a short digit-only query (3–4 digits). Drives both the
                         // empty-state hint and the "type more digits" prompt the agent
