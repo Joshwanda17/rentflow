@@ -22,6 +22,7 @@ import {
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
 import { FieldCollectDailyTotals } from '@/components/agent/FieldCollectDailyTotals';
+import { normalizeName, normalizePhone } from '@/lib/tenantSearch';
 
 interface FieldCollectDialogProps {
   open: boolean;
@@ -147,36 +148,8 @@ function highlightPhone(text: string, query: string): React.ReactNode {
   return text;
 }
 
-/**
- * Normalize a name for fuzzy matching:
- *  - lowercase
- *  - strip diacritics (é → e)
- *  - collapse anything that isn't a letter/number/space into a single space
- * Lets "O'Brien", "obrien", and "o brien" all match the same way.
- */
-function normalizeName(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9\s]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-/**
- * Normalize a Ugandan phone number to its national 9-digit form so that
- * "+256 772 123 456", "0772-123456", "0772 123 456" and "772123456"
- * all collapse to "772123456" for comparison.
- * Returns the digits-only fallback for non-UG numbers.
- */
-function normalizePhone(raw: string | null | undefined): string {
-  const digits = (raw || '').replace(/\D+/g, '');
-  if (!digits) return '';
-  if (digits.startsWith('256')) return digits.slice(3);
-  if (digits.startsWith('0') && digits.length >= 10) return digits.slice(1);
-  return digits;
-}
+// `normalizeName` / `normalizePhone` live in `@/lib/tenantSearch` so the
+// scoring logic can be unit-tested without dragging the dialog into vitest.
 
 export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogProps) {
   const { user } = useAuth();
