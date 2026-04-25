@@ -736,6 +736,54 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   }, [entries, tenants]);
 
   /**
+   * Persistent "Recent / Frequent" tenants — sourced from the IndexedDB
+   * pick log (`persistedPicks`), merged with the entry-derived recents so
+   * a tenant the agent saved a collection for AND tapped multiple times
+   * counts on both signals.
+   *
+   * Ranking: combined score of `pickCount` (heavier — habitual taps) +
+   * a recency decay (`lastPickedAt` within 14 days adds a small boost).
+   * Capped at 8 so the rail stays glanceable on a phone.
+   *
+   * Survives reloads because `persistedPicks` is hydrated from IndexedDB
+   * on every open. Hidden while the agent is searching so it doesn't
+   * compete with the scored suggestions.
+   */
+  const persistentRecentTenants = useMemo<CachedTenant[]>(() => {
+    if (!tenants.length) return [];
+    const tenantById = new Map(tenants.map(t => [t.tenantId, t]));
+    // Aggregate signal-per-tenant: prefer the IDB pick log; fall back to a
+    // synthetic "1 pick at capturedAt" for entry-derived recents that the
+    // pick log hasn't seen yet (covers older agents installed before the
+    // pick log shipped).
+    const score = new Map<string, { count: number; last: number }>();
+    for (const p of persistedPicks) {
+      score.set(p.tenantId, { count: p.pickCount, last: p.lastPickedAt });
+    }
+    for (const e of entries) {
+      if (!e.tenantId) continue;
+      const cur = score.get(e.tenantId);
+      if (!cur) score.set(e.tenantId, { count: 1, last: e.capturedAt });
+      else if (e.capturedAt > cur.last) cur.last = e.capturedAt;
+    }
+    const now = Date.now();
+    const TWO_WEEKS = 14 * 24 * 60 * 60 * 1000;
+    const ranked = [...score.entries()]
+      .map(([tenantId, s]) => {
+        const t = tenantById.get(tenantId);
+        if (!t) return null;
+        // Frequency dominates, recency is a small tiebreaker (≤ +5).
+        const recencyBoost = Math.max(0, 5 - (now - s.last) / TWO_WEEKS * 5);
+        return { t, rank: s.count * 10 + recencyBoost };
+      })
+      .filter((x): x is { t: CachedTenant; rank: number } => x !== null)
+      .sort((a, b) => b.rank - a.rank)
+      .slice(0, 8)
+      .map(x => x.t);
+    return ranked;
+  }, [persistedPicks, entries, tenants]);
+
+  /**
    * Combined keyboard-navigable option list for Step 1.
    * Recents come first (prepended) so the most likely tap is at index 0
    * before the agent starts typing. Once they type, recents drop away and
