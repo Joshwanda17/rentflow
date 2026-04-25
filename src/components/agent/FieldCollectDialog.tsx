@@ -1320,6 +1320,26 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                                 <p className="text-xs text-muted-foreground">
                                   {digitsTyped} digit{digitsTyped === 1 ? '' : 's'} isn't enough to be sure — or search by name.
                                 </p>
+                                {/*
+                                  One-click escape hatch: clears the digit
+                                  query and refocuses the search input so the
+                                  agent can immediately type a name without
+                                  having to manually backspace.
+                                */}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSearch('');
+                                    setPicked(null);
+                                    // Refocus so the agent can start typing
+                                    // the name straight away.
+                                    requestAnimationFrame(() => searchInputRef.current?.focus());
+                                  }}
+                                  className="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                                >
+                                  <Search className="h-3 w-3" />
+                                  Search by name instead
+                                </button>
                               </div>
                             ) : (
                               <p className="p-4 text-sm text-muted-foreground text-center">
