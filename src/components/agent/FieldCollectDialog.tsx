@@ -450,7 +450,13 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     // Lowercase the trimmed query so "Alice", "alice ", and "ALICE" share an
     // entry. The empty query has its own dedicated bucket too so opening the
     // picker repeatedly doesn't re-slice the tenant book.
-    const cacheKey = raw.toLowerCase();
+    //
+    // Browse-mode (empty query) varies by sort + page, so we widen the key to
+    // include those — flipping pages or switching sort keeps each variant
+    // memoized so back/forward feels instant.
+    const cacheKey = raw
+      ? raw.toLowerCase()
+      : `__browse__:${browseSort}:${browsePage}`;
     const cached = searchCacheRef.current.get(cacheKey);
     if (cached) {
       // LRU touch: re-insert moves this key to the most-recent position so it
