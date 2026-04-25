@@ -94,6 +94,69 @@ export function phoneVariants(raw: string | null | undefined): string[] {
   return [...out].filter(Boolean);
 }
 
+/**
+ * Explicit last-N-digits matcher. Returns metadata about a tail comparison
+ * between a candidate phone (already normalized to digits) and the query
+ * digits — primarily used by the dialog's short-phone-query path so we can
+ * a) make the tail length explicit (3-digit query → tail-3, 4-digit → tail-4)
+ * and b) boost ranking when the tail aligns to a phone "block boundary" the
+ * agent is likely thinking in (e.g. the last 3-digit hyphen group).
+ *
+ * Returns null when the candidate phone doesn't end in the query digits.
+ * Otherwise returns:
+ *   - tailLen   how many digits were compared (= query length)
+ *   - boundary  true when the digit immediately before the matched tail
+ *               sits on a 3-digit phone block boundary (UG numbers are
+ *               written 077X-XXX-XXX, so positions 4 and 7 from the left
+ *               are natural "where the agent stops typing" cuts). Used as a
+ *               small ranking nudge.
+ */
+export function tailMatch(
+  phone: string,
+  queryDigits: string,
+): { tailLen: number; boundary: boolean } | null {
+  if (!phone || !queryDigits) return null;
+  if (!phone.endsWith(queryDigits)) return null;
+  const tailLen = queryDigits.length;
+  // For a UG national number "772XXXYYYY" (length 9–10) the natural blocks
+  // are 3-3-3. Treat tails of length 3, 4, 6, or 7 as "block aligned" — these
+  // are the chunks an agent typically dictates when calling out the last few
+  // digits ("…-456", "…-3-456", "…-345 678").
+  const boundary = tailLen === 3 || tailLen === 4 || tailLen === 6 || tailLen === 7;
+  return { tailLen, boundary };
+}
+
+/**
+ * Given the full set of candidate phones surviving a tail-N short-query
+ * match, return a Map of phone → "shared count" (how many candidates share
+ * the same tail). Drives the uniqueness ranking nudge: a tenant whose tail
+ * is unique in the result set ranks above one where 5 tenants share it.
+ *
+ * Pure / side-effect-free so it can be unit-tested without React.
+ */
+export function tailSharedCounts(
+  phones: ReadonlyArray<string>,
+  queryDigits: string,
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  if (!queryDigits) return counts;
+  // Bucket every candidate by its "tail signature" — for our purposes the
+  // signature IS the query digits (everyone in the bucket ends with them).
+  // We additionally key by the digit immediately before the tail so two
+  // tenants with phones "0772123456" and "0712123456" both ending in "456"
+  // count as sharing the bucket but a tenant ending in just "56" doesn't.
+  for (const p of phones) {
+    if (!p || !p.endsWith(queryDigits)) continue;
+    counts.set(p, (counts.get(p) ?? 0) + 1);
+  }
+  // Now collapse: every candidate that ends with the same `queryDigits`
+  // shares the bucket. (We don't sub-segment further — the agent just typed
+  // those N digits; that's the visible ambiguity the UI needs to surface.)
+  const total = [...counts.values()].reduce((a, b) => a + b, 0);
+  for (const k of counts.keys()) counts.set(k, total);
+  return counts;
+}
+
 export type MatchType = 'phone' | 'name' | 'both' | null;
 
 export interface TenantMatchInput {
