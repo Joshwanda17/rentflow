@@ -1,0 +1,181 @@
+import { supabase } from '@/integrations/supabase/client';
+
+export type DepositChannel = 'mtn' | 'airtel' | 'bank' | 'cash_merchant';
+export type BatchStatus =
+  | 'awaiting_proof'
+  | 'pending_finops_verification'
+  | 'verified'
+  | 'rejected'
+  | 'cancelled';
+
+export interface FieldDepositBatch {
+  id: string;
+  agent_id: string;
+  channel: DepositChannel;
+  declared_total: number;
+  tagged_total: number;
+  surplus_total: number;
+  proof_reference: string | null;
+  proof_image_url: string | null;
+  proof_submitted_at: string | null;
+  status: BatchStatus;
+  finops_verified_by: string | null;
+  finops_verified_at: string | null;
+  rejection_reason: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UnbatchedFieldCollection {
+  id: string;
+  tenant_id: string | null;
+  tenant_name: string;
+  tenant_phone: string | null;
+  amount: number;
+  captured_at: string;
+}
+
+const CHANNEL_LABEL: Record<DepositChannel, string> = {
+  mtn: 'MTN MoMo Merchant',
+  airtel: 'Airtel Money Merchant',
+  bank: 'Bank Deposit (Equity)',
+  cash_merchant: 'Cash to Cash Agent',
+};
+export const channelLabel = (c: DepositChannel) => CHANNEL_LABEL[c];
+
+const STATUS_LABEL: Record<BatchStatus, string> = {
+  awaiting_proof: 'Awaiting proof',
+  pending_finops_verification: 'Pending Finance review',
+  verified: 'Verified · float credited',
+  rejected: 'Rejected',
+  cancelled: 'Cancelled',
+};
+export const statusLabel = (s: BatchStatus) => STATUS_LABEL[s];
+
+/** Confirmed-on-server field collections that aren't yet attached to any batch. */
+export async function listUnbatchedFieldCollections(agentId: string): Promise<UnbatchedFieldCollection[]> {
+  // 1. All synced/pending collections for this agent that aren't 'confirmed' or 'rejected' yet.
+  const { data: rows, error } = await supabase
+    .from('field_collections')
+    .select('id, tenant_id, tenant_name, tenant_phone, amount, captured_at, status')
+    .eq('agent_id', agentId)
+    .eq('status', 'pending')
+    .order('captured_at', { ascending: false })
+    .limit(500);
+  if (error) throw error;
+  const candidates = (rows ?? []) as UnbatchedFieldCollection[];
+  if (candidates.length === 0) return [];
+
+  // 2. Strip out ones already linked to a batch.
+  const ids = candidates.map(r => r.id);
+  const { data: linked, error: linkedErr } = await supabase
+    .from('field_deposit_batch_items')
+    .select('field_collection_id')
+    .in('field_collection_id', ids);
+  if (linkedErr) throw linkedErr;
+  const taken = new Set((linked ?? []).map(r => r.field_collection_id));
+  return candidates.filter(r => !taken.has(r.id));
+}
+
+export async function listAgentBatches(agentId: string, limit = 25): Promise<FieldDepositBatch[]> {
+  const { data, error } = await supabase
+    .from('field_deposit_batches')
+    .select('*')
+    .eq('agent_id', agentId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as FieldDepositBatch[];
+}
+
+export interface CreateBatchInput {
+  agentId: string;
+  channel: DepositChannel;
+  declaredTotal: number;
+  collectionIds: string[];
+  itemAmounts: Record<string, number>;
+  notes?: string | null;
+  proofReference?: string | null;
+  proofImageUrl?: string | null;
+}
+
+/**
+ * Creates batch, attaches items, optionally submits proof in a single
+ * client-side flow. Each step is a small RLS-safe insert/update.
+ */
+export async function createBatchWithItems(input: CreateBatchInput): Promise<FieldDepositBatch> {
+  // 1. Insert the batch (always starts in awaiting_proof — RLS requires it).
+  const { data: created, error: createErr } = await supabase
+    .from('field_deposit_batches')
+    .insert({
+      agent_id: input.agentId,
+      channel: input.channel,
+      declared_total: input.declaredTotal,
+      notes: input.notes ?? null,
+    })
+    .select('*')
+    .single();
+  if (createErr) throw createErr;
+  const batch = created as FieldDepositBatch;
+
+  // 2. Attach items.
+  if (input.collectionIds.length > 0) {
+    const items = input.collectionIds.map(id => ({
+      batch_id: batch.id,
+      field_collection_id: id,
+      amount: input.itemAmounts[id],
+    }));
+    const { error: itemErr } = await supabase.from('field_deposit_batch_items').insert(items);
+    if (itemErr) {
+      // best-effort cleanup so we don't leave an orphan batch
+      await supabase.from('field_deposit_batches').delete().eq('id', batch.id);
+      throw itemErr;
+    }
+  }
+
+  // 3. Optional: submit proof immediately.
+  if (input.proofReference && input.proofReference.trim().length > 0) {
+    const { data: updated, error: proofErr } = await supabase
+      .from('field_deposit_batches')
+      .update({
+        proof_reference: input.proofReference.trim(),
+        proof_image_url: input.proofImageUrl ?? null,
+        proof_submitted_at: new Date().toISOString(),
+        status: 'pending_finops_verification',
+      })
+      .eq('id', batch.id)
+      .select('*')
+      .single();
+    if (proofErr) throw proofErr;
+    return updated as FieldDepositBatch;
+  }
+
+  return batch;
+}
+
+export async function submitProofForBatch(
+  batchId: string,
+  proofReference: string,
+  proofImageUrl?: string | null,
+): Promise<FieldDepositBatch> {
+  const { data, error } = await supabase
+    .from('field_deposit_batches')
+    .update({
+      proof_reference: proofReference.trim(),
+      proof_image_url: proofImageUrl ?? null,
+      proof_submitted_at: new Date().toISOString(),
+      status: 'pending_finops_verification',
+    })
+    .eq('id', batchId)
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data as FieldDepositBatch;
+}
+
+export async function cancelAwaitingBatch(batchId: string): Promise<void> {
+  // Cascades delete batch items via FK.
+  const { error } = await supabase.from('field_deposit_batches').delete().eq('id', batchId);
+  if (error) throw error;
+}
