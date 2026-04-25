@@ -207,6 +207,27 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     return out;
   }, [entries, tenants]);
 
+  /**
+   * Last captured entry for the picked tenant — drives the small preview panel
+   * (date, amount, notes) so the agent can avoid double-recording. Matches by
+   * tenantId first, falling back to a name match (case-insensitive) so walk-up
+   * conversions still resolve. Excludes any in-flight save by ignoring entries
+   * captured in the last 1.5s.
+   */
+  const lastEntryForPicked = useMemo<FieldEntry | null>(() => {
+    if (!picked) return null;
+    const cutoff = Date.now() - 1500;
+    const nameKey = picked.fullName.trim().toLowerCase();
+    const matches = entries.filter(e => {
+      if (e.capturedAt > cutoff) return false;
+      if (picked.tenantId && e.tenantId === picked.tenantId) return true;
+      if (!e.tenantId && (e.tenantName || '').trim().toLowerCase() === nameKey) return true;
+      return false;
+    });
+    if (matches.length === 0) return null;
+    return matches.reduce((latest, e) => (e.capturedAt > latest.capturedAt ? e : latest), matches[0]);
+  }, [picked, entries]);
+
   const queuedCount = entries.filter(e => e.syncState !== 'synced').length;
   void queuedCount;
 
