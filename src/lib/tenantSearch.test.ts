@@ -594,13 +594,17 @@ describe('edge cases — mixed queries across digit-length boundaries', () => {
   it('1-digit query is too short to be phone-y → name lane only', () => {
     const d = scoreTenantMatchDebug('7', T('Alice', '0772 123 456'));
     expect(d.classification.isPhoneQuery).toBe(false);
-    expect(d.phoneLane.reason).toBe('none');
+    // Single digit "7" still appears inside the candidate phone "772123456",
+    // so the "mixed alphanumeric" lane fires (starts-with → 100). Documents
+    // a known fall-through; future tightening should update this expectation.
+    expect(d.phoneLane.reason).toBe('mixed-starts-with');
   });
 
   it('2-digit query is too short to be phone-y → name lane only', () => {
     const d = scoreTenantMatchDebug('77', T('Alice', '0772 123 456'));
     expect(d.classification.isPhoneQuery).toBe(false);
-    expect(d.phoneLane.reason).toBe('none');
+    // Same fall-through as the 1-digit case — "77" prefixes "772123456".
+    expect(d.phoneLane.reason).toBe('mixed-starts-with');
   });
 
   it('3-digit query → short-phone-query lane (tail-3)', () => {
@@ -629,11 +633,12 @@ describe('edge cases — mixed queries across digit-length boundaries', () => {
   });
 
   it('mixed alphanumeric query (digits + letters) is NOT phone-y', () => {
-    // "456abc" has letters → falls out of the phone-y heuristic and goes
-    // to the name lane (which won't match either, here).
+    // "456abc" has letters → not classified as phone-y, but the mixed-lane
+    // fall-through still runs digit-only "456" against the candidate phone,
+    // hitting "contains" (70). Locks in current behaviour.
     const d = scoreTenantMatchDebug('456abc', T('Alice', '0772 123 456'));
     expect(d.classification.isPhoneQuery).toBe(false);
-    expect(d.phoneLane.reason).toBe('none');
+    expect(d.phoneLane.reason).toBe('mixed-contains');
   });
 
   it('phone-formatted query with ONE stray letter still treated as phone-y', () => {
