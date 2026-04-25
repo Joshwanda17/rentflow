@@ -888,6 +888,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                   <div className="relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
+                      ref={searchInputRef}
                       value={search}
                       onChange={e => { setSearch(e.target.value); setPicked(null); }}
                       onKeyDown={handleSearchKeyDown}
