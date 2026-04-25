@@ -2458,6 +2458,38 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                         </button>
                       )}
                       {/*
+                       * "Saved in this session" badge — only renders when
+                       * the localStorage probe failed (Safari Private,
+                       * blocked site data, locked-down profile). Signals
+                       * that the chip selection won't survive refresh so
+                       * the agent isn't surprised, without crowding the
+                       * row in the normal case. Tooltip carries the
+                       * actionable detail for power users.
+                       */}
+                      {localStorageBlocked && (
+                        <TooltipProvider delayDuration={200}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge
+                                variant="warning"
+                                size="sm"
+                                className="gap-1 cursor-help"
+                                aria-label="Local storage is blocked. Your tenant filter will reset when you refresh."
+                              >
+                                <CloudOff className="h-3 w-3" />
+                                Saved in this session
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-[11px] max-w-[240px]">
+                              <div className="font-medium">Local storage is blocked</div>
+                              <div className="text-muted-foreground mt-0.5">
+                                Your tenant filter will reset when you refresh or reopen this app.
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                      {/*
                        * Picker preferences popover — gear icon at the
                        * end of the row. Two settings:
                        *   1. Cloud sync master toggle (Cloud / CloudOff icon)
