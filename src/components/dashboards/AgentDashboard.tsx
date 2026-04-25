@@ -89,6 +89,7 @@ import { AgentManagedUsersSheet } from '@/components/agent/AgentManagedUsersShee
 import { FieldCollectDialog } from '@/components/agent/FieldCollectDialog';
 import { FieldCollectFab } from '@/components/agent/FieldCollectFab';
 import { FieldCollectCard } from '@/components/agent/FieldCollectCard';
+import { PendingFieldCollectionsSheet } from '@/components/agent/PendingFieldCollectionsSheet';
 
 import { AgentTopUpTenantDialog } from '@/components/agent/AgentTopUpTenantDialog';
 import { AgentInvestForPartnerDialog } from '@/components/agent/AgentInvestForPartnerDialog';
@@ -177,6 +178,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const { event: commissionEvent, dismiss: dismissCommission } = useBusinessAdvanceCommissionListener();
   const [tenantsSheetOpen, setTenantsSheetOpen] = useState(false);
   const [fieldCollectOpen, setFieldCollectOpen] = useState(false);
+  const [pendingFieldCollectionsOpen, setPendingFieldCollectionsOpen] = useState(false);
   const [investForPartnerOpen, setInvestForPartnerOpen] = useState(false);
   const [proxyHistoryOpen, setProxyHistoryOpen] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState(false);
@@ -408,6 +410,12 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
             {/* Field Collect — offline cash collection (prominent) */}
             <FieldCollectCard onOpen={() => setFieldCollectOpen(true)} />
+            <button
+              onClick={() => setPendingFieldCollectionsOpen(true)}
+              className="w-full text-xs text-primary font-semibold underline-offset-2 hover:underline text-center -mt-2"
+            >
+              Review pending field collections →
+            </button>
 
             {/* Welile Vouches highlight — entices tap into AI ID */}
             <AgentVouchHighlightCard userId={user.id} />
@@ -751,6 +759,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <AgentTenantsSheet open={tenantsSheetOpen} onOpenChange={setTenantsSheetOpen} />
       <FieldCollectDialog open={fieldCollectOpen} onOpenChange={setFieldCollectOpen} />
       <FieldCollectFab onClick={() => setFieldCollectOpen(true)} />
+      <PendingFieldCollectionsSheet
+        open={pendingFieldCollectionsOpen}
+        onOpenChange={setPendingFieldCollectionsOpen}
+      />
       <AgentManagedUsersSheet open={managedUsersOpen} onOpenChange={setManagedUsersOpen} agentId={user.id} />
       <AgentTopUpTenantDialog open={topUpTenantOpen} onOpenChange={setTopUpTenantOpen} onSuccess={refreshOfflineData} />
       <AgentInvestForPartnerDialog open={investForPartnerOpen} onOpenChange={setInvestForPartnerOpen} onSuccess={() => { refreshOfflineData(); refreshWallet(); }} />
