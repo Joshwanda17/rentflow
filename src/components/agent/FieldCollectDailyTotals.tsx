@@ -4,7 +4,7 @@ import { getEntries, onFieldCollectChange, type FieldEntry } from '@/lib/fieldCo
 import { formatUGX } from '@/lib/rentCalculations';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle2, Clock, FileWarning, CalendarDays, RefreshCcw, FileText, FileSpreadsheet, CalendarIcon, Settings2, RotateCcw, MoreHorizontal } from 'lucide-react';
+import { CheckCircle2, Clock, FileWarning, CalendarDays, RefreshCcw, FileText, FileSpreadsheet, CalendarIcon, Settings2, RotateCcw, MoreHorizontal, CalendarRange } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FieldCollectDailyDetailsSheet } from '@/components/agent/FieldCollectDailyDetailsSheet';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -18,8 +18,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { exportDailyTotalsCsv, exportDailyTotalsPdf } from '@/lib/fieldCollectExport';
-import { format, isSameDay } from 'date-fns';
+import { exportDailyTotalsCsv, exportDailyTotalsPdf, exportRangeTotalsPdf, exportRangeTotalsCsv } from '@/lib/fieldCollectExport';
+import {
+  format, isSameDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, differenceInCalendarDays,
+} from 'date-fns';
+import type { DateRange } from 'react-day-picker';
 import { toast } from 'sonner';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
