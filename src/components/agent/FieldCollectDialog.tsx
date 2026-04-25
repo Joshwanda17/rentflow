@@ -12,6 +12,7 @@ import {
   Loader2, WifiOff, Wifi, Search, Trash2,
   CheckCircle2, AlertCircle, RefreshCcw, ChevronLeft, ChevronRight,
   User, Banknote, ClipboardCheck, Home, KeyRound, Sparkles,
+  HelpCircle, ChevronDown, Save, CloudUpload, ShieldCheck,
 } from 'lucide-react';
 import {
   cacheTenants, getCachedTenants, addEntry, deleteEntry, getEntries,
