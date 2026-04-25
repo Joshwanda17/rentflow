@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -72,6 +72,17 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   const [step, setStep] = useState<Step>(1);
   const [saving, setSaving] = useState(false);
   const [, setSyncing] = useState(false);
+
+  /**
+   * Keyboard navigation for the tenant picker.
+   * activeIdx walks a single virtual list: [...recentTenants, ...filtered].
+   * - ArrowDown / ArrowUp move the highlight (wraps).
+   * - Enter picks the highlighted tenant.
+   * - Escape clears the search box (and highlight) without closing the dialog.
+   * Resets whenever the underlying list contents change.
+   */
+  const [activeIdx, setActiveIdx] = useState(0);
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   /* Online/offline tracking */
   useEffect(() => {
