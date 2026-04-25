@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { Banknote, ChevronRight, Clock, CheckCircle2, AlertCircle, Send, Wallet, XCircle, ShieldCheck, ChevronDown, Loader2, Coins } from 'lucide-react';
+import { Banknote, ChevronRight, Clock, CheckCircle2, AlertCircle, Send, Wallet, XCircle, ShieldCheck, ChevronDown, Loader2, Coins, AlertTriangle } from 'lucide-react';
 import {
   listAgentBatches,
   type FieldDepositBatch,
@@ -269,6 +269,7 @@ function BatchRow({ batch, onSubmitProof }: { batch: FieldDepositBatch; onSubmit
           loading={items === null && !loadErr}
           error={loadErr}
           isVerified={isVerified}
+          batch={batch}
         />
       )}
     </div>
@@ -280,16 +281,26 @@ function CommissionBreakdown({
   loading,
   error,
   isVerified,
+  batch,
 }: {
   items: BatchItemDetail[] | null;
   loading: boolean;
   error: string | null;
   isVerified: boolean;
+  batch: FieldDepositBatch;
 }) {
   const ratePct = Math.round(FIELD_DEPOSIT_COMMISSION_RATE * 100);
   const totalRepayment = items?.reduce((s, i) => s + i.amount, 0) ?? 0;
   const totalCommission =
     items?.reduce((s, i) => s + Math.round(i.amount * FIELD_DEPOSIT_COMMISSION_RATE), 0) ?? 0;
+  const declared = Number(batch.declared_total || 0);
+  const recordedTagged = Number(batch.tagged_total || 0);
+  // Match against authoritative batch numbers:
+  // - if verified, compare to recorded `tagged_total`; otherwise fall back to declared total.
+  const matchTarget = isVerified && recordedTagged > 0 ? recordedTagged : declared;
+  const matchTargetLabel = isVerified && recordedTagged > 0 ? 'recorded tagged total' : 'declared total';
+  const repaymentDelta = totalRepayment - matchTarget;
+  const repaymentMatches = items !== null && Math.abs(repaymentDelta) < 1;
 
   return (
     <div className="mt-3 ml-12 rounded-lg border bg-muted/30 overflow-hidden">
@@ -337,12 +348,46 @@ function CommissionBreakdown({
               );
             })}
           </ul>
-          <div className="grid grid-cols-[1fr_auto_auto] gap-3 px-3 py-2 text-xs items-center bg-background/60 border-t font-semibold">
-            <span>Total</span>
-            <span className="font-mono text-right">{formatUGX(totalRepayment)}</span>
-            <span className="font-mono text-right text-emerald-600 dark:text-emerald-400 min-w-[80px]">
-              +{formatUGX(totalCommission)}
-            </span>
+          {/* Totals footer */}
+          <div className="border-t bg-background/60">
+            <div className="grid grid-cols-[1fr_auto_auto] gap-3 px-3 py-2 text-xs items-center font-semibold">
+              <span>Total ({items.length} tenant{items.length === 1 ? '' : 's'})</span>
+              <span className="font-mono text-right">{formatUGX(totalRepayment)}</span>
+              <span className="font-mono text-right text-emerald-600 dark:text-emerald-400 min-w-[80px]">
+                +{formatUGX(totalCommission)}
+              </span>
+            </div>
+
+            {/* Reconciliation against batch */}
+            <div
+              className={cn(
+                'px-3 py-2 border-t text-[11px] flex items-start gap-1.5',
+                repaymentMatches
+                  ? 'bg-emerald-500/5 text-emerald-700 dark:text-emerald-400'
+                  : 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+              )}
+            >
+              {repaymentMatches ? (
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+              ) : (
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+              )}
+              <div className="min-w-0 flex-1">
+                {repaymentMatches ? (
+                  <span>
+                    Repayments match the {matchTargetLabel} of{' '}
+                    <span className="font-mono font-semibold">{formatUGX(matchTarget)}</span>.
+                  </span>
+                ) : (
+                  <span>
+                    Repayments {repaymentDelta > 0 ? 'exceed' : 'fall short of'} the {matchTargetLabel} (
+                    <span className="font-mono font-semibold">{formatUGX(matchTarget)}</span>) by{' '}
+                    <span className="font-mono font-semibold">{formatUGX(Math.abs(repaymentDelta))}</span>
+                    {!isVerified && repaymentDelta < 0 ? ' — surplus stays as agent float on verify.' : '.'}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
         </>
       )}
