@@ -4391,6 +4391,7 @@ export type Database = {
           captured_at: string
           client_uuid: string
           confirmed_at: string | null
+          confirmed_by: string | null
           confirmed_collection_id: string | null
           created_at: string
           id: string
@@ -4412,6 +4413,7 @@ export type Database = {
           captured_at?: string
           client_uuid: string
           confirmed_at?: string | null
+          confirmed_by?: string | null
           confirmed_collection_id?: string | null
           created_at?: string
           id?: string
@@ -4433,6 +4435,7 @@ export type Database = {
           captured_at?: string
           client_uuid?: string
           confirmed_at?: string | null
+          confirmed_by?: string | null
           confirmed_collection_id?: string | null
           created_at?: string
           id?: string
@@ -4448,7 +4451,15 @@ export type Database = {
           tenant_phone?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "field_collections_confirmed_collection_id_fkey"
+            columns: ["confirmed_collection_id"]
+            isOneToOne: false
+            referencedRelation: "agent_collections"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       financial_agents: {
         Row: {
@@ -12243,6 +12254,14 @@ export type Database = {
         }[]
       }
       compute_daily_stats: { Args: never; Returns: undefined }
+      confirm_field_collection: {
+        Args: {
+          p_field_collection_id: string
+          p_notes?: string
+          p_tenant_id?: string
+        }
+        Returns: Json
+      }
       create_direct_conversation: {
         Args: { other_user_id: string }
         Returns: string
@@ -12915,6 +12934,10 @@ export type Database = {
       refresh_financial_summaries: { Args: never; Returns: undefined }
       refund_agent_float_for_payout: {
         Args: { p_payout_id: string; p_reason: string }
+        Returns: Json
+      }
+      reject_field_collection: {
+        Args: { p_field_collection_id: string; p_reason: string }
         Returns: Json
       }
       release_stale_cashout_claims: {
