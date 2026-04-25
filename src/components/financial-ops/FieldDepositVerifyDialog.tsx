@@ -32,6 +32,7 @@ interface Props {
 }
 
 const norm = (s: string) => s.replace(/\s+/g, '').toUpperCase();
+const COMMISSION_RATE = 0.10; // mirrors process_verified_field_deposit RPC
 
 export function FieldDepositVerifyDialog({ batch, open, onClose, onResolved }: Props) {
   const [proof, setProof] = useState('');
@@ -43,6 +44,14 @@ export function FieldDepositVerifyDialog({ batch, open, onClose, onResolved }: P
     [batch],
   );
   const surplus = batch ? Math.max(0, Number(batch.declared_total || 0) - taggedTotal) : 0;
+  const totalCommission = useMemo(
+    () =>
+      batch?.items.reduce(
+        (s, i) => s + Math.round(Number(i.amount || 0) * COMMISSION_RATE),
+        0,
+      ) ?? 0,
+    [batch],
+  );
 
   const proofMatches = useMemo(() => {
     if (!batch?.proof_reference || !proof) return false;
@@ -167,6 +176,53 @@ export function FieldDepositVerifyDialog({ batch, open, onClose, onResolved }: P
                 )}
               </div>
             </div>
+
+            {/* Commission breakdown — recorded as platform expense on verify */}
+            {batch.items.length > 0 && (
+              <div>
+                <div className="text-xs font-semibold text-muted-foreground mb-2 flex items-center justify-between">
+                  <span>Commission breakdown ({Math.round(COMMISSION_RATE * 100)}% per repayment)</span>
+                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70">
+                    Recorded as expense
+                  </span>
+                </div>
+                <div className="rounded-lg border divide-y max-h-40 overflow-y-auto">
+                  {batch.items.map((it) => {
+                    const amt = Number(it.amount || 0);
+                    const comm = Math.round(amt * COMMISSION_RATE);
+                    return (
+                      <div
+                        key={`comm-${it.id}`}
+                        className="grid grid-cols-[1fr_auto_auto] gap-3 items-center px-3 py-2 text-sm"
+                      >
+                        <div className="truncate">
+                          <span className="font-medium">{it.tenant_name ?? '—'}</span>
+                        </div>
+                        <div className="font-mono text-xs text-muted-foreground">
+                          {formatUGX(amt)}
+                        </div>
+                        <div className="font-mono text-sm text-success min-w-[90px] text-right">
+                          +{formatUGX(comm)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center px-3 py-2 text-sm bg-muted/40">
+                    <div className="font-semibold">Total commission expense</div>
+                    <div className="font-mono text-xs text-muted-foreground">
+                      {formatUGX(taggedTotal)}
+                    </div>
+                    <div className="font-mono font-semibold text-success min-w-[90px] text-right">
+                      +{formatUGX(totalCommission)}
+                    </div>
+                  </div>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1.5">
+                  On verify, each tenant repayment credits the agent wallet and books a matching{' '}
+                  <span className="font-medium text-foreground">agent commission expense</span> to the platform ledger.
+                </p>
+              </div>
+            )}
 
             {/* Verify */}
             <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
