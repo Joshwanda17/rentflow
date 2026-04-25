@@ -180,10 +180,10 @@ describe('scoreTenantMatch — mixed queries (digits + letters)', () => {
   });
 
   it('returns the higher-scoring lane when both phone and name match', () => {
-    // Use a 6-digit phone query (above the short-query threshold) so the
-    // regular phone branch runs. Both lanes will score: phone prefix (150)
-    // beats name prefix (90).
-    const r = scoreTenantMatch('772123', T('772 Apartments', '0772 123 456'));
+    // Tenant name literally starts with the digits we'll search by, AND the
+    // candidate phone prefixes the same digits → both lanes light up.
+    // Phone (prefix, 150) > name (prefix, 90), so matchType resolves to phone.
+    const r = scoreTenantMatch('772 1234', T('772 1234 Apartments', '0772 123 456'));
     expect(r.phoneScore).toBeGreaterThan(0);
     expect(r.nameScore).toBeGreaterThan(0);
     expect(r.matchType).toBe('phone');
