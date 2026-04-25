@@ -338,7 +338,7 @@ export function RequestMoneyDialog({ open, onOpenChange, onSuccess }: RequestMon
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md overflow-hidden border-border/50 glass-card">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto border-border/50 glass-card">
         <div className="absolute inset-0 bg-gradient-to-br from-accent/5 via-transparent to-primary/5 pointer-events-none" />
         
         <AnimatePresence mode="wait">
