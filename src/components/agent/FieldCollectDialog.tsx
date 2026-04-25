@@ -635,7 +635,32 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     // digit query and there are multiple candidates — drives the UI hint.
     const ambiguous = isShortPhoneQuery && scored.length > 1;
     return storeAndReturn(scored.map(s => ({ ...s, ambiguous })));
-  }, [tenantIndex, tenants, search, fingerprint]);
+  }, [tenantIndex, tenants, search, fingerprint, entries, browseSort, browsePage]);
+
+  /**
+   * Browse-mode pager metadata. Only meaningful when the search box is empty
+   * — `pageCount` drives the Prev/Next button enabled state and the
+   * "Page X of Y" label.
+   */
+  const browsePageCount = useMemo(
+    () => Math.max(1, Math.ceil(tenants.length / BROWSE_PAGE_SIZE)),
+    [tenants.length],
+  );
+
+  /* Clamp the page if the tenant list shrinks under us. */
+  useEffect(() => {
+    if (browsePage >= browsePageCount) setBrowsePage(0);
+  }, [browsePage, browsePageCount]);
+
+  /* Reset to page 0 whenever the sort changes or the agent starts typing
+   * — staying on page 7 of "Name A→Z" then flipping to "Recent" should not
+   * dump the agent in the middle of the new ordering. */
+  useEffect(() => {
+    setBrowsePage(0);
+  }, [browseSort]);
+  useEffect(() => {
+    if (search) setBrowsePage(0);
+  }, [search]);
 
   /** Just the tenant rows — used by keyboard nav & recents merge. */
   const filteredTenants = useMemo<CachedTenant[]>(
