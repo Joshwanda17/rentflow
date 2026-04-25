@@ -456,6 +456,18 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
                 <FileText className="h-4 w-4" />
                 Download PDF
               </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  // Initialise the range picker to the current selected day so
+                  // the calendar opens on something familiar.
+                  setRangeSelection({ from: selectedDate, to: selectedDate });
+                  setRangeExportOpen(true);
+                }}
+                className="gap-2 text-sm"
+              >
+                <CalendarRange className="h-4 w-4" />
+                Export date range…
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => {
@@ -472,6 +484,110 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
           </DropdownMenu>
         </div>
       </div>
+
+      {/* Range-export popover — opens via the dropdown */}
+      <Popover open={rangeExportOpen} onOpenChange={setRangeExportOpen}>
+        <PopoverTrigger asChild>
+          <span className="sr-only" aria-hidden="true" />
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-[320px] sm:w-[360px] p-0 max-h-[80vh] overflow-y-auto">
+          <div className="px-4 py-3 border-b">
+            <p className="text-sm font-semibold">Export date range</p>
+            <p className="text-[11px] text-muted-foreground">
+              Same totals and reference columns as the daily export.
+            </p>
+          </div>
+
+          {/* Quick presets */}
+          <div className="px-4 py-3 space-y-2 border-b">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">Quick presets</p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {([
+                { id: 'thisWeek', label: 'This week' },
+                { id: 'thisMonth', label: 'This month' },
+                { id: 'last7', label: 'Last 7 days' },
+                { id: 'last30', label: 'Last 30 days' },
+              ] as const).map(p => (
+                <div key={p.id} className="flex rounded-md overflow-hidden border">
+                  <button
+                    type="button"
+                    onClick={() => exportPreset('pdf', p.id)}
+                    className="flex-1 px-2 py-2 text-[11px] font-medium hover:bg-accent inline-flex items-center justify-center gap-1 min-h-[36px]"
+                    title={`${p.label} — PDF`}
+                  >
+                    <FileText className="h-3 w-3" />
+                    {p.label}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => exportPreset('csv', p.id)}
+                    className="px-2 py-2 text-[10px] font-medium hover:bg-accent border-l text-muted-foreground"
+                    title={`${p.label} — CSV`}
+                    aria-label={`${p.label} as CSV`}
+                  >
+                    CSV
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Custom range */}
+          <div className="px-4 py-3 space-y-2">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">Custom range</p>
+            <Calendar
+              mode="range"
+              selected={rangeSelection}
+              onSelect={setRangeSelection}
+              numberOfMonths={1}
+              disabled={(d) => d > new Date()}
+              className={cn('p-0 pointer-events-auto')}
+            />
+            {rangeSelection?.from && rangeSelection?.to ? (
+              <p className="text-[11px] text-muted-foreground text-center">
+                {format(rangeSelection.from, 'PPP')} → {format(rangeSelection.to, 'PPP')}
+                {' · '}
+                {differenceInCalendarDays(rangeSelection.to, rangeSelection.from) + 1} days
+              </p>
+            ) : (
+              <p className="text-[11px] text-muted-foreground text-center">
+                Pick a start and end date.
+              </p>
+            )}
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-9 text-xs gap-1"
+                disabled={!rangeSelection?.from || !rangeSelection?.to}
+                onClick={() => {
+                  if (rangeSelection?.from && rangeSelection?.to) {
+                    handleRangeExport('csv', rangeSelection.from, rangeSelection.to, 'Custom range');
+                  }
+                }}
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5" />
+                CSV
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="h-9 text-xs gap-1"
+                disabled={!rangeSelection?.from || !rangeSelection?.to}
+                onClick={() => {
+                  if (rangeSelection?.from && rangeSelection?.to) {
+                    handleRangeExport('pdf', rangeSelection.from, rangeSelection.to, 'Custom range');
+                  }
+                }}
+              >
+                <FileText className="h-3.5 w-3.5" />
+                PDF
+              </Button>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
 
       {/* Hidden popover — opens via dropdown */}
       <Popover open={cutoffsOpen} onOpenChange={setCutoffsOpen}>
