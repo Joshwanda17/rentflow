@@ -352,59 +352,192 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
   return (
     <div
       className={cn(
-        'space-y-3',
-        !isInline && 'rounded-2xl border bg-card p-4',
+        'space-y-4',
+        !isInline && 'rounded-3xl border bg-card p-5',
         className,
       )}
     >
-      {/* Header */}
+      {/* Header — calm, single big number */}
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium uppercase tracking-wide">
             <CalendarDays className="h-3.5 w-3.5" />
             {dateLabel}
           </div>
-          <p className="text-2xl font-bold tracking-tight mt-0.5">{formatUGX(breakdown.total)}</p>
-          <p className="text-[11px] text-muted-foreground">
-            {breakdown.count} entr{breakdown.count === 1 ? 'y' : 'ies'} captured · updated {formatRelative(lastRefreshed)}
+          <p className="text-3xl font-bold tracking-tight tabular-nums mt-1">
+            {formatUGX(breakdown.total)}
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {breakdown.count} payment{breakdown.count === 1 ? '' : 's'} · updated {formatRelative(lastRefreshed)}
           </p>
         </div>
-        <div className="flex flex-wrap gap-1.5 justify-end max-w-[55%]">
-          {breakdown.synced.count > 0 && (
-            <Badge variant="outline" className="gap-1 border-emerald-500/40 text-emerald-700 dark:text-emerald-400 bg-emerald-500/10">
-              <CheckCircle2 className="h-3 w-3" />
-              {breakdown.synced.count} synced
-            </Badge>
-          )}
-          {breakdown.pending.count > 0 && (
-            <Badge variant="outline" className="gap-1 border-amber-500/40 text-amber-700 dark:text-amber-400 bg-amber-500/10">
-              <Clock className="h-3 w-3" />
-              {breakdown.pending.count} pending
-            </Badge>
-          )}
-          {breakdown.failed.count > 0 && (
-            <Badge variant="outline" className="gap-1 border-red-500/40 text-red-700 dark:text-red-400 bg-red-500/10">
-              <AlertCircle className="h-3 w-3" />
-              {breakdown.failed.count} failed
-            </Badge>
-          )}
-          {breakdown.duplicate.count > 0 && (
-            <Popover open={dupPopoverOpen} onOpenChange={setDupPopoverOpen}>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  aria-label={`${breakdown.duplicate.count} duplicate receipts — click to review`}
-                  className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 transition-colors"
-                >
-                  <FileWarning className="h-3 w-3" />
-                  {breakdown.duplicate.count} dup
-                </button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-80 p-0">
+        <div className="flex items-center gap-1.5 shrink-0">
+          {dateSelector}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 w-8 p-0 rounded-full"
+                aria-label="More options"
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="text-[11px]">
+                {format(selectedDate, 'PPP')}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={refresh}
+                disabled={refreshing}
+                className="gap-2 text-sm"
+              >
+                <RefreshCcw className={cn('h-4 w-4', refreshing && 'animate-spin')} />
+                Refresh
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('csv')} className="gap-2 text-sm">
+                <FileSpreadsheet className="h-4 w-4" />
+                Download CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('pdf')} className="gap-2 text-sm">
+                <FileText className="h-4 w-4" />
+                Download PDF
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  setDraftMorning(String(cutoffs.morningEnd));
+                  setDraftAfternoon(String(cutoffs.afternoonEnd));
+                  setCutoffsOpen(true);
+                }}
+                className="gap-2 text-sm"
+              >
+                <Settings2 className="h-4 w-4" />
+                Time-of-day settings
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      {/* Hidden popover — opens via dropdown */}
+      <Popover open={cutoffsOpen} onOpenChange={setCutoffsOpen}>
+        <PopoverTrigger asChild>
+          <span className="sr-only" aria-hidden="true" />
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-72 p-3 space-y-3">
+          <div>
+            <p className="text-sm font-semibold">Time-of-day settings</p>
+            <p className="text-xs text-muted-foreground">
+              When does each part of the day end?
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label htmlFor="morning-end" className="text-xs">Morning ends</Label>
+              <Input
+                id="morning-end"
+                type="number"
+                min={1}
+                max={23}
+                value={draftMorning}
+                onChange={(e) => setDraftMorning(e.target.value)}
+                className="h-9 text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="afternoon-end" className="text-xs">Afternoon ends</Label>
+              <Input
+                id="afternoon-end"
+                type="number"
+                min={1}
+                max={23}
+                value={draftAfternoon}
+                onChange={(e) => setDraftAfternoon(e.target.value)}
+                className="h-9 text-sm"
+              />
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-2 pt-1">
+            <Button type="button" size="sm" variant="ghost" onClick={resetCutoffs} className="h-8 text-xs gap-1">
+              <RotateCcw className="h-3 w-3" />
+              Reset
+            </Button>
+            <Button type="button" size="sm" onClick={saveCutoffs} className="h-8 text-xs">
+              Save
+            </Button>
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      {/* Sync split — synced vs waiting (combined) */}
+      {(() => {
+        const pendingCount = breakdown.pending.count + breakdown.failed.count + breakdown.duplicate.count;
+        const pendingTotal = breakdown.pending.total + breakdown.failed.total + breakdown.duplicate.total;
+        const syncedPct = breakdown.count > 0
+          ? Math.round((breakdown.synced.count / breakdown.count) * 100)
+          : 0;
+        return (
+          <div className="space-y-2.5">
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="rounded-2xl bg-emerald-500/10 px-4 py-3">
+                <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 text-xs font-medium">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  Sent
+                </div>
+                <p className="text-lg font-bold tabular-nums mt-1">{formatUGX(breakdown.synced.total)}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {breakdown.synced.count} of {breakdown.count}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-amber-500/10 px-4 py-3">
+                <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400 text-xs font-medium">
+                  <Clock className="h-3.5 w-3.5" />
+                  Waiting
+                </div>
+                <p className="text-lg font-bold tabular-nums mt-1">{formatUGX(pendingTotal)}</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {pendingCount === 0 ? 'None waiting' : `${pendingCount} to send`}
+                </p>
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            <div
+              className="h-2 w-full overflow-hidden rounded-full bg-muted"
+              role="progressbar"
+              aria-valuenow={syncedPct}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`${syncedPct}% sent`}
+            >
+              <div className="h-full bg-emerald-500 transition-all rounded-full" style={{ width: `${syncedPct}%` }} />
+            </div>
+
+            {/* Issue chip — only when there's something to act on */}
+            {(breakdown.failed.count > 0 || breakdown.duplicate.count > 0) && (
+              <Popover open={dupPopoverOpen} onOpenChange={setDupPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Review issues with payments"
+                    className="w-full inline-flex items-center justify-between gap-2 rounded-2xl border border-amber-500/30 bg-amber-500/5 px-4 py-2.5 text-sm font-medium text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 transition-colors"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <FileWarning className="h-4 w-4" />
+                      {breakdown.failed.count + breakdown.duplicate.count} need attention
+                    </span>
+                    <span className="text-xs opacity-80">Review →</span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="center" className="w-80 p-0">
                 <div className="px-3 py-2 border-b">
-                  <p className="text-xs font-semibold">Duplicate receipts</p>
+                  <p className="text-sm font-semibold">Payments needing attention</p>
                   <p className="text-[11px] text-muted-foreground">
-                    Server already has these receipts. Reconcile to keep one or both.
+                    Some payments could not be sent or already exist on the server.
                   </p>
                 </div>
                 <div className="max-h-64 overflow-y-auto">
@@ -438,190 +571,39 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
                     }}
                   >
                     <FileWarning className="h-3.5 w-3.5" />
-                    Open reconciliation
+                    Fix these payments
                   </Button>
                 </div>
               </PopoverContent>
             </Popover>
-          )}
-          {dateSelector}
-          {exportMenu}
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={refresh}
-            disabled={refreshing}
-            className="h-7 px-2 text-[11px] gap-1"
-            aria-label="Refresh totals"
-          >
-            <RefreshCcw className={cn('h-3 w-3', refreshing && 'animate-spin')} />
-            Refresh
-          </Button>
-        </div>
-      </div>
-
-      <Separator />
-
-      {/* Sync split */}
-      {(() => {
-        const pendingCount =
-          breakdown.pending.count + breakdown.failed.count + breakdown.duplicate.count;
-        const pendingTotal =
-          breakdown.pending.total + breakdown.failed.total + breakdown.duplicate.total;
-        const syncedPct = breakdown.count > 0
-          ? Math.round((breakdown.synced.count / breakdown.count) * 100)
-          : 0;
-        return (
-          <div className="space-y-2">
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-2">
-                <div className="flex items-center justify-between gap-1 text-emerald-700 dark:text-emerald-400 text-[10px] uppercase tracking-wide font-medium">
-                  <span className="flex items-center gap-1">
-                    <CheckCircle2 className="h-3 w-3" />
-                    Synced
-                  </span>
-                  <span className="tabular-nums">
-                    {breakdown.synced.count}/{breakdown.count}
-                  </span>
-                </div>
-                <p className="font-semibold mt-0.5">{formatUGX(breakdown.synced.total)}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
-                  {breakdown.synced.count} confirmed
-                </p>
-              </div>
-              <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-2.5 py-2">
-                <div className="flex items-center justify-between gap-1 text-amber-700 dark:text-amber-400 text-[10px] uppercase tracking-wide font-medium">
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    Pending
-                  </span>
-                  <span className="tabular-nums">
-                    {pendingCount}/{breakdown.count}
-                  </span>
-                </div>
-                <p className="font-semibold mt-0.5">{formatUGX(pendingTotal)}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5 flex flex-wrap gap-x-1.5">
-                  {breakdown.pending.count > 0 && <span>{breakdown.pending.count} queued</span>}
-                  {breakdown.failed.count > 0 && <span>· {breakdown.failed.count} failed</span>}
-                  {breakdown.duplicate.count > 0 && <span>· {breakdown.duplicate.count} dup</span>}
-                  {pendingCount === 0 && <span>none waiting</span>}
-                </p>
-              </div>
-            </div>
-
-            {/* Progress bar */}
-            <div
-              className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
-              role="progressbar"
-              aria-valuenow={syncedPct}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-label={`${syncedPct}% of entries synced`}
-            >
-              <div
-                className="h-full bg-emerald-500 transition-all"
-                style={{ width: `${syncedPct}%` }}
-              />
-            </div>
-            <p className="text-[10px] text-muted-foreground text-center">
-              {syncedPct}% synced · {pendingCount} entr{pendingCount === 1 ? 'y' : 'ies'} still pending
-            </p>
+            )}
           </div>
         );
       })()}
 
       {/* Time-of-day sessions */}
       <div>
-        <div className="flex items-center justify-between mb-1.5">
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">By session</p>
-          <Popover open={cutoffsOpen} onOpenChange={(o) => {
-            setCutoffsOpen(o);
-            if (o) {
-              setDraftMorning(String(cutoffs.morningEnd));
-              setDraftAfternoon(String(cutoffs.afternoonEnd));
-            }
-          }}>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                aria-label="Configure session cutoffs"
-                className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Settings2 className="h-3 w-3" />
-                Cutoffs
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-72 p-3 space-y-3">
-              <div>
-                <p className="text-xs font-semibold">Session cutoffs</p>
-                <p className="text-[11px] text-muted-foreground">
-                  Set the hour each session ends (24-hour clock).
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label htmlFor="morning-end" className="text-[11px]">Morning ends at</Label>
-                  <Input
-                    id="morning-end"
-                    type="number"
-                    min={1}
-                    max={23}
-                    value={draftMorning}
-                    onChange={(e) => setDraftMorning(e.target.value)}
-                    className="h-8 text-xs"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="afternoon-end" className="text-[11px]">Afternoon ends at</Label>
-                  <Input
-                    id="afternoon-end"
-                    type="number"
-                    min={1}
-                    max={23}
-                    value={draftAfternoon}
-                    onChange={(e) => setDraftAfternoon(e.target.value)}
-                    className="h-8 text-xs"
-                  />
-                </div>
-              </div>
-              <p className="text-[10px] text-muted-foreground">
-                Morning: 00:00–{formatHour(Number(draftMorning) || cutoffs.morningEnd)} ·
-                Afternoon: {formatHour(Number(draftMorning) || cutoffs.morningEnd)}–{formatHour(Number(draftAfternoon) || cutoffs.afternoonEnd)} ·
-                Evening: {formatHour(Number(draftAfternoon) || cutoffs.afternoonEnd)}–24:00
-              </p>
-              <div className="flex items-center justify-between gap-2 pt-1">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={resetCutoffs}
-                  className="h-8 text-[11px] gap-1"
-                >
-                  <RotateCcw className="h-3 w-3" />
-                  Reset
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={saveCutoffs}
-                  className="h-8 text-[11px]"
-                >
-                  Save
-                </Button>
-              </div>
-            </PopoverContent>
-          </Popover>
-        </div>
+        <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium mb-2">
+          By time of day
+        </p>
         <div className="grid grid-cols-3 gap-2">
           {sessions.map(s => (
-            <div key={s.label} className={cn(
-              'rounded-lg border px-2 py-1.5 text-center',
-              s.count === 0 ? 'opacity-50' : 'bg-muted/30'
-            )}>
-              <p className="text-[10px] text-muted-foreground truncate" title={s.label}>{s.label.split(' (')[0]}</p>
-              <p className="text-sm font-semibold leading-tight">{formatUGX(s.total)}</p>
-              <p className="text-[10px] text-muted-foreground">{s.count}</p>
+            <div
+              key={s.label}
+              className={cn(
+                'rounded-2xl px-3 py-2.5 text-center',
+                s.count === 0 ? 'bg-muted/30 opacity-60' : 'bg-muted/50',
+              )}
+            >
+              <p className="text-[11px] text-muted-foreground truncate" title={s.label}>
+                {s.label.split(' (')[0]}
+              </p>
+              <p className="text-base font-bold tabular-nums leading-tight mt-1">
+                {formatUGX(s.total)}
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                {s.count} payment{s.count === 1 ? '' : 's'}
+              </p>
             </div>
           ))}
         </div>
@@ -631,9 +613,9 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
       <button
         type="button"
         onClick={() => setDetailsOpen(true)}
-        className="w-full text-xs font-medium text-primary hover:underline pt-1"
+        className="w-full text-sm font-medium text-primary hover:underline"
       >
-        View details →
+        See every payment →
       </button>
       <FieldCollectDailyDetailsSheet open={detailsOpen} onOpenChange={setDetailsOpen} />
       <FieldCollectReconciliationSheet open={reconcileOpen} onOpenChange={setReconcileOpen} />
