@@ -295,10 +295,19 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[92vh] overflow-y-auto p-0">
-        <DialogHeader className="px-6 pt-6 pb-4 sticky top-0 bg-background z-10 border-b">
+      <DialogContent
+        className={cn(
+          'p-0 gap-0 overflow-hidden bg-background',
+          // Mobile: full-screen sheet for maximum tap area
+          'w-screen h-[100dvh] max-w-none rounded-none translate-x-0 translate-y-0 left-0 top-0 sm:left-[50%] sm:top-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%]',
+          // Tablet/desktop: roomy modal
+          'sm:w-full sm:max-w-lg sm:h-auto sm:max-h-[92vh] sm:rounded-3xl',
+        )}
+      >
+        {/* Sticky header */}
+        <DialogHeader className="px-5 pt-5 pb-3 sm:px-6 sm:pt-6 sm:pb-4 sticky top-0 bg-background z-10 border-b">
           <div className="flex items-center justify-between gap-3">
-            <DialogTitle className="text-xl font-semibold">Collect cash</DialogTitle>
+            <DialogTitle className="text-xl sm:text-2xl font-bold tracking-tight">Collect cash</DialogTitle>
             <span
               className={cn(
                 'inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full font-medium',
@@ -311,19 +320,20 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
               {online ? 'Online' : 'Saving offline'}
             </span>
           </div>
-          <DialogDescription className="text-sm">
+          <DialogDescription className="text-sm text-left">
             Record a cash payment from a tenant. Works without internet.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="px-6 py-5 space-y-6">
+        {/* Scrollable body — leaves room for sticky save bar at bottom */}
+        <div className="px-5 sm:px-6 py-5 space-y-6 overflow-y-auto flex-1 pb-32 sm:pb-6">
           {/* Compact today summary — single line, no hero block */}
           <div className="flex items-baseline justify-between gap-3 -mt-1">
             <div className="min-w-0">
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">
                 Today
               </p>
-              <p className="text-2xl font-bold tabular-nums tracking-tight leading-tight mt-0.5">
+              <p className="text-2xl sm:text-3xl font-bold tabular-nums tracking-tight leading-tight mt-0.5">
                 {formatUGX(grandTotal)}
                 <span className="ml-2 text-xs font-normal text-muted-foreground">
                   · {entries.length} payment{entries.length === 1 ? '' : 's'}
@@ -336,7 +346,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                 variant="outline"
                 onClick={handleSync}
                 disabled={syncing || !online}
-                className="gap-1.5 h-9 rounded-full px-3 shrink-0"
+                className="gap-1.5 h-10 rounded-full px-4 shrink-0"
               >
                 {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudUpload className="h-4 w-4" />}
                 Send {queuedCount}
@@ -364,15 +374,15 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
             </div>
 
             {picked ? (
-              <div className="flex items-center justify-between rounded-2xl bg-primary/5 border border-primary/20 px-4 py-3">
+              <div className="flex items-center justify-between rounded-2xl bg-primary/5 border border-primary/20 px-4 py-4 min-h-[64px]">
                 <div className="min-w-0">
-                  <p className="text-base font-semibold truncate">{picked.fullName}</p>
+                  <p className="text-base sm:text-lg font-semibold truncate">{picked.fullName}</p>
                   <p className="text-xs text-muted-foreground truncate">{picked.phone || 'No phone'}</p>
                 </div>
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-8 rounded-full"
+                  className="h-10 px-4 rounded-full"
                   onClick={() => { setPicked(null); setSearch(''); }}
                 >
                   Change
@@ -386,13 +396,13 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                     value={search}
                     onChange={e => { setSearch(e.target.value); setPicked(null); }}
                     placeholder={tenants.length ? 'Search name or phone' : 'Connect to load tenants'}
-                    className="pl-11 h-12 text-base rounded-2xl"
+                    className="pl-11 h-14 text-base rounded-2xl"
                     autoComplete="off"
                   />
                 </div>
 
                 {search && (
-                  <div className="rounded-2xl border max-h-56 overflow-y-auto">
+                  <div className="rounded-2xl border max-h-64 overflow-y-auto">
                     {filtered.length === 0 ? (
                       <p className="p-4 text-sm text-muted-foreground text-center">
                         No match. Use walk-up below.
@@ -401,10 +411,11 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                       <button
                         key={t.tenantId}
                         onClick={() => { setPicked(t); setSearch(t.fullName); }}
-                        className="w-full text-left px-4 py-3 hover:bg-accent border-b last:border-b-0 flex items-center justify-between gap-2 active:bg-accent/80"
+                        className="w-full text-left px-4 py-4 min-h-[60px] hover:bg-accent border-b last:border-b-0 flex items-center justify-between gap-2 active:bg-accent/80 touch-manipulation"
+                        style={{ WebkitTapHighlightColor: 'transparent' }}
                       >
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold truncate">{t.fullName}</p>
+                          <p className="text-base font-semibold truncate">{t.fullName}</p>
                           <p className="text-xs text-muted-foreground truncate">{t.phone || 'No phone'}</p>
                         </div>
                         {t.monthlyRent ? (
@@ -427,14 +438,14 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                       value={walkupName}
                       onChange={e => setWalkupName(e.target.value)}
                       placeholder="Name"
-                      className="h-11 rounded-xl"
+                      className="h-12 rounded-xl text-base"
                     />
                     <Input
                       value={walkupPhone}
                       onChange={e => setWalkupPhone(e.target.value)}
                       placeholder="Phone"
                       inputMode="tel"
-                      className="h-11 rounded-xl"
+                      className="h-12 rounded-xl text-base"
                     />
                   </div>
                 </details>
@@ -456,7 +467,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                 onChange={e => setAmount(e.target.value.replace(/[^\d]/g, ''))}
                 inputMode="numeric"
                 placeholder="0"
-                className="pl-16 h-16 text-3xl font-bold tabular-nums rounded-2xl text-right pr-5"
+                className="pl-16 h-[72px] sm:h-16 text-4xl sm:text-3xl font-bold tabular-nums rounded-2xl text-right pr-5"
               />
             </div>
             {/* Quick-amount chips */}
@@ -466,7 +477,8 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                   key={v}
                   type="button"
                   onClick={() => setAmount(String((Number(amount) || 0) + v))}
-                  className="h-10 rounded-full border bg-card text-xs font-medium hover:bg-accent active:bg-accent/80 transition-colors tabular-nums"
+                  className="h-12 rounded-full border bg-card text-sm font-semibold hover:bg-accent active:bg-accent/80 transition-colors tabular-nums touch-manipulation"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
                 >
                   +{(v / 1000)}k
                 </button>
@@ -477,15 +489,15 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
               onChange={e => setNotes(e.target.value)}
               placeholder="Add a note (optional)"
               maxLength={140}
-              className="h-11 rounded-2xl text-sm"
+              className="h-12 rounded-2xl text-sm"
             />
           </section>
 
-          {/* Save action */}
+          {/* Inline save (visible on tablet/desktop where there's no sticky bar) */}
           <Button
             onClick={handleSave}
             disabled={saving || !amount || (!picked && !walkupName.trim())}
-            className="w-full gap-2 h-14 text-base font-semibold rounded-2xl"
+            className="hidden sm:flex w-full gap-2 h-14 text-base font-semibold rounded-2xl"
             size="lg"
           >
             {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
@@ -523,7 +535,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                     {entries.map(e => (
                       <li
                         key={e.id}
-                        className="flex items-center justify-between gap-2 rounded-2xl border bg-card px-4 py-3"
+                        className="flex items-center justify-between gap-2 rounded-2xl border bg-card px-4 py-3 min-h-[60px]"
                       >
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
@@ -552,7 +564,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-9 w-9 rounded-full shrink-0"
+                            className="h-11 w-11 rounded-full shrink-0"
                             onClick={() => handleDelete(e.id)}
                             aria-label="Delete"
                           >
@@ -566,6 +578,22 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
               </div>
             </details>
           )}
+        </div>
+
+        {/* Sticky bottom save bar — mobile-first thumb reach */}
+        <div
+          className="sm:hidden sticky bottom-0 left-0 right-0 px-4 py-3 bg-background/95 backdrop-blur border-t z-10"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.75rem)' }}
+        >
+          <Button
+            onClick={handleSave}
+            disabled={saving || !amount || (!picked && !walkupName.trim())}
+            className="w-full gap-2 h-14 text-base font-semibold rounded-2xl shadow-lg shadow-primary/20"
+            size="lg"
+          >
+            {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
+            {amount ? `Save ${formatUGX(Number(amount))}` : 'Save payment'}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
