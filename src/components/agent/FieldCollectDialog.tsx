@@ -736,6 +736,40 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   }, [tenantIndex, tenants, debouncedSearch, fingerprint, entries, browseSort, browsePage, user?.id]);
 
   /**
+   * Tail-share warning metadata.
+   *
+   * When the agent has typed a short 3–4 digit phone query, count how
+   * many tenants in their caseload share that exact tail. The picker
+   * uses this to surface a strong "narrow your query" warning chip when
+   * the count crosses `tailWarnThreshold` — the wrong-pick risk gets
+   * material above ~10 candidates.
+   *
+   * Returns null when the query isn't a short phone-y query (or when
+   * the count is BELOW the threshold) so the UI can cheaply skip
+   * rendering — we only ever pay for the chip when it actually helps.
+   * Computed independently of the result `filtered` memo so it stays
+   * correct even when the per-query result cache short-circuits.
+   */
+  const tailWarn = useMemo<{ count: number; tailLen: number; digits: string } | null>(() => {
+    const raw = debouncedSearch.trim();
+    if (!raw) return null;
+    const phoneQ = normalizePhone(raw);
+    if (phoneQ.length < 3 || phoneQ.length > 4) return null;
+    // Mirror the dialog's `isPhoneQuery` heuristic: mostly digits, allowing
+    // common phone separators. Avoids triggering on all-letter inputs that
+    // happen to normalize to a few digits.
+    const stripped = raw.replace(/[\s\-+()]/g, '');
+    const digitsOnly = stripped.replace(/\D+/g, '');
+    if (digitsOnly.length < stripped.length - 1) return null;
+    let count = 0;
+    for (const x of tenantIndex) {
+      if (x.phone && x.phone.endsWith(phoneQ)) count++;
+    }
+    if (count <= tailWarnThreshold) return null;
+    return { count, tailLen: phoneQ.length, digits: phoneQ };
+  }, [debouncedSearch, tenantIndex, tailWarnThreshold]);
+
+  /**
    * Browse-mode pager metadata. Only meaningful when the search box is empty
    * — `pageCount` drives the Prev/Next button enabled state and the
    * "Page X of Y" label.
