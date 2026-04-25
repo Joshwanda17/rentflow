@@ -179,3 +179,90 @@ export async function cancelAwaitingBatch(batchId: string): Promise<void> {
   const { error } = await supabase.from('field_deposit_batches').delete().eq('id', batchId);
   if (error) throw error;
 }
+
+/* --------------------------------------------------------------------- */
+/* FinOps verification queue                                             */
+/* --------------------------------------------------------------------- */
+
+export interface BatchItemDetail {
+  id: string;
+  amount: number;
+  field_collection_id: string;
+  tenant_name: string | null;
+  tenant_phone: string | null;
+}
+
+export interface PendingBatch extends FieldDepositBatch {
+  agent_name: string | null;
+  agent_phone: string | null;
+  items: BatchItemDetail[];
+}
+
+/** Pending batches awaiting Financial Ops verification, with items + agent profile. */
+export async function listPendingFinOpsBatches(limit = 50): Promise<PendingBatch[]> {
+  const { data: batches, error } = await supabase
+    .from('field_deposit_batches')
+    .select('*')
+    .eq('status', 'pending_finops_verification')
+    .order('proof_submitted_at', { ascending: true })
+    .limit(limit);
+  if (error) throw error;
+  const list = (batches ?? []) as FieldDepositBatch[];
+  if (list.length === 0) return [];
+
+  const batchIds = list.map(b => b.id);
+  const agentIds = Array.from(new Set(list.map(b => b.agent_id)));
+
+  const [{ data: items, error: itemsErr }, { data: agents, error: agentsErr }] = await Promise.all([
+    supabase
+      .from('field_deposit_batch_items')
+      .select('id, batch_id, amount, field_collection_id, field_collections(tenant_name, tenant_phone)')
+      .in('batch_id', batchIds),
+    supabase
+      .from('profiles')
+      .select('id, full_name, phone')
+      .in('id', agentIds),
+  ]);
+  if (itemsErr) throw itemsErr;
+  if (agentsErr) throw agentsErr;
+
+  const agentMap = new Map((agents ?? []).map((a: any) => [a.id, a]));
+  const itemsByBatch = new Map<string, BatchItemDetail[]>();
+  for (const it of (items ?? []) as any[]) {
+    const detail: BatchItemDetail = {
+      id: it.id,
+      amount: Number(it.amount ?? 0),
+      field_collection_id: it.field_collection_id,
+      tenant_name: it.field_collections?.tenant_name ?? null,
+      tenant_phone: it.field_collections?.tenant_phone ?? null,
+    };
+    const arr = itemsByBatch.get(it.batch_id) ?? [];
+    arr.push(detail);
+    itemsByBatch.set(it.batch_id, arr);
+  }
+
+  return list.map(b => ({
+    ...b,
+    agent_name: (agentMap.get(b.agent_id) as any)?.full_name ?? null,
+    agent_phone: (agentMap.get(b.agent_id) as any)?.phone ?? null,
+    items: itemsByBatch.get(b.id) ?? [],
+  }));
+}
+
+export async function verifyBatchAsFinOps(batchId: string, proofEntered: string) {
+  const { data, error } = await supabase.functions.invoke('verify-field-deposit', {
+    body: { action: 'verify', batch_id: batchId, proof_entered: proofEntered },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
+export async function rejectBatchAsFinOps(batchId: string, reason: string) {
+  const { data, error } = await supabase.functions.invoke('verify-field-deposit', {
+    body: { action: 'reject', batch_id: batchId, reason },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
