@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeName, normalizePhone, phoneVariants, scoreTenantMatch } from './tenantSearch';
+import {
+  normalizeName,
+  normalizePhone,
+  phoneVariants,
+  scoreTenantMatch,
+  tailMatch,
+  tailSharedCounts,
+} from './tenantSearch';
 
 describe('normalizeName', () => {
   it('lowercases input', () => {
@@ -105,7 +112,8 @@ describe('scoreTenantMatch — short digit queries (3–4 digits)', () => {
     const tail = scoreTenantMatch('3456', T('Alice', '0772 123 456'));
     const middle = scoreTenantMatch('7212', T('Alice', '0772 123 456'));
     expect(tail.matchType).toBe('phone');
-    expect(tail.score).toBe(110);
+    // 4-digit tail is block-aligned ⇒ +5 boundary bonus on the base 110.
+    expect(tail.score).toBe(115);
     expect(middle.score).toBe(0); // middle hit suppressed for short queries
   });
 
