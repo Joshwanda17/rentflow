@@ -990,18 +990,34 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
                     );
                   })}
                 </div>
-                <div className="px-3 py-2 border-t">
+                <div className="px-3 py-2 border-t space-y-1.5">
                   <Button
                     type="button"
                     size="sm"
                     className="w-full h-8 text-xs gap-1"
+                    disabled={!!resolvingAction || (breakdown.duplicate.count === 0 && breakdown.failed.count === 0)}
+                    onClick={resolveAllInOrder}
+                  >
+                    {resolvingAction === 'auto' ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                    )}
+                    {resolvingAction === 'auto' ? 'Resolving…' : 'Resolve all in order'}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="w-full h-8 text-xs gap-1 text-muted-foreground"
+                    disabled={!!resolvingAction}
                     onClick={() => {
                       setDupPopoverOpen(false);
                       setReconcileOpen(true);
                     }}
                   >
                     <FileWarning className="h-3.5 w-3.5" />
-                    Fix these payments
+                    Review one-by-one instead
                   </Button>
                 </div>
               </PopoverContent>
