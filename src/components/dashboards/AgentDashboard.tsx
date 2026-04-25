@@ -93,6 +93,7 @@ import { getDuplicateEntries } from '@/lib/fieldCollectStore';
 import { FileWarning } from 'lucide-react';
 import { FieldCollectDailyTotals } from '@/components/agent/FieldCollectDailyTotals';
 import { FieldCollectCard } from '@/components/agent/FieldCollectCard';
+import { FieldDepositQueueCard } from '@/components/agent/FieldDepositQueueCard';
 
 import { AgentTopUpTenantDialog } from '@/components/agent/AgentTopUpTenantDialog';
 import { AgentInvestForPartnerDialog } from '@/components/agent/AgentInvestForPartnerDialog';
@@ -432,6 +433,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
             {/* Daily totals from offline field-collection queue (live) */}
             <FieldCollectDailyTotals live />
+
+            {/* Deposit queue — bank collected cash & queue proof for Finance */}
+            <FieldDepositQueueCard />
 
             {/* Reconciliation banner — only shows when duplicates exist */}
             {duplicateCount > 0 && (
