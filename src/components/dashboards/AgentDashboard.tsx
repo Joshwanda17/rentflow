@@ -88,6 +88,9 @@ import { AgentTenantsSheet } from '@/components/agent/AgentTenantsSheet';
 import { AgentManagedUsersSheet } from '@/components/agent/AgentManagedUsersSheet';
 import { FieldCollectDialog } from '@/components/agent/FieldCollectDialog';
 import { FieldCollectFab } from '@/components/agent/FieldCollectFab';
+import { FieldCollectReconciliationSheet } from '@/components/agent/FieldCollectReconciliationSheet';
+import { getDuplicateEntries } from '@/lib/fieldCollectStore';
+import { FileWarning } from 'lucide-react';
 import { FieldCollectCard } from '@/components/agent/FieldCollectCard';
 
 import { AgentTopUpTenantDialog } from '@/components/agent/AgentTopUpTenantDialog';
@@ -177,6 +180,23 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const { event: commissionEvent, dismiss: dismissCommission } = useBusinessAdvanceCommissionListener();
   const [tenantsSheetOpen, setTenantsSheetOpen] = useState(false);
   const [fieldCollectOpen, setFieldCollectOpen] = useState(false);
+  const [reconcileOpen, setReconcileOpen] = useState(false);
+  const [duplicateCount, setDuplicateCount] = useState(0);
+
+  // Poll local IndexedDB for duplicate entries needing reconciliation
+  useEffect(() => {
+    if (!user?.id) return;
+    let alive = true;
+    const tick = async () => {
+      try {
+        const dups = await getDuplicateEntries(user.id);
+        if (alive) setDuplicateCount(dups.length);
+      } catch { /* ignore */ }
+    };
+    tick();
+    const iv = window.setInterval(tick, 5000);
+    return () => { alive = false; window.clearInterval(iv); };
+  }, [user?.id, fieldCollectOpen, reconcileOpen]);
   const [investForPartnerOpen, setInvestForPartnerOpen] = useState(false);
   const [proxyHistoryOpen, setProxyHistoryOpen] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState(false);
@@ -408,6 +428,28 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
             {/* Field Collect — offline cash collection (prominent) */}
             <FieldCollectCard onOpen={() => setFieldCollectOpen(true)} />
+
+            {/* Reconciliation banner — only shows when duplicates exist */}
+            {duplicateCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setReconcileOpen(true)}
+                className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-950/40 transition-colors text-left"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <FileWarning className="h-5 w-5 text-amber-600 shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                      {duplicateCount} receipt{duplicateCount === 1 ? '' : 's'} need reconciliation
+                    </div>
+                    <div className="text-xs text-amber-700 dark:text-amber-300/80 truncate">
+                      Already uploaded with different details — tap to review
+                    </div>
+                  </div>
+                </div>
+                <span className="text-xs font-medium text-amber-700 dark:text-amber-300 shrink-0">Review →</span>
+              </button>
+            )}
 
             {/* Welile Vouches highlight — entices tap into AI ID */}
             <AgentVouchHighlightCard userId={user.id} />
@@ -751,6 +793,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <AgentTenantsSheet open={tenantsSheetOpen} onOpenChange={setTenantsSheetOpen} />
       <FieldCollectDialog open={fieldCollectOpen} onOpenChange={setFieldCollectOpen} />
       <FieldCollectFab onClick={() => setFieldCollectOpen(true)} />
+      <FieldCollectReconciliationSheet open={reconcileOpen} onOpenChange={setReconcileOpen} />
       <AgentManagedUsersSheet open={managedUsersOpen} onOpenChange={setManagedUsersOpen} agentId={user.id} />
       <AgentTopUpTenantDialog open={topUpTenantOpen} onOpenChange={setTopUpTenantOpen} onSuccess={refreshOfflineData} />
       <AgentInvestForPartnerDialog open={investForPartnerOpen} onOpenChange={setInvestForPartnerOpen} onSuccess={() => { refreshOfflineData(); refreshWallet(); }} />
