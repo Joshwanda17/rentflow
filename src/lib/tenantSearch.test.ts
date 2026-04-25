@@ -258,18 +258,28 @@ describe('phoneVariants', () => {
 });
 
 describe('scoreTenantMatch — fuzzy phone fallback', () => {
-  it('flags bestMatchFallback for messy +256 0 772 input', () => {
-    // Strict normalizePhone of "+256 0 772 123 456" yields "772123456"
-    // already, so this should NOT need the fallback.
-    const strict = scoreTenantMatch('+256 0 772 123 456', T('Alice', '0772 123 456'));
+  it('does NOT flag fallback for clean strict matches', () => {
+    // "+256 772 123 456" strict-normalizes to "772123456" (canonical).
+    const strict = scoreTenantMatch('+256 772 123 456', T('Alice', '0772 123 456'));
     expect(strict.bestMatchFallback ?? false).toBe(false);
     expect(strict.score).toBeGreaterThan(0);
   });
 
+  it('flags bestMatchFallback when strict normalize keeps a stray prefix', () => {
+    // "+256 0 772 123 456" strict-normalizes to "0772123456" (stray inner 0
+    // kept). That doesn't equal the candidate's "772123456" — only the
+    // fuzzy variants do.
+    const r = scoreTenantMatch('+256 0 772 123 456', T('Alice', '0772 123 456'));
+    expect(r.score).toBeGreaterThan(0);
+    expect(r.bestMatchFallback).toBe(true);
+    expect(r.matchType).toBe('phone');
+  });
+
   it('matches via fallback when strict normalization differs', () => {
     // Pad the query with an unusual extra prefix that strict normalize won't
-    // strip, but phoneVariants will produce a tail equal to the candidate.
-    const r = scoreTenantMatch('99 256 772 123 456', T('Alice', '0772 123 456'));
+    // strip, but phoneVariants will produce a 9-digit tail equal to the
+    // candidate.
+    const r = scoreTenantMatch('99256772123456', T('Alice', '0772 123 456'));
     expect(r.score).toBeGreaterThan(0);
     expect(r.bestMatchFallback).toBe(true);
     expect(r.matchType).toBe('phone');
