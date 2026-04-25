@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeName, normalizePhone, scoreTenantMatch } from './tenantSearch';
+import { normalizeName, normalizePhone, phoneVariants, scoreTenantMatch } from './tenantSearch';
 
 describe('normalizeName', () => {
   it('lowercases input', () => {
