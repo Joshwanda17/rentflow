@@ -455,17 +455,13 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
             const t = new Date(data.updated_at as string).getTime();
             if (Number.isFinite(t)) setBrowseStatusUpdatedAt(t);
           }
-          // Mirror back to localStorage so this device matches the
-          // cloud value on its next offline cold start.
-          if (typeof window !== 'undefined' && browseStatusStorageKey) {
-            try {
-              if (cloudValue === 'all') {
-                window.localStorage.removeItem(browseStatusStorageKey);
-              } else {
-                window.localStorage.setItem(browseStatusStorageKey, cloudValue);
-              }
-            } catch {
-              /* noop */
+          // Mirror back to local storage (or memory fallback) so this
+          // device matches the cloud value on its next cold open.
+          if (browseStatusStorageKey) {
+            if (cloudValue === 'all') {
+              safeStorage.removeItem(browseStatusStorageKey);
+            } else {
+              safeStorage.setItem(browseStatusStorageKey, cloudValue);
             }
           }
         }
@@ -2179,12 +2175,11 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                           type="button"
                           onClick={() => {
                             setBrowseStatus('all');
-                            if (browseStatusStorageKey && typeof window !== 'undefined') {
-                              try {
-                                window.localStorage.removeItem(browseStatusStorageKey);
-                              } catch {
-                                /* noop — private mode / quota; UI already reset */
-                              }
+                            // Wipe the persisted (or in-memory fallback)
+                            // entry so a future open won't silently re-restore
+                            // the cleared selection. `safeStorage` is no-throw.
+                            if (browseStatusStorageKey) {
+                              safeStorage.removeItem(browseStatusStorageKey);
                             }
                           }}
                           className="inline-flex items-center gap-1 h-7 px-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
