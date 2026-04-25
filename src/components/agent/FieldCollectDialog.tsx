@@ -1,0 +1,452 @@
+import { useEffect, useMemo, useState, useCallback } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
+import {
+  Loader2, WifiOff, Wifi, CloudUpload, Search, Plus, Trash2,
+  CheckCircle2, AlertCircle, Banknote, MapPin, RefreshCcw
+} from 'lucide-react';
+import {
+  cacheTenants, getCachedTenants, addEntry, deleteEntry, getEntries,
+  getQueuedEntries, updateEntry, newClientUuid,
+  type CachedTenant, type FieldEntry,
+} from '@/lib/fieldCollectStore';
+import { formatUGX } from '@/lib/rentCalculations';
+import { cn } from '@/lib/utils';
+
+interface FieldCollectDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogProps) {
+  const { user } = useAuth();
+  const [online, setOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [tenants, setTenants] = useState<CachedTenant[]>([]);
+  const [tenantsLoading, setTenantsLoading] = useState(false);
+  const [entries, setEntries] = useState<FieldEntry[]>([]);
+  const [search, setSearch] = useState('');
+  const [picked, setPicked] = useState<CachedTenant | null>(null);
+  const [walkupName, setWalkupName] = useState('');
+  const [walkupPhone, setWalkupPhone] = useState('');
+  const [amount, setAmount] = useState('');
+  const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  /* Online/offline tracking */
+  useEffect(() => {
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => {
+      window.removeEventListener('online', on);
+      window.removeEventListener('offline', off);
+    };
+  }, []);
+
+  /* Load + refresh tenant cache when opened */
+  const refreshTenantCache = useCallback(async () => {
+    if (!user?.id) return;
+    setTenantsLoading(true);
+    try {
+      // Pull from server when online
+      if (navigator.onLine) {
+        const { data: referredData } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone, monthly_rent')
+          .eq('referrer_id', user.id);
+
+        const referredIds = new Set((referredData || []).map(t => t.id));
+
+        const [{ data: referralRows }, { data: agentRequests }] = await Promise.all([
+          supabase.from('referrals').select('referred_id').eq('referrer_id', user.id),
+          supabase.from('rent_requests').select('tenant_id').eq('agent_id', user.id),
+        ]);
+
+        const extraIds = [
+          ...(referralRows || []).map(r => r.referred_id),
+          ...(agentRequests || []).map(r => r.tenant_id),
+        ].filter(id => id && !referredIds.has(id));
+
+        let extras: any[] = [];
+        if (extraIds.length) {
+          const { data } = await supabase
+            .from('profiles')
+            .select('id, full_name, phone, monthly_rent')
+            .in('id', [...new Set(extraIds)]);
+          extras = data || [];
+        }
+
+        const all = [...(referredData || []), ...extras].map((t: any) => ({
+          tenantId: t.id as string,
+          fullName: (t.full_name as string) || 'Unnamed Tenant',
+          phone: (t.phone as string) || null,
+          monthlyRent: t.monthly_rent ?? null,
+        }));
+
+        await cacheTenants(user.id, all);
+      }
+      // Always read back from cache (works offline too)
+      const cached = await getCachedTenants(user.id);
+      setTenants(cached);
+    } catch (e) {
+      console.warn('Tenant cache refresh failed, using cache only', e);
+      const cached = await getCachedTenants(user.id);
+      setTenants(cached);
+    } finally {
+      setTenantsLoading(false);
+    }
+  }, [user?.id]);
+
+  const refreshEntries = useCallback(async () => {
+    if (!user?.id) return;
+    setEntries(await getEntries(user.id));
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (open) {
+      refreshTenantCache();
+      refreshEntries();
+    }
+  }, [open, refreshTenantCache, refreshEntries]);
+
+  /* Filter tenants */
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return tenants.slice(0, 8);
+    return tenants
+      .filter(t =>
+        t.fullName.toLowerCase().includes(q) ||
+        (t.phone || '').includes(q.replace(/\s+/g, ''))
+      )
+      .slice(0, 12);
+  }, [tenants, search]);
+
+  const queuedTotal = useMemo(
+    () => entries.filter(e => e.syncState !== 'synced').reduce((sum, e) => sum + Number(e.amount || 0), 0),
+    [entries]
+  );
+  const queuedCount = entries.filter(e => e.syncState !== 'synced').length;
+  const grandTotal = useMemo(() => entries.reduce((sum, e) => sum + Number(e.amount || 0), 0), [entries]);
+
+  const resetForm = () => {
+    setPicked(null);
+    setWalkupName('');
+    setWalkupPhone('');
+    setAmount('');
+    setNotes('');
+    setSearch('');
+  };
+
+  const handleSave = async () => {
+    if (!user?.id) return;
+    const amt = Number(amount);
+    if (!Number.isFinite(amt) || amt <= 0) {
+      toast.error('Enter a valid amount');
+      return;
+    }
+    const tName = picked?.fullName || walkupName.trim();
+    const tPhone = picked?.phone || (walkupPhone.trim() || null);
+    if (!tName) {
+      toast.error('Pick a tenant or enter a name');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const entry: FieldEntry = {
+        id: newClientUuid(),
+        agentId: user.id,
+        tenantId: picked?.tenantId ?? null,
+        tenantName: tName,
+        tenantPhone: tPhone,
+        amount: amt,
+        notes: notes.trim() || null,
+        capturedAt: Date.now(),
+        syncState: 'queued',
+      };
+      await addEntry(entry);
+      await refreshEntries();
+      resetForm();
+      toast.success(`Saved offline · ${formatUGX(amt)}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    await deleteEntry(id);
+    await refreshEntries();
+  };
+
+  const handleSync = async () => {
+    if (!user?.id) return;
+    if (!navigator.onLine) {
+      toast.error('No internet. Will sync when back online.');
+      return;
+    }
+    setSyncing(true);
+    let ok = 0, fail = 0;
+    try {
+      const queue = await getQueuedEntries(user.id);
+      for (const e of queue) {
+        try {
+          const { data, error } = await (supabase.from('field_collections') as any)
+            .insert({
+              client_uuid: e.id,
+              agent_id: user.id,
+              tenant_id: e.tenantId,
+              tenant_name: e.tenantName,
+              tenant_phone: e.tenantPhone,
+              amount: e.amount,
+              notes: e.notes,
+              location_name: e.locationName,
+              latitude: e.latitude,
+              longitude: e.longitude,
+              captured_at: new Date(e.capturedAt).toISOString(),
+              status: 'pending',
+            })
+            .select('id')
+            .single();
+          if (error) {
+            // Duplicate (already synced before) is success
+            if ((error as any).code === '23505') {
+              await updateEntry(e.id, { syncState: 'synced', syncError: null });
+              ok++;
+            } else {
+              await updateEntry(e.id, { syncState: 'error', syncError: error.message });
+              fail++;
+            }
+          } else {
+            await updateEntry(e.id, { syncState: 'synced', serverId: (data as any)?.id, syncError: null });
+            ok++;
+          }
+        } catch (err: any) {
+          await updateEntry(e.id, { syncState: 'error', syncError: err?.message || 'Unknown' });
+          fail++;
+        }
+      }
+      await refreshEntries();
+      if (ok && !fail) toast.success(`Synced ${ok} entr${ok === 1 ? 'y' : 'ies'}`);
+      else if (ok && fail) toast.warning(`Synced ${ok}, ${fail} failed`);
+      else if (!ok && fail) toast.error(`Failed to sync ${fail} entries`);
+      else toast.info('Nothing to sync');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  /* Auto-sync when coming online */
+  useEffect(() => {
+    if (online && open && user?.id) {
+      getQueuedEntries(user.id).then(q => {
+        if (q.length) handleSync();
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [online, open, user?.id]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[92vh] overflow-y-auto p-0">
+        <DialogHeader className="px-5 pt-5 pb-3 sticky top-0 bg-background z-10 border-b">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <DialogTitle className="flex items-center gap-2">
+                <Banknote className="h-5 w-5 text-primary" />
+                Field Collect
+              </DialogTitle>
+              <DialogDescription>Record cash collections offline. Sync later.</DialogDescription>
+            </div>
+            <Badge variant={online ? 'default' : 'secondary'} className={cn('gap-1', !online && 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30')}>
+              {online ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+              {online ? 'Online' : 'Offline'}
+            </Badge>
+          </div>
+        </DialogHeader>
+
+        <div className="px-5 py-4 space-y-4">
+          {/* Today's running total */}
+          <div className="rounded-2xl border bg-gradient-to-br from-primary/10 to-primary/5 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">Today on this device</p>
+                <p className="text-3xl font-bold tracking-tight">{formatUGX(grandTotal)}</p>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  {entries.length} entr{entries.length === 1 ? 'y' : 'ies'} · {queuedCount} pending sync ({formatUGX(queuedTotal)})
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant={queuedCount ? 'default' : 'outline'}
+                onClick={handleSync}
+                disabled={syncing || !online || queuedCount === 0}
+                className="gap-1.5"
+              >
+                {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudUpload className="h-4 w-4" />}
+                Sync
+              </Button>
+            </div>
+          </div>
+
+          {/* Tenant picker */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-semibold">Tenant</Label>
+              <button
+                type="button"
+                onClick={refreshTenantCache}
+                disabled={!online || tenantsLoading}
+                className="text-[11px] text-primary inline-flex items-center gap-1 disabled:opacity-50"
+              >
+                <RefreshCcw className={cn('h-3 w-3', tenantsLoading && 'animate-spin')} />
+                Refresh list
+              </button>
+            </div>
+
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={e => { setSearch(e.target.value); setPicked(null); }}
+                placeholder={tenants.length ? 'Search by name or phone…' : 'No cached tenants yet — go online to load'}
+                className="pl-9"
+                autoComplete="off"
+              />
+            </div>
+
+            {!picked && search && (
+              <div className="rounded-xl border max-h-48 overflow-y-auto">
+                {filtered.length === 0 ? (
+                  <p className="p-3 text-xs text-muted-foreground text-center">No matches in cache. Use walk-up below.</p>
+                ) : filtered.map(t => (
+                  <button
+                    key={t.tenantId}
+                    onClick={() => { setPicked(t); setSearch(t.fullName); }}
+                    className="w-full text-left px-3 py-2 hover:bg-accent border-b last:border-b-0 flex items-center justify-between gap-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{t.fullName}</p>
+                      <p className="text-[11px] text-muted-foreground truncate">{t.phone || 'No phone'}</p>
+                    </div>
+                    {t.monthlyRent ? <span className="text-[11px] text-muted-foreground shrink-0">{formatUGX(t.monthlyRent)}/mo</span> : null}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {picked && (
+              <div className="flex items-center justify-between rounded-xl bg-primary/10 border border-primary/30 px-3 py-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold truncate">{picked.fullName}</p>
+                  <p className="text-[11px] text-muted-foreground truncate">{picked.phone || 'No phone'}</p>
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => { setPicked(null); setSearch(''); }}>Change</Button>
+              </div>
+            )}
+
+            {/* Walk-up fallback */}
+            {!picked && (
+              <details className="text-xs">
+                <summary className="cursor-pointer text-muted-foreground hover:text-foreground">Walk-up tenant (not in list)</summary>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <Input value={walkupName} onChange={e => setWalkupName(e.target.value)} placeholder="Name" />
+                  <Input value={walkupPhone} onChange={e => setWalkupPhone(e.target.value)} placeholder="Phone (optional)" inputMode="tel" />
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1">Will be matched manually after sync.</p>
+              </details>
+            )}
+          </div>
+
+          {/* Amount + notes */}
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold">Amount (UGX)</Label>
+            <Input
+              value={amount}
+              onChange={e => setAmount(e.target.value.replace(/[^\d]/g, ''))}
+              inputMode="numeric"
+              placeholder="e.g. 50000"
+              className="text-lg font-semibold"
+            />
+            <Input
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Note (optional)"
+              maxLength={140}
+              className="text-sm"
+            />
+            <Button
+              onClick={handleSave}
+              disabled={saving || !amount || (!picked && !walkupName.trim())}
+              className="w-full gap-2"
+              size="lg"
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Save collection
+            </Button>
+          </div>
+
+          <Separator />
+
+          {/* Captured list */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-semibold">Captured ({entries.length})</Label>
+            </div>
+            {entries.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-6">No collections yet today.</p>
+            ) : (
+              <ScrollArea className="max-h-72">
+                <ul className="space-y-1.5 pr-2">
+                  {entries.map(e => (
+                    <li key={e.id} className="flex items-center justify-between gap-2 rounded-lg border bg-card px-3 py-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium truncate">{e.tenantName}</p>
+                          {e.syncState === 'synced' && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />}
+                          {e.syncState === 'error' && <AlertCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />}
+                          {e.syncState === 'queued' && <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">
+                          {new Date(e.capturedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {e.tenantPhone ? ` · ${e.tenantPhone}` : ''}
+                          {e.syncState === 'error' && e.syncError ? ` · ${e.syncError.slice(0, 40)}` : ''}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-semibold">{formatUGX(e.amount)}</p>
+                      </div>
+                      {e.syncState !== 'synced' && (
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handleDelete(e.id)}>
+                          <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                        </Button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </ScrollArea>
+            )}
+          </div>
+
+          <p className="text-[10px] text-muted-foreground text-center pt-1">
+            <MapPin className="inline h-3 w-3 mr-0.5" />
+            Synced entries land in your <span className="font-semibold">Pending Field Collections</span> queue for online confirmation.
+          </p>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export default FieldCollectDialog;
