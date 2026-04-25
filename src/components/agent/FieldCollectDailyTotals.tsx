@@ -95,6 +95,14 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
   });
   const [datePickerOpen, setDatePickerOpen] = useState(false);
 
+  /**
+   * Date-range export popover. Opens from the dropdown ("Export range…") and
+   * lets the agent pick a quick preset (This week / This month / Last 7 days)
+   * or a custom range, then download CSV/PDF.
+   */
+  const [rangeExportOpen, setRangeExportOpen] = useState(false);
+  const [rangeSelection, setRangeSelection] = useState<DateRange | undefined>(undefined);
+
   const refresh = useCallback(async () => {
     if (!user?.id) return;
     setRefreshing(true);
@@ -148,6 +156,77 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
       toast.error('Export failed');
     }
   }, [selectedDate, today, user]);
+
+  /**
+   * Range export — pulls every entry across [start..end] (inclusive) from the
+   * already-loaded local cache, then hands it to the shared PDF/CSV builders.
+   */
+  const handleRangeExport = useCallback(
+    (kind: 'csv' | 'pdf', start: Date, end: Date, label?: string) => {
+      const startMs = new Date(start).setHours(0, 0, 0, 0);
+      const endMs = new Date(end).setHours(23, 59, 59, 999);
+      const slice = entries.filter(e => e.capturedAt >= startMs && e.capturedAt <= endMs);
+      if (slice.length === 0) {
+        toast.info('No payments in that date range');
+        return;
+      }
+      const agentName = (user?.user_metadata as any)?.full_name || user?.email || null;
+      const payload = {
+        startDate: new Date(startMs),
+        endDate: new Date(endMs),
+        agentName,
+        entries: slice,
+        rangeLabel: label,
+      };
+      try {
+        if (kind === 'csv') exportRangeTotalsCsv(payload);
+        else exportRangeTotalsPdf(payload);
+        const days = differenceInCalendarDays(end, start) + 1;
+        toast.success(
+          `Exported ${slice.length} payment${slice.length === 1 ? '' : 's'} across ${days} day${days === 1 ? '' : 's'} as ${kind.toUpperCase()}`,
+        );
+        setRangeExportOpen(false);
+      } catch (err) {
+        console.error('[fieldCollect] range export failed', err);
+        toast.error('Export failed');
+      }
+    },
+    [entries, user],
+  );
+
+  /** Quick presets surfaced inside the range popover. */
+  const exportPreset = useCallback(
+    (kind: 'csv' | 'pdf', preset: 'thisWeek' | 'thisMonth' | 'last7' | 'last30') => {
+      const now = new Date();
+      let start: Date, end: Date, label: string;
+      switch (preset) {
+        case 'thisWeek':
+          start = startOfWeek(now, { weekStartsOn: 1 });
+          end = endOfWeek(now, { weekStartsOn: 1 });
+          label = 'This week';
+          break;
+        case 'thisMonth':
+          start = startOfMonth(now);
+          end = endOfMonth(now);
+          label = 'This month';
+          break;
+        case 'last7':
+          end = now;
+          start = new Date(now);
+          start.setDate(start.getDate() - 6);
+          label = 'Last 7 days';
+          break;
+        case 'last30':
+          end = now;
+          start = new Date(now);
+          start.setDate(start.getDate() - 29);
+          label = 'Last 30 days';
+          break;
+      }
+      handleRangeExport(kind, start, end, label);
+    },
+    [handleRangeExport],
+  );
 
   const breakdown = useMemo(() => {
     const synced = today.filter(e => e.syncState === 'synced');
