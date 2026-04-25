@@ -400,6 +400,103 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     }
   }, [browseStatusStorageKey]);
 
+  /**
+   * Cloud sync (cross-device).
+   *
+   * Storage layering:
+   *   1. localStorage   → instant, offline, single-device cache. UI reads from
+   *                       it on mount so chips never wait on the network.
+   *   2. Cloud row      → durable, multi-device source of truth. Pulled once
+   *                       per login and pushed on every change.
+   *
+   * Conflict policy: cloud wins on initial hydration. Rationale: the user's
+   * intent travels with their account, not with whichever browser they last
+   * used. If the local value differs from the cloud value, the cloud value
+   * is applied AND mirrored back to localStorage so subsequent offline
+   * loads on this device match what other devices show.
+   *
+   * Tracked via a ref (`hasCloudHydratedRef`) so a user toggling the chip
+   * before the cloud fetch resolves isn't stomped by a stale fetched value
+   * — the late-hydration logic mirrors how `hasHydratedStatusRef` works for
+   * localStorage above.
+   *
+   * Best-effort writes: every change upserts (or deletes when 'all', the
+   * default) the row. Network failures swallow into a console.warn —
+   * preferences are UX, not data, so a flaky connection must never crash
+   * the picker or block the agent from collecting.
+   */
+  const hasCloudHydratedRef = useRef(false);
+  const browseStatusPrefKey = 'fieldCollect.browseStatus';
+
+  useEffect(() => {
+    if (hasCloudHydratedRef.current) return;
+    if (!user?.id) return;
+    hasCloudHydratedRef.current = true;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('user_ui_preferences')
+          .select('value')
+          .eq('user_id', user.id)
+          .eq('key', browseStatusPrefKey)
+          .maybeSingle();
+        if (cancelled || error || !data) return;
+        const cloudValue = data.value;
+        if (cloudValue === 'all' || cloudValue === 'active' || cloudValue === 'inactive') {
+          setBrowseStatus(cloudValue);
+          // Mirror back to localStorage so this device matches the
+          // cloud value on its next offline cold start.
+          if (typeof window !== 'undefined' && browseStatusStorageKey) {
+            try {
+              if (cloudValue === 'all') {
+                window.localStorage.removeItem(browseStatusStorageKey);
+              } else {
+                window.localStorage.setItem(browseStatusStorageKey, cloudValue);
+              }
+            } catch {
+              /* noop */
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[FieldCollectDialog] cloud pref hydrate failed', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id, browseStatusStorageKey]);
+
+  /**
+   * Push every chip change to the cloud row (best-effort). Skips writes
+   * before cloud hydration completes so the initial localStorage value
+   * doesn't accidentally overwrite a fresher cloud value on first mount.
+   */
+  useEffect(() => {
+    if (!user?.id) return;
+    if (!hasCloudHydratedRef.current) return;
+    (async () => {
+      try {
+        if (browseStatus === 'all') {
+          // Default = no row. Cleaner than storing a redundant 'all'.
+          await supabase
+            .from('user_ui_preferences')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('key', browseStatusPrefKey);
+        } else {
+          await supabase
+            .from('user_ui_preferences')
+            .upsert(
+              { user_id: user.id, key: browseStatusPrefKey, value: browseStatus },
+              { onConflict: 'user_id,key' },
+            );
+        }
+      } catch (err) {
+        console.warn('[FieldCollectDialog] cloud pref write failed', err);
+      }
+    })();
+  }, [browseStatus, user?.id]);
+
   const [browsePage, setBrowsePage] = useState(0);
 
   /* Online/offline tracking */
