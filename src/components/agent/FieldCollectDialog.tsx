@@ -204,6 +204,29 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   const [tenantsLoading, setTenantsLoading] = useState(false);
   const [entries, setEntries] = useState<FieldEntry[]>([]);
   const [search, setSearch] = useState('');
+  /**
+   * Debounced mirror of `search`. The fuzzy scoring memo (`filtered` below)
+   * runs against this value instead of `search`, so a fast typist doesn't
+   * pay the full O(N) scoring cost on every keystroke when their caseload
+   * is in the thousands.
+   *
+   * Why ~120ms: short enough that the list still feels live (a single
+   * character lands well under a normal typing cadence) but long enough to
+   * coalesce a burst like "078123" into one scoring pass instead of six.
+   * Empty queries skip the debounce entirely so clearing the input snaps
+   * back to browse mode immediately — no awkward 120ms ghost-result.
+   */
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    // Instant transition for "user cleared the box" so the empty-state
+    // (recents + browse pager) appears with zero perceived lag.
+    if (search === '') {
+      setDebouncedSearch('');
+      return;
+    }
+    const id = window.setTimeout(() => setDebouncedSearch(search), 120);
+    return () => window.clearTimeout(id);
+  }, [search]);
   const [picked, setPicked] = useState<CachedTenant | null>(null);
   const [walkupName, setWalkupName] = useState('');
   const [walkupPhone, setWalkupPhone] = useState('');
@@ -435,7 +458,11 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   );
 
   const filtered = useMemo(() => {
-    const raw = search.trim();
+    // Score against the *debounced* search value, not the live `search`,
+    // so a typing burst coalesces into one O(N) scoring pass. The input
+    // box still updates on every keystroke for instant visual feedback —
+    // this memo just lags by ~120ms before re-running.
+    const raw = debouncedSearch.trim();
     const q = normalizeName(raw);
 
     // -------------------- Per-query result cache --------------------
@@ -635,7 +662,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     // digit query and there are multiple candidates — drives the UI hint.
     const ambiguous = isShortPhoneQuery && scored.length > 1;
     return storeAndReturn(scored.map(s => ({ ...s, ambiguous })));
-  }, [tenantIndex, tenants, search, fingerprint, entries, browseSort, browsePage]);
+  }, [tenantIndex, tenants, debouncedSearch, fingerprint, entries, browseSort, browsePage]);
 
   /**
    * Browse-mode pager metadata. Only meaningful when the search box is empty
