@@ -1774,42 +1774,52 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                         </button>
                       </div>
                       </div>
-                      {/* Status quick-filter — narrows the browse universe to
-                       * tenants the agent has worked with vs. ones still
-                       * pending a first collection. Recomputes the page
-                       * count + clamps to page 0 (handled in the effect
-                       * above) so paging stays fast and accurate. */}
-                      <div className="flex items-center justify-between gap-2">
-                        <div
-                          role="tablist"
-                          aria-label="Filter tenants by status"
-                          className="inline-flex rounded-full bg-muted p-0.5"
-                        >
-                          {(['all', 'active', 'inactive'] as const).map(opt => (
-                            <button
-                              key={opt}
-                              type="button"
-                              role="tab"
-                              aria-selected={browseStatus === opt}
-                              onClick={() => setBrowseStatus(opt)}
-                              className={cn(
-                                'inline-flex items-center gap-1 px-3 h-7 rounded-full font-medium capitalize transition-colors',
-                                browseStatus === opt
-                                  ? 'bg-background text-foreground shadow-sm'
-                                  : 'text-muted-foreground hover:text-foreground',
-                              )}
-                            >
-                              {opt}
-                            </button>
-                          ))}
-                        </div>
-                        <span
-                          className="text-muted-foreground tabular-nums"
-                          aria-live="polite"
-                        >
-                          {browseFilteredCount.toLocaleString()} tenant{browseFilteredCount === 1 ? '' : 's'}
-                        </span>
+                    </div>
+                  )}
+
+                  {/*
+                   * Always-visible status filter chips. Lifted out of the
+                   * pager toolbar (which only renders when there's >1
+                   * page of tenants) so the agent can flip between
+                   * Active / Inactive / All without scrolling — the
+                   * row sits directly above the result list and stays
+                   * mounted for both browse and search modes. The
+                   * matching count (`browseFilteredCount`) reflects the
+                   * filtered browse universe; in search mode the chips
+                   * still narrow the underlying browse pool so a
+                   * subsequent clear-search lands on the right slice.
+                   */}
+                  {!search && tenants.length > 0 && (
+                    <div className="flex items-center justify-between gap-2 px-1 text-xs">
+                      <div
+                        role="tablist"
+                        aria-label="Filter tenants by status"
+                        className="inline-flex rounded-full bg-muted p-0.5"
+                      >
+                        {(['all', 'active', 'inactive'] as const).map(opt => (
+                          <button
+                            key={opt}
+                            type="button"
+                            role="tab"
+                            aria-selected={browseStatus === opt}
+                            onClick={() => setBrowseStatus(opt)}
+                            className={cn(
+                              'inline-flex items-center gap-1 px-3 h-7 rounded-full font-medium capitalize transition-colors',
+                              browseStatus === opt
+                                ? 'bg-background text-foreground shadow-sm'
+                                : 'text-muted-foreground hover:text-foreground',
+                            )}
+                          >
+                            {opt}
+                          </button>
+                        ))}
                       </div>
+                      <span
+                        className="text-muted-foreground tabular-nums"
+                        aria-live="polite"
+                      >
+                        {browseFilteredCount.toLocaleString()} tenant{browseFilteredCount === 1 ? '' : 's'}
+                      </span>
                     </div>
                   )}
 
