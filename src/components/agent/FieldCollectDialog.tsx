@@ -1546,6 +1546,46 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                   </div>
 
                   {/*
+                   * Tail-share hint. Visible only when the agent has typed a
+                   * 3–4 digit phone-y query — the same range that triggers
+                   * the dialog's "short phone query" disambiguation rules.
+                   * Tells them how many tenants in their caseload end in
+                   * those exact digits so they know whether to type more.
+                   *
+                   * Color cues:
+                   *   0 matches  → muted (no help; probably typo / wrong digits)
+                   *   1 match    → success (unique tail; only one candidate)
+                   *   2–4        → primary (small set; pickable from list)
+                   *   5+         → warning (highly ambiguous; type more digits)
+                   */}
+                  {tailShareHint && (
+                    <div
+                      role="status"
+                      aria-live="polite"
+                      className={cn(
+                        'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium tabular-nums',
+                        tailShareHint.count === 0 && 'bg-muted/50 text-muted-foreground',
+                        tailShareHint.count === 1 && 'bg-success/10 text-success',
+                        tailShareHint.count >= 2 && tailShareHint.count <= 4 && 'bg-primary/10 text-primary',
+                        tailShareHint.count >= 5 && 'bg-warning/15 text-warning-foreground border border-warning/30',
+                      )}
+                    >
+                      <span className="font-mono opacity-70">…{tailShareHint.digits}</span>
+                      <span>·</span>
+                      <span>
+                        {tailShareHint.count === 0 && `No tenants end in these ${tailShareHint.tailLen} digits`}
+                        {tailShareHint.count === 1 && `1 tenant ends in these ${tailShareHint.tailLen} digits`}
+                        {tailShareHint.count >= 2 && (
+                          <>
+                            {tailShareHint.count} tenants share these {tailShareHint.tailLen} digits
+                            {tailShareHint.count >= 5 && ' — type more to narrow'}
+                          </>
+                        )}
+                      </span>
+                    </div>
+                  )}
+
+                  {/*
                    * Browse-mode toolbar. Only shown when the search box is
                    * empty AND the agent has more than one page worth of
                    * tenants — for short caseloads the page would just say
