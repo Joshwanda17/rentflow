@@ -526,7 +526,10 @@ export function RequestMoneyDialog({ open, onOpenChange, onSuccess }: RequestMon
                       <Button
                         type="button"
                         variant={tapMode === 'tap' ? 'default' : 'outline'}
-                        onClick={() => setTapMode('tap')}
+                        onClick={async () => {
+                          await resetTap();
+                          setTapMode('tap');
+                        }}
                         className="gap-2"
                       >
                         <Nfc className="h-4 w-4" /> Tap to Pay
@@ -534,7 +537,10 @@ export function RequestMoneyDialog({ open, onOpenChange, onSuccess }: RequestMon
                       <Button
                         type="button"
                         variant={tapMode === 'scan' ? 'default' : 'outline'}
-                        onClick={() => setTapMode('scan')}
+                        onClick={async () => {
+                          await resetTap();
+                          setTapMode('scan');
+                        }}
                         className="gap-2"
                       >
                         <ScanLine className="h-4 w-4" /> Scan to Pay
