@@ -262,6 +262,22 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
    */
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
+  /**
+   * Browse-mode controls — only used when the search box is empty so the
+   * agent can flip through their full caseload of thousands of tenants
+   * without having to type. Both pieces of state persist for the dialog
+   * session (reset on close via `resetForm`/effect below).
+   *
+   *  - browseSort:  'recent' (default — last activity desc) or 'name' (A→Z)
+   *  - browsePage:  0-indexed page within the sorted list, 100 rows/page
+   *
+   * Search mode is unchanged: scoring + virtualized list still cap at 200.
+   */
+  type BrowseSort = 'recent' | 'name';
+  const BROWSE_PAGE_SIZE = 100;
+  const [browseSort, setBrowseSort] = useState<BrowseSort>('recent');
+  const [browsePage, setBrowsePage] = useState(0);
+
   /* Online/offline tracking */
   useEffect(() => {
     const on = () => setOnline(true);
@@ -434,7 +450,13 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     // Lowercase the trimmed query so "Alice", "alice ", and "ALICE" share an
     // entry. The empty query has its own dedicated bucket too so opening the
     // picker repeatedly doesn't re-slice the tenant book.
-    const cacheKey = raw.toLowerCase();
+    //
+    // Browse-mode (empty query) varies by sort + page, so we widen the key to
+    // include those — flipping pages or switching sort keeps each variant
+    // memoized so back/forward feels instant.
+    const cacheKey = raw
+      ? raw.toLowerCase()
+      : `__browse__:${browseSort}:${browsePage}`;
     const cached = searchCacheRef.current.get(cacheKey);
     if (cached) {
       // LRU touch: re-insert moves this key to the most-recent position so it
@@ -454,10 +476,49 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
       return rows;
     };
 
-    // No query → show a generous prefix of the tenant book. Used to be 8;
-    // bumped to 200 now that the list is virtualized so the agent can scroll
-    // through their full caseload without hitting an artificial cap.
-    if (!q) return storeAndReturn(tenants.slice(0, 200).map(t => ({ t, score: 0, matchType: null as 'phone' | 'name' | 'both' | null, ambiguous: false, bestMatchFallback: false })));
+    // No query → BROWSE MODE.
+    //
+    // The agent isn't searching — they just want to flip through their
+    // caseload to find the right tenant by sight. We honour the active
+    // sort (`recent` = last activity desc, `name` = A→Z) and slice out a
+    // single page so the virtualized list never has to render more than
+    // BROWSE_PAGE_SIZE rows even if the agent has tens of thousands of
+    // cached tenants. The pager (Prev / Next) lives in the UI below.
+    //
+    // Cache-friendliness: the cache key already contains the sort+page
+    // because it's part of `cacheKey` (we widen it below). So flipping
+    // pages is O(1) on the second visit.
+    if (!q) {
+      // Build a "last activity" lookup once per (entries, tenants) change.
+      // Tenants without any captured entry get -Infinity so they sink to
+      // the bottom under the 'recent' sort.
+      const lastByTenant = new Map<string, number>();
+      for (const e of entries) {
+        if (!e.tenantId) continue;
+        const prev = lastByTenant.get(e.tenantId) ?? 0;
+        if (e.capturedAt > prev) lastByTenant.set(e.tenantId, e.capturedAt);
+      }
+      const sorted = [...tenants].sort((a, b) => {
+        if (browseSort === 'name') {
+          return a.fullName.localeCompare(b.fullName, undefined, { sensitivity: 'base' });
+        }
+        // recent: last activity desc, then cachedAt desc as a tiebreaker so
+        // brand-new tenants still bubble up before stale untouched ones.
+        const la = lastByTenant.get(a.tenantId) ?? -Infinity;
+        const lb = lastByTenant.get(b.tenantId) ?? -Infinity;
+        if (lb !== la) return lb - la;
+        return (b.cachedAt ?? 0) - (a.cachedAt ?? 0);
+      });
+      const start = browsePage * BROWSE_PAGE_SIZE;
+      const page = sorted.slice(start, start + BROWSE_PAGE_SIZE);
+      return storeAndReturn(page.map(t => ({
+        t,
+        score: 0,
+        matchType: null as 'phone' | 'name' | 'both' | null,
+        ambiguous: false,
+        bestMatchFallback: false,
+      })));
+    }
     const phoneQ = normalizePhone(raw);
     // Treat the query as "phone-y" if the user typed mostly digits — even
     // with spaces, dashes, plus signs or a leading 0/256.
@@ -574,7 +635,32 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     // digit query and there are multiple candidates — drives the UI hint.
     const ambiguous = isShortPhoneQuery && scored.length > 1;
     return storeAndReturn(scored.map(s => ({ ...s, ambiguous })));
-  }, [tenantIndex, tenants, search, fingerprint]);
+  }, [tenantIndex, tenants, search, fingerprint, entries, browseSort, browsePage]);
+
+  /**
+   * Browse-mode pager metadata. Only meaningful when the search box is empty
+   * — `pageCount` drives the Prev/Next button enabled state and the
+   * "Page X of Y" label.
+   */
+  const browsePageCount = useMemo(
+    () => Math.max(1, Math.ceil(tenants.length / BROWSE_PAGE_SIZE)),
+    [tenants.length],
+  );
+
+  /* Clamp the page if the tenant list shrinks under us. */
+  useEffect(() => {
+    if (browsePage >= browsePageCount) setBrowsePage(0);
+  }, [browsePage, browsePageCount]);
+
+  /* Reset to page 0 whenever the sort changes or the agent starts typing
+   * — staying on page 7 of "Name A→Z" then flipping to "Recent" should not
+   * dump the agent in the middle of the new ordering. */
+  useEffect(() => {
+    setBrowsePage(0);
+  }, [browseSort]);
+  useEffect(() => {
+    if (search) setBrowsePage(0);
+  }, [search]);
 
   /** Just the tenant rows — used by keyboard nav & recents merge. */
   const filteredTenants = useMemo<CachedTenant[]>(
@@ -1280,6 +1366,83 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                       </button>
                     )}
                   </div>
+
+                  {/*
+                   * Browse-mode toolbar. Only shown when the search box is
+                   * empty AND the agent has more than one page worth of
+                   * tenants — for short caseloads the page would just say
+                   * "1 of 1" and waste vertical space.
+                   *
+                   * Controls:
+                   *   - Sort:  Recent (last activity) | A→Z (name)
+                   *   - Pager: Prev | "Page X of Y · N tenants" | Next
+                   *
+                   * Search mode hides this entirely; the existing scoring
+                   * + 200-row cap still drives that path.
+                   */}
+                  {!search && tenants.length > BROWSE_PAGE_SIZE && (
+                    <div className="flex items-center justify-between gap-2 px-1 text-xs">
+                      <div
+                        role="tablist"
+                        aria-label="Sort tenants"
+                        className="inline-flex rounded-full bg-muted p-0.5"
+                      >
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={browseSort === 'recent'}
+                          onClick={() => setBrowseSort('recent')}
+                          className={cn(
+                            'inline-flex items-center gap-1 px-3 h-7 rounded-full font-medium transition-colors',
+                            browseSort === 'recent'
+                              ? 'bg-background text-foreground shadow-sm'
+                              : 'text-muted-foreground hover:text-foreground',
+                          )}
+                        >
+                          <Clock className="h-3 w-3" />
+                          Recent
+                        </button>
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={browseSort === 'name'}
+                          onClick={() => setBrowseSort('name')}
+                          className={cn(
+                            'inline-flex items-center gap-1 px-3 h-7 rounded-full font-medium transition-colors',
+                            browseSort === 'name'
+                              ? 'bg-background text-foreground shadow-sm'
+                              : 'text-muted-foreground hover:text-foreground',
+                          )}
+                        >
+                          A→Z
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-1 text-muted-foreground tabular-nums">
+                        <button
+                          type="button"
+                          onClick={() => setBrowsePage(p => Math.max(0, p - 1))}
+                          disabled={browsePage === 0}
+                          aria-label="Previous page"
+                          className="h-7 w-7 inline-flex items-center justify-center rounded-full hover:bg-accent disabled:opacity-40 disabled:hover:bg-transparent"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </button>
+                        <span className="px-1 font-medium text-foreground">
+                          {browsePage + 1}
+                          <span className="text-muted-foreground font-normal"> / {browsePageCount}</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setBrowsePage(p => Math.min(browsePageCount - 1, p + 1))}
+                          disabled={browsePage >= browsePageCount - 1}
+                          aria-label="Next page"
+                          className="h-7 w-7 inline-flex items-center justify-center rounded-full hover:bg-accent disabled:opacity-40 disabled:hover:bg-transparent"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {(search || tenants.length > 0) && (
                     <div
