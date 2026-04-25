@@ -114,6 +114,13 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
    */
   const [activeIdx, setActiveIdx] = useState(0);
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  /**
+   * Ref to the tenant search input. Used by the section-level type-to-search
+   * handler so a printable key pressed anywhere in Step 1 (e.g. while focus is
+   * on a "Recent" chip) routes that character into the search input and
+   * snaps the highlight to the first match.
+   */
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   /* Online/offline tracking */
   useEffect(() => {
@@ -349,6 +356,51 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
       setSearch('');
       setActiveIdx(0);
     }
+  };
+
+  /**
+   * Section-level type-to-search (typeahead).
+   * If the agent presses a printable single character while focus is NOT in
+   * an editable field (e.g. they tabbed to a "Recent" chip, or just opened
+   * the dialog and the autoFocus moved elsewhere), we:
+   *   1) Focus the tenant search input.
+   *   2) Append (or start) the query with that character.
+   *   3) The existing `setActiveIdx(0)` effect snaps the highlight to the
+   *      first match — no extra wiring needed.
+   * Modifier keys (Ctrl/Cmd/Alt) are ignored so shortcuts still work, and we
+   * deliberately let the input's own onKeyDown handle keys when it's already
+   * focused (so we don't double-insert).
+   */
+  const handleStep1TypeAhead = (e: React.KeyboardEvent<HTMLElement>) => {
+    if (e.defaultPrevented) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    // Only single printable characters (letters, digits, common symbols).
+    // Excludes 'Enter', 'ArrowDown', 'Tab', 'Escape', etc. which all have
+    // multi-char key names.
+    if (e.key.length !== 1) return;
+    const target = e.target as HTMLElement | null;
+    // Don't hijack typing inside the search input itself or any editable area.
+    if (target && (
+      target === searchInputRef.current ||
+      target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      (target as HTMLElement).isContentEditable
+    )) {
+      return;
+    }
+    e.preventDefault();
+    const ch = e.key;
+    setSearch(prev => prev + ch);
+    setPicked(null);
+    // Defer focus until after React applies the value so caret lands at end.
+    requestAnimationFrame(() => {
+      const el = searchInputRef.current;
+      if (el) {
+        el.focus();
+        const len = el.value.length;
+        try { el.setSelectionRange(len, len); } catch { /* ignore */ }
+      }
+    });
   };
 
   const handleSave = async () => {
@@ -685,7 +737,11 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
 
           {/* ───── STEP 1 — Tenant ───── */}
           {step === 1 && (
-            <section className="space-y-3" aria-labelledby="step1-title">
+            <section
+              className="space-y-3"
+              aria-labelledby="step1-title"
+              onKeyDown={handleStep1TypeAhead}
+            >
               <div className="flex items-center justify-between">
                 <Label id="step1-title" className="text-lg font-bold tracking-tight">
                   Who paid?
@@ -832,6 +888,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                   <div className="relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
+                      ref={searchInputRef}
                       value={search}
                       onChange={e => { setSearch(e.target.value); setPicked(null); }}
                       onKeyDown={handleSearchKeyDown}
