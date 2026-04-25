@@ -411,6 +411,22 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     }
   }, [browseStatusStorageKey]);
 
+  /* Cloud sync master switch — declared here (above the cloud effects)
+   * because the read + write effects below gate on it. The localStorage
+   * mirror + write-back effect for this flag live further down with the
+   * rest of the picker-prefs block. Default = enabled on every fresh
+   * sign-in. */
+  const cloudSyncStorageKey = user?.id
+    ? `welile.fieldCollect.cloudSync:${user.id}`
+    : null;
+  const [cloudSyncEnabled, setCloudSyncEnabled] = useState<boolean>(() => {
+    if (typeof window === 'undefined' || !user?.id) return true;
+    try {
+      const raw = window.localStorage.getItem(`welile.fieldCollect.cloudSync:${user.id}`);
+      return raw !== 'off';
+    } catch { return true; }
+  });
+
   /**
    * Cloud sync (cross-device).
    *
