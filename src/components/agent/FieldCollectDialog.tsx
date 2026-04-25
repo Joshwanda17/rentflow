@@ -9,6 +9,8 @@ import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { formatDistanceToNow } from 'date-fns';
 import {
   Loader2, WifiOff, Wifi, Search, Trash2,
   CheckCircle2, AlertCircle, RefreshCcw, ChevronLeft, ChevronRight,
