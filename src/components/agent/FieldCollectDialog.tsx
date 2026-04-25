@@ -210,7 +210,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   const filtered = useMemo(() => {
     const raw = search.trim();
     const q = normalizeName(raw);
-    if (!q) return tenants.slice(0, 8);
+    if (!q) return tenants.slice(0, 8).map(t => ({ t, score: 0, matchType: null as 'phone' | 'name' | 'both' | null }));
     const phoneQ = normalizePhone(raw);
     // Treat the query as "phone-y" if the user typed mostly digits — even
     // with spaces, dashes, plus signs or a leading 0/256.
@@ -220,31 +220,45 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
         const name = normalizeName(t.fullName);
         const phone = normalizePhone(t.phone);
         let score = 0;
+        let phoneScore = 0;
+        let nameScore = 0;
         // Phone matches always outrank name matches when the query is phone-y.
         if (isPhoneQuery && phone && phone.includes(phoneQ)) {
-          if (phone === phoneQ) score = 200;          // exact full match — pin to top
-          else if (phone.startsWith(phoneQ)) score = 150; // prefix match
-          else score = 110;                            // substring match
+          if (phone === phoneQ) phoneScore = 200;          // exact full match — pin to top
+          else if (phone.startsWith(phoneQ)) phoneScore = 150; // prefix match
+          else phoneScore = 110;                            // substring match
         } else if (phoneQ && phone && phone.includes(phoneQ)) {
           // Mixed query (digits + letters) — phone still helps but doesn't dominate.
-          score = phone.startsWith(phoneQ) ? 100 : 70;
+          phoneScore = phone.startsWith(phoneQ) ? 100 : 70;
         }
         // Name scoring runs in addition so a tenant matching both ranks higher.
         if (name.startsWith(q)) {
-          score = Math.max(score, 90);
+          nameScore = 90;
         } else if (name.split(' ').some(w => w.startsWith(q))) {
-          score = Math.max(score, 80);
+          nameScore = 80;
         } else if (name.includes(q)) {
-          score = Math.max(score, 50);
+          nameScore = 50;
         }
-        return { t, score };
+        score = Math.max(phoneScore, nameScore);
+        // Match type is whichever scoring lane won; ties (both > 0 with same score)
+        // are labeled 'both' so the agent sees the full picture on the top result.
+        let matchType: 'phone' | 'name' | 'both' | null = null;
+        if (phoneScore > 0 && nameScore > 0 && phoneScore === nameScore) matchType = 'both';
+        else if (phoneScore > nameScore) matchType = 'phone';
+        else if (nameScore > 0) matchType = 'name';
+        return { t, score, matchType };
       })
       .filter(s => s.score > 0)
       .sort((a, b) => b.score - a.score)
-      .slice(0, 12)
-      .map(s => s.t);
+      .slice(0, 12);
     return scored;
   }, [tenants, search]);
+
+  /** Just the tenant rows — used by keyboard nav & recents merge. */
+  const filteredTenants = useMemo<CachedTenant[]>(
+    () => filtered.map(s => s.t),
+    [filtered],
+  );
 
   /**
    * Recent tenants — derived from this agent's prior captured entries
@@ -275,11 +289,11 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
    * only the scored suggestions remain.
    */
   const keyboardOptions = useMemo<CachedTenant[]>(() => {
-    if (search.trim()) return filtered;
+    if (search.trim()) return filteredTenants;
     // Avoid duplicates between recents and the alphabetical default list.
     const recentIds = new Set(recentTenants.map(t => t.tenantId));
-    return [...recentTenants, ...filtered.filter(t => !recentIds.has(t.tenantId))];
-  }, [search, filtered, recentTenants]);
+    return [...recentTenants, ...filteredTenants.filter(t => !recentIds.has(t.tenantId))];
+  }, [search, filteredTenants, recentTenants]);
 
   /* Reset highlight whenever the option list shape changes */
   useEffect(() => {
@@ -927,7 +941,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                         <p className="p-4 text-sm text-muted-foreground text-center">
                           No match. Use walk-up below.
                         </p>
-                      ) : filtered.map((t, idx) => {
+                      ) : filtered.map(({ t, matchType }, idx) => {
                         const optIdx = keyboardOptions.findIndex(o => o.tenantId === t.tenantId);
                         const isActive = optIdx === activeIdx;
                         return (
@@ -946,7 +960,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                           style={{ WebkitTapHighlightColor: 'transparent' }}
                         >
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 min-w-0">
+                            <div className="flex items-center gap-2 min-w-0 flex-wrap">
                               <p className="text-base font-semibold truncate">
                                 {highlightMatch(t.fullName, search)}
                               </p>
@@ -954,6 +968,25 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                                 <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide bg-primary/10 text-primary px-1.5 py-0.5 rounded">
                                   Best match
                                 </span>
+                              )}
+                              {/*
+                               * Match-type chips on the top result: tells the agent *why*
+                               * this tenant was suggested — phone-digit match, name match,
+                               * or both. Hidden on the rest of the list to avoid noise.
+                               */}
+                              {idx === 0 && search && matchType && (
+                                <>
+                                  {(matchType === 'phone' || matchType === 'both') && (
+                                    <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide bg-success/10 text-success px-1.5 py-0.5 rounded">
+                                      Phone match
+                                    </span>
+                                  )}
+                                  {(matchType === 'name' || matchType === 'both') && (
+                                    <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide bg-accent text-accent-foreground px-1.5 py-0.5 rounded">
+                                      Name match
+                                    </span>
+                                  )}
+                                </>
                               )}
                             </div>
                             <p className="text-xs text-muted-foreground truncate">
