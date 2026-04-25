@@ -1653,6 +1653,41 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                   )}
 
                   {/*
+                   * Tail-match examples preview. Renders for ANY short
+                   * (3–4 digit) phone-y query with at least one match —
+                   * shows up to 2 sample tenants with the matched suffix
+                   * highlighted so the agent can visually confirm the
+                   * search is doing what they expect (e.g. spotting that
+                   * "1234" matched "...91234" vs the intended number)
+                   * BEFORE picking from the result list. Sits beside
+                   * the danger warning when both apply, so the agent
+                   * sees both "narrow your query" and proof of what
+                   * the current digits actually match.
+                   */}
+                  {tailExamples && (
+                    <div
+                      role="status"
+                      aria-live="polite"
+                      className="flex flex-col gap-1 px-3 py-2 rounded-lg text-xs bg-muted/50 border border-border"
+                    >
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">
+                        Matching last {tailExamples.digits.length} digits
+                      </p>
+                      <ul className="space-y-0.5">
+                        {tailExamples.examples.map(ex => (
+                          <li key={ex.id} className="flex items-center gap-2 min-w-0">
+                            <span className="truncate text-foreground">{ex.name}</span>
+                            <span className="font-mono tabular-nums text-muted-foreground shrink-0">
+                              {ex.head}
+                              <span className="text-primary font-semibold">{ex.tail}</span>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/*
                    * Browse-mode toolbar. Only shown when the search box is
                    * empty AND the agent has more than one page worth of
                    * tenants — for short caseloads the page would just say
