@@ -277,6 +277,37 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     setStep(1);
   };
 
+  /** Single entry point used by mouse, touch, and keyboard selection. */
+  const pickTenant = useCallback((t: CachedTenant) => {
+    setPicked(t);
+    setSearch(t.fullName);
+  }, []);
+
+  /**
+   * Search-input keyboard handler: ArrowDown/Up cycle through the merged
+   * recent + suggestion list, Enter picks the highlight, Escape clears.
+   */
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!keyboardOptions.length) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIdx(i => (i + 1) % keyboardOptions.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIdx(i => (i - 1 + keyboardOptions.length) % keyboardOptions.length);
+    } else if (e.key === 'Enter') {
+      const opt = keyboardOptions[activeIdx];
+      if (opt) {
+        e.preventDefault();
+        pickTenant(opt);
+      }
+    } else if (e.key === 'Escape' && search) {
+      e.preventDefault();
+      setSearch('');
+      setActiveIdx(0);
+    }
+  };
+
   const handleSave = async () => {
     if (!user?.id) return;
     const amt = Number(amount);
