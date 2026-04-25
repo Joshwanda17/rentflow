@@ -1111,12 +1111,17 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                                */}
                               {idx < 3 && search && matchType && (
                                 <>
-                                  {(matchType === 'phone' || matchType === 'both') && (
+                                  {matchType === 'both' && (
+                                    <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide bg-primary/15 text-primary px-1.5 py-0.5 rounded ring-1 ring-primary/30">
+                                      Phone + Name match
+                                    </span>
+                                  )}
+                                  {matchType === 'phone' && (
                                     <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide bg-success/10 text-success px-1.5 py-0.5 rounded">
                                       Phone match
                                     </span>
                                   )}
-                                  {(matchType === 'name' || matchType === 'both') && (
+                                  {matchType === 'name' && (
                                     <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide bg-accent text-accent-foreground px-1.5 py-0.5 rounded">
                                       Name match
                                     </span>
