@@ -104,6 +104,14 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
   const [rangeExportOpen, setRangeExportOpen] = useState(false);
   const [rangeSelection, setRangeSelection] = useState<DateRange | undefined>(undefined);
 
+  /**
+   * One-tap resolution state for the review popover.
+   * 'skip'  → drop local copies of duplicates (server version is canonical)
+   * 'retry' → re-queue failed entries and immediately re-attempt sync
+   * 'auto'  → run skip then retry back-to-back
+   */
+  const [resolvingAction, setResolvingAction] = useState<null | 'skip' | 'retry' | 'auto'>(null);
+
   const refresh = useCallback(async () => {
     if (!user?.id) return;
     setRefreshing(true);
