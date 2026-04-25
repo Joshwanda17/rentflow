@@ -2549,6 +2549,51 @@ export type Database = {
           },
         ]
       }
+      agent_vouch_limit_history: {
+        Row: {
+          agent_id: string
+          change_source: string
+          collection_amount: number | null
+          collection_id: string | null
+          created_at: string
+          delta_ugx: number | null
+          id: string
+          metadata: Json
+          new_earned_ugx: number | null
+          new_effective_limit_ugx: number | null
+          previous_earned_ugx: number | null
+          previous_effective_limit_ugx: number | null
+        }
+        Insert: {
+          agent_id: string
+          change_source: string
+          collection_amount?: number | null
+          collection_id?: string | null
+          created_at?: string
+          delta_ugx?: number | null
+          id?: string
+          metadata?: Json
+          new_earned_ugx?: number | null
+          new_effective_limit_ugx?: number | null
+          previous_earned_ugx?: number | null
+          previous_effective_limit_ugx?: number | null
+        }
+        Update: {
+          agent_id?: string
+          change_source?: string
+          collection_amount?: number | null
+          collection_id?: string | null
+          created_at?: string
+          delta_ugx?: number | null
+          id?: string
+          metadata?: Json
+          new_earned_ugx?: number | null
+          new_effective_limit_ugx?: number | null
+          previous_earned_ugx?: number | null
+          previous_effective_limit_ugx?: number | null
+        }
+        Relationships: []
+      }
       ai_chat_messages: {
         Row: {
           content: string
@@ -13131,10 +13176,17 @@ export type Database = {
         }[]
       }
       recalculate_credit_limit: { Args: { p_user_id: string }; Returns: number }
-      recompute_agent_earned_vouch: {
-        Args: { p_agent_id: string }
-        Returns: number
-      }
+      recompute_agent_earned_vouch:
+        | { Args: { p_agent_id: string }; Returns: number }
+        | {
+            Args: {
+              p_agent_id: string
+              p_change_source?: string
+              p_collection_amount?: number
+              p_collection_id?: string
+            }
+            Returns: undefined
+          }
       recompute_trust_score: { Args: { p_user_id: string }; Returns: undefined }
       recompute_trust_scores_batch: {
         Args: { p_limit?: number }
