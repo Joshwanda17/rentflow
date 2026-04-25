@@ -414,10 +414,43 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   const filtered = useMemo(() => {
     const raw = search.trim();
     const q = normalizeName(raw);
+
+    // -------------------- Per-query result cache --------------------
+    // Reuse scored results when the agent retypes/backspaces the same query
+    // and the underlying tenant list hasn't changed. The cache is bucketed by
+    // the current `fingerprint`; a fingerprint change (new tenants synced)
+    // invalidates everything in one shot.
+    if (searchCacheFingerprintRef.current !== fingerprint) {
+      searchCacheRef.current = new Map();
+      searchCacheFingerprintRef.current = fingerprint;
+    }
+    // Lowercase the trimmed query so "Alice", "alice ", and "ALICE" share an
+    // entry. The empty query has its own dedicated bucket too so opening the
+    // picker repeatedly doesn't re-slice the tenant book.
+    const cacheKey = raw.toLowerCase();
+    const cached = searchCacheRef.current.get(cacheKey);
+    if (cached) {
+      // LRU touch: re-insert moves this key to the most-recent position so it
+      // survives eviction when the cache fills up.
+      searchCacheRef.current.delete(cacheKey);
+      searchCacheRef.current.set(cacheKey, cached);
+      return cached;
+    }
+    /** Store, evict the oldest entry when over capacity, and return. */
+    const storeAndReturn = (rows: FilteredRow[]): FilteredRow[] => {
+      const cache = searchCacheRef.current;
+      cache.set(cacheKey, rows);
+      if (cache.size > SEARCH_CACHE_MAX) {
+        const oldest = cache.keys().next().value;
+        if (oldest !== undefined) cache.delete(oldest);
+      }
+      return rows;
+    };
+
     // No query → show a generous prefix of the tenant book. Used to be 8;
     // bumped to 200 now that the list is virtualized so the agent can scroll
     // through their full caseload without hitting an artificial cap.
-    if (!q) return tenants.slice(0, 200).map(t => ({ t, score: 0, matchType: null as 'phone' | 'name' | 'both' | null, ambiguous: false, bestMatchFallback: false }));
+    if (!q) return storeAndReturn(tenants.slice(0, 200).map(t => ({ t, score: 0, matchType: null as 'phone' | 'name' | 'both' | null, ambiguous: false, bestMatchFallback: false })));
     const phoneQ = normalizePhone(raw);
     // Treat the query as "phone-y" if the user typed mostly digits — even
     // with spaces, dashes, plus signs or a leading 0/256.
@@ -497,15 +530,15 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
       const phoneOnly = scored.filter(s => s.matchType === 'phone');
       const nameAny = scored.filter(s => s.matchType === 'name' || s.matchType === 'both');
       if (phoneOnly.length === 1 && nameAny.length === 0) {
-        return [] as typeof scored;
+        return storeAndReturn([]);
       }
     }
 
     // Tag every row in the result set as ambiguous when the query is a short
     // digit query and there are multiple candidates — drives the UI hint.
     const ambiguous = isShortPhoneQuery && scored.length > 1;
-    return scored.map(s => ({ ...s, ambiguous }));
-  }, [tenantIndex, tenants, search]);
+    return storeAndReturn(scored.map(s => ({ ...s, ambiguous })));
+  }, [tenantIndex, tenants, search, fingerprint]);
 
   /** Just the tenant rows — used by keyboard nav & recents merge. */
   const filteredTenants = useMemo<CachedTenant[]>(
