@@ -2,10 +2,9 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { getEntries, onFieldCollectChange, type FieldEntry } from '@/lib/fieldCollectStore';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle2, Clock, AlertCircle, FileWarning, CalendarDays, RefreshCcw, Download, FileText, FileSpreadsheet, CalendarIcon, Settings2, RotateCcw } from 'lucide-react';
+import { CheckCircle2, Clock, FileWarning, CalendarDays, RefreshCcw, FileText, FileSpreadsheet, CalendarIcon, Settings2, RotateCcw, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FieldCollectDailyDetailsSheet } from '@/components/agent/FieldCollectDailyDetailsSheet';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -287,37 +286,6 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
         />
       </PopoverContent>
     </Popover>
-  );
-
-  const exportMenu = (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="h-7 px-2 text-[11px] gap-1"
-          aria-label="Export daily totals"
-        >
-          <Download className="h-3 w-3" />
-          Export
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuLabel className="text-[11px]">
-          {format(selectedDate, 'PPP')}
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => handleExport('csv')} className="gap-2 text-xs">
-          <FileSpreadsheet className="h-3.5 w-3.5" />
-          Download CSV
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => handleExport('pdf')} className="gap-2 text-xs">
-          <FileText className="h-3.5 w-3.5" />
-          Download PDF
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 
   if (breakdown.count === 0) {
