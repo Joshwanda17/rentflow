@@ -18,6 +18,7 @@ import AgentRentRequestDialog from './AgentRentRequestDialog';
 import { AgentTenantCollectDialog } from './AgentTenantCollectDialog';
 import { TenantBehaviorCard } from './TenantBehaviorCard';
 import { TenantProfileView } from './TenantProfileView';
+import { TenantFieldCollectDialog } from './TenantFieldCollectDialog';
 
 interface Tenant {
   id: string;
@@ -142,6 +143,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [renewingReqId, setRenewingReqId] = useState<string | null>(null);
   const [collectDialogOpen, setCollectDialogOpen] = useState(false);
   const [collectTarget, setCollectTarget] = useState<{ tenant: Tenant; reqId: string; owing: number } | null>(null);
+  const [fieldCollectTarget, setFieldCollectTarget] = useState<Tenant | null>(null);
   const [behaviorCardOpen, setBehaviorCardOpen] = useState(false);
   const [behaviorData, setBehaviorData] = useState<any>(null);
   const [profileTenantId, setProfileTenantId] = useState<string | null>(null);
@@ -821,6 +823,17 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                             Paid up ✓
                           </Badge>
                         )}
+                        {/* Per-tenant offline Field Collect */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => { e.stopPropagation(); setFieldCollectTarget(tenant); }}
+                          className="mt-1.5 h-7 px-2 gap-1 text-[11px] font-semibold border-primary/40 text-primary hover:bg-primary/10"
+                          title="Record offline collection"
+                        >
+                          <Banknote className="h-3 w-3" />
+                          Field Collect
+                        </Button>
                       </div>
                     </div>
                   </button>
@@ -1080,6 +1093,13 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         open={behaviorCardOpen}
         onOpenChange={setBehaviorCardOpen}
         data={behaviorData}
+      />
+      <TenantFieldCollectDialog
+        open={!!fieldCollectTarget}
+        onOpenChange={(open) => { if (!open) setFieldCollectTarget(null); }}
+        tenantId={fieldCollectTarget?.id || ''}
+        tenantName={fieldCollectTarget?.full_name || ''}
+        tenantPhone={fieldCollectTarget?.phone || null}
       />
     </Sheet>
   );
