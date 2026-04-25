@@ -56,6 +56,37 @@ function highlightMatch(text: string, query: string): React.ReactNode {
   );
 }
 
+/**
+ * Normalize a name for fuzzy matching:
+ *  - lowercase
+ *  - strip diacritics (é → e)
+ *  - collapse anything that isn't a letter/number/space into a single space
+ * Lets "O'Brien", "obrien", and "o brien" all match the same way.
+ */
+function normalizeName(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Normalize a Ugandan phone number to its national 9-digit form so that
+ * "+256 772 123 456", "0772-123456", "0772 123 456" and "772123456"
+ * all collapse to "772123456" for comparison.
+ * Returns the digits-only fallback for non-UG numbers.
+ */
+function normalizePhone(raw: string | null | undefined): string {
+  const digits = (raw || '').replace(/\D+/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('256')) return digits.slice(3);
+  if (digits.startsWith('0') && digits.length >= 10) return digits.slice(1);
+  return digits;
+}
+
 export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogProps) {
   const { user } = useAuth();
   const [online, setOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
@@ -170,22 +201,34 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
    *    so the most likely tap candidate sits at the top.
    */
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const raw = search.trim();
+    const q = normalizeName(raw);
     if (!q) return tenants.slice(0, 8);
-    const phoneQ = q.replace(/\D+/g, '');
+    const phoneQ = normalizePhone(raw);
+    // Treat the query as "phone-y" if the user typed mostly digits — even
+    // with spaces, dashes, plus signs or a leading 0/256.
+    const isPhoneQuery = phoneQ.length >= 3 && /\d/.test(raw) && raw.replace(/[\s\-+()]/g, '').replace(/\D+/g, '').length >= raw.replace(/[\s\-+()]/g, '').length - 1;
     const scored = tenants
       .map(t => {
-        const name = t.fullName.toLowerCase();
-        const phone = (t.phone || '').replace(/\D+/g, '');
+        const name = normalizeName(t.fullName);
+        const phone = normalizePhone(t.phone);
         let score = 0;
-        if (phoneQ && phone && phone.includes(phoneQ)) {
+        // Phone matches always outrank name matches when the query is phone-y.
+        if (isPhoneQuery && phone && phone.includes(phoneQ)) {
+          if (phone === phoneQ) score = 200;          // exact full match — pin to top
+          else if (phone.startsWith(phoneQ)) score = 150; // prefix match
+          else score = 110;                            // substring match
+        } else if (phoneQ && phone && phone.includes(phoneQ)) {
+          // Mixed query (digits + letters) — phone still helps but doesn't dominate.
           score = phone.startsWith(phoneQ) ? 100 : 70;
-        } else if (name.startsWith(q)) {
-          score = 90;
-        } else if (name.split(/\s+/).some(w => w.startsWith(q))) {
-          score = 80;
+        }
+        // Name scoring runs in addition so a tenant matching both ranks higher.
+        if (name.startsWith(q)) {
+          score = Math.max(score, 90);
+        } else if (name.split(' ').some(w => w.startsWith(q))) {
+          score = Math.max(score, 80);
         } else if (name.includes(q)) {
-          score = 50;
+          score = Math.max(score, 50);
         }
         return { t, score };
       })
