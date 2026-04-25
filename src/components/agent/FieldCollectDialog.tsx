@@ -2136,12 +2136,41 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                           </button>
                         ))}
                       </div>
-                      <span
-                        className="text-muted-foreground tabular-nums"
-                        aria-live="polite"
-                      >
-                        {browseFilteredCount.toLocaleString()} tenant{browseFilteredCount === 1 ? '' : 's'}
-                      </span>
+                      {/*
+                       * Tenant count + "Filter saved" tooltip.
+                       * Wrapping the count in a Tooltip surfaces *when* the
+                       * agent's persisted Active/Inactive selection was last
+                       * touched without adding a second visible chip. Only
+                       * shown when we have a real timestamp (i.e. a non-default
+                       * selection has been saved at least once); otherwise we
+                       * render the plain count to avoid a misleading dotted
+                       * underline that says nothing on hover.
+                       */}
+                      {browseStatusUpdatedAt ? (
+                        <TooltipProvider delayDuration={200}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span
+                                className="text-muted-foreground tabular-nums border-b border-dotted border-muted-foreground/40 cursor-help"
+                                aria-live="polite"
+                                aria-label={`${browseFilteredCount.toLocaleString()} tenants. Filter saved ${formatDistanceToNow(browseStatusUpdatedAt, { addSuffix: true })}`}
+                              >
+                                {browseFilteredCount.toLocaleString()} tenant{browseFilteredCount === 1 ? '' : 's'}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-[11px]">
+                              Filter saved {formatDistanceToNow(browseStatusUpdatedAt, { addSuffix: true })}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ) : (
+                        <span
+                          className="text-muted-foreground tabular-nums"
+                          aria-live="polite"
+                        >
+                          {browseFilteredCount.toLocaleString()} tenant{browseFilteredCount === 1 ? '' : 's'}
+                        </span>
+                      )}
                       {/*
                        * Reset chip — clears the persisted Active/Inactive/All
                        * preference and returns the picker to the 'all'
