@@ -1565,6 +1565,46 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                   </div>
 
                   {/*
+                   * Tail-share danger warning. Only renders when a short
+                   * (3–4 digit) phone query matches MORE than the
+                   * configured `tailWarnThreshold` tenants — at that
+                   * point eyeballing the right one becomes risky and the
+                   * agent should narrow before picking. Tooltip explains
+                   * the exact threshold and why it matters; the chip
+                   * itself is keyboard-focusable so the tooltip works for
+                   * touch + keyboard, not just hover.
+                   */}
+                  {tailWarn && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          role="alert"
+                          aria-live="polite"
+                          onClick={() => searchInputRef.current?.focus()}
+                          className={cn(
+                            'flex w-full items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium tabular-nums',
+                            'bg-destructive/10 text-destructive border border-destructive/30',
+                            'hover:bg-destructive/15 transition-colors text-left',
+                          )}
+                        >
+                          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                          <span className="font-mono opacity-80">…{tailWarn.digits}</span>
+                          <span>·</span>
+                          <span className="flex-1">
+                            {tailWarn.count} tenants share these {tailWarn.tailLen} digits — type more to avoid mis-picking
+                          </span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="max-w-[260px] text-xs">
+                        Above {tailWarnThreshold} matches the wrong-pick risk gets material.
+                        Add 1–2 more digits (or switch to name search) so the agent
+                        confirms the right tenant before recording a collection.
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+
+                  {/*
                    * Browse-mode toolbar. Only shown when the search box is
                    * empty AND the agent has more than one page worth of
                    * tenants — for short caseloads the page would just say
