@@ -457,7 +457,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
       })
       .filter(s => s.score > 0)
       .sort((a, b) => b.score - a.score)
-      .slice(0, 12);
+      .slice(0, 200);
 
     // Safety net for short digit queries: only surface phone-only matches
     // when there are ≥2 candidates. If a short query produces a single phone
