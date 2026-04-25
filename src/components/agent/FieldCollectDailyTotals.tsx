@@ -3,8 +3,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { getEntries, type FieldEntry } from '@/lib/fieldCollectStore';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle2, Clock, AlertCircle, FileWarning, CalendarDays } from 'lucide-react';
+import { CheckCircle2, Clock, AlertCircle, FileWarning, CalendarDays, RefreshCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Bucket {
@@ -29,10 +30,18 @@ interface Props {
 export function FieldCollectDailyTotals({ variant = 'card', className, live = false }: Props) {
   const { user } = useAuth();
   const [entries, setEntries] = useState<FieldEntry[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState<number>(Date.now());
 
   const refresh = useCallback(async () => {
     if (!user?.id) return;
-    setEntries(await getEntries(user.id));
+    setRefreshing(true);
+    try {
+      setEntries(await getEntries(user.id));
+      setLastRefreshed(Date.now());
+    } finally {
+      setRefreshing(false);
+    }
   }, [user?.id]);
 
   useEffect(() => {
@@ -93,6 +102,19 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
       >
         <CalendarDays className="h-4 w-4 mx-auto mb-1 opacity-60" />
         No field collections yet today
+        <div className="mt-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={refresh}
+            disabled={refreshing}
+            className="h-7 px-2 text-[11px] gap-1"
+          >
+            <RefreshCcw className={cn('h-3 w-3', refreshing && 'animate-spin')} />
+            Refresh totals
+          </Button>
+        </div>
       </div>
     );
   }
@@ -114,7 +136,7 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
           </div>
           <p className="text-2xl font-bold tracking-tight mt-0.5">{formatUGX(breakdown.total)}</p>
           <p className="text-[11px] text-muted-foreground">
-            {breakdown.count} entr{breakdown.count === 1 ? 'y' : 'ies'} captured
+            {breakdown.count} entr{breakdown.count === 1 ? 'y' : 'ies'} captured · updated {formatRelative(lastRefreshed)}
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5 justify-end max-w-[55%]">
@@ -142,6 +164,18 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
               {breakdown.duplicate.count} dup
             </Badge>
           )}
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={refresh}
+            disabled={refreshing}
+            className="h-7 px-2 text-[11px] gap-1"
+            aria-label="Refresh totals"
+          >
+            <RefreshCcw className={cn('h-3 w-3', refreshing && 'animate-spin')} />
+            Refresh
+          </Button>
         </div>
       </div>
 
@@ -185,4 +219,14 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
       </div>
     </div>
   );
+}
+
+function formatRelative(ts: number): string {
+  const sec = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if (sec < 5) return 'just now';
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.round(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.round(min / 60);
+  return `${hr}h ago`;
 }
