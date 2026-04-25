@@ -505,13 +505,12 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
 
     // -------------------- Per-query result cache --------------------
     // Reuse scored results when the agent retypes/backspaces the same query
-    // and the underlying tenant list hasn't changed. The cache is bucketed by
-    // the current `fingerprint`; a fingerprint change (new tenants synced)
-    // invalidates everything in one shot.
-    if (searchCacheFingerprintRef.current !== fingerprint) {
-      searchCacheRef.current = new Map();
-      searchCacheFingerprintRef.current = fingerprint;
-    }
+    // and the underlying tenant list hasn't changed. Cache lives at module
+    // scope (see top of file) so it persists across dialog open/close cycles
+    // — coming back to Field Collect a minute later still hits warm entries.
+    // `getSearchCache` keys by agent + fingerprint, so a tenant list change
+    // (new tenants synced) wipes that agent's bucket atomically.
+    const cacheBucket = getSearchCache(user?.id ?? '__anon__', fingerprint);
     // Normalize the query so equivalent inputs share a cache slot:
     //   • trim + lowercase  → "Alice", "alice ", "ALICE" collapse together
     //   • collapse internal runs of whitespace → "alice   smith" === "alice smith"
@@ -532,21 +531,20 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     const cacheKey = q
       ? `q:${q}`
       : `__browse__:${browseSort}:${browsePage}`;
-    const cached = searchCacheRef.current.get(cacheKey);
+    const cached = cacheBucket.get(cacheKey);
     if (cached) {
       // LRU touch: re-insert moves this key to the most-recent position so it
       // survives eviction when the cache fills up.
-      searchCacheRef.current.delete(cacheKey);
-      searchCacheRef.current.set(cacheKey, cached);
+      cacheBucket.delete(cacheKey);
+      cacheBucket.set(cacheKey, cached);
       return cached;
     }
     /** Store, evict the oldest entry when over capacity, and return. */
     const storeAndReturn = (rows: FilteredRow[]): FilteredRow[] => {
-      const cache = searchCacheRef.current;
-      cache.set(cacheKey, rows);
-      if (cache.size > SEARCH_CACHE_MAX) {
-        const oldest = cache.keys().next().value;
-        if (oldest !== undefined) cache.delete(oldest);
+      cacheBucket.set(cacheKey, rows);
+      if (cacheBucket.size > SEARCH_CACHE_MAX) {
+        const oldest = cacheBucket.keys().next().value;
+        if (oldest !== undefined) cacheBucket.delete(oldest);
       }
       return rows;
     };
