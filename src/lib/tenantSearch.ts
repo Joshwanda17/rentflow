@@ -49,8 +49,10 @@ export function normalizePhone(raw: string | null | undefined): string {
   // Collapse runs of leading zeros down to a single zero so "00772…" → "0772…"
   // and "000772…" → "0772…" still normalize correctly.
   if (digits.startsWith('0')) digits = '0' + digits.replace(/^0+/, '');
-  if (digits.startsWith('256')) return digits.slice(3);
-  if (digits.startsWith('0') && digits.length >= 10) return digits.slice(1);
+  // Strip the country code, then re-collapse a leading national "0" so that
+  // inputs like "+256 0 772…" (digits "2560772…") still land on "772…".
+  if (digits.startsWith('256')) digits = digits.slice(3);
+  if (digits.startsWith('0') && digits.length >= 10) digits = digits.slice(1);
   // Some users type the national 9-digit form with a stray country-code-like
   // prefix that wasn't "256" — in that case fall through and return as-is.
   return digits;
