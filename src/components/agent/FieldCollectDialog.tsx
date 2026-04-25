@@ -1053,7 +1053,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 min-w-0 flex-wrap">
                               <p className="text-base font-semibold truncate">
-                                {highlightMatch(t.fullName, search)}
+                                {highlightName(t.fullName, search)}
                               </p>
                               {idx === 0 && search && (
                                 <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide bg-primary/10 text-primary px-1.5 py-0.5 rounded">
@@ -1081,7 +1081,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                               )}
                             </div>
                             <p className="text-xs text-muted-foreground truncate">
-                              {t.phone ? highlightMatch(t.phone, search) : 'No phone'}
+                              {t.phone ? highlightPhone(t.phone, search) : 'No phone'}
                             </p>
                           </div>
                           {t.monthlyRent ? (
