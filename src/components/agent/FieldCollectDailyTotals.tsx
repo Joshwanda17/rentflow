@@ -237,6 +237,146 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
     [handleRangeExport],
   );
 
+  /**
+   * One-tap: drop the local copies of duplicates so the server version
+   * remains the source of truth (same semantic as "Keep server" in the
+   * reconciliation sheet — but applied in bulk).
+   */
+  const skipAllDuplicates = useCallback(async (): Promise<number> => {
+    const dupes = today.filter(e => e.syncState === 'duplicate');
+    let n = 0;
+    for (const e of dupes) {
+      try {
+        await deleteEntry(e.id);
+        n++;
+      } catch (err) {
+        console.error('[fieldCollect] skip duplicate failed', e.id, err);
+      }
+    }
+    return n;
+  }, [today]);
+
+  /**
+   * One-tap: re-queue every failed entry, then push them to the server.
+   * Mirrors the sync logic used by the capture dialog so the popover is
+   * self-contained and works without opening Field Collect.
+   */
+  const retryAllFailed = useCallback(async (): Promise<{ ok: number; fail: number; dup: number }> => {
+    if (!user?.id) return { ok: 0, fail: 0, dup: 0 };
+    if (!navigator.onLine) {
+      toast.error('No internet — connect and try again.');
+      return { ok: 0, fail: 0, dup: 0 };
+    }
+    const failed = today.filter(e => e.syncState === 'error');
+    let ok = 0, fail = 0, dup = 0;
+    for (const e of failed) {
+      try {
+        // Reset to queued first so the UI/state stay consistent if the page reloads mid-sync.
+        await updateEntry(e.id, { syncState: 'queued', syncError: null });
+        const { data, error } = await (supabase.from('field_collections') as any)
+          .insert({
+            client_uuid: e.id,
+            agent_id: user.id,
+            tenant_id: e.tenantId,
+            tenant_name: e.tenantName,
+            tenant_phone: e.tenantPhone,
+            amount: e.amount,
+            notes: e.notes,
+            location_name: e.locationName,
+            latitude: e.latitude,
+            longitude: e.longitude,
+            captured_at: new Date(e.capturedAt).toISOString(),
+            status: 'pending',
+          })
+          .select('id')
+          .single();
+        if (error) {
+          if ((error as any).code === '23505') {
+            // Same idempotency-key collision logic as the capture dialog
+            const { data: existing } = await (supabase.from('field_collections') as any)
+              .select('id, amount, captured_at, tenant_name, status, created_at')
+              .eq('agent_id', user.id)
+              .eq('client_uuid', e.id)
+              .maybeSingle();
+            const sameAmount = existing && Number(existing.amount) === Number(e.amount);
+            if (existing && sameAmount) {
+              await updateEntry(e.id, {
+                syncState: 'synced',
+                serverId: existing.id,
+                syncError: null,
+                lastSyncAt: Date.now(),
+              });
+              ok++;
+            } else {
+              await updateEntry(e.id, {
+                syncState: 'duplicate',
+                syncError: 'Already on server — needs reconciliation',
+                duplicateOfServerId: existing?.id ?? null,
+                duplicateServerSnapshot: existing ? {
+                  amount: Number(existing.amount),
+                  capturedAt: existing.captured_at,
+                  tenantName: existing.tenant_name,
+                  status: existing.status,
+                  createdAt: existing.created_at,
+                } : null,
+                lastSyncAt: Date.now(),
+              });
+              dup++;
+            }
+          } else {
+            await updateEntry(e.id, { syncState: 'error', syncError: error.message, lastSyncAt: Date.now() });
+            fail++;
+          }
+        } else {
+          await updateEntry(e.id, {
+            syncState: 'synced',
+            serverId: (data as any)?.id,
+            syncError: null,
+            lastSyncAt: Date.now(),
+          });
+          ok++;
+        }
+      } catch (err: any) {
+        await updateEntry(e.id, { syncState: 'error', syncError: err?.message || 'Unknown', lastSyncAt: Date.now() });
+        fail++;
+      }
+    }
+    return { ok, fail, dup };
+  }, [today, user?.id]);
+
+  /** Reload today totals from the local cache (also triggered automatically via store events). */
+  const refreshTodayTotals = useCallback(async () => {
+    if (!user?.id) return;
+    setEntries(await getEntries(user.id));
+  }, [user?.id]);
+
+  /**
+   * "Resolve all" — runs the full checklist in order:
+   *   1) Skip duplicates  → 2) Retry failed  → 3) Refresh today's totals.
+   * Designed to leave nothing requiring manual review when possible.
+   */
+  const resolveAllInOrder = useCallback(async () => {
+    setResolvingAction('auto');
+    try {
+      const skipped = await skipAllDuplicates();
+      const retried = await retryAllFailed();
+      await refreshTodayTotals();
+      const parts: string[] = [];
+      if (skipped) parts.push(`${skipped} duplicate${skipped === 1 ? '' : 's'} skipped`);
+      if (retried.ok) parts.push(`${retried.ok} sent`);
+      if (retried.dup) parts.push(`${retried.dup} new duplicate${retried.dup === 1 ? '' : 's'}`);
+      if (retried.fail) parts.push(`${retried.fail} still failing`);
+      if (parts.length === 0) toast.info('Nothing to resolve');
+      else if (retried.fail || retried.dup) toast.warning(parts.join(' · '));
+      else toast.success(parts.join(' · '));
+    } catch (err) {
+      console.error('[fieldCollect] resolve-all failed', err);
+      toast.error('Could not resolve everything — try the items individually.');
+    } finally {
+      setResolvingAction(null);
+    }
+  }, [skipAllDuplicates, retryAllFailed, refreshTodayTotals]);
+
   const breakdown = useMemo(() => {
     const synced = today.filter(e => e.syncState === 'synced');
     const pending = today.filter(e => e.syncState === 'queued');
