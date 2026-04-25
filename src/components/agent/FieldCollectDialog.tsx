@@ -210,7 +210,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   const filtered = useMemo(() => {
     const raw = search.trim();
     const q = normalizeName(raw);
-    if (!q) return tenants.slice(0, 8);
+    if (!q) return tenants.slice(0, 8).map(t => ({ t, score: 0, matchType: null as 'phone' | 'name' | 'both' | null }));
     const phoneQ = normalizePhone(raw);
     // Treat the query as "phone-y" if the user typed mostly digits — even
     // with spaces, dashes, plus signs or a leading 0/256.
