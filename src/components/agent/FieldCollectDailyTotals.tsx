@@ -5,7 +5,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle2, Clock, AlertCircle, FileWarning, CalendarDays, RefreshCcw, Download, FileText, FileSpreadsheet, CalendarIcon } from 'lucide-react';
+import { CheckCircle2, Clock, AlertCircle, FileWarning, CalendarDays, RefreshCcw, Download, FileText, FileSpreadsheet, CalendarIcon, Settings2, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FieldCollectDailyDetailsSheet } from '@/components/agent/FieldCollectDailyDetailsSheet';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -22,11 +22,41 @@ import {
 import { exportDailyTotalsCsv, exportDailyTotalsPdf } from '@/lib/fieldCollectExport';
 import { format, isSameDay } from 'date-fns';
 import { toast } from 'sonner';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 
 interface Bucket {
   label: string;
   count: number;
   total: number;
+}
+
+interface SessionCutoffs {
+  morningEnd: number;   // hour (0-23). Morning = [0, morningEnd)
+  afternoonEnd: number; // hour (0-23). Afternoon = [morningEnd, afternoonEnd). Evening = [afternoonEnd, 24)
+}
+
+const DEFAULT_CUTOFFS: SessionCutoffs = { morningEnd: 12, afternoonEnd: 17 };
+const CUTOFFS_STORAGE_KEY = 'welile.fieldCollect.sessionCutoffs';
+
+function loadCutoffs(): SessionCutoffs {
+  try {
+    const raw = localStorage.getItem(CUTOFFS_STORAGE_KEY);
+    if (!raw) return DEFAULT_CUTOFFS;
+    const parsed = JSON.parse(raw) as Partial<SessionCutoffs>;
+    const m = Number(parsed.morningEnd);
+    const a = Number(parsed.afternoonEnd);
+    if (!Number.isFinite(m) || !Number.isFinite(a)) return DEFAULT_CUTOFFS;
+    if (m < 1 || m > 23 || a < 1 || a > 23 || m >= a) return DEFAULT_CUTOFFS;
+    return { morningEnd: Math.floor(m), afternoonEnd: Math.floor(a) };
+  } catch {
+    return DEFAULT_CUTOFFS;
+  }
+}
+
+function formatHour(h: number): string {
+  const hh = String(h).padStart(2, '0');
+  return `${hh}:00`;
 }
 
 interface Props {
@@ -50,6 +80,10 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [reconcileOpen, setReconcileOpen] = useState(false);
   const [dupPopoverOpen, setDupPopoverOpen] = useState(false);
+  const [cutoffs, setCutoffs] = useState<SessionCutoffs>(() => loadCutoffs());
+  const [cutoffsOpen, setCutoffsOpen] = useState(false);
+  const [draftMorning, setDraftMorning] = useState<string>(String(cutoffs.morningEnd));
+  const [draftAfternoon, setDraftAfternoon] = useState<string>(String(cutoffs.afternoonEnd));
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -118,17 +152,47 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
     const morn: FieldEntry[] = [], aft: FieldEntry[] = [], eve: FieldEntry[] = [];
     for (const e of today) {
       const h = new Date(e.capturedAt).getHours();
-      if (h < 12) morn.push(e);
-      else if (h < 17) aft.push(e);
+      if (h < cutoffs.morningEnd) morn.push(e);
+      else if (h < cutoffs.afternoonEnd) aft.push(e);
       else eve.push(e);
     }
     const sum = (arr: FieldEntry[]) => arr.reduce((s, e) => s + Number(e.amount || 0), 0);
     return [
-      { label: 'Morning', count: morn.length, total: sum(morn) },
-      { label: 'Afternoon', count: aft.length, total: sum(aft) },
-      { label: 'Evening', count: eve.length, total: sum(eve) },
+      { label: `Morning (until ${formatHour(cutoffs.morningEnd)})`, count: morn.length, total: sum(morn) },
+      { label: `Afternoon (until ${formatHour(cutoffs.afternoonEnd)})`, count: aft.length, total: sum(aft) },
+      { label: `Evening (from ${formatHour(cutoffs.afternoonEnd)})`, count: eve.length, total: sum(eve) },
     ];
-  }, [today]);
+  }, [today, cutoffs]);
+
+  const saveCutoffs = useCallback(() => {
+    const m = Math.floor(Number(draftMorning));
+    const a = Math.floor(Number(draftAfternoon));
+    if (!Number.isFinite(m) || !Number.isFinite(a)) {
+      toast.error('Enter valid hours (0-23)');
+      return;
+    }
+    if (m < 1 || m > 23 || a < 1 || a > 23) {
+      toast.error('Hours must be between 1 and 23');
+      return;
+    }
+    if (m >= a) {
+      toast.error('Afternoon end must be after morning end');
+      return;
+    }
+    const next = { morningEnd: m, afternoonEnd: a };
+    setCutoffs(next);
+    try { localStorage.setItem(CUTOFFS_STORAGE_KEY, JSON.stringify(next)); } catch {}
+    setCutoffsOpen(false);
+    toast.success('Session cutoffs updated');
+  }, [draftMorning, draftAfternoon]);
+
+  const resetCutoffs = useCallback(() => {
+    setCutoffs(DEFAULT_CUTOFFS);
+    setDraftMorning(String(DEFAULT_CUTOFFS.morningEnd));
+    setDraftAfternoon(String(DEFAULT_CUTOFFS.afternoonEnd));
+    try { localStorage.removeItem(CUTOFFS_STORAGE_KEY); } catch {}
+    toast.success('Session cutoffs reset to defaults');
+  }, []);
 
   const isInline = variant === 'inline';
 
@@ -364,14 +428,93 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
 
       {/* Time-of-day sessions */}
       <div>
-        <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium mb-1.5">By session</p>
+        <div className="flex items-center justify-between mb-1.5">
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">By session</p>
+          <Popover open={cutoffsOpen} onOpenChange={(o) => {
+            setCutoffsOpen(o);
+            if (o) {
+              setDraftMorning(String(cutoffs.morningEnd));
+              setDraftAfternoon(String(cutoffs.afternoonEnd));
+            }
+          }}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                aria-label="Configure session cutoffs"
+                className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Settings2 className="h-3 w-3" />
+                Cutoffs
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-72 p-3 space-y-3">
+              <div>
+                <p className="text-xs font-semibold">Session cutoffs</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Set the hour each session ends (24-hour clock).
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="morning-end" className="text-[11px]">Morning ends at</Label>
+                  <Input
+                    id="morning-end"
+                    type="number"
+                    min={1}
+                    max={23}
+                    value={draftMorning}
+                    onChange={(e) => setDraftMorning(e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="afternoon-end" className="text-[11px]">Afternoon ends at</Label>
+                  <Input
+                    id="afternoon-end"
+                    type="number"
+                    min={1}
+                    max={23}
+                    value={draftAfternoon}
+                    onChange={(e) => setDraftAfternoon(e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Morning: 00:00–{formatHour(Number(draftMorning) || cutoffs.morningEnd)} ·
+                Afternoon: {formatHour(Number(draftMorning) || cutoffs.morningEnd)}–{formatHour(Number(draftAfternoon) || cutoffs.afternoonEnd)} ·
+                Evening: {formatHour(Number(draftAfternoon) || cutoffs.afternoonEnd)}–24:00
+              </p>
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={resetCutoffs}
+                  className="h-8 text-[11px] gap-1"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                  Reset
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={saveCutoffs}
+                  className="h-8 text-[11px]"
+                >
+                  Save
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
         <div className="grid grid-cols-3 gap-2">
           {sessions.map(s => (
             <div key={s.label} className={cn(
               'rounded-lg border px-2 py-1.5 text-center',
               s.count === 0 ? 'opacity-50' : 'bg-muted/30'
             )}>
-              <p className="text-[10px] text-muted-foreground">{s.label}</p>
+              <p className="text-[10px] text-muted-foreground truncate" title={s.label}>{s.label.split(' (')[0]}</p>
               <p className="text-sm font-semibold leading-tight">{formatUGX(s.total)}</p>
               <p className="text-[10px] text-muted-foreground">{s.count}</p>
             </div>
