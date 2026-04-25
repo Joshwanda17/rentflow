@@ -219,6 +219,30 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   }, [entries, tenants]);
 
   /**
+   * Combined keyboard-navigable option list for Step 1.
+   * Recents come first (prepended) so the most likely tap is at index 0
+   * before the agent starts typing. Once they type, recents drop away and
+   * only the scored suggestions remain.
+   */
+  const keyboardOptions = useMemo<CachedTenant[]>(() => {
+    if (search.trim()) return filtered;
+    // Avoid duplicates between recents and the alphabetical default list.
+    const recentIds = new Set(recentTenants.map(t => t.tenantId));
+    return [...recentTenants, ...filtered.filter(t => !recentIds.has(t.tenantId))];
+  }, [search, filtered, recentTenants]);
+
+  /* Reset highlight whenever the option list shape changes */
+  useEffect(() => {
+    setActiveIdx(0);
+  }, [keyboardOptions.length, search]);
+
+  /* Keep the highlighted option scrolled into view */
+  useEffect(() => {
+    const el = optionRefs.current[activeIdx];
+    if (el) el.scrollIntoView({ block: 'nearest' });
+  }, [activeIdx]);
+
+  /**
    * Last captured entry for the picked tenant — drives the small preview panel
    * (date, amount, notes) so the agent can avoid double-recording. Matches by
    * tenantId first, falling back to a name match (case-insensitive) so walk-up
