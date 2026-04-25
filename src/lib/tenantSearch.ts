@@ -221,7 +221,12 @@ export function scoreTenantMatch(rawQuery: string, candidate: TenantMatchInput):
   let bestMatchFallback = false;
 
   if (isShortPhoneQuery && phone) {
-    if (phone.endsWith(phoneQ)) phoneScore = 110;
+    // Use the explicit tail-N matcher so 3-digit queries become tail-3
+    // matches and 4-digit queries tail-4. Boundary-aligned tails get a
+    // small +5 bonus (matches the dialog scorer; uniqueness ranking lives
+    // in the dialog because it needs the full candidate set).
+    const tm = tailMatch(phone, phoneQ);
+    if (tm) phoneScore = 110 + (tm.boundary ? 5 : 0);
   } else if (isPhoneQuery && phone && phone.includes(phoneQ)) {
     if (phone === phoneQ) phoneScore = 200;
     else if (phone.startsWith(phoneQ)) phoneScore = 150;
