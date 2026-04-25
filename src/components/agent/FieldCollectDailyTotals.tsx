@@ -388,6 +388,7 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
         View details →
       </button>
       <FieldCollectDailyDetailsSheet open={detailsOpen} onOpenChange={setDetailsOpen} />
+      <FieldCollectReconciliationSheet open={reconcileOpen} onOpenChange={setReconcileOpen} />
     </div>
   );
 }
