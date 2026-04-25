@@ -1,5 +1,5 @@
-import { Inngest } from "npm:inngest@3.22.12";
-import { serve } from "npm:inngest@3.22.12/deno";
+import { Inngest } from "npm:inngest@3";
+import { serve } from "npm:inngest@3/deno";
 
 const inngest = new Inngest({ id: "welile-app" });
 
