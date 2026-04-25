@@ -941,7 +941,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                         <p className="p-4 text-sm text-muted-foreground text-center">
                           No match. Use walk-up below.
                         </p>
-                      ) : filtered.map((t, idx) => {
+                      ) : filtered.map(({ t, matchType }, idx) => {
                         const optIdx = keyboardOptions.findIndex(o => o.tenantId === t.tenantId);
                         const isActive = optIdx === activeIdx;
                         return (
@@ -960,7 +960,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                           style={{ WebkitTapHighlightColor: 'transparent' }}
                         >
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 min-w-0">
+                            <div className="flex items-center gap-2 min-w-0 flex-wrap">
                               <p className="text-base font-semibold truncate">
                                 {highlightMatch(t.fullName, search)}
                               </p>
@@ -968,6 +968,25 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                                 <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide bg-primary/10 text-primary px-1.5 py-0.5 rounded">
                                   Best match
                                 </span>
+                              )}
+                              {/*
+                               * Match-type chips on the top result: tells the agent *why*
+                               * this tenant was suggested — phone-digit match, name match,
+                               * or both. Hidden on the rest of the list to avoid noise.
+                               */}
+                              {idx === 0 && search && matchType && (
+                                <>
+                                  {(matchType === 'phone' || matchType === 'both') && (
+                                    <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide bg-success/10 text-success px-1.5 py-0.5 rounded">
+                                      Phone match
+                                    </span>
+                                  )}
+                                  {(matchType === 'name' || matchType === 'both') && (
+                                    <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide bg-accent text-accent-foreground px-1.5 py-0.5 rounded">
+                                      Name match
+                                    </span>
+                                  )}
+                                </>
                               )}
                             </div>
                             <p className="text-xs text-muted-foreground truncate">
