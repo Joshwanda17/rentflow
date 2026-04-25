@@ -442,6 +442,13 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   useEffect(() => {
     if (hasCloudHydratedRef.current) return;
     if (!user?.id) return;
+    if (!cloudSyncEnabled) {
+      // Cloud sync turned off → mark as "hydrated" anyway so the write
+      // effect below stops blocking on this gate (otherwise local-only
+      // chip changes would never trigger their own follow-on logic).
+      hasCloudHydratedRef.current = true;
+      return;
+    }
     hasCloudHydratedRef.current = true;
     let cancelled = false;
     (async () => {
@@ -475,7 +482,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
       }
     })();
     return () => { cancelled = true; };
-  }, [user?.id, browseStatusStorageKey]);
+  }, [user?.id, browseStatusStorageKey, cloudSyncEnabled]);
 
   /**
    * Push every chip change to the cloud row (best-effort). Skips writes
@@ -485,6 +492,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   useEffect(() => {
     if (!user?.id) return;
     if (!hasCloudHydratedRef.current) return;
+    if (!cloudSyncEnabled) return;
     (async () => {
       try {
         if (browseStatus === 'all') {
@@ -506,7 +514,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
         console.warn('[FieldCollectDialog] cloud pref write failed', err);
       }
     })();
-  }, [browseStatus, user?.id]);
+  }, [browseStatus, user?.id, cloudSyncEnabled]);
 
   /* =====================================================================
    * Picker preferences: "last updated" timestamp + cloud sync toggle +
