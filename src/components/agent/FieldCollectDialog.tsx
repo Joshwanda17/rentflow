@@ -319,8 +319,20 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
    * Search mode is unchanged: scoring + virtualized list still cap at 200.
    */
   type BrowseSort = 'recent' | 'name';
+  /**
+   * Browse-mode status filter — narrows the caseload to tenants the agent
+   * has worked with vs. ones still pending a first collection. Derived
+   * from already-loaded `entries` (queued OR synced count as "active") so
+   * we don't add a new business-logic surface or a new fetch.
+   *
+   *  - 'all'      → no filter (default, preserves prior behaviour)
+   *  - 'active'   → tenants with ≥1 captured entry
+   *  - 'inactive' → tenants with zero captured entries (new caseload)
+   */
+  type BrowseStatus = 'all' | 'active' | 'inactive';
   const BROWSE_PAGE_SIZE = 100;
   const [browseSort, setBrowseSort] = useState<BrowseSort>('recent');
+  const [browseStatus, setBrowseStatus] = useState<BrowseStatus>('all');
   const [browsePage, setBrowsePage] = useState(0);
 
   /* Online/offline tracking */
@@ -531,7 +543,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     // that produce identical scoring work.
     const cacheKey = q
       ? `q:${q}`
-      : `__browse__:${browseSort}:${browsePage}`;
+      : `__browse__:${browseSort}:${browseStatus}:${browsePage}`;
     const cached = cacheBucket.get(cacheKey);
     if (cached) {
       // LRU touch: re-insert moves this key to the most-recent position so it
@@ -572,7 +584,17 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
         const prev = lastByTenant.get(e.tenantId) ?? 0;
         if (e.capturedAt > prev) lastByTenant.set(e.tenantId, e.capturedAt);
       }
-      const sorted = [...tenants].sort((a, b) => {
+      // Apply the status filter BEFORE sorting so the page-count and the
+      // "Page X of Y" pager reflect the narrowed set, not the full caseload.
+      // A tenant counts as "active" when they have any captured entry —
+      // that's the same signal the Recent sort and "Recent tenants" chip
+      // row already use, so the toggle stays semantically consistent.
+      const filteredByStatus = browseStatus === 'all'
+        ? tenants
+        : browseStatus === 'active'
+          ? tenants.filter(t => lastByTenant.has(t.tenantId))
+          : tenants.filter(t => !lastByTenant.has(t.tenantId));
+      const sorted = [...filteredByStatus].sort((a, b) => {
         if (browseSort === 'name') {
           return a.fullName.localeCompare(b.fullName, undefined, { sensitivity: 'base' });
         }
@@ -717,7 +739,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     // digit query and there are multiple candidates — drives the UI hint.
     const ambiguous = isShortPhoneQuery && scored.length > 1;
     return storeAndReturn(scored.map(s => ({ ...s, ambiguous })));
-  }, [tenantIndex, tenants, debouncedSearch, fingerprint, entries, browseSort, browsePage, user?.id]);
+  }, [tenantIndex, tenants, debouncedSearch, fingerprint, entries, browseSort, browseStatus, browsePage, user?.id]);
 
   /**
    * Tail-share hint metadata.
@@ -751,13 +773,23 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   }, [debouncedSearch, tenantIndex]);
 
   /**
-   * Browse-mode pager metadata. Only meaningful when the search box is empty
-   * — `pageCount` drives the Prev/Next button enabled state and the
-   * "Page X of Y" label.
+   * Browse-mode active set size + pager metadata. The status filter
+   * (All / Active / Inactive) narrows the universe, so the page count and
+   * the count chip in the toolbar must reflect the FILTERED size — not
+   * the full caseload. Recomputes only when the filter, tenant list, or
+   * captured-entry set changes; it's an O(N) scan with no allocations.
    */
+  const browseFilteredCount = useMemo(() => {
+    if (browseStatus === 'all') return tenants.length;
+    const activeIds = new Set<string>();
+    for (const e of entries) if (e.tenantId) activeIds.add(e.tenantId);
+    return browseStatus === 'active'
+      ? tenants.reduce((n, t) => n + (activeIds.has(t.tenantId) ? 1 : 0), 0)
+      : tenants.reduce((n, t) => n + (activeIds.has(t.tenantId) ? 0 : 1), 0);
+  }, [tenants, entries, browseStatus]);
   const browsePageCount = useMemo(
-    () => Math.max(1, Math.ceil(tenants.length / BROWSE_PAGE_SIZE)),
-    [tenants.length],
+    () => Math.max(1, Math.ceil(browseFilteredCount / BROWSE_PAGE_SIZE)),
+    [browseFilteredCount],
   );
 
   /* Clamp the page if the tenant list shrinks under us. */
@@ -771,6 +803,11 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   useEffect(() => {
     setBrowsePage(0);
   }, [browseSort]);
+  /* Same idea for the status toggle: flipping All → Active should land
+   * on page 1 of the narrowed list, not page 7 of the old one. */
+  useEffect(() => {
+    setBrowsePage(0);
+  }, [browseStatus]);
   useEffect(() => {
     if (search) setBrowsePage(0);
   }, [search]);
@@ -1599,7 +1636,8 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                    * + 200-row cap still drives that path.
                    */}
                   {!search && tenants.length > BROWSE_PAGE_SIZE && (
-                    <div className="flex items-center justify-between gap-2 px-1 text-xs">
+                    <div className="space-y-1.5 px-1 text-xs">
+                      <div className="flex items-center justify-between gap-2">
                       <div
                         role="tablist"
                         aria-label="Sort tenants"
@@ -1658,6 +1696,43 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                         >
                           <ChevronRight className="h-4 w-4" />
                         </button>
+                      </div>
+                      </div>
+                      {/* Status quick-filter — narrows the browse universe to
+                       * tenants the agent has worked with vs. ones still
+                       * pending a first collection. Recomputes the page
+                       * count + clamps to page 0 (handled in the effect
+                       * above) so paging stays fast and accurate. */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div
+                          role="tablist"
+                          aria-label="Filter tenants by status"
+                          className="inline-flex rounded-full bg-muted p-0.5"
+                        >
+                          {(['all', 'active', 'inactive'] as const).map(opt => (
+                            <button
+                              key={opt}
+                              type="button"
+                              role="tab"
+                              aria-selected={browseStatus === opt}
+                              onClick={() => setBrowseStatus(opt)}
+                              className={cn(
+                                'inline-flex items-center gap-1 px-3 h-7 rounded-full font-medium capitalize transition-colors',
+                                browseStatus === opt
+                                  ? 'bg-background text-foreground shadow-sm'
+                                  : 'text-muted-foreground hover:text-foreground',
+                              )}
+                            >
+                              {opt}
+                            </button>
+                          ))}
+                        </div>
+                        <span
+                          className="text-muted-foreground tabular-nums"
+                          aria-live="polite"
+                        >
+                          {browseFilteredCount.toLocaleString()} tenant{browseFilteredCount === 1 ? '' : 's'}
+                        </span>
                       </div>
                     </div>
                   )}
