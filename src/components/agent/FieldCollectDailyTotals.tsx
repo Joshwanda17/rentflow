@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { CheckCircle2, Clock, AlertCircle, FileWarning, CalendarDays, RefreshCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { FieldCollectDailyDetailsSheet } from '@/components/agent/FieldCollectDailyDetailsSheet';
 
 interface Bucket {
   label: string;
@@ -32,6 +33,7 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
   const [entries, setEntries] = useState<FieldEntry[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<number>(Date.now());
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!user?.id) return;
@@ -217,6 +219,16 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
           ))}
         </div>
       </div>
+
+      {/* View details */}
+      <button
+        type="button"
+        onClick={() => setDetailsOpen(true)}
+        className="w-full text-xs font-medium text-primary hover:underline pt-1"
+      >
+        View details →
+      </button>
+      <FieldCollectDailyDetailsSheet open={detailsOpen} onOpenChange={setDetailsOpen} />
     </div>
   );
 }
