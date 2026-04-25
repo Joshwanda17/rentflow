@@ -321,7 +321,7 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
     <div
       className={cn(
         'space-y-4',
-        !isInline && 'rounded-3xl border bg-card p-5',
+        !isInline && 'rounded-3xl border bg-card p-4 sm:p-5',
         className,
       )}
     >
@@ -332,7 +332,7 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
             <CalendarDays className="h-3.5 w-3.5" />
             {dateLabel}
           </div>
-          <p className="text-3xl font-bold tracking-tight tabular-nums mt-1">
+          <p className="text-3xl sm:text-4xl font-bold tracking-tight tabular-nums mt-1">
             {formatUGX(breakdown.total)}
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -347,7 +347,7 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
                 type="button"
                 size="sm"
                 variant="outline"
-                className="h-8 w-8 p-0 rounded-full"
+                className="h-9 w-9 p-0 rounded-full"
                 aria-label="More options"
               >
                 <MoreHorizontal className="h-4 w-4" />
@@ -451,22 +451,22 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
         return (
           <div className="space-y-2.5">
             <div className="grid grid-cols-2 gap-2.5">
-              <div className="rounded-2xl bg-emerald-500/10 px-4 py-3">
+              <div className="rounded-2xl bg-emerald-500/10 px-4 py-4 sm:py-3">
                 <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 text-xs font-medium">
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   Sent
                 </div>
-                <p className="text-lg font-bold tabular-nums mt-1">{formatUGX(breakdown.synced.total)}</p>
+                <p className="text-xl sm:text-lg font-bold tabular-nums mt-1">{formatUGX(breakdown.synced.total)}</p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   {breakdown.synced.count} of {breakdown.count}
                 </p>
               </div>
-              <div className="rounded-2xl bg-amber-500/10 px-4 py-3">
+              <div className="rounded-2xl bg-amber-500/10 px-4 py-4 sm:py-3">
                 <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400 text-xs font-medium">
                   <Clock className="h-3.5 w-3.5" />
                   Waiting
                 </div>
-                <p className="text-lg font-bold tabular-nums mt-1">{formatUGX(pendingTotal)}</p>
+                <p className="text-xl sm:text-lg font-bold tabular-nums mt-1">{formatUGX(pendingTotal)}</p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   {pendingCount === 0 ? 'None waiting' : `${pendingCount} to send`}
                 </p>
@@ -492,7 +492,7 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
                   <button
                     type="button"
                     aria-label="Review issues with payments"
-                    className="w-full inline-flex items-center justify-between gap-2 rounded-2xl border border-amber-500/30 bg-amber-500/5 px-4 py-2.5 text-sm font-medium text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 transition-colors"
+                    className="w-full inline-flex items-center justify-between gap-2 rounded-2xl border border-amber-500/30 bg-amber-500/5 px-4 py-3.5 sm:py-2.5 min-h-[52px] sm:min-h-0 text-sm font-medium text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 transition-colors touch-manipulation"
                   >
                     <span className="inline-flex items-center gap-2">
                       <FileWarning className="h-4 w-4" />
@@ -583,7 +583,8 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
       <button
         type="button"
         onClick={() => setDetailsOpen(true)}
-        className="w-full text-sm font-medium text-primary hover:underline"
+        className="w-full text-sm font-semibold text-primary hover:underline py-2 min-h-[44px] touch-manipulation"
+        style={{ WebkitTapHighlightColor: 'transparent' }}
       >
         See every payment →
       </button>
