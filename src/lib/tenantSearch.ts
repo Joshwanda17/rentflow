@@ -157,6 +157,39 @@ export function tailSharedCounts(
   return counts;
 }
 
+/**
+ * Decide whether a short (3–4 digit) phone query's results should be
+ * suppressed to force the agent to type more digits. Mirrors the safety
+ * branch in `FieldCollectDialog`'s filter memo so it can be unit-tested.
+ *
+ * Rule: when the query is short and digit-only, AND the result set has
+ * exactly one phone-only match (no name overlap), return an empty array.
+ * That single match is too risky to auto-pick — the empty list triggers the
+ * "type more digits" hint + "Search by name instead" button in the UI.
+ *
+ * Pass-through in every other case (longer query, multiple matches, any
+ * name overlap, non-phone query).
+ */
+export function applyShortQuerySuppression<T extends { matchType: MatchType }>(
+  rawQuery: string,
+  scored: ReadonlyArray<T>,
+): T[] {
+  const raw = rawQuery.trim();
+  const phoneQ = normalizePhone(raw);
+  const stripped = raw.replace(/[\s\-+()]/g, '');
+  const isPhoneQuery =
+    phoneQ.length >= 3 &&
+    /\d/.test(raw) &&
+    stripped.replace(/\D+/g, '').length >= stripped.length - 1;
+  const isShortPhoneQuery = isPhoneQuery && phoneQ.length >= 3 && phoneQ.length <= 4;
+  if (!isShortPhoneQuery) return [...scored];
+
+  const phoneOnly = scored.filter(s => s.matchType === 'phone');
+  const nameAny = scored.filter(s => s.matchType === 'name' || s.matchType === 'both');
+  if (phoneOnly.length === 1 && nameAny.length === 0) return [];
+  return [...scored];
+}
+
 export type MatchType = 'phone' | 'name' | 'both' | null;
 
 export interface TenantMatchInput {
