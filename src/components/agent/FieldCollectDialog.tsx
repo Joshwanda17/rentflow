@@ -720,6 +720,37 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   }, [tenantIndex, tenants, debouncedSearch, fingerprint, entries, browseSort, browsePage, user?.id]);
 
   /**
+   * Tail-share hint metadata.
+   *
+   * When the agent has typed a short 3–4 digit phone query (the "I only
+   * remember the last few digits" path), surface how many tenants in their
+   * caseload share that exact tail. This is the same number that drives the
+   * uniqueness ranking inside the scorer — exposing it directly tells the
+   * agent at a glance whether they need to type more digits to disambiguate.
+   *
+   * Returns null when the query isn't a short phone-y query, so the UI can
+   * cheaply skip rendering. Computed independently of `filtered` so it
+   * stays correct even when the per-query result cache short-circuits.
+   */
+  const tailShareHint = useMemo<{ count: number; tailLen: number; digits: string } | null>(() => {
+    const raw = debouncedSearch.trim();
+    if (!raw) return null;
+    const phoneQ = normalizePhone(raw);
+    if (phoneQ.length < 3 || phoneQ.length > 4) return null;
+    // Mirror the dialog's `isPhoneQuery` heuristic: mostly digits, allowing
+    // common phone separators. Avoids triggering on all-letter inputs that
+    // happen to normalize to a few digits.
+    const stripped = raw.replace(/[\s\-+()]/g, '');
+    const digitsOnly = stripped.replace(/\D+/g, '');
+    if (digitsOnly.length < stripped.length - 1) return null;
+    let count = 0;
+    for (const x of tenantIndex) {
+      if (x.phone && x.phone.endsWith(phoneQ)) count++;
+    }
+    return { count, tailLen: phoneQ.length, digits: phoneQ };
+  }, [debouncedSearch, tenantIndex]);
+
+  /**
    * Browse-mode pager metadata. Only meaningful when the search box is empty
    * — `pageCount` drives the Prev/Next button enabled state and the
    * "Page X of Y" label.
@@ -1513,6 +1544,46 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                       </button>
                     )}
                   </div>
+
+                  {/*
+                   * Tail-share hint. Visible only when the agent has typed a
+                   * 3–4 digit phone-y query — the same range that triggers
+                   * the dialog's "short phone query" disambiguation rules.
+                   * Tells them how many tenants in their caseload end in
+                   * those exact digits so they know whether to type more.
+                   *
+                   * Color cues:
+                   *   0 matches  → muted (no help; probably typo / wrong digits)
+                   *   1 match    → success (unique tail; only one candidate)
+                   *   2–4        → primary (small set; pickable from list)
+                   *   5+         → warning (highly ambiguous; type more digits)
+                   */}
+                  {tailShareHint && (
+                    <div
+                      role="status"
+                      aria-live="polite"
+                      className={cn(
+                        'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium tabular-nums',
+                        tailShareHint.count === 0 && 'bg-muted/50 text-muted-foreground',
+                        tailShareHint.count === 1 && 'bg-success/10 text-success',
+                        tailShareHint.count >= 2 && tailShareHint.count <= 4 && 'bg-primary/10 text-primary',
+                        tailShareHint.count >= 5 && 'bg-warning/15 text-warning-foreground border border-warning/30',
+                      )}
+                    >
+                      <span className="font-mono opacity-70">…{tailShareHint.digits}</span>
+                      <span>·</span>
+                      <span>
+                        {tailShareHint.count === 0 && `No tenants end in these ${tailShareHint.tailLen} digits`}
+                        {tailShareHint.count === 1 && `1 tenant ends in these ${tailShareHint.tailLen} digits`}
+                        {tailShareHint.count >= 2 && (
+                          <>
+                            {tailShareHint.count} tenants share these {tailShareHint.tailLen} digits
+                            {tailShareHint.count >= 5 && ' — type more to narrow'}
+                          </>
+                        )}
+                      </span>
+                    </div>
+                  )}
 
                   {/*
                    * Browse-mode toolbar. Only shown when the search box is
