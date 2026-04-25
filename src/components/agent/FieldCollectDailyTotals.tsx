@@ -407,24 +407,72 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
       <Separator />
 
       {/* Sync split */}
-      <div className="grid grid-cols-2 gap-2 text-xs">
-        <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-2">
-          <div className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400 text-[10px] uppercase tracking-wide font-medium">
-            <CheckCircle2 className="h-3 w-3" />
-            Synced
+      {(() => {
+        const pendingCount =
+          breakdown.pending.count + breakdown.failed.count + breakdown.duplicate.count;
+        const pendingTotal =
+          breakdown.pending.total + breakdown.failed.total + breakdown.duplicate.total;
+        const syncedPct = breakdown.count > 0
+          ? Math.round((breakdown.synced.count / breakdown.count) * 100)
+          : 0;
+        return (
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-2">
+                <div className="flex items-center justify-between gap-1 text-emerald-700 dark:text-emerald-400 text-[10px] uppercase tracking-wide font-medium">
+                  <span className="flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Synced
+                  </span>
+                  <span className="tabular-nums">
+                    {breakdown.synced.count}/{breakdown.count}
+                  </span>
+                </div>
+                <p className="font-semibold mt-0.5">{formatUGX(breakdown.synced.total)}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {breakdown.synced.count} confirmed
+                </p>
+              </div>
+              <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-2.5 py-2">
+                <div className="flex items-center justify-between gap-1 text-amber-700 dark:text-amber-400 text-[10px] uppercase tracking-wide font-medium">
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    Pending
+                  </span>
+                  <span className="tabular-nums">
+                    {pendingCount}/{breakdown.count}
+                  </span>
+                </div>
+                <p className="font-semibold mt-0.5">{formatUGX(pendingTotal)}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5 flex flex-wrap gap-x-1.5">
+                  {breakdown.pending.count > 0 && <span>{breakdown.pending.count} queued</span>}
+                  {breakdown.failed.count > 0 && <span>· {breakdown.failed.count} failed</span>}
+                  {breakdown.duplicate.count > 0 && <span>· {breakdown.duplicate.count} dup</span>}
+                  {pendingCount === 0 && <span>none waiting</span>}
+                </p>
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            <div
+              className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+              role="progressbar"
+              aria-valuenow={syncedPct}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`${syncedPct}% of entries synced`}
+            >
+              <div
+                className="h-full bg-emerald-500 transition-all"
+                style={{ width: `${syncedPct}%` }}
+              />
+            </div>
+            <p className="text-[10px] text-muted-foreground text-center">
+              {syncedPct}% synced · {pendingCount} entr{pendingCount === 1 ? 'y' : 'ies'} still pending
+            </p>
           </div>
-          <p className="font-semibold mt-0.5">{formatUGX(breakdown.synced.total)}</p>
-        </div>
-        <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-2.5 py-2">
-          <div className="flex items-center gap-1 text-amber-700 dark:text-amber-400 text-[10px] uppercase tracking-wide font-medium">
-            <Clock className="h-3 w-3" />
-            Pending
-          </div>
-          <p className="font-semibold mt-0.5">
-            {formatUGX(breakdown.pending.total + breakdown.failed.total + breakdown.duplicate.total)}
-          </p>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Time-of-day sessions */}
       <div>
