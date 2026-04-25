@@ -430,6 +430,15 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   const hasCloudHydratedRef = useRef(false);
   const browseStatusPrefKey = 'fieldCollect.browseStatus';
 
+  /**
+   * Timestamp (ms) of the last write to the persisted status filter
+   * preference — local OR cloud, whichever is most recent. Drives the
+   * subtle "Updated <relative>" tooltip next to the count label so the
+   * agent can confirm their saved choice is fresh and not stale from a
+   * months-old session. Null = never saved (default 'all' state).
+   */
+  const [browseStatusUpdatedAt, setBrowseStatusUpdatedAt] = useState<number | null>(null);
+
   useEffect(() => {
     if (hasCloudHydratedRef.current) return;
     if (!user?.id) return;
@@ -439,7 +448,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
       try {
         const { data, error } = await supabase
           .from('user_ui_preferences')
-          .select('value')
+          .select('value, updated_at')
           .eq('user_id', user.id)
           .eq('key', browseStatusPrefKey)
           .maybeSingle();
@@ -447,6 +456,12 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
         const cloudValue = data.value;
         if (cloudValue === 'all' || cloudValue === 'active' || cloudValue === 'inactive') {
           setBrowseStatus(cloudValue);
+          // Capture cloud-reported updated_at so the tooltip shows the
+          // *true* last-edit time — not just when this device hydrated.
+          if (data.updated_at) {
+            const t = new Date(data.updated_at as string).getTime();
+            if (Number.isFinite(t)) setBrowseStatusUpdatedAt(t);
+          }
           // Mirror back to localStorage so this device matches the
           // cloud value on its next offline cold start.
           if (typeof window !== 'undefined' && browseStatusStorageKey) {
@@ -485,6 +500,9 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
             .delete()
             .eq('user_id', user.id)
             .eq('key', browseStatusPrefKey);
+          // Reset the "last updated" indicator: an empty/default state
+          // shouldn't show a stale timestamp from a prior selection.
+          setBrowseStatusUpdatedAt(null);
         } else {
           await supabase
             .from('user_ui_preferences')
@@ -492,6 +510,9 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
               { user_id: user.id, key: browseStatusPrefKey, value: browseStatus },
               { onConflict: 'user_id,key' },
             );
+          // Stamp NOW optimistically — matches the row's server-side
+          // updated_at trigger to within the round-trip window.
+          setBrowseStatusUpdatedAt(Date.now());
         }
       } catch (err) {
         console.warn('[FieldCollectDialog] cloud pref write failed', err);
