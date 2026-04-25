@@ -870,14 +870,27 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
    * the full caseload. Recomputes only when the filter, tenant list, or
    * captured-entry set changes; it's an O(N) scan with no allocations.
    */
-  const browseFilteredCount = useMemo(() => {
-    if (browseStatus === 'all') return tenants.length;
+  /**
+   * All three filter-chip counts computed in a single O(N) pass over the
+   * caseload, so the chips can show "Active 12 · Inactive 5 · All 17"
+   * without three separate scans. `browseFilteredCount` is derived from
+   * the same memo to keep the toolbar count + page math consistent with
+   * what the chips advertise.
+   */
+  const browseStatusCounts = useMemo(() => {
     const activeIds = new Set<string>();
     for (const e of entries) if (e.tenantId) activeIds.add(e.tenantId);
-    return browseStatus === 'active'
-      ? tenants.reduce((n, t) => n + (activeIds.has(t.tenantId) ? 1 : 0), 0)
-      : tenants.reduce((n, t) => n + (activeIds.has(t.tenantId) ? 0 : 1), 0);
-  }, [tenants, entries, browseStatus]);
+    let active = 0;
+    for (const t of tenants) if (activeIds.has(t.tenantId)) active++;
+    const all = tenants.length;
+    return { all, active, inactive: all - active };
+  }, [tenants, entries]);
+  const browseFilteredCount =
+    browseStatus === 'all'
+      ? browseStatusCounts.all
+      : browseStatus === 'active'
+        ? browseStatusCounts.active
+        : browseStatusCounts.inactive;
   const browsePageCount = useMemo(
     () => Math.max(1, Math.ceil(browseFilteredCount / BROWSE_PAGE_SIZE)),
     [browseFilteredCount],
@@ -1863,6 +1876,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                             role="tab"
                             aria-selected={browseStatus === opt}
                             onClick={() => setBrowseStatus(opt)}
+                            aria-label={`${opt} tenants: ${browseStatusCounts[opt].toLocaleString()}`}
                             className={cn(
                               'inline-flex items-center gap-1 px-3 h-7 rounded-full font-medium capitalize transition-colors',
                               browseStatus === opt
@@ -1870,16 +1884,29 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                                 : 'text-muted-foreground hover:text-foreground',
                             )}
                           >
-                            {opt}
+                            <span>{opt}</span>
+                            {/*
+                             * Per-chip count pill. Uses a soft inline pill so
+                             * it reads as part of the label (not a separate
+                             * badge), and switches to a higher-contrast tone
+                             * when its chip is selected so the active count
+                             * stays legible against the elevated chip
+                             * background. tabular-nums keeps the digits from
+                             * jittering when counts change between renders.
+                             */}
+                            <span
+                              className={cn(
+                                'tabular-nums text-[10px] px-1.5 rounded-full',
+                                browseStatus === opt
+                                  ? 'bg-muted text-foreground'
+                                  : 'bg-background/60 text-muted-foreground',
+                              )}
+                            >
+                              {browseStatusCounts[opt].toLocaleString()}
+                            </span>
                           </button>
                         ))}
                       </div>
-                      <span
-                        className="text-muted-foreground tabular-nums"
-                        aria-live="polite"
-                      >
-                        {browseFilteredCount.toLocaleString()} tenant{browseFilteredCount === 1 ? '' : 's'}
-                      </span>
                     </div>
                   )}
 
