@@ -112,85 +112,146 @@ export function exportDailyTotalsPdf({ date, agentName, entries }: DayTotalsExpo
   doc.text(`Generated: ${format(new Date(), 'PPpp')}`, margin, y);
   y += 20;
 
-  // Summary box
+  // Headline total — easy for non-technical readers
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text('Summary', margin, y);
-  y += 14;
+  doc.setFontSize(20);
+  doc.text(formatUGX(summary.total), margin, y);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
+  doc.setTextColor(110);
+  doc.text(`Total collected · ${summary.captured} payment${summary.captured === 1 ? '' : 's'}`, margin, y + 14);
+  doc.setTextColor(0);
+  y += 36;
 
-  const rows: Array<[string, string, string]> = [
-    ['Captured', String(summary.captured), formatUGX(summary.total)],
-    ['Synced', String(summary.synced.count), formatUGX(summary.synced.total)],
-    ['Pending', String(summary.pending.count), formatUGX(summary.pending.total)],
-    ['Failed', String(summary.failed.count), formatUGX(summary.failed.total)],
-    ['Duplicate', String(summary.duplicate.count), formatUGX(summary.duplicate.total)],
+  // Status summary in plain language: Sent / Waiting / Needs review
+  const needsReview = summary.failed.count + summary.duplicate.count;
+  const needsReviewTotal = summary.failed.total + summary.duplicate.total;
+  const statusRows: Array<[string, string, string, string]> = [
+    ['Sent to office', 'Already in the system', String(summary.synced.count), formatUGX(summary.synced.total)],
+    ['Waiting to send', 'Will sync when online', String(summary.pending.count), formatUGX(summary.pending.total)],
+    ['Needs review', 'Failed or duplicate', String(needsReview), formatUGX(needsReviewTotal)],
   ];
-  const col1 = margin;
-  const col2 = margin + 200;
-  const col3 = margin + 280;
   doc.setFont('helvetica', 'bold');
-  doc.text('Bucket', col1, y);
-  doc.text('Count', col2, y);
-  doc.text('Amount (UGX)', col3, y);
+  doc.setFontSize(11);
+  doc.text('Status', margin, y);
+  y += 14;
+  doc.setFontSize(9);
+  const sCol1 = margin;
+  const sCol2 = margin + 130;
+  const sCol3 = margin + 320;
+  const sCol4 = margin + 380;
+  doc.text('Status', sCol1, y);
+  doc.text('Meaning', sCol2, y);
+  doc.text('Count', sCol3, y);
+  doc.text('Amount (UGX)', sCol4, y);
   y += 4;
   doc.line(margin, y, pageWidth - margin, y);
   y += 12;
   doc.setFont('helvetica', 'normal');
-  for (const r of rows) {
-    doc.text(r[0], col1, y);
-    doc.text(r[1], col2, y);
-    doc.text(r[2], col3, y);
+  for (const r of statusRows) {
+    doc.text(r[0], sCol1, y);
+    doc.setTextColor(110);
+    doc.text(r[1], sCol2, y);
+    doc.setTextColor(0);
+    doc.text(r[2], sCol3, y);
+    doc.text(r[3], sCol4, y);
     y += 14;
   }
 
   y += 10;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
-  doc.text('Entries', margin, y);
+  doc.text('Payments', margin, y);
   y += 14;
 
-  // Entry table header
+  // Entry table header — now includes a Reference column
   doc.setFontSize(9);
   const cTime = margin;
-  const cTenant = margin + 80;
-  const cAmount = margin + 260;
-  const cStatus = margin + 350;
-  const cNotes = margin + 420;
+  const cTenant = margin + 60;
+  const cAmount = margin + 200;
+  const cStatus = margin + 280;
+  const cRef = margin + 360;
+  const cNotes = margin + 440;
   doc.text('Time', cTime, y);
   doc.text('Tenant', cTenant, y);
   doc.text('Amount', cAmount, y);
   doc.text('Status', cStatus, y);
+  doc.text('Reference', cRef, y);
   doc.text('Notes', cNotes, y);
   y += 4;
   doc.line(margin, y, pageWidth - margin, y);
   y += 12;
   doc.setFont('helvetica', 'normal');
 
+  const statusLabel = (s: FieldEntry['syncState']): string => {
+    switch (s) {
+      case 'synced': return 'Sent';
+      case 'queued': return 'Waiting';
+      case 'error': return 'Failed';
+      case 'duplicate': return 'Duplicate';
+      default: return s;
+    }
+  };
+
+  /**
+   * Reference shown to the agent:
+   *  - synced     → server receipt id (RCT-prefixed short id)
+   *  - duplicate  → server id it collided with (DUP-)
+   *  - queued/error → local client id (LOC-) so the entry can still be looked up
+   */
+  const referenceFor = (e: FieldEntry): string => {
+    if (e.serverId) return `RCT-${e.serverId.slice(0, 8).toUpperCase()}`;
+    if (e.duplicateOfServerId) return `DUP-${e.duplicateOfServerId.slice(0, 8).toUpperCase()}`;
+    return `LOC-${e.id.slice(0, 8).toUpperCase()}`;
+  };
+
   const sorted = [...entries].sort((a, b) => a.capturedAt - b.capturedAt);
   if (sorted.length === 0) {
     doc.setTextColor(120);
-    doc.text('No entries captured for this date.', margin, y);
+    doc.text('No payments captured on this date.', margin, y);
     doc.setTextColor(0);
   } else {
     for (const e of sorted) {
-      if (y > pageHeight - margin - 20) {
+      if (y > pageHeight - margin - 30) {
         doc.addPage();
         y = margin;
       }
       const time = format(new Date(e.capturedAt), 'HH:mm');
-      const tenant = (e.tenantName || '—').slice(0, 32);
+      const tenant = (e.tenantName || 'Walk-up').slice(0, 22);
       const amount = formatUGX(e.amount);
-      const status = e.syncState;
-      const notes = (e.notes || '').slice(0, 36);
+      const status = statusLabel(e.syncState);
+      const ref = referenceFor(e);
+      const notes = (e.notes || '').slice(0, 30);
       doc.text(time, cTime, y);
       doc.text(tenant, cTenant, y);
       doc.text(amount, cAmount, y);
       doc.text(status, cStatus, y);
+      doc.setFont('courier', 'normal');
+      doc.text(ref, cRef, y);
+      doc.setFont('helvetica', 'normal');
       doc.text(notes, cNotes, y);
       y += 12;
     }
+  }
+
+  // Footer with page numbers + reference legend
+  const total = doc.getNumberOfPages();
+  for (let i = 1; i <= total; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(140);
+    doc.text(
+      'RCT = server receipt · DUP = matched duplicate · LOC = local-only (not yet sent)',
+      margin,
+      pageHeight - margin / 2,
+    );
+    doc.text(
+      `Page ${i} of ${total}`,
+      pageWidth - margin,
+      pageHeight - margin / 2,
+      { align: 'right' },
+    );
+    doc.setTextColor(0);
   }
 
   doc.save(`field-collections-${dateFile}.pdf`);
