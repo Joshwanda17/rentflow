@@ -438,18 +438,81 @@ function CommissionBreakdown({
             {items.map((it) => {
               const comm = Math.round(it.amount * effectiveRate);
               const audit = auditByItem.get(it.id);
+              // A line item is flagged when EITHER:
+              //  (a) the overall repayment total doesn't match the batch target
+              //      AND this line's repayment drifts from what the audit
+              //      recorded for the same tenant (verified batches), or
+              //  (b) the overall commission total doesn't match the recorded /
+              //      expected commission AND this line's recomputed commission
+              //      drifts from the audit value.
+              const auditRepayment = audit ? Number(audit.repayment || 0) : null;
+              const auditCommission = audit ? Number(audit.commission || 0) : null;
+              const repaymentDrift =
+                auditRepayment !== null && Math.abs(it.amount - auditRepayment) >= 1;
+              const commissionDrift =
+                auditCommission !== null && Math.abs(comm - auditCommission) >= 1;
+              // For pending batches with no audit, share the blame across all
+              // lines when the overall total drifts (so users know to spot-check).
+              const sharedRepaymentBlame = !auditRepayment && !repaymentMatches;
+              const sharedCommissionBlame = !auditCommission && !commissionMatches;
+              const repaymentSuspect =
+                (!repaymentMatches && repaymentDrift) || sharedRepaymentBlame;
+              const commissionSuspect =
+                (!commissionMatches && commissionDrift) || sharedCommissionBlame;
+              const flagged = repaymentSuspect || commissionSuspect;
               return (
-                <li key={it.id} className="grid grid-cols-[1fr_auto_auto] gap-3 px-3 py-2 text-xs items-center">
+                <li
+                  key={it.id}
+                  className={cn(
+                    'grid grid-cols-[1fr_auto_auto] gap-3 px-3 py-2 text-xs items-center',
+                    flagged && 'bg-amber-500/10 border-l-2 border-amber-500',
+                  )}
+                  title={
+                    flagged
+                      ? [
+                          repaymentSuspect &&
+                            (auditRepayment !== null
+                              ? `Repayment drifts from audit (${formatUGX(auditRepayment)})`
+                              : 'Contributes to repayment mismatch'),
+                          commissionSuspect &&
+                            (auditCommission !== null
+                              ? `Commission drifts from audit (${formatUGX(auditCommission)})`
+                              : 'Contributes to commission mismatch'),
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')
+                      : undefined
+                  }
+                >
                   <div className="min-w-0">
-                    <div className="truncate font-medium">{it.tenant_name ?? '—'}</div>
+                    <div className="truncate font-medium flex items-center gap-1">
+                      {flagged && (
+                        <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400 shrink-0" />
+                      )}
+                      <span className="truncate">{it.tenant_name ?? '—'}</span>
+                    </div>
                     {audit?.generated_at && (
                       <div className="text-[10px] text-muted-foreground mt-0.5">
                         Generated {format(new Date(audit.generated_at), 'MMM d, HH:mm')}
                       </div>
                     )}
                   </div>
-                  <span className="font-mono text-right">{formatUGX(it.amount)}</span>
-                  <span className="font-mono text-right text-emerald-600 dark:text-emerald-400 min-w-[80px]">
+                  <span
+                    className={cn(
+                      'font-mono text-right',
+                      repaymentSuspect && 'text-amber-700 dark:text-amber-400 font-semibold',
+                    )}
+                  >
+                    {formatUGX(it.amount)}
+                  </span>
+                  <span
+                    className={cn(
+                      'font-mono text-right min-w-[80px]',
+                      commissionSuspect
+                        ? 'text-amber-700 dark:text-amber-400 font-semibold'
+                        : 'text-emerald-600 dark:text-emerald-400',
+                    )}
+                  >
                     +{formatUGX(comm)}
                   </span>
                 </li>
