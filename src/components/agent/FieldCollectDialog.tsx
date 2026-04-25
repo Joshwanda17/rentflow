@@ -17,12 +17,13 @@ import {
 import {
   cacheTenants, getCachedTenants, addEntry, deleteEntry, getEntries,
   getQueuedEntries, updateEntry, newClientUuid,
-  type CachedTenant, type FieldEntry,
+  getCachedNormalizedIndex, saveCachedNormalizedIndex,
+  type CachedTenant, type FieldEntry, type NormalizedTenantEntry,
 } from '@/lib/fieldCollectStore';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
 import { FieldCollectDailyTotals } from '@/components/agent/FieldCollectDailyTotals';
-import { normalizeName, normalizePhone } from '@/lib/tenantSearch';
+import { normalizeName, normalizePhone, tenantListFingerprint } from '@/lib/tenantSearch';
 
 interface FieldCollectDialogProps {
   open: boolean;
