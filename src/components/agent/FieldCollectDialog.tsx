@@ -38,6 +38,24 @@ const PURPOSES: { id: Purpose; label: string; icon: React.ComponentType<{ classN
   { id: 'other', label: 'Other', icon: Sparkles },
 ];
 
+/** Wrap matching substring in <mark> for visual hint inside suggestions. */
+function highlightMatch(text: string, query: string): React.ReactNode {
+  const q = query.trim();
+  if (!q) return text;
+  const lower = text.toLowerCase();
+  const idx = lower.indexOf(q.toLowerCase());
+  if (idx === -1) return text;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark className="bg-primary/15 text-foreground rounded px-0.5">
+        {text.slice(idx, idx + q.length)}
+      </mark>
+      {text.slice(idx + q.length)}
+    </>
+  );
+}
+
 export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogProps) {
   const { user } = useAuth();
   const [online, setOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
