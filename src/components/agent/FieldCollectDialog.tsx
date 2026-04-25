@@ -492,15 +492,25 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
       searchCacheRef.current = new Map();
       searchCacheFingerprintRef.current = fingerprint;
     }
-    // Lowercase the trimmed query so "Alice", "alice ", and "ALICE" share an
-    // entry. The empty query has its own dedicated bucket too so opening the
-    // picker repeatedly doesn't re-slice the tenant book.
+    // Normalize the query so equivalent inputs share a cache slot:
+    //   • trim + lowercase  → "Alice", "alice ", "ALICE" collapse together
+    //   • collapse internal runs of whitespace → "alice   smith" === "alice smith"
+    // Scoring already runs against `q` (normalizeName output), which strips
+    // diacritics/punctuation, so any two raw inputs that produce the same `q`
+    // are guaranteed to produce identical results — they're safe to share a
+    // cache entry. The empty query has its own dedicated bucket too so opening
+    // the picker repeatedly doesn't re-slice the tenant book.
     //
     // Browse-mode (empty query) varies by sort + page, so we widen the key to
     // include those — flipping pages or switching sort keeps each variant
     // memoized so back/forward feels instant.
-    const cacheKey = raw
-      ? raw.toLowerCase()
+    //
+    // Note: we deliberately key on the *normalized* query (`q`) rather than
+    // raw input. `q` is the exact value the scorer sees, so it's the tightest
+    // valid cache key — anything finer would create cache misses for inputs
+    // that produce identical scoring work.
+    const cacheKey = q
+      ? `q:${q}`
       : `__browse__:${browseSort}:${browsePage}`;
     const cached = searchCacheRef.current.get(cacheKey);
     if (cached) {
