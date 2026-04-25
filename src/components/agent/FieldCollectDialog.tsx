@@ -9,7 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import {
-  Loader2, WifiOff, Wifi, CloudUpload, Search, Plus, Trash2,
+  Loader2, WifiOff, Wifi, Search, Trash2,
   CheckCircle2, AlertCircle, RefreshCcw, ChevronLeft, ChevronRight,
   User, Banknote, ClipboardCheck, Home, KeyRound, Sparkles,
 } from 'lucide-react';
@@ -52,7 +52,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   const [purpose, setPurpose] = useState<Purpose>('rent');
   const [step, setStep] = useState<Step>(1);
   const [saving, setSaving] = useState(false);
-  const [syncing, setSyncing] = useState(false);
+  const [, setSyncing] = useState(false);
 
   /* Online/offline tracking */
   useEffect(() => {
@@ -145,7 +145,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   }, [tenants, search]);
 
   const queuedCount = entries.filter(e => e.syncState !== 'synced').length;
-  const grandTotal = useMemo(() => entries.reduce((sum, e) => sum + Number(e.amount || 0), 0), [entries]);
+  void queuedCount;
 
   const resetForm = () => {
     setPicked(null);
