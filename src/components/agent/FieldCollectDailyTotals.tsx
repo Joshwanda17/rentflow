@@ -24,6 +24,7 @@ import { format, isSameDay } from 'date-fns';
 import { toast } from 'sonner';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface Bucket {
   label: string;
@@ -76,6 +77,7 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
   const { user } = useAuth();
   const [entries, setEntries] = useState<FieldEntry[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [lastRefreshed, setLastRefreshed] = useState<number>(Date.now());
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [reconcileOpen, setReconcileOpen] = useState(false);
@@ -99,6 +101,7 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
       setLastRefreshed(Date.now());
     } finally {
       setRefreshing(false);
+      setInitialLoading(false);
     }
   }, [user?.id]);
 
