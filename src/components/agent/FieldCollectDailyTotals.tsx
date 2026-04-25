@@ -508,6 +508,59 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
                     Some payments could not be sent or already exist on the server.
                   </p>
                 </div>
+                {/* Plain-language fix-it checklist — guides the agent step by step */}
+                {(() => {
+                  const dupCount = breakdown.duplicate.count;
+                  const failCount = breakdown.failed.count;
+                  const steps = [
+                    {
+                      label: dupCount > 0
+                        ? `Check the ${dupCount} payment${dupCount === 1 ? '' : 's'} already on the server`
+                        : 'Check duplicate payments',
+                      done: dupCount === 0,
+                      active: dupCount > 0,
+                    },
+                    {
+                      label: failCount > 0
+                        ? `Retry the ${failCount} payment${failCount === 1 ? '' : 's'} that did not send`
+                        : 'Retry failed payments',
+                      done: failCount === 0,
+                      active: dupCount === 0 && failCount > 0,
+                    },
+                    {
+                      label: 'Confirm today\'s total matches your cash on hand',
+                      done: false,
+                      active: dupCount === 0 && failCount === 0,
+                    },
+                  ];
+                  return (
+                    <ol className="px-3 py-2.5 border-b space-y-1.5 bg-muted/20">
+                      {steps.map((s, i) => (
+                        <li
+                          key={i}
+                          className={cn(
+                            'flex items-start gap-2 text-[11px] leading-snug',
+                            s.done && 'text-muted-foreground line-through opacity-70',
+                            s.active && 'text-foreground font-medium',
+                            !s.done && !s.active && 'text-muted-foreground',
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              'mt-0.5 h-4 w-4 rounded-full border flex items-center justify-center shrink-0 text-[9px] font-bold',
+                              s.done && 'bg-emerald-500 border-emerald-500 text-white',
+                              s.active && 'border-primary text-primary',
+                              !s.done && !s.active && 'border-muted-foreground/40',
+                            )}
+                          >
+                            {s.done ? '✓' : i + 1}
+                          </span>
+                          <span className="min-w-0">{s.label}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  );
+                })()}
                 <div className="max-h-64 overflow-y-auto">
                   {today.filter(e => e.syncState === 'duplicate').map(e => {
                     const ref = e.duplicateOfServerId
