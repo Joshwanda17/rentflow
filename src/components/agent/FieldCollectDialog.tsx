@@ -365,7 +365,14 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   useEffect(() => {
     if (!browseStatusStorageKey || typeof window === 'undefined') return;
     try {
-      window.localStorage.setItem(browseStatusStorageKey, browseStatus);
+      // Treat 'all' as the absence of a preference: removing the key
+      // (instead of writing it) keeps localStorage clean after Reset
+      // and makes "no key set" semantically equivalent to "default".
+      if (browseStatus === 'all') {
+        window.localStorage.removeItem(browseStatusStorageKey);
+      } else {
+        window.localStorage.setItem(browseStatusStorageKey, browseStatus);
+      }
     } catch {
       /* noop — see above */
     }
