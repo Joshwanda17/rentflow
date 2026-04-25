@@ -577,16 +577,63 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                 </div>
               ) : (
                 <>
+                  {/* Recent tenants — shown only when no query and at least one chip */}
+                  {!search && recentTenants.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        Recent
+                      </div>
+                      <div className="flex gap-2 overflow-x-auto -mx-1 px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                        {recentTenants.map(t => {
+                          const initials = t.fullName
+                            .split(/\s+/)
+                            .filter(Boolean)
+                            .slice(0, 2)
+                            .map(s => s[0]?.toUpperCase())
+                            .join('') || '?';
+                          return (
+                            <button
+                              key={`recent-${t.tenantId}`}
+                              type="button"
+                              onClick={() => { setPicked(t); setSearch(t.fullName); }}
+                              className="shrink-0 flex items-center gap-2 rounded-full border bg-card hover:bg-accent active:bg-accent/80 pl-1.5 pr-3.5 py-1.5 min-h-[40px] transition-colors touch-manipulation"
+                              style={{ WebkitTapHighlightColor: 'transparent' }}
+                              aria-label={`Quick pick ${t.fullName}`}
+                            >
+                              <span className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[11px] font-bold">
+                                {initials}
+                              </span>
+                              <span className="text-sm font-medium max-w-[140px] truncate">
+                                {t.fullName.split(' ')[0]}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       value={search}
                       onChange={e => { setSearch(e.target.value); setPicked(null); }}
                       placeholder={tenants.length ? 'Search name or phone' : 'Connect to load tenants'}
-                      className="pl-11 h-14 text-base rounded-2xl"
+                      className="pl-11 pr-11 h-14 text-base rounded-2xl"
                       autoComplete="off"
                       autoFocus
                     />
+                    {search && (
+                      <button
+                        type="button"
+                        onClick={() => setSearch('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground hover:bg-accent hover:text-foreground"
+                        aria-label="Clear search"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
 
                   {(search || tenants.length > 0) && (
@@ -595,16 +642,27 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                         <p className="p-4 text-sm text-muted-foreground text-center">
                           No match. Use walk-up below.
                         </p>
-                      ) : filtered.map(t => (
+                      ) : filtered.map((t, idx) => (
                         <button
                           key={t.tenantId}
                           onClick={() => { setPicked(t); setSearch(t.fullName); }}
                           className="w-full text-left px-4 py-4 min-h-[60px] hover:bg-accent border-b last:border-b-0 flex items-center justify-between gap-2 active:bg-accent/80 touch-manipulation"
                           style={{ WebkitTapHighlightColor: 'transparent' }}
                         >
-                          <div className="min-w-0">
-                            <p className="text-base font-semibold truncate">{t.fullName}</p>
-                            <p className="text-xs text-muted-foreground truncate">{t.phone || 'No phone'}</p>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <p className="text-base font-semibold truncate">
+                                {highlightMatch(t.fullName, search)}
+                              </p>
+                              {idx === 0 && search && (
+                                <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                                  Best match
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {t.phone ? highlightMatch(t.phone, search) : 'No phone'}
+                            </p>
                           </div>
                           {t.monthlyRent ? (
                             <span className="text-xs text-muted-foreground shrink-0 tabular-nums">
