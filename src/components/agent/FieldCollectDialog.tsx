@@ -1106,9 +1106,10 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                               {/*
                                * Match-type chips on the top result: tells the agent *why*
                                * this tenant was suggested — phone-digit match, name match,
-                               * or both. Hidden on the rest of the list to avoid noise.
+                               * or both. Shown on the top 3 results so the ranking is
+                               * transparent without flooding the rest of the list.
                                */}
-                              {idx === 0 && search && matchType && (
+                              {idx < 3 && search && matchType && (
                                 <>
                                   {(matchType === 'phone' || matchType === 'both') && (
                                     <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide bg-success/10 text-success px-1.5 py-0.5 rounded">
