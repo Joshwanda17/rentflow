@@ -371,6 +371,28 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     }
   }, [browseStatus, browseStatusStorageKey]);
 
+  /**
+   * Late-hydration: if `user.id` resolves AFTER the lazy initializer ran
+   * (common when auth is still loading on first mount), pull the stored
+   * preference now. Tracks `hasHydratedStatus` so a user manually
+   * toggling the chip before auth lands isn't immediately overwritten
+   * by a stale stored value when `user.id` finally arrives.
+   */
+  const hasHydratedStatusRef = useRef(false);
+  useEffect(() => {
+    if (hasHydratedStatusRef.current) return;
+    if (!browseStatusStorageKey || typeof window === 'undefined') return;
+    hasHydratedStatusRef.current = true;
+    try {
+      const raw = window.localStorage.getItem(browseStatusStorageKey);
+      if (raw === 'all' || raw === 'active' || raw === 'inactive') {
+        setBrowseStatus(raw);
+      }
+    } catch {
+      /* noop */
+    }
+  }, [browseStatusStorageKey]);
+
   const [browsePage, setBrowsePage] = useState(0);
 
   /* Online/offline tracking */
