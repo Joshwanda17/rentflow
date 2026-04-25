@@ -19,7 +19,8 @@ import {
   cacheTenants, getCachedTenants, addEntry, deleteEntry, getEntries,
   getQueuedEntries, updateEntry, newClientUuid,
   getCachedNormalizedIndex, saveCachedNormalizedIndex,
-  type CachedTenant, type FieldEntry, type NormalizedTenantEntry,
+  bumpTenantPick, getRecentPicks,
+  type CachedTenant, type FieldEntry, type NormalizedTenantEntry, type TenantPickRecord,
 } from '@/lib/fieldCollectStore';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
