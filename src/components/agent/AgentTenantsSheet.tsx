@@ -18,6 +18,7 @@ import AgentRentRequestDialog from './AgentRentRequestDialog';
 import { AgentTenantCollectDialog } from './AgentTenantCollectDialog';
 import { TenantBehaviorCard } from './TenantBehaviorCard';
 import { TenantProfileView } from './TenantProfileView';
+import { TenantFieldCollectDialog } from './TenantFieldCollectDialog';
 
 interface Tenant {
   id: string;
