@@ -21,6 +21,18 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { FieldDepositWizardDialog } from '@/components/agent/FieldDepositWizardDialog';
 
+/**
+ * Tolerance (in UGX) for reconciliation comparisons. Repayment / commission
+ * deltas at or below this threshold are treated as "matching" so floor / round
+ * differences from the per-line commission calculation never surface as a
+ * mismatch. Override per-environment via VITE_FIELD_DEPOSIT_RECONCILE_TOLERANCE.
+ */
+const RECONCILE_TOLERANCE_UGX = (() => {
+  const raw = (import.meta as any).env?.VITE_FIELD_DEPOSIT_RECONCILE_TOLERANCE;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : 1;
+})();
+
 interface FieldDepositQueueCardProps {
   /** Optional: lets the parent open a different "submit proof" dialog. Defaults to opening the wizard pre-bound to that batch. */
   onSubmitProof?: (batch: FieldDepositBatch) => void;
