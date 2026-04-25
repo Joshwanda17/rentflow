@@ -268,10 +268,60 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
             </Badge>
           )}
           {breakdown.duplicate.count > 0 && (
-            <Badge variant="outline" className="gap-1 border-amber-500/40 text-amber-700 dark:text-amber-400 bg-amber-500/10">
-              <FileWarning className="h-3 w-3" />
-              {breakdown.duplicate.count} dup
-            </Badge>
+            <Popover open={dupPopoverOpen} onOpenChange={setDupPopoverOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={`${breakdown.duplicate.count} duplicate receipts — click to review`}
+                  className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 transition-colors"
+                >
+                  <FileWarning className="h-3 w-3" />
+                  {breakdown.duplicate.count} dup
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-80 p-0">
+                <div className="px-3 py-2 border-b">
+                  <p className="text-xs font-semibold">Duplicate receipts</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Server already has these receipts. Reconcile to keep one or both.
+                  </p>
+                </div>
+                <div className="max-h-64 overflow-y-auto">
+                  {today.filter(e => e.syncState === 'duplicate').map(e => {
+                    const ref = e.duplicateOfServerId
+                      ? `#${e.duplicateOfServerId.slice(0, 8)}`
+                      : `#${e.id.slice(0, 8)}`;
+                    const snap = e.duplicateServerSnapshot;
+                    return (
+                      <div key={e.id} className="px-3 py-2 border-b last:border-0 text-[11px] space-y-0.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium truncate">{e.tenantName || 'Walk-up'}</span>
+                          <span className="text-muted-foreground font-mono text-[10px]">{ref}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-muted-foreground">
+                          <span>Local: {formatUGX(e.amount)}</span>
+                          {snap && <span>Server: {formatUGX(snap.amount)}</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="px-3 py-2 border-t">
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="w-full h-8 text-xs gap-1"
+                    onClick={() => {
+                      setDupPopoverOpen(false);
+                      setReconcileOpen(true);
+                    }}
+                  >
+                    <FileWarning className="h-3.5 w-3.5" />
+                    Open reconciliation
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
           )}
           {dateSelector}
           {exportMenu}
