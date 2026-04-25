@@ -2362,12 +2362,49 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                           </button>
                         ))}
                       </div>
-                      <span
-                        className="text-muted-foreground tabular-nums"
-                        aria-live="polite"
-                      >
-                        {browseFilteredCount.toLocaleString()} tenant{browseFilteredCount === 1 ? '' : 's'}
-                      </span>
+                      {/*
+                       * Tenant count with a "Filter saved <relative>" tooltip
+                       * AND an exact timestamp rendered in the agent's
+                       * preferred timezone (set via the gear popover, default
+                       * = device timezone). The tooltip only appears once a
+                       * non-default selection has actually been saved — for
+                       * the untouched default 'all' state we render a plain
+                       * count to avoid a misleading dotted underline.
+                       */}
+                      {browseStatusUpdatedAt ? (
+                        <TooltipProvider delayDuration={200}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span
+                                className="text-muted-foreground tabular-nums border-b border-dotted border-muted-foreground/40 cursor-help"
+                                aria-live="polite"
+                                aria-label={
+                                  `${browseFilteredCount.toLocaleString()} tenants. ` +
+                                  `Filter saved ${formatDistanceToNow(browseStatusUpdatedAt, { addSuffix: true })} ` +
+                                  `(${formatInTz(browseStatusUpdatedAt)}).`
+                                }
+                              >
+                                {browseFilteredCount.toLocaleString()} tenant{browseFilteredCount === 1 ? '' : 's'}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-[11px] max-w-[260px]">
+                              <div className="font-medium">
+                                Filter saved {formatDistanceToNow(browseStatusUpdatedAt, { addSuffix: true })}
+                              </div>
+                              <div className="text-muted-foreground mt-0.5">
+                                {formatInTz(browseStatusUpdatedAt)}
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ) : (
+                        <span
+                          className="text-muted-foreground tabular-nums"
+                          aria-live="polite"
+                        >
+                          {browseFilteredCount.toLocaleString()} tenant{browseFilteredCount === 1 ? '' : 's'}
+                        </span>
+                      )}
                       {/*
                        * Reset chip — clears the persisted Active/Inactive/All
                        * preference and returns the picker to the 'all'
@@ -2398,6 +2435,89 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                           Reset
                         </button>
                       )}
+                      {/*
+                       * Picker preferences popover — gear icon at the
+                       * end of the row. Two settings:
+                       *   1. Cloud sync master toggle (Cloud / CloudOff icon)
+                       *   2. Display timezone for the "Filter saved" tooltip
+                       * Both are per-user; cloud-sync gates whether the
+                       * timezone preference also rides with the account.
+                       */}
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className="ml-auto inline-flex items-center justify-center h-7 w-7 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                            aria-label={`Picker preferences. Cloud sync ${cloudSyncEnabled ? 'enabled' : 'disabled'}.`}
+                          >
+                            {cloudSyncEnabled ? (
+                              <Cloud className="h-3.5 w-3.5" />
+                            ) : (
+                              <CloudOff className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          align="end"
+                          side="top"
+                          className="w-80 p-3 space-y-3"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 pr-2">
+                              <Label
+                                htmlFor="picker-cloud-sync-toggle"
+                                className="text-sm font-semibold flex items-center gap-1.5"
+                              >
+                                <Settings2 className="h-3.5 w-3.5 text-muted-foreground" />
+                                Cloud sync
+                              </Label>
+                              <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
+                                {cloudSyncEnabled
+                                  ? 'Picker filter & timezone follow you across devices.'
+                                  : 'Picker filter & timezone stay on this device only.'}
+                              </p>
+                            </div>
+                            <Switch
+                              id="picker-cloud-sync-toggle"
+                              checked={cloudSyncEnabled}
+                              onCheckedChange={(checked) => setCloudSyncEnabled(checked)}
+                              aria-label="Toggle picker filter cloud sync"
+                            />
+                          </div>
+
+                          <Separator />
+
+                          <div className="space-y-1.5">
+                            <Label
+                              htmlFor="picker-tz-select"
+                              className="text-sm font-semibold flex items-center gap-1.5"
+                            >
+                              <Globe2 className="h-3.5 w-3.5 text-muted-foreground" />
+                              Display timezone
+                            </Label>
+                            <p className="text-[11px] text-muted-foreground leading-snug">
+                              Used for the "Filter saved" timestamp on hover.
+                            </p>
+                            <Select value={displayTimezone} onValueChange={setDisplayTimezone}>
+                              <SelectTrigger id="picker-tz-select" className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="max-h-72">
+                                {TIMEZONE_OPTIONS.map(opt => (
+                                  <SelectItem key={opt.id} value={opt.id} className="text-xs">
+                                    {opt.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {displayTimezone === 'auto' && (
+                              <p className="text-[10px] text-muted-foreground pt-1">
+                                Resolved to <span className="font-medium">{resolvedDisplayTimezone}</span>
+                              </p>
+                            )}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   )}
 
