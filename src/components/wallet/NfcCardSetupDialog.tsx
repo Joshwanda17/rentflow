@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import QRCode from 'qrcode';
 import jsPDF from 'jspdf';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -6,16 +6,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, CreditCard, ShieldCheck, FileDown, FileJson, CheckCircle2 } from 'lucide-react';
+import { Loader2, CreditCard, ShieldCheck, FileDown, FileJson, CheckCircle2, Plus, Trash2, Wifi } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
 
 interface NfcCardSetupDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-type Step = 'form' | 'submitting' | 'success';
+type Step = 'loading' | 'existing' | 'form' | 'submitting' | 'success';
 
 interface CardPayload {
   version: number;
@@ -27,24 +29,83 @@ interface CardPayload {
   hmac_signature: string;
 }
 
+interface ExistingCard {
+  card_id: string;
+  pinless_limit: number;
+  status: string;
+  created_at: string;
+}
+
 export function NfcCardSetupDialog({ open, onOpenChange }: NfcCardSetupDialogProps) {
-  const [step, setStep] = useState<Step>('form');
+  const { user } = useAuth();
+  const { profile } = useProfile();
+  const [step, setStep] = useState<Step>('loading');
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [pinlessLimit, setPinlessLimit] = useState('50000');
   const [card, setCard] = useState<CardPayload | null>(null);
+  const [existingCard, setExistingCard] = useState<ExistingCard | null>(null);
+  const [deactivating, setDeactivating] = useState(false);
+
+  const holderName = (profile?.full_name || user?.email?.split('@')[0] || 'Card Holder').trim();
+
+  const loadExisting = useCallback(async () => {
+    if (!user?.id) return;
+    setStep('loading');
+    const { data } = await supabase
+      .from('nfc_cards')
+      .select('card_id, pinless_limit, status, created_at')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (data) {
+      setExistingCard(data as ExistingCard);
+      setStep('existing');
+    } else {
+      setExistingCard(null);
+      setStep('form');
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (open) loadExisting();
+  }, [open, loadExisting]);
 
   const reset = () => {
-    setStep('form');
+    setStep('loading');
     setPin('');
     setConfirmPin('');
     setPinlessLimit('50000');
     setCard(null);
+    setExistingCard(null);
   };
 
   const handleClose = (val: boolean) => {
     if (!val) reset();
     onOpenChange(val);
+  };
+
+  const handleDeactivate = async () => {
+    if (!existingCard || !user?.id) return;
+    if (!confirm('Deactivate this card? You will need to set up a new card to use Tap to Pay.')) return;
+    setDeactivating(true);
+    try {
+      const { error } = await supabase
+        .from('nfc_cards')
+        .update({ status: 'revoked', revoked_at: new Date().toISOString() })
+        .eq('card_id', existingCard.card_id)
+        .eq('user_id', user.id);
+      if (error) throw error;
+      toast.success('Card deactivated');
+      setExistingCard(null);
+      setStep('form');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to deactivate card');
+    } finally {
+      setDeactivating(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -177,12 +238,109 @@ export function NfcCardSetupDialog({ open, onOpenChange }: NfcCardSetupDialogPro
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5 text-primary" />
-            Setup NFC Card
+            {step === 'existing' ? 'Your Card' : 'Setup NFC Card'}
           </DialogTitle>
           <DialogDescription>
-            Configure a contactless card linked to your wallet.
+            {step === 'existing'
+              ? 'Your contactless card linked to your wallet.'
+              : 'Configure a contactless card linked to your wallet.'}
           </DialogDescription>
         </DialogHeader>
+
+        {step === 'loading' && (
+          <div className="py-12 flex flex-col items-center gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Loading your card…</p>
+          </div>
+        )}
+
+        {step === 'existing' && existingCard && (
+          <div className="space-y-4">
+            {/* Visual card */}
+            <div
+              className="relative w-full aspect-[1.586/1] rounded-2xl overflow-hidden shadow-xl"
+              style={{
+                background:
+                  'linear-gradient(135deg, hsl(270 70% 22%) 0%, hsl(270 65% 30%) 100%)',
+              }}
+            >
+              {/* Wave overlays mimicking the brand card */}
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background:
+                    'radial-gradient(ellipse 120% 60% at 30% 110%, hsl(270 60% 55% / 0.55) 0%, transparent 55%), radial-gradient(ellipse 100% 50% at 80% 20%, hsl(270 60% 60% / 0.35) 0%, transparent 55%), radial-gradient(ellipse 80% 40% at 110% 80%, hsl(270 55% 50% / 0.45) 0%, transparent 60%)',
+                }}
+              />
+              {/* Logo + Tap to Pay */}
+              <div className="absolute top-4 left-4 flex items-baseline gap-0.5">
+                <span className="text-white text-2xl font-extrabold tracking-tight">Welile</span>
+                <span className="text-white text-[10px] font-semibold">TM</span>
+              </div>
+              <div className="absolute top-4 right-4 flex items-center gap-2 text-white">
+                <span className="text-xs font-medium">Tap to Pay</span>
+                <div className="h-6 w-6 rounded-full border border-white/80 flex items-center justify-center">
+                  <Wifi className="h-3 w-3 rotate-90" />
+                </div>
+              </div>
+              {/* Card Holder — 16,16pt left aligned, fontsize 9, bold */}
+              <div
+                className="absolute text-white font-bold"
+                style={{ left: 16, bottom: 16, fontSize: 9, lineHeight: 1.2 }}
+              >
+                {holderName}
+              </div>
+            </div>
+
+            {/* Status + meta */}
+            <Card className="border-border/60">
+              <CardContent className="p-3 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Status</span>
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 font-semibold">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    Active
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Account</span>
+                  <span className="font-semibold">{holderName}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Pinless Limit</span>
+                  <span className="font-semibold">UGX {Number(existingCard.pinless_limit).toLocaleString()}</span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-muted-foreground">Card ID</span>
+                  <span className="font-mono text-[10px] break-all text-right">{existingCard.card_id}</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                className="gap-2 text-destructive hover:text-destructive"
+                onClick={handleDeactivate}
+                disabled={deactivating}
+              >
+                {deactivating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                Deactivate
+              </Button>
+              <Button
+                className="gap-2"
+                onClick={() => setStep('form')}
+              >
+                <Plus className="h-4 w-4" />
+                Add New Card
+              </Button>
+            </div>
+
+            <Button variant="ghost" className="w-full" onClick={() => handleClose(false)}>
+              Close
+            </Button>
+          </div>
+        )}
 
         {step === 'form' && (
           <div className="space-y-4">
