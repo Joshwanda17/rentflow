@@ -13,8 +13,9 @@ import {
   Loader2, WifiOff, Wifi, Search, Trash2,
   CheckCircle2, AlertCircle, RefreshCcw, ChevronLeft, ChevronRight,
   User, Banknote, ClipboardCheck, Home, KeyRound, Sparkles,
-  HelpCircle, ChevronDown, Clock, X,
+  HelpCircle, ChevronDown, Clock, X, AlertTriangle,
 } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
   cacheTenants, getCachedTenants, addEntry, deleteEntry, getEntries,
   getQueuedEntries, updateEntry, newClientUuid,
