@@ -531,11 +531,39 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     setActiveIdx(0);
   }, [keyboardOptions.length, search]);
 
-  /* Keep the highlighted option scrolled into view */
+  /**
+   * Virtualized renderer for the suggestion list. Handles thousands of
+   * tenants without dropping frames by mounting only the rows currently
+   * inside the scroll viewport (plus a small overscan for smoothness).
+   *
+   * The estimated row height matches the `min-h-[60px]` row class. Real
+   * height can grow when match chips wrap to a second line — `measureElement`
+   * is wired up below so the virtualizer corrects itself after layout.
+   */
+  const rowVirtualizer = useVirtualizer({
+    count: filtered.length,
+    getScrollElement: () => listScrollRef.current,
+    estimateSize: () => 60,
+    overscan: 6,
+    getItemKey: idx => filtered[idx]?.t.tenantId ?? idx,
+  });
+
+  /* Keep the highlighted option scrolled into view (works with virtualization). */
   useEffect(() => {
+    if (activeIdx < 0) return;
+    // Prefer the virtualizer's API when the active option lives in the
+    // suggestion list (filtered). For "recent" rows (rendered above the
+    // virtualized list) fall back to scrolling the DOM element directly.
+    const opt = keyboardOptions[activeIdx];
+    if (!opt) return;
+    const filteredIdx = filtered.findIndex(s => s.t.tenantId === opt.tenantId);
+    if (filteredIdx >= 0 && listScrollRef.current) {
+      rowVirtualizer.scrollToIndex(filteredIdx, { align: 'auto' });
+      return;
+    }
     const el = optionRefs.current[activeIdx];
     if (el) el.scrollIntoView({ block: 'nearest' });
-  }, [activeIdx]);
+  }, [activeIdx, filtered, keyboardOptions, rowVirtualizer]);
 
   /**
    * Last captured entry for the picked tenant — drives the small preview panel
