@@ -4,7 +4,7 @@ import { getEntries, onFieldCollectChange, type FieldEntry } from '@/lib/fieldCo
 import { formatUGX } from '@/lib/rentCalculations';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle2, Clock, FileWarning, CalendarDays, RefreshCcw, FileText, FileSpreadsheet, CalendarIcon, Settings2, RotateCcw, MoreHorizontal } from 'lucide-react';
+import { CheckCircle2, Clock, FileWarning, CalendarDays, RefreshCcw, FileText, FileSpreadsheet, CalendarIcon, Settings2, RotateCcw, MoreHorizontal, CalendarRange } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FieldCollectDailyDetailsSheet } from '@/components/agent/FieldCollectDailyDetailsSheet';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -18,8 +18,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { exportDailyTotalsCsv, exportDailyTotalsPdf } from '@/lib/fieldCollectExport';
-import { format, isSameDay } from 'date-fns';
+import { exportDailyTotalsCsv, exportDailyTotalsPdf, exportRangeTotalsPdf, exportRangeTotalsCsv } from '@/lib/fieldCollectExport';
+import {
+  format, isSameDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, differenceInCalendarDays,
+} from 'date-fns';
+import type { DateRange } from 'react-day-picker';
 import { toast } from 'sonner';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -92,6 +95,14 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
   });
   const [datePickerOpen, setDatePickerOpen] = useState(false);
 
+  /**
+   * Date-range export popover. Opens from the dropdown ("Export range…") and
+   * lets the agent pick a quick preset (This week / This month / Last 7 days)
+   * or a custom range, then download CSV/PDF.
+   */
+  const [rangeExportOpen, setRangeExportOpen] = useState(false);
+  const [rangeSelection, setRangeSelection] = useState<DateRange | undefined>(undefined);
+
   const refresh = useCallback(async () => {
     if (!user?.id) return;
     setRefreshing(true);
@@ -145,6 +156,77 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
       toast.error('Export failed');
     }
   }, [selectedDate, today, user]);
+
+  /**
+   * Range export — pulls every entry across [start..end] (inclusive) from the
+   * already-loaded local cache, then hands it to the shared PDF/CSV builders.
+   */
+  const handleRangeExport = useCallback(
+    (kind: 'csv' | 'pdf', start: Date, end: Date, label?: string) => {
+      const startMs = new Date(start).setHours(0, 0, 0, 0);
+      const endMs = new Date(end).setHours(23, 59, 59, 999);
+      const slice = entries.filter(e => e.capturedAt >= startMs && e.capturedAt <= endMs);
+      if (slice.length === 0) {
+        toast.info('No payments in that date range');
+        return;
+      }
+      const agentName = (user?.user_metadata as any)?.full_name || user?.email || null;
+      const payload = {
+        startDate: new Date(startMs),
+        endDate: new Date(endMs),
+        agentName,
+        entries: slice,
+        rangeLabel: label,
+      };
+      try {
+        if (kind === 'csv') exportRangeTotalsCsv(payload);
+        else exportRangeTotalsPdf(payload);
+        const days = differenceInCalendarDays(end, start) + 1;
+        toast.success(
+          `Exported ${slice.length} payment${slice.length === 1 ? '' : 's'} across ${days} day${days === 1 ? '' : 's'} as ${kind.toUpperCase()}`,
+        );
+        setRangeExportOpen(false);
+      } catch (err) {
+        console.error('[fieldCollect] range export failed', err);
+        toast.error('Export failed');
+      }
+    },
+    [entries, user],
+  );
+
+  /** Quick presets surfaced inside the range popover. */
+  const exportPreset = useCallback(
+    (kind: 'csv' | 'pdf', preset: 'thisWeek' | 'thisMonth' | 'last7' | 'last30') => {
+      const now = new Date();
+      let start: Date, end: Date, label: string;
+      switch (preset) {
+        case 'thisWeek':
+          start = startOfWeek(now, { weekStartsOn: 1 });
+          end = endOfWeek(now, { weekStartsOn: 1 });
+          label = 'This week';
+          break;
+        case 'thisMonth':
+          start = startOfMonth(now);
+          end = endOfMonth(now);
+          label = 'This month';
+          break;
+        case 'last7':
+          end = now;
+          start = new Date(now);
+          start.setDate(start.getDate() - 6);
+          label = 'Last 7 days';
+          break;
+        case 'last30':
+          end = now;
+          start = new Date(now);
+          start.setDate(start.getDate() - 29);
+          label = 'Last 30 days';
+          break;
+      }
+      handleRangeExport(kind, start, end, label);
+    },
+    [handleRangeExport],
+  );
 
   const breakdown = useMemo(() => {
     const synced = today.filter(e => e.syncState === 'synced');
@@ -374,6 +456,18 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
                 <FileText className="h-4 w-4" />
                 Download PDF
               </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  // Initialise the range picker to the current selected day so
+                  // the calendar opens on something familiar.
+                  setRangeSelection({ from: selectedDate, to: selectedDate });
+                  setRangeExportOpen(true);
+                }}
+                className="gap-2 text-sm"
+              >
+                <CalendarRange className="h-4 w-4" />
+                Export date range…
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => {
@@ -390,6 +484,110 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
           </DropdownMenu>
         </div>
       </div>
+
+      {/* Range-export popover — opens via the dropdown */}
+      <Popover open={rangeExportOpen} onOpenChange={setRangeExportOpen}>
+        <PopoverTrigger asChild>
+          <span className="sr-only" aria-hidden="true" />
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-[320px] sm:w-[360px] p-0 max-h-[80vh] overflow-y-auto">
+          <div className="px-4 py-3 border-b">
+            <p className="text-sm font-semibold">Export date range</p>
+            <p className="text-[11px] text-muted-foreground">
+              Same totals and reference columns as the daily export.
+            </p>
+          </div>
+
+          {/* Quick presets */}
+          <div className="px-4 py-3 space-y-2 border-b">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">Quick presets</p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {([
+                { id: 'thisWeek', label: 'This week' },
+                { id: 'thisMonth', label: 'This month' },
+                { id: 'last7', label: 'Last 7 days' },
+                { id: 'last30', label: 'Last 30 days' },
+              ] as const).map(p => (
+                <div key={p.id} className="flex rounded-md overflow-hidden border">
+                  <button
+                    type="button"
+                    onClick={() => exportPreset('pdf', p.id)}
+                    className="flex-1 px-2 py-2 text-[11px] font-medium hover:bg-accent inline-flex items-center justify-center gap-1 min-h-[36px]"
+                    title={`${p.label} — PDF`}
+                  >
+                    <FileText className="h-3 w-3" />
+                    {p.label}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => exportPreset('csv', p.id)}
+                    className="px-2 py-2 text-[10px] font-medium hover:bg-accent border-l text-muted-foreground"
+                    title={`${p.label} — CSV`}
+                    aria-label={`${p.label} as CSV`}
+                  >
+                    CSV
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Custom range */}
+          <div className="px-4 py-3 space-y-2">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">Custom range</p>
+            <Calendar
+              mode="range"
+              selected={rangeSelection}
+              onSelect={setRangeSelection}
+              numberOfMonths={1}
+              disabled={(d) => d > new Date()}
+              className={cn('p-0 pointer-events-auto')}
+            />
+            {rangeSelection?.from && rangeSelection?.to ? (
+              <p className="text-[11px] text-muted-foreground text-center">
+                {format(rangeSelection.from, 'PPP')} → {format(rangeSelection.to, 'PPP')}
+                {' · '}
+                {differenceInCalendarDays(rangeSelection.to, rangeSelection.from) + 1} days
+              </p>
+            ) : (
+              <p className="text-[11px] text-muted-foreground text-center">
+                Pick a start and end date.
+              </p>
+            )}
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-9 text-xs gap-1"
+                disabled={!rangeSelection?.from || !rangeSelection?.to}
+                onClick={() => {
+                  if (rangeSelection?.from && rangeSelection?.to) {
+                    handleRangeExport('csv', rangeSelection.from, rangeSelection.to, 'Custom range');
+                  }
+                }}
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5" />
+                CSV
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="h-9 text-xs gap-1"
+                disabled={!rangeSelection?.from || !rangeSelection?.to}
+                onClick={() => {
+                  if (rangeSelection?.from && rangeSelection?.to) {
+                    handleRangeExport('pdf', rangeSelection.from, rangeSelection.to, 'Custom range');
+                  }
+                }}
+              >
+                <FileText className="h-3.5 w-3.5" />
+                PDF
+              </Button>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
 
       {/* Hidden popover — opens via dropdown */}
       <Popover open={cutoffsOpen} onOpenChange={setCutoffsOpen}>
