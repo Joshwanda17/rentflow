@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { getEntries, onFieldCollectChange, type FieldEntry } from '@/lib/fieldCollectStore';
+import { getEntries, onFieldCollectChange, deleteEntry, updateEntry, type FieldEntry } from '@/lib/fieldCollectStore';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle2, Clock, FileWarning, CalendarDays, RefreshCcw, FileText, FileSpreadsheet, CalendarIcon, Settings2, RotateCcw, MoreHorizontal, CalendarRange } from 'lucide-react';
+import { CheckCircle2, Clock, FileWarning, CalendarDays, RefreshCcw, FileText, FileSpreadsheet, CalendarIcon, Settings2, RotateCcw, MoreHorizontal, CalendarRange, Loader2, SkipForward } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FieldCollectDailyDetailsSheet } from '@/components/agent/FieldCollectDailyDetailsSheet';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Bucket {
   label: string;
@@ -102,6 +103,14 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
    */
   const [rangeExportOpen, setRangeExportOpen] = useState(false);
   const [rangeSelection, setRangeSelection] = useState<DateRange | undefined>(undefined);
+
+  /**
+   * One-tap resolution state for the review popover.
+   * 'skip'  → drop local copies of duplicates (server version is canonical)
+   * 'retry' → re-queue failed entries and immediately re-attempt sync
+   * 'auto'  → run skip then retry back-to-back
+   */
+  const [resolvingAction, setResolvingAction] = useState<null | 'skip' | 'retry' | 'auto'>(null);
 
   const refresh = useCallback(async () => {
     if (!user?.id) return;
@@ -227,6 +236,146 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
     },
     [handleRangeExport],
   );
+
+  /**
+   * One-tap: drop the local copies of duplicates so the server version
+   * remains the source of truth (same semantic as "Keep server" in the
+   * reconciliation sheet — but applied in bulk).
+   */
+  const skipAllDuplicates = useCallback(async (): Promise<number> => {
+    const dupes = today.filter(e => e.syncState === 'duplicate');
+    let n = 0;
+    for (const e of dupes) {
+      try {
+        await deleteEntry(e.id);
+        n++;
+      } catch (err) {
+        console.error('[fieldCollect] skip duplicate failed', e.id, err);
+      }
+    }
+    return n;
+  }, [today]);
+
+  /**
+   * One-tap: re-queue every failed entry, then push them to the server.
+   * Mirrors the sync logic used by the capture dialog so the popover is
+   * self-contained and works without opening Field Collect.
+   */
+  const retryAllFailed = useCallback(async (): Promise<{ ok: number; fail: number; dup: number }> => {
+    if (!user?.id) return { ok: 0, fail: 0, dup: 0 };
+    if (!navigator.onLine) {
+      toast.error('No internet — connect and try again.');
+      return { ok: 0, fail: 0, dup: 0 };
+    }
+    const failed = today.filter(e => e.syncState === 'error');
+    let ok = 0, fail = 0, dup = 0;
+    for (const e of failed) {
+      try {
+        // Reset to queued first so the UI/state stay consistent if the page reloads mid-sync.
+        await updateEntry(e.id, { syncState: 'queued', syncError: null });
+        const { data, error } = await (supabase.from('field_collections') as any)
+          .insert({
+            client_uuid: e.id,
+            agent_id: user.id,
+            tenant_id: e.tenantId,
+            tenant_name: e.tenantName,
+            tenant_phone: e.tenantPhone,
+            amount: e.amount,
+            notes: e.notes,
+            location_name: e.locationName,
+            latitude: e.latitude,
+            longitude: e.longitude,
+            captured_at: new Date(e.capturedAt).toISOString(),
+            status: 'pending',
+          })
+          .select('id')
+          .single();
+        if (error) {
+          if ((error as any).code === '23505') {
+            // Same idempotency-key collision logic as the capture dialog
+            const { data: existing } = await (supabase.from('field_collections') as any)
+              .select('id, amount, captured_at, tenant_name, status, created_at')
+              .eq('agent_id', user.id)
+              .eq('client_uuid', e.id)
+              .maybeSingle();
+            const sameAmount = existing && Number(existing.amount) === Number(e.amount);
+            if (existing && sameAmount) {
+              await updateEntry(e.id, {
+                syncState: 'synced',
+                serverId: existing.id,
+                syncError: null,
+                lastSyncAt: Date.now(),
+              });
+              ok++;
+            } else {
+              await updateEntry(e.id, {
+                syncState: 'duplicate',
+                syncError: 'Already on server — needs reconciliation',
+                duplicateOfServerId: existing?.id ?? null,
+                duplicateServerSnapshot: existing ? {
+                  amount: Number(existing.amount),
+                  capturedAt: existing.captured_at,
+                  tenantName: existing.tenant_name,
+                  status: existing.status,
+                  createdAt: existing.created_at,
+                } : null,
+                lastSyncAt: Date.now(),
+              });
+              dup++;
+            }
+          } else {
+            await updateEntry(e.id, { syncState: 'error', syncError: error.message, lastSyncAt: Date.now() });
+            fail++;
+          }
+        } else {
+          await updateEntry(e.id, {
+            syncState: 'synced',
+            serverId: (data as any)?.id,
+            syncError: null,
+            lastSyncAt: Date.now(),
+          });
+          ok++;
+        }
+      } catch (err: any) {
+        await updateEntry(e.id, { syncState: 'error', syncError: err?.message || 'Unknown', lastSyncAt: Date.now() });
+        fail++;
+      }
+    }
+    return { ok, fail, dup };
+  }, [today, user?.id]);
+
+  /** Reload today totals from the local cache (also triggered automatically via store events). */
+  const refreshTodayTotals = useCallback(async () => {
+    if (!user?.id) return;
+    setEntries(await getEntries(user.id));
+  }, [user?.id]);
+
+  /**
+   * "Resolve all" — runs the full checklist in order:
+   *   1) Skip duplicates  → 2) Retry failed  → 3) Refresh today's totals.
+   * Designed to leave nothing requiring manual review when possible.
+   */
+  const resolveAllInOrder = useCallback(async () => {
+    setResolvingAction('auto');
+    try {
+      const skipped = await skipAllDuplicates();
+      const retried = await retryAllFailed();
+      await refreshTodayTotals();
+      const parts: string[] = [];
+      if (skipped) parts.push(`${skipped} duplicate${skipped === 1 ? '' : 's'} skipped`);
+      if (retried.ok) parts.push(`${retried.ok} sent`);
+      if (retried.dup) parts.push(`${retried.dup} new duplicate${retried.dup === 1 ? '' : 's'}`);
+      if (retried.fail) parts.push(`${retried.fail} still failing`);
+      if (parts.length === 0) toast.info('Nothing to resolve');
+      else if (retried.fail || retried.dup) toast.warning(parts.join(' · '));
+      else toast.success(parts.join(' · '));
+    } catch (err) {
+      console.error('[fieldCollect] resolve-all failed', err);
+      toast.error('Could not resolve everything — try the items individually.');
+    } finally {
+      setResolvingAction(null);
+    }
+  }, [skipAllDuplicates, retryAllFailed, refreshTodayTotals]);
 
   const breakdown = useMemo(() => {
     const synced = today.filter(e => e.syncState === 'synced');
@@ -712,23 +861,66 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
                   const failCount = breakdown.failed.count;
                   const steps = [
                     {
+                      key: 'duplicate' as const,
                       label: dupCount > 0
                         ? `Check the ${dupCount} payment${dupCount === 1 ? '' : 's'} already on the server`
                         : 'Check duplicate payments',
                       done: dupCount === 0,
                       active: dupCount > 0,
+                      action: dupCount > 0
+                        ? {
+                            label: 'Skip',
+                            busy: resolvingAction === 'skip' || resolvingAction === 'auto',
+                            onClick: async () => {
+                              setResolvingAction('skip');
+                              try {
+                                const n = await skipAllDuplicates();
+                                await refreshTodayTotals();
+                                if (n > 0) toast.success(`${n} duplicate${n === 1 ? '' : 's'} skipped — server version kept`);
+                                else toast.info('No duplicates to skip');
+                              } finally {
+                                setResolvingAction(null);
+                              }
+                            },
+                          }
+                        : null,
                     },
                     {
+                      key: 'failed' as const,
                       label: failCount > 0
                         ? `Retry the ${failCount} payment${failCount === 1 ? '' : 's'} that did not send`
                         : 'Retry failed payments',
                       done: failCount === 0,
                       active: dupCount === 0 && failCount > 0,
+                      action: failCount > 0
+                        ? {
+                            label: 'Retry',
+                            busy: resolvingAction === 'retry' || resolvingAction === 'auto',
+                            onClick: async () => {
+                              setResolvingAction('retry');
+                              try {
+                                const r = await retryAllFailed();
+                                await refreshTodayTotals();
+                                const parts: string[] = [];
+                                if (r.ok) parts.push(`${r.ok} sent`);
+                                if (r.dup) parts.push(`${r.dup} new duplicate${r.dup === 1 ? '' : 's'}`);
+                                if (r.fail) parts.push(`${r.fail} still failing`);
+                                if (parts.length === 0) toast.info('Nothing to retry');
+                                else if (r.fail || r.dup) toast.warning(parts.join(' · '));
+                                else toast.success(parts.join(' · '));
+                              } finally {
+                                setResolvingAction(null);
+                              }
+                            },
+                          }
+                        : null,
                     },
                     {
+                      key: 'confirm' as const,
                       label: 'Confirm today\'s total matches your cash on hand',
                       done: false,
                       active: dupCount === 0 && failCount === 0,
+                      action: null,
                     },
                   ];
                   return (
@@ -753,7 +945,26 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
                           >
                             {s.done ? '✓' : i + 1}
                           </span>
-                          <span className="min-w-0">{s.label}</span>
+                          <span className="min-w-0 flex-1">{s.label}</span>
+                          {s.action && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={!!resolvingAction}
+                              onClick={s.action.onClick}
+                              className="h-6 px-2 text-[10px] font-medium shrink-0 -my-0.5"
+                            >
+                              {s.action.busy ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : s.key === 'duplicate' ? (
+                                <SkipForward className="h-3 w-3 mr-1" />
+                              ) : (
+                                <RefreshCcw className="h-3 w-3 mr-1" />
+                              )}
+                              {!s.action.busy && s.action.label}
+                            </Button>
+                          )}
                         </li>
                       ))}
                     </ol>
@@ -779,18 +990,34 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
                     );
                   })}
                 </div>
-                <div className="px-3 py-2 border-t">
+                <div className="px-3 py-2 border-t space-y-1.5">
                   <Button
                     type="button"
                     size="sm"
                     className="w-full h-8 text-xs gap-1"
+                    disabled={!!resolvingAction || (breakdown.duplicate.count === 0 && breakdown.failed.count === 0)}
+                    onClick={resolveAllInOrder}
+                  >
+                    {resolvingAction === 'auto' ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                    )}
+                    {resolvingAction === 'auto' ? 'Resolving…' : 'Resolve all in order'}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="w-full h-8 text-xs gap-1 text-muted-foreground"
+                    disabled={!!resolvingAction}
                     onClick={() => {
                       setDupPopoverOpen(false);
                       setReconcileOpen(true);
                     }}
                   >
                     <FileWarning className="h-3.5 w-3.5" />
-                    Fix these payments
+                    Review one-by-one instead
                   </Button>
                 </div>
               </PopoverContent>
