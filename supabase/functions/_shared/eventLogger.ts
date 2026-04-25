@@ -1,11 +1,13 @@
-import { SupabaseClient } from "npm:@supabase/supabase-js@2";
-
 /**
  * Log a system event via the log_system_event RPC.
  * Fire-and-forget — errors are logged but never thrown.
  */
 export async function logSystemEvent(
-  adminClient: SupabaseClient,
+  // Use a structural `any` here: edge functions import @supabase/supabase-js
+  // from multiple sources (esm.sh @2 vs npm:@2) which Deno treats as
+  // distinct nominal types. Typing as `any` lets either client be passed in.
+  // deno-lint-ignore no-explicit-any
+  adminClient: any,
   eventType: string,
   userId: string,
   entityType?: string,
