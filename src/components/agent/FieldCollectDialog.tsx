@@ -254,6 +254,19 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     return scored;
   }, [tenants, search]);
 
+  /** Just the tenant rows from the scored result, used everywhere it was used before. */
+  const filteredTenants = useMemo<CachedTenant[]>(
+    () => filtered.map(s => s.t),
+    [filtered],
+  );
+
+  /** Lookup of match type by tenantId so render code can show chips per row. */
+  const matchTypeById = useMemo(() => {
+    const m = new Map<string, 'phone' | 'name' | 'both'>();
+    for (const s of filtered) if (s.matchType) m.set(s.t.tenantId, s.matchType);
+    return m;
+  }, [filtered]);
+
   /**
    * Recent tenants — derived from this agent's prior captured entries
    * (queued or synced). Distinct tenants by id, most-recent first, max 5.
