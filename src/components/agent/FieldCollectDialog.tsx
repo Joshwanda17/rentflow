@@ -319,8 +319,20 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
    * Search mode is unchanged: scoring + virtualized list still cap at 200.
    */
   type BrowseSort = 'recent' | 'name';
+  /**
+   * Browse-mode status filter — narrows the caseload to tenants the agent
+   * has worked with vs. ones still pending a first collection. Derived
+   * from already-loaded `entries` (queued OR synced count as "active") so
+   * we don't add a new business-logic surface or a new fetch.
+   *
+   *  - 'all'      → no filter (default, preserves prior behaviour)
+   *  - 'active'   → tenants with ≥1 captured entry
+   *  - 'inactive' → tenants with zero captured entries (new caseload)
+   */
+  type BrowseStatus = 'all' | 'active' | 'inactive';
   const BROWSE_PAGE_SIZE = 100;
   const [browseSort, setBrowseSort] = useState<BrowseSort>('recent');
+  const [browseStatus, setBrowseStatus] = useState<BrowseStatus>('all');
   const [browsePage, setBrowsePage] = useState(0);
 
   /* Online/offline tracking */
