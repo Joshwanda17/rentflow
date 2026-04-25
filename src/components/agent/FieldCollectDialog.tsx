@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -217,6 +218,14 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   const [activeIdx, setActiveIdx] = useState(0);
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   /**
+   * Scroll-parent for the virtualized tenant suggestion list. Anchored to the
+   * `max-h-72 overflow-y-auto` container that wraps the result rows so
+   * `useVirtualizer` measures the right viewport. Without this ref the
+   * virtualizer can't compute which rows are visible and the list collapses
+   * to a single hidden row.
+   */
+  const listScrollRef = useRef<HTMLDivElement | null>(null);
+  /**
    * Ref to the tenant search input. Used by the section-level type-to-search
    * handler so a printable key pressed anywhere in Step 1 (e.g. while focus is
    * on a "Recent" chip) routes that character into the search input and
@@ -383,7 +392,10 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   const filtered = useMemo(() => {
     const raw = search.trim();
     const q = normalizeName(raw);
-    if (!q) return tenants.slice(0, 8).map(t => ({ t, score: 0, matchType: null as 'phone' | 'name' | 'both' | null, ambiguous: false, bestMatchFallback: false }));
+    // No query → show a generous prefix of the tenant book. Used to be 8;
+    // bumped to 200 now that the list is virtualized so the agent can scroll
+    // through their full caseload without hitting an artificial cap.
+    if (!q) return tenants.slice(0, 200).map(t => ({ t, score: 0, matchType: null as 'phone' | 'name' | 'both' | null, ambiguous: false, bestMatchFallback: false }));
     const phoneQ = normalizePhone(raw);
     // Treat the query as "phone-y" if the user typed mostly digits — even
     // with spaces, dashes, plus signs or a leading 0/256.
@@ -453,7 +465,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
       })
       .filter(s => s.score > 0)
       .sort((a, b) => b.score - a.score)
-      .slice(0, 12);
+      .slice(0, 200);
 
     // Safety net for short digit queries: only surface phone-only matches
     // when there are ≥2 candidates. If a short query produces a single phone
@@ -519,11 +531,39 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     setActiveIdx(0);
   }, [keyboardOptions.length, search]);
 
-  /* Keep the highlighted option scrolled into view */
+  /**
+   * Virtualized renderer for the suggestion list. Handles thousands of
+   * tenants without dropping frames by mounting only the rows currently
+   * inside the scroll viewport (plus a small overscan for smoothness).
+   *
+   * The estimated row height matches the `min-h-[60px]` row class. Real
+   * height can grow when match chips wrap to a second line — `measureElement`
+   * is wired up below so the virtualizer corrects itself after layout.
+   */
+  const rowVirtualizer = useVirtualizer({
+    count: filtered.length,
+    getScrollElement: () => listScrollRef.current,
+    estimateSize: () => 60,
+    overscan: 6,
+    getItemKey: idx => filtered[idx]?.t.tenantId ?? idx,
+  });
+
+  /* Keep the highlighted option scrolled into view (works with virtualization). */
   useEffect(() => {
+    if (activeIdx < 0) return;
+    // Prefer the virtualizer's API when the active option lives in the
+    // suggestion list (filtered). For "recent" rows (rendered above the
+    // virtualized list) fall back to scrolling the DOM element directly.
+    const opt = keyboardOptions[activeIdx];
+    if (!opt) return;
+    const filteredIdx = filtered.findIndex(s => s.t.tenantId === opt.tenantId);
+    if (filteredIdx >= 0 && listScrollRef.current) {
+      rowVirtualizer.scrollToIndex(filteredIdx, { align: 'auto' });
+      return;
+    }
     const el = optionRefs.current[activeIdx];
     if (el) el.scrollIntoView({ block: 'nearest' });
-  }, [activeIdx]);
+  }, [activeIdx, filtered, keyboardOptions, rowVirtualizer]);
 
   /**
    * Last captured entry for the picked tenant — drives the small preview panel
@@ -1152,6 +1192,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
 
                   {(search || tenants.length > 0) && (
                     <div
+                      ref={listScrollRef}
                       className="rounded-2xl border max-h-72 overflow-y-auto"
                       id="tenant-suggestion-list"
                       role="listbox"
@@ -1176,6 +1217,8 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                             </p>
                           );
                         }
+                        const virtualItems = rowVirtualizer.getVirtualItems();
+                        const totalSize = rowVirtualizer.getTotalSize();
                         return (
                           <>
                             {isAmbiguous && (
@@ -1183,24 +1226,54 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                                 {filtered.length} possible matches for "{search}" — pick carefully or type more digits.
                               </div>
                             )}
-                            {filtered.map(({ t, matchType, bestMatchFallback }, idx) => {
-                        const optIdx = keyboardOptions.findIndex(o => o.tenantId === t.tenantId);
-                        const isActive = optIdx === activeIdx;
-                        return (
-                        <button
-                          key={t.tenantId}
-                          id={`tenant-opt-${t.tenantId}`}
-                          ref={el => { if (optIdx >= 0) optionRefs.current[optIdx] = el; }}
-                          onClick={() => pickTenant(t)}
-                          onMouseEnter={() => optIdx >= 0 && setActiveIdx(optIdx)}
-                          role="option"
-                          aria-selected={isActive}
-                          className={cn(
-                            'w-full text-left px-4 py-4 min-h-[60px] border-b last:border-b-0 flex items-center justify-between gap-2 active:bg-accent/80 touch-manipulation transition-colors',
-                            isActive ? 'bg-accent' : 'hover:bg-accent',
-                          )}
-                          style={{ WebkitTapHighlightColor: 'transparent' }}
-                        >
+                            {/*
+                             * Virtualized rows. Only the items inside (or near) the
+                             * viewport are mounted, so DOM size stays O(visible) even
+                             * with a 200-row result set or a tenant book of thousands.
+                             */}
+                            <div
+                              style={{
+                                height: `${totalSize}px`,
+                                width: '100%',
+                                position: 'relative',
+                              }}
+                            >
+                              {virtualItems.map(virtualRow => {
+                                const idx = virtualRow.index;
+                                const row = filtered[idx];
+                                if (!row) return null;
+                                const { t, matchType, bestMatchFallback } = row;
+                                const optIdx = keyboardOptions.findIndex(o => o.tenantId === t.tenantId);
+                                const isActive = optIdx === activeIdx;
+                                return (
+                                <button
+                                  key={t.tenantId}
+                                  id={`tenant-opt-${t.tenantId}`}
+                                  data-index={idx}
+                                  ref={el => {
+                                    // Wire up both the keyboard-nav ref array and the
+                                    // virtualizer's measurer so rows that wrap to a
+                                    // second line (extra chips) report their real height.
+                                    if (optIdx >= 0) optionRefs.current[optIdx] = el;
+                                    if (el) rowVirtualizer.measureElement(el);
+                                  }}
+                                  onClick={() => pickTenant(t)}
+                                  onMouseEnter={() => optIdx >= 0 && setActiveIdx(optIdx)}
+                                  role="option"
+                                  aria-selected={isActive}
+                                  className={cn(
+                                    'w-full text-left px-4 py-4 min-h-[60px] border-b last:border-b-0 flex items-center justify-between gap-2 active:bg-accent/80 touch-manipulation transition-colors',
+                                    isActive ? 'bg-accent' : 'hover:bg-accent',
+                                  )}
+                                  style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: '100%',
+                                    transform: `translateY(${virtualRow.start}px)`,
+                                    WebkitTapHighlightColor: 'transparent',
+                                  }}
+                                >
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 min-w-0 flex-wrap">
                               <p className="text-base font-semibold truncate">
@@ -1268,9 +1341,10 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                               {formatUGX(t.monthlyRent)}/mo
                             </span>
                           ) : null}
-                        </button>
-                        );
-                            })}
+                                </button>
+                                );
+                              })}
+                            </div>
                           </>
                         );
                       })()}
