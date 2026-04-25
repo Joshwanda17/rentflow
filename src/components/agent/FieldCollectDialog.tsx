@@ -458,7 +458,11 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   );
 
   const filtered = useMemo(() => {
-    const raw = search.trim();
+    // Score against the *debounced* search value, not the live `search`,
+    // so a typing burst coalesces into one O(N) scoring pass. The input
+    // box still updates on every keystroke for instant visual feedback —
+    // this memo just lags by ~120ms before re-running.
+    const raw = debouncedSearch.trim();
     const q = normalizeName(raw);
 
     // -------------------- Per-query result cache --------------------
