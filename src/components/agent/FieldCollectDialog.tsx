@@ -1296,7 +1296,11 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     setWalkupPhone('');
     setAmount('');
     setNotes('');
-    setSearch('');
+    // NOTE: intentionally NOT clearing `search` here.
+    // `resetForm` runs on dialog close (and after a successful save), and the
+    // search query is now a persisted preference — wiping it on close would
+    // defeat the cross-device restore. Explicit clear paths (the X button,
+    // Escape key, picking a tenant) still call `setSearch('')` directly.
     setPurpose('rent');
     setStep(1);
   };
