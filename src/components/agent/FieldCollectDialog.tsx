@@ -23,7 +23,7 @@ import {
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
 import { FieldCollectDailyTotals } from '@/components/agent/FieldCollectDailyTotals';
-import { normalizeName, normalizePhone, tenantListFingerprint } from '@/lib/tenantSearch';
+import { normalizeName, normalizePhone, tenantListFingerprint, phoneVariants } from '@/lib/tenantSearch';
 
 interface FieldCollectDialogProps {
   open: boolean;
@@ -383,11 +383,17 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   const filtered = useMemo(() => {
     const raw = search.trim();
     const q = normalizeName(raw);
-    if (!q) return tenants.slice(0, 8).map(t => ({ t, score: 0, matchType: null as 'phone' | 'name' | 'both' | null, ambiguous: false }));
+    if (!q) return tenants.slice(0, 8).map(t => ({ t, score: 0, matchType: null as 'phone' | 'name' | 'both' | null, ambiguous: false, bestMatchFallback: false }));
     const phoneQ = normalizePhone(raw);
     // Treat the query as "phone-y" if the user typed mostly digits — even
     // with spaces, dashes, plus signs or a leading 0/256.
     const isPhoneQuery = phoneQ.length >= 3 && /\d/.test(raw) && raw.replace(/[\s\-+()]/g, '').replace(/\D+/g, '').length >= raw.replace(/[\s\-+()]/g, '').length - 1;
+    // Pre-compute fuzzy phone variants once per query (not once per tenant).
+    // These are the relaxed forms tried when strict matching fails — see
+    // the "Best match" fallback chip in the suggestion list.
+    const fuzzyVariants = /\d/.test(raw)
+      ? phoneVariants(raw).filter(v => v.length >= 4)
+      : [];
     /**
      * Short phone queries (3–4 digits) are inherently ambiguous: the agent is
      * usually recalling only the tail of the number ("…456"). To avoid the
@@ -403,6 +409,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
         let score = 0;
         let phoneScore = 0;
         let nameScore = 0;
+        let bestMatchFallback = false;
         // Phone matches always outrank name matches when the query is phone-y.
         if (isShortPhoneQuery && phone) {
           // Short query → only match the tail of the phone (last digits the
@@ -417,6 +424,15 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
         } else if (phoneQ && phone && phone.includes(phoneQ)) {
           // Mixed query (digits + letters) — phone still helps but doesn't dominate.
           phoneScore = phone.startsWith(phoneQ) ? 100 : 70;
+        }
+        // Fuzzy fallback: messy phone input that strict normalization didn't
+        // match. Tag the row so the UI can show a "Best match" chip.
+        if (phoneScore === 0 && phone && fuzzyVariants.length) {
+          for (const v of fuzzyVariants) {
+            if (phone === v) { phoneScore = 60; bestMatchFallback = true; break; }
+            if (v.length >= 6 && phone.endsWith(v)) { phoneScore = 55; bestMatchFallback = true; break; }
+            if (v.length >= 7 && phone.includes(v)) { phoneScore = 50; bestMatchFallback = true; break; }
+          }
         }
         // Name scoring runs in addition so a tenant matching both ranks higher.
         if (name.startsWith(q)) {
@@ -433,7 +449,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
         if (phoneScore > 0 && nameScore > 0 && phoneScore === nameScore) matchType = 'both';
         else if (phoneScore > nameScore) matchType = 'phone';
         else if (nameScore > 0) matchType = 'name';
-        return { t, score, matchType };
+        return { t, score, matchType, bestMatchFallback };
       })
       .filter(s => s.score > 0)
       .sort((a, b) => b.score - a.score)
@@ -1167,7 +1183,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                                 {filtered.length} possible matches for "{search}" — pick carefully or type more digits.
                               </div>
                             )}
-                            {filtered.map(({ t, matchType }, idx) => {
+                            {filtered.map(({ t, matchType, bestMatchFallback }, idx) => {
                         const optIdx = keyboardOptions.findIndex(o => o.tenantId === t.tenantId);
                         const isActive = optIdx === activeIdx;
                         return (
@@ -1192,6 +1208,17 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                               </p>
                               {idx === 0 && search && (
                                 <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                                  Top result
+                                </span>
+                              )}
+                              {/*
+                               * Fuzzy fallback chip: strict normalization didn't
+                               * land on this row, but a relaxed phone-variant
+                               * comparison did. Tells the agent "we relaxed the
+                               * rules to find this — double-check before tapping".
+                               */}
+                              {bestMatchFallback && (
+                                <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide bg-warning/15 text-warning px-1.5 py-0.5 rounded ring-1 ring-warning/30">
                                   Best match
                                 </span>
                               )}

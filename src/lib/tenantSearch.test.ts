@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeName, normalizePhone, scoreTenantMatch } from './tenantSearch';
+import { normalizeName, normalizePhone, phoneVariants, scoreTenantMatch } from './tenantSearch';
 
 describe('normalizeName', () => {
   it('lowercases input', () => {
@@ -218,5 +218,73 @@ describe('scoreTenantMatch — empty and edge cases', () => {
   it('candidate with no phone never matches phone-y queries', () => {
     const r = scoreTenantMatch('77212', T('Alice', null));
     expect(r.score).toBe(0);
+  });
+});
+
+describe('normalizePhone — messy fallbacks', () => {
+  it('handles 00 international trunk prefix', () => {
+    expect(normalizePhone('00256772123456')).toBe('772123456');
+  });
+
+  it('handles double leading zeros', () => {
+    expect(normalizePhone('00772123456')).toBe('772123456');
+    expect(normalizePhone('000772123456')).toBe('772123456');
+  });
+
+  it('handles mixed whitespace, dashes, parens, and plus', () => {
+    expect(normalizePhone(' + 256 (0) 772-123-456 ')).toBe('772123456');
+  });
+});
+
+describe('phoneVariants', () => {
+  it('returns canonical national form among variants', () => {
+    expect(phoneVariants('0772 123 456')).toContain('772123456');
+  });
+
+  it('exposes raw and tail forms for messy +256 inputs', () => {
+    const v = phoneVariants('+2560772123456');
+    expect(v).toContain('772123456');
+  });
+
+  it('returns empty array for empty input', () => {
+    expect(phoneVariants('')).toEqual([]);
+    expect(phoneVariants(null)).toEqual([]);
+  });
+
+  it('handles 00 trunk prefix', () => {
+    const v = phoneVariants('00256 772 123 456');
+    expect(v).toContain('772123456');
+  });
+});
+
+describe('scoreTenantMatch — fuzzy phone fallback', () => {
+  it('does NOT flag fallback for clean strict matches', () => {
+    // "+256 772 123 456" strict-normalizes to "772123456" (canonical).
+    const strict = scoreTenantMatch('+256 772 123 456', T('Alice', '0772 123 456'));
+    expect(strict.bestMatchFallback ?? false).toBe(false);
+    expect(strict.score).toBeGreaterThan(0);
+  });
+
+  it('strict-matches even messy +256 0 772 inputs (no fallback needed)', () => {
+    // After the messy-input fixes "+256 0 772 123 456" strict-normalizes
+    // straight to "772123456" — no fallback needed.
+    const r = scoreTenantMatch('+256 0 772 123 456', T('Alice', '0772 123 456'));
+    expect(r.score).toBeGreaterThan(0);
+    expect(r.bestMatchFallback ?? false).toBe(false);
+  });
+
+  it('matches via fallback when strict normalization differs', () => {
+    // Pad the query with an unusual extra prefix that strict normalize won't
+    // strip, but phoneVariants will produce a 9-digit tail equal to the
+    // candidate.
+    const r = scoreTenantMatch('99256772123456', T('Alice', '0772 123 456'));
+    expect(r.score).toBeGreaterThan(0);
+    expect(r.bestMatchFallback).toBe(true);
+    expect(r.matchType).toBe('phone');
+  });
+
+  it('does not flag fallback for pure name matches', () => {
+    const r = scoreTenantMatch('Alice', T('Alice', '0772 123 456'));
+    expect(r.bestMatchFallback ?? false).toBe(false);
   });
 });
