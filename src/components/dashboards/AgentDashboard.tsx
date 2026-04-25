@@ -86,6 +86,9 @@ import { CreditVerificationButton } from '@/components/agent/CreditVerificationB
 import { AgentMyRentRequestsSheet } from '@/components/agent/AgentMyRentRequestsSheet';
 import { AgentTenantsSheet } from '@/components/agent/AgentTenantsSheet';
 import { AgentManagedUsersSheet } from '@/components/agent/AgentManagedUsersSheet';
+import { FieldCollectDialog } from '@/components/agent/FieldCollectDialog';
+import { FieldCollectFab } from '@/components/agent/FieldCollectFab';
+import { FieldCollectCard } from '@/components/agent/FieldCollectCard';
 
 import { AgentTopUpTenantDialog } from '@/components/agent/AgentTopUpTenantDialog';
 import { AgentInvestForPartnerDialog } from '@/components/agent/AgentInvestForPartnerDialog';
