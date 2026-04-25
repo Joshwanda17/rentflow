@@ -12,6 +12,7 @@ import {
   Loader2, WifiOff, Wifi, Search, Trash2,
   CheckCircle2, AlertCircle, RefreshCcw, ChevronLeft, ChevronRight,
   User, Banknote, ClipboardCheck, Home, KeyRound, Sparkles,
+  HelpCircle, ChevronDown,
 } from 'lucide-react';
 import {
   cacheTenants, getCachedTenants, addEntry, deleteEntry, getEntries,
@@ -411,6 +412,85 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
 
         {/* Scrollable body — leaves room for sticky save bar at bottom */}
         <div className="px-5 sm:px-6 py-5 space-y-5 overflow-y-auto flex-1 pb-32 sm:pb-5">
+          {/* ───── Offline help card (collapsible) ───── */}
+          <details className="group rounded-2xl border bg-muted/30 open:bg-muted/40 transition-colors">
+            <summary className="cursor-pointer select-none list-none px-4 py-3 flex items-center justify-between gap-3">
+              <span className="inline-flex items-center gap-2 min-w-0">
+                <span
+                  className={cn(
+                    'h-8 w-8 rounded-full flex items-center justify-center shrink-0',
+                    online
+                      ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
+                      : 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+                  )}
+                  aria-hidden
+                >
+                  <HelpCircle className="h-4 w-4" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold truncate">
+                    {online ? 'How to save offline' : 'You are offline — your work is safe'}
+                  </span>
+                  <span className="block text-[11px] text-muted-foreground truncate">
+                    Tap to see how slow or no internet is handled
+                  </span>
+                </span>
+              </span>
+              <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180 shrink-0" />
+            </summary>
+            <div className="px-4 pb-4 pt-1 space-y-3">
+              <ol className="space-y-2.5">
+                <li className="flex items-start gap-3">
+                  <span className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                    1
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium leading-snug">Save works without internet</p>
+                    <p className="text-xs text-muted-foreground leading-snug">
+                      Tap <span className="font-semibold text-foreground">Save</span> normally — the entry is stored on this phone right away, even with no signal.
+                    </p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                    2
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium leading-snug">Look for the queued dot</p>
+                    <p className="text-xs text-muted-foreground leading-snug">
+                      A small <span className="inline-flex items-center gap-1 font-semibold text-foreground"><span className="inline-block h-2 w-2 rounded-full bg-amber-500" /> amber dot</span> means it's waiting to be sent. A green check means it's already with the office.
+                    </p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                    3
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium leading-snug">Sends itself when signal returns</p>
+                    <p className="text-xs text-muted-foreground leading-snug">
+                      The moment your phone is back online, queued entries upload automatically. You don't need to redo them.
+                    </p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                    4
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium leading-snug">Keep the app installed</p>
+                    <p className="text-xs text-muted-foreground leading-snug">
+                      Don't clear app data while entries still show the amber dot — that's the only way they could be lost.
+                    </p>
+                  </div>
+                </li>
+              </ol>
+              <div className="rounded-xl border border-dashed bg-background/60 px-3 py-2 text-[11px] text-muted-foreground leading-snug">
+                <span className="font-semibold text-foreground">Tip:</span> Slow internet is fine too — saves never wait for the network. Sync happens quietly in the background.
+              </div>
+            </div>
+          </details>
+
           {/* ───── STEP 1 — Tenant ───── */}
           {step === 1 && (
             <section className="space-y-3" aria-labelledby="step1-title">
