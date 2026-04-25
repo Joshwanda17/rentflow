@@ -1192,6 +1192,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
 
                   {(search || tenants.length > 0) && (
                     <div
+                      ref={listScrollRef}
                       className="rounded-2xl border max-h-72 overflow-y-auto"
                       id="tenant-suggestion-list"
                       role="listbox"
@@ -1216,6 +1217,8 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                             </p>
                           );
                         }
+                        const virtualItems = rowVirtualizer.getVirtualItems();
+                        const totalSize = rowVirtualizer.getTotalSize();
                         return (
                           <>
                             {isAmbiguous && (
@@ -1223,24 +1226,54 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                                 {filtered.length} possible matches for "{search}" — pick carefully or type more digits.
                               </div>
                             )}
-                            {filtered.map(({ t, matchType, bestMatchFallback }, idx) => {
-                        const optIdx = keyboardOptions.findIndex(o => o.tenantId === t.tenantId);
-                        const isActive = optIdx === activeIdx;
-                        return (
-                        <button
-                          key={t.tenantId}
-                          id={`tenant-opt-${t.tenantId}`}
-                          ref={el => { if (optIdx >= 0) optionRefs.current[optIdx] = el; }}
-                          onClick={() => pickTenant(t)}
-                          onMouseEnter={() => optIdx >= 0 && setActiveIdx(optIdx)}
-                          role="option"
-                          aria-selected={isActive}
-                          className={cn(
-                            'w-full text-left px-4 py-4 min-h-[60px] border-b last:border-b-0 flex items-center justify-between gap-2 active:bg-accent/80 touch-manipulation transition-colors',
-                            isActive ? 'bg-accent' : 'hover:bg-accent',
-                          )}
-                          style={{ WebkitTapHighlightColor: 'transparent' }}
-                        >
+                            {/*
+                             * Virtualized rows. Only the items inside (or near) the
+                             * viewport are mounted, so DOM size stays O(visible) even
+                             * with a 200-row result set or a tenant book of thousands.
+                             */}
+                            <div
+                              style={{
+                                height: `${totalSize}px`,
+                                width: '100%',
+                                position: 'relative',
+                              }}
+                            >
+                              {virtualItems.map(virtualRow => {
+                                const idx = virtualRow.index;
+                                const row = filtered[idx];
+                                if (!row) return null;
+                                const { t, matchType, bestMatchFallback } = row;
+                                const optIdx = keyboardOptions.findIndex(o => o.tenantId === t.tenantId);
+                                const isActive = optIdx === activeIdx;
+                                return (
+                                <button
+                                  key={t.tenantId}
+                                  id={`tenant-opt-${t.tenantId}`}
+                                  data-index={idx}
+                                  ref={el => {
+                                    // Wire up both the keyboard-nav ref array and the
+                                    // virtualizer's measurer so rows that wrap to a
+                                    // second line (extra chips) report their real height.
+                                    if (optIdx >= 0) optionRefs.current[optIdx] = el;
+                                    if (el) rowVirtualizer.measureElement(el);
+                                  }}
+                                  onClick={() => pickTenant(t)}
+                                  onMouseEnter={() => optIdx >= 0 && setActiveIdx(optIdx)}
+                                  role="option"
+                                  aria-selected={isActive}
+                                  className={cn(
+                                    'w-full text-left px-4 py-4 min-h-[60px] border-b last:border-b-0 flex items-center justify-between gap-2 active:bg-accent/80 touch-manipulation transition-colors',
+                                    isActive ? 'bg-accent' : 'hover:bg-accent',
+                                  )}
+                                  style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: '100%',
+                                    transform: `translateY(${virtualRow.start}px)`,
+                                    WebkitTapHighlightColor: 'transparent',
+                                  }}
+                                >
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 min-w-0 flex-wrap">
                               <p className="text-base font-semibold truncate">
@@ -1308,9 +1341,10 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                               {formatUGX(t.monthlyRent)}/mo
                             </span>
                           ) : null}
-                        </button>
-                        );
-                            })}
+                                </button>
+                                );
+                              })}
+                            </div>
                           </>
                         );
                       })()}
