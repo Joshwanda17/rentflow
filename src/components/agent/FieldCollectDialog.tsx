@@ -1075,11 +1075,34 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                       id="tenant-suggestion-list"
                       role="listbox"
                     >
-                      {filtered.length === 0 ? (
-                        <p className="p-4 text-sm text-muted-foreground text-center">
-                          No match. Use walk-up below.
-                        </p>
-                      ) : filtered.map(({ t, matchType }, idx) => {
+                      {(() => {
+                        // Detect a short digit-only query (3–4 digits). Drives both the
+                        // empty-state hint and the "type more digits" prompt the agent
+                        // sees when a single match was suppressed for safety.
+                        const phoneQ = normalizePhone(search);
+                        const isShortDigitQuery =
+                          phoneQ.length >= 3 && phoneQ.length <= 4 &&
+                          /\d/.test(search) &&
+                          search.replace(/[\s\-+()]/g, '').replace(/\D+/g, '').length >=
+                            search.replace(/[\s\-+()]/g, '').length - 1;
+                        const isAmbiguous = filtered.length > 0 && (filtered[0] as any).ambiguous;
+                        if (filtered.length === 0) {
+                          return (
+                            <p className="p-4 text-sm text-muted-foreground text-center">
+                              {isShortDigitQuery
+                                ? 'Too few digits to be sure. Type more digits or search by name.'
+                                : 'No match. Use walk-up below.'}
+                            </p>
+                          );
+                        }
+                        return (
+                          <>
+                            {isAmbiguous && (
+                              <div className="px-4 py-2 text-[11px] font-medium text-warning bg-warning/10 border-b">
+                                {filtered.length} possible matches for "{search}" — pick carefully or type more digits.
+                              </div>
+                            )}
+                            {filtered.map(({ t, matchType }, idx) => {
                         const optIdx = keyboardOptions.findIndex(o => o.tenantId === t.tenantId);
                         const isActive = optIdx === activeIdx;
                         return (
@@ -1138,7 +1161,10 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                           ) : null}
                         </button>
                         );
-                      })}
+                            })}
+                          </>
+                        );
+                      })()}
                     </div>
                   )}
 
