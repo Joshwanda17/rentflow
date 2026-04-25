@@ -143,7 +143,13 @@ export function NfcCardSetupDialog({ open, onOpenChange }: NfcCardSetupDialogPro
 
   const downloadJson = () => {
     if (!card) return;
-    const blob = new Blob([JSON.stringify(card, null, 2)], { type: 'application/json' });
+    const minimal = {
+      version: card.version,
+      issuer: card.issuer,
+      card_id: card.card_id,
+      hmac_signature: card.hmac_signature,
+    };
+    const blob = new Blob([JSON.stringify(minimal, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -155,7 +161,13 @@ export function NfcCardSetupDialog({ open, onOpenChange }: NfcCardSetupDialogPro
   const downloadPdf = async () => {
     if (!card) return;
     try {
-      const qrPayload = JSON.stringify(card);
+      const minimal = {
+        version: card.version,
+        issuer: card.issuer,
+        card_id: card.card_id,
+        hmac_signature: card.hmac_signature,
+      };
+      const qrPayload = JSON.stringify(minimal);
       const qrDataUrl = await QRCode.toDataURL(qrPayload, {
         errorCorrectionLevel: 'M',
         margin: 1,
