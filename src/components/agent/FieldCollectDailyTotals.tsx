@@ -5,7 +5,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle2, Clock, AlertCircle, FileWarning, CalendarDays, RefreshCcw, Download, FileText, FileSpreadsheet, CalendarIcon } from 'lucide-react';
+import { CheckCircle2, Clock, AlertCircle, FileWarning, CalendarDays, RefreshCcw, Download, FileText, FileSpreadsheet, CalendarIcon, Settings2, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FieldCollectDailyDetailsSheet } from '@/components/agent/FieldCollectDailyDetailsSheet';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -22,11 +22,41 @@ import {
 import { exportDailyTotalsCsv, exportDailyTotalsPdf } from '@/lib/fieldCollectExport';
 import { format, isSameDay } from 'date-fns';
 import { toast } from 'sonner';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 
 interface Bucket {
   label: string;
   count: number;
   total: number;
+}
+
+interface SessionCutoffs {
+  morningEnd: number;   // hour (0-23). Morning = [0, morningEnd)
+  afternoonEnd: number; // hour (0-23). Afternoon = [morningEnd, afternoonEnd). Evening = [afternoonEnd, 24)
+}
+
+const DEFAULT_CUTOFFS: SessionCutoffs = { morningEnd: 12, afternoonEnd: 17 };
+const CUTOFFS_STORAGE_KEY = 'welile.fieldCollect.sessionCutoffs';
+
+function loadCutoffs(): SessionCutoffs {
+  try {
+    const raw = localStorage.getItem(CUTOFFS_STORAGE_KEY);
+    if (!raw) return DEFAULT_CUTOFFS;
+    const parsed = JSON.parse(raw) as Partial<SessionCutoffs>;
+    const m = Number(parsed.morningEnd);
+    const a = Number(parsed.afternoonEnd);
+    if (!Number.isFinite(m) || !Number.isFinite(a)) return DEFAULT_CUTOFFS;
+    if (m < 1 || m > 23 || a < 1 || a > 23 || m >= a) return DEFAULT_CUTOFFS;
+    return { morningEnd: Math.floor(m), afternoonEnd: Math.floor(a) };
+  } catch {
+    return DEFAULT_CUTOFFS;
+  }
+}
+
+function formatHour(h: number): string {
+  const hh = String(h).padStart(2, '0');
+  return `${hh}:00`;
 }
 
 interface Props {
@@ -50,6 +80,10 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [reconcileOpen, setReconcileOpen] = useState(false);
   const [dupPopoverOpen, setDupPopoverOpen] = useState(false);
+  const [cutoffs, setCutoffs] = useState<SessionCutoffs>(() => loadCutoffs());
+  const [cutoffsOpen, setCutoffsOpen] = useState(false);
+  const [draftMorning, setDraftMorning] = useState<string>(String(cutoffs.morningEnd));
+  const [draftAfternoon, setDraftAfternoon] = useState<string>(String(cutoffs.afternoonEnd));
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -118,17 +152,47 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
     const morn: FieldEntry[] = [], aft: FieldEntry[] = [], eve: FieldEntry[] = [];
     for (const e of today) {
       const h = new Date(e.capturedAt).getHours();
-      if (h < 12) morn.push(e);
-      else if (h < 17) aft.push(e);
+      if (h < cutoffs.morningEnd) morn.push(e);
+      else if (h < cutoffs.afternoonEnd) aft.push(e);
       else eve.push(e);
     }
     const sum = (arr: FieldEntry[]) => arr.reduce((s, e) => s + Number(e.amount || 0), 0);
     return [
-      { label: 'Morning', count: morn.length, total: sum(morn) },
-      { label: 'Afternoon', count: aft.length, total: sum(aft) },
-      { label: 'Evening', count: eve.length, total: sum(eve) },
+      { label: `Morning (until ${formatHour(cutoffs.morningEnd)})`, count: morn.length, total: sum(morn) },
+      { label: `Afternoon (until ${formatHour(cutoffs.afternoonEnd)})`, count: aft.length, total: sum(aft) },
+      { label: `Evening (from ${formatHour(cutoffs.afternoonEnd)})`, count: eve.length, total: sum(eve) },
     ];
-  }, [today]);
+  }, [today, cutoffs]);
+
+  const saveCutoffs = useCallback(() => {
+    const m = Math.floor(Number(draftMorning));
+    const a = Math.floor(Number(draftAfternoon));
+    if (!Number.isFinite(m) || !Number.isFinite(a)) {
+      toast.error('Enter valid hours (0-23)');
+      return;
+    }
+    if (m < 1 || m > 23 || a < 1 || a > 23) {
+      toast.error('Hours must be between 1 and 23');
+      return;
+    }
+    if (m >= a) {
+      toast.error('Afternoon end must be after morning end');
+      return;
+    }
+    const next = { morningEnd: m, afternoonEnd: a };
+    setCutoffs(next);
+    try { localStorage.setItem(CUTOFFS_STORAGE_KEY, JSON.stringify(next)); } catch {}
+    setCutoffsOpen(false);
+    toast.success('Session cutoffs updated');
+  }, [draftMorning, draftAfternoon]);
+
+  const resetCutoffs = useCallback(() => {
+    setCutoffs(DEFAULT_CUTOFFS);
+    setDraftMorning(String(DEFAULT_CUTOFFS.morningEnd));
+    setDraftAfternoon(String(DEFAULT_CUTOFFS.afternoonEnd));
+    try { localStorage.removeItem(CUTOFFS_STORAGE_KEY); } catch {}
+    toast.success('Session cutoffs reset to defaults');
+  }, []);
 
   const isInline = variant === 'inline';
 
