@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { User } from '@supabase/supabase-js';
@@ -12,7 +11,6 @@ import { EarnedSinceLastWithdrawalCard } from '@/components/agent/EarnedSinceLas
 import { Button } from '@/components/ui/button';
 import { 
   UserPlus,
-  Wallet,
   Menu,
   WifiOff,
   RefreshCw,
@@ -31,7 +29,6 @@ import {
   UserCog,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
@@ -39,7 +36,6 @@ import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet
 import DepositFlow from '@/components/payments/DepositFlow';
 import WithdrawFlow from '@/components/payments/WithdrawFlow';
 import { SendMoneyDialog } from '@/components/wallet/SendMoneyDialog';
-import { WalletDisclaimer } from '@/components/wallet/WalletDisclaimer';
 
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
@@ -53,7 +49,7 @@ import { CommissionCelebrationModal } from '@/components/agent/CommissionCelebra
 import { useBusinessAdvanceCommissionListener } from '@/hooks/useBusinessAdvanceCommissionListener';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
-import { WalletHeroSkeleton, MetricRowSkeleton, ListSectionSkeleton } from '@/components/skeletons/SectionSkeletons';
+import { WalletHeroSkeleton } from '@/components/skeletons/SectionSkeletons';
 
 import { hapticTap } from '@/lib/haptics';
 import { AgentAgreementBanner } from '@/components/agent/agreement';
@@ -68,7 +64,6 @@ import { EarningsRankSystemSheet } from '@/components/agent/EarningsRankSystemSh
 import { AgentMenuDrawer } from '@/components/agent/AgentMenuDrawer';
 import { AgentHubTabs, type AgentHubTab } from '@/components/agent/AgentHubTabs';
 import { AgentActionInsights } from '@/components/agent/AgentActionInsights';
-import { DailyRentExpectedCard } from '@/components/agent/DailyRentExpectedCard';
 import { AgentManagedPropertyDialog } from '@/components/agent/AgentManagedPropertyDialog';
 import { AgentManagedPropertiesSheet } from '@/components/agent/AgentManagedPropertiesSheet';
 import { AgentLandlordPayoutDialog } from '@/components/agent/AgentLandlordPayoutDialog';
@@ -119,6 +114,7 @@ import { AgentTenantRentRequestsList } from '@/components/agent/AgentTenantRentR
 import { AgentVerificationOpportunitiesCard } from '@/components/agent/AgentVerificationOpportunitiesCard';
 import { ShareRentRecorderCard } from '@/components/agent/ShareRentRecorderCard';
 import { TodayCollectionsCard } from '@/components/agent/TodayCollectionsCard';
+import { AgentPriorityGrid } from '@/components/agent/AgentPriorityGrid';
 import { useIsFinancialAgent } from '@/hooks/useIsFinancialAgent';
 import { FinancialAgentSection } from '@/components/agent/FinancialAgentSection';
 import { PromissoryNoteDialog } from '@/components/agent/PromissoryNoteDialog';
@@ -399,105 +395,73 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         {/* === HOME TAB === Most-used actions, at-a-glance */}
         {activeTab === 'home' && (
-          <div className="space-y-5 animate-in fade-in duration-200">
-            {/* Prime quick actions — the 4 most-used */}
-            <div className="grid grid-cols-2 gap-2.5">
-              {[
-                { icon: FileText, label: 'New Tenant', sub: 'Rent request', onClick: () => setRentRequestOpen(true), accent: 'bg-primary' },
-                { icon: Users, label: 'My Tenants', sub: 'View list', onClick: () => setTenantsSheetOpen(true), accent: 'bg-[hsl(var(--chart-1))]' },
-                { icon: Briefcase, label: 'Business Advance', sub: 'Earn 4%', onClick: () => setBusinessAdvanceOpen(true), accent: 'bg-[hsl(var(--chart-3))]' },
-                { icon: Banknote, label: 'Lending Agent', sub: 'Earn interest', onClick: () => setLendingAgentOpen(true), accent: 'bg-emerald-600' },
-              ].map((a) => (
-                <button
-                  key={a.label}
-                  onClick={() => { hapticTap(); a.onClick(); }}
-                  className="flex items-center gap-3 p-3.5 rounded-2xl bg-card border border-border/60 active:scale-[0.97] transition-all min-h-[72px] text-left hover:border-border touch-manipulation"
-                  style={{ WebkitTapHighlightColor: 'transparent' }}
-                >
-                  <div className={cn('p-2.5 rounded-xl text-white shadow-sm shrink-0', a.accent)}>
-                    <a.icon className="h-5 w-5" strokeWidth={2.2} />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="font-bold text-[13px] text-foreground leading-tight truncate">{a.label}</div>
-                    <div className="text-[10px] text-muted-foreground truncate">{a.sub}</div>
-                  </div>
-                </button>
-              ))}
-            </div>
+          <div className="space-y-4 animate-in fade-in duration-200">
+            {/*
+             * Minimalist home: 4 priority tiles → today's totals → urgent alerts only.
+             * Everything else (advances, lending, sub-agents, partners, etc.)
+             * lives behind the single "Grow" button, which opens the existing
+             * AgentMenuDrawer so no functionality is lost.
+             */}
+            <AgentPriorityGrid
+              agentId={user.id}
+              onOpenFieldCollect={() => setFieldCollectOpen(true)}
+              onOpenNewTenant={() => setRentRequestOpen(true)}
+            />
 
-            {/* Today's snapshot */}
-            <TodayCollectionsCard agentId={user.id} onViewTenants={() => setTenantsSheetOpen(true)} />
-
-            {/* Field Collect — offline cash collection (prominent) */}
-            <FieldCollectCard onOpen={() => setFieldCollectOpen(true)} />
-
-            {/* Daily totals from offline field-collection queue (live) */}
+            {/* Today's collected total — single most useful at-a-glance number */}
             <FieldCollectDailyTotals live />
 
-            {/* Deposit queue — bank collected cash & queue proof for Finance */}
-            <FieldDepositQueueCard />
-
-            {/* Reconciliation banner — only shows when duplicates exist */}
+            {/* Urgent: duplicates that need reconciliation */}
             {duplicateCount > 0 && (
               <button
                 type="button"
                 onClick={() => setReconcileOpen(true)}
-                className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-950/40 transition-colors text-left"
+                className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl border border-warning/30 bg-warning/10 hover:bg-warning/20 transition-colors text-left touch-manipulation min-h-[56px]"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <FileWarning className="h-5 w-5 text-amber-600 shrink-0" />
+                  <FileWarning className="h-5 w-5 text-warning shrink-0" />
                   <div className="min-w-0">
-                    <div className="text-sm font-semibold text-amber-900 dark:text-amber-200">
-                      {duplicateCount} receipt{duplicateCount === 1 ? '' : 's'} need reconciliation
+                    <div className="text-sm font-semibold text-foreground">
+                      {duplicateCount} receipt{duplicateCount === 1 ? '' : 's'} need a check
                     </div>
-                    <div className="text-xs text-amber-700 dark:text-amber-300/80 truncate">
-                      Already uploaded with different details — tap to review
+                    <div className="text-[11px] text-muted-foreground truncate">
+                      Tap to review
                     </div>
                   </div>
                 </div>
-                <span className="text-xs font-medium text-amber-700 dark:text-amber-300 shrink-0">Review →</span>
+                <span className="text-xs font-medium text-warning shrink-0">Review →</span>
               </button>
             )}
 
-            {/* Welile Vouches highlight — entices tap into AI ID */}
-            <AgentVouchHighlightCard userId={user.id} />
-
-            {/* Tenant Health — agent-performance booster summary */}
-            <AgentTenantHealthCard userId={user.id} />
-
-            {/* Daily rent expected */}
-            <div key="daily-rent-card">
-              <DailyRentExpectedCard userId={user.id} />
-            </div>
-
-            {/* Merchant Payouts — for merchant agents executing MoMo / Bank / Cash payouts */}
+            {/* Urgent: merchant agents only — visible when assigned */}
             {isCashoutAgent && (
               <button
                 onClick={() => { hapticTap(); setCashPayoutsOpen(true); }}
-                className="w-full flex items-center gap-3 p-4 rounded-2xl border-2 border-warning/40 bg-warning/10 touch-manipulation active:scale-[0.97] transition-all min-h-[64px]"
+                className="w-full flex items-center gap-3 p-4 rounded-2xl border border-warning/40 bg-warning/10 touch-manipulation active:scale-[0.97] transition-all min-h-[56px]"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                <div className="p-3 rounded-xl bg-warning/20">
-                  <Banknote className="h-6 w-6 text-warning" />
+                <div className="p-2.5 rounded-xl bg-warning/20 shrink-0">
+                  <Banknote className="h-5 w-5 text-warning" />
                 </div>
-                <div className="flex-1 text-left">
-                  <p className="font-bold text-sm text-warning">Merchant Payouts</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    MoMo · Bank{isCashoutAgent.handles_cash ? ' · Cash' : ''} · {isCashoutAgent.label || 'Merchant Agent'}
+                <div className="flex-1 text-left min-w-0">
+                  <p className="font-bold text-sm text-foreground truncate">Merchant Payouts</p>
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    MoMo · Bank{isCashoutAgent.handles_cash ? ' · Cash' : ''}
                   </p>
                 </div>
-                <span className="text-xl text-warning">›</span>
+                <span className="text-base text-warning shrink-0">›</span>
               </button>
             )}
 
-            {/* All Menu access */}
+            {/* Single Grow button → reveals every other tool via the menu drawer */}
             <button
               onClick={handleOpenMenu}
-              className="w-full flex items-center justify-center gap-2 p-3 rounded-2xl bg-muted/60 active:scale-[0.98] transition-all touch-manipulation"
+              className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 active:scale-[0.98] transition-all touch-manipulation min-h-[56px]"
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              <Menu className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs font-semibold text-muted-foreground">All tools & settings</span>
+              <TrendingUp className="h-5 w-5 text-primary" strokeWidth={2.2} />
+              <span className="text-sm font-bold text-primary">Grow — more tools</span>
             </button>
           </div>
         )}
