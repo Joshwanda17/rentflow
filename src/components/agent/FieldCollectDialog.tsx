@@ -753,8 +753,25 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
    * Returns null when the query isn't a short phone-y query, so the UI can
    * cheaply skip rendering. Computed independently of `filtered` so it
    * stays correct even when the per-query result cache short-circuits.
+   *
+   * Two count modes are exposed via `tailHintMode`:
+   *  - 'tenants': raw count of tenants whose phone ends in the typed digits
+   *               (1:1 with the result list — matches what the query returns).
+   *  - 'buckets': distinct (tailLen+1)-digit groups — i.e. how many different
+   *               "next-digit-out" prefixes share this tail. Tells the agent
+   *               "if I type one more digit, this is how many groups it
+   *               could collapse to." Phones with no extra digit (the typed
+   *               tail IS the full normalized phone) collapse into a single
+   *               '∅' bucket so they don't get double-counted.
    */
-  const tailShareHint = useMemo<{ count: number; tailLen: number; digits: string } | null>(() => {
+  type TailHintMode = 'tenants' | 'buckets';
+  const [tailHintMode, setTailHintMode] = useState<TailHintMode>('tenants');
+  const tailShareHint = useMemo<{
+    tenantCount: number;
+    bucketCount: number;
+    tailLen: number;
+    digits: string;
+  } | null>(() => {
     const raw = debouncedSearch.trim();
     if (!raw) return null;
     const phoneQ = normalizePhone(raw);
@@ -765,11 +782,25 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     const stripped = raw.replace(/[\s\-+()]/g, '');
     const digitsOnly = stripped.replace(/\D+/g, '');
     if (digitsOnly.length < stripped.length - 1) return null;
-    let count = 0;
+    let tenantCount = 0;
+    // Bucket key: the (tailLen+1)-digit suffix of the phone. Phones whose
+    // full normalized form is exactly the query digits go into the special
+    // '∅' bucket (no "next digit out" exists). Single-pass O(N), no
+    // sort/array allocation in the hot loop.
+    const buckets = new Set<string>();
+    const wider = phoneQ.length + 1;
     for (const x of tenantIndex) {
-      if (x.phone && x.phone.endsWith(phoneQ)) count++;
+      const p = x.phone;
+      if (!p || !p.endsWith(phoneQ)) continue;
+      tenantCount++;
+      buckets.add(p.length >= wider ? p.slice(-wider) : '∅');
     }
-    return { count, tailLen: phoneQ.length, digits: phoneQ };
+    return {
+      tenantCount,
+      bucketCount: buckets.size,
+      tailLen: phoneQ.length,
+      digits: phoneQ,
+    };
   }, [debouncedSearch, tenantIndex]);
 
   /**
@@ -1595,32 +1626,77 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                    *   2–4        → primary (small set; pickable from list)
                    *   5+         → warning (highly ambiguous; type more digits)
                    */}
-                  {tailShareHint && (
-                    <div
-                      role="status"
-                      aria-live="polite"
-                      className={cn(
-                        'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium tabular-nums',
-                        tailShareHint.count === 0 && 'bg-muted/50 text-muted-foreground',
-                        tailShareHint.count === 1 && 'bg-success/10 text-success',
-                        tailShareHint.count >= 2 && tailShareHint.count <= 4 && 'bg-primary/10 text-primary',
-                        tailShareHint.count >= 5 && 'bg-warning/15 text-warning-foreground border border-warning/30',
-                      )}
-                    >
-                      <span className="font-mono opacity-70">…{tailShareHint.digits}</span>
-                      <span>·</span>
-                      <span>
-                        {tailShareHint.count === 0 && `No tenants end in these ${tailShareHint.tailLen} digits`}
-                        {tailShareHint.count === 1 && `1 tenant ends in these ${tailShareHint.tailLen} digits`}
-                        {tailShareHint.count >= 2 && (
-                          <>
-                            {tailShareHint.count} tenants share these {tailShareHint.tailLen} digits
-                            {tailShareHint.count >= 5 && ' — type more to narrow'}
-                          </>
-                        )}
-                      </span>
-                    </div>
-                  )}
+                  {tailShareHint && (() => {
+                    // Pick the count to display + label based on the active mode.
+                    // 'tenants' matches what the result list shows 1:1.
+                    // 'buckets' counts distinct (tailLen+1)-digit groups —
+                    // i.e. how many "next-digit-out" prefixes share the tail,
+                    // which is what would narrow to if the agent typed one
+                    // more digit. Color thresholds reuse the same
+                    // 0/1/2-4/5+ severity buckets so the visual semantics
+                    // (good/ok/risky) stay consistent across modes.
+                    const count = tailHintMode === 'tenants'
+                      ? tailShareHint.tenantCount
+                      : tailShareHint.bucketCount;
+                    const noun = tailHintMode === 'tenants' ? 'tenant' : 'bucket';
+                    const verb = tailHintMode === 'tenants' ? 'end in' : 'share';
+                    return (
+                      <div className="flex items-center gap-2">
+                        <div
+                          role="status"
+                          aria-live="polite"
+                          className={cn(
+                            'flex flex-1 items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium tabular-nums',
+                            count === 0 && 'bg-muted/50 text-muted-foreground',
+                            count === 1 && 'bg-success/10 text-success',
+                            count >= 2 && count <= 4 && 'bg-primary/10 text-primary',
+                            count >= 5 && 'bg-warning/15 text-warning-foreground border border-warning/30',
+                          )}
+                        >
+                          <span className="font-mono opacity-70">…{tailShareHint.digits}</span>
+                          <span>·</span>
+                          <span>
+                            {count === 0 && `No ${noun}s ${verb} these ${tailShareHint.tailLen} digits`}
+                            {count === 1 && `1 ${noun} ${verb}s these ${tailShareHint.tailLen} digits`}
+                            {count >= 2 && (
+                              <>
+                                {count} {noun}s {verb} these {tailShareHint.tailLen} digits
+                                {count >= 5 && ' — type more to narrow'}
+                              </>
+                            )}
+                          </span>
+                        </div>
+                        {/* Mode toggle — lets the agent flip between counting
+                          * raw tenants (matches the result list) and counting
+                          * distinct tail-digit buckets (predicts what one
+                          * more digit would narrow to). Compact pill so it
+                          * doesn't compete with the hint label visually. */}
+                        <div
+                          role="tablist"
+                          aria-label="Tail-share count mode"
+                          className="inline-flex shrink-0 rounded-full bg-muted p-0.5 text-[11px]"
+                        >
+                          {(['tenants', 'buckets'] as const).map(opt => (
+                            <button
+                              key={opt}
+                              type="button"
+                              role="tab"
+                              aria-selected={tailHintMode === opt}
+                              onClick={() => setTailHintMode(opt)}
+                              className={cn(
+                                'px-2.5 h-6 rounded-full font-medium capitalize transition-colors',
+                                tailHintMode === opt
+                                  ? 'bg-background text-foreground shadow-sm'
+                                  : 'text-muted-foreground hover:text-foreground',
+                              )}
+                            >
+                              {opt}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/*
                    * Browse-mode toolbar. Only shown when the search box is
