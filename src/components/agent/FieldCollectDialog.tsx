@@ -543,7 +543,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     // that produce identical scoring work.
     const cacheKey = q
       ? `q:${q}`
-      : `__browse__:${browseSort}:${browsePage}`;
+      : `__browse__:${browseSort}:${browseStatus}:${browsePage}`;
     const cached = cacheBucket.get(cacheKey);
     if (cached) {
       // LRU touch: re-insert moves this key to the most-recent position so it
@@ -584,7 +584,17 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
         const prev = lastByTenant.get(e.tenantId) ?? 0;
         if (e.capturedAt > prev) lastByTenant.set(e.tenantId, e.capturedAt);
       }
-      const sorted = [...tenants].sort((a, b) => {
+      // Apply the status filter BEFORE sorting so the page-count and the
+      // "Page X of Y" pager reflect the narrowed set, not the full caseload.
+      // A tenant counts as "active" when they have any captured entry —
+      // that's the same signal the Recent sort and "Recent tenants" chip
+      // row already use, so the toggle stays semantically consistent.
+      const filteredByStatus = browseStatus === 'all'
+        ? tenants
+        : browseStatus === 'active'
+          ? tenants.filter(t => lastByTenant.has(t.tenantId))
+          : tenants.filter(t => !lastByTenant.has(t.tenantId));
+      const sorted = [...filteredByStatus].sort((a, b) => {
         if (browseSort === 'name') {
           return a.fullName.localeCompare(b.fullName, undefined, { sensitivity: 'base' });
         }
