@@ -4,7 +4,7 @@
  * for a given date, working entirely from the local IndexedDB queue.
  */
 import jsPDF from 'jspdf';
-import { format } from 'date-fns';
+import { format, eachDayOfInterval, isSameDay } from 'date-fns';
 import type { FieldEntry } from '@/lib/fieldCollectStore';
 import { formatUGX } from '@/lib/rentCalculations';
 
@@ -12,6 +12,18 @@ export interface DayTotalsExportInput {
   date: Date;
   agentName?: string | null;
   entries: FieldEntry[]; // already filtered to that date
+}
+
+export interface RangeTotalsExportInput {
+  /** Inclusive start date — time component ignored. */
+  startDate: Date;
+  /** Inclusive end date — time component ignored. */
+  endDate: Date;
+  agentName?: string | null;
+  /** All entries in the range (caller filters). */
+  entries: FieldEntry[];
+  /** Optional human label for the file name (e.g. "this-week"). */
+  rangeLabel?: string;
 }
 
 function summarize(entries: FieldEntry[]) {
@@ -28,6 +40,24 @@ function summarize(entries: FieldEntry[]) {
     failed: { count: failed.length, total: sum(failed) },
     duplicate: { count: dup.length, total: sum(dup) },
   };
+}
+
+/** Status label shared by daily and range exports. */
+function statusLabel(s: FieldEntry['syncState']): string {
+  switch (s) {
+    case 'synced': return 'Sent';
+    case 'queued': return 'Waiting';
+    case 'error': return 'Failed';
+    case 'duplicate': return 'Duplicate';
+    default: return s;
+  }
+}
+
+/** Reference shared by daily and range exports. */
+function referenceFor(e: FieldEntry): string {
+  if (e.serverId) return `RCT-${e.serverId.slice(0, 8).toUpperCase()}`;
+  if (e.duplicateOfServerId) return `DUP-${e.duplicateOfServerId.slice(0, 8).toUpperCase()}`;
+  return `LOC-${e.id.slice(0, 8).toUpperCase()}`;
 }
 
 function escapeCsv(v: string | number | null | undefined): string {
