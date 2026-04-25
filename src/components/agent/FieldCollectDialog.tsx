@@ -1367,6 +1367,83 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                     )}
                   </div>
 
+                  {/*
+                   * Browse-mode toolbar. Only shown when the search box is
+                   * empty AND the agent has more than one page worth of
+                   * tenants — for short caseloads the page would just say
+                   * "1 of 1" and waste vertical space.
+                   *
+                   * Controls:
+                   *   - Sort:  Recent (last activity) | A→Z (name)
+                   *   - Pager: Prev | "Page X of Y · N tenants" | Next
+                   *
+                   * Search mode hides this entirely; the existing scoring
+                   * + 200-row cap still drives that path.
+                   */}
+                  {!search && tenants.length > BROWSE_PAGE_SIZE && (
+                    <div className="flex items-center justify-between gap-2 px-1 text-xs">
+                      <div
+                        role="tablist"
+                        aria-label="Sort tenants"
+                        className="inline-flex rounded-full bg-muted p-0.5"
+                      >
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={browseSort === 'recent'}
+                          onClick={() => setBrowseSort('recent')}
+                          className={cn(
+                            'inline-flex items-center gap-1 px-3 h-7 rounded-full font-medium transition-colors',
+                            browseSort === 'recent'
+                              ? 'bg-background text-foreground shadow-sm'
+                              : 'text-muted-foreground hover:text-foreground',
+                          )}
+                        >
+                          <Clock className="h-3 w-3" />
+                          Recent
+                        </button>
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={browseSort === 'name'}
+                          onClick={() => setBrowseSort('name')}
+                          className={cn(
+                            'inline-flex items-center gap-1 px-3 h-7 rounded-full font-medium transition-colors',
+                            browseSort === 'name'
+                              ? 'bg-background text-foreground shadow-sm'
+                              : 'text-muted-foreground hover:text-foreground',
+                          )}
+                        >
+                          A→Z
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-1 text-muted-foreground tabular-nums">
+                        <button
+                          type="button"
+                          onClick={() => setBrowsePage(p => Math.max(0, p - 1))}
+                          disabled={browsePage === 0}
+                          aria-label="Previous page"
+                          className="h-7 w-7 inline-flex items-center justify-center rounded-full hover:bg-accent disabled:opacity-40 disabled:hover:bg-transparent"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </button>
+                        <span className="px-1 font-medium text-foreground">
+                          {browsePage + 1}
+                          <span className="text-muted-foreground font-normal"> / {browsePageCount}</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setBrowsePage(p => Math.min(browsePageCount - 1, p + 1))}
+                          disabled={browsePage >= browsePageCount - 1}
+                          aria-label="Next page"
+                          className="h-7 w-7 inline-flex items-center justify-center rounded-full hover:bg-accent disabled:opacity-40 disabled:hover:bg-transparent"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {(search || tenants.length > 0) && (
                     <div
                       ref={listScrollRef}
