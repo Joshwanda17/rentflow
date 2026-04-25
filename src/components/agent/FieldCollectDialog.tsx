@@ -218,6 +218,14 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   const [activeIdx, setActiveIdx] = useState(0);
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   /**
+   * Scroll-parent for the virtualized tenant suggestion list. Anchored to the
+   * `max-h-72 overflow-y-auto` container that wraps the result rows so
+   * `useVirtualizer` measures the right viewport. Without this ref the
+   * virtualizer can't compute which rows are visible and the list collapses
+   * to a single hidden row.
+   */
+  const listScrollRef = useRef<HTMLDivElement | null>(null);
+  /**
    * Ref to the tenant search input. Used by the section-level type-to-search
    * handler so a printable key pressed anywhere in Step 1 (e.g. while focus is
    * on a "Recent" chip) routes that character into the search input and
