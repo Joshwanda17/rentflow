@@ -1094,6 +1094,13 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         onOpenChange={setBehaviorCardOpen}
         data={behaviorData}
       />
+      <TenantFieldCollectDialog
+        open={!!fieldCollectTarget}
+        onOpenChange={(open) => { if (!open) setFieldCollectTarget(null); }}
+        tenantId={fieldCollectTarget?.id || ''}
+        tenantName={fieldCollectTarget?.full_name || ''}
+        tenantPhone={fieldCollectTarget?.phone || null}
+      />
     </Sheet>
   );
 }
