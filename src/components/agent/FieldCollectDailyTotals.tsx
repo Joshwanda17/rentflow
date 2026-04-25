@@ -428,14 +428,93 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
 
       {/* Time-of-day sessions */}
       <div>
-        <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium mb-1.5">By session</p>
+        <div className="flex items-center justify-between mb-1.5">
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">By session</p>
+          <Popover open={cutoffsOpen} onOpenChange={(o) => {
+            setCutoffsOpen(o);
+            if (o) {
+              setDraftMorning(String(cutoffs.morningEnd));
+              setDraftAfternoon(String(cutoffs.afternoonEnd));
+            }
+          }}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                aria-label="Configure session cutoffs"
+                className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Settings2 className="h-3 w-3" />
+                Cutoffs
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-72 p-3 space-y-3">
+              <div>
+                <p className="text-xs font-semibold">Session cutoffs</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Set the hour each session ends (24-hour clock).
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label htmlFor="morning-end" className="text-[11px]">Morning ends at</Label>
+                  <Input
+                    id="morning-end"
+                    type="number"
+                    min={1}
+                    max={23}
+                    value={draftMorning}
+                    onChange={(e) => setDraftMorning(e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="afternoon-end" className="text-[11px]">Afternoon ends at</Label>
+                  <Input
+                    id="afternoon-end"
+                    type="number"
+                    min={1}
+                    max={23}
+                    value={draftAfternoon}
+                    onChange={(e) => setDraftAfternoon(e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                Morning: 00:00–{formatHour(Number(draftMorning) || cutoffs.morningEnd)} ·
+                Afternoon: {formatHour(Number(draftMorning) || cutoffs.morningEnd)}–{formatHour(Number(draftAfternoon) || cutoffs.afternoonEnd)} ·
+                Evening: {formatHour(Number(draftAfternoon) || cutoffs.afternoonEnd)}–24:00
+              </p>
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={resetCutoffs}
+                  className="h-8 text-[11px] gap-1"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                  Reset
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={saveCutoffs}
+                  className="h-8 text-[11px]"
+                >
+                  Save
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
         <div className="grid grid-cols-3 gap-2">
           {sessions.map(s => (
             <div key={s.label} className={cn(
               'rounded-lg border px-2 py-1.5 text-center',
               s.count === 0 ? 'opacity-50' : 'bg-muted/30'
             )}>
-              <p className="text-[10px] text-muted-foreground">{s.label}</p>
+              <p className="text-[10px] text-muted-foreground truncate" title={s.label}>{s.label.split(' (')[0]}</p>
               <p className="text-sm font-semibold leading-tight">{formatUGX(s.total)}</p>
               <p className="text-[10px] text-muted-foreground">{s.count}</p>
             </div>
