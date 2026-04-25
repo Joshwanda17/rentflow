@@ -470,10 +470,49 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
       return rows;
     };
 
-    // No query → show a generous prefix of the tenant book. Used to be 8;
-    // bumped to 200 now that the list is virtualized so the agent can scroll
-    // through their full caseload without hitting an artificial cap.
-    if (!q) return storeAndReturn(tenants.slice(0, 200).map(t => ({ t, score: 0, matchType: null as 'phone' | 'name' | 'both' | null, ambiguous: false, bestMatchFallback: false })));
+    // No query → BROWSE MODE.
+    //
+    // The agent isn't searching — they just want to flip through their
+    // caseload to find the right tenant by sight. We honour the active
+    // sort (`recent` = last activity desc, `name` = A→Z) and slice out a
+    // single page so the virtualized list never has to render more than
+    // BROWSE_PAGE_SIZE rows even if the agent has tens of thousands of
+    // cached tenants. The pager (Prev / Next) lives in the UI below.
+    //
+    // Cache-friendliness: the cache key already contains the sort+page
+    // because it's part of `cacheKey` (we widen it below). So flipping
+    // pages is O(1) on the second visit.
+    if (!q) {
+      // Build a "last activity" lookup once per (entries, tenants) change.
+      // Tenants without any captured entry get -Infinity so they sink to
+      // the bottom under the 'recent' sort.
+      const lastByTenant = new Map<string, number>();
+      for (const e of entries) {
+        if (!e.tenantId) continue;
+        const prev = lastByTenant.get(e.tenantId) ?? 0;
+        if (e.capturedAt > prev) lastByTenant.set(e.tenantId, e.capturedAt);
+      }
+      const sorted = [...tenants].sort((a, b) => {
+        if (browseSort === 'name') {
+          return a.fullName.localeCompare(b.fullName, undefined, { sensitivity: 'base' });
+        }
+        // recent: last activity desc, then cachedAt desc as a tiebreaker so
+        // brand-new tenants still bubble up before stale untouched ones.
+        const la = lastByTenant.get(a.tenantId) ?? -Infinity;
+        const lb = lastByTenant.get(b.tenantId) ?? -Infinity;
+        if (lb !== la) return lb - la;
+        return (b.cachedAt ?? 0) - (a.cachedAt ?? 0);
+      });
+      const start = browsePage * BROWSE_PAGE_SIZE;
+      const page = sorted.slice(start, start + BROWSE_PAGE_SIZE);
+      return storeAndReturn(page.map(t => ({
+        t,
+        score: 0,
+        matchType: null as 'phone' | 'name' | 'both' | null,
+        ambiguous: false,
+        bestMatchFallback: false,
+      })));
+    }
     const phoneQ = normalizePhone(raw);
     // Treat the query as "phone-y" if the user typed mostly digits — even
     // with spaces, dashes, plus signs or a leading 0/256.
