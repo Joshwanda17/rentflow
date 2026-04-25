@@ -3,7 +3,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,7 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import {
   Loader2, WifiOff, Wifi, CloudUpload, Search, Plus, Trash2,
-  CheckCircle2, AlertCircle, Banknote, MapPin, RefreshCcw
+  CheckCircle2, AlertCircle, RefreshCcw,
 } from 'lucide-react';
 import {
   cacheTenants, getCachedTenants, addEntry, deleteEntry, getEntries,
@@ -132,10 +131,6 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
       .slice(0, 12);
   }, [tenants, search]);
 
-  const queuedTotal = useMemo(
-    () => entries.filter(e => e.syncState !== 'synced').reduce((sum, e) => sum + Number(e.amount || 0), 0),
-    [entries]
-  );
   const queuedCount = entries.filter(e => e.syncState !== 'synced').length;
   const grandTotal = useMemo(() => entries.reduce((sum, e) => sum + Number(e.amount || 0), 0), [entries]);
 
