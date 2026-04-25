@@ -1880,6 +1880,36 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                       >
                         {browseFilteredCount.toLocaleString()} tenant{browseFilteredCount === 1 ? '' : 's'}
                       </span>
+                      {/*
+                       * Reset chip — clears the persisted Active/Inactive/All
+                       * preference and returns the picker to the 'all'
+                       * default. Only renders when the current selection
+                       * differs from the default so it doesn't add noise
+                       * when nothing's been customized. Wipes the same
+                       * per-agent localStorage key the persistence
+                       * effect writes to, so a future dialog open won't
+                       * silently re-restore the cleared preference.
+                       */}
+                      {browseStatus !== 'all' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBrowseStatus('all');
+                            if (browseStatusStorageKey && typeof window !== 'undefined') {
+                              try {
+                                window.localStorage.removeItem(browseStatusStorageKey);
+                              } catch {
+                                /* noop — private mode / quota; UI already reset */
+                              }
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 h-7 px-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                          aria-label="Reset status filter to default"
+                        >
+                          <RefreshCcw className="h-3 w-3" />
+                          Reset
+                        </button>
+                      )}
                     </div>
                   )}
 
