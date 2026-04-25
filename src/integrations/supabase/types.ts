@@ -4461,6 +4461,128 @@ export type Database = {
           },
         ]
       }
+      field_deposit_batch_items: {
+        Row: {
+          agent_collection_id: string | null
+          allocation_id: string | null
+          amount: number
+          batch_id: string
+          commission_amount: number
+          created_at: string
+          field_collection_id: string
+          id: string
+        }
+        Insert: {
+          agent_collection_id?: string | null
+          allocation_id?: string | null
+          amount: number
+          batch_id: string
+          commission_amount?: number
+          created_at?: string
+          field_collection_id: string
+          id?: string
+        }
+        Update: {
+          agent_collection_id?: string | null
+          allocation_id?: string | null
+          amount?: number
+          batch_id?: string
+          commission_amount?: number
+          created_at?: string
+          field_collection_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_deposit_batch_items_agent_collection_id_fkey"
+            columns: ["agent_collection_id"]
+            isOneToOne: false
+            referencedRelation: "agent_collections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "field_deposit_batch_items_allocation_id_fkey"
+            columns: ["allocation_id"]
+            isOneToOne: false
+            referencedRelation: "agent_landlord_float_allocations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "field_deposit_batch_items_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "field_deposit_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "field_deposit_batch_items_field_collection_id_fkey"
+            columns: ["field_collection_id"]
+            isOneToOne: true
+            referencedRelation: "field_collections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      field_deposit_batches: {
+        Row: {
+          agent_id: string
+          channel: string
+          created_at: string
+          declared_total: number
+          finops_proof_entered: string | null
+          finops_verified_at: string | null
+          finops_verified_by: string | null
+          id: string
+          notes: string | null
+          proof_image_url: string | null
+          proof_reference: string | null
+          proof_submitted_at: string | null
+          rejection_reason: string | null
+          status: string
+          surplus_total: number
+          tagged_total: number
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          channel: string
+          created_at?: string
+          declared_total: number
+          finops_proof_entered?: string | null
+          finops_verified_at?: string | null
+          finops_verified_by?: string | null
+          id?: string
+          notes?: string | null
+          proof_image_url?: string | null
+          proof_reference?: string | null
+          proof_submitted_at?: string | null
+          rejection_reason?: string | null
+          status?: string
+          surplus_total?: number
+          tagged_total?: number
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          channel?: string
+          created_at?: string
+          declared_total?: number
+          finops_proof_entered?: string | null
+          finops_verified_at?: string | null
+          finops_verified_by?: string | null
+          id?: string
+          notes?: string | null
+          proof_image_url?: string | null
+          proof_reference?: string | null
+          proof_submitted_at?: string | null
+          rejection_reason?: string | null
+          status?: string
+          surplus_total?: number
+          tagged_total?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       financial_agents: {
         Row: {
           agent_id: string
@@ -12802,6 +12924,7 @@ export type Database = {
         Args: { _conversation_id: string; _user_id: string }
         Returns: boolean
       }
+      is_financial_ops_staff: { Args: { p_user: string }; Returns: boolean }
       is_parent_agent: { Args: { _agent_id: string }; Returns: boolean }
       is_proxy_for: {
         Args: { _agent_id: string; _beneficiary_id: string }
@@ -12873,6 +12996,14 @@ export type Database = {
         Returns: Json
       }
       process_monthly_referral_rewards: { Args: never; Returns: undefined }
+      process_verified_field_deposit: {
+        Args: {
+          p_batch_id: string
+          p_finops_proof_entered: string
+          p_finops_user: string
+        }
+        Returns: Json
+      }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
