@@ -549,12 +549,14 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
         );
       })()}
 
-      {/* Time-of-day sessions */}
-      <div>
-        <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium mb-2">
-          By time of day
-        </p>
-        <div className="grid grid-cols-3 gap-2">
+      {/* Time-of-day sessions — collapsed by default to keep main view calm */}
+      <details className="group">
+        <summary className="cursor-pointer text-[11px] uppercase tracking-wide text-muted-foreground font-medium hover:text-foreground select-none flex items-center justify-between">
+          <span>By time of day</span>
+          <span className="text-[10px] normal-case tracking-normal opacity-70 group-open:hidden">Show</span>
+          <span className="text-[10px] normal-case tracking-normal opacity-70 hidden group-open:inline">Hide</span>
+        </summary>
+        <div className="grid grid-cols-3 gap-2 mt-2">
           {sessions.map(s => (
             <div
               key={s.label}
@@ -575,7 +577,7 @@ export function FieldCollectDailyTotals({ variant = 'card', className, live = fa
             </div>
           ))}
         </div>
-      </div>
+      </details>
 
       {/* View details */}
       <button
