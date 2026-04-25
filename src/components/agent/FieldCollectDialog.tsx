@@ -1299,6 +1299,18 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                           search.replace(/[\s\-+()]/g, '').replace(/\D+/g, '').length >=
                             search.replace(/[\s\-+()]/g, '').length - 1;
                         const isAmbiguous = filtered.length > 0 && (filtered[0] as any).ambiguous;
+                        // Count of *raw* tenants whose phone ends with the typed
+                        // digits — this is the true number of candidates the
+                        // tail-N matcher considered, before any safety
+                        // suppression. Drives the warning banner so the agent
+                        // always sees an honest candidate count + reason.
+                        const tailCandidateCount = isShortDigitQuery
+                          ? tenants.reduce((n, t) => {
+                              const p = normalizePhone(t.phone);
+                              return p && p.endsWith(phoneQ) ? n + 1 : n;
+                            }, 0)
+                          : 0;
+                        const tailLen = phoneQ.length;
                         if (filtered.length === 0) {
                           // Short digit query suppression: when 3–4 digits matched
                           // exactly one tenant, we hide it for safety (see the
@@ -1309,7 +1321,24 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                           const digitsNeeded = isShortDigitQuery ? Math.max(5 - digitsTyped, 1) : 0;
                           return (
                             isShortDigitQuery ? (
-                              <div className="p-4 space-y-1 text-center">
+                              <div className="p-4 space-y-2 text-center">
+                                {/*
+                                  Honest candidate banner — even though the list
+                                  is empty, tell the agent exactly how many
+                                  tenants matched the tail and WHY we hid them
+                                  (single-candidate safety suppression).
+                                */}
+                                <div className="px-3 py-2 rounded-lg bg-warning/10 border border-warning/30 text-[11px] font-medium text-warning text-left">
+                                  <span className="font-semibold">
+                                    {tailCandidateCount} tenant
+                                    {tailCandidateCount === 1 ? '' : 's'}
+                                  </span>{' '}
+                                  end{tailCandidateCount === 1 ? 's' : ''} in{' '}
+                                  <span className="font-mono">…{phoneQ}</span>.
+                                  {tailCandidateCount === 1
+                                    ? ' Hidden — a single short-tail match is too risky to auto-pick.'
+                                    : ' Limited to last-' + tailLen + '-digit matches because you typed ' + tailLen + ' digits.'}
+                                </div>
                                 <p className="text-sm font-medium text-foreground">
                                   Type{' '}
                                   <span className="font-bold text-primary">
@@ -1333,8 +1362,21 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                         return (
                           <>
                             {isAmbiguous && (
-                              <div className="px-4 py-2 text-[11px] font-medium text-warning bg-warning/10 border-b">
-                                {filtered.length} possible matches for "{search}" — pick carefully or type more digits.
+                              <div className="px-4 py-2 text-[11px] font-medium text-warning bg-warning/10 border-b space-y-0.5">
+                                <div>
+                                  <span className="font-semibold">
+                                    {tailCandidateCount} tenant
+                                    {tailCandidateCount === 1 ? '' : 's'}
+                                  </span>{' '}
+                                  end{tailCandidateCount === 1 ? 's' : ''} in{' '}
+                                  <span className="font-mono">…{phoneQ}</span>
+                                  {tailCandidateCount !== filtered.length && (
+                                    <> · showing top {filtered.length}</>
+                                  )}
+                                </div>
+                                <div className="text-warning/80 font-normal">
+                                  Limited to last-{tailLen}-digit matches because you typed {tailLen} digits — pick carefully or type more.
+                                </div>
                               </div>
                             )}
                             {/*
