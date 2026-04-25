@@ -264,3 +264,271 @@ export function exportDailyTotalsPdf({ date, agentName, entries }: DayTotalsExpo
 
   doc.save(`field-collections-${dateFile}.pdf`);
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Date-range exports (week / month / custom)
+ * Same totals + reference column conventions as the daily exports, plus a
+ * per-day breakdown so the agent can spot quiet days at a glance.
+ * ───────────────────────────────────────────────────────────────────────── */
+
+function entriesForDay(all: FieldEntry[], day: Date): FieldEntry[] {
+  return all.filter(e => isSameDay(new Date(e.capturedAt), day));
+}
+
+export function exportRangeTotalsCsv({ startDate, endDate, agentName, entries }: RangeTotalsExportInput) {
+  const summary = summarize(entries);
+  const startLabel = format(startDate, 'yyyy-MM-dd');
+  const endLabel = format(endDate, 'yyyy-MM-dd');
+  const lines: string[] = [];
+
+  lines.push(`Welile Field Collection — Range Totals`);
+  lines.push(`From,${escapeCsv(startLabel)}`);
+  lines.push(`To,${escapeCsv(endLabel)}`);
+  if (agentName) lines.push(`Agent,${escapeCsv(agentName)}`);
+  lines.push(`Generated,${escapeCsv(new Date().toISOString())}`);
+  lines.push('');
+  lines.push('Bucket,Count,Amount (UGX)');
+  lines.push(`Captured,${summary.captured},${summary.total}`);
+  lines.push(`Synced,${summary.synced.count},${summary.synced.total}`);
+  lines.push(`Pending,${summary.pending.count},${summary.pending.total}`);
+  lines.push(`Failed,${summary.failed.count},${summary.failed.total}`);
+  lines.push(`Duplicate,${summary.duplicate.count},${summary.duplicate.total}`);
+  lines.push('');
+
+  // Per-day breakdown
+  lines.push('Day,Date,Count,Total (UGX),Sent,Waiting,Needs Review');
+  for (const day of eachDayOfInterval({ start: startDate, end: endDate })) {
+    const dayEntries = entriesForDay(entries, day);
+    const s = summarize(dayEntries);
+    const needsReview = s.failed.count + s.duplicate.count;
+    lines.push([
+      escapeCsv(format(day, 'EEE')),
+      escapeCsv(format(day, 'yyyy-MM-dd')),
+      s.captured,
+      s.total,
+      s.synced.count,
+      s.pending.count,
+      needsReview,
+    ].join(','));
+  }
+  lines.push('');
+
+  // Itemised entries
+  lines.push('Captured At,Tenant,Phone,Amount (UGX),Status,Reference,Notes,Client ID');
+  const sorted = [...entries].sort((a, b) => a.capturedAt - b.capturedAt);
+  for (const e of sorted) {
+    lines.push([
+      escapeCsv(format(new Date(e.capturedAt), 'yyyy-MM-dd HH:mm:ss')),
+      escapeCsv(e.tenantName || ''),
+      escapeCsv(e.tenantPhone || ''),
+      e.amount,
+      escapeCsv(statusLabel(e.syncState)),
+      escapeCsv(referenceFor(e)),
+      escapeCsv(e.notes || ''),
+      escapeCsv(e.id),
+    ].join(','));
+  }
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  triggerDownload(blob, `field-collections-${startLabel}_to_${endLabel}.csv`);
+}
+
+export function exportRangeTotalsPdf({ startDate, endDate, agentName, entries, rangeLabel }: RangeTotalsExportInput) {
+  const summary = summarize(entries);
+  const startLabel = format(startDate, 'PPP');
+  const endLabel = format(endDate, 'PPP');
+  const startFile = format(startDate, 'yyyy-MM-dd');
+  const endFile = format(endDate, 'yyyy-MM-dd');
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 40;
+  let y = margin;
+
+  // Helper: ensure room before drawing a row, otherwise add a page
+  const ensureRoom = (rowHeight = 14) => {
+    if (y > pageHeight - margin - rowHeight) {
+      doc.addPage();
+      y = margin;
+    }
+  };
+
+  // ─── Title ───
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Welile — Field Collection Range Totals', margin, y);
+  y += 22;
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Range: ${startLabel} → ${endLabel}${rangeLabel ? `  (${rangeLabel})` : ''}`, margin, y);
+  y += 14;
+  if (agentName) {
+    doc.text(`Agent: ${agentName}`, margin, y);
+    y += 14;
+  }
+  doc.text(`Generated: ${format(new Date(), 'PPpp')}`, margin, y);
+  y += 20;
+
+  // ─── Headline total ───
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(20);
+  doc.text(formatUGX(summary.total), margin, y);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(110);
+  doc.text(`Total collected · ${summary.captured} payment${summary.captured === 1 ? '' : 's'}`, margin, y + 14);
+  doc.setTextColor(0);
+  y += 36;
+
+  // ─── Status summary (matches daily layout) ───
+  const needsReview = summary.failed.count + summary.duplicate.count;
+  const needsReviewTotal = summary.failed.total + summary.duplicate.total;
+  const statusRows: Array<[string, string, string, string]> = [
+    ['Sent to office', 'Already in the system', String(summary.synced.count), formatUGX(summary.synced.total)],
+    ['Waiting to send', 'Will sync when online', String(summary.pending.count), formatUGX(summary.pending.total)],
+    ['Needs review', 'Failed or duplicate', String(needsReview), formatUGX(needsReviewTotal)],
+  ];
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text('Status', margin, y);
+  y += 14;
+  doc.setFontSize(9);
+  const sCol1 = margin;
+  const sCol2 = margin + 130;
+  const sCol3 = margin + 320;
+  const sCol4 = margin + 380;
+  doc.text('Status', sCol1, y);
+  doc.text('Meaning', sCol2, y);
+  doc.text('Count', sCol3, y);
+  doc.text('Amount (UGX)', sCol4, y);
+  y += 4;
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 12;
+  doc.setFont('helvetica', 'normal');
+  for (const r of statusRows) {
+    doc.text(r[0], sCol1, y);
+    doc.setTextColor(110);
+    doc.text(r[1], sCol2, y);
+    doc.setTextColor(0);
+    doc.text(r[2], sCol3, y);
+    doc.text(r[3], sCol4, y);
+    y += 14;
+  }
+
+  // ─── Per-day breakdown ───
+  y += 10;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text('Per-day breakdown', margin, y);
+  y += 14;
+  doc.setFontSize(9);
+  const dCol1 = margin;             // Day
+  const dCol2 = margin + 60;        // Date
+  const dCol3 = margin + 170;       // Count
+  const dCol4 = margin + 220;       // Total
+  const dCol5 = margin + 340;       // Sent
+  const dCol6 = margin + 390;       // Waiting
+  const dCol7 = margin + 460;       // Needs review
+  doc.text('Day', dCol1, y);
+  doc.text('Date', dCol2, y);
+  doc.text('Count', dCol3, y);
+  doc.text('Total', dCol4, y);
+  doc.text('Sent', dCol5, y);
+  doc.text('Waiting', dCol6, y);
+  doc.text('Review', dCol7, y);
+  y += 4;
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 12;
+  doc.setFont('helvetica', 'normal');
+
+  for (const day of eachDayOfInterval({ start: startDate, end: endDate })) {
+    ensureRoom(12);
+    const dayEntries = entriesForDay(entries, day);
+    const s = summarize(dayEntries);
+    const review = s.failed.count + s.duplicate.count;
+    const muted = s.captured === 0;
+    if (muted) doc.setTextColor(160);
+    doc.text(format(day, 'EEE'), dCol1, y);
+    doc.text(format(day, 'yyyy-MM-dd'), dCol2, y);
+    doc.text(String(s.captured), dCol3, y);
+    doc.text(formatUGX(s.total), dCol4, y);
+    doc.text(String(s.synced.count), dCol5, y);
+    doc.text(String(s.pending.count), dCol6, y);
+    doc.text(String(review), dCol7, y);
+    if (muted) doc.setTextColor(0);
+    y += 12;
+  }
+
+  // ─── Itemised payments (same columns as daily PDF + a Date column) ───
+  y += 14;
+  ensureRoom(40);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text('Payments', margin, y);
+  y += 14;
+
+  doc.setFontSize(9);
+  const cDate = margin;
+  const cTime = margin + 70;
+  const cTenant = margin + 110;
+  const cAmount = margin + 240;
+  const cStatus = margin + 310;
+  const cRef = margin + 370;
+  const cNotes = margin + 450;
+  doc.text('Date', cDate, y);
+  doc.text('Time', cTime, y);
+  doc.text('Tenant', cTenant, y);
+  doc.text('Amount', cAmount, y);
+  doc.text('Status', cStatus, y);
+  doc.text('Reference', cRef, y);
+  doc.text('Notes', cNotes, y);
+  y += 4;
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 12;
+  doc.setFont('helvetica', 'normal');
+
+  const sorted = [...entries].sort((a, b) => a.capturedAt - b.capturedAt);
+  if (sorted.length === 0) {
+    doc.setTextColor(120);
+    doc.text('No payments captured in this range.', margin, y);
+    doc.setTextColor(0);
+  } else {
+    for (const e of sorted) {
+      ensureRoom(12);
+      const d = new Date(e.capturedAt);
+      doc.text(format(d, 'MM-dd'), cDate, y);
+      doc.text(format(d, 'HH:mm'), cTime, y);
+      doc.text((e.tenantName || 'Walk-up').slice(0, 22), cTenant, y);
+      doc.text(formatUGX(e.amount), cAmount, y);
+      doc.text(statusLabel(e.syncState), cStatus, y);
+      doc.setFont('courier', 'normal');
+      doc.text(referenceFor(e), cRef, y);
+      doc.setFont('helvetica', 'normal');
+      doc.text((e.notes || '').slice(0, 26), cNotes, y);
+      y += 12;
+    }
+  }
+
+  // ─── Footer ───
+  const total = doc.getNumberOfPages();
+  for (let i = 1; i <= total; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(140);
+    doc.text(
+      'RCT = server receipt · DUP = matched duplicate · LOC = local-only (not yet sent)',
+      margin,
+      pageHeight - margin / 2,
+    );
+    doc.text(
+      `Page ${i} of ${total}`,
+      pageWidth - margin,
+      pageHeight - margin / 2,
+      { align: 'right' },
+    );
+    doc.setTextColor(0);
+  }
+
+  doc.save(`field-collections-${startFile}_to_${endFile}.pdf`);
+}
