@@ -8,7 +8,7 @@
  */
 
 const DB_NAME = 'welile-field-collect';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE_TENANTS = 'tenants';
 const STORE_ENTRIES = 'entries';
 /**
@@ -17,6 +17,14 @@ const STORE_ENTRIES = 'entries';
  * as long as the underlying tenant list (ids) hasn't changed.
  */
 const STORE_TENANT_NORM = 'tenant_norm_cache';
+/**
+ * Persisted "recent / frequent tenants" pick log for the picker.
+ * One row per (agentId, tenantId) tracking pickCount + lastPickedAt so a
+ * tenant the agent reaches for often surfaces at the top across reloads,
+ * even before they've recorded a new field collection. Keyed by
+ * [agentId, tenantId] for O(1) bump on every pick.
+ */
+const STORE_TENANT_PICKS = 'tenant_picks';
 
 export interface CachedTenant {
   agentId: string;
@@ -79,6 +87,10 @@ function openDb(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(STORE_TENANT_NORM)) {
         const s = db.createObjectStore(STORE_TENANT_NORM, { keyPath: ['agentId', 'fingerprint'] });
+        s.createIndex('by_agent', 'agentId', { unique: false });
+      }
+      if (!db.objectStoreNames.contains(STORE_TENANT_PICKS)) {
+        const s = db.createObjectStore(STORE_TENANT_PICKS, { keyPath: ['agentId', 'tenantId'] });
         s.createIndex('by_agent', 'agentId', { unique: false });
       }
     };
