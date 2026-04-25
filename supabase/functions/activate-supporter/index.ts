@@ -213,7 +213,7 @@ Deno.serve(async (req) => {
         }
         userId = existingUser.id;
         // Update their password and metadata
-        await adminClient.auth.admin.updateUser(userId, {
+        await adminClient.auth.admin.updateUserById(userId, {
           password: finalPassword,
           email_confirm: true,
           user_metadata: {
@@ -282,7 +282,7 @@ Deno.serve(async (req) => {
       console.log("[activate-supporter] Granted all 4 public roles to:", userId);
     }
     // Record intended role for default-dashboard routing
-    await adminClient.auth.admin.updateUser(userId, {
+    await adminClient.auth.admin.updateUserById(userId, {
       user_metadata: {
         full_name: finalFullName,
         phone: invite.phone,
