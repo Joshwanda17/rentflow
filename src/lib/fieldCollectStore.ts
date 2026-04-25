@@ -132,6 +132,7 @@ export async function getCachedTenants(agentId: string): Promise<CachedTenant[]>
 
 export async function addEntry(entry: FieldEntry): Promise<void> {
   await tx(STORE_ENTRIES, 'readwrite', (s) => s.put(entry));
+  emitFieldCollectChange('add', entry.agentId);
 }
 
 export async function updateEntry(id: string, patch: Partial<FieldEntry>): Promise<void> {
@@ -148,10 +149,12 @@ export async function updateEntry(id: string, patch: Partial<FieldEntry>): Promi
     t.oncomplete = () => resolve();
     t.onerror = () => reject(t.error);
   });
+  emitFieldCollectChange('update');
 }
 
 export async function deleteEntry(id: string): Promise<void> {
   await tx(STORE_ENTRIES, 'readwrite', (s) => s.delete(id));
+  emitFieldCollectChange('delete');
 }
 
 export async function getEntries(agentId: string): Promise<FieldEntry[]> {
