@@ -493,6 +493,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
       />
       <BillPaymentDialog open={billsOpen} onOpenChange={setBillsOpen} />
       <FoodMarketDialog open={foodMarketOpen} onOpenChange={setFoodMarketOpen} />
+      <NfcCardSetupDialog open={nfcCardOpen} onOpenChange={setNfcCardOpen} />
     </>
   );
 }
