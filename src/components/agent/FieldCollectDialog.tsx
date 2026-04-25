@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -72,6 +72,17 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   const [step, setStep] = useState<Step>(1);
   const [saving, setSaving] = useState(false);
   const [, setSyncing] = useState(false);
+
+  /**
+   * Keyboard navigation for the tenant picker.
+   * activeIdx walks a single virtual list: [...recentTenants, ...filtered].
+   * - ArrowDown / ArrowUp move the highlight (wraps).
+   * - Enter picks the highlighted tenant.
+   * - Escape clears the search box (and highlight) without closing the dialog.
+   * Resets whenever the underlying list contents change.
+   */
+  const [activeIdx, setActiveIdx] = useState(0);
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   /* Online/offline tracking */
   useEffect(() => {
@@ -208,6 +219,30 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   }, [entries, tenants]);
 
   /**
+   * Combined keyboard-navigable option list for Step 1.
+   * Recents come first (prepended) so the most likely tap is at index 0
+   * before the agent starts typing. Once they type, recents drop away and
+   * only the scored suggestions remain.
+   */
+  const keyboardOptions = useMemo<CachedTenant[]>(() => {
+    if (search.trim()) return filtered;
+    // Avoid duplicates between recents and the alphabetical default list.
+    const recentIds = new Set(recentTenants.map(t => t.tenantId));
+    return [...recentTenants, ...filtered.filter(t => !recentIds.has(t.tenantId))];
+  }, [search, filtered, recentTenants]);
+
+  /* Reset highlight whenever the option list shape changes */
+  useEffect(() => {
+    setActiveIdx(0);
+  }, [keyboardOptions.length, search]);
+
+  /* Keep the highlighted option scrolled into view */
+  useEffect(() => {
+    const el = optionRefs.current[activeIdx];
+    if (el) el.scrollIntoView({ block: 'nearest' });
+  }, [activeIdx]);
+
+  /**
    * Last captured entry for the picked tenant — drives the small preview panel
    * (date, amount, notes) so the agent can avoid double-recording. Matches by
    * tenantId first, falling back to a name match (case-insensitive) so walk-up
@@ -240,6 +275,37 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     setSearch('');
     setPurpose('rent');
     setStep(1);
+  };
+
+  /** Single entry point used by mouse, touch, and keyboard selection. */
+  const pickTenant = useCallback((t: CachedTenant) => {
+    setPicked(t);
+    setSearch(t.fullName);
+  }, []);
+
+  /**
+   * Search-input keyboard handler: ArrowDown/Up cycle through the merged
+   * recent + suggestion list, Enter picks the highlight, Escape clears.
+   */
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!keyboardOptions.length) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIdx(i => (i + 1) % keyboardOptions.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIdx(i => (i - 1 + keyboardOptions.length) % keyboardOptions.length);
+    } else if (e.key === 'Enter') {
+      const opt = keyboardOptions[activeIdx];
+      if (opt) {
+        e.preventDefault();
+        pickTenant(opt);
+      }
+    } else if (e.key === 'Escape' && search) {
+      e.preventDefault();
+      setSearch('');
+      setActiveIdx(0);
+    }
   };
 
   const handleSave = async () => {
@@ -682,7 +748,9 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                         Recent
                       </div>
                       <div className="flex gap-2 overflow-x-auto -mx-1 px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                        {recentTenants.map(t => {
+                        {recentTenants.map((t) => {
+                          const optIdx = keyboardOptions.findIndex(o => o.tenantId === t.tenantId);
+                          const isActive = optIdx === activeIdx;
                           const initials = t.fullName
                             .split(/\s+/)
                             .filter(Boolean)
@@ -692,9 +760,16 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                           return (
                             <button
                               key={`recent-${t.tenantId}`}
+                              ref={el => { if (optIdx >= 0) optionRefs.current[optIdx] = el; }}
                               type="button"
-                              onClick={() => { setPicked(t); setSearch(t.fullName); }}
-                              className="shrink-0 flex items-center gap-2 rounded-full border bg-card hover:bg-accent active:bg-accent/80 pl-1.5 pr-3.5 py-1.5 min-h-[40px] transition-colors touch-manipulation"
+                              onClick={() => pickTenant(t)}
+                              onMouseEnter={() => optIdx >= 0 && setActiveIdx(optIdx)}
+                              role="option"
+                              aria-selected={isActive}
+                              className={cn(
+                                'shrink-0 flex items-center gap-2 rounded-full border bg-card hover:bg-accent active:bg-accent/80 pl-1.5 pr-3.5 py-1.5 min-h-[40px] transition-colors touch-manipulation',
+                                isActive && 'ring-2 ring-primary border-primary bg-accent',
+                              )}
                               style={{ WebkitTapHighlightColor: 'transparent' }}
                               aria-label={`Quick pick ${t.fullName}`}
                             >
@@ -716,10 +791,19 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                     <Input
                       value={search}
                       onChange={e => { setSearch(e.target.value); setPicked(null); }}
+                      onKeyDown={handleSearchKeyDown}
                       placeholder={tenants.length ? 'Search name or phone' : 'Connect to load tenants'}
                       className="pl-11 pr-11 h-14 text-base rounded-2xl"
                       autoComplete="off"
                       autoFocus
+                      role="combobox"
+                      aria-expanded={keyboardOptions.length > 0}
+                      aria-controls="tenant-suggestion-list"
+                      aria-activedescendant={
+                        keyboardOptions[activeIdx]
+                          ? `tenant-opt-${keyboardOptions[activeIdx].tenantId}`
+                          : undefined
+                      }
                     />
                     {search && (
                       <button
@@ -734,16 +818,31 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                   </div>
 
                   {(search || tenants.length > 0) && (
-                    <div className="rounded-2xl border max-h-72 overflow-y-auto">
+                    <div
+                      className="rounded-2xl border max-h-72 overflow-y-auto"
+                      id="tenant-suggestion-list"
+                      role="listbox"
+                    >
                       {filtered.length === 0 ? (
                         <p className="p-4 text-sm text-muted-foreground text-center">
                           No match. Use walk-up below.
                         </p>
-                      ) : filtered.map((t, idx) => (
+                      ) : filtered.map((t, idx) => {
+                        const optIdx = keyboardOptions.findIndex(o => o.tenantId === t.tenantId);
+                        const isActive = optIdx === activeIdx;
+                        return (
                         <button
                           key={t.tenantId}
-                          onClick={() => { setPicked(t); setSearch(t.fullName); }}
-                          className="w-full text-left px-4 py-4 min-h-[60px] hover:bg-accent border-b last:border-b-0 flex items-center justify-between gap-2 active:bg-accent/80 touch-manipulation"
+                          id={`tenant-opt-${t.tenantId}`}
+                          ref={el => { if (optIdx >= 0) optionRefs.current[optIdx] = el; }}
+                          onClick={() => pickTenant(t)}
+                          onMouseEnter={() => optIdx >= 0 && setActiveIdx(optIdx)}
+                          role="option"
+                          aria-selected={isActive}
+                          className={cn(
+                            'w-full text-left px-4 py-4 min-h-[60px] border-b last:border-b-0 flex items-center justify-between gap-2 active:bg-accent/80 touch-manipulation transition-colors',
+                            isActive ? 'bg-accent' : 'hover:bg-accent',
+                          )}
                           style={{ WebkitTapHighlightColor: 'transparent' }}
                         >
                           <div className="min-w-0 flex-1">
@@ -767,7 +866,8 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                             </span>
                           ) : null}
                         </button>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
 
