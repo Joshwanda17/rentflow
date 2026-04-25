@@ -124,3 +124,28 @@ export function scoreTenantMatch(rawQuery: string, candidate: TenantMatchInput):
 
   return { score, matchType, phoneScore, nameScore };
 }
+
+/**
+ * Stable, fast fingerprint of a tenant list for cache-key purposes.
+ *
+ * Encodes (id, fullName, phone) for every tenant so the persisted normalized
+ * index is invalidated whenever any of those source values change — but stays
+ * valid across reloads when the list is unchanged. Uses a tiny non-crypto
+ * 32-bit FNV-1a hash so we can fingerprint thousands of rows synchronously.
+ */
+export function tenantListFingerprint(
+  tenants: ReadonlyArray<{ tenantId: string; fullName: string; phone: string | null }>,
+): string {
+  // Sort by tenantId so list-ordering changes alone don't bust the cache.
+  const sorted = [...tenants].sort((a, b) => (a.tenantId < b.tenantId ? -1 : a.tenantId > b.tenantId ? 1 : 0));
+  let h = 0x811c9dc5;
+  for (const t of sorted) {
+    const s = `${t.tenantId}|${t.fullName}|${t.phone ?? ''}\n`;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 0x01000193);
+    }
+  }
+  // Include length so empty/non-empty lists never collide on h=offset basis.
+  return `${sorted.length}-${(h >>> 0).toString(16)}`;
+}

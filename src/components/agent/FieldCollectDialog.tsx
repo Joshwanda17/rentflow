@@ -17,12 +17,13 @@ import {
 import {
   cacheTenants, getCachedTenants, addEntry, deleteEntry, getEntries,
   getQueuedEntries, updateEntry, newClientUuid,
-  type CachedTenant, type FieldEntry,
+  getCachedNormalizedIndex, saveCachedNormalizedIndex,
+  type CachedTenant, type FieldEntry, type NormalizedTenantEntry,
 } from '@/lib/fieldCollectStore';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
 import { FieldCollectDailyTotals } from '@/components/agent/FieldCollectDailyTotals';
-import { normalizeName, normalizePhone } from '@/lib/tenantSearch';
+import { normalizeName, normalizePhone, tenantListFingerprint } from '@/lib/tenantSearch';
 
 interface FieldCollectDialogProps {
   open: boolean;
@@ -277,15 +278,69 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
    * normalized values instead of re-running normalizeName/normalizePhone for
    * every tenant on every render. Significant speed-up for agents with
    * hundreds/thousands of cached tenants.
+   *
+   * The index is also persisted to IndexedDB keyed by a fingerprint of the
+   * tenant list so the heavy O(N) normalization work survives reloads. On
+   * cold start we attempt to hydrate from the persisted cache; we only
+   * recompute (and re-persist) when the fingerprint changes.
+   */
+  const fingerprint = useMemo(() => tenantListFingerprint(tenants), [tenants]);
+  // Per-tenantId normalized lookup. Hydrated from IndexedDB or recomputed.
+  const [normalizedById, setNormalizedById] = useState<Map<string, NormalizedTenantEntry>>(new Map());
+
+  useEffect(() => {
+    if (!user?.id) return;
+    if (!tenants.length) {
+      setNormalizedById(new Map());
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      // 1. Try to hydrate from the persisted cache.
+      const cached = await getCachedNormalizedIndex(user.id, fingerprint);
+      if (cancelled) return;
+      if (cached && cached.length === tenants.length) {
+        setNormalizedById(new Map(cached.map(e => [e.tenantId, e])));
+        return;
+      }
+      // 2. Cache miss → recompute and persist for next reload.
+      const entries: NormalizedTenantEntry[] = tenants.map(t => {
+        const name = normalizeName(t.fullName);
+        return {
+          tenantId: t.tenantId,
+          name,
+          phone: normalizePhone(t.phone),
+          nameWords: name.split(' ').filter(Boolean),
+        };
+      });
+      if (cancelled) return;
+      setNormalizedById(new Map(entries.map(e => [e.tenantId, e])));
+      // Fire-and-forget persistence — don't block the UI on IndexedDB.
+      void saveCachedNormalizedIndex(user.id, fingerprint, entries);
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id, fingerprint, tenants]);
+
+  /**
+   * Adapter that exposes the normalized index in the shape the existing
+   * filter/scoring code consumes — `{ t, name, phone, nameWords }` per tenant.
+   * Falls back to on-the-fly normalization for any tenant that hasn't been
+   * indexed yet (e.g. mid-hydration), so search never returns empty results
+   * just because the cache hasn't loaded.
    */
   const tenantIndex = useMemo(
-    () => tenants.map(t => ({
-      t,
-      name: normalizeName(t.fullName),
-      phone: normalizePhone(t.phone),
-      nameWords: normalizeName(t.fullName).split(' ').filter(Boolean),
-    })),
-    [tenants],
+    () => tenants.map(t => {
+      const cached = normalizedById.get(t.tenantId);
+      if (cached) return { t, name: cached.name, phone: cached.phone, nameWords: cached.nameWords };
+      const name = normalizeName(t.fullName);
+      return {
+        t,
+        name,
+        phone: normalizePhone(t.phone),
+        nameWords: name.split(' ').filter(Boolean),
+      };
+    }),
+    [tenants, normalizedById],
   );
 
   const filtered = useMemo(() => {
