@@ -87,7 +87,7 @@ export function AgentPriorityGrid({ agentId, onOpenFieldCollect, onOpenNewTenant
         icon={<Wallet className="h-6 w-6" strokeWidth={2.2} />}
         iconBg="bg-primary text-primary-foreground"
         label="Field Collect"
-        valueLabel={fieldCollectActive ? formatUGX(collectedToday) : 'Tap to record'}
+        valueLabel={fieldCollectActive ? formatUGX(collectedToday) : 'No cash yet'}
         sub={
           fieldCollectAttention
             ? !online
@@ -95,7 +95,7 @@ export function AgentPriorityGrid({ agentId, onOpenFieldCollect, onOpenNewTenant
               : `${pendingCount} to send`
             : fieldCollectActive
               ? `${collectedToday > 0 ? 'Today' : ' '}`
-              : 'Cash payment'
+              : 'Tap to record first payment'
         }
         statusIcon={
           fieldCollectAttention
@@ -112,8 +112,8 @@ export function AgentPriorityGrid({ agentId, onOpenFieldCollect, onOpenNewTenant
         icon={<UserPlus className="h-6 w-6" strokeWidth={2.2} />}
         iconBg="bg-[hsl(var(--chart-1))] text-white"
         label="New Tenant"
-        valueLabel="Start request"
-        sub="Rent in advance"
+        valueLabel="Add tenant"
+        sub="Start a rent request"
       />
 
       {/* 3. Welile Vouch — live guaranteed credit */}
@@ -122,8 +122,8 @@ export function AgentPriorityGrid({ agentId, onOpenFieldCollect, onOpenNewTenant
         icon={<ShieldCheck className="h-6 w-6" strokeWidth={2.2} />}
         iconBg="bg-emerald-600 text-white"
         label="Welile Vouch"
-        valueLabel={vouch > 0 ? formatUGX(vouch) : 'View'}
-        sub={vouch > 0 ? `Score ${score}` : 'Build your trust'}
+        valueLabel={vouch > 0 ? formatUGX(vouch) : 'No limit yet'}
+        sub={vouch > 0 ? `Score ${score}` : 'Collect to unlock credit'}
       />
 
       {/* 4. Profile — avatar shortcut */}
@@ -136,8 +136,14 @@ export function AgentPriorityGrid({ agentId, onOpenFieldCollect, onOpenNewTenant
         }
         iconBg={profile?.avatar_url ? 'bg-transparent' : 'bg-muted text-foreground'}
         label="Profile"
-        valueLabel="My account"
-        sub={profile?.verified ? 'Verified ✓' : 'Settings'}
+        valueLabel={profile?.full_name ? 'My account' : 'Finish setup'}
+        sub={
+          profile?.verified
+            ? 'Verified ✓'
+            : profile?.avatar_url
+              ? 'Get verified'
+              : 'Add photo & details'
+        }
       />
     </div>
   );
