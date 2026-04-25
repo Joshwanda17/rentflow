@@ -739,7 +739,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     // digit query and there are multiple candidates — drives the UI hint.
     const ambiguous = isShortPhoneQuery && scored.length > 1;
     return storeAndReturn(scored.map(s => ({ ...s, ambiguous })));
-  }, [tenantIndex, tenants, debouncedSearch, fingerprint, entries, browseSort, browsePage, user?.id]);
+  }, [tenantIndex, tenants, debouncedSearch, fingerprint, entries, browseSort, browseStatus, browsePage, user?.id]);
 
   /**
    * Tail-share hint metadata.
@@ -773,13 +773,23 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   }, [debouncedSearch, tenantIndex]);
 
   /**
-   * Browse-mode pager metadata. Only meaningful when the search box is empty
-   * — `pageCount` drives the Prev/Next button enabled state and the
-   * "Page X of Y" label.
+   * Browse-mode active set size + pager metadata. The status filter
+   * (All / Active / Inactive) narrows the universe, so the page count and
+   * the count chip in the toolbar must reflect the FILTERED size — not
+   * the full caseload. Recomputes only when the filter, tenant list, or
+   * captured-entry set changes; it's an O(N) scan with no allocations.
    */
+  const browseFilteredCount = useMemo(() => {
+    if (browseStatus === 'all') return tenants.length;
+    const activeIds = new Set<string>();
+    for (const e of entries) if (e.tenantId) activeIds.add(e.tenantId);
+    return browseStatus === 'active'
+      ? tenants.reduce((n, t) => n + (activeIds.has(t.tenantId) ? 1 : 0), 0)
+      : tenants.reduce((n, t) => n + (activeIds.has(t.tenantId) ? 0 : 1), 0);
+  }, [tenants, entries, browseStatus]);
   const browsePageCount = useMemo(
-    () => Math.max(1, Math.ceil(tenants.length / BROWSE_PAGE_SIZE)),
-    [tenants.length],
+    () => Math.max(1, Math.ceil(browseFilteredCount / BROWSE_PAGE_SIZE)),
+    [browseFilteredCount],
   );
 
   /* Clamp the page if the tenant list shrinks under us. */
@@ -793,6 +803,11 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   useEffect(() => {
     setBrowsePage(0);
   }, [browseSort]);
+  /* Same idea for the status toggle: flipping All → Active should land
+   * on page 1 of the narrowed list, not page 7 of the old one. */
+  useEffect(() => {
+    setBrowsePage(0);
+  }, [browseStatus]);
   useEffect(() => {
     if (search) setBrowsePage(0);
   }, [search]);
