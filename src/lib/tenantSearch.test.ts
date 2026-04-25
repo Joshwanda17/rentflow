@@ -7,6 +7,7 @@ import {
   tailMatch,
   tailSharedCounts,
   applyShortQuerySuppression,
+  scoreTenantMatchDebug,
 } from './tenantSearch';
 
 describe('normalizeName', () => {
@@ -453,5 +454,67 @@ describe('applyShortQuerySuppression — single-candidate safety net', () => {
 
   it('handles the empty result list cleanly', () => {
     expect(applyShortQuerySuppression('456', [])).toEqual([]);
+  });
+});
+
+describe('scoreTenantMatchDebug — per-lane diagnostic output', () => {
+  const T = (fullName: string, phone: string) => ({ fullName, phone });
+
+  it('agrees with scoreTenantMatch on the final score', () => {
+    const cases: Array<[string, ReturnType<typeof T>]> = [
+      ['456', T('Alice', '0772 123 456')],
+      ['Alice', T('Alice Smith', '0772 999 000')],
+      ['0772', T('Bob', '0772 123 456')],
+      ['xyz', T('Alice', '0772 123 456')],
+    ];
+    for (const [q, c] of cases) {
+      const a = scoreTenantMatch(q, c);
+      const b = scoreTenantMatchDebug(q, c);
+      expect(b.score).toBe(a.score);
+      expect(b.matchType).toBe(a.matchType);
+      expect(b.phoneScore).toBe(a.phoneScore);
+      expect(b.nameScore).toBe(a.nameScore);
+    }
+  });
+
+  it('emits normalized inputs the scorer compared', () => {
+    const d = scoreTenantMatchDebug('+256 772 123 456', T('José', '+256-772-123-456'));
+    expect(d.normalized.queryPhone).toBe('772123456');
+    expect(d.normalized.candidatePhone).toBe('772123456');
+    expect(d.normalized.candidateName).toBe('jose');
+  });
+
+  it('flags short-query classification + tail-3+boundary reason', () => {
+    const d = scoreTenantMatchDebug('456', T('Alice', '0772 123 456'));
+    expect(d.classification.isPhoneQuery).toBe(true);
+    expect(d.classification.isShortPhoneQuery).toBe(true);
+    expect(d.classification.phoneQueryLength).toBe(3);
+    expect(d.phoneLane.reason).toBe('tail-3+boundary');
+    expect(d.phoneLane.tail).toEqual({ tailLen: 3, boundary: true });
+    expect(d.phoneLane.score).toBe(115);
+  });
+
+  it('leaves fuzzyVariant null when the strict path produced the score', () => {
+    // Strict normalization handles this query cleanly, so the fuzzy fallback
+    // never fires — debug output should reflect that.
+    const d = scoreTenantMatchDebug('+256 772 123 456', T('Alice', '0772 123 456'));
+    expect(d.phoneLane.fuzzyVariant).toBeNull();
+    expect(d.bestMatchFallback).toBe(false);
+    expect(d.phoneLane.reason).toBe('exact');
+  });
+
+  it('breaks down a name-word-prefix hit', () => {
+    const d = scoreTenantMatchDebug('smi', T('Alice Smith', '0772 999 000'));
+    expect(d.nameLane.reason).toBe('word-prefix');
+    expect(d.nameLane.score).toBe(80);
+    expect(d.phoneLane.reason).toBe('none');
+  });
+
+  it('returns "none" reasons when nothing matches', () => {
+    const d = scoreTenantMatchDebug('xyz', T('Alice', '0772 123 456'));
+    expect(d.phoneLane.reason).toBe('none');
+    expect(d.nameLane.reason).toBe('none');
+    expect(d.score).toBe(0);
+    expect(d.matchType).toBeNull();
   });
 });

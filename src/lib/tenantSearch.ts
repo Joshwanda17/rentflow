@@ -321,3 +321,166 @@ export function tenantListFingerprint(
   // Include length so empty/non-empty lists never collide on h=offset basis.
   return `${sorted.length}-${(h >>> 0).toString(16)}`;
 }
+
+/**
+ * Per-lane scoring breakdown for a single tenant. Returned by
+ * `scoreTenantMatchDebug` so failing tests (or curious devs) can inspect
+ * EXACTLY why one candidate ranked above another:
+ *   - the raw + normalized query and candidate values
+ *   - which lane (`phone`, `name`, `fuzzy`) fired and the sub-rule that hit
+ *     (e.g. "tail-3+boundary", "name-word-prefix")
+ *   - the query-classification booleans (`isPhoneQuery`, `isShortPhoneQuery`)
+ *   - the tail-match metadata when applicable
+ */
+export interface TenantMatchDebug extends TenantMatchResult {
+  /** Normalized inputs the scorer actually compared. */
+  normalized: {
+    queryName: string;        // normalizeName(rawQuery)
+    queryPhone: string;       // normalizePhone(rawQuery)
+    candidateName: string;    // normalizeName(candidate.fullName)
+    candidatePhone: string;   // normalizePhone(candidate.phone)
+  };
+  /** How the scorer classified the query before lane scoring. */
+  classification: {
+    isPhoneQuery: boolean;
+    isShortPhoneQuery: boolean;
+    phoneQueryLength: number;
+  };
+  /** Phone-lane breakdown: which sub-rule fired and what it contributed. */
+  phoneLane: {
+    score: number;
+    /**
+     * Human-readable reason the phone score landed where it did:
+     *   'none'                  no phone match
+     *   'tail-N'                short-query tail match (3 or 4)
+     *   'tail-N+boundary'       same, with block-aligned bonus
+     *   'exact'                 phone === query (200)
+     *   'starts-with'           phone starts with query (150)
+     *   'ends-with'             phone ends with query (130)
+     *   'contains'              phone contains query (110)
+     *   'mixed-starts-with'     non-phone-y query, digits prefix (100)
+     *   'mixed-contains'        non-phone-y query, digits anywhere (70)
+     *   'fuzzy-exact'           fuzzy variant exact (60)
+     *   'fuzzy-tail'            fuzzy variant tail (55)
+     *   'fuzzy-contains'        fuzzy variant contained (50)
+     */
+    reason:
+      | 'none' | 'tail-3' | 'tail-3+boundary' | 'tail-4' | 'tail-4+boundary'
+      | 'exact' | 'starts-with' | 'ends-with' | 'contains'
+      | 'mixed-starts-with' | 'mixed-contains'
+      | 'fuzzy-exact' | 'fuzzy-tail' | 'fuzzy-contains';
+    /** Tail-match metadata when the short-query path fired (else null). */
+    tail: { tailLen: number; boundary: boolean } | null;
+    /** The fuzzy variant that hit, if the fuzzy fallback fired (else null). */
+    fuzzyVariant: string | null;
+  };
+  /** Name-lane breakdown. */
+  nameLane: {
+    score: number;
+    reason: 'none' | 'starts-with' | 'word-prefix' | 'contains';
+  };
+}
+
+/**
+ * Debug variant of `scoreTenantMatch`. Computes the same final score (so it
+ * stays in lockstep with production behaviour) but additionally emits the
+ * per-lane breakdown above. Use in unit tests or one-off REPL inspection
+ * when a ranking decision looks wrong:
+ *
+ *   const dbg = scoreTenantMatchDebug('456', { fullName: 'Alice', phone: '0772 123 456' });
+ *   console.log(dbg.phoneLane.reason); // → 'tail-3+boundary'
+ *
+ * NOT used in the dialog's hot path — keep `scoreTenantMatch` for that.
+ */
+export function scoreTenantMatchDebug(
+  rawQuery: string,
+  candidate: TenantMatchInput,
+): TenantMatchDebug {
+  const raw = rawQuery.trim();
+  const queryName = normalizeName(raw);
+  const queryPhone = normalizePhone(raw);
+  const candidatePhone = normalizePhone(candidate.phone);
+  const candidateName = normalizeName(candidate.fullName);
+  const nameWords = candidateName.split(' ').filter(Boolean);
+
+  const stripped = raw.replace(/[\s\-+()]/g, '');
+  const isPhoneQuery =
+    queryPhone.length >= 3 &&
+    /\d/.test(raw) &&
+    stripped.replace(/\D+/g, '').length >= stripped.length - 1;
+  const isShortPhoneQuery = isPhoneQuery && queryPhone.length >= 3 && queryPhone.length <= 4;
+
+  // ── Phone lane ────────────────────────────────────────────────────────
+  let phoneScore = 0;
+  let phoneReason: TenantMatchDebug['phoneLane']['reason'] = 'none';
+  let tail: { tailLen: number; boundary: boolean } | null = null;
+  let fuzzyVariant: string | null = null;
+  let bestMatchFallback = false;
+
+  if (isShortPhoneQuery && candidatePhone) {
+    const tm = tailMatch(candidatePhone, queryPhone);
+    if (tm) {
+      tail = tm;
+      phoneScore = 110 + (tm.boundary ? 5 : 0);
+      // e.g. 'tail-3+boundary' or 'tail-4'
+      phoneReason = `tail-${tm.tailLen}${tm.boundary ? '+boundary' : ''}` as TenantMatchDebug['phoneLane']['reason'];
+    }
+  } else if (isPhoneQuery && candidatePhone && candidatePhone.includes(queryPhone)) {
+    if (candidatePhone === queryPhone) { phoneScore = 200; phoneReason = 'exact'; }
+    else if (candidatePhone.startsWith(queryPhone)) { phoneScore = 150; phoneReason = 'starts-with'; }
+    else if (candidatePhone.endsWith(queryPhone)) { phoneScore = 130; phoneReason = 'ends-with'; }
+    else { phoneScore = 110; phoneReason = 'contains'; }
+  } else if (queryPhone && candidatePhone && candidatePhone.includes(queryPhone)) {
+    if (candidatePhone.startsWith(queryPhone)) { phoneScore = 100; phoneReason = 'mixed-starts-with'; }
+    else { phoneScore = 70; phoneReason = 'mixed-contains'; }
+  }
+
+  if (phoneScore === 0 && candidatePhone && /\d/.test(raw)) {
+    const variants = phoneVariants(raw).filter(v => v.length >= 4);
+    for (const v of variants) {
+      if (candidatePhone === v) {
+        phoneScore = 60; phoneReason = 'fuzzy-exact'; fuzzyVariant = v;
+        bestMatchFallback = true; break;
+      }
+      if (candidatePhone.endsWith(v) && v.length >= 6) {
+        phoneScore = 55; phoneReason = 'fuzzy-tail'; fuzzyVariant = v;
+        bestMatchFallback = true; break;
+      }
+      if (candidatePhone.includes(v) && v.length >= 7) {
+        phoneScore = 50; phoneReason = 'fuzzy-contains'; fuzzyVariant = v;
+        bestMatchFallback = true; break;
+      }
+    }
+  }
+
+  // ── Name lane ─────────────────────────────────────────────────────────
+  let nameScore = 0;
+  let nameReason: TenantMatchDebug['nameLane']['reason'] = 'none';
+  if (queryName) {
+    if (candidateName.startsWith(queryName)) { nameScore = 90; nameReason = 'starts-with'; }
+    else if (nameWords.some(w => w.startsWith(queryName))) { nameScore = 80; nameReason = 'word-prefix'; }
+    else if (candidateName.includes(queryName)) { nameScore = 50; nameReason = 'contains'; }
+  }
+
+  const score = Math.max(phoneScore, nameScore);
+  let matchType: MatchType = null;
+  if (phoneScore > 0 && nameScore > 0 && phoneScore === nameScore) matchType = 'both';
+  else if (phoneScore > nameScore) matchType = 'phone';
+  else if (nameScore > 0) matchType = 'name';
+
+  return {
+    score,
+    matchType,
+    phoneScore,
+    nameScore,
+    bestMatchFallback,
+    normalized: { queryName, queryPhone, candidateName, candidatePhone },
+    classification: {
+      isPhoneQuery,
+      isShortPhoneQuery,
+      phoneQueryLength: queryPhone.length,
+    },
+    phoneLane: { score: phoneScore, reason: phoneReason, tail, fuzzyVariant },
+    nameLane: { score: nameScore, reason: nameReason },
+  };
+}
