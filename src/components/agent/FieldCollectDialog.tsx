@@ -809,7 +809,24 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   const pickTenant = useCallback((t: CachedTenant) => {
     setPicked(t);
     setSearch(t.fullName);
-  }, []);
+    // Persist this pick so the "Recent" rail surfaces it across reloads.
+    // Fire-and-forget — the IDB write must not block the UI.
+    if (user?.id && t.tenantId) {
+      void bumpTenantPick(user.id, t.tenantId);
+      // Optimistically nudge the in-memory pick log so the rail re-orders
+      // immediately. The async IDB read (on next open) will reconcile.
+      setPersistedPicks(prev => {
+        const now = Date.now();
+        const existing = prev.find(p => p.tenantId === t.tenantId);
+        const next = existing
+          ? prev.map(p => p.tenantId === t.tenantId
+              ? { ...p, pickCount: p.pickCount + 1, lastPickedAt: now }
+              : p)
+          : [...prev, { agentId: user.id!, tenantId: t.tenantId, pickCount: 1, lastPickedAt: now }];
+        return next;
+      });
+    }
+  }, [user?.id]);
 
   /**
    * Search-input keyboard handler: ArrowDown/Up cycle through the merged
