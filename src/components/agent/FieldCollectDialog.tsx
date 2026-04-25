@@ -1876,6 +1876,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                             role="tab"
                             aria-selected={browseStatus === opt}
                             onClick={() => setBrowseStatus(opt)}
+                            aria-label={`${opt} tenants: ${browseStatusCounts[opt].toLocaleString()}`}
                             className={cn(
                               'inline-flex items-center gap-1 px-3 h-7 rounded-full font-medium capitalize transition-colors',
                               browseStatus === opt
@@ -1883,16 +1884,29 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
                                 : 'text-muted-foreground hover:text-foreground',
                             )}
                           >
-                            {opt}
+                            <span>{opt}</span>
+                            {/*
+                             * Per-chip count pill. Uses a soft inline pill so
+                             * it reads as part of the label (not a separate
+                             * badge), and switches to a higher-contrast tone
+                             * when its chip is selected so the active count
+                             * stays legible against the elevated chip
+                             * background. tabular-nums keeps the digits from
+                             * jittering when counts change between renders.
+                             */}
+                            <span
+                              className={cn(
+                                'tabular-nums text-[10px] px-1.5 rounded-full',
+                                browseStatus === opt
+                                  ? 'bg-muted text-foreground'
+                                  : 'bg-background/60 text-muted-foreground',
+                              )}
+                            >
+                              {browseStatusCounts[opt].toLocaleString()}
+                            </span>
                           </button>
                         ))}
                       </div>
-                      <span
-                        className="text-muted-foreground tabular-nums"
-                        aria-live="polite"
-                      >
-                        {browseFilteredCount.toLocaleString()} tenant{browseFilteredCount === 1 ? '' : 's'}
-                      </span>
                     </div>
                   )}
 
