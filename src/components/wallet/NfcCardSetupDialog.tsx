@@ -265,10 +265,10 @@ export function NfcCardSetupDialog({ open, onOpenChange }: NfcCardSetupDialogPro
                 className="absolute inset-0 w-full h-full object-cover"
                 draggable={false}
               />
-              {/* Card Holder — bottom-left, 20px from left, 20px from bottom, fontsize 16, bold */}
+              {/* Card Holder — bottom-left, 22px from left, 20px from bottom, fontsize 16, bold */}
               <div
                 className="absolute text-white font-bold text-left"
-                style={{ left: 20, bottom: 20, fontSize: 16, lineHeight: 1.2 }}
+                style={{ left: 22, bottom: 20, fontSize: 16, lineHeight: 1.2 }}
               >
                 {holderName}
               </div>
