@@ -9,12 +9,18 @@ const corsHeaders = {
 
 // Commission is handled entirely by the credit_agent_rent_commission RPC — no local rate needed
 
+// supabase-js 2.104 collapses untyped tables to `never` for builder calls.
+// Use a permissive client alias so .from().insert/update/upsert/.rpc work
+// without importing the generated `Database` types in edge functions.
+// deno-lint-ignore no-explicit-any
+type AdminClient = any;
+
 function toNumber(value: unknown): number {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-async function ensureWalletExists(adminClient: ReturnType<typeof createClient>, userId: string) {
+async function ensureWalletExists(adminClient: AdminClient, userId: string) {
   // Only ensures a wallet row exists — balance is managed exclusively by sync_wallet_from_ledger trigger
   const { error } = await adminClient
     .from('wallets')
@@ -24,7 +30,7 @@ async function ensureWalletExists(adminClient: ReturnType<typeof createClient>, 
 }
 
 async function applyRepaymentForRepayingRequest(
-  adminClient: ReturnType<typeof createClient>,
+  adminClient: AdminClient,
   tenantId: string,
   rentRequest: { id: string; amount_repaid: number | null; total_repayment: number | null; status: string | null; landlord_id?: string | null; landlords?: { name?: string | null } | null },
   repaymentAmount: number,
