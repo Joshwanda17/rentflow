@@ -20,6 +20,7 @@ import {
 } from '@/lib/fieldCollectStore';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
+import { FieldCollectDailyTotals } from '@/components/agent/FieldCollectDailyTotals';
 
 interface FieldCollectDialogProps {
   open: boolean;
@@ -339,6 +340,9 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
               </Button>
             </div>
           </div>
+
+          {/* Daily totals — synced vs pending, by session */}
+          <FieldCollectDailyTotals key={entries.length + ':' + queuedCount} />
 
           {/* Tenant picker */}
           <div className="space-y-2">

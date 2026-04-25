@@ -91,6 +91,7 @@ import { FieldCollectFab } from '@/components/agent/FieldCollectFab';
 import { FieldCollectReconciliationSheet } from '@/components/agent/FieldCollectReconciliationSheet';
 import { getDuplicateEntries } from '@/lib/fieldCollectStore';
 import { FileWarning } from 'lucide-react';
+import { FieldCollectDailyTotals } from '@/components/agent/FieldCollectDailyTotals';
 import { FieldCollectCard } from '@/components/agent/FieldCollectCard';
 
 import { AgentTopUpTenantDialog } from '@/components/agent/AgentTopUpTenantDialog';
@@ -428,6 +429,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
             {/* Field Collect — offline cash collection (prominent) */}
             <FieldCollectCard onOpen={() => setFieldCollectOpen(true)} />
+
+            {/* Daily totals from offline field-collection queue (live) */}
+            <FieldCollectDailyTotals live />
 
             {/* Reconciliation banner — only shows when duplicates exist */}
             {duplicateCount > 0 && (
