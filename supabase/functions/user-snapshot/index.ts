@@ -68,7 +68,8 @@ Deno.serve(async (req) => {
       .map((r) => r.role);
 
     // ── Batch ALL queries in parallel ──────────────────────────────
-    const queries: Record<string, Promise<any>> = {};
+    // deno-lint-ignore no-explicit-any
+    const queries: Record<string, any> = {};
 
     // ── CRITICAL tier: profile + wallet only ─────────────────────
     if (wantCritical) {
