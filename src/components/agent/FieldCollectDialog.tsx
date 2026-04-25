@@ -197,7 +197,7 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
       return;
     }
     setSyncing(true);
-    let ok = 0, fail = 0;
+    let ok = 0, fail = 0, dup = 0;
     try {
       const queue = await getQueuedEntries(user.id);
       for (const e of queue) {
@@ -220,28 +220,68 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
             .select('id')
             .single();
           if (error) {
-            // Duplicate (already synced before) is success
+            // Idempotency-key collision: receipt already on server.
+            // Fetch the server record so the agent can reconcile any drift (amount edits etc.)
             if ((error as any).code === '23505') {
-              await updateEntry(e.id, { syncState: 'synced', syncError: null });
-              ok++;
+              const { data: existing } = await (supabase.from('field_collections') as any)
+                .select('id, amount, captured_at, tenant_name, status, created_at')
+                .eq('agent_id', user.id)
+                .eq('client_uuid', e.id)
+                .maybeSingle();
+              const sameAmount = existing && Number(existing.amount) === Number(e.amount);
+              if (existing && sameAmount) {
+                // Identical receipt already uploaded — silently mark as synced.
+                await updateEntry(e.id, {
+                  syncState: 'synced',
+                  serverId: existing.id,
+                  syncError: null,
+                  lastSyncAt: Date.now(),
+                });
+                ok++;
+              } else {
+                // Local entry was edited after a previous successful sync, OR
+                // a different device already pushed this client_uuid with different values.
+                await updateEntry(e.id, {
+                  syncState: 'duplicate',
+                  syncError: 'Already on server — needs reconciliation',
+                  duplicateOfServerId: existing?.id ?? null,
+                  duplicateServerSnapshot: existing ? {
+                    amount: Number(existing.amount),
+                    capturedAt: existing.captured_at,
+                    tenantName: existing.tenant_name,
+                    status: existing.status,
+                    createdAt: existing.created_at,
+                  } : null,
+                  lastSyncAt: Date.now(),
+                });
+                dup++;
+              }
             } else {
-              await updateEntry(e.id, { syncState: 'error', syncError: error.message });
+              await updateEntry(e.id, { syncState: 'error', syncError: error.message, lastSyncAt: Date.now() });
               fail++;
             }
           } else {
-            await updateEntry(e.id, { syncState: 'synced', serverId: (data as any)?.id, syncError: null });
+            await updateEntry(e.id, {
+              syncState: 'synced',
+              serverId: (data as any)?.id,
+              syncError: null,
+              lastSyncAt: Date.now(),
+            });
             ok++;
           }
         } catch (err: any) {
-          await updateEntry(e.id, { syncState: 'error', syncError: err?.message || 'Unknown' });
+          await updateEntry(e.id, { syncState: 'error', syncError: err?.message || 'Unknown', lastSyncAt: Date.now() });
           fail++;
         }
       }
       await refreshEntries();
-      if (ok && !fail) toast.success(`Synced ${ok} entr${ok === 1 ? 'y' : 'ies'}`);
-      else if (ok && fail) toast.warning(`Synced ${ok}, ${fail} failed`);
-      else if (!ok && fail) toast.error(`Failed to sync ${fail} entries`);
-      else toast.info('Nothing to sync');
+      const parts: string[] = [];
+      if (ok) parts.push(`${ok} synced`);
+      if (dup) parts.push(`${dup} duplicate`);
+      if (fail) parts.push(`${fail} failed`);
+      if (!parts.length) toast.info('Nothing to sync');
+      else if (dup || fail) toast.warning(parts.join(' · '));
+      else toast.success(parts.join(' · '));
     } finally {
       setSyncing(false);
     }
