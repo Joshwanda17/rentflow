@@ -13,7 +13,7 @@ import {
   Wallet, Send, Plus, ArrowUpRight, ArrowDownLeft, HandCoins, 
   Bell, TrendingUp, ArrowDownToLine,
   X, Calendar, ChevronRight,
-  ChevronDown, FileDown
+  ChevronDown, FileDown, CreditCard
 } from 'lucide-react';
 import { fetchAgentWalletData } from '@/lib/fetchAgentWalletData';
 import { generateAgentWalletReportPdf } from '@/lib/agentWalletReportPdf';
@@ -27,6 +27,7 @@ import { UserDepositRequests } from './UserDepositRequests';
 import { WithdrawRequestDialog } from './WithdrawRequestDialog';
 import { UserWithdrawalRequests } from './UserWithdrawalRequests';
 import { AnimatedBalance } from './AnimatedBalance';
+import { NfcCardSetupDialog } from './NfcCardSetupDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useAgentBalances } from '@/hooks/useAgentBalances';
@@ -63,6 +64,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
   const [requestOpen, setRequestOpen] = useState(false);
   const [pendingOpen, setPendingOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [nfcCardOpen, setNfcCardOpen] = useState(false);
   const [billsOpen, setBillsOpen] = useState(false);
   const [foodMarketOpen, setFoodMarketOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
@@ -233,6 +235,23 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                   <div className="flex-1">
                     <p className="font-bold text-foreground">Withdraw</p>
                     <p className="text-xs text-muted-foreground">Cash out to mobile money</p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground/50" />
+                </CardContent>
+              </Card>
+
+              {/* Setup Card (NFC) */}
+              <Card
+                className="border-border/50 shadow-sm cursor-pointer active:scale-[0.98] transition-all"
+                onClick={() => { hapticTap(); setNfcCardOpen(true); }}
+              >
+                <CardContent className="p-4 flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-2xl bg-[hsl(270,80%,55%)]/10 flex items-center justify-center shrink-0">
+                    <CreditCard className="h-6 w-6 text-[hsl(270,80%,55%)]" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-foreground">Setup Card</p>
+                    <p className="text-xs text-muted-foreground">Configure NFC card & PIN</p>
                   </div>
                   <ChevronRight className="h-5 w-5 text-muted-foreground/50" />
                 </CardContent>
