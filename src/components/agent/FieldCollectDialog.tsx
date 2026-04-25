@@ -411,6 +411,28 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     }
   }, [browseStatusStorageKey]);
 
+  /**
+   * Detect whether localStorage is actually writable in this browsing
+   * context. Safari Private mode, locked-down enterprise profiles, and
+   * "block all cookies/site data" settings all surface as a thrown
+   * SecurityError / QuotaExceededError on `setItem` even when the
+   * `localStorage` object itself exists. We only need this signal once
+   * per mount — drives a small "Saved in this session" badge so the
+   * agent isn't surprised when their tenant filter resets after refresh.
+   */
+  const [localStorageBlocked, setLocalStorageBlocked] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const probeKey = '__welile_ls_probe__';
+      window.localStorage.setItem(probeKey, '1');
+      window.localStorage.removeItem(probeKey);
+      setLocalStorageBlocked(false);
+    } catch {
+      setLocalStorageBlocked(true);
+    }
+  }, []);
+
   /* Cloud sync master switch — declared here (above the cloud effects)
    * because the read + write effects below gate on it. The localStorage
    * mirror + write-back effect for this flag live further down with the
