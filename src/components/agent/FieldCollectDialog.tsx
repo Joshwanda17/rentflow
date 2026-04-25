@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatDistanceToNow } from 'date-fns';
+import { safeStorage } from '@/lib/safeStorage';
 import {
   Loader2, WifiOff, Wifi, Search, Trash2,
   CheckCircle2, AlertCircle, RefreshCcw, ChevronLeft, ChevronRight,
@@ -344,39 +345,35 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
     : null;
   const [browseSort, setBrowseSort] = useState<BrowseSort>('recent');
   const [browseStatus, setBrowseStatus] = useState<BrowseStatus>(() => {
-    // Lazy initializer so we read localStorage exactly once per mount.
-    // Guards: SSR-safe (typeof window), user-scoped key, and validates
-    // the stored value against the union — anything weird falls back
-    // to 'all' so a corrupted entry never breaks the picker.
-    if (typeof window === 'undefined' || !user?.id) return 'all';
-    try {
-      const raw = window.localStorage.getItem(`welile.fieldCollect.browseStatus:${user.id}`);
-      if (raw === 'all' || raw === 'active' || raw === 'inactive') return raw;
-    } catch {
-      // localStorage can throw in private mode / quota-exceeded — ignore.
-    }
+    // Lazy initializer so we read storage exactly once per mount.
+    // Routed through `safeStorage` which transparently falls back to an
+    // in-memory map when localStorage is blocked (Safari Private mode,
+    // permission denied webviews, quota exceeded). Validates the stored
+    // value against the union — anything weird falls back to 'all' so a
+    // corrupted entry never breaks the picker.
+    if (!user?.id) return 'all';
+    const raw = safeStorage.getItem(`welile.fieldCollect.browseStatus:${user.id}`);
+    if (raw === 'all' || raw === 'active' || raw === 'inactive') return raw;
     return 'all';
   });
 
   /**
    * Persist the chip selection whenever it changes. Skips writes when
    * we don't yet know the user (avoids polluting the unscoped key) and
-   * swallows quota/private-mode errors so a write failure never crashes
-   * the picker — preference persistence is best-effort UX, not data.
+   * `safeStorage` swallows quota/private-mode errors so a write failure
+   * never crashes the picker — preference persistence is best-effort UX,
+   * not data. When localStorage is blocked the value still persists
+   * in-memory for the rest of the session.
    */
   useEffect(() => {
-    if (!browseStatusStorageKey || typeof window === 'undefined') return;
-    try {
-      // Treat 'all' as the absence of a preference: removing the key
-      // (instead of writing it) keeps localStorage clean after Reset
-      // and makes "no key set" semantically equivalent to "default".
-      if (browseStatus === 'all') {
-        window.localStorage.removeItem(browseStatusStorageKey);
-      } else {
-        window.localStorage.setItem(browseStatusStorageKey, browseStatus);
-      }
-    } catch {
-      /* noop — see above */
+    if (!browseStatusStorageKey) return;
+    // Treat 'all' as the absence of a preference: removing the key
+    // (instead of writing it) keeps storage clean after Reset and makes
+    // "no key set" semantically equivalent to "default".
+    if (browseStatus === 'all') {
+      safeStorage.removeItem(browseStatusStorageKey);
+    } else {
+      safeStorage.setItem(browseStatusStorageKey, browseStatus);
     }
   }, [browseStatus, browseStatusStorageKey]);
 
@@ -390,15 +387,11 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   const hasHydratedStatusRef = useRef(false);
   useEffect(() => {
     if (hasHydratedStatusRef.current) return;
-    if (!browseStatusStorageKey || typeof window === 'undefined') return;
+    if (!browseStatusStorageKey) return;
     hasHydratedStatusRef.current = true;
-    try {
-      const raw = window.localStorage.getItem(browseStatusStorageKey);
-      if (raw === 'all' || raw === 'active' || raw === 'inactive') {
-        setBrowseStatus(raw);
-      }
-    } catch {
-      /* noop */
+    const raw = safeStorage.getItem(browseStatusStorageKey);
+    if (raw === 'all' || raw === 'active' || raw === 'inactive') {
+      setBrowseStatus(raw);
     }
   }, [browseStatusStorageKey]);
 
