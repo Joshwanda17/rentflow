@@ -348,6 +348,24 @@ export function TidVerification() {
     if (el) el.scrollIntoView({ block: 'nearest' });
   }, [highlightedIndex]);
 
+  // Auto-select when the search/filters narrow the list to exactly one row.
+  // Saves a click for the common "type a name → one match" case. We only
+  // auto-pick when the operator has actively narrowed (search text or a
+  // non-default filter), to avoid surprising picks on a fresh page.
+  useEffect(() => {
+    const hasActiveNarrowing =
+      pendingSearch.trim().length > 0 ||
+      matchField !== 'any' ||
+      amountRange !== 'any' ||
+      verification !== 'any';
+    if (!hasActiveNarrowing) return;
+    if (pendingSorted.length !== 1) return;
+    const only = pendingSorted[0];
+    if (pickedId === only.id) return;
+    pickPending(only);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingSorted, pendingSearch, matchField, amountRange, verification]);
+
   const handlePendingKeyDown = (e: React.KeyboardEvent<HTMLUListElement>) => {
     if (pendingSorted.length === 0) return;
     if (e.key === 'ArrowDown') {
