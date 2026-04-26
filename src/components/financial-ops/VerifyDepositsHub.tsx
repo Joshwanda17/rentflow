@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { ShieldCheck, Wallet, User, Filter, X } from 'lucide-react';
 import { TidVerification } from './TidVerification';
 import { FieldDepositVerificationQueue } from './FieldDepositVerificationQueue';
+import { RecentlyVerifiedList } from './RecentlyVerifiedList';
 import { supabase } from '@/integrations/supabase/client';
 import type { DepositChannel } from '@/lib/fieldDepositBatches';
 import { cn } from '@/lib/utils';
@@ -223,6 +224,7 @@ export function VerifyDepositsHub() {
             </p>
           )}
           <TidVerification />
+          <RecentlyVerifiedList source="user" />
         </TabsContent>
 
         <TabsContent value="field" className="mt-4 space-y-2">
@@ -235,6 +237,7 @@ export function VerifyDepositsHub() {
             minAmount={minNum !== undefined && !Number.isNaN(minNum) ? minNum : undefined}
             maxAmount={maxNum !== undefined && !Number.isNaN(maxNum) ? maxNum : undefined}
           />
+          <RecentlyVerifiedList source="field" />
         </TabsContent>
       </Tabs>
     </div>
