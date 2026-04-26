@@ -370,7 +370,15 @@ export function VerifyDepositsHub() {
             )}
           </div>
           <Select value={verifierId} onValueChange={setVerifierId}>
-            <SelectTrigger className="h-8 text-sm">
+            <SelectTrigger
+              className={cn(
+                'h-8 text-sm',
+                // Strong, theme-aware focus ring so keyboard operators can
+                // see exactly where focus lands. Stacked over the default
+                // Radix focus styles for extra contrast on dark themes.
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+              )}
+            >
               <SelectValue placeholder="Any operator" />
             </SelectTrigger>
             <SelectContent>
@@ -395,9 +403,19 @@ export function VerifyDepositsHub() {
                   aria-label="Search verifiers by name"
                 />
               </div>
-              <SelectItem value="all">Any operator</SelectItem>
+              <SelectItem
+                value="all"
+                className="focus-visible:ring-2 focus-visible:ring-primary focus:ring-2 focus:ring-primary"
+              >
+                Any operator
+              </SelectItem>
               {meId ? (
-                <SelectItem value={meId}>
+                <SelectItem
+                  value={meId}
+                  // Highlighted ring for the "Me" quick-pick so it's the
+                  // most discoverable option when tabbing through.
+                  className="focus-visible:ring-2 focus-visible:ring-primary focus:ring-2 focus:ring-primary data-[highlighted]:ring-2 data-[highlighted]:ring-primary"
+                >
                   Me{meName ? ` (${meName})` : ''}
                 </SelectItem>
               ) : (
