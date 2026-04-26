@@ -38,6 +38,29 @@ function relativeTime(iso: string): string {
   return `${Math.floor(h / 24)}d ago`;
 }
 
+/** Per-channel reference shape rules. MUST stay in sync with the server-side
+ *  TXN_REF_RULES in supabase/functions/submit-offline-collection/index.ts —
+ *  Financial Ops will reject anything that doesn't match these patterns. */
+const TXN_REF_PATTERNS: Record<TxnRefChannel, RegExp> = {
+  mtn_momo: /^[A-Z0-9]{8,20}$/,
+  airtel_money: /^[A-Z0-9.]{8,30}$/,
+  momo_receipt: /^[A-Z0-9-]{6,30}$/,
+  bank_transfer: /^[A-Z0-9-]{6,30}$/,
+};
+
+/** A draft can be sent to Financial Ops ONLY when it carries a fully-validated
+ *  Transaction Reference proof. Photo / signature / SMS-code captures are
+ *  fallbacks that block the on-device "Submit" button — the agent must come
+ *  back and add a verified TXN ref before Ops will see anything. */
+function isSubmittableToFinancialOps(draft: OfflineCollectionDraft): boolean {
+  const p = draft.proof_bundle;
+  if (!p || p.type !== 'transaction_ref') return false;
+  if (!p.channel || !(p.channel in TXN_REF_PATTERNS)) return false;
+  const ref = (p.reference || '').trim().toUpperCase();
+  if (!ref) return false;
+  return TXN_REF_PATTERNS[p.channel].test(ref);
+}
+
 export function AgentPendingSyncDrawer({ open, onOpenChange }: Props) {
   const { user } = useAuth();
   const { isOnline } = useOffline();
