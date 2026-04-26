@@ -343,6 +343,15 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
           <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
             Vouch history
           </p>
+          {isApplyingRealtime && (
+            <span
+              className="inline-flex items-center gap-1 ml-1 px-1.5 h-4 rounded-full bg-primary/10 text-primary text-[9px] font-bold uppercase tracking-wider animate-pulse"
+              aria-live="polite"
+            >
+              <RefreshCw className="h-2.5 w-2.5 animate-spin" />
+              Updating
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1 flex-wrap">
           {PRESETS.map((p) => (
