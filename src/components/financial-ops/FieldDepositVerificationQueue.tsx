@@ -9,6 +9,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuCheckboxItem,
+} from '@/components/ui/dropdown-menu';
 import { formatUGX } from '@/lib/rentCalculations';
 import { formatDistanceToNow, format } from 'date-fns';
 import { toast } from 'sonner';
@@ -23,6 +31,7 @@ import {
   Clock,
   User as UserIcon,
   Download,
+  Columns3,
 } from 'lucide-react';
 import {
   PendingBatch,
