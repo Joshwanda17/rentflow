@@ -255,6 +255,26 @@ export function TidVerification() {
     loadPending();
   }, [loadPending]);
 
+  // Sync pick state to sessionStorage so a refresh restores the same pick
+  // (and therefore the mismatch warning, recap, and prefilled amount).
+  useEffect(() => {
+    try {
+      if (pickedId) sessionStorage.setItem(PICKED_ID_KEY, pickedId);
+      else sessionStorage.removeItem(PICKED_ID_KEY);
+    } catch {
+      // sessionStorage may be unavailable (private mode, quota) — ignore.
+    }
+  }, [pickedId]);
+
+  useEffect(() => {
+    try {
+      if (pickedProvider) sessionStorage.setItem(PICKED_PROVIDER_KEY, pickedProvider);
+      else sessionStorage.removeItem(PICKED_PROVIDER_KEY);
+    } catch {
+      // ignore
+    }
+  }, [pickedProvider]);
+
   /** Click a pending row to prefill the form (amount + provider). The TID
    *  input intentionally stays empty — the operator types it from their
    *  bank/MoMo statement to confirm the match. */
