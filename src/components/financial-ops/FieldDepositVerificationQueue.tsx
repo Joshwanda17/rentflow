@@ -31,6 +31,7 @@ import {
   Clock,
   User as UserIcon,
   Download,
+  FileText,
   Columns3,
 } from 'lucide-react';
 import {
@@ -43,6 +44,7 @@ import { FieldDepositVerifyDialog } from './FieldDepositVerifyDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
 import { downloadCsv, csvTimestamp } from '@/lib/csvExport';
+import { downloadAuditPdf, pdfTimestampLabel } from '@/lib/pdfAuditReport';
 
 /**
  * A row in the unified verification table — pending batches PLUS the most
