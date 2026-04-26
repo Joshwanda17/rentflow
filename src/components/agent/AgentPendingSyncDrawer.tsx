@@ -148,38 +148,35 @@ export function AgentPendingSyncDrawer({ open, onOpenChange }: Props) {
     setSignatureDataUrl(null);
   };
 
-  // Reference format rules per channel
-  const refRules: Record<TxnRefChannel, { label: string; placeholder: string; pattern: RegExp; hint: string }> = {
+  // Per-channel UI metadata. The validation regex itself comes from
+  // TXN_REF_PATTERNS so the client and the edge function agree byte-for-byte.
+  const refRules: Record<TxnRefChannel, { label: string; placeholder: string; hint: string }> = {
     mtn_momo: {
       label: 'MTN MoMo Transaction ID',
       placeholder: 'e.g. 12345678901',
-      pattern: /^[A-Z0-9]{8,20}$/i,
       hint: 'Found in the MTN MoMo confirmation SMS — usually 10–12 digits.',
     },
     airtel_money: {
       label: 'Airtel Money Transaction ID',
       placeholder: 'e.g. AB231231.1234.A12345',
-      pattern: /^[A-Z0-9.]{8,30}$/i,
       hint: 'Found in the Airtel Money confirmation SMS.',
     },
     momo_receipt: {
       label: 'MoMo / Wallet Receipt Number',
       placeholder: 'e.g. RCP-2025-001234',
-      pattern: /^[A-Z0-9-]{6,30}$/i,
       hint: 'Receipt number printed or sent on the wallet provider receipt.',
     },
     bank_transfer: {
       label: 'Bank Reference Number',
       placeholder: 'e.g. STN240426001234',
-      pattern: /^[A-Z0-9-]{6,30}$/i,
       hint: 'Reference printed on the deposit slip or bank SMS.',
     },
   };
 
   const txnRefIsValid = (() => {
-    const ref = txnReference.trim();
+    const ref = txnReference.trim().toUpperCase();
     if (!ref) return false;
-    return refRules[txnChannel].pattern.test(ref);
+    return TXN_REF_PATTERNS[txnChannel].test(ref);
   })();
 
   const proofIsReady = (() => {
