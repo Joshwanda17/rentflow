@@ -60,7 +60,7 @@ interface SubmissionRow {
 interface ProfileLite {
   id: string;
   full_name: string | null;
-  phone_number: string | null;
+  phone: string | null;
 }
 
 const statusBadge = (status: string) => {
@@ -146,7 +146,7 @@ export function OfflineSubmissionsQueue() {
     if (ids.length > 0) {
       const { data: profs } = await supabase
         .from('profiles')
-        .select('id, full_name, phone_number')
+        .select('id, full_name, phone')
         .in('id', ids);
       const map: Record<string, ProfileLite> = {};
       (profs ?? []).forEach((p) => { map[p.id] = p as ProfileLite; });
@@ -398,12 +398,12 @@ export function OfflineSubmissionsQueue() {
                   <div>
                     <div className="text-muted-foreground mb-0.5">Agent</div>
                     <div className="font-medium">{profiles[selected.agent_id]?.full_name ?? selected.agent_id.slice(0, 8)}</div>
-                    <div className="text-muted-foreground">{profiles[selected.agent_id]?.phone_number ?? '—'}</div>
+                    <div className="text-muted-foreground">{profiles[selected.agent_id]?.phone ?? '—'}</div>
                   </div>
                   <div>
                     <div className="text-muted-foreground mb-0.5">Tenant</div>
                     <div className="font-medium">{profiles[selected.tenant_id]?.full_name ?? selected.tenant_id.slice(0, 8)}</div>
-                    <div className="text-muted-foreground">{profiles[selected.tenant_id]?.phone_number ?? '—'}</div>
+                    <div className="text-muted-foreground">{profiles[selected.tenant_id]?.phone ?? '—'}</div>
                   </div>
                   <div>
                     <div className="text-muted-foreground mb-0.5">Amount</div>
