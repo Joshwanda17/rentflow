@@ -297,17 +297,42 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleExport}
-              disabled={exporting}
-              className="h-7 gap-1 text-[11px]"
-              title="Download verified & rejected deposits for audit reconciliation"
-            >
-              {exporting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
-              <span className="hidden sm:inline">Export</span>
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={exporting}
+                  className="h-7 gap-1 text-[11px]"
+                  title="Download verified & rejected deposits for audit reconciliation"
+                >
+                  {exporting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+                  <span className="hidden sm:inline">Export</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel className="text-[11px]">
+                  Export format
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                  checked={false}
+                  onCheckedChange={() => handleExportCsv()}
+                  onSelect={(e) => e.preventDefault()}
+                >
+                  <Download className="mr-2 h-3 w-3" />
+                  CSV (spreadsheet)
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={false}
+                  onCheckedChange={() => handleExportPdf()}
+                  onSelect={(e) => e.preventDefault()}
+                >
+                  <FileText className="mr-2 h-3 w-3" />
+                  PDF (audit report)
+                </DropdownMenuCheckboxItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button
               variant="ghost"
               size="sm"
