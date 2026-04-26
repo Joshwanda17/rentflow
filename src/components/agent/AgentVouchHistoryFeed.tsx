@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { History, ArrowUpRight, ArrowDownRight, RotateCcw, ExternalLink, CalendarIcon, Download } from 'lucide-react';
+import { History, ArrowUpRight, ArrowDownRight, RotateCcw, ExternalLink, CalendarIcon, Download, Copy, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
@@ -494,6 +494,7 @@ function CollectionDetailDialog({
         )}
         {!loading && data && (
           <dl className="text-sm space-y-2">
+            <ReferenceRow id={data.id} />
             <Row label="Amount" value={formatUGX(Number(data.amount))} strong />
             <Row label="Date" value={new Date(data.created_at).toLocaleString()} />
             <Row label="Tenant" value={data.tenant_name || data.tenant_id.slice(0, 8)} />
@@ -517,6 +518,57 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
       <dt className="text-xs uppercase tracking-wide text-muted-foreground">{label}</dt>
       <dd className={cn('text-right break-all', strong ? 'font-bold text-foreground' : 'text-foreground')}>
         {value}
+      </dd>
+    </div>
+  );
+}
+
+function ReferenceRow({ id }: { id: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy() {
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(id);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = id;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      setCopied(true);
+      toast.success('Reference ID copied');
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      toast.error('Could not copy reference ID');
+    }
+  }
+
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <dt className="text-xs uppercase tracking-wide text-muted-foreground">Reference ID</dt>
+      <dd className="flex items-center gap-1.5 min-w-0">
+        <code className="text-[11px] font-mono text-foreground truncate max-w-[180px]" title={id}>
+          {id}
+        </code>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className={cn(
+            'h-6 px-1.5 rounded-md inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider transition-colors shrink-0',
+            copied
+              ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+              : 'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground',
+          )}
+          title="Copy reference ID"
+        >
+          {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+          {copied ? 'Copied' : 'Copy'}
+        </button>
       </dd>
     </div>
   );
