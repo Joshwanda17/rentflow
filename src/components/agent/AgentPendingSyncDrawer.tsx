@@ -220,6 +220,90 @@ export function AgentPendingSyncDrawer({ open, onOpenChange }: Props) {
     toast('Draft deleted');
   };
 
+  /**
+   * Submit a single draft to Financial Ops via the `submit-offline-collection`
+   * edge function.
+   *
+   * Hard rules enforced here BEFORE the network call (the server enforces them
+   * again — this is just the fast-fail path):
+   *   1. Must be online. Drafts cannot be submitted from a phone with no data.
+   *   2. Proof bundle MUST be `transaction_ref` with a channel + reference
+   *      that match the per-channel regex. Photo / signature / SMS-code
+   *      proofs are stored on-device but cannot pass this gate.
+   */
+  const handleSubmit = async (draft: OfflineCollectionDraft) => {
+    if (!isOnline) {
+      toast.error('You are offline', {
+        description: 'Reconnect to data before submitting to Financial Ops.',
+      });
+      return;
+    }
+    if (!isSubmittableToFinancialOps(draft)) {
+      toast.error('Transaction Reference required', {
+        description:
+          'Add a verified MTN/Airtel TXN ID, wallet receipt, or bank reference before submitting.',
+      });
+      // Auto-open the proof panel so the agent fixes it in one tap.
+      resetProofUI();
+      setActiveDraftId(draft.draft_id);
+      return;
+    }
+
+    setSubmittingId(draft.draft_id);
+    await updateDraft(draft.draft_id, { status: 'syncing', last_error: null });
+    await refresh();
+
+    try {
+      const { data, error } = await supabase.functions.invoke('submit-offline-collection', {
+        body: {
+          draft_id: draft.draft_id,
+          tenant_id: draft.tenant_id,
+          rent_request_id: draft.rent_request_id,
+          amount: draft.amount,
+          notes: draft.notes,
+          captured_at: draft.captured_at,
+          provisional_receipt_no: draft.provisional_receipt_no,
+          gps_lat: draft.gps_lat,
+          gps_lng: draft.gps_lng,
+          gps_accuracy: draft.gps_accuracy,
+          proof_bundle: draft.proof_bundle,
+        },
+      });
+
+      if (error || (data && (data as { error?: string }).error)) {
+        const message =
+          (data as { message?: string })?.message ||
+          error?.message ||
+          'Submission rejected by Financial Ops';
+        await updateDraft(draft.draft_id, {
+          status: 'rejected',
+          last_error: message,
+          last_attempted_at: new Date().toISOString(),
+          attempts: (draft.attempts ?? 0) + 1,
+        });
+        toast.error('Financial Ops rejected the draft', { description: message });
+      } else {
+        // Server accepted — clear the on-device draft. Source of truth is now
+        // the server's collection record.
+        await deleteDraft(draft.draft_id);
+        toast.success('Submitted to Financial Ops', {
+          description: `Server receipt ${(data as { server_receipt_no?: string })?.server_receipt_no || 'recorded'}`,
+        });
+      }
+    } catch (err: any) {
+      await updateDraft(draft.draft_id, {
+        status: 'rejected',
+        last_error: err?.message || 'Network error',
+        last_attempted_at: new Date().toISOString(),
+        attempts: (draft.attempts ?? 0) + 1,
+      });
+      toast.error('Could not submit', { description: err?.message || 'Try again.' });
+    } finally {
+      setSubmittingId(null);
+      await refresh();
+    }
+  };
+
   const awaitingProof = drafts.filter(d => d.status === 'awaiting_proof');
   const ready = drafts.filter(d => d.status === 'ready_to_submit');
 
