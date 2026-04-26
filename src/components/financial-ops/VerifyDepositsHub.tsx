@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { ShieldCheck, Wallet, User, Filter, X } from 'lucide-react';
 import { TidVerification } from './TidVerification';
 import { FieldDepositVerificationQueue } from './FieldDepositVerificationQueue';
+import { RecentlyVerifiedList } from './RecentlyVerifiedList';
 import { supabase } from '@/integrations/supabase/client';
 import type { DepositChannel } from '@/lib/fieldDepositBatches';
 import { cn } from '@/lib/utils';
@@ -223,6 +224,10 @@ export function VerifyDepositsHub() {
             </p>
           )}
           <TidVerification />
+          {/* User-side verifications happen via TID search, not a list, so
+              the Verified by / Verified at columns surface here. The Field
+              Deposits tab shows them inline in the queue table itself. */}
+          <RecentlyVerifiedList source="user" />
         </TabsContent>
 
         <TabsContent value="field" className="mt-4 space-y-2">
