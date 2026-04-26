@@ -217,33 +217,70 @@ Deno.serve(async (req) => {
       .single();
     const targetName = profile?.full_name || "Unknown";
 
-    // Create balanced ledger entries via RPC
+    // Create balanced ledger entries via RPC.
+    //
+    // BUCKET ROUTING: `wallet_withdrawal` only drains the withdrawable bucket.
+    // For proxy payouts the agent's funds may sit in the FLOAT bucket (partner
+    // money parked in the agent wallet). We split the debit so the available
+    // withdrawable portion (which already includes advance-funded balance) is
+    // drained as `wallet_withdrawal`, and any remainder is drained from float
+    // as `agent_landlord_payout` — keeping the same total and a single platform
+    // cash_in leg so the transaction is still balanced.
+    const refUpper = reference.trim().toUpperCase();
+    const baseDesc = `${payment_method} ref: ${refUpper}`;
+    const nowIso = new Date().toISOString();
+
+    const withdrawablePortion = isProxyPayout
+      ? Math.min(amount, Math.max(walletWithdrawable + walletAdvance, 0))
+      : amount;
+    const floatPortion = Math.max(amount - withdrawablePortion, 0);
+
+    const debitEntries: any[] = [];
+    if (withdrawablePortion > 0) {
+      debitEntries.push({
+        user_id: fundingUserId,
+        amount: withdrawablePortion,
+        direction: "cash_out",
+        category: "wallet_withdrawal",
+        ledger_scope: "wallet",
+        description: `Wallet withdrawal approved – ${baseDesc}`,
+        currency: "UGX",
+        source_table: "withdrawal_requests",
+        source_id: withdrawal_id,
+        transaction_date: nowIso,
+        linked_party: user.id,
+      });
+    }
+    if (floatPortion > 0) {
+      debitEntries.push({
+        user_id: fundingUserId,
+        amount: floatPortion,
+        direction: "cash_out",
+        category: "agent_landlord_payout",
+        ledger_scope: "wallet",
+        description: `Proxy payout from float – ${baseDesc}`,
+        currency: "UGX",
+        source_table: "withdrawal_requests",
+        source_id: withdrawal_id,
+        transaction_date: nowIso,
+        linked_party: user.id,
+      });
+    }
+
     const idempotencyKey = `approve-withdrawal-${withdrawal_id}`;
     const { data: txnGroupId, error: ledgerErr } = await admin.rpc("create_ledger_transaction", {
       entries: [
-        {
-          user_id: fundingUserId,
-          amount,
-          direction: "cash_out",
-          category: "wallet_withdrawal",
-          ledger_scope: "wallet",
-          description: `Wallet withdrawal approved – ${payment_method} ref: ${reference.trim().toUpperCase()}`,
-          currency: "UGX",
-          source_table: "withdrawal_requests",
-          source_id: withdrawal_id,
-          transaction_date: new Date().toISOString(),
-          linked_party: user.id,
-        },
+        ...debitEntries,
         {
           direction: "cash_in",
           amount,
           category: "wallet_withdrawal",
           ledger_scope: "platform",
-          description: `Platform records withdrawal payout – ${payment_method} ref: ${reference.trim().toUpperCase()}`,
+          description: `Platform records withdrawal payout – ${baseDesc}`,
           currency: "UGX",
           source_table: "withdrawal_requests",
           source_id: withdrawal_id,
-          transaction_date: new Date().toISOString(),
+          transaction_date: nowIso,
         },
       ],
     });
