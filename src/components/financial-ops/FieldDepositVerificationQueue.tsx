@@ -488,11 +488,11 @@ export function FieldDepositVerificationQueue({
               <table className="w-full text-xs">
                 <thead className="bg-muted/40 text-muted-foreground sticky top-0 z-10">
                   <tr>
-                    <th className="text-left font-medium px-2 py-2">Batch</th>
-                    <th className="text-right font-medium px-2 py-2">Amount</th>
-                    <th className="text-left font-medium px-2 py-2">Status</th>
-                    <th className="text-left font-medium px-2 py-2">Verified by</th>
-                    <th className="text-left font-medium px-2 py-2 whitespace-nowrap">Verified at</th>
+                    {isVisible('batch') && <th className="text-left font-medium px-2 py-2">Batch</th>}
+                    {isVisible('amount') && <th className="text-right font-medium px-2 py-2">Amount</th>}
+                    {isVisible('status') && <th className="text-left font-medium px-2 py-2">Status</th>}
+                    {isVisible('verified_by') && <th className="text-left font-medium px-2 py-2">Verified by</th>}
+                    {isVisible('verified_at') && <th className="text-left font-medium px-2 py-2 whitespace-nowrap">Verified at</th>}
                   </tr>
                 </thead>
                 <tbody>
