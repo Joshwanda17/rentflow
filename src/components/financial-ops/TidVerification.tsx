@@ -288,6 +288,13 @@ export function TidVerification() {
   }, [fetchPendingPage]);
 
   const loadMorePending = useCallback(async () => {
+    // Guard against rapid double-clicks: even though the button is
+    // visually disabled while `pendingLoadingMore` is true, React's
+    // state update is async and a fast second click can sneak in
+    // before re-render. The ref check is synchronous and ignores any
+    // re-entrant call until the in-flight fetch settles.
+    if (loadMoreInFlightRef.current) return;
+    loadMoreInFlightRef.current = true;
     setPendingLoadingMore(true);
     try {
       await fetchPendingPage(true, pending.length);
@@ -296,6 +303,7 @@ export function TidVerification() {
       toast.error('Failed to load more pending deposits');
     } finally {
       setPendingLoadingMore(false);
+      loadMoreInFlightRef.current = false;
     }
   }, [fetchPendingPage, pending.length]);
 
