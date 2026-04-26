@@ -256,18 +256,7 @@ export function TidVerification() {
     if (p.provider) setProvider(p.provider);
   };
 
-  // Safety net: if a row is currently picked and the operator drifts the
-  // Provider dropdown away from the picked row's original channel, snap it
-  // back whenever the same pick is re-confirmed (e.g. clicking the row again
-  // or via keyboard re-select). This effect ensures restoration happens even
-  // when state updates race.
-  useEffect(() => {
-    if (pickedId && pickedProvider && provider !== pickedProvider) {
-      // Intentionally do NOT auto-correct here — keep the mismatch warning
-      // visible. Restoration happens on explicit re-pick (handled in
-      // pickPending) or via the "Restore <provider>" shortcut in the warning.
-    }
-  }, [pickedId, pickedProvider, provider]);
+
 
   // True if the operator picked a row and then changed the provider away
   // from what that row was submitted as — almost always a mistake.
