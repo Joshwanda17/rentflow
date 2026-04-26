@@ -22,6 +22,7 @@ import {
   XCircle,
   Clock,
   User as UserIcon,
+  Download,
 } from 'lucide-react';
 import {
   PendingBatch,
@@ -32,6 +33,8 @@ import {
 import { FieldDepositVerifyDialog } from './FieldDepositVerifyDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
+import { downloadCsv, csvTimestamp } from '@/lib/csvExport';
+import { toast } from 'sonner';
 
 /**
  * A row in the unified verification table — pending batches PLUS the most
@@ -74,6 +77,7 @@ export function FieldDepositVerificationQueue({ channels, minAmount, maxAmount, 
   const [rows, setRows] = useState<QueueRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [active, setActive] = useState<PendingBatch | null>(null);
 
   const load = useCallback(async (silent = false) => {
@@ -192,6 +196,91 @@ export function FieldDepositVerificationQueue({ channels, minAmount, maxAmount, 
     typeof maxAmount === 'number';
   const hiddenCount = rows.length - visibleRows.length;
 
+  /**
+   * Pulls a larger window of resolved batches (up to 1000) so audit teams
+   * have a useful export, then writes a CSV with the same audit columns
+   * shown in the table — verifier, timestamp, rejection reason, etc.
+   * Honors active hub filters (channel, amount range) so operators export
+   * exactly what they're looking at.
+   */
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      let q = supabase
+        .from('field_deposit_batches')
+        .select(
+          'id, agent_id, channel, declared_total, proof_reference, proof_submitted_at, status, finops_verified_by, finops_verified_at, rejection_reason',
+        )
+        .in('status', ['verified', 'rejected'])
+        .not('finops_verified_by', 'is', null)
+        .order('finops_verified_at', { ascending: false })
+        .limit(1000);
+      if (channels && channels.length > 0) q = q.in('channel', channels);
+      if (typeof minAmount === 'number') q = q.gte('declared_total', minAmount);
+      if (typeof maxAmount === 'number') q = q.lte('declared_total', maxAmount);
+      const { data, error } = await q;
+      if (error) throw error;
+      const list = (data ?? []) as any[];
+
+      if (list.length === 0) {
+        toast.info('Nothing to export — no resolved batches match these filters.');
+        return;
+      }
+
+      const ids = Array.from(
+        new Set([
+          ...list.map((r) => r.finops_verified_by).filter(Boolean),
+          ...list.map((r) => r.agent_id).filter(Boolean),
+        ]),
+      );
+      const nameMap = new Map<string, string | null>();
+      if (ids.length > 0) {
+        const { data: profs } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', ids);
+        for (const p of (profs ?? []) as any[]) nameMap.set(p.id, p.full_name);
+      }
+
+      downloadCsv(
+        `field-deposits-audit-${new Date().toISOString().slice(0, 10)}.csv`,
+        [
+          'Batch ID',
+          'Agent ID',
+          'Agent name',
+          'Channel',
+          'Declared total (UGX)',
+          'Proof reference',
+          'Proof submitted at',
+          'Outcome',
+          'Verified by (ID)',
+          'Verified by',
+          'Verified at',
+          'Rejection reason',
+        ],
+        list.map((r) => [
+          r.id,
+          r.agent_id,
+          nameMap.get(r.agent_id) ?? '',
+          channelLabel(r.channel as DepositChannel),
+          Number(r.declared_total || 0),
+          r.proof_reference ?? '',
+          csvTimestamp(r.proof_submitted_at),
+          r.status === 'verified' ? 'Approved' : 'Rejected',
+          r.finops_verified_by ?? '',
+          nameMap.get(r.finops_verified_by) ?? '',
+          csvTimestamp(r.finops_verified_at),
+          r.rejection_reason ?? '',
+        ]),
+      );
+      toast.success(`Exported ${list.length} batch${list.length === 1 ? '' : 'es'} to CSV.`);
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Failed to export audit log');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <>
       <Card>
@@ -201,15 +290,28 @@ export function FieldDepositVerificationQueue({ channels, minAmount, maxAmount, 
               <ShieldCheck className="h-5 w-5 text-primary" />
               Field Deposits — Verification Queue
             </CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => load(false)}
-              disabled={refreshing}
-              className="h-8"
-            >
-              {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleExport}
+                disabled={exporting}
+                className="h-8 gap-1 text-xs"
+                title="Download verified & rejected batches for audit reconciliation"
+              >
+                {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                <span className="hidden sm:inline">Export</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => load(false)}
+                disabled={refreshing}
+                className="h-8"
+              >
+                {refreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              </Button>
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <Badge variant="secondary" className="font-mono">
