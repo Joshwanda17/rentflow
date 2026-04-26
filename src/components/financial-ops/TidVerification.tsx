@@ -1525,6 +1525,7 @@ export function TidVerification() {
                     const isApproved = approvedIds.has(m.id);
                     const isRejected = rejectedIds.has(m.id);
                     const isProcessing = approving === m.id;
+                    const isUndoable = pendingUndoIds.has(m.id);
                     const isDone = isApproved || isRejected;
                     return (
                       <div
@@ -1534,6 +1535,8 @@ export function TidVerification() {
                             ? 'border-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/20'
                             : isRejected
                             ? 'border-destructive/30 bg-destructive/5'
+                            : isUndoable
+                            ? 'border-primary/40 bg-primary/5'
                             : m.status === 'matched'
                             ? 'border-emerald-200 bg-background'
                             : 'border-amber-200 bg-amber-50/30 dark:bg-amber-950/10'
@@ -1568,12 +1571,30 @@ export function TidVerification() {
                             {isRejected && (
                               <Badge variant="destructive" className="text-[9px] h-4 px-1">Rejected ✗</Badge>
                             )}
+                            {isUndoable && (
+                              <Badge variant="outline" className="text-[9px] h-4 px-1 gap-0.5 border-primary/40 text-primary">
+                                <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                                Approving — undoable
+                              </Badge>
+                            )}
                           </div>
                           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
                             <span>{m.provider || 'MoMo'}</span>
                             <span>{format(new Date(m.created_at), 'dd MMM HH:mm')}</span>
                           </div>
-                          {!isDone && (
+                          {!isDone && isUndoable && (
+                            <div className="flex flex-col sm:flex-row gap-2 mt-2">
+                              <Button
+                                variant="outline"
+                                className="h-11 text-sm gap-1.5 flex-1 border-primary/40 text-primary hover:bg-primary/5"
+                                onClick={() => cancelPendingApprove(m.id)}
+                              >
+                                <ArrowLeft className="h-4 w-4" />
+                                Undo approval
+                              </Button>
+                            </div>
+                          )}
+                          {!isDone && !isUndoable && (
                             <div className="flex flex-col sm:flex-row gap-2 mt-2">
                               {m.status === 'matched' && (
                                 <Button
