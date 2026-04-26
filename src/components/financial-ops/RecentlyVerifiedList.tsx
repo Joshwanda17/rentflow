@@ -150,14 +150,15 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
       let q = supabase
         .from('deposit_requests')
         .select(
-          'id, amount, status, approved_at, rejected_at, processed_by, rejection_reason, user_id',
+          'id, amount, status, approved_at, rejected_at, processed_by, rejection_reason',
         )
         .in('status', ['approved', 'rejected'])
         .order('updated_at', { ascending: false })
         .limit(1000);
-      // Apply the export-only date window. We filter on updated_at because
-      // it always carries the resolution moment for both approved & rejected
-      // rows (vs approved_at/rejected_at which split by outcome).
+      // Mirror the live table's filter set so the CSV is a strict superset
+      // of what's visible (more rows allowed by the larger 1000 limit, but
+      // never different criteria).
+      if (verifierId) q = q.eq('processed_by', verifierId);
       if (exportFromIso) q = q.gte('updated_at', exportFromIso);
       if (exportToIso) q = q.lte('updated_at', exportToIso);
       const { data, error } = await q;
@@ -165,15 +166,12 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
       const list = (data ?? []) as any[];
 
       if (list.length === 0) {
-        toast.info('Nothing to export — no resolved deposits yet.');
+        toast.info('Nothing to export — no deposits match the current filters.');
         return;
       }
 
       const ids = Array.from(
-        new Set([
-          ...list.map((r) => r.processed_by).filter(Boolean),
-          ...list.map((r) => r.user_id).filter(Boolean),
-        ]),
+        new Set(list.map((r) => r.processed_by).filter(Boolean)),
       );
       const nameMap = new Map<string, string | null>();
       if (ids.length > 0) {
@@ -184,30 +182,31 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
         for (const p of (profs ?? []) as any[]) nameMap.set(p.id, p.full_name);
       }
 
-      downloadCsv(
-        `user-deposits-audit-${new Date().toISOString().slice(0, 10)}.csv`,
-        [
-          'Deposit ID',
-          'Depositor ID',
-          'Depositor name',
-          'Amount (UGX)',
-          'Outcome',
-          'Verified by (ID)',
-          'Verified by',
-          'Verified at',
-          'Rejection reason',
-        ],
-        list.map((r) => [
-          r.id,
-          r.user_id ?? '',
-          nameMap.get(r.user_id) ?? '',
-          Number(r.amount || 0),
+      // Build headers + row cells from the visible-column registry, with
+      // a small always-on Deposit ID prefix so the row can still be traced.
+      const headers: string[] = ['Deposit ID'];
+      const rowBuilders: ((r: any) => (string | number | null)[])[] = [(r) => [r.id]];
+      for (const c of COLUMNS) {
+        if (!visibleCols[c.key]) continue;
+        headers.push(...c.csvHeaders);
+        if (c.key === 'status') rowBuilders.push((r) => [
           r.status === 'approved' ? 'Approved' : 'Rejected',
+          r.rejection_reason ?? '',
+        ]);
+        else if (c.key === 'amount') rowBuilders.push((r) => [Number(r.amount || 0)]);
+        else if (c.key === 'verified_by') rowBuilders.push((r) => [
           r.processed_by ?? '',
           nameMap.get(r.processed_by) ?? '',
+        ]);
+        else if (c.key === 'verified_at') rowBuilders.push((r) => [
           csvTimestamp(r.status === 'approved' ? r.approved_at : r.rejected_at),
-          r.rejection_reason ?? '',
-        ]),
+        ]);
+      }
+
+      downloadCsv(
+        `user-deposits-audit-${new Date().toISOString().slice(0, 10)}.csv`,
+        headers,
+        list.map((r) => rowBuilders.flatMap((b) => b(r))),
       );
       toast.success(`Exported ${list.length} deposit${list.length === 1 ? '' : 's'} to CSV.`);
     } catch (e: any) {
