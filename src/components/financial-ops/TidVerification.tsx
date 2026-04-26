@@ -133,7 +133,15 @@ export function TidVerification() {
   const [pendingLoading, setPendingLoading] = useState(false);
   const [pendingLoadingMore, setPendingLoadingMore] = useState(false);
   const [pendingHasMore, setPendingHasMore] = useState(false);
-  const [pickedId, setPickedId] = useState<string | null>(null);
+  // Persist the current pick across page refreshes so the
+  // provider-mismatch warning (and the "About to verify" recap) survive a
+  // reload. Scoped to sessionStorage — operator-session-local.
+  const PICKED_ID_KEY = 'finops:tid:pickedId';
+  const PICKED_PROVIDER_KEY = 'finops:tid:pickedProvider';
+  const [pickedId, setPickedId] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try { return sessionStorage.getItem(PICKED_ID_KEY); } catch { return null; }
+  });
   const [pendingSearch, setPendingSearch] = useState('');
   // Quick filter chips that narrow the pick-list locally. All three are
   // additive — a row must satisfy every active chip to show. Defaults are
@@ -153,8 +161,12 @@ export function TidVerification() {
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   // The provider the picked row was originally tagged with — used to
-  // detect when the operator changes the provider after picking.
-  const [pickedProvider, setPickedProvider] = useState<string | null>(null);
+  // detect when the operator changes the provider after picking. Persisted
+  // alongside pickedId so the mismatch warning survives a refresh.
+  const [pickedProvider, setPickedProvider] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try { return sessionStorage.getItem(PICKED_PROVIDER_KEY); } catch { return null; }
+  });
   // Keyboard navigation state for the pick-list. -1 means nothing
   // highlighted; arrow keys move within `pendingFiltered`.
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
