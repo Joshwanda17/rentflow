@@ -329,7 +329,13 @@ export function TidVerification() {
         pickPending(pendingFiltered[highlightedIndex]);
       }
     } else if (e.key === 'Escape') {
-      if (pickedId) {
+      // Esc priority: clear the search box first (most common case while
+      // narrowing the list); only if search is empty does Esc clear the
+      // current pick.
+      if (pendingSearch) {
+        e.preventDefault();
+        setPendingSearch('');
+      } else if (pickedId) {
         e.preventDefault();
         setPickedId(null);
         setPickedProvider(null);
