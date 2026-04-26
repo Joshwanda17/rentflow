@@ -96,6 +96,42 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
     return () => { cancelled = true; };
   }, [agentId]);
 
+  // Realtime subscription with toast notifications on changes
+  useEffect(() => {
+    if (!agentId) return;
+    const channel = (supabase as any)
+      .channel(`agent-vouch-history-${agentId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'agent_vouch_limit_history', filter: `agent_id=eq.${agentId}` },
+        (payload: any) => {
+          const row = payload.new as HistoryRow;
+          setRows((prev) => {
+            if (prev.some((r) => r.id === row.id)) return prev;
+            return [row, ...prev].slice(0, 200);
+          });
+          toast.success('New vouch history entry', {
+            description: 'Feed refreshed with a new record.',
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'agent_vouch_limit_history', filter: `agent_id=eq.${agentId}` },
+        (payload: any) => {
+          const row = payload.new as HistoryRow;
+          setRows((prev) => prev.map((r) => (r.id === row.id ? row : r)));
+          toast('Vouch history updated', {
+            description: 'An existing record was updated.',
+          });
+        }
+      )
+      .subscribe();
+    return () => {
+      (supabase as any).removeChannel(channel);
+    };
+  }, [agentId]);
+
   const filteredRows = useMemo(() => {
     let from: Date | null = null;
     let to: Date | null = null;
