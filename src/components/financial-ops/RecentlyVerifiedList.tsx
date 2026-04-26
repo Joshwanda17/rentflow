@@ -9,6 +9,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuCheckboxItem,
+} from '@/components/ui/dropdown-menu';
 import { formatUGX } from '@/lib/rentCalculations';
 import { formatDistanceToNow, format } from 'date-fns';
 import {
@@ -20,6 +28,7 @@ import {
   XCircle,
   User as UserIcon,
   Download,
+  Columns3,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
@@ -60,6 +69,21 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
+
+  // Single source of truth for table columns. Drives both render and CSV
+  // export so the file always matches what the operator sees.
+  type ColKey = 'status' | 'amount' | 'verified_by' | 'verified_at';
+  const COLUMNS: { key: ColKey; label: string; csvHeaders: string[] }[] = [
+    { key: 'status', label: 'Status', csvHeaders: ['Outcome', 'Rejection reason'] },
+    { key: 'amount', label: 'Amount', csvHeaders: ['Amount (UGX)'] },
+    { key: 'verified_by', label: 'Verified by', csvHeaders: ['Verified by (ID)', 'Verified by'] },
+    { key: 'verified_at', label: 'Verified at', csvHeaders: ['Verified at'] },
+  ];
+  const [visibleCols, setVisibleCols] = useState<Record<ColKey, boolean>>({
+    status: true, amount: true, verified_by: true, verified_at: true,
+  });
+  const isVisible = (k: ColKey) => visibleCols[k];
+  const toggleCol = (k: ColKey) => setVisibleCols((p) => ({ ...p, [k]: !p[k] }));
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setRefreshing(true);
@@ -126,14 +150,15 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
       let q = supabase
         .from('deposit_requests')
         .select(
-          'id, amount, status, approved_at, rejected_at, processed_by, rejection_reason, user_id',
+          'id, amount, status, approved_at, rejected_at, processed_by, rejection_reason',
         )
         .in('status', ['approved', 'rejected'])
         .order('updated_at', { ascending: false })
         .limit(1000);
-      // Apply the export-only date window. We filter on updated_at because
-      // it always carries the resolution moment for both approved & rejected
-      // rows (vs approved_at/rejected_at which split by outcome).
+      // Mirror the live table's filter set so the CSV is a strict superset
+      // of what's visible (more rows allowed by the larger 1000 limit, but
+      // never different criteria).
+      if (verifierId) q = q.eq('processed_by', verifierId);
       if (exportFromIso) q = q.gte('updated_at', exportFromIso);
       if (exportToIso) q = q.lte('updated_at', exportToIso);
       const { data, error } = await q;
@@ -141,15 +166,12 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
       const list = (data ?? []) as any[];
 
       if (list.length === 0) {
-        toast.info('Nothing to export — no resolved deposits yet.');
+        toast.info('Nothing to export — no deposits match the current filters.');
         return;
       }
 
       const ids = Array.from(
-        new Set([
-          ...list.map((r) => r.processed_by).filter(Boolean),
-          ...list.map((r) => r.user_id).filter(Boolean),
-        ]),
+        new Set(list.map((r) => r.processed_by).filter(Boolean)),
       );
       const nameMap = new Map<string, string | null>();
       if (ids.length > 0) {
@@ -160,30 +182,31 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
         for (const p of (profs ?? []) as any[]) nameMap.set(p.id, p.full_name);
       }
 
-      downloadCsv(
-        `user-deposits-audit-${new Date().toISOString().slice(0, 10)}.csv`,
-        [
-          'Deposit ID',
-          'Depositor ID',
-          'Depositor name',
-          'Amount (UGX)',
-          'Outcome',
-          'Verified by (ID)',
-          'Verified by',
-          'Verified at',
-          'Rejection reason',
-        ],
-        list.map((r) => [
-          r.id,
-          r.user_id ?? '',
-          nameMap.get(r.user_id) ?? '',
-          Number(r.amount || 0),
+      // Build headers + row cells from the visible-column registry, with
+      // a small always-on Deposit ID prefix so the row can still be traced.
+      const headers: string[] = ['Deposit ID'];
+      const rowBuilders: ((r: any) => (string | number | null)[])[] = [(r) => [r.id]];
+      for (const c of COLUMNS) {
+        if (!visibleCols[c.key]) continue;
+        headers.push(...c.csvHeaders);
+        if (c.key === 'status') rowBuilders.push((r) => [
           r.status === 'approved' ? 'Approved' : 'Rejected',
+          r.rejection_reason ?? '',
+        ]);
+        else if (c.key === 'amount') rowBuilders.push((r) => [Number(r.amount || 0)]);
+        else if (c.key === 'verified_by') rowBuilders.push((r) => [
           r.processed_by ?? '',
           nameMap.get(r.processed_by) ?? '',
+        ]);
+        else if (c.key === 'verified_at') rowBuilders.push((r) => [
           csvTimestamp(r.status === 'approved' ? r.approved_at : r.rejected_at),
-          r.rejection_reason ?? '',
-        ]),
+        ]);
+      }
+
+      downloadCsv(
+        `user-deposits-audit-${new Date().toISOString().slice(0, 10)}.csv`,
+        headers,
+        list.map((r) => rowBuilders.flatMap((b) => b(r))),
       );
       toast.success(`Exported ${list.length} deposit${list.length === 1 ? '' : 's'} to CSV.`);
     } catch (e: any) {
@@ -202,6 +225,35 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
             Recently verified
           </CardTitle>
           <div className="flex items-center gap-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1 text-[11px]"
+                  title="Show or hide columns — also applies to CSV export"
+                >
+                  <Columns3 className="h-3 w-3" />
+                  <span className="hidden sm:inline">Columns</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel className="text-[11px]">
+                  Visible columns
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {COLUMNS.map((c) => (
+                  <DropdownMenuCheckboxItem
+                    key={c.key}
+                    checked={visibleCols[c.key]}
+                    onCheckedChange={() => toggleCol(c.key)}
+                    onSelect={(e) => e.preventDefault()}
+                  >
+                    {c.label}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button
               variant="ghost"
               size="sm"
@@ -243,10 +295,10 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
             <table className="w-full text-xs">
               <thead className="bg-muted/40 text-muted-foreground sticky top-0 z-10">
                 <tr>
-                  <th className="text-left font-medium px-2 py-2">Status</th>
-                  <th className="text-right font-medium px-2 py-2">Amount</th>
-                  <th className="text-left font-medium px-2 py-2">Verified by</th>
-                  <th className="text-left font-medium px-2 py-2 whitespace-nowrap">Verified at</th>
+                  {isVisible('status') && <th className="text-left font-medium px-2 py-2">Status</th>}
+                  {isVisible('amount') && <th className="text-right font-medium px-2 py-2">Amount</th>}
+                  {isVisible('verified_by') && <th className="text-left font-medium px-2 py-2">Verified by</th>}
+                  {isVisible('verified_at') && <th className="text-left font-medium px-2 py-2 whitespace-nowrap">Verified at</th>}
                 </tr>
               </thead>
               <tbody>
@@ -254,6 +306,7 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
                   const approved = r.status === 'approved';
                   return (
                     <tr key={r.id} className="border-t">
+                      {isVisible('status') && (
                       <td className="px-2 py-2 align-top">
                         {approved ? (
                           <Badge className="text-[9px] h-4 px-1 gap-0.5 bg-success text-success-foreground hover:bg-success">
@@ -273,9 +326,13 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
                           </div>
                         )}
                       </td>
+                      )}
+                      {isVisible('amount') && (
                       <td className="px-2 py-2 align-top text-right font-mono font-semibold tabular-nums">
                         {formatUGX(r.amount)}
                       </td>
+                      )}
+                      {isVisible('verified_by') && (
                       <td className="px-2 py-2 align-top">
                         {r.processed_by_name ? (
                           <div className="flex items-center gap-1">
@@ -292,6 +349,8 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
                           <span className="text-muted-foreground italic">System</span>
                         )}
                       </td>
+                      )}
+                      {isVisible('verified_at') && (
                       <td
                         className="px-2 py-2 align-top text-muted-foreground tabular-nums whitespace-nowrap"
                       >
@@ -332,6 +391,7 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
                           '—'
                         )}
                       </td>
+                      )}
                     </tr>
                   );
                 })}
