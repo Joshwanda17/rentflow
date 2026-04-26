@@ -800,8 +800,13 @@ export function TidVerification() {
                   )}
                 </div>
                 {pendingMatches.length > 1 && (
-                  <Button size="sm" className="h-7 text-[11px] gap-1" onClick={handleAutoApproveAll} disabled={!!approving}>
-                    <CheckCircle2 className="h-3 w-3" /> Approve All
+                  <Button
+                    size="sm"
+                    className="h-9 text-sm gap-1.5"
+                    onClick={handleAutoApproveAll}
+                    disabled={!!approving}
+                  >
+                    <CheckCircle2 className="h-4 w-4" /> Approve all
                   </Button>
                 )}
               </div>
@@ -861,15 +866,27 @@ export function TidVerification() {
                             <span>{format(new Date(m.created_at), 'dd MMM HH:mm')}</span>
                           </div>
                           {!isDone && (
-                            <div className="flex gap-2 mt-1">
+                            <div className="flex flex-col sm:flex-row gap-2 mt-2">
                               {m.status === 'matched' && (
-                                <Button size="sm" className="h-8 text-xs gap-1 flex-1" disabled={isProcessing} onClick={() => handleAutoApprove(m)}>
-                                  {isProcessing ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowRight className="h-3 w-3" />}
-                                  Auto-Approve
+                                <Button
+                                  className="h-11 text-sm gap-1.5 flex-1"
+                                  disabled={isProcessing}
+                                  onClick={() => handleAutoApprove(m)}
+                                >
+                                  {isProcessing ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <ArrowRight className="h-4 w-4" />
+                                  )}
+                                  Approve
                                 </Button>
                               )}
-                              <Button size="sm" variant="destructive" className="h-8 text-xs gap-1 flex-1" onClick={() => openRejectDialog(m.id)}>
-                                <Ban className="h-3 w-3" /> Reject
+                              <Button
+                                variant="destructive"
+                                className="h-11 text-sm gap-1.5 flex-1"
+                                onClick={() => openRejectDialog(m.id)}
+                              >
+                                <Ban className="h-4 w-4" /> Reject
                               </Button>
                             </div>
                           )}
