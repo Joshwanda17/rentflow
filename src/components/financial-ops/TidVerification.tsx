@@ -580,14 +580,19 @@ export function TidVerification() {
           {/* Search by name, phone, or amount — purely client-side over the
               already-loaded pending rows. */}
           {pending.length > 0 && (
-            <div className="px-2.5 py-1.5 border-b border-border/60">
+            <div className="px-2.5 py-2 border-b border-border/60 space-y-2">
               <div className="relative">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
                 <Input
                   value={pendingSearch}
                   onChange={(e) => setPendingSearch(e.target.value)}
-                  placeholder="Search name, phone, or amount…"
-                  className="h-7 pl-7 pr-7 text-xs"
+                  placeholder={
+                    matchField === 'name' ? 'Search depositor name…'
+                    : matchField === 'phone' ? 'Search phone number…'
+                    : matchField === 'amount' ? 'Search amount (digits)…'
+                    : 'Search name, phone, or amount…'
+                  }
+                  className="h-8 pl-7 pr-7 text-xs"
                 />
                 {pendingSearch && (
                   <button
@@ -597,6 +602,57 @@ export function TidVerification() {
                     aria-label="Clear search"
                   >
                     <XCircle className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Quick filter chips — three rows, each scoped to a different
+                  facet so operators can carve down the list without typing.
+                  All chips compose with the search box and with each other. */}
+              <div className="space-y-1.5">
+                <FilterChipRow
+                  label="Match"
+                  value={matchField}
+                  onChange={(v) => setMatchField(v as MatchField)}
+                  options={[
+                    { value: 'any', label: 'Any' },
+                    { value: 'name', label: 'Name' },
+                    { value: 'phone', label: 'Phone' },
+                    { value: 'amount', label: 'Amount' },
+                  ]}
+                />
+                <FilterChipRow
+                  label="Amount"
+                  value={amountRange}
+                  onChange={(v) => setAmountRange(v as AmountRange)}
+                  options={[
+                    { value: 'any', label: 'Any' },
+                    { value: 'low', label: '< 50K' },
+                    { value: 'mid', label: '50K–200K' },
+                    { value: 'high', label: '> 200K' },
+                  ]}
+                />
+                <FilterChipRow
+                  label="Profile"
+                  value={verification}
+                  onChange={(v) => setVerification(v as Verification)}
+                  options={[
+                    { value: 'any', label: 'Any' },
+                    { value: 'verified', label: 'Verified' },
+                    { value: 'unverified', label: 'Unverified' },
+                  ]}
+                />
+                {filtersActive && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMatchField('any');
+                      setAmountRange('any');
+                      setVerification('any');
+                    }}
+                    className="text-[10px] text-muted-foreground hover:text-foreground underline"
+                  >
+                    Reset filters
                   </button>
                 )}
               </div>
