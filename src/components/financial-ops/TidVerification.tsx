@@ -847,6 +847,7 @@ export function TidVerification() {
               <div className="relative">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
                 <Input
+                  ref={pendingSearchInputRef}
                   value={pendingSearch}
                   onChange={(e) => setPendingSearch(e.target.value)}
                   onKeyDown={(e) => {
