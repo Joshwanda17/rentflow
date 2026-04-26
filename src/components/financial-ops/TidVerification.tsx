@@ -208,6 +208,59 @@ export function TidVerification() {
     });
   })();
 
+  // Reset highlight when the visible list shape changes (search, provider,
+  // refresh) so the focus indicator never points to a stale row.
+  useEffect(() => {
+    setHighlightedIndex(-1);
+  }, [pendingSearch, provider, pending.length]);
+
+  // Keep the highlighted row in view when arrow-keying through a long list.
+  useEffect(() => {
+    if (highlightedIndex < 0) return;
+    const el = pendingItemRefs.current[highlightedIndex];
+    if (el) el.scrollIntoView({ block: 'nearest' });
+  }, [highlightedIndex]);
+
+  const handlePendingKeyDown = (e: React.KeyboardEvent<HTMLUListElement>) => {
+    if (pendingFiltered.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightedIndex((i) => {
+        const next = i < pendingFiltered.length - 1 ? i + 1 : 0;
+        pendingItemRefs.current[next]?.focus();
+        return next;
+      });
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightedIndex((i) => {
+        const next = i > 0 ? i - 1 : pendingFiltered.length - 1;
+        pendingItemRefs.current[next]?.focus();
+        return next;
+      });
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      setHighlightedIndex(0);
+      pendingItemRefs.current[0]?.focus();
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      const last = pendingFiltered.length - 1;
+      setHighlightedIndex(last);
+      pendingItemRefs.current[last]?.focus();
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      if (highlightedIndex >= 0 && highlightedIndex < pendingFiltered.length) {
+        e.preventDefault();
+        pickPending(pendingFiltered[highlightedIndex]);
+      }
+    } else if (e.key === 'Escape') {
+      if (pickedId) {
+        e.preventDefault();
+        setPickedId(null);
+        setPickedProvider(null);
+        setOperatorAmount('');
+      }
+    }
+  };
+
   const handleVerify = useCallback(async () => {
     const trimmedTid = tid.trim();
     if (!trimmedTid) { toast.error('Enter a Transaction ID'); return; }
