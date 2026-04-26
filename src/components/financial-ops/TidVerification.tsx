@@ -846,7 +846,7 @@ export function TidVerification() {
           Pick a depositor, type their Transaction ID, then approve the match.
         </p>
       </CardHeader>
-      <CardContent className="space-y-5 px-4 sm:px-6 pb-5">
+      <CardContent className="space-y-5 px-4 sm:px-6 pb-24 sm:pb-5">
         {/* Operator quality self-view — shows how many provider-mismatch
             attempts the current operator has triggered today. Helps build
             self-awareness without waiting for a CFO review. */}
