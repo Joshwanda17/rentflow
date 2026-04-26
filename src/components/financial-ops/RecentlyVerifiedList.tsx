@@ -295,10 +295,10 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
             <table className="w-full text-xs">
               <thead className="bg-muted/40 text-muted-foreground sticky top-0 z-10">
                 <tr>
-                  <th className="text-left font-medium px-2 py-2">Status</th>
-                  <th className="text-right font-medium px-2 py-2">Amount</th>
-                  <th className="text-left font-medium px-2 py-2">Verified by</th>
-                  <th className="text-left font-medium px-2 py-2 whitespace-nowrap">Verified at</th>
+                  {isVisible('status') && <th className="text-left font-medium px-2 py-2">Status</th>}
+                  {isVisible('amount') && <th className="text-right font-medium px-2 py-2">Amount</th>}
+                  {isVisible('verified_by') && <th className="text-left font-medium px-2 py-2">Verified by</th>}
+                  {isVisible('verified_at') && <th className="text-left font-medium px-2 py-2 whitespace-nowrap">Verified at</th>}
                 </tr>
               </thead>
               <tbody>
@@ -306,6 +306,7 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
                   const approved = r.status === 'approved';
                   return (
                     <tr key={r.id} className="border-t">
+                      {isVisible('status') && (
                       <td className="px-2 py-2 align-top">
                         {approved ? (
                           <Badge className="text-[9px] h-4 px-1 gap-0.5 bg-success text-success-foreground hover:bg-success">
@@ -325,9 +326,13 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
                           </div>
                         )}
                       </td>
+                      )}
+                      {isVisible('amount') && (
                       <td className="px-2 py-2 align-top text-right font-mono font-semibold tabular-nums">
                         {formatUGX(r.amount)}
                       </td>
+                      )}
+                      {isVisible('verified_by') && (
                       <td className="px-2 py-2 align-top">
                         {r.processed_by_name ? (
                           <div className="flex items-center gap-1">
@@ -344,6 +349,8 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
                           <span className="text-muted-foreground italic">System</span>
                         )}
                       </td>
+                      )}
+                      {isVisible('verified_at') && (
                       <td
                         className="px-2 py-2 align-top text-muted-foreground tabular-nums whitespace-nowrap"
                       >
@@ -384,6 +391,7 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
                           '—'
                         )}
                       </td>
+                      )}
                     </tr>
                   );
                 })}
