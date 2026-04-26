@@ -329,7 +329,13 @@ export function TidVerification() {
         pickPending(pendingFiltered[highlightedIndex]);
       }
     } else if (e.key === 'Escape') {
-      if (pickedId) {
+      // Esc priority: clear the search box first (most common case while
+      // narrowing the list); only if search is empty does Esc clear the
+      // current pick.
+      if (pendingSearch) {
+        e.preventDefault();
+        setPendingSearch('');
+      } else if (pickedId) {
         e.preventDefault();
         setPickedId(null);
         setPickedProvider(null);
@@ -606,7 +612,7 @@ export function TidVerification() {
               </Label>
               {pending.length > 0 && (
                 <span className="hidden sm:inline text-[10px] text-muted-foreground/70">
-                  ↑↓ navigate · Enter pick · Esc clear
+                  ↑↓ navigate · Enter pick · Esc clear search
                 </span>
               )}
             </div>
@@ -629,6 +635,21 @@ export function TidVerification() {
                 <Input
                   value={pendingSearch}
                   onChange={(e) => setPendingSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    // Esc while typing clears the search box.
+                    if (e.key === 'Escape' && pendingSearch) {
+                      e.preventDefault();
+                      setPendingSearch('');
+                    }
+                    // ↓ from the search box jumps focus into the list so
+                    // the operator can keep flowing without reaching for
+                    // the mouse.
+                    if (e.key === 'ArrowDown' && pendingFiltered.length > 0) {
+                      e.preventDefault();
+                      setHighlightedIndex(0);
+                      pendingItemRefs.current[0]?.focus();
+                    }
+                  }}
                   placeholder={
                     matchField === 'name' ? 'Search depositor name…'
                     : matchField === 'phone' ? 'Search phone number…'
