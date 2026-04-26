@@ -975,7 +975,13 @@ export function TidVerification() {
                 placeholder="e.g. MP241231... or WEL-00001"
                 className="pl-9 h-12 font-mono text-base tracking-wide"
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !providerMismatch) handleVerify();
+                  if (e.key !== 'Enter') return;
+                  if (providerMismatch) {
+                    void logMismatchAttempt();
+                    toast.error('Provider mismatch — restore the original provider or clear the pick.');
+                    return;
+                  }
+                  handleVerify();
                 }}
               />
             </div>
@@ -1016,13 +1022,23 @@ export function TidVerification() {
             subtitle="We'll search the pending queue and let you approve the match."
           />
           <Button
-            onClick={handleVerify}
+            onClick={() => {
+              if (providerMismatch) {
+                void logMismatchAttempt();
+                toast.error('Provider mismatch — restore the original provider or clear the pick.');
+                return;
+              }
+              handleVerify();
+            }}
+            // Keep the button enabled while mismatched so we can capture the
+            // attempted click (and surface a clear toast). Visually it still
+            // reads as a warning state via the variant change below.
             disabled={
               resultState === 'searching' ||
               !tid.trim() ||
-              !operatorAmount ||
-              providerMismatch
+              !operatorAmount
             }
+            variant={providerMismatch ? 'outline' : 'default'}
             className="w-full h-12 sm:h-12 text-base font-semibold"
           >
             {resultState === 'searching' ? (
