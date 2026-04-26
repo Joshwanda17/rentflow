@@ -4,7 +4,6 @@ import { ApprovalQueue } from './ApprovalQueue';
 import { TransactionSearch } from './TransactionSearch';
 import { ReconciliationDashboard } from './ReconciliationDashboard';
 import { AuditFeed } from './AuditFeed';
-import { TidVerification } from './TidVerification';
 import { ScaleDashboard } from './ScaleDashboard';
 import { FloatPayoutVerification } from './FloatPayoutVerification';
 import { FinOpsWithdrawalVerification } from './FinOpsWithdrawalVerification';
@@ -12,80 +11,75 @@ import { WalletDeductionPanel } from './WalletDeductionPanel';
 import { LandlordPayoutsQueue } from './LandlordPayoutsQueue';
 import { LedgerHub } from '@/components/ledgers/LedgerHub';
 import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
-import { DepositStatsPanel } from './DepositStatsPanel';
 import { WalletOverviewCard } from './WalletOverviewCard';
-import { FieldDepositVerificationQueue } from './FieldDepositVerificationQueue';
 import { OfflineSubmissionsQueue } from './OfflineSubmissionsQueue';
+import { VerifyDepositsHub } from './VerifyDepositsHub';
 
 
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
 import { AgentRequisitionForm } from './AgentRequisitionForm';
 import { 
-  ShieldCheck, Banknote, ArrowLeft, ChevronDown, ChevronUp,
-  ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, MinusCircle, FileText, Wallet,
-  WifiOff
+  ShieldCheck, Banknote, ArrowLeft, ChevronDown,
+  ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, MinusCircle, FileText,
+  WifiOff, MoreHorizontal
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import { AnimatePresence } from 'framer-motion';
 
-type View = 'home' | 'deposits' | 'field_deposits' | 'offline_collections';
-type Tool = null | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit' | 'withdrawals' | 'opportunities' | 'deductions' | 'requisitions';
+type View = 'home' | 'deposits' | 'offline_collections';
+type Tool =
+  | null
+  | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit'
+  | 'withdrawals' | 'opportunities' | 'deductions' | 'requisitions';
 
-const supportTools = [
-  { id: 'ops' as const, label: 'Ops Center', icon: Gauge, desc: 'Automation & monitoring' },
-  { id: 'queue' as const, label: 'Approval Queue', icon: ClipboardList, desc: 'Pending approvals' },
-  { id: 'search' as const, label: 'Transaction Search', icon: Search, desc: 'Find any transaction' },
-  { id: 'recon' as const, label: 'Reconciliation', icon: Scale, desc: 'Wallet-ledger drift' },
-  { id: 'audit' as const, label: 'Audit Trail', icon: Shield, desc: 'Action history' },
-  { id: 'opportunities' as const, label: 'Capital Opportunities', icon: TrendingUp, desc: 'Investment summaries' },
-  { id: 'requisitions' as const, label: 'Fund Requisitions', icon: FileText, desc: 'Agent fund requests' },
+/**
+ * Items hidden behind the "More" button. Per CFO mandate the dashboard
+ * surfaces ONLY the two most-used actions (Verify Deposits, Withdrawals)
+ * and tucks the rest in here so the home view stays minimalist.
+ */
+type MoreAction =
+  | { kind: 'tool'; id: Exclude<Tool, null>; label: string; desc: string; icon: typeof Gauge }
+  | { kind: 'view'; id: Exclude<View, 'home'>; label: string; desc: string; icon: typeof Gauge };
+
+const moreActions: MoreAction[] = [
+  { kind: 'view', id: 'offline_collections', label: 'Offline Collections', desc: 'Drafts agents submitted with proof', icon: WifiOff },
+  { kind: 'tool', id: 'deductions', label: 'Wallet Deductions', desc: 'Retractions, corrections & penalties', icon: MinusCircle },
+  { kind: 'tool', id: 'ledgers', label: 'Ledger', desc: 'Full record of all wallet activity', icon: BookOpen },
+  { kind: 'tool', id: 'ops', label: 'Ops Center', desc: 'Automation & monitoring', icon: Gauge },
+  { kind: 'tool', id: 'queue', label: 'Approval Queue', desc: 'Pending approvals', icon: ClipboardList },
+  { kind: 'tool', id: 'search', label: 'Transaction Search', desc: 'Find any transaction', icon: Search },
+  { kind: 'tool', id: 'recon', label: 'Reconciliation', desc: 'Wallet-ledger drift', icon: Scale },
+  { kind: 'tool', id: 'audit', label: 'Audit Trail', desc: 'Action history', icon: Shield },
+  { kind: 'tool', id: 'opportunities', label: 'Capital Opportunities', desc: 'Investment summaries', icon: TrendingUp },
+  { kind: 'tool', id: 'requisitions', label: 'Fund Requisitions', desc: 'Agent fund requests', icon: FileText },
 ];
 
 export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymentRef?: boolean } = {}) {
   const [view, setView] = useState<View>('home');
   const [activeTool, setActiveTool] = useState<Tool>(null);
-  const [showDepositStats, setShowDepositStats] = useState(false);
-  const [supportSheet, setSupportSheet] = useState(false);
+  const [moreSheet, setMoreSheet] = useState(false);
 
   const openTool = (t: Tool) => {
     setActiveTool(t);
-    setSupportSheet(false);
+    setMoreSheet(false);
   };
 
-  // Sub-view: Deposits
+  const openMoreAction = (a: MoreAction) => {
+    if (a.kind === 'tool') {
+      openTool(a.id);
+    } else {
+      setView(a.id);
+      setMoreSheet(false);
+    }
+  };
+
+  // Sub-view: Verify Deposits (unified — user TIDs + field/agent cash)
   if (view === 'deposits') {
     return (
       <div className="space-y-4">
         <button onClick={() => setView('home')} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back
         </button>
-        <h2 className="text-lg font-bold flex items-center gap-2">
-          <ShieldCheck className="h-5 w-5 text-primary" />
-          Verify User Deposits
-        </h2>
-        <p className="text-xs text-muted-foreground -mt-2">
-          CFO credits from <span className="font-semibold text-foreground">Welile Technologies Finance</span> are auto-approved and do not require verification.
-        </p>
-        <TidVerification />
-      </div>
-    );
-  }
-
-  // Sub-view: Field Deposits (agent cash → float)
-  if (view === 'field_deposits') {
-    return (
-      <div className="space-y-4">
-        <button onClick={() => setView('home')} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="h-4 w-4" /> Back
-        </button>
-        <h2 className="text-lg font-bold flex items-center gap-2">
-          <Wallet className="h-5 w-5 text-primary" />
-          Field Deposits
-        </h2>
-        <p className="text-xs text-muted-foreground -mt-2">
-          Agent cash collections deposited via MTN, Airtel, bank or cash merchant. Verifying credits agent float, allocates rent to tagged tenants, and posts agent commission instantly.
-        </p>
-        <FieldDepositVerificationQueue />
+        <VerifyDepositsHub />
       </div>
     );
   }
@@ -155,15 +149,20 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
       <WalletOverviewCard />
       <FinancialOpsPulseStrip />
 
-      {/* ═══ CORE: Wallet Management ═══ */}
+      {/* ═══ CORE: Wallet Management ═══
+          Per CFO mandate: only the two most-used actions live here.
+          Verify Deposits is the single front door for ALL incoming money
+          (user TIDs + agent field cash batches). Withdrawals & Payouts
+          handles every outgoing approval/rejection. Anything else is
+          one tap away in "More". */}
       <div>
         <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">
           Wallet Management
         </h2>
         <div className="grid grid-cols-1 gap-3">
-          {/* Verify User Deposits */}
+          {/* 1. Verify ALL Deposits (user TIDs + field/agent cash → float) */}
           <button
-            onClick={() => setShowDepositStats(!showDepositStats)}
+            onClick={() => setView('deposits')}
             className="flex items-center gap-4 p-5 rounded-2xl border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all text-left min-h-[80px]"
           >
             <div className="h-12 w-12 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
@@ -171,50 +170,11 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
             </div>
             <div className="flex-1">
               <p className="font-bold text-base">Verify Deposits</p>
-              <p className="text-xs text-muted-foreground">TID match & approve user deposits</p>
-            </div>
-            {showDepositStats ? (
-              <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
-            ) : (
-              <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-            )}
-          </button>
-
-          <AnimatePresence>
-            {showDepositStats && (
-              <DepositStatsPanel onOpenVerification={() => setView('deposits')} />
-            )}
-          </AnimatePresence>
-
-          {/* Field Deposits (agent cash → float) */}
-          <button
-            onClick={() => setView('field_deposits')}
-            className="flex items-center gap-4 p-5 rounded-2xl border-2 border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40 transition-all text-left min-h-[80px]"
-          >
-            <div className="h-12 w-12 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
-              <Wallet className="h-6 w-6 text-primary" />
-            </div>
-            <div className="flex-1">
-              <p className="font-bold text-base">Field Deposits</p>
-              <p className="text-xs text-muted-foreground">Verify agent cash deposits & auto-allocate rent</p>
+              <p className="text-xs text-muted-foreground">User top-ups & agent field cash — one place</p>
             </div>
           </button>
 
-          {/* Offline Collections (sync queue with proof) */}
-          <button
-            onClick={() => setView('offline_collections')}
-            className="flex items-center gap-4 p-5 rounded-2xl border-2 border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/50 transition-all text-left min-h-[80px]"
-          >
-            <div className="h-12 w-12 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
-              <WifiOff className="h-6 w-6 text-amber-600" />
-            </div>
-            <div className="flex-1">
-              <p className="font-bold text-base">Offline Collections</p>
-              <p className="text-xs text-muted-foreground">Review submitted drafts, proof & rejections</p>
-            </div>
-          </button>
-
-          {/* Withdrawals & Payouts */}
+          {/* 2. Approve or Reject Withdrawals */}
           <button
             onClick={() => openTool('withdrawals')}
             className="flex items-center gap-4 p-5 rounded-2xl border-2 border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10 hover:border-orange-500/50 transition-all text-left min-h-[80px]"
@@ -223,71 +183,46 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
               <Banknote className="h-6 w-6 text-orange-600" />
             </div>
             <div className="flex-1">
-              <p className="font-bold text-base">Withdrawals & Payouts</p>
-              <p className="text-xs text-muted-foreground">Process & verify cash-out requests</p>
+              <p className="font-bold text-base">Approve or Reject Withdrawals</p>
+              <p className="text-xs text-muted-foreground">Cash-out requests waiting for a decision</p>
             </div>
           </button>
 
-          {/* Wallet Deductions */}
+          {/* 3. More — everything else */}
           <button
-            onClick={() => openTool('deductions')}
-            className="flex items-center gap-4 p-5 rounded-2xl border-2 border-destructive/20 bg-destructive/5 hover:bg-destructive/10 hover:border-destructive/40 transition-all text-left min-h-[80px]"
-          >
-            <div className="h-12 w-12 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0">
-              <MinusCircle className="h-6 w-6 text-destructive" />
-            </div>
-            <div className="flex-1">
-              <p className="font-bold text-base">Wallet Deductions</p>
-              <p className="text-xs text-muted-foreground">Retractions, corrections & penalties</p>
-            </div>
-          </button>
-
-
-          {/* Ledger */}
-          <button
-            onClick={() => openTool('ledgers')}
-            className="flex items-center gap-4 p-5 rounded-2xl border-2 border-muted bg-muted/30 hover:bg-muted/50 hover:border-muted-foreground/30 transition-all text-left min-h-[80px]"
+            onClick={() => setMoreSheet(true)}
+            className="flex items-center gap-4 p-5 rounded-2xl border border-border bg-card hover:bg-accent/40 transition-all text-left min-h-[80px]"
           >
             <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center shrink-0">
-              <BookOpen className="h-6 w-6 text-muted-foreground" />
+              <MoreHorizontal className="h-6 w-6 text-muted-foreground" />
             </div>
             <div className="flex-1">
-              <p className="font-bold text-base">Ledger</p>
-              <p className="text-xs text-muted-foreground">Full financial record of all wallet activity</p>
+              <p className="font-bold text-base">More</p>
+              <p className="text-xs text-muted-foreground">Offline collections, ledger, deductions & support tools</p>
             </div>
+            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
           </button>
         </div>
       </div>
 
-      {/* ═══ SUPPORT: Additional Tools ═══ */}
-      <div>
-        <button
-          onClick={() => setSupportSheet(true)}
-          className="w-full flex items-center justify-between p-3.5 rounded-xl border border-border hover:bg-accent/30 transition-colors"
-        >
-          <span className="text-sm font-semibold text-muted-foreground">Support Tools</span>
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-        </button>
-      </div>
-
-      {/* Support Tools Sheet */}
-      <Sheet open={supportSheet} onOpenChange={setSupportSheet}>
+      {/* "More" Sheet — every secondary tool lives here */}
+      <Sheet open={moreSheet} onOpenChange={setMoreSheet}>
         <SheetContent side="bottom" className="rounded-t-2xl max-h-[70vh]">
           <SheetHeader>
-            <SheetTitle>Support Tools</SheetTitle>
-            <SheetDescription>Ops, search, reconciliation & reporting</SheetDescription>
+            <SheetTitle>More tools</SheetTitle>
+            <SheetDescription>Everything beyond verifying deposits and approving withdrawals</SheetDescription>
           </SheetHeader>
-          <div className="grid gap-1.5 mt-4">
-            {supportTools.map(t => (
+          <div className="grid gap-1.5 mt-4 overflow-y-auto pb-4">
+            {moreActions.map(a => (
               <button
-                key={t.id}
-                onClick={() => openTool(t.id)}
+                key={`${a.kind}-${a.id}`}
+                onClick={() => openMoreAction(a)}
                 className="flex items-center gap-3 p-4 rounded-xl hover:bg-accent/40 transition-colors text-left"
               >
-                <t.icon className="h-5 w-5 text-muted-foreground shrink-0" />
+                <a.icon className="h-5 w-5 text-muted-foreground shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <span className="font-medium text-sm block">{t.label}</span>
-                  <span className="text-[11px] text-muted-foreground">{t.desc}</span>
+                  <span className="font-medium text-sm block">{a.label}</span>
+                  <span className="text-[11px] text-muted-foreground">{a.desc}</span>
                 </div>
               </button>
             ))}
