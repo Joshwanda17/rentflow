@@ -36,6 +36,9 @@ import {
   Zap,
   Clock,
   Ban,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from 'lucide-react';
 
 interface MatchResult {
@@ -142,6 +145,13 @@ export function TidVerification() {
   const [matchField, setMatchField] = useState<MatchField>('any');
   const [amountRange, setAmountRange] = useState<AmountRange>('any');
   const [verification, setVerification] = useState<Verification>('any');
+  // Sort controls for the pick-list. Default is the natural newest-first
+  // order returned by the server query. Each click on a column header
+  // cycles asc → desc → none.
+  type SortColumn = 'name' | 'phone' | 'amount';
+  type SortDir = 'asc' | 'desc';
+  const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
   // The provider the picked row was originally tagged with — used to
   // detect when the operator changes the provider after picking.
   const [pickedProvider, setPickedProvider] = useState<string | null>(null);
@@ -285,11 +295,51 @@ export function TidVerification() {
   const filtersActive =
     matchField !== 'any' || amountRange !== 'any' || verification !== 'any';
 
+  // Apply column sort on top of the filtered list. When no column is
+  // active we keep the server's natural newest-first order so toggling
+  // sort off feels like an undo.
+  const pendingSorted = (() => {
+    if (!sortColumn) return pendingFiltered;
+    const dir = sortDir === 'asc' ? 1 : -1;
+    const copy = [...pendingFiltered];
+    copy.sort((a, b) => {
+      let av: string | number;
+      let bv: string | number;
+      if (sortColumn === 'amount') {
+        av = a.amount; bv = b.amount;
+      } else if (sortColumn === 'phone') {
+        av = a.depositorPhone || ''; bv = b.depositorPhone || '';
+      } else {
+        av = a.depositorName.toLowerCase();
+        bv = b.depositorName.toLowerCase();
+      }
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
+    });
+    return copy;
+  })();
+
+  // Cycle sort: same column → flip asc/desc; different column → start asc;
+  // a third click on the same column clears sort entirely (back to natural
+  // order).
+  const toggleSort = (col: SortColumn) => {
+    if (sortColumn !== col) {
+      setSortColumn(col);
+      setSortDir('asc');
+    } else if (sortDir === 'asc') {
+      setSortDir('desc');
+    } else {
+      setSortColumn(null);
+      setSortDir('asc');
+    }
+  };
+
   // Reset highlight when the visible list shape changes (search, provider,
   // refresh) so the focus indicator never points to a stale row.
   useEffect(() => {
     setHighlightedIndex(-1);
-  }, [pendingSearch, provider, pending.length, matchField, amountRange, verification]);
+  }, [pendingSearch, provider, pending.length, matchField, amountRange, verification, sortColumn, sortDir]);
 
   // Keep the highlighted row in view when arrow-keying through a long list.
   useEffect(() => {
@@ -299,18 +349,18 @@ export function TidVerification() {
   }, [highlightedIndex]);
 
   const handlePendingKeyDown = (e: React.KeyboardEvent<HTMLUListElement>) => {
-    if (pendingFiltered.length === 0) return;
+    if (pendingSorted.length === 0) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setHighlightedIndex((i) => {
-        const next = i < pendingFiltered.length - 1 ? i + 1 : 0;
+        const next = i < pendingSorted.length - 1 ? i + 1 : 0;
         pendingItemRefs.current[next]?.focus();
         return next;
       });
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setHighlightedIndex((i) => {
-        const next = i > 0 ? i - 1 : pendingFiltered.length - 1;
+        const next = i > 0 ? i - 1 : pendingSorted.length - 1;
         pendingItemRefs.current[next]?.focus();
         return next;
       });
@@ -320,13 +370,13 @@ export function TidVerification() {
       pendingItemRefs.current[0]?.focus();
     } else if (e.key === 'End') {
       e.preventDefault();
-      const last = pendingFiltered.length - 1;
+      const last = pendingSorted.length - 1;
       setHighlightedIndex(last);
       pendingItemRefs.current[last]?.focus();
     } else if (e.key === 'Enter' || e.key === ' ') {
-      if (highlightedIndex >= 0 && highlightedIndex < pendingFiltered.length) {
+      if (highlightedIndex >= 0 && highlightedIndex < pendingSorted.length) {
         e.preventDefault();
-        pickPending(pendingFiltered[highlightedIndex]);
+        pickPending(pendingSorted[highlightedIndex]);
       }
     } else if (e.key === 'Escape') {
       // Esc priority: clear the search box first (most common case while
@@ -644,7 +694,7 @@ export function TidVerification() {
                     // ↓ from the search box jumps focus into the list so
                     // the operator can keep flowing without reaching for
                     // the mouse.
-                    if (e.key === 'ArrowDown' && pendingFiltered.length > 0) {
+                    if (e.key === 'ArrowDown' && pendingSorted.length > 0) {
                       e.preventDefault();
                       setHighlightedIndex(0);
                       pendingItemRefs.current[0]?.focus();
@@ -735,8 +785,61 @@ export function TidVerification() {
               No depositors match “{pendingSearch}”.
             </div>
           ) : (
-            <ScrollArea className="max-h-44">
-              <ul
+            <>
+              {/* Sortable column header — three buttons matching the row
+                  layout (name+phone on the left, amount on the right). Click
+                  cycles asc → desc → off. */}
+              <div
+                role="row"
+                className="flex items-center justify-between gap-2 px-2.5 py-1.5 border-b border-border/60 bg-muted/30 text-[10px] uppercase tracking-wide text-muted-foreground"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('name')}
+                    aria-label="Sort by depositor name"
+                    aria-sort={sortColumn === 'name' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    className="flex items-center gap-1 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded px-1"
+                  >
+                    Name
+                    {sortColumn === 'name'
+                      ? (sortDir === 'asc'
+                          ? <ArrowUp className="h-2.5 w-2.5 text-primary" />
+                          : <ArrowDown className="h-2.5 w-2.5 text-primary" />)
+                      : <ArrowUpDown className="h-2.5 w-2.5 opacity-50" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('phone')}
+                    aria-label="Sort by phone number"
+                    aria-sort={sortColumn === 'phone' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    className="flex items-center gap-1 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded px-1"
+                  >
+                    Phone
+                    {sortColumn === 'phone'
+                      ? (sortDir === 'asc'
+                          ? <ArrowUp className="h-2.5 w-2.5 text-primary" />
+                          : <ArrowDown className="h-2.5 w-2.5 text-primary" />)
+                      : <ArrowUpDown className="h-2.5 w-2.5 opacity-50" />}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => toggleSort('amount')}
+                  aria-label="Sort by amount"
+                  aria-sort={sortColumn === 'amount' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  className="flex items-center gap-1 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded px-1"
+                >
+                  Amount
+                  {sortColumn === 'amount'
+                    ? (sortDir === 'asc'
+                        ? <ArrowUp className="h-2.5 w-2.5 text-primary" />
+                        : <ArrowDown className="h-2.5 w-2.5 text-primary" />)
+                    : <ArrowUpDown className="h-2.5 w-2.5 opacity-50" />}
+                </button>
+              </div>
+              <ScrollArea className="max-h-44">
+                <ul
                 ref={pendingListRef}
                 role="listbox"
                 aria-label="Pending depositors"
@@ -744,7 +847,7 @@ export function TidVerification() {
                 onKeyDown={handlePendingKeyDown}
                 className="divide-y divide-border/60 outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
               >
-                {pendingFiltered.map((p, idx) => {
+                {pendingSorted.map((p, idx) => {
                   const active = p.id === pickedId;
                   const highlighted = idx === highlightedIndex;
                   return (
@@ -800,7 +903,8 @@ export function TidVerification() {
                   </Button>
                 </div>
               )}
-            </ScrollArea>
+              </ScrollArea>
+            </>
           )}
         </div>
 
