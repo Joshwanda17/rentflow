@@ -7,6 +7,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { AgentVouchHistoryFeed } from './AgentVouchHistoryFeed';
 
 interface Props {
   userId: string;
@@ -178,6 +179,9 @@ export function AgentVouchHighlightCard({ userId }: Props) {
            * regardless of trust-score eligibility.
            */}
           <EarnedVouchBreakdown agentId={userId} />
+
+          {/* Per-collection vouch change feed (includes reversals) */}
+          <AgentVouchHistoryFeed agentId={userId} />
 
           {/* Tier ladder */}
           <div className="rounded-xl border border-border/50 bg-card/60 p-2.5">
