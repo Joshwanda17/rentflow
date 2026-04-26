@@ -87,6 +87,9 @@ export function TidVerification() {
   const [pendingLoading, setPendingLoading] = useState(false);
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [pendingSearch, setPendingSearch] = useState('');
+  // The provider the picked row was originally tagged with — used to
+  // detect when the operator changes the provider after picking.
+  const [pickedProvider, setPickedProvider] = useState<string | null>(null);
 
   // Extracted so we can refresh the pick-list after verify/reject without
   // a full page reload — the just-actioned row simply disappears.
@@ -143,8 +146,14 @@ export function TidVerification() {
   const pickPending = (p: PendingDeposit) => {
     setPickedId(p.id);
     setOperatorAmount(String(p.amount));
+    setPickedProvider(p.provider ?? null);
     if (p.provider) setProvider(p.provider);
   };
+
+  // True if the operator picked a row and then changed the provider away
+  // from what that row was submitted as — almost always a mistake.
+  const providerMismatch =
+    !!pickedId && !!pickedProvider && pickedProvider !== provider;
 
   // Local filter — name, phone, or amount substring (digits only for amount).
   const pendingFiltered = (() => {
@@ -397,7 +406,7 @@ export function TidVerification() {
             {pickedId && (
               <button
                 type="button"
-                onClick={() => { setPickedId(null); setOperatorAmount(''); }}
+                onClick={() => { setPickedId(null); setPickedProvider(null); setOperatorAmount(''); }}
                 className="text-[10px] text-muted-foreground hover:text-foreground underline"
               >
                 Clear pick
@@ -533,6 +542,38 @@ export function TidVerification() {
             )}
             Verify & Match
           </Button>
+          {providerMismatch && (
+            <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-2.5 py-2 text-[11px] text-warning-foreground">
+              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-warning" />
+              <div className="space-y-1.5 min-w-0">
+                <p>
+                  You picked a deposit submitted as{' '}
+                  <span className="font-semibold uppercase">
+                    {(pickedProvider ?? '').replace('_', ' ')}
+                  </span>{' '}
+                  but the form is set to{' '}
+                  <span className="font-semibold uppercase">{provider.replace('_', ' ')}</span>.
+                  Verify on the original channel or clear the pick.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => pickedProvider && setProvider(pickedProvider)}
+                    className="underline hover:text-foreground"
+                  >
+                    Restore {(pickedProvider ?? '').replace('_', ' ')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setPickedId(null); setPickedProvider(null); setOperatorAmount(''); }}
+                    className="underline hover:text-foreground"
+                  >
+                    Clear pick
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Results */}
