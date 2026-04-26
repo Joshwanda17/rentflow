@@ -19,9 +19,12 @@ import {
   CheckCircle2,
   XCircle,
   User as UserIcon,
+  Download,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
+import { downloadCsv, csvTimestamp } from '@/lib/csvExport';
+import { toast } from 'sonner';
 
 /**
  * Compact audit trail of the most recent user-deposit verifications
@@ -51,6 +54,7 @@ export function RecentlyVerifiedList({ limit = 10, verifierId }: Props) {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setRefreshing(true);
@@ -106,6 +110,78 @@ export function RecentlyVerifiedList({ limit = 10, verifierId }: Props) {
     return () => clearInterval(id);
   }, [load, autoRefresh]);
 
+  /**
+   * On-demand audit export — pulls up to 1000 resolved user deposits with
+   * the same audit fields shown in the table (verifier, timestamp,
+   * rejection reason) so reconciliation teams have a complete record.
+   */
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const { data, error } = await supabase
+        .from('deposit_requests')
+        .select(
+          'id, amount, status, approved_at, rejected_at, processed_by, rejection_reason, user_id',
+        )
+        .in('status', ['approved', 'rejected'])
+        .order('updated_at', { ascending: false })
+        .limit(1000);
+      if (error) throw error;
+      const list = (data ?? []) as any[];
+
+      if (list.length === 0) {
+        toast.info('Nothing to export — no resolved deposits yet.');
+        return;
+      }
+
+      const ids = Array.from(
+        new Set([
+          ...list.map((r) => r.processed_by).filter(Boolean),
+          ...list.map((r) => r.user_id).filter(Boolean),
+        ]),
+      );
+      const nameMap = new Map<string, string | null>();
+      if (ids.length > 0) {
+        const { data: profs } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', ids);
+        for (const p of (profs ?? []) as any[]) nameMap.set(p.id, p.full_name);
+      }
+
+      downloadCsv(
+        `user-deposits-audit-${new Date().toISOString().slice(0, 10)}.csv`,
+        [
+          'Deposit ID',
+          'Depositor ID',
+          'Depositor name',
+          'Amount (UGX)',
+          'Outcome',
+          'Verified by (ID)',
+          'Verified by',
+          'Verified at',
+          'Rejection reason',
+        ],
+        list.map((r) => [
+          r.id,
+          r.user_id ?? '',
+          nameMap.get(r.user_id) ?? '',
+          Number(r.amount || 0),
+          r.status === 'approved' ? 'Approved' : 'Rejected',
+          r.processed_by ?? '',
+          nameMap.get(r.processed_by) ?? '',
+          csvTimestamp(r.status === 'approved' ? r.approved_at : r.rejected_at),
+          r.rejection_reason ?? '',
+        ]),
+      );
+      toast.success(`Exported ${list.length} deposit${list.length === 1 ? '' : 's'} to CSV.`);
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Failed to export audit log');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -114,15 +190,28 @@ export function RecentlyVerifiedList({ limit = 10, verifierId }: Props) {
             <History className="h-4 w-4 text-muted-foreground" />
             Recently verified
           </CardTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => load(false)}
-            disabled={refreshing}
-            className="h-7"
-          >
-            {refreshing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleExport}
+              disabled={exporting}
+              className="h-7 gap-1 text-[11px]"
+              title="Download verified & rejected deposits for audit reconciliation"
+            >
+              {exporting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+              <span className="hidden sm:inline">Export</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => load(false)}
+              disabled={refreshing}
+              className="h-7"
+            >
+              {refreshing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+            </Button>
+          </div>
         </div>
         <p className="text-[11px] text-muted-foreground">
           Audit trail — who approved or rejected each user deposit.
