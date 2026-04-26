@@ -229,6 +229,9 @@ export function FieldDepositVerificationQueue({
       if (channels && channels.length > 0) q = q.in('channel', channels);
       if (typeof minAmount === 'number') q = q.gte('declared_total', minAmount);
       if (typeof maxAmount === 'number') q = q.lte('declared_total', maxAmount);
+      // Honor the hub's export-only date window.
+      if (exportFromIso) q = q.gte('finops_verified_at', exportFromIso);
+      if (exportToIso) q = q.lte('finops_verified_at', exportToIso);
       const { data, error } = await q;
       if (error) throw error;
       const list = (data ?? []) as any[];
