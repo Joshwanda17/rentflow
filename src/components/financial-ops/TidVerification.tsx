@@ -99,6 +99,54 @@ function FilterChipRow({
   );
 }
 
+/**
+ * Tiny self-view shown to the operator inside the verify card. Surfaces
+ * how many provider-mismatch *attempts* the operator has triggered today
+ * so they can self-correct before a CFO review. Stays silent (renders
+ * nothing) when the count is zero — no need to add chrome that just
+ * congratulates "0 mistakes".
+ */
+function OperatorMismatchTodayBadge() {
+  const { user } = useAuth();
+  const [count, setCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    (async () => {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const { count: c, error } = await supabase
+        .from('system_events')
+        .select('id', { count: 'exact', head: true })
+        .eq('event_type', 'finops_provider_mismatch')
+        .eq('user_id', user.id)
+        .gte('created_at', startOfDay.toISOString());
+      if (cancelled) return;
+      if (error) {
+        console.warn('[OperatorMismatchTodayBadge] fetch failed', error);
+        return;
+      }
+      setCount(c ?? 0);
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  if (!count || count === 0) return null;
+
+  return (
+    <div className="flex items-center gap-2 rounded-md border border-warning/40 bg-warning/5 px-3 py-2 text-xs">
+      <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0" />
+      <span className="text-warning-foreground">
+        You've hit{' '}
+        <span className="font-semibold">{count}</span>{' '}
+        provider-mismatch warning{count === 1 ? '' : 's'} today. Restore the
+        original provider after picking a deposit to avoid blocked submissions.
+      </span>
+    </div>
+  );
+}
+
 export function TidVerification() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
