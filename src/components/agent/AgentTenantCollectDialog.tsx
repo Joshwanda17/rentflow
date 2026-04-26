@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Banknote, AlertCircle, CheckCircle2, Wallet, TrendingUp, WifiOff } from 'lucide-react';
+import { Loader2, Banknote, AlertCircle, CheckCircle2, Wallet, TrendingUp, WifiOff, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -13,6 +13,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { useOffline } from '@/contexts/OfflineContext';
 import { CommissionCelebration } from './CommissionCelebration';
+import { captureOfflineDraft } from '@/lib/offlineCollectionDrafts';
 
 interface AgentTenantCollectDialogProps {
   open: boolean;
@@ -36,6 +37,7 @@ export function AgentTenantCollectDialog({
   const [confirming, setConfirming] = useState(false);
   const [celebrationOpen, setCelebrationOpen] = useState(false);
   const [celebrationData, setCelebrationData] = useState<{ commission: number; amount: number } | null>(null);
+  const [draftSaved, setDraftSaved] = useState<{ provisional_receipt_no: string; amount: number } | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -43,6 +45,7 @@ export function AgentTenantCollectDialog({
       setNotes('');
       setResult(null);
       setConfirming(false);
+      setDraftSaved(null);
       refetchBalances();
     }
   }, [open]);
@@ -109,8 +112,34 @@ export function AgentTenantCollectDialog({
   };
 
   const handleClose = () => {
-    if (result) onSuccess?.();
+    if (result || draftSaved) onSuccess?.();
     onOpenChange(false);
+  };
+
+  const handleSaveOfflineDraft = async () => {
+    if (!user || !tenant || amount < 100) return;
+    setLoading(true);
+    try {
+      const draft = await captureOfflineDraft({
+        agent_id: user.id,
+        tenant_id: tenant.id,
+        tenant_name: tenant.full_name,
+        rent_request_id: rentRequestId,
+        amount,
+        notes,
+      });
+      setDraftSaved({ provisional_receipt_no: draft.provisional_receipt_no, amount });
+      toast.success('Saved on your phone', {
+        description: `Receipt ${draft.provisional_receipt_no}. Add proof when back online.`,
+      });
+    } catch (err: any) {
+      console.error('[AgentTenantCollectDialog] offline draft save failed:', err);
+      toast.error('Could not save draft', {
+        description: err?.message || 'Please try again.',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!tenant) return null;
@@ -125,31 +154,96 @@ export function AgentTenantCollectDialog({
           </DialogTitle>
         </DialogHeader>
 
-        {!isOnline && !result ? (
-          /* ───── Offline blocked view ───── */
-          <div className="space-y-4 py-4">
-            <div className="flex flex-col items-center text-center gap-3">
+        {draftSaved ? (
+          /* ───── Offline draft saved (provisional receipt) ───── */
+          <div className="space-y-4 py-2">
+            <div className="flex flex-col items-center gap-2 text-center">
               <div className="w-14 h-14 rounded-full bg-warning/15 flex items-center justify-center">
                 <WifiOff className="h-7 w-7 text-warning" />
               </div>
-              <h3 className="text-base font-bold">You're offline</h3>
+              <h3 className="text-lg font-bold">Saved on your phone</h3>
               <p className="text-xs text-muted-foreground max-w-[280px]">
-                Recording rent collections needs an internet connection so your float and the tenant's balance stay in sync.
+                This payment record is on this device only. It will be sent to Welile Operations once you go online and add proof.
               </p>
             </div>
 
-            <div className="rounded-xl border border-warning/30 bg-warning/5 p-3 space-y-1.5">
-              <p className="text-xs font-semibold text-warning-foreground">What you can do right now</p>
-              <ul className="text-[11px] text-muted-foreground space-y-1 list-disc pl-4">
-                <li>Move to a spot with mobile data or Wi-Fi.</li>
-                <li>Then reopen this tenant and tap <span className="font-semibold">Pay</span> again.</li>
-                <li>Your tenant list and balances stay viewable while offline.</li>
-              </ul>
+            <div className="bg-muted/30 rounded-xl p-3 space-y-1.5 text-sm border-2 border-dashed border-warning/40">
+              <p className="text-[10px] uppercase tracking-wider text-warning font-bold">Provisional receipt</p>
+              <p className="font-mono text-base font-bold">{draftSaved.provisional_receipt_no}</p>
+              <div className="flex justify-between text-xs pt-1">
+                <span className="text-muted-foreground">Amount</span>
+                <span className="font-mono font-bold">{formatUGX(draftSaved.amount)}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Tenant</span>
+                <span className="font-semibold">{tenant.full_name}</span>
+              </div>
+              <p className="text-[10px] text-muted-foreground pt-1 border-t border-border/40 mt-1">
+                Tell the tenant: <span className="italic">"Welile will confirm by SMS once I upload proof."</span>
+              </p>
             </div>
 
-            <Button variant="outline" onClick={handleClose} className="w-full h-11">
-              Close
-            </Button>
+            <div className="flex items-start gap-2 rounded-xl bg-primary/5 border border-primary/20 p-3">
+              <ShieldAlert className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+              <p className="text-[11px] text-muted-foreground">
+                When you have data, open <span className="font-semibold">Pending Sync</span> on your dashboard, attach a photo or signature, then submit.
+              </p>
+            </div>
+
+            <Button onClick={handleClose} className="w-full h-12 font-bold">Done</Button>
+          </div>
+        ) : !isOnline && !result ? (
+          /* ───── Offline capture form ───── */
+          <div className="space-y-3">
+            <div className="rounded-xl bg-warning/10 border border-warning/30 p-3 flex items-start gap-2">
+              <WifiOff className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+              <div className="text-[11px]">
+                <p className="font-semibold text-warning-foreground">Offline mode — record only</p>
+                <p className="text-muted-foreground">Saved on this phone. Float won't change yet. You'll add proof and submit when you go online.</p>
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-destructive/5 border border-destructive/20 p-3 text-center">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{tenant.full_name} Owes (last known)</p>
+              <p className="text-xl font-bold text-destructive font-mono">{formatUGX(outstandingBalance)}</p>
+            </div>
+
+            <div>
+              <Label className="text-xs">Amount Collected (UGX) *</Label>
+              <Input
+                type="number"
+                inputMode="numeric"
+                placeholder="e.g. 13000"
+                value={amount || ''}
+                onChange={e => setAmount(Number(e.target.value))}
+                min={100}
+                max={outstandingBalance || undefined}
+                className="h-12 text-lg font-mono font-bold"
+              />
+            </div>
+
+            <div>
+              <Label className="text-xs">Notes (optional)</Label>
+              <Textarea
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                placeholder="e.g. Paid in cash at the shop"
+                className="text-xs min-h-[60px]"
+              />
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" onClick={handleClose} className="flex-1 h-11" disabled={loading}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveOfflineDraft}
+                disabled={amount < 100 || loading}
+                className="flex-1 h-11 font-bold"
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save Draft'}
+              </Button>
+            </div>
           </div>
         ) : result ? (
           /* ───── Success View ───── */
