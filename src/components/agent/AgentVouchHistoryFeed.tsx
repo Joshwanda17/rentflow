@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { History, ArrowUpRight, ArrowDownRight, RotateCcw, ExternalLink, CalendarIcon, Download, Copy, Check, AlertCircle, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -78,6 +78,8 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
   // so the user stays anchored to the same visual row.
   const pendingScrollAdjustRef = useRef<{ prevHeight: number; prevScrollY: number } | null>(null);
 
+  const [refreshing, setRefreshing] = useState(false);
+
   // Brief "applying realtime update" indicator so the feed doesn't feel jumpy
   const [isApplyingRealtime, setIsApplyingRealtime] = useState(false);
   const applyingTimeoutRef = useRef<number | null>(null);
@@ -111,29 +113,43 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
     }
   }, [rows]);
 
+  const fetchHistory = useCallback(async (mode: 'initial' | 'manual' = 'initial') => {
+    if (!agentId) { setLoading(false); return; }
+    if (mode === 'manual') setRefreshing(true);
+    try {
+      const { data, error } = await (supabase as any)
+        .from('agent_vouch_limit_history')
+        .select('id, change_source, collection_id, collection_amount, previous_effective_limit_ugx, new_effective_limit_ugx, delta_ugx, created_at')
+        .eq('agent_id', agentId)
+        .order('created_at', { ascending: false })
+        .limit(200);
+      if (error) {
+        if (mode === 'manual') {
+          toast.error('Could not refresh vouch history.');
+        }
+        setRows([]);
+      } else {
+        setRows((data ?? []) as HistoryRow[]);
+        if (mode === 'manual') {
+          toast.success('Vouch history refreshed');
+        }
+      }
+    } catch (e: any) {
+      if (mode === 'manual') toast.error(e?.message || 'Could not refresh vouch history.');
+    } finally {
+      if (mode === 'initial') setLoading(false);
+      if (mode === 'manual') setRefreshing(false);
+    }
+  }, [agentId]);
+
   useEffect(() => {
     let cancelled = false;
-    if (!agentId) { setLoading(false); return; }
     (async () => {
-      try {
-        const { data, error } = await (supabase as any)
-          .from('agent_vouch_limit_history')
-          .select('id, change_source, collection_id, collection_amount, previous_effective_limit_ugx, new_effective_limit_ugx, delta_ugx, created_at')
-          .eq('agent_id', agentId)
-          .order('created_at', { ascending: false })
-          .limit(200);
-        if (cancelled) return;
-        if (error) {
-          setRows([]);
-        } else {
-          setRows((data ?? []) as HistoryRow[]);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+      await fetchHistory('initial');
+      if (cancelled) return;
     })();
     return () => { cancelled = true; };
-  }, [agentId]);
+  }, [fetchHistory]);
 
   // Realtime subscription with toast notifications on changes
   useEffect(() => {
@@ -352,6 +368,20 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
               Updating
             </span>
           )}
+          <button
+            type="button"
+            onClick={() => fetchHistory('manual')}
+            disabled={refreshing || loading}
+            title="Refresh vouch history"
+            aria-label="Refresh vouch history"
+            className={cn(
+              'inline-flex items-center justify-center h-5 w-5 ml-1 rounded-md transition-colors',
+              'text-muted-foreground hover:text-foreground hover:bg-muted/60',
+              'disabled:opacity-50 disabled:cursor-not-allowed',
+            )}
+          >
+            <RefreshCw className={cn('h-3 w-3', refreshing && 'animate-spin')} />
+          </button>
         </div>
         <div className="flex items-center gap-1 flex-wrap">
           {PRESETS.map((p) => (
