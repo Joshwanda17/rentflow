@@ -612,7 +612,7 @@ export function TidVerification() {
               </Label>
               {pending.length > 0 && (
                 <span className="hidden sm:inline text-[10px] text-muted-foreground/70">
-                  ↑↓ navigate · Enter pick · Esc clear
+                  ↑↓ navigate · Enter pick · Esc clear search
                 </span>
               )}
             </div>
