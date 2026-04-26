@@ -694,7 +694,7 @@ export function TidVerification() {
                     // ↓ from the search box jumps focus into the list so
                     // the operator can keep flowing without reaching for
                     // the mouse.
-                    if (e.key === 'ArrowDown' && pendingFiltered.length > 0) {
+                    if (e.key === 'ArrowDown' && pendingSorted.length > 0) {
                       e.preventDefault();
                       setHighlightedIndex(0);
                       pendingItemRefs.current[0]?.focus();
