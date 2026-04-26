@@ -412,6 +412,36 @@ export function TidVerification() {
     }
   };
 
+  // Logs a "blocked Verify attempt" to the system event stream so ops
+  // metrics can show how often operators try to verify with a mismatched
+  // provider. Debounced per-pick so a frustrated double-click only counts
+  // once until the operator changes the pick or the provider.
+  const lastLoggedRef = useRef<string | null>(null);
+  const logMismatchAttempt = useCallback(async () => {
+    if (!pickedId || !pickedProvider) return;
+    const dedupeKey = `${pickedId}|${pickedProvider}|${provider}`;
+    if (lastLoggedRef.current === dedupeKey) return;
+    lastLoggedRef.current = dedupeKey;
+    try {
+      await supabase.rpc('log_finops_provider_mismatch', {
+        _picked_deposit_id: pickedId,
+        _picked_provider: pickedProvider,
+        _selected_provider: provider,
+        _attempted_amount: operatorAmount ? parseFloat(operatorAmount) : null,
+        _attempted_tid: tid.trim() || null,
+      });
+    } catch (err) {
+      // Logging is best-effort — never block the operator on a metrics call.
+      console.warn('[TidVerification] mismatch log failed', err);
+    }
+  }, [pickedId, pickedProvider, provider, operatorAmount, tid]);
+
+  // Reset the dedupe key whenever the pick or provider changes — that's a
+  // distinct "attempt context" and a new mismatch click should be counted.
+  useEffect(() => {
+    lastLoggedRef.current = null;
+  }, [pickedId, pickedProvider, provider]);
+
   const handleVerify = useCallback(async () => {
     const trimmedTid = tid.trim();
     if (!trimmedTid) { toast.error('Enter a Transaction ID'); return; }
