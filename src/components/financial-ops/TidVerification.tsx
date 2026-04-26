@@ -903,7 +903,8 @@ export function TidVerification() {
                   </Button>
                 </div>
               )}
-            </ScrollArea>
+              </ScrollArea>
+            </>
           )}
         </div>
 
