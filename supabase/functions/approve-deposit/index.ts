@@ -76,6 +76,22 @@ Deno.serve(async (req) => {
 
     const safeRejectionReason = typeof rejection_reason === 'string' ? rejection_reason.trim().slice(0, 1000) : undefined;
 
+    // Audit requirement: rejecting a deposit MUST be accompanied by a clear
+    // operator-written reason (≥10 chars) so reconciliation, the user
+    // notification SMS, and the audit_logs entry all carry traceable context.
+    // This was previously only enforced in the UI; an API caller could
+    // bypass it. The reason is also stamped onto deposit_requests.rejection_reason
+    // and broadcast in the user notification — never accept a blank.
+    if (action === 'reject' && (!safeRejectionReason || safeRejectionReason.length < 10)) {
+      return new Response(
+        JSON.stringify({
+          error: 'rejection_reason_required',
+          message: 'A rejection reason of at least 10 characters is required for auditing.',
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
     // Treasury guard: block credits when paused (deposits credit user wallets)
@@ -701,13 +717,13 @@ Deno.serve(async (req) => {
 
           results.push({ id: depositRequest.id, status: "approved", amount: depositRequest.amount, user_id: depositRequest.user_id, repayment_applied: repaymentApplied, debt_cleared: debtCleared, days_prepaid: daysPrepaid });
         } else {
-          // Reject
+          // Reject — safeRejectionReason is guaranteed non-empty (validated above).
           await supabaseAdmin
             .from("deposit_requests")
             .update({
               status: "rejected",
               rejected_at: new Date().toISOString(),
-              rejection_reason: safeRejectionReason || "Rejected by manager",
+              rejection_reason: safeRejectionReason,
               processed_by: user.id,
             })
             .eq("id", depositRequest.id);
@@ -715,7 +731,7 @@ Deno.serve(async (req) => {
           await supabaseAdmin.from("notifications").insert({
             user_id: depositRequest.user_id,
             title: "Deposit Rejected ❌",
-            message: `Your deposit of UGX ${depositRequest.amount.toLocaleString()} rejected by ${processorName}. Reason: ${safeRejectionReason || "No reason"}`,
+            message: `Your deposit of UGX ${depositRequest.amount.toLocaleString()} rejected by ${processorName}. Reason: ${safeRejectionReason}`,
             type: "warning",
             metadata: { deposit_request_id: depositRequest.id, amount: depositRequest.amount, reason: safeRejectionReason },
           });

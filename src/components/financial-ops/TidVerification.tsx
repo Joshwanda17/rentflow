@@ -478,18 +478,39 @@ export function TidVerification() {
             <AlertDialogHeader>
               <AlertDialogTitle>Reject Deposit</AlertDialogTitle>
               <AlertDialogDescription>
-                Provide a reason for rejecting this deposit. The user will be notified.
+                A clear rejection reason is <span className="font-semibold text-foreground">required</span>.
+                It will be sent to the depositor, stored on the deposit record, and written to the audit log
+                for later reconciliation.
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <Textarea
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-              placeholder="Enter rejection reason (min 10 characters)..."
-              className="min-h-[80px]"
-            />
-            {rejectionReason.trim().length > 0 && rejectionReason.trim().length < 10 && (
-              <p className="text-[11px] text-destructive">Reason must be at least 10 characters</p>
-            )}
+            <div className="space-y-1">
+              <label className="text-xs font-medium flex items-center gap-1">
+                Rejection reason <span className="text-destructive">*</span>
+              </label>
+              <Textarea
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="e.g. Transaction ID does not match any MTN statement entry for this date"
+                className="min-h-[80px]"
+                aria-required="true"
+              />
+              <div className="flex items-center justify-between text-[11px]">
+                <span
+                  className={
+                    rejectionReason.trim().length < 10
+                      ? 'text-destructive'
+                      : 'text-muted-foreground'
+                  }
+                >
+                  {rejectionReason.trim().length < 10
+                    ? `Need at least ${10 - rejectionReason.trim().length} more character${10 - rejectionReason.trim().length === 1 ? '' : 's'}`
+                    : 'Looks good'}
+                </span>
+                <span className="text-muted-foreground tabular-nums">
+                  {rejectionReason.trim().length}/1000
+                </span>
+              </div>
+            </div>
             <AlertDialogFooter>
               <AlertDialogCancel disabled={rejecting}>Cancel</AlertDialogCancel>
               <AlertDialogAction
