@@ -31,6 +31,7 @@ import {
   XCircle,
   Loader2,
   ArrowRight,
+  ArrowLeft,
   ShieldCheck,
   AlertTriangle,
   Zap,
@@ -162,6 +163,15 @@ export function TidVerification() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejecting, setRejecting] = useState(false);
+  // Pending (deferred) approvals — each entry holds an in-flight 5-second
+  // undo window. While a match id is in this map we show the row as
+  // "Approving (undoable)" and the backend `approve-deposit` call is
+  // NOT fired. When the timer elapses we commit; if the operator clicks
+  // Undo we cancel the timer and nothing reaches the server.
+  const undoTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  // Use state (not just ref) so the per-row UI updates when entries
+  // are added/removed.
+  const [pendingUndoIds, setPendingUndoIds] = useState<Set<string>>(new Set());
 
   // Pending depositor pick-list — narrow the user-visible queue by the
   // currently selected provider so the operator can click a row, see who
@@ -746,7 +756,9 @@ export function TidVerification() {
     }
   }, [tid, operatorAmount, provider, user]);
 
-  const handleAutoApprove = useCallback(async (match: MatchResult) => {
+  // Actual backend commit. Kept private — public callers go through
+  // `handleAutoApprove`, which adds the 5-second undo window.
+  const commitApprove = useCallback(async (match: MatchResult) => {
     if (!user) return;
     setApproving(match.id);
 
@@ -791,10 +803,77 @@ export function TidVerification() {
     }
   }, [user, tid, operatorAmount, queryClient, pickedId, loadPending]);
 
-  const handleAutoApproveAll = useCallback(async () => {
-    const exact = matches.filter(m => m.status === 'matched' && !approvedIds.has(m.id));
-    for (const match of exact) await handleAutoApprove(match);
+  // Cancel a pending undo timer (no backend call has happened yet).
+  const cancelPendingApprove = useCallback((id: string) => {
+    const timer = undoTimersRef.current.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      undoTimersRef.current.delete(id);
+    }
+    setPendingUndoIds(prev => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }, []);
+
+  // Schedules an approval to fire in `UNDO_DELAY_MS`. The row is shown
+  // as "approving (undoable)" immediately for instant feedback, but the
+  // backend `approve-deposit` call only runs if the operator doesn't
+  // click Undo before the timer elapses.
+  const UNDO_DELAY_MS = 5000;
+  const handleAutoApprove = useCallback((match: MatchResult) => {
+    // If a previous undo for this row is still queued, ignore the
+    // duplicate click — the timer is already running.
+    if (undoTimersRef.current.has(match.id)) return;
+
+    setPendingUndoIds(prev => new Set(prev).add(match.id));
+
+    const timer = setTimeout(() => {
+      undoTimersRef.current.delete(match.id);
+      setPendingUndoIds(prev => {
+        if (!prev.has(match.id)) return prev;
+        const next = new Set(prev);
+        next.delete(match.id);
+        return next;
+      });
+      void commitApprove(match);
+    }, UNDO_DELAY_MS);
+    undoTimersRef.current.set(match.id, timer);
+
+    toast(`Approving ${formatUGX(match.amount)} — ${match.userName}`, {
+      description: 'Will commit in 5 seconds.',
+      duration: UNDO_DELAY_MS,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          cancelPendingApprove(match.id);
+          toast.info(`Cancelled approval for ${match.userName}`);
+        },
+      },
+    });
+  }, [commitApprove, cancelPendingApprove]);
+
+  const handleAutoApproveAll = useCallback(() => {
+    const exact = matches.filter(
+      m => m.status === 'matched' &&
+           !approvedIds.has(m.id) &&
+           !undoTimersRef.current.has(m.id),
+    );
+    if (exact.length === 0) return;
+    exact.forEach(match => handleAutoApprove(match));
   }, [matches, approvedIds, handleAutoApprove]);
+
+  // Cleanup any in-flight undo timers if the component unmounts so we
+  // don't fire approvals against a torn-down React tree.
+  useEffect(() => {
+    const timers = undoTimersRef.current;
+    return () => {
+      timers.forEach(t => clearTimeout(t));
+      timers.clear();
+    };
+  }, []);
 
   const openRejectDialog = (id: string) => {
     setRejectingId(id);
@@ -1447,6 +1526,7 @@ export function TidVerification() {
                     const isApproved = approvedIds.has(m.id);
                     const isRejected = rejectedIds.has(m.id);
                     const isProcessing = approving === m.id;
+                    const isUndoable = pendingUndoIds.has(m.id);
                     const isDone = isApproved || isRejected;
                     return (
                       <div
@@ -1456,6 +1536,8 @@ export function TidVerification() {
                             ? 'border-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/20'
                             : isRejected
                             ? 'border-destructive/30 bg-destructive/5'
+                            : isUndoable
+                            ? 'border-primary/40 bg-primary/5'
                             : m.status === 'matched'
                             ? 'border-emerald-200 bg-background'
                             : 'border-amber-200 bg-amber-50/30 dark:bg-amber-950/10'
@@ -1490,12 +1572,30 @@ export function TidVerification() {
                             {isRejected && (
                               <Badge variant="destructive" className="text-[9px] h-4 px-1">Rejected ✗</Badge>
                             )}
+                            {isUndoable && (
+                              <Badge variant="outline" className="text-[9px] h-4 px-1 gap-0.5 border-primary/40 text-primary">
+                                <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                                Approving — undoable
+                              </Badge>
+                            )}
                           </div>
                           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
                             <span>{m.provider || 'MoMo'}</span>
                             <span>{format(new Date(m.created_at), 'dd MMM HH:mm')}</span>
                           </div>
-                          {!isDone && (
+                          {!isDone && isUndoable && (
+                            <div className="flex flex-col sm:flex-row gap-2 mt-2">
+                              <Button
+                                variant="outline"
+                                className="h-11 text-sm gap-1.5 flex-1 border-primary/40 text-primary hover:bg-primary/5"
+                                onClick={() => cancelPendingApprove(m.id)}
+                              >
+                                <ArrowLeft className="h-4 w-4" />
+                                Undo approval
+                              </Button>
+                            </div>
+                          )}
+                          {!isDone && !isUndoable && (
                             <div className="flex flex-col sm:flex-row gap-2 mt-2">
                               {m.status === 'matched' && (
                                 <Button
