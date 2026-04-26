@@ -307,6 +307,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   return (
     <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
       <OfflineBanner />
+      <PendingDraftsBanner />
       
       <DashboardHeader
         currentRole={currentRole}
