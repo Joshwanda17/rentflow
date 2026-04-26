@@ -488,14 +488,21 @@ export function TidVerification() {
             TID/receipt/bank reference from their statement. */}
         <div className="rounded-md border bg-muted/20">
           <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 border-b border-border/60">
-            <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
-              Pending {provider.replace('_', ' ')} deposits
+            <div className="flex items-center gap-2 min-w-0">
+              <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                Pending {provider.replace('_', ' ')} deposits
+                {pending.length > 0 && (
+                  <span className="ml-1 text-muted-foreground/80">
+                    ({pendingSearch.trim() ? `${pendingFiltered.length}/${pending.length}` : pending.length})
+                  </span>
+                )}
+              </Label>
               {pending.length > 0 && (
-                <span className="ml-1 text-muted-foreground/80">
-                  ({pendingSearch.trim() ? `${pendingFiltered.length}/${pending.length}` : pending.length})
+                <span className="hidden sm:inline text-[10px] text-muted-foreground/70">
+                  ↑↓ navigate · Enter pick · Esc clear
                 </span>
               )}
-            </Label>
+            </div>
             {pickedId && (
               <button
                 type="button"
