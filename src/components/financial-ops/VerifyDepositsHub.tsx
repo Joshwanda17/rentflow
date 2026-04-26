@@ -50,7 +50,28 @@ export function VerifyDepositsHub() {
   const [maxAmount, setMaxAmount] = useState<string>('');
   // Verifier (operator) filter — only narrows resolved/recently-verified rows.
   // Pending rows have no verifier yet so they are excluded when this is set.
-  const [verifierId, setVerifierId] = useState<string>('all');
+  // Restored from localStorage so the operator's last selection survives a
+  // reload. The sentinel value `'me'` means "the current user" — resolved
+  // to the real id once auth completes (id is unknown on first render).
+  const VERIFIER_STORAGE_KEY = 'finops:verifier-last-selection';
+  const [verifierId, setVerifierIdRaw] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'all';
+    const saved = window.localStorage.getItem(VERIFIER_STORAGE_KEY);
+    return saved && saved.length > 0 ? saved : 'all';
+  });
+  /**
+   * Wraps `setVerifierId` so every change is persisted. We store the literal
+   * `'me'` sentinel (not the resolved user id) so the preference still maps
+   * to "the current user" if a different operator signs in on the same
+   * device. Real operator ids are stored as-is.
+   */
+  const setVerifierId = (next: string) => {
+    setVerifierIdRaw(next);
+    try {
+      const toStore = meId && next === meId ? 'me' : next;
+      window.localStorage.setItem(VERIFIER_STORAGE_KEY, toStore);
+    } catch { /* storage may be unavailable */ }
+  };
   const [verifiers, setVerifiers] = useState<{ id: string; full_name: string | null }[]>([]);
   // Free-text filter over the verifier dropdown — handy once dozens of
   // operators have processed deposits and scrolling is tedious.
