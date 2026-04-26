@@ -319,6 +319,26 @@ export function VerifyDepositsHub() {
                 />
               </div>
               <SelectItem value="all">Any operator</SelectItem>
+              {meId && (
+                <SelectItem value={meId}>
+                  Me{meName ? ` (${meName})` : ''}
+                </SelectItem>
+              )}
+              {meId && (
+                <div className="px-1.5 py-1 border-t border-border/60 mt-1">
+                  <label className="flex items-center gap-2 px-1.5 py-1 text-[11px] text-muted-foreground cursor-pointer hover:text-foreground">
+                    <input
+                      type="checkbox"
+                      checked={defaultToMe}
+                      onChange={toggleDefaultToMe}
+                      onKeyDown={(e) => e.stopPropagation()}
+                      className="h-3 w-3 accent-primary"
+                      aria-label="Default verifier filter to me on every visit"
+                    />
+                    Default to me on every visit
+                  </label>
+                </div>
+              )}
               {(() => {
                 if (verifiers.length === 0) {
                   return (
