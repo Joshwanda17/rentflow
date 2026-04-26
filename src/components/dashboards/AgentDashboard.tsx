@@ -56,6 +56,7 @@ import { AgentAgreementBanner } from '@/components/agent/agreement';
 import { VerificationChecklist } from '@/components/shared/VerificationChecklist';
 import { useOffline } from '@/contexts/OfflineContext';
 import { OfflineBanner } from '@/components/OfflineBanner';
+import { PendingDraftsBanner } from '@/components/agent/PendingDraftsBanner';
 import { useOfflineAgentDashboard } from '@/hooks/useOfflineAgentDashboard';
 import { useWallet } from '@/hooks/useWallet';
 import { useAgentBalances } from '@/hooks/useAgentBalances';
