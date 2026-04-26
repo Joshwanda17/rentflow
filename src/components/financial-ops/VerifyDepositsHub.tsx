@@ -12,6 +12,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ShieldCheck, Wallet, User, Filter, X } from 'lucide-react';
+import { CalendarIcon } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format } from 'date-fns';
 import { TidVerification } from './TidVerification';
 import { FieldDepositVerificationQueue } from './FieldDepositVerificationQueue';
 import { RecentlyVerifiedList } from './RecentlyVerifiedList';
@@ -51,6 +55,11 @@ export function VerifyDepositsHub() {
   // Free-text filter over the verifier dropdown — handy once dozens of
   // operators have processed deposits and scrolling is tedious.
   const [verifierSearch, setVerifierSearch] = useState<string>('');
+  // Export-only date window. Applied to Verified at / processed timestamp
+  // when the operator clicks Export. Does NOT affect the live tables — the
+  // queue tables remain a real-time view of the latest activity.
+  const [exportFrom, setExportFrom] = useState<Date | undefined>(undefined);
+  const [exportTo, setExportTo] = useState<Date | undefined>(undefined);
   // Current operator (used for the "Me" quick-select). Null until we resolve
   // the auth user; the "Me" option stays disabled until then.
   const [meId, setMeId] = useState<string | null>(null);
