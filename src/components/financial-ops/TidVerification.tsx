@@ -85,26 +85,34 @@ export function TidVerification() {
   };
   const [pending, setPending] = useState<PendingDeposit[]>([]);
   const [pendingLoading, setPendingLoading] = useState(false);
+  const [pendingLoadingMore, setPendingLoadingMore] = useState(false);
+  const [pendingHasMore, setPendingHasMore] = useState(false);
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [pendingSearch, setPendingSearch] = useState('');
   // The provider the picked row was originally tagged with — used to
   // detect when the operator changes the provider after picking.
   const [pickedProvider, setPickedProvider] = useState<string | null>(null);
 
-  // Extracted so we can refresh the pick-list after verify/reject without
-  // a full page reload — the just-actioned row simply disappears.
-  const loadPending = useCallback(async () => {
-    setPendingLoading(true);
-    try {
+  // Page size for the pending pick-list. Kept small so the panel stays
+  // scannable; operators can press "Load more" to fetch the next batch.
+  const PENDING_PAGE_SIZE = 25;
+
+  // Internal fetch — `append=false` resets the list (provider switch /
+  // post-action refresh); `append=true` paginates from the current count.
+  const fetchPendingPage = useCallback(
+    async (append: boolean, currentCount: number) => {
+      const from = append ? currentCount : 0;
+      const to = from + PENDING_PAGE_SIZE - 1;
       const { data, error } = await supabase
         .from('deposit_requests')
         .select('id, user_id, amount, provider, created_at')
         .eq('status', 'pending')
         .eq('provider', provider)
         .order('created_at', { ascending: false })
-        .limit(25);
+        .range(from, to);
       if (error) throw error;
-      const userIds = Array.from(new Set((data ?? []).map((d) => d.user_id)));
+      const rows = data ?? [];
+      const userIds = Array.from(new Set(rows.map((d) => d.user_id)));
       const profileMap = new Map<string, { name: string; phone: string }>();
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
@@ -118,23 +126,50 @@ export function TidVerification() {
           });
         });
       }
-      setPending(
-        (data ?? []).map((d: any) => ({
-          id: d.id,
-          user_id: d.user_id,
-          amount: Number(d.amount),
-          provider: d.provider,
-          created_at: d.created_at,
-          depositorName: profileMap.get(d.user_id)?.name ?? 'Unknown depositor',
-          depositorPhone: profileMap.get(d.user_id)?.phone ?? '',
-        })),
-      );
+      const mapped: PendingDeposit[] = rows.map((d: any) => ({
+        id: d.id,
+        user_id: d.user_id,
+        amount: Number(d.amount),
+        provider: d.provider,
+        created_at: d.created_at,
+        depositorName: profileMap.get(d.user_id)?.name ?? 'Unknown depositor',
+        depositorPhone: profileMap.get(d.user_id)?.phone ?? '',
+      }));
+      setPending((prev) => {
+        if (!append) return mapped;
+        // De-dupe in case a row shifted pages between calls.
+        const seen = new Set(prev.map((p) => p.id));
+        return [...prev, ...mapped.filter((m) => !seen.has(m.id))];
+      });
+      setPendingHasMore(rows.length === PENDING_PAGE_SIZE);
+    },
+    [provider],
+  );
+
+  // Extracted so we can refresh the pick-list after verify/reject without
+  // a full page reload — the just-actioned row simply disappears.
+  const loadPending = useCallback(async () => {
+    setPendingLoading(true);
+    try {
+      await fetchPendingPage(false, 0);
     } catch (e) {
       console.warn('[TidVerification] load pending failed', e);
     } finally {
       setPendingLoading(false);
     }
-  }, [provider]);
+  }, [fetchPendingPage]);
+
+  const loadMorePending = useCallback(async () => {
+    setPendingLoadingMore(true);
+    try {
+      await fetchPendingPage(true, pending.length);
+    } catch (e) {
+      console.warn('[TidVerification] load more pending failed', e);
+      toast.error('Failed to load more pending deposits');
+    } finally {
+      setPendingLoadingMore(false);
+    }
+  }, [fetchPendingPage, pending.length]);
 
   useEffect(() => {
     loadPending();
