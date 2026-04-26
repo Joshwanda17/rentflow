@@ -53,6 +53,49 @@ interface MatchResult {
 
 type ResultState = 'idle' | 'searching' | 'found' | 'not_found';
 
+/** Compact chip-style filter row used above the pending pick-list. Each
+ *  chip is a small toggle button; the active option uses the primary
+ *  color so the operator can see at a glance which facets are narrowed. */
+function FilterChipRow({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (next: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      <span className="text-[10px] uppercase tracking-wide text-muted-foreground shrink-0 w-12">
+        {label}
+      </span>
+      <div className="flex items-center gap-1 flex-wrap">
+        {options.map((opt) => {
+          const active = opt.value === value;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => onChange(opt.value)}
+              aria-pressed={active}
+              className={`h-6 px-2 rounded-full text-[10px] font-medium border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                active
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-background text-muted-foreground border-border hover:bg-accent hover:text-foreground'
+              }`}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function TidVerification() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -89,6 +132,16 @@ export function TidVerification() {
   const [pendingHasMore, setPendingHasMore] = useState(false);
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [pendingSearch, setPendingSearch] = useState('');
+  // Quick filter chips that narrow the pick-list locally. All three are
+  // additive — a row must satisfy every active chip to show. Defaults are
+  // the most permissive ('any') so the panel behaves as before until the
+  // operator opts in.
+  type MatchField = 'any' | 'name' | 'phone' | 'amount';
+  type AmountRange = 'any' | 'low' | 'mid' | 'high';
+  type Verification = 'any' | 'verified' | 'unverified';
+  const [matchField, setMatchField] = useState<MatchField>('any');
+  const [amountRange, setAmountRange] = useState<AmountRange>('any');
+  const [verification, setVerification] = useState<Verification>('any');
   // The provider the picked row was originally tagged with — used to
   // detect when the operator changes the provider after picking.
   const [pickedProvider, setPickedProvider] = useState<string | null>(null);
@@ -195,24 +248,48 @@ export function TidVerification() {
   const providerMismatch =
     !!pickedId && !!pickedProvider && pickedProvider !== provider;
 
-  // Local filter — name, phone, or amount substring (digits only for amount).
+  // Local filter — search text + chip filters. A row must satisfy every
+  // active filter to show.
+  //  • matchField: which column the search text targets (default = any)
+  //  • amountRange: low (<50K) / mid (50K–200K) / high (>200K)
+  //  • verification: 'verified' = has BOTH a real name and a phone on file
+  //                  (i.e. profile looks complete enough to trust the match)
+  const isVerifiedProfile = (p: PendingDeposit) =>
+    !!p.depositorPhone &&
+    !!p.depositorName &&
+    p.depositorName.toLowerCase() !== 'unknown depositor';
   const pendingFiltered = (() => {
     const q = pendingSearch.trim().toLowerCase();
-    if (!q) return pending;
     const qDigits = q.replace(/[^0-9]/g, '');
     return pending.filter((p) => {
-      if (p.depositorName.toLowerCase().includes(q)) return true;
-      if (p.depositorPhone.toLowerCase().includes(q)) return true;
-      if (qDigits && String(p.amount).includes(qDigits)) return true;
-      return false;
+      // Amount range chip
+      if (amountRange === 'low' && p.amount >= 50000) return false;
+      if (amountRange === 'mid' && (p.amount < 50000 || p.amount > 200000)) return false;
+      if (amountRange === 'high' && p.amount <= 200000) return false;
+      // Verification chip
+      if (verification === 'verified' && !isVerifiedProfile(p)) return false;
+      if (verification === 'unverified' && isVerifiedProfile(p)) return false;
+      // Search text — scoped by matchField chip
+      if (q) {
+        const inName = p.depositorName.toLowerCase().includes(q);
+        const inPhone = p.depositorPhone.toLowerCase().includes(q);
+        const inAmount = !!qDigits && String(p.amount).includes(qDigits);
+        if (matchField === 'name' && !inName) return false;
+        if (matchField === 'phone' && !inPhone) return false;
+        if (matchField === 'amount' && !inAmount) return false;
+        if (matchField === 'any' && !(inName || inPhone || inAmount)) return false;
+      }
+      return true;
     });
   })();
+  const filtersActive =
+    matchField !== 'any' || amountRange !== 'any' || verification !== 'any';
 
   // Reset highlight when the visible list shape changes (search, provider,
   // refresh) so the focus indicator never points to a stale row.
   useEffect(() => {
     setHighlightedIndex(-1);
-  }, [pendingSearch, provider, pending.length]);
+  }, [pendingSearch, provider, pending.length, matchField, amountRange, verification]);
 
   // Keep the highlighted row in view when arrow-keying through a long list.
   useEffect(() => {
@@ -546,14 +623,19 @@ export function TidVerification() {
           {/* Search by name, phone, or amount — purely client-side over the
               already-loaded pending rows. */}
           {pending.length > 0 && (
-            <div className="px-2.5 py-1.5 border-b border-border/60">
+            <div className="px-2.5 py-2 border-b border-border/60 space-y-2">
               <div className="relative">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
                 <Input
                   value={pendingSearch}
                   onChange={(e) => setPendingSearch(e.target.value)}
-                  placeholder="Search name, phone, or amount…"
-                  className="h-7 pl-7 pr-7 text-xs"
+                  placeholder={
+                    matchField === 'name' ? 'Search depositor name…'
+                    : matchField === 'phone' ? 'Search phone number…'
+                    : matchField === 'amount' ? 'Search amount (digits)…'
+                    : 'Search name, phone, or amount…'
+                  }
+                  className="h-8 pl-7 pr-7 text-xs"
                 />
                 {pendingSearch && (
                   <button
@@ -563,6 +645,57 @@ export function TidVerification() {
                     aria-label="Clear search"
                   >
                     <XCircle className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Quick filter chips — three rows, each scoped to a different
+                  facet so operators can carve down the list without typing.
+                  All chips compose with the search box and with each other. */}
+              <div className="space-y-1.5">
+                <FilterChipRow
+                  label="Match"
+                  value={matchField}
+                  onChange={(v) => setMatchField(v as MatchField)}
+                  options={[
+                    { value: 'any', label: 'Any' },
+                    { value: 'name', label: 'Name' },
+                    { value: 'phone', label: 'Phone' },
+                    { value: 'amount', label: 'Amount' },
+                  ]}
+                />
+                <FilterChipRow
+                  label="Amount"
+                  value={amountRange}
+                  onChange={(v) => setAmountRange(v as AmountRange)}
+                  options={[
+                    { value: 'any', label: 'Any' },
+                    { value: 'low', label: '< 50K' },
+                    { value: 'mid', label: '50K–200K' },
+                    { value: 'high', label: '> 200K' },
+                  ]}
+                />
+                <FilterChipRow
+                  label="Profile"
+                  value={verification}
+                  onChange={(v) => setVerification(v as Verification)}
+                  options={[
+                    { value: 'any', label: 'Any' },
+                    { value: 'verified', label: 'Verified' },
+                    { value: 'unverified', label: 'Unverified' },
+                  ]}
+                />
+                {filtersActive && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMatchField('any');
+                      setAmountRange('any');
+                      setVerification('any');
+                    }}
+                    className="text-[10px] text-muted-foreground hover:text-foreground underline"
+                  >
+                    Reset filters
                   </button>
                 )}
               </div>
