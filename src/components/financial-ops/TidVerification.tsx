@@ -145,6 +145,13 @@ export function TidVerification() {
   const [matchField, setMatchField] = useState<MatchField>('any');
   const [amountRange, setAmountRange] = useState<AmountRange>('any');
   const [verification, setVerification] = useState<Verification>('any');
+  // Sort controls for the pick-list. Default is the natural newest-first
+  // order returned by the server query. Each click on a column header
+  // cycles asc → desc → none.
+  type SortColumn = 'name' | 'phone' | 'amount';
+  type SortDir = 'asc' | 'desc';
+  const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
   // The provider the picked row was originally tagged with — used to
   // detect when the operator changes the provider after picking.
   const [pickedProvider, setPickedProvider] = useState<string | null>(null);
