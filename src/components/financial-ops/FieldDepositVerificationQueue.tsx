@@ -337,12 +337,12 @@ export function FieldDepositVerificationQueue({ channels, minAmount, maxAmount }
                                   <div className="flex items-center gap-1.5 font-semibold">
                                     {r.status === 'verified' ? (
                                       <>
-                                        <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                                        <CheckCircle2 className="h-3 w-3 text-success" />
                                         Approved
                                       </>
                                     ) : (
                                       <>
-                                        <XCircle className="h-3 w-3 text-red-400" />
+                                        <XCircle className="h-3 w-3 text-destructive" />
                                         Rejected
                                       </>
                                     )}

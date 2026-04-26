@@ -203,12 +203,12 @@ export function RecentlyVerifiedList({ limit = 10 }: Props) {
                                 <div className="flex items-center gap-1.5 font-semibold">
                                   {approved ? (
                                     <>
-                                      <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                                      <CheckCircle2 className="h-3 w-3 text-success" />
                                       Approved
                                     </>
                                   ) : (
                                     <>
-                                      <XCircle className="h-3 w-3 text-red-400" />
+                                      <XCircle className="h-3 w-3 text-destructive" />
                                       Rejected
                                     </>
                                   )}
