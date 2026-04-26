@@ -457,6 +457,13 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
         <VouchLimitChart data={chartData} summary={chartSummary} />
       )}
 
+      {!loading && isApplyingRealtime && filteredRows.length > 0 && (
+        <div className="mb-2 space-y-1.5" aria-hidden="true">
+          <Skeleton className="h-1 w-full rounded-full" />
+          <Skeleton className="h-8 w-full rounded-md opacity-60" />
+        </div>
+      )}
+
       {!loading && filteredRows.length > 0 && (
         <ul className="divide-y divide-border/50">
           {visible.map((r) => (
