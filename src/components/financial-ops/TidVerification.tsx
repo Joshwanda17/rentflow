@@ -471,18 +471,48 @@ export function TidVerification() {
 
   const pendingMatches = matches.filter(m => m.status === 'matched' && !approvedIds.has(m.id) && !rejectedIds.has(m.id));
 
+  // Tiny presentational helper — circular numbered badge + heading row.
+  // Kept inline to avoid yet another file; semantic tokens only so it
+  // theme-flips cleanly in dark mode.
+  const StepHeader = ({
+    n,
+    title,
+    subtitle,
+  }: { n: number; title: string; subtitle?: string }) => (
+    <div className="flex items-start gap-3">
+      <div
+        aria-hidden="true"
+        className="h-7 w-7 sm:h-8 sm:w-8 shrink-0 rounded-full bg-primary/15 text-primary flex items-center justify-center text-sm sm:text-base font-bold"
+      >
+        {n}
+      </div>
+      <div className="min-w-0 pt-0.5">
+        <p className="font-semibold text-sm sm:text-base leading-tight">{title}</p>
+        {subtitle && (
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">{subtitle}</p>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <Card>
-      <CardHeader className="pb-2 px-3 sm:px-6">
-        <CardTitle className="text-sm sm:text-base flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-primary" />
-          TID Verify
+      <CardHeader className="pb-3 px-4 sm:px-6">
+        <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+          <ShieldCheck className="h-5 w-5 text-primary" />
+          Verify a user deposit
         </CardTitle>
-        <p className="text-[10px] sm:text-xs text-muted-foreground">
-          Enter TID + Amount → search pending deposits → approve matches.
+        <p className="text-xs sm:text-sm text-muted-foreground">
+          Pick a depositor, type their Transaction ID, then approve the match.
         </p>
       </CardHeader>
-      <CardContent className="space-y-3 px-3 sm:px-6 pb-4">
+      <CardContent className="space-y-5 px-4 sm:px-6 pb-5">
+        {/* ── Step 1 ───────────────────────────────────────────────────── */}
+        <StepHeader
+          n={1}
+          title="Pick the depositor"
+          subtitle="Tap who is paying so the amount auto-fills."
+        />
         {/* Pending depositors for the selected provider — operator can pick
             a row to prefill the expected amount, then just type the
             TID/receipt/bank reference from their statement. */}
@@ -620,39 +650,48 @@ export function TidVerification() {
           )}
         </div>
 
-        {/* Single input form */}
-        <div className="space-y-2">
-          <div className="space-y-1">
-            <Label className="text-xs font-medium">Transaction ID / Receipt No. *</Label>
+        {/* ── Step 2 ───────────────────────────────────────────────────── */}
+        <StepHeader
+          n={2}
+          title="Type the Transaction ID"
+          subtitle="Copy it from the bank or MoMo statement. Confirm the amount and provider match."
+        />
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium">
+              Transaction ID / Receipt No. <span className="text-destructive">*</span>
+            </Label>
             <div className="relative">
-              <Hash className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 value={tid}
                 onChange={(e) => setTid(e.target.value.toUpperCase())}
                 placeholder="e.g. MP241231... or WEL-00001"
-                className="pl-8 h-10 font-mono text-sm tracking-wide"
+                className="pl-9 h-12 font-mono text-base tracking-wide"
                 onKeyDown={(e) => e.key === 'Enter' && handleVerify()}
               />
             </div>
           </div>
-          <div className="flex gap-2">
-            <div className="flex-1 space-y-1">
-              <Label className="text-xs font-medium">Amount (UGX) *</Label>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1 space-y-1.5">
+              <Label className="text-sm font-medium">
+                Amount (UGX) <span className="text-destructive">*</span>
+              </Label>
               <Input
                 type="number"
                 value={operatorAmount}
                 onChange={(e) => setOperatorAmount(e.target.value)}
                 placeholder="e.g. 50000"
-                className="h-10"
+                className="h-12 text-base"
               />
             </div>
-             <div className="space-y-1 min-w-0">
-              <Label className="text-xs font-medium">Provider</Label>
+            <div className="space-y-1.5 sm:min-w-[140px]">
+              <Label className="text-sm font-medium">Provider</Label>
               <Select value={provider} onValueChange={setProvider}>
-                <SelectTrigger className="h-10 w-[100px]">
+                <SelectTrigger className="h-12 text-base">
                   <SelectValue />
                 </SelectTrigger>
-              <SelectContent>
+                <SelectContent>
                   <SelectItem value="mtn">MTN</SelectItem>
                   <SelectItem value="airtel">Airtel</SelectItem>
                   <SelectItem value="bank_transfer">Bank</SelectItem>
@@ -661,17 +700,24 @@ export function TidVerification() {
               </Select>
             </div>
           </div>
+
+          {/* ── Step 3 ─────────────────────────────────────────────────── */}
+          <StepHeader
+            n={3}
+            title="Verify & approve"
+            subtitle="We'll search the pending queue and let you approve the match."
+          />
           <Button
             onClick={handleVerify}
             disabled={resultState === 'searching' || !tid.trim() || !operatorAmount}
-            className="w-full h-11"
+            className="w-full h-12 sm:h-12 text-base font-semibold"
           >
             {resultState === 'searching' ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+              <Loader2 className="h-5 w-5 animate-spin mr-2" />
             ) : (
-              <Search className="h-4 w-4 mr-1.5" />
+              <Search className="h-5 w-5 mr-2" />
             )}
-            Verify & Match
+            Verify &amp; Match
           </Button>
           {providerMismatch && (
             <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-2.5 py-2 text-[11px] text-warning-foreground">
