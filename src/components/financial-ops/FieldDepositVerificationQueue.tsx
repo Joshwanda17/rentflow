@@ -69,9 +69,21 @@ interface Props {
   /** When set, only show resolved batches verified by this operator user_id.
    *  Pending batches (no verifier yet) are hidden while this is active. */
   verifierId?: string;
+  /** Export-only — start of the verification window (ISO). Filters CSV rows
+   *  by finops_verified_at >= this timestamp. Live queue is unaffected. */
+  exportFromIso?: string;
+  /** Export-only — end of the verification window (ISO), inclusive. */
+  exportToIso?: string;
 }
 
-export function FieldDepositVerificationQueue({ channels, minAmount, maxAmount, verifierId }: Props = {}) {
+export function FieldDepositVerificationQueue({
+  channels,
+  minAmount,
+  maxAmount,
+  verifierId,
+  exportFromIso,
+  exportToIso,
+}: Props = {}) {
   const autoRefresh = useFinOpsAutoRefresh();
   const [rows, setRows] = useState<QueueRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -217,6 +229,9 @@ export function FieldDepositVerificationQueue({ channels, minAmount, maxAmount, 
       if (channels && channels.length > 0) q = q.in('channel', channels);
       if (typeof minAmount === 'number') q = q.gte('declared_total', minAmount);
       if (typeof maxAmount === 'number') q = q.lte('declared_total', maxAmount);
+      // Honor the hub's export-only date window.
+      if (exportFromIso) q = q.gte('finops_verified_at', exportFromIso);
+      if (exportToIso) q = q.lte('finops_verified_at', exportToIso);
       const { data, error } = await q;
       if (error) throw error;
       const list = (data ?? []) as any[];

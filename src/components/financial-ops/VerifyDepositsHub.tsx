@@ -12,6 +12,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ShieldCheck, Wallet, User, Filter, X } from 'lucide-react';
+import { CalendarIcon } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format } from 'date-fns';
 import { TidVerification } from './TidVerification';
 import { FieldDepositVerificationQueue } from './FieldDepositVerificationQueue';
 import { RecentlyVerifiedList } from './RecentlyVerifiedList';
@@ -51,6 +55,11 @@ export function VerifyDepositsHub() {
   // Free-text filter over the verifier dropdown — handy once dozens of
   // operators have processed deposits and scrolling is tedious.
   const [verifierSearch, setVerifierSearch] = useState<string>('');
+  // Export-only date window. Applied to Verified at / processed timestamp
+  // when the operator clicks Export. Does NOT affect the live tables — the
+  // queue tables remain a real-time view of the latest activity.
+  const [exportFrom, setExportFrom] = useState<Date | undefined>(undefined);
+  const [exportTo, setExportTo] = useState<Date | undefined>(undefined);
   // Current operator (used for the "Me" quick-select). Null until we resolve
   // the auth user; the "Me" option stays disabled until then.
   const [meId, setMeId] = useState<string | null>(null);
@@ -174,6 +183,16 @@ export function VerifyDepositsHub() {
     (typeof maxNum === 'number' && !Number.isNaN(maxNum)) ||
     verifierId !== 'all';
   const verifierFilter = verifierId === 'all' ? undefined : verifierId;
+
+  // Convert the date pickers to ISO bounds — inclusive day-windows so a
+  // single-day selection covers the full 24h. Children only use these for
+  // export queries; the live tables ignore them.
+  const exportFromIso = exportFrom
+    ? new Date(exportFrom.getFullYear(), exportFrom.getMonth(), exportFrom.getDate(), 0, 0, 0).toISOString()
+    : undefined;
+  const exportToIso = exportTo
+    ? new Date(exportTo.getFullYear(), exportTo.getMonth(), exportTo.getDate(), 23, 59, 59, 999).toISOString()
+    : undefined;
 
   const CHANNEL_CHIPS: { value: DepositChannel; label: string }[] = [
     { value: 'mtn', label: 'MTN MoMo' },
@@ -378,6 +397,90 @@ export function VerifyDepositsHub() {
         </div>
       </div>
 
+      {/* Export-only date window. Operators can scope the CSV download to a
+          specific verification period without filtering the live queue. */}
+      <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+            <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground" />
+            Export date range
+            <span className="text-[10px] font-normal text-muted-foreground italic">
+              (applies to CSV download only)
+            </span>
+          </div>
+          {(exportFrom || exportTo) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-[11px] gap-1"
+              onClick={() => { setExportFrom(undefined); setExportTo(undefined); }}
+            >
+              <X className="h-3 w-3" /> Clear
+            </Button>
+          )}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              From
+            </Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    'h-8 w-full justify-start text-left text-sm font-normal',
+                    !exportFrom && 'text-muted-foreground',
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                  {exportFrom ? format(exportFrom, 'PP') : 'Pick a start date'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={exportFrom}
+                  onSelect={setExportFrom}
+                  disabled={(d) => (exportTo ? d > exportTo : false) || d > new Date()}
+                  initialFocus
+                  className={cn('p-3 pointer-events-auto')}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              To
+            </Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    'h-8 w-full justify-start text-left text-sm font-normal',
+                    !exportTo && 'text-muted-foreground',
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                  {exportTo ? format(exportTo, 'PP') : 'Pick an end date'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={exportTo}
+                  onSelect={setExportTo}
+                  disabled={(d) => (exportFrom ? d < exportFrom : false) || d > new Date()}
+                  initialFocus
+                  className={cn('p-3 pointer-events-auto')}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
+      </div>
+
       {verifierFilter && (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -451,7 +554,12 @@ export function VerifyDepositsHub() {
           {/* User-side verifications happen via TID search, not a list, so
               the Verified by / Verified at columns surface here. The Field
               Deposits tab shows them inline in the queue table itself. */}
-          <RecentlyVerifiedList source="user" verifierId={verifierFilter} />
+          <RecentlyVerifiedList
+            source="user"
+            verifierId={verifierFilter}
+            exportFromIso={exportFromIso}
+            exportToIso={exportToIso}
+          />
         </TabsContent>
 
         <TabsContent value="field" className="mt-4 space-y-2">
@@ -464,6 +572,8 @@ export function VerifyDepositsHub() {
             minAmount={minNum !== undefined && !Number.isNaN(minNum) ? minNum : undefined}
             maxAmount={maxNum !== undefined && !Number.isNaN(maxNum) ? maxNum : undefined}
             verifierId={verifierFilter}
+            exportFromIso={exportFromIso}
+            exportToIso={exportToIso}
           />
         </TabsContent>
       </Tabs>

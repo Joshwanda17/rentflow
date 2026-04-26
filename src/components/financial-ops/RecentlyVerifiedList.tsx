@@ -47,9 +47,14 @@ interface Props {
   limit?: number;
   /** When set, only show deposits resolved by this operator user_id. */
   verifierId?: string;
+  /** Export-only — start of the verification window (ISO). Filters CSV rows
+   *  by approved_at/rejected_at >= this timestamp. Live table is unaffected. */
+  exportFromIso?: string;
+  /** Export-only — end of the verification window (ISO), inclusive. */
+  exportToIso?: string;
 }
 
-export function RecentlyVerifiedList({ limit = 10, verifierId }: Props) {
+export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, exportToIso }: Props) {
   const autoRefresh = useFinOpsAutoRefresh();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,7 +123,7 @@ export function RecentlyVerifiedList({ limit = 10, verifierId }: Props) {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const { data, error } = await supabase
+      let q = supabase
         .from('deposit_requests')
         .select(
           'id, amount, status, approved_at, rejected_at, processed_by, rejection_reason, user_id',
@@ -126,6 +131,12 @@ export function RecentlyVerifiedList({ limit = 10, verifierId }: Props) {
         .in('status', ['approved', 'rejected'])
         .order('updated_at', { ascending: false })
         .limit(1000);
+      // Apply the export-only date window. We filter on updated_at because
+      // it always carries the resolution moment for both approved & rejected
+      // rows (vs approved_at/rejected_at which split by outcome).
+      if (exportFromIso) q = q.gte('updated_at', exportFromIso);
+      if (exportToIso) q = q.lte('updated_at', exportToIso);
+      const { data, error } = await q;
       if (error) throw error;
       const list = (data ?? []) as any[];
 
