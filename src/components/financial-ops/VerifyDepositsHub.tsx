@@ -10,6 +10,7 @@ import { FieldDepositVerificationQueue } from './FieldDepositVerificationQueue';
 import { supabase } from '@/integrations/supabase/client';
 import type { DepositChannel } from '@/lib/fieldDepositBatches';
 import { cn } from '@/lib/utils';
+import { useFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
 
 /**
  * One place to verify every deposit that reaches the platform — whether it
@@ -24,6 +25,10 @@ import { cn } from '@/lib/utils';
 export function VerifyDepositsHub() {
   const [tab, setTab] = useState<'user' | 'field'>('user');
   const [counts, setCounts] = useState<{ user: number; field: number }>({ user: 0, field: 0 });
+  // Honor the shared Financial Ops auto-refresh toggle. When the operator
+  // pauses on the Wallet card, the badges here freeze too — no surprise
+  // count changes mid-review.
+  const autoRefresh = useFinOpsAutoRefresh();
   // Hub-level filters — apply across both tabs so the operator can scope the
   // queue to a single channel (e.g. only MTN) and an amount window before
   // verifying. Channels are limited to MTN, Airtel and Bank as requested;
@@ -76,9 +81,12 @@ export function VerifyDepositsHub() {
       });
     };
     load();
+    if (!autoRefresh) {
+      return () => { cancelled = true; };
+    }
     const id = setInterval(load, 20_000);
     return () => { cancelled = true; clearInterval(id); };
-  }, []);
+  }, [autoRefresh]);
 
   return (
     <div className="space-y-4">
