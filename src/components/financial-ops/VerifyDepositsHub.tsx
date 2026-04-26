@@ -48,6 +48,9 @@ export function VerifyDepositsHub() {
   // Pending rows have no verifier yet so they are excluded when this is set.
   const [verifierId, setVerifierId] = useState<string>('all');
   const [verifiers, setVerifiers] = useState<{ id: string; full_name: string | null }[]>([]);
+  // Free-text filter over the verifier dropdown — handy once dozens of
+  // operators have processed deposits and scrolling is tedious.
+  const [verifierSearch, setVerifierSearch] = useState<string>('');
 
   // Build a single distinct list of operators who have ever resolved a deposit
   // — pulled from both deposit_requests (user side) and field_deposit_batches
@@ -247,17 +250,46 @@ export function VerifyDepositsHub() {
               <SelectValue placeholder="Any operator" />
             </SelectTrigger>
             <SelectContent>
+              <div className="sticky top-0 z-10 bg-popover p-1.5 border-b border-border/60">
+                <Input
+                  value={verifierSearch}
+                  onChange={(e) => setVerifierSearch(e.target.value)}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  placeholder="Search operator…"
+                  className="h-7 text-xs"
+                  aria-label="Search verifiers by name"
+                />
+              </div>
               <SelectItem value="all">Any operator</SelectItem>
-              {verifiers.length === 0 && (
-                <div className="px-2 py-1.5 text-[11px] text-muted-foreground italic">
-                  No verifiers on record yet
-                </div>
-              )}
-              {verifiers.map((v) => (
-                <SelectItem key={v.id} value={v.id}>
-                  {v.full_name ?? `Operator ${v.id.slice(0, 8)}`}
-                </SelectItem>
-              ))}
+              {(() => {
+                if (verifiers.length === 0) {
+                  return (
+                    <div className="px-2 py-1.5 text-[11px] text-muted-foreground italic">
+                      No verifiers on record yet
+                    </div>
+                  );
+                }
+                const q = verifierSearch.trim().toLowerCase();
+                const filtered = q
+                  ? verifiers.filter((v) =>
+                      (v.full_name ?? `Operator ${v.id.slice(0, 8)}`)
+                        .toLowerCase()
+                        .includes(q),
+                    )
+                  : verifiers;
+                if (filtered.length === 0) {
+                  return (
+                    <div className="px-2 py-1.5 text-[11px] text-muted-foreground italic">
+                      No operators match “{verifierSearch}”
+                    </div>
+                  );
+                }
+                return filtered.map((v) => (
+                  <SelectItem key={v.id} value={v.id}>
+                    {v.full_name ?? `Operator ${v.id.slice(0, 8)}`}
+                  </SelectItem>
+                ));
+              })()}
             </SelectContent>
           </Select>
           {verifierFilter && (
