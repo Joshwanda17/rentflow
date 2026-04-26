@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { History, ArrowUpRight, ArrowDownRight, RotateCcw, ExternalLink } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { History, ArrowUpRight, ArrowDownRight, RotateCcw, ExternalLink, CalendarIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
@@ -10,6 +10,19 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format } from 'date-fns';
+
+type RangePreset = '7d' | '30d' | '90d' | 'all' | 'custom';
+
+const PRESETS: { value: Exclude<RangePreset, 'custom'>; label: string }[] = [
+  { value: '7d', label: '7d' },
+  { value: '30d', label: '30d' },
+  { value: '90d', label: '90d' },
+  { value: 'all', label: 'All' },
+];
 
 /**
  * AgentVouchHistoryFeed
@@ -42,6 +55,9 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
   const [loading, setLoading] = useState(true);
   const [showAll, setShowAll] = useState(false);
   const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
+  const [preset, setPreset] = useState<RangePreset>('30d');
+  const [customStart, setCustomStart] = useState<Date | undefined>();
+  const [customEnd, setCustomEnd] = useState<Date | undefined>();
 
   useEffect(() => {
     let cancelled = false;
@@ -53,7 +69,7 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
           .select('id, change_source, collection_id, collection_amount, previous_effective_limit_ugx, new_effective_limit_ugx, delta_ugx, created_at')
           .eq('agent_id', agentId)
           .order('created_at', { ascending: false })
-          .limit(50);
+          .limit(200);
         if (cancelled) return;
         if (error) {
           setRows([]);
@@ -67,15 +83,104 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
     return () => { cancelled = true; };
   }, [agentId]);
 
-  const visible = showAll ? rows : rows.slice(0, limit);
+  const filteredRows = useMemo(() => {
+    let from: Date | null = null;
+    let to: Date | null = null;
+    const now = new Date();
+    if (preset === '7d') { from = new Date(now.getTime() - 7 * 86400000); }
+    else if (preset === '30d') { from = new Date(now.getTime() - 30 * 86400000); }
+    else if (preset === '90d') { from = new Date(now.getTime() - 90 * 86400000); }
+    else if (preset === 'custom') {
+      from = customStart ?? null;
+      to = customEnd ? new Date(customEnd.getTime() + 86399999) : null;
+    }
+    if (!from && !to) return rows;
+    return rows.filter((r) => {
+      const t = new Date(r.created_at).getTime();
+      if (from && t < from.getTime()) return false;
+      if (to && t > to.getTime()) return false;
+      return true;
+    });
+  }, [rows, preset, customStart, customEnd]);
+
+  const visible = showAll ? filteredRows : filteredRows.slice(0, limit);
 
   return (
     <div className="rounded-xl border border-border/60 bg-card/70 p-2.5">
-      <div className="flex items-center gap-1.5 mb-2">
-        <History className="h-3.5 w-3.5 text-primary" />
-        <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
-          Vouch history
-        </p>
+      <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+        <div className="flex items-center gap-1.5">
+          <History className="h-3.5 w-3.5 text-primary" />
+          <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+            Vouch history
+          </p>
+        </div>
+        <div className="flex items-center gap-1 flex-wrap">
+          {PRESETS.map((p) => (
+            <button
+              key={p.value}
+              onClick={() => { setPreset(p.value); setShowAll(false); }}
+              className={cn(
+                'h-6 px-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-colors',
+                preset === p.value
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted/60 text-muted-foreground hover:bg-muted'
+              )}
+            >
+              {p.label}
+            </button>
+          ))}
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                onClick={() => setPreset('custom')}
+                className={cn(
+                  'h-6 px-2 rounded-md text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1 transition-colors',
+                  preset === 'custom'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted/60 text-muted-foreground hover:bg-muted'
+                )}
+              >
+                <CalendarIcon className="h-3 w-3" />
+                {preset === 'custom' && (customStart || customEnd)
+                  ? `${customStart ? format(customStart, 'd MMM') : '…'} – ${customEnd ? format(customEnd, 'd MMM') : '…'}`
+                  : 'Custom'}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-3 space-y-3" align="end">
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Start</p>
+                <Calendar
+                  mode="single"
+                  selected={customStart}
+                  onSelect={(d) => { setCustomStart(d); setPreset('custom'); setShowAll(false); }}
+                  disabled={(d) => d > new Date() || (customEnd ? d > customEnd : false)}
+                  className={cn('p-0 pointer-events-auto')}
+                />
+              </div>
+              <div className="space-y-2 border-t border-border/60 pt-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">End</p>
+                <Calendar
+                  mode="single"
+                  selected={customEnd}
+                  onSelect={(d) => { setCustomEnd(d); setPreset('custom'); setShowAll(false); }}
+                  disabled={(d) => d > new Date() || (customStart ? d < customStart : false)}
+                  className={cn('p-0 pointer-events-auto')}
+                />
+              </div>
+              {(customStart || customEnd) && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="w-full h-7 text-[10px]"
+                  onClick={() => { setCustomStart(undefined); setCustomEnd(undefined); }}
+                >
+                  Clear dates
+                </Button>
+              )}
+            </PopoverContent>
+          </Popover>
+        </div>
       </div>
 
       {loading && (
@@ -89,7 +194,13 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
         </p>
       )}
 
-      {!loading && rows.length > 0 && (
+      {!loading && rows.length > 0 && filteredRows.length === 0 && (
+        <p className="text-[11px] text-muted-foreground py-2 leading-snug">
+          No adjustments in the selected date range.
+        </p>
+      )}
+
+      {!loading && filteredRows.length > 0 && (
         <ul className="divide-y divide-border/50">
           {visible.map((r) => (
             <HistoryItem
@@ -101,12 +212,12 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
         </ul>
       )}
 
-      {!loading && rows.length > limit && (
+      {!loading && filteredRows.length > limit && (
         <button
           onClick={() => setShowAll((v) => !v)}
           className="w-full mt-2 text-[10px] uppercase tracking-wider font-bold text-primary hover:underline"
         >
-          {showAll ? 'Show less' : `Show all ${rows.length}`}
+          {showAll ? 'Show less' : `Show all ${filteredRows.length}`}
         </button>
       )}
 
