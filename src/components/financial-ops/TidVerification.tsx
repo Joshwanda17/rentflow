@@ -990,6 +990,45 @@ export function TidVerification() {
             title="Verify & approve"
             subtitle="We'll search the pending queue and let you approve the match."
           />
+          {pickedId && (() => {
+            // Pre-submission recap so the operator can eyeball every key
+            // field — including the picked deposit's *original* provider —
+            // before clicking Verify & Match.
+            const pickedRow = pending.find((p) => p.id === pickedId);
+            if (!pickedRow) return null;
+            const originalProvider = (pickedRow.provider ?? pickedProvider ?? '—')
+              .replace('_', ' ')
+              .toUpperCase();
+            return (
+              <div className="rounded-md border border-border bg-muted/40 px-3 py-2.5 space-y-1.5 text-xs">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  About to verify
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1">
+                  <div className="flex items-center justify-between gap-2 min-w-0">
+                    <span className="text-muted-foreground">Depositor</span>
+                    <span className="font-medium truncate">{pickedRow.depositorName}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 min-w-0">
+                    <span className="text-muted-foreground">Amount</span>
+                    <span className="font-semibold">{formatUGX(pickedRow.amount)}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 min-w-0">
+                    <span className="text-muted-foreground">Original provider</span>
+                    <Badge variant="secondary" className="text-[10px] uppercase">
+                      {originalProvider}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 min-w-0">
+                    <span className="text-muted-foreground">TID</span>
+                    <span className="font-mono text-[11px] truncate">
+                      {tid.trim() || <span className="text-muted-foreground italic">not entered</span>}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
           <Button
             onClick={handleVerify}
             disabled={
