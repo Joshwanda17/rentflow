@@ -378,7 +378,18 @@ export function VerifyDepositsHub() {
                 <Input
                   value={verifierSearch}
                   onChange={(e) => setVerifierSearch(e.target.value)}
-                  onKeyDown={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => {
+                    // Let Radix Select handle navigation keys (Arrow/Enter/
+                    // Home/End/Escape) so the operator can type to filter,
+                    // then press ↓ + Enter to pick "Me" or any item without
+                    // leaving the keyboard. Other keys stay scoped to the
+                    // search input so typeahead doesn't hijack them.
+                    const navKeys = [
+                      'ArrowDown', 'ArrowUp', 'Enter',
+                      'Home', 'End', 'Escape',
+                    ];
+                    if (!navKeys.includes(e.key)) e.stopPropagation();
+                  }}
                   placeholder="Search operator…"
                   className="h-7 text-xs"
                   aria-label="Search verifiers by name"
