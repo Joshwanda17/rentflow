@@ -14,10 +14,18 @@ export type DraftStatus =
   | 'rejected'         // server rejected (validation, no float, etc.)
   | 'needs_attention'; // stale / repeated failures
 
-export type ProofType = 'photo' | 'signature' | 'sms_code';
+export type ProofType = 'transaction_ref' | 'photo' | 'signature' | 'sms_code';
+
+export type TxnRefChannel = 'mtn_momo' | 'airtel_money' | 'bank_transfer' | 'momo_receipt';
 
 export interface ProofBundle {
   type: ProofType;
+  /** mobile money / bank channel for transaction_ref proofs */
+  channel?: TxnRefChannel;
+  /** MTN/Airtel transaction id, MoMo receipt no, or bank reference */
+  reference?: string;
+  /** sending phone number / payer name (optional, for tie-out) */
+  payer_phone?: string | null;
   /** base64 data URL — kept on-device only until submit */
   photo_data_url?: string;
   /** base64 PNG of the on-screen signature */
