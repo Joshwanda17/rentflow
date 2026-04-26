@@ -1,9 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Wallet, Users, ShieldCheck, Banknote } from 'lucide-react';
+import { Wallet, Users, ShieldCheck, Banknote, Pause, Play } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
+import { useFinOpsAutoRefresh, setFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
+import { Switch } from '@/components/ui/switch';
 
 export function WalletOverviewCard() {
+  // Operators reviewing a deposit don't want the screen reshuffling under
+  // their cursor. The shared toggle gates polling on this card AND on the
+  // Verify Deposits hub at the same time.
+  const autoRefresh = useFinOpsAutoRefresh();
+
   const { data, isLoading } = useQuery({
     queryKey: ['finops-wallet-overview'],
     queryFn: async () => {
@@ -18,6 +25,7 @@ export function WalletOverviewCard() {
       };
     },
     staleTime: 60_000,
+    refetchInterval: autoRefresh ? 60_000 : false,
   });
 
   // Live counters that drive the two big action buttons. We only need
@@ -44,17 +52,47 @@ export function WalletOverviewCard() {
         payoutsPending: withdrawals.count ?? 0,
       };
     },
-    refetchInterval: 30_000,
+    refetchInterval: autoRefresh ? 30_000 : false,
     staleTime: 15_000,
   });
 
   return (
     <div className="rounded-2xl border-2 border-primary/40 bg-gradient-to-br from-primary/10 via-primary/5 to-background p-5 sm:p-6">
-      <div className="flex items-center gap-3 mb-3">
-        <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center">
-          <Wallet className="h-5 w-5 text-primary" />
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
+            <Wallet className="h-5 w-5 text-primary" />
+          </div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Total Money in All Wallets
+          </p>
         </div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total Money in All Wallets</p>
+
+        {/* Auto-refresh toggle — paused state surfaces clearly so operators
+            never wonder why a number is stale. */}
+        <label
+          className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground cursor-pointer select-none shrink-0"
+          title={
+            autoRefresh
+              ? 'Auto-refresh is on. Pause to keep the screen stable while you review.'
+              : 'Auto-refresh is paused. Numbers will not update until you resume.'
+          }
+        >
+          {autoRefresh ? (
+            <Play className="h-3 w-3 text-primary" />
+          ) : (
+            <Pause className="h-3 w-3 text-warning" />
+          )}
+          <span className="uppercase tracking-wider">
+            {autoRefresh ? 'Live' : 'Paused'}
+          </span>
+          <Switch
+            checked={autoRefresh}
+            onCheckedChange={setFinOpsAutoRefresh}
+            aria-label="Toggle auto-refresh"
+            className="ml-1"
+          />
+        </label>
       </div>
       <p className={`text-3xl sm:text-4xl font-black tabular-nums tracking-tight ${isLoading ? 'animate-pulse text-muted-foreground' : 'text-foreground'}`}>
         {isLoading ? '———' : formatUGX(data?.totalBalance ?? 0)}
