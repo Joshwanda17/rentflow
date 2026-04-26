@@ -99,6 +99,54 @@ function FilterChipRow({
   );
 }
 
+/**
+ * Tiny self-view shown to the operator inside the verify card. Surfaces
+ * how many provider-mismatch *attempts* the operator has triggered today
+ * so they can self-correct before a CFO review. Stays silent (renders
+ * nothing) when the count is zero — no need to add chrome that just
+ * congratulates "0 mistakes".
+ */
+function OperatorMismatchTodayBadge() {
+  const { user } = useAuth();
+  const [count, setCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    (async () => {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const { count: c, error } = await supabase
+        .from('system_events')
+        .select('id', { count: 'exact', head: true })
+        .eq('event_type', 'finops_provider_mismatch')
+        .eq('user_id', user.id)
+        .gte('created_at', startOfDay.toISOString());
+      if (cancelled) return;
+      if (error) {
+        console.warn('[OperatorMismatchTodayBadge] fetch failed', error);
+        return;
+      }
+      setCount(c ?? 0);
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  if (!count || count === 0) return null;
+
+  return (
+    <div className="flex items-center gap-2 rounded-md border border-warning/40 bg-warning/5 px-3 py-2 text-xs">
+      <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0" />
+      <span className="text-warning-foreground">
+        You've hit{' '}
+        <span className="font-semibold">{count}</span>{' '}
+        provider-mismatch warning{count === 1 ? '' : 's'} today. Restore the
+        original provider after picking a deposit to avoid blocked submissions.
+      </span>
+    </div>
+  );
+}
+
 export function TidVerification() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -449,6 +497,36 @@ export function TidVerification() {
     }
   };
 
+  // Logs a "blocked Verify attempt" to the system event stream so ops
+  // metrics can show how often operators try to verify with a mismatched
+  // provider. Debounced per-pick so a frustrated double-click only counts
+  // once until the operator changes the pick or the provider.
+  const lastLoggedRef = useRef<string | null>(null);
+  const logMismatchAttempt = useCallback(async () => {
+    if (!pickedId || !pickedProvider) return;
+    const dedupeKey = `${pickedId}|${pickedProvider}|${provider}`;
+    if (lastLoggedRef.current === dedupeKey) return;
+    lastLoggedRef.current = dedupeKey;
+    try {
+      await supabase.rpc('log_finops_provider_mismatch', {
+        _picked_deposit_id: pickedId,
+        _picked_provider: pickedProvider,
+        _selected_provider: provider,
+        _attempted_amount: operatorAmount ? parseFloat(operatorAmount) : null,
+        _attempted_tid: tid.trim() || null,
+      });
+    } catch (err) {
+      // Logging is best-effort — never block the operator on a metrics call.
+      console.warn('[TidVerification] mismatch log failed', err);
+    }
+  }, [pickedId, pickedProvider, provider, operatorAmount, tid]);
+
+  // Reset the dedupe key whenever the pick or provider changes — that's a
+  // distinct "attempt context" and a new mismatch click should be counted.
+  useEffect(() => {
+    lastLoggedRef.current = null;
+  }, [pickedId, pickedProvider, provider]);
+
   const handleVerify = useCallback(async () => {
     const trimmedTid = tid.trim();
     if (!trimmedTid) { toast.error('Enter a Transaction ID'); return; }
@@ -695,6 +773,10 @@ export function TidVerification() {
         </p>
       </CardHeader>
       <CardContent className="space-y-5 px-4 sm:px-6 pb-5">
+        {/* Operator quality self-view — shows how many provider-mismatch
+            attempts the current operator has triggered today. Helps build
+            self-awareness without waiting for a CFO review. */}
+        <OperatorMismatchTodayBadge />
         {/* ── Step 1 ───────────────────────────────────────────────────── */}
         <StepHeader
           n={1}
@@ -982,7 +1064,13 @@ export function TidVerification() {
                 placeholder="e.g. MP241231... or WEL-00001"
                 className="pl-9 h-12 font-mono text-base tracking-wide"
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !providerMismatch) handleVerify();
+                  if (e.key !== 'Enter') return;
+                  if (providerMismatch) {
+                    void logMismatchAttempt();
+                    toast.error('Provider mismatch — restore the original provider or clear the pick.');
+                    return;
+                  }
+                  handleVerify();
                 }}
               />
             </div>
@@ -1062,13 +1150,23 @@ export function TidVerification() {
             );
           })()}
           <Button
-            onClick={handleVerify}
+            onClick={() => {
+              if (providerMismatch) {
+                void logMismatchAttempt();
+                toast.error('Provider mismatch — restore the original provider or clear the pick.');
+                return;
+              }
+              handleVerify();
+            }}
+            // Keep the button enabled while mismatched so we can capture the
+            // attempted click (and surface a clear toast). Visually it still
+            // reads as a warning state via the variant change below.
             disabled={
               resultState === 'searching' ||
               !tid.trim() ||
-              !operatorAmount ||
-              providerMismatch
+              !operatorAmount
             }
+            variant={providerMismatch ? 'outline' : 'default'}
             className="w-full h-12 sm:h-12 text-base font-semibold"
           >
             {resultState === 'searching' ? (

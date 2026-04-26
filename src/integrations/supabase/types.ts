@@ -13204,6 +13204,16 @@ export type Database = {
       is_sub_agent: { Args: { _agent_id: string }; Returns: boolean }
       is_supporter: { Args: never; Returns: boolean }
       is_tenant_locked: { Args: { _user_id: string }; Returns: boolean }
+      log_finops_provider_mismatch: {
+        Args: {
+          _attempted_amount?: number
+          _attempted_tid?: string
+          _picked_deposit_id: string
+          _picked_provider: string
+          _selected_provider: string
+        }
+        Returns: string
+      }
       log_system_event:
         | {
             Args: {
@@ -13646,6 +13656,7 @@ export type Database = {
         | "listing_created"
         | "listing_approved"
         | "deposit_failed"
+        | "finops_provider_mismatch"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -13885,6 +13896,7 @@ export const Constants = {
         "listing_created",
         "listing_approved",
         "deposit_failed",
+        "finops_provider_mismatch",
       ],
     },
   },
