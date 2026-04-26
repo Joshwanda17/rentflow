@@ -12,10 +12,12 @@ import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useOffline } from '@/contexts/OfflineContext';
 import { formatUGX } from '@/lib/rentCalculations';
+import { supabase } from '@/integrations/supabase/client';
 import {
   listDrafts,
   attachProof,
   deleteDraft,
+  updateDraft,
   type OfflineCollectionDraft,
   type ProofType,
   type TxnRefChannel,
@@ -36,6 +38,29 @@ function relativeTime(iso: string): string {
   return `${Math.floor(h / 24)}d ago`;
 }
 
+/** Per-channel reference shape rules. MUST stay in sync with the server-side
+ *  TXN_REF_RULES in supabase/functions/submit-offline-collection/index.ts —
+ *  Financial Ops will reject anything that doesn't match these patterns. */
+const TXN_REF_PATTERNS: Record<TxnRefChannel, RegExp> = {
+  mtn_momo: /^[A-Z0-9]{8,20}$/,
+  airtel_money: /^[A-Z0-9.]{8,30}$/,
+  momo_receipt: /^[A-Z0-9-]{6,30}$/,
+  bank_transfer: /^[A-Z0-9-]{6,30}$/,
+};
+
+/** A draft can be sent to Financial Ops ONLY when it carries a fully-validated
+ *  Transaction Reference proof. Photo / signature / SMS-code captures are
+ *  fallbacks that block the on-device "Submit" button — the agent must come
+ *  back and add a verified TXN ref before Ops will see anything. */
+function isSubmittableToFinancialOps(draft: OfflineCollectionDraft): boolean {
+  const p = draft.proof_bundle;
+  if (!p || p.type !== 'transaction_ref') return false;
+  if (!p.channel || !(p.channel in TXN_REF_PATTERNS)) return false;
+  const ref = (p.reference || '').trim().toUpperCase();
+  if (!ref) return false;
+  return TXN_REF_PATTERNS[p.channel].test(ref);
+}
+
 export function AgentPendingSyncDrawer({ open, onOpenChange }: Props) {
   const { user } = useAuth();
   const { isOnline } = useOffline();
@@ -50,6 +75,7 @@ export function AgentPendingSyncDrawer({ open, onOpenChange }: Props) {
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
   const [savingProof, setSavingProof] = useState(false);
+  const [submittingId, setSubmittingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sigCanvasRef = useRef<HTMLCanvasElement>(null);
   const drawingRef = useRef(false);
@@ -122,38 +148,35 @@ export function AgentPendingSyncDrawer({ open, onOpenChange }: Props) {
     setSignatureDataUrl(null);
   };
 
-  // Reference format rules per channel
-  const refRules: Record<TxnRefChannel, { label: string; placeholder: string; pattern: RegExp; hint: string }> = {
+  // Per-channel UI metadata. The validation regex itself comes from
+  // TXN_REF_PATTERNS so the client and the edge function agree byte-for-byte.
+  const refRules: Record<TxnRefChannel, { label: string; placeholder: string; hint: string }> = {
     mtn_momo: {
       label: 'MTN MoMo Transaction ID',
       placeholder: 'e.g. 12345678901',
-      pattern: /^[A-Z0-9]{8,20}$/i,
       hint: 'Found in the MTN MoMo confirmation SMS — usually 10–12 digits.',
     },
     airtel_money: {
       label: 'Airtel Money Transaction ID',
       placeholder: 'e.g. AB231231.1234.A12345',
-      pattern: /^[A-Z0-9.]{8,30}$/i,
       hint: 'Found in the Airtel Money confirmation SMS.',
     },
     momo_receipt: {
       label: 'MoMo / Wallet Receipt Number',
       placeholder: 'e.g. RCP-2025-001234',
-      pattern: /^[A-Z0-9-]{6,30}$/i,
       hint: 'Receipt number printed or sent on the wallet provider receipt.',
     },
     bank_transfer: {
       label: 'Bank Reference Number',
       placeholder: 'e.g. STN240426001234',
-      pattern: /^[A-Z0-9-]{6,30}$/i,
       hint: 'Reference printed on the deposit slip or bank SMS.',
     },
   };
 
   const txnRefIsValid = (() => {
-    const ref = txnReference.trim();
+    const ref = txnReference.trim().toUpperCase();
     if (!ref) return false;
-    return refRules[txnChannel].pattern.test(ref);
+    return TXN_REF_PATTERNS[txnChannel].test(ref);
   })();
 
   const proofIsReady = (() => {
@@ -195,6 +218,90 @@ export function AgentPendingSyncDrawer({ open, onOpenChange }: Props) {
     await deleteDraft(draftId);
     await refresh();
     toast('Draft deleted');
+  };
+
+  /**
+   * Submit a single draft to Financial Ops via the `submit-offline-collection`
+   * edge function.
+   *
+   * Hard rules enforced here BEFORE the network call (the server enforces them
+   * again — this is just the fast-fail path):
+   *   1. Must be online. Drafts cannot be submitted from a phone with no data.
+   *   2. Proof bundle MUST be `transaction_ref` with a channel + reference
+   *      that match the per-channel regex. Photo / signature / SMS-code
+   *      proofs are stored on-device but cannot pass this gate.
+   */
+  const handleSubmit = async (draft: OfflineCollectionDraft) => {
+    if (!isOnline) {
+      toast.error('You are offline', {
+        description: 'Reconnect to data before submitting to Financial Ops.',
+      });
+      return;
+    }
+    if (!isSubmittableToFinancialOps(draft)) {
+      toast.error('Transaction Reference required', {
+        description:
+          'Add a verified MTN/Airtel TXN ID, wallet receipt, or bank reference before submitting.',
+      });
+      // Auto-open the proof panel so the agent fixes it in one tap.
+      resetProofUI();
+      setActiveDraftId(draft.draft_id);
+      return;
+    }
+
+    setSubmittingId(draft.draft_id);
+    await updateDraft(draft.draft_id, { status: 'syncing', last_error: null });
+    await refresh();
+
+    try {
+      const { data, error } = await supabase.functions.invoke('submit-offline-collection', {
+        body: {
+          draft_id: draft.draft_id,
+          tenant_id: draft.tenant_id,
+          rent_request_id: draft.rent_request_id,
+          amount: draft.amount,
+          notes: draft.notes,
+          captured_at: draft.captured_at,
+          provisional_receipt_no: draft.provisional_receipt_no,
+          gps_lat: draft.gps_lat,
+          gps_lng: draft.gps_lng,
+          gps_accuracy: draft.gps_accuracy,
+          proof_bundle: draft.proof_bundle,
+        },
+      });
+
+      if (error || (data && (data as { error?: string }).error)) {
+        const message =
+          (data as { message?: string })?.message ||
+          error?.message ||
+          'Submission rejected by Financial Ops';
+        await updateDraft(draft.draft_id, {
+          status: 'rejected',
+          last_error: message,
+          last_attempted_at: new Date().toISOString(),
+          attempts: (draft.attempts ?? 0) + 1,
+        });
+        toast.error('Financial Ops rejected the draft', { description: message });
+      } else {
+        // Server accepted — clear the on-device draft. Source of truth is now
+        // the server's collection record.
+        await deleteDraft(draft.draft_id);
+        toast.success('Submitted to Financial Ops', {
+          description: `Server receipt ${(data as { server_receipt_no?: string })?.server_receipt_no || 'recorded'}`,
+        });
+      }
+    } catch (err: any) {
+      await updateDraft(draft.draft_id, {
+        status: 'rejected',
+        last_error: err?.message || 'Network error',
+        last_attempted_at: new Date().toISOString(),
+        attempts: (draft.attempts ?? 0) + 1,
+      });
+      toast.error('Could not submit', { description: err?.message || 'Try again.' });
+    } finally {
+      setSubmittingId(null);
+      await refresh();
+    }
   };
 
   const awaitingProof = drafts.filter(d => d.status === 'awaiting_proof');
@@ -478,11 +585,24 @@ export function AgentPendingSyncDrawer({ open, onOpenChange }: Props) {
                   </div>
                 )}
                 {draft.status === 'ready_to_submit' && (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-[11px] text-primary">
+                      <ShieldCheck className="h-3 w-3" />
+                      {draft.proof_bundle?.type === 'transaction_ref'
+                        ? <>TXN ref: <span className="font-mono font-bold">{draft.proof_bundle.reference}</span></>
+                        : <>Proof attached ({draft.proof_bundle?.type})</>}
+                    </div>
+                    {!isSubmittableToFinancialOps(draft) && (
+                      <div className="flex items-center gap-1.5 text-[11px] text-warning">
+                        <AlertCircle className="h-3 w-3" />
+                        Transaction Reference required before Financial Ops will accept this.
+                      </div>
+                    )}
+                  </div>
+                )}
+                {draft.status === 'syncing' && (
                   <div className="flex items-center gap-1.5 text-[11px] text-primary">
-                    <ShieldCheck className="h-3 w-3" />
-                    {draft.proof_bundle?.type === 'transaction_ref'
-                      ? <>TXN ref: <span className="font-mono font-bold">{draft.proof_bundle.reference}</span></>
-                      : <>Proof attached ({draft.proof_bundle?.type})</>}
+                    <Loader2 className="h-3 w-3 animate-spin" /> Submitting to Financial Ops…
                   </div>
                 )}
                 {draft.status === 'rejected' && draft.last_error && (
@@ -499,8 +619,40 @@ export function AgentPendingSyncDrawer({ open, onOpenChange }: Props) {
                     </Button>
                   )}
                   {draft.status === 'ready_to_submit' && (
-                    <Button size="sm" className="flex-1" disabled>
-                      Submit (coming next)
+                    isSubmittableToFinancialOps(draft) ? (
+                      <Button
+                        size="sm"
+                        className="flex-1 font-bold"
+                        onClick={() => handleSubmit(draft)}
+                        disabled={!isOnline || submittingId === draft.draft_id}
+                      >
+                        {submittingId === draft.draft_id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : !isOnline ? (
+                          <><WifiOff className="h-3.5 w-3.5 mr-1" /> Offline</>
+                        ) : (
+                          'Submit to Financial Ops'
+                        )}
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 border-warning/40 text-warning hover:text-warning"
+                        onClick={() => { resetProofUI(); setActiveDraftId(draft.draft_id); }}
+                      >
+                        Add Transaction Reference
+                      </Button>
+                    )
+                  )}
+                  {draft.status === 'rejected' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => { resetProofUI(); setActiveDraftId(draft.draft_id); }}
+                    >
+                      Fix &amp; retry
                     </Button>
                   )}
                   <Button

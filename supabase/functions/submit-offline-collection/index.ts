@@ -36,15 +36,29 @@ const MAX_OFFLINE_AMOUNT = 500_000;
  *  staff review, not a silent server-side accept. */
 const MAX_DRAFT_AGE_DAYS = 14;
 
-type ProofType = "photo" | "signature" | "sms_code";
+type ProofType = "transaction_ref" | "photo" | "signature" | "sms_code";
+type TxnRefChannel = "mtn_momo" | "airtel_money" | "bank_transfer" | "momo_receipt";
 
 interface ProofBundle {
   type: ProofType;
+  channel?: TxnRefChannel;
+  reference?: string;
+  payer_phone?: string | null;
   photo_data_url?: string;
   signature_data_url?: string;
   sms_code?: string;
   captured_at: string;
 }
+
+/** Per-channel reference shape rules. Mirrors the client-side refRules in
+ *  AgentPendingSyncDrawer so the server is the source of truth for what
+ *  Financial Ops will accept as a verifiable transaction reference. */
+const TXN_REF_RULES: Record<TxnRefChannel, RegExp> = {
+  mtn_momo: /^[A-Z0-9]{8,20}$/,
+  airtel_money: /^[A-Z0-9.]{8,30}$/,
+  momo_receipt: /^[A-Z0-9-]{6,30}$/,
+  bank_transfer: /^[A-Z0-9-]{6,30}$/,
+};
 
 interface SubmitBody {
   draft_id: string;
@@ -94,14 +108,34 @@ function validateProof(proof: unknown): { ok: true; proof: ProofBundle } | { ok:
     return { ok: false, reason: "Missing proof_bundle" };
   }
   const p = proof as Partial<ProofBundle>;
-  if (p.type !== "photo" && p.type !== "signature" && p.type !== "sms_code") {
+  if (
+    p.type !== "transaction_ref" &&
+    p.type !== "photo" &&
+    p.type !== "signature" &&
+    p.type !== "sms_code"
+  ) {
     return { ok: false, reason: "Invalid proof_bundle.type" };
   }
   if (typeof p.captured_at !== "string" || Number.isNaN(Date.parse(p.captured_at))) {
     return { ok: false, reason: "Invalid proof_bundle.captured_at" };
   }
 
-  if (p.type === "photo") {
+  if (p.type === "transaction_ref") {
+    // CFO mandate: the only proof Financial Ops will accept end-to-end is a
+    // verifiable wallet/bank transaction reference. Photos/signatures/SMS
+    // codes are kept as fallbacks but cannot pass this gate alone.
+    const channel = p.channel as TxnRefChannel | undefined;
+    if (!channel || !(channel in TXN_REF_RULES)) {
+      return { ok: false, reason: "transaction_ref proof requires a valid channel" };
+    }
+    const ref = typeof p.reference === "string" ? p.reference.trim().toUpperCase() : "";
+    if (!ref) {
+      return { ok: false, reason: "transaction_ref proof requires a reference" };
+    }
+    if (!TXN_REF_RULES[channel].test(ref)) {
+      return { ok: false, reason: `Reference does not match expected ${channel} format` };
+    }
+  } else if (p.type === "photo") {
     if (!isDataUrl(p.photo_data_url, "image/")) {
       return { ok: false, reason: "Photo proof requires a base64 image data URL" };
     }
@@ -123,6 +157,11 @@ function validateProof(proof: unknown): { ok: true; proof: ProofBundle } | { ok:
     }
   }
 
+  // Normalise the reference so downstream consumers (Ops queue, ledger
+  // notes) see a single canonical form.
+  if (p.type === "transaction_ref" && typeof p.reference === "string") {
+    p.reference = p.reference.trim().toUpperCase();
+  }
   return { ok: true, proof: p as ProofBundle };
 }
 
@@ -295,7 +334,10 @@ Deno.serve(async (req) => {
     // ── Delegate the actual money movement to the same RPC the online
     //    flow uses. This single call: decrements agent float, credits
     //    landlord, writes ledger entries, inserts agent_collections row.
-    const noteSuffix = `[OFFLINE ${body.provisional_receipt_no} · proof:${proof.type}]`;
+    const proofTag = proof.type === "transaction_ref"
+      ? `proof:txn_ref:${proof.channel}:${proof.reference}`
+      : `proof:${proof.type}`;
+    const noteSuffix = `[OFFLINE ${body.provisional_receipt_no} · ${proofTag}]`;
     const combinedNotes = body.notes?.trim()
       ? `${body.notes.trim()} ${noteSuffix}`
       : noteSuffix;
