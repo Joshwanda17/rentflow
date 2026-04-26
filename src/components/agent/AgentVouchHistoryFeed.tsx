@@ -184,6 +184,34 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
 
   const visible = showAll ? filteredRows : filteredRows.slice(0, limit);
 
+  // Chart + summary derived from filteredRows.
+  // Because filteredRows is a useMemo of `rows`, any realtime INSERT/UPDATE
+  // that mutates `rows` will instantly recompute these values and re-render
+  // the chart and the summary numbers below.
+  const chartData = useMemo(() => {
+    // filteredRows is newest-first; reverse so the chart reads left→right by time
+    const ordered = [...filteredRows].reverse();
+    return ordered.map((r) => ({
+      t: new Date(r.created_at).getTime(),
+      limit: Number(r.new_effective_limit_ugx ?? r.previous_effective_limit_ugx ?? 0),
+    }));
+  }, [filteredRows]);
+
+  const chartSummary = useMemo(() => {
+    if (chartData.length === 0) {
+      return { start: 0, end: 0, peak: 0, low: 0, change: 0, points: 0 };
+    }
+    const start = chartData[0].limit;
+    const end = chartData[chartData.length - 1].limit;
+    let peak = chartData[0].limit;
+    let low = chartData[0].limit;
+    for (const p of chartData) {
+      if (p.limit > peak) peak = p.limit;
+      if (p.limit < low) low = p.limit;
+    }
+    return { start, end, peak, low, change: end - start, points: chartData.length };
+  }, [chartData]);
+
   const rangeLabel = (() => {
     if (preset === '7d') return 'Last 7 days';
     if (preset === '30d') return 'Last 30 days';
