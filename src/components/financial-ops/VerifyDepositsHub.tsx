@@ -224,6 +224,9 @@ export function VerifyDepositsHub() {
             </p>
           )}
           <TidVerification />
+          {/* User-side verifications happen via TID search, not a list, so
+              the Verified by / Verified at columns surface here. The Field
+              Deposits tab shows them inline in the queue table itself. */}
           <RecentlyVerifiedList source="user" />
         </TabsContent>
 
@@ -237,7 +240,6 @@ export function VerifyDepositsHub() {
             minAmount={minNum !== undefined && !Number.isNaN(minNum) ? minNum : undefined}
             maxAmount={maxNum !== undefined && !Number.isNaN(maxNum) ? maxNum : undefined}
           />
-          <RecentlyVerifiedList source="field" />
         </TabsContent>
       </Tabs>
     </div>

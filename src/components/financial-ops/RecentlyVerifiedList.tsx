@@ -16,19 +16,13 @@ import {
 import { useFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
 
 /**
- * Compact list of the most recently verified or rejected deposits.
+ * Compact table of the most recently verified or rejected deposits with
+ * "Verified by" and "Verified at" columns.
  *
- * Surfaces three audit columns in plain language:
- *  - amount + outcome
- *  - "Verified by" — the operator who acted
- *  - "Verified at" — when (relative + absolute on hover)
- *
- * Two source tables are supported via `source`:
- *   user  → public.deposit_requests
- *   field → public.field_deposit_batches
- *
- * We keep this read-only and intentionally small so it can sit under each
- * pending queue without competing for attention.
+ * Used on the User Deposits tab where verification is driven by a TID
+ * search rather than a visible queue — so this is the only surface where
+ * the operator can see who acted on each user deposit. The Field Deposits
+ * tab shows the same columns inline in its queue table.
  */
 
 interface ResolvedRow {
@@ -38,13 +32,13 @@ interface ResolvedRow {
   resolved_at: string;
   resolved_by_id: string | null;
   resolved_by_name: string | null;
-  subject: string; // depositor / agent name for context
+  subject: string;
   rejection_reason: string | null;
 }
 
 interface Props {
   source: 'user' | 'field';
-  /** How many rows to fetch. Default 8 — enough to glance, not enough to overwhelm. */
+  /** How many rows to fetch. Default 8 — enough to glance at without overwhelming. */
   limit?: number;
 }
 
@@ -60,10 +54,11 @@ export function RecentlyVerifiedList({ source, limit = 8 }: Props) {
       let resolved: ResolvedRow[] = [];
 
       if (source === 'user') {
-        // Pull the most recently approved OR rejected deposits.
         const { data, error } = await supabase
           .from('deposit_requests')
-          .select('id, amount, status, approved_at, rejected_at, processed_by, rejection_reason, user_id')
+          .select(
+            'id, amount, status, approved_at, rejected_at, processed_by, rejection_reason, user_id',
+          )
           .in('status', ['approved', 'rejected'])
           .not('processed_by', 'is', null)
           .order('updated_at', { ascending: false })
@@ -89,7 +84,8 @@ export function RecentlyVerifiedList({ source, limit = 8 }: Props) {
         }
 
         resolved = list.map((r) => {
-          const outcome: 'approved' | 'rejected' = r.status === 'approved' ? 'approved' : 'rejected';
+          const outcome: 'approved' | 'rejected' =
+            r.status === 'approved' ? 'approved' : 'rejected';
           const ts = outcome === 'approved' ? r.approved_at : r.rejected_at;
           return {
             id: r.id,
@@ -105,7 +101,9 @@ export function RecentlyVerifiedList({ source, limit = 8 }: Props) {
       } else {
         const { data, error } = await supabase
           .from('field_deposit_batches')
-          .select('id, declared_total, status, finops_verified_at, finops_verified_by, rejection_reason, agent_id')
+          .select(
+            'id, declared_total, status, finops_verified_at, finops_verified_by, rejection_reason, agent_id',
+          )
           .in('status', ['verified', 'rejected'])
           .not('finops_verified_by', 'is', null)
           .order('finops_verified_at', { ascending: false })
@@ -136,7 +134,8 @@ export function RecentlyVerifiedList({ source, limit = 8 }: Props) {
           outcome: r.status === 'verified' ? 'approved' : 'rejected',
           resolved_at: r.finops_verified_at ?? new Date().toISOString(),
           resolved_by_id: r.finops_verified_by ?? null,
-          resolved_by_name: profileMap.get(r.finops_verified_by)?.full_name ?? null,
+          resolved_by_name:
+            profileMap.get(r.finops_verified_by)?.full_name ?? null,
           subject: profileMap.get(r.agent_id)?.full_name ?? 'Unknown agent',
           rejection_reason: r.rejection_reason ?? null,
         }));
@@ -144,7 +143,7 @@ export function RecentlyVerifiedList({ source, limit = 8 }: Props) {
 
       setRows(resolved);
     } catch {
-      // Silent failure — this is a secondary, non-critical surface.
+      // Silent — secondary surface, not worth a toast.
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -190,16 +189,17 @@ export function RecentlyVerifiedList({ source, limit = 8 }: Props) {
         </div>
       ) : rows.length === 0 ? (
         <p className="text-[11px] text-muted-foreground text-center py-6">
-          Nothing verified yet — approved and rejected deposits will appear here with the operator's name and timestamp.
+          Nothing verified yet — approved and rejected deposits will appear
+          here with the operator's name and timestamp.
         </p>
       ) : (
         <ScrollArea className="max-h-[40vh]">
           <table className="w-full text-xs">
-            <thead className="bg-muted/40 text-muted-foreground">
+            <thead className="bg-muted/40 text-muted-foreground sticky top-0">
               <tr>
                 <th className="text-left font-medium px-3 py-1.5">Deposit</th>
                 <th className="text-left font-medium px-3 py-1.5">Verified by</th>
-                <th className="text-left font-medium px-3 py-1.5">Verified at</th>
+                <th className="text-left font-medium px-3 py-1.5 whitespace-nowrap">Verified at</th>
               </tr>
             </thead>
             <tbody>
@@ -247,7 +247,7 @@ export function RecentlyVerifiedList({ source, limit = 8 }: Props) {
                     </div>
                   </td>
                   <td
-                    className="px-3 py-1.5 align-top text-muted-foreground tabular-nums"
+                    className="px-3 py-1.5 align-top text-muted-foreground tabular-nums whitespace-nowrap"
                     title={format(new Date(r.resolved_at), 'PPpp')}
                   >
                     {formatDistanceToNow(new Date(r.resolved_at), { addSuffix: true })}
