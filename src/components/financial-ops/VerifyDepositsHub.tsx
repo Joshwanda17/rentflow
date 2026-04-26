@@ -48,6 +48,10 @@ export function VerifyDepositsHub() {
   const [channelFilters, setChannelFilters] = useState<DepositChannel[]>([]);
   const [minAmount, setMinAmount] = useState<string>('');
   const [maxAmount, setMaxAmount] = useState<string>('');
+  // Collapse the filter & export panel by default so the queue tabs and
+  // the TID form are the first things the operator sees on every visit.
+  // Auto-opens whenever a filter is active so applied scopes stay visible.
+  const [filtersOpen, setFiltersOpen] = useState(false);
   // Verifier (operator) filter — only narrows resolved/recently-verified rows.
   // Pending rows have no verifier yet so they are excluded when this is set.
   // Restored from localStorage so the operator's last selection survives a
