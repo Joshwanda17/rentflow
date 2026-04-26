@@ -13425,6 +13425,8 @@ export type Database = {
               sign: number
             }[]
           }
+      welile_agent_vouch_max_ugx: { Args: never; Returns: number }
+      welile_agent_vouch_min_ugx: { Args: never; Returns: number }
       welile_agent_vouch_multiplier: { Args: never; Returns: number }
       welile_default_agent_vouch_floor_ugx:
         | { Args: never; Returns: number }
