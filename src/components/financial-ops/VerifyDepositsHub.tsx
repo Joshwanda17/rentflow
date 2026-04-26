@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ShieldCheck, Wallet, User, Filter, X } from 'lucide-react';
+import { ShieldCheck, Wallet, User, Filter, X, Loader2 } from 'lucide-react';
 import { CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
