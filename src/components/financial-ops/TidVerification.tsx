@@ -688,6 +688,10 @@ export function TidVerification() {
         </p>
       </CardHeader>
       <CardContent className="space-y-5 px-4 sm:px-6 pb-5">
+        {/* Operator quality self-view — shows how many provider-mismatch
+            attempts the current operator has triggered today. Helps build
+            self-awareness without waiting for a CFO review. */}
+        <OperatorMismatchTodayBadge />
         {/* ── Step 1 ───────────────────────────────────────────────────── */}
         <StepHeader
           n={1}
