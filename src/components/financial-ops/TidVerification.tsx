@@ -162,6 +162,15 @@ export function TidVerification() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejecting, setRejecting] = useState(false);
+  // Pending (deferred) approvals — each entry holds an in-flight 5-second
+  // undo window. While a match id is in this map we show the row as
+  // "Approving (undoable)" and the backend `approve-deposit` call is
+  // NOT fired. When the timer elapses we commit; if the operator clicks
+  // Undo we cancel the timer and nothing reaches the server.
+  const undoTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  // Use state (not just ref) so the per-row UI updates when entries
+  // are added/removed.
+  const [pendingUndoIds, setPendingUndoIds] = useState<Set<string>>(new Set());
 
   // Pending depositor pick-list — narrow the user-visible queue by the
   // currently selected provider so the operator can click a row, see who
