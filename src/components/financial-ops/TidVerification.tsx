@@ -545,17 +545,27 @@ export function TidVerification() {
             </div>
           ) : (
             <ScrollArea className="max-h-44">
-              <ul className="divide-y divide-border/60">
-                {pendingFiltered.map((p) => {
+              <ul
+                ref={pendingListRef}
+                role="listbox"
+                aria-label="Pending depositors"
+                tabIndex={0}
+                onKeyDown={handlePendingKeyDown}
+                className="divide-y divide-border/60 outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
+              >
+                {pendingFiltered.map((p, idx) => {
                   const active = p.id === pickedId;
+                  const highlighted = idx === highlightedIndex;
                   return (
-                    <li key={p.id}>
+                    <li key={p.id} role="option" aria-selected={active}>
                       <button
+                        ref={(el) => { pendingItemRefs.current[idx] = el; }}
                         type="button"
-                        onClick={() => pickPending(p)}
-                        className={`w-full text-left px-2.5 py-2 hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors ${
+                        onClick={() => { pickPending(p); setHighlightedIndex(idx); }}
+                        onFocus={() => setHighlightedIndex(idx)}
+                        className={`w-full text-left px-2.5 py-2 hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary transition-colors ${
                           active ? 'bg-primary/10' : ''
-                        }`}
+                        } ${highlighted && !active ? 'bg-accent/40 ring-2 ring-inset ring-primary/60' : ''}`}
                       >
                         <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0">
