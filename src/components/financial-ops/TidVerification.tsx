@@ -223,6 +223,22 @@ export function TidVerification() {
   // picked via Enter, so non-sighted operators get the same feedback as
   // sighted ones.
   const [pendingLiveMessage, setPendingLiveMessage] = useState('');
+  // Lightweight banner shown for a few seconds when the search/filters
+  // narrow the list to one row and we auto-pick it for the operator.
+  // Holds the auto-picked row + the previous form snapshot so Undo can
+  // restore exactly what the operator had before the auto-pick fired.
+  type AutoPickInfo = {
+    id: string;
+    name: string;
+    amount: number;
+    prev: {
+      pickedId: string | null;
+      pickedProvider: string | null;
+      operatorAmount: string;
+      provider: string;
+    };
+  };
+  const [autoPicked, setAutoPicked] = useState<AutoPickInfo | null>(null);
   const pendingListRef = useRef<HTMLUListElement>(null);
   const pendingItemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   // Ref to the pending search input so the global "/" hotkey can focus it.
