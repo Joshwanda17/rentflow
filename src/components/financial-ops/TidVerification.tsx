@@ -785,8 +785,61 @@ export function TidVerification() {
               No depositors match “{pendingSearch}”.
             </div>
           ) : (
-            <ScrollArea className="max-h-44">
-              <ul
+            <>
+              {/* Sortable column header — three buttons matching the row
+                  layout (name+phone on the left, amount on the right). Click
+                  cycles asc → desc → off. */}
+              <div
+                role="row"
+                className="flex items-center justify-between gap-2 px-2.5 py-1.5 border-b border-border/60 bg-muted/30 text-[10px] uppercase tracking-wide text-muted-foreground"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('name')}
+                    aria-label="Sort by depositor name"
+                    aria-sort={sortColumn === 'name' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    className="flex items-center gap-1 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded px-1"
+                  >
+                    Name
+                    {sortColumn === 'name'
+                      ? (sortDir === 'asc'
+                          ? <ArrowUp className="h-2.5 w-2.5 text-primary" />
+                          : <ArrowDown className="h-2.5 w-2.5 text-primary" />)
+                      : <ArrowUpDown className="h-2.5 w-2.5 opacity-50" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleSort('phone')}
+                    aria-label="Sort by phone number"
+                    aria-sort={sortColumn === 'phone' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                    className="flex items-center gap-1 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded px-1"
+                  >
+                    Phone
+                    {sortColumn === 'phone'
+                      ? (sortDir === 'asc'
+                          ? <ArrowUp className="h-2.5 w-2.5 text-primary" />
+                          : <ArrowDown className="h-2.5 w-2.5 text-primary" />)
+                      : <ArrowUpDown className="h-2.5 w-2.5 opacity-50" />}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => toggleSort('amount')}
+                  aria-label="Sort by amount"
+                  aria-sort={sortColumn === 'amount' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  className="flex items-center gap-1 hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded px-1"
+                >
+                  Amount
+                  {sortColumn === 'amount'
+                    ? (sortDir === 'asc'
+                        ? <ArrowUp className="h-2.5 w-2.5 text-primary" />
+                        : <ArrowDown className="h-2.5 w-2.5 text-primary" />)
+                    : <ArrowUpDown className="h-2.5 w-2.5 opacity-50" />}
+                </button>
+              </div>
+              <ScrollArea className="max-h-44">
+                <ul
                 ref={pendingListRef}
                 role="listbox"
                 aria-label="Pending depositors"
@@ -794,7 +847,7 @@ export function TidVerification() {
                 onKeyDown={handlePendingKeyDown}
                 className="divide-y divide-border/60 outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
               >
-                {pendingFiltered.map((p, idx) => {
+                {pendingSorted.map((p, idx) => {
                   const active = p.id === pickedId;
                   const highlighted = idx === highlightedIndex;
                   return (
