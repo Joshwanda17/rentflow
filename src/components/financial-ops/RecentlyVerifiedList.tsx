@@ -35,6 +35,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
 import { downloadCsv, csvTimestamp } from '@/lib/csvExport';
 import { downloadAuditPdf, pdfTimestampLabel } from '@/lib/pdfAuditReport';
+import { downloadXlsx } from '@/lib/xlsxExport';
 import { toast } from 'sonner';
 
 /**
@@ -259,6 +260,32 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
     }
   };
 
+  /**
+   * XLSX export — same payload as CSV/PDF, delivered as a real Excel file
+   * with a frozen header and auto-sized columns for spreadsheet workflows.
+   */
+  const handleExportXlsx = async () => {
+    setExporting(true);
+    try {
+      const { headers, rows, count } = await buildExportPayload();
+      if (count === 0) {
+        toast.info('Nothing to export — no deposits match the current filters.');
+        return;
+      }
+      await downloadXlsx(
+        `user-deposits-audit-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        headers,
+        rows,
+        'User Deposits',
+      );
+      toast.success(`Exported ${count} deposit${count === 1 ? '' : 's'} to XLSX.`);
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Failed to export audit log');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -322,6 +349,14 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
                 >
                   <Download className="mr-2 h-3 w-3" />
                   CSV (spreadsheet)
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={false}
+                  onCheckedChange={() => handleExportXlsx()}
+                  onSelect={(e) => e.preventDefault()}
+                >
+                  <Download className="mr-2 h-3 w-3" />
+                  XLSX (Excel)
                 </DropdownMenuCheckboxItem>
                 <DropdownMenuCheckboxItem
                   checked={false}
