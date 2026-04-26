@@ -385,9 +385,19 @@ export function VerifyDepositsHub() {
                 />
               </div>
               <SelectItem value="all">Any operator</SelectItem>
-              {meId && (
+              {meId ? (
                 <SelectItem value={meId}>
                   Me{meName ? ` (${meName})` : ''}
+                </SelectItem>
+              ) : (
+                // Keep the "Me" slot visible but disabled while the current
+                // user profile is still resolving, so operators get clear
+                // feedback instead of a missing option.
+                <SelectItem value="me" disabled>
+                  <span className="inline-flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Loading your profile…
+                  </span>
                 </SelectItem>
               )}
               {meId && (
