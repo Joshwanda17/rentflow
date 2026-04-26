@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { History, ArrowUpRight, ArrowDownRight, RotateCcw, ExternalLink, CalendarIcon, Download, Copy, Check } from 'lucide-react';
+import { History, ArrowUpRight, ArrowDownRight, RotateCcw, ExternalLink, CalendarIcon, Download, Copy, Check, AlertCircle, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
@@ -15,6 +15,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type RangePreset = '7d' | '30d' | '90d' | 'all' | 'custom';
 
@@ -450,30 +451,49 @@ function CollectionDetailDialog({
 }) {
   const [data, setData] = useState<CollectionDetail | null>(null);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   useEffect(() => {
-    if (!collectionId) { setData(null); return; }
+    if (!collectionId) { setData(null); setErrorMsg(null); return; }
     let cancelled = false;
     setLoading(true);
+    setErrorMsg(null);
     (async () => {
-      const { data: c } = await (supabase as any)
-        .from('ln')
-        .select('id, amount, created_at, payment_method, location_name, notes, momo_provider, momo_phone, momo_payer_name, momo_transaction_id, tenant_id')
-        .eq('id', collectionId)
-        .maybeSingle();
-      if (cancelled) return;
-      if (!c) { setData(null); setLoading(false); return; }
-      const { data: tenant } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', c.tenant_id)
-        .maybeSingle();
-      if (cancelled) return;
-      setData({ ...c, tenant_name: tenant?.full_name ?? null } as CollectionDetail);
-      setLoading(false);
+      try {
+        const { data: c, error: cErr } = await (supabase as any)
+          .from('ln')
+          .select('id, amount, created_at, payment_method, location_name, notes, momo_provider, momo_phone, momo_payer_name, momo_transaction_id, tenant_id')
+          .eq('id', collectionId)
+          .maybeSingle();
+        if (cancelled) return;
+        if (cErr) throw cErr;
+        if (!c) {
+          setData(null);
+          setErrorMsg(null);
+          return;
+        }
+        const { data: tenant, error: tErr } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', c.tenant_id)
+          .maybeSingle();
+        if (cancelled) return;
+        if (tErr) throw tErr;
+        setData({ ...c, tenant_name: tenant?.full_name ?? null } as CollectionDetail);
+      } catch (e: any) {
+        if (cancelled) return;
+        setData(null);
+        setErrorMsg(
+          e?.message ||
+            'Could not load this collection. Check your connection and try again.',
+        );
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     })();
     return () => { cancelled = true; };
-  }, [collectionId]);
+  }, [collectionId, retryNonce]);
 
   const open = !!collectionId;
 
@@ -486,13 +506,43 @@ function CollectionDetailDialog({
             Field collection record linked to this vouch adjustment.
           </DialogDescription>
         </DialogHeader>
-        {loading && <p className="text-sm text-muted-foreground py-4">Loading…</p>}
-        {!loading && !data && (
+        {loading && (
+          <div className="py-2 space-y-3" aria-busy="true" aria-live="polite">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex items-start justify-between gap-3">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className={cn('h-3', i === 0 ? 'w-32' : 'w-40')} />
+              </div>
+            ))}
+          </div>
+        )}
+        {!loading && errorMsg && (
+          <div className="py-3 space-y-3">
+            <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-destructive">
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+              <div className="text-xs leading-snug">
+                <p className="font-semibold">Couldn’t load collection</p>
+                <p className="opacity-90 break-words">{errorMsg}</p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full h-8"
+              onClick={() => setRetryNonce((n) => n + 1)}
+            >
+              <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+              Retry
+            </Button>
+          </div>
+        )}
+        {!loading && !errorMsg && !data && (
           <p className="text-sm text-muted-foreground py-4">
             Collection not found or no longer accessible.
           </p>
         )}
-        {!loading && data && (
+        {!loading && !errorMsg && data && (
           <dl className="text-sm space-y-2">
             <ReferenceRow id={data.id} />
             <Row label="Amount" value={formatUGX(Number(data.amount))} strong />
