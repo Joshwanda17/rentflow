@@ -399,6 +399,39 @@ export function FieldDepositVerificationQueue({
               Field Deposits — Verification Queue
             </CardTitle>
             <div className="flex items-center gap-1">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-1 text-xs"
+                    title="Show or hide columns — also applies to CSV export"
+                  >
+                    <Columns3 className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Columns</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel className="text-[11px]">
+                    Visible columns
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {COLUMNS.map((c) => (
+                    <DropdownMenuCheckboxItem
+                      key={c.key}
+                      checked={visibleCols[c.key]}
+                      onCheckedChange={() => toggleCol(c.key)}
+                      onSelect={(e) => e.preventDefault()}
+                      disabled={c.alwaysOn}
+                    >
+                      {c.label}
+                      {c.alwaysOn && (
+                        <span className="ml-auto text-[10px] text-muted-foreground italic">always</span>
+                      )}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button
                 variant="ghost"
                 size="sm"
