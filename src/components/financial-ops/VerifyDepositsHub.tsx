@@ -554,7 +554,12 @@ export function VerifyDepositsHub() {
           {/* User-side verifications happen via TID search, not a list, so
               the Verified by / Verified at columns surface here. The Field
               Deposits tab shows them inline in the queue table itself. */}
-          <RecentlyVerifiedList source="user" verifierId={verifierFilter} />
+          <RecentlyVerifiedList
+            source="user"
+            verifierId={verifierFilter}
+            exportFromIso={exportFromIso}
+            exportToIso={exportToIso}
+          />
         </TabsContent>
 
         <TabsContent value="field" className="mt-4 space-y-2">
@@ -567,6 +572,8 @@ export function VerifyDepositsHub() {
             minAmount={minNum !== undefined && !Number.isNaN(minNum) ? minNum : undefined}
             maxAmount={maxNum !== undefined && !Number.isNaN(maxNum) ? maxNum : undefined}
             verifierId={verifierFilter}
+            exportFromIso={exportFromIso}
+            exportToIso={exportToIso}
           />
         </TabsContent>
       </Tabs>
