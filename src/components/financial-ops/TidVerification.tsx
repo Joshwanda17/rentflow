@@ -1030,27 +1030,41 @@ export function TidVerification() {
                   );
                 })}
               </ul>
-              {pendingHasMore && !pendingSearch.trim() && (
-                <div className="px-2.5 py-1.5 border-t border-border/60">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="w-full h-7 text-[11px]"
-                    onClick={loadMorePending}
-                    disabled={pendingLoadingMore}
-                  >
-                    {pendingLoadingMore ? (
-                      <>
-                        <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
-                        Loading…
-                      </>
-                    ) : (
-                      <>Load more (+{PENDING_PAGE_SIZE})</>
+              {pendingHasMore && (() => {
+                // Pagination is keyset-based on the unfiltered list; once a
+                // search filter is active, "Load more" can't meaningfully
+                // extend the filtered view. Keep the button visible but
+                // disabled (with a hint) so the affordance doesn't vanish
+                // mid-interaction — operators can clear the search to
+                // resume paging.
+                const searchActive = !!pendingSearch.trim();
+                return (
+                  <div className="px-2.5 py-1.5 border-t border-border/60 space-y-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="w-full h-7 text-[11px]"
+                      onClick={loadMorePending}
+                      disabled={pendingLoadingMore || searchActive}
+                    >
+                      {pendingLoadingMore ? (
+                        <>
+                          <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                          Loading…
+                        </>
+                      ) : (
+                        <>Load more (+{PENDING_PAGE_SIZE})</>
+                      )}
+                    </Button>
+                    {searchActive && (
+                      <p className="text-[10px] text-muted-foreground text-center leading-tight">
+                        Clear the search to load more pending deposits.
+                      </p>
                     )}
-                  </Button>
-                </div>
-              )}
+                  </div>
+                );
+              })()}
               </ScrollArea>
             </>
           )}
