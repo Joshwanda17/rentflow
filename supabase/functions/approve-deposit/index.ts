@@ -76,6 +76,22 @@ Deno.serve(async (req) => {
 
     const safeRejectionReason = typeof rejection_reason === 'string' ? rejection_reason.trim().slice(0, 1000) : undefined;
 
+    // Audit requirement: rejecting a deposit MUST be accompanied by a clear
+    // operator-written reason (≥10 chars) so reconciliation, the user
+    // notification SMS, and the audit_logs entry all carry traceable context.
+    // This was previously only enforced in the UI; an API caller could
+    // bypass it. The reason is also stamped onto deposit_requests.rejection_reason
+    // and broadcast in the user notification — never accept a blank.
+    if (action === 'reject' && (!safeRejectionReason || safeRejectionReason.length < 10)) {
+      return new Response(
+        JSON.stringify({
+          error: 'rejection_reason_required',
+          message: 'A rejection reason of at least 10 characters is required for auditing.',
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
     // Treasury guard: block credits when paused (deposits credit user wallets)
