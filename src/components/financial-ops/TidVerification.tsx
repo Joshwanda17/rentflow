@@ -349,18 +349,18 @@ export function TidVerification() {
   }, [highlightedIndex]);
 
   const handlePendingKeyDown = (e: React.KeyboardEvent<HTMLUListElement>) => {
-    if (pendingFiltered.length === 0) return;
+    if (pendingSorted.length === 0) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setHighlightedIndex((i) => {
-        const next = i < pendingFiltered.length - 1 ? i + 1 : 0;
+        const next = i < pendingSorted.length - 1 ? i + 1 : 0;
         pendingItemRefs.current[next]?.focus();
         return next;
       });
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setHighlightedIndex((i) => {
-        const next = i > 0 ? i - 1 : pendingFiltered.length - 1;
+        const next = i > 0 ? i - 1 : pendingSorted.length - 1;
         pendingItemRefs.current[next]?.focus();
         return next;
       });
@@ -370,13 +370,13 @@ export function TidVerification() {
       pendingItemRefs.current[0]?.focus();
     } else if (e.key === 'End') {
       e.preventDefault();
-      const last = pendingFiltered.length - 1;
+      const last = pendingSorted.length - 1;
       setHighlightedIndex(last);
       pendingItemRefs.current[last]?.focus();
     } else if (e.key === 'Enter' || e.key === ' ') {
-      if (highlightedIndex >= 0 && highlightedIndex < pendingFiltered.length) {
+      if (highlightedIndex >= 0 && highlightedIndex < pendingSorted.length) {
         e.preventDefault();
-        pickPending(pendingFiltered[highlightedIndex]);
+        pickPending(pendingSorted[highlightedIndex]);
       }
     } else if (e.key === 'Escape') {
       // Esc priority: clear the search box first (most common case while
