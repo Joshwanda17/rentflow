@@ -420,6 +420,10 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
         </p>
       )}
 
+      {!loading && chartData.length > 0 && (
+        <VouchLimitChart data={chartData} summary={chartSummary} />
+      )}
+
       {!loading && filteredRows.length > 0 && (
         <ul className="divide-y divide-border/50">
           {visible.map((r) => (
