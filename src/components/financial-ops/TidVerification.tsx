@@ -220,6 +220,8 @@ export function TidVerification() {
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const pendingListRef = useRef<HTMLUListElement>(null);
   const pendingItemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  // Ref to the pending search input so the global "/" hotkey can focus it.
+  const pendingSearchInputRef = useRef<HTMLInputElement>(null);
   // Synchronous reentrancy guard for the "Load more" button — see
   // loadMorePending below for rationale.
   const loadMoreInFlightRef = useRef(false);
@@ -313,6 +315,29 @@ export function TidVerification() {
   useEffect(() => {
     loadPending();
   }, [loadPending]);
+
+  // Global "/" hotkey to focus the pending search input — same shortcut
+  // pattern as GitHub/Slack, so operators can start filtering instantly
+  // without reaching for the mouse. Skipped when the user is already
+  // typing in another input/textarea/contenteditable, when a modifier
+  // key is held, or when the search input itself isn't mounted yet
+  // (e.g. before any pending rows have loaded).
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== '/') return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return;
+      const input = pendingSearchInputRef.current;
+      if (!input) return;
+      e.preventDefault();
+      input.focus();
+      input.select();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   // When the operator switches the provider dropdown, immediately reset
   // the pending list to its first-page state. `loadPending` will refetch
@@ -845,6 +870,7 @@ export function TidVerification() {
               <div className="relative">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
                 <Input
+                  ref={pendingSearchInputRef}
                   value={pendingSearch}
                   onChange={(e) => setPendingSearch(e.target.value)}
                   onKeyDown={(e) => {
