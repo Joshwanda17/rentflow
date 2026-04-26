@@ -220,6 +220,8 @@ export function TidVerification() {
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const pendingListRef = useRef<HTMLUListElement>(null);
   const pendingItemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  // Ref to the pending search input so the global "/" hotkey can focus it.
+  const pendingSearchInputRef = useRef<HTMLInputElement>(null);
   // Synchronous reentrancy guard for the "Load more" button — see
   // loadMorePending below for rationale.
   const loadMoreInFlightRef = useRef(false);
