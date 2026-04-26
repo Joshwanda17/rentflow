@@ -4,13 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Banknote, AlertCircle, CheckCircle2, Wallet, TrendingUp } from 'lucide-react';
+import { Loader2, Banknote, AlertCircle, CheckCircle2, Wallet, TrendingUp, WifiOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentLandlordFloat } from '@/hooks/useAgentLandlordFloat';
 import { formatUGX } from '@/lib/rentCalculations';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
+import { useOffline } from '@/contexts/OfflineContext';
 import { CommissionCelebration } from './CommissionCelebration';
 
 interface AgentTenantCollectDialogProps {
@@ -27,6 +28,7 @@ export function AgentTenantCollectDialog({
 }: AgentTenantCollectDialogProps) {
   const { user } = useAuth();
   const { floatBalance, refetch: refetchBalances } = useAgentLandlordFloat(user?.id);
+  const { isOnline } = useOffline();
   const [amount, setAmount] = useState<number>(0);
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
