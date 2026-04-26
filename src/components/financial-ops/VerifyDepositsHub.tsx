@@ -388,8 +388,10 @@ export function VerifyDepositsHub() {
             className="flex items-center gap-1.5 pl-2 pr-1 py-1"
           >
             <span className="text-[11px]">
-              Verifier: {verifiers.find((v) => v.id === verifierFilter)?.full_name
-                ?? `Operator ${verifierFilter.slice(0, 8)}`}
+              Verifier: {verifierFilter === meId
+                ? `Me${meName ? ` (${meName})` : ''}`
+                : verifiers.find((v) => v.id === verifierFilter)?.full_name
+                  ?? `Operator ${verifierFilter.slice(0, 8)}`}
             </span>
             <button
               type="button"
