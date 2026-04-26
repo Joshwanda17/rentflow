@@ -635,6 +635,21 @@ export function TidVerification() {
                 <Input
                   value={pendingSearch}
                   onChange={(e) => setPendingSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    // Esc while typing clears the search box.
+                    if (e.key === 'Escape' && pendingSearch) {
+                      e.preventDefault();
+                      setPendingSearch('');
+                    }
+                    // ↓ from the search box jumps focus into the list so
+                    // the operator can keep flowing without reaching for
+                    // the mouse.
+                    if (e.key === 'ArrowDown' && pendingFiltered.length > 0) {
+                      e.preventDefault();
+                      setHighlightedIndex(0);
+                      pendingItemRefs.current[0]?.focus();
+                    }
+                  }}
                   placeholder={
                     matchField === 'name' ? 'Search depositor name…'
                     : matchField === 'phone' ? 'Search phone number…'
