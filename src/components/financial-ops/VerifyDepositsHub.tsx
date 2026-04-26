@@ -119,9 +119,18 @@ export function VerifyDepositsHub() {
   // if the operator hasn't already changed the filter this session.
   useEffect(() => {
     if (appliedDefaultMe) return;
-    if (!defaultToMe || !meId) return;
+    if (!meId) return;
+    // Resolve the persisted `'me'` sentinel to the real user id now that
+    // we know who the operator is. This takes priority over the
+    // "default to me" preference because it's an explicit prior choice.
+    if (verifierId === 'me') {
+      setVerifierIdRaw(meId);
+      setAppliedDefaultMe(true);
+      return;
+    }
+    if (!defaultToMe) { setAppliedDefaultMe(true); return; }
     if (verifierId !== 'all') { setAppliedDefaultMe(true); return; }
-    setVerifierId(meId);
+    setVerifierIdRaw(meId);
     setAppliedDefaultMe(true);
   }, [defaultToMe, meId, verifierId, appliedDefaultMe]);
 
