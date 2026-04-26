@@ -34,7 +34,6 @@ import { FieldDepositVerifyDialog } from './FieldDepositVerifyDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
 import { downloadCsv, csvTimestamp } from '@/lib/csvExport';
-import { toast } from 'sonner';
 
 /**
  * A row in the unified verification table — pending batches PLUS the most
