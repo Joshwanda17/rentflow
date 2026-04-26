@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Wallet, Users } from 'lucide-react';
+import { Wallet, Users, ShieldCheck, Banknote } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 
 export function WalletOverviewCard() {
@@ -18,6 +18,26 @@ export function WalletOverviewCard() {
       };
     },
     staleTime: 60_000,
+  });
+
+  // Live counters that drive the two big action buttons. We only need
+  // the *count* of pending items, not the rows themselves, so we use
+  // head-only queries (cheap, RLS-respecting).
+  const { data: queues } = useQuery({
+    queryKey: ['finops-wallet-overview-queues'],
+    queryFn: async () => {
+      const [userDeposits, fieldDeposits, withdrawals] = await Promise.all([
+        supabase.from('manual_deposits').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('field_deposit_batches').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('withdrawal_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      ]);
+      return {
+        depositsPending: (userDeposits.count ?? 0) + (fieldDeposits.count ?? 0),
+        payoutsPending: withdrawals.count ?? 0,
+      };
+    },
+    refetchInterval: 30_000,
+    staleTime: 15_000,
   });
 
   return (
@@ -39,6 +59,28 @@ export function WalletOverviewCard() {
         <span className="text-primary font-medium">
           {isLoading ? '—' : data?.activeWallets?.toLocaleString()} with balance
         </span>
+      </div>
+
+      {/* ─── Two live key stats that mirror the two action buttons below ─── */}
+      <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-primary/15">
+        <div className="rounded-xl bg-background/60 backdrop-blur-sm border border-border p-3">
+          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+            <ShieldCheck className="h-3 w-3" /> Awaiting verification
+          </div>
+          <p className="text-2xl font-black tabular-nums mt-1 text-foreground">
+            {queues?.depositsPending ?? '—'}
+          </p>
+          <p className="text-[10px] text-muted-foreground">user + field deposits</p>
+        </div>
+        <div className="rounded-xl bg-background/60 backdrop-blur-sm border border-border p-3">
+          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+            <Banknote className="h-3 w-3" /> Awaiting payout
+          </div>
+          <p className="text-2xl font-black tabular-nums mt-1 text-foreground">
+            {queues?.payoutsPending ?? '—'}
+          </p>
+          <p className="text-[10px] text-muted-foreground">withdrawal requests</p>
+        </div>
       </div>
     </div>
   );
