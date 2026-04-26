@@ -89,6 +89,16 @@ export function TidVerification() {
   const [pendingHasMore, setPendingHasMore] = useState(false);
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [pendingSearch, setPendingSearch] = useState('');
+  // Quick filter chips that narrow the pick-list locally. All three are
+  // additive — a row must satisfy every active chip to show. Defaults are
+  // the most permissive ('any') so the panel behaves as before until the
+  // operator opts in.
+  type MatchField = 'any' | 'name' | 'phone' | 'amount';
+  type AmountRange = 'any' | 'low' | 'mid' | 'high';
+  type Verification = 'any' | 'verified' | 'unverified';
+  const [matchField, setMatchField] = useState<MatchField>('any');
+  const [amountRange, setAmountRange] = useState<AmountRange>('any');
+  const [verification, setVerification] = useState<Verification>('any');
   // The provider the picked row was originally tagged with — used to
   // detect when the operator changes the provider after picking.
   const [pickedProvider, setPickedProvider] = useState<string | null>(null);
@@ -195,24 +205,48 @@ export function TidVerification() {
   const providerMismatch =
     !!pickedId && !!pickedProvider && pickedProvider !== provider;
 
-  // Local filter — name, phone, or amount substring (digits only for amount).
+  // Local filter — search text + chip filters. A row must satisfy every
+  // active filter to show.
+  //  • matchField: which column the search text targets (default = any)
+  //  • amountRange: low (<50K) / mid (50K–200K) / high (>200K)
+  //  • verification: 'verified' = has BOTH a real name and a phone on file
+  //                  (i.e. profile looks complete enough to trust the match)
+  const isVerifiedProfile = (p: PendingDeposit) =>
+    !!p.depositorPhone &&
+    !!p.depositorName &&
+    p.depositorName.toLowerCase() !== 'unknown depositor';
   const pendingFiltered = (() => {
     const q = pendingSearch.trim().toLowerCase();
-    if (!q) return pending;
     const qDigits = q.replace(/[^0-9]/g, '');
     return pending.filter((p) => {
-      if (p.depositorName.toLowerCase().includes(q)) return true;
-      if (p.depositorPhone.toLowerCase().includes(q)) return true;
-      if (qDigits && String(p.amount).includes(qDigits)) return true;
-      return false;
+      // Amount range chip
+      if (amountRange === 'low' && p.amount >= 50000) return false;
+      if (amountRange === 'mid' && (p.amount < 50000 || p.amount > 200000)) return false;
+      if (amountRange === 'high' && p.amount <= 200000) return false;
+      // Verification chip
+      if (verification === 'verified' && !isVerifiedProfile(p)) return false;
+      if (verification === 'unverified' && isVerifiedProfile(p)) return false;
+      // Search text — scoped by matchField chip
+      if (q) {
+        const inName = p.depositorName.toLowerCase().includes(q);
+        const inPhone = p.depositorPhone.toLowerCase().includes(q);
+        const inAmount = !!qDigits && String(p.amount).includes(qDigits);
+        if (matchField === 'name' && !inName) return false;
+        if (matchField === 'phone' && !inPhone) return false;
+        if (matchField === 'amount' && !inAmount) return false;
+        if (matchField === 'any' && !(inName || inPhone || inAmount)) return false;
+      }
+      return true;
     });
   })();
+  const filtersActive =
+    matchField !== 'any' || amountRange !== 'any' || verification !== 'any';
 
   // Reset highlight when the visible list shape changes (search, provider,
   // refresh) so the focus indicator never points to a stale row.
   useEffect(() => {
     setHighlightedIndex(-1);
-  }, [pendingSearch, provider, pending.length]);
+  }, [pendingSearch, provider, pending.length, matchField, amountRange, verification]);
 
   // Keep the highlighted row in view when arrow-keying through a long list.
   useEffect(() => {
