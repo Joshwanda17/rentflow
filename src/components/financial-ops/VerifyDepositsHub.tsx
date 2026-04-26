@@ -51,6 +51,64 @@ export function VerifyDepositsHub() {
   // Free-text filter over the verifier dropdown — handy once dozens of
   // operators have processed deposits and scrolling is tedious.
   const [verifierSearch, setVerifierSearch] = useState<string>('');
+  // Current operator (used for the "Me" quick-select). Null until we resolve
+  // the auth user; the "Me" option stays disabled until then.
+  const [meId, setMeId] = useState<string | null>(null);
+  const [meName, setMeName] = useState<string | null>(null);
+  // Persisted preference: when true, the verifier filter auto-defaults to the
+  // current operator on every visit. Operators can still switch to "Any" or
+  // another verifier — that doesn't disable the preference.
+  const [defaultToMe, setDefaultToMe] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem('finops:verifier-default-to-me') === '1';
+  });
+  // Tracks whether we've already applied the "default to me" preference this
+  // mount, so we don't keep snapping the operator back to themselves after
+  // they manually change it.
+  const [appliedDefaultMe, setAppliedDefaultMe] = useState(false);
+
+  // Resolve the current user once. Profile name is best-effort — falls back
+  // to "Me" so the dropdown item is always usable.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (cancelled || !user) return;
+      setMeId(user.id);
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (!cancelled) setMeName((prof?.full_name as string | null) ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Apply the "default to me" preference once the user id is known and only
+  // if the operator hasn't already changed the filter this session.
+  useEffect(() => {
+    if (appliedDefaultMe) return;
+    if (!defaultToMe || !meId) return;
+    if (verifierId !== 'all') { setAppliedDefaultMe(true); return; }
+    setVerifierId(meId);
+    setAppliedDefaultMe(true);
+  }, [defaultToMe, meId, verifierId, appliedDefaultMe]);
+
+  const toggleDefaultToMe = () => {
+    setDefaultToMe((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem(
+          'finops:verifier-default-to-me',
+          next ? '1' : '0',
+        );
+      } catch { /* storage may be unavailable */ }
+      // When turning it on, immediately apply to the current session.
+      if (next && meId) setVerifierId(meId);
+      return next;
+    });
+  };
 
   // Build a single distinct list of operators who have ever resolved a deposit
   // — pulled from both deposit_requests (user side) and field_deposit_batches
@@ -261,6 +319,26 @@ export function VerifyDepositsHub() {
                 />
               </div>
               <SelectItem value="all">Any operator</SelectItem>
+              {meId && (
+                <SelectItem value={meId}>
+                  Me{meName ? ` (${meName})` : ''}
+                </SelectItem>
+              )}
+              {meId && (
+                <div className="px-1.5 py-1 border-t border-border/60 mt-1">
+                  <label className="flex items-center gap-2 px-1.5 py-1 text-[11px] text-muted-foreground cursor-pointer hover:text-foreground">
+                    <input
+                      type="checkbox"
+                      checked={defaultToMe}
+                      onChange={toggleDefaultToMe}
+                      onKeyDown={(e) => e.stopPropagation()}
+                      className="h-3 w-3 accent-primary"
+                      aria-label="Default verifier filter to me on every visit"
+                    />
+                    Default to me on every visit
+                  </label>
+                </div>
+              )}
               {(() => {
                 if (verifiers.length === 0) {
                   return (
@@ -310,8 +388,10 @@ export function VerifyDepositsHub() {
             className="flex items-center gap-1.5 pl-2 pr-1 py-1"
           >
             <span className="text-[11px]">
-              Verifier: {verifiers.find((v) => v.id === verifierFilter)?.full_name
-                ?? `Operator ${verifierFilter.slice(0, 8)}`}
+              Verifier: {verifierFilter === meId
+                ? `Me${meName ? ` (${meName})` : ''}`
+                : verifiers.find((v) => v.id === verifierFilter)?.full_name
+                  ?? `Operator ${verifierFilter.slice(0, 8)}`}
             </span>
             <button
               type="button"
