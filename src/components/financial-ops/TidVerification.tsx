@@ -1507,6 +1507,88 @@ export function TidVerification() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* ── Sticky mobile action bar ────────────────────────────────────
+         * Pins the contextually-primary action to the bottom of the
+         * viewport on small screens so operators can finish a step
+         * (Verify, Approve, Approve all) without scrolling back to the
+         * inline button. Hidden on `sm` and up — desktop already shows
+         * everything above the fold.
+         *
+         * Action picked by current state:
+         *   • matches found + ≥2 ready  → "Approve all (n)"
+         *   • matches found + 1 ready   → "Approve {amount}"
+         *   • otherwise                 → "Verify & Match" (mirrors the
+         *     inline Verify button, including provider-mismatch capture).
+         */}
+        {(() => {
+          const inFoundState = resultState === 'found' && matches.length > 0;
+          const readyCount = pendingMatches.length;
+          const onlyReady = readyCount === 1 ? pendingMatches[0] : null;
+
+          // Don't render when there's nothing meaningful to do (e.g. before
+          // the operator has typed anything and no matches are showing).
+          const verifyDisabled =
+            resultState === 'searching' || !tid.trim() || !operatorAmount;
+          if (!inFoundState && verifyDisabled && !providerMismatch) return null;
+
+          return (
+            <div
+              className="sm:hidden fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-4px_12px_-4px_hsl(var(--foreground)/0.08)]"
+              role="region"
+              aria-label="Primary action"
+            >
+              {inFoundState && readyCount >= 2 ? (
+                <Button
+                  size="lg"
+                  className="w-full h-12 text-base font-semibold gap-2"
+                  onClick={handleAutoApproveAll}
+                  disabled={!!approving}
+                >
+                  <CheckCircle2 className="h-5 w-5" />
+                  Approve all ({readyCount})
+                </Button>
+              ) : inFoundState && onlyReady ? (
+                <Button
+                  size="lg"
+                  className="w-full h-12 text-base font-semibold gap-2"
+                  onClick={() => handleAutoApprove(onlyReady)}
+                  disabled={!!approving}
+                >
+                  {approving === onlyReady.id ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="h-5 w-5" />
+                  )}
+                  Approve {formatUGX(onlyReady.amount)}
+                </Button>
+              ) : (
+                <Button
+                  size="lg"
+                  variant={providerMismatch ? 'outline' : 'default'}
+                  className="w-full h-12 text-base font-semibold gap-2"
+                  onClick={() => {
+                    if (providerMismatch) {
+                      void logMismatchAttempt();
+                      toast.error('Provider mismatch — restore the original provider or clear the pick.');
+                      return;
+                    }
+                    handleVerify();
+                  }}
+                  disabled={verifyDisabled}
+                >
+                  {resultState === 'searching' ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Search className="h-5 w-5" />
+                  )}
+                  Verify &amp; Match
+                </Button>
+              )}
+            </div>
+          );
+        })()}
+
       </CardContent>
     </Card>
   );
