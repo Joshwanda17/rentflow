@@ -4,13 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Banknote, AlertCircle, CheckCircle2, Wallet, TrendingUp } from 'lucide-react';
+import { Loader2, Banknote, AlertCircle, CheckCircle2, Wallet, TrendingUp, WifiOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentLandlordFloat } from '@/hooks/useAgentLandlordFloat';
 import { formatUGX } from '@/lib/rentCalculations';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
+import { useOffline } from '@/contexts/OfflineContext';
 import { CommissionCelebration } from './CommissionCelebration';
 
 interface AgentTenantCollectDialogProps {
@@ -27,6 +28,7 @@ export function AgentTenantCollectDialog({
 }: AgentTenantCollectDialogProps) {
   const { user } = useAuth();
   const { floatBalance, refetch: refetchBalances } = useAgentLandlordFloat(user?.id);
+  const { isOnline } = useOffline();
   const [amount, setAmount] = useState<number>(0);
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
@@ -123,7 +125,33 @@ export function AgentTenantCollectDialog({
           </DialogTitle>
         </DialogHeader>
 
-        {result ? (
+        {!isOnline && !result ? (
+          /* ───── Offline blocked view ───── */
+          <div className="space-y-4 py-4">
+            <div className="flex flex-col items-center text-center gap-3">
+              <div className="w-14 h-14 rounded-full bg-warning/15 flex items-center justify-center">
+                <WifiOff className="h-7 w-7 text-warning" />
+              </div>
+              <h3 className="text-base font-bold">You're offline</h3>
+              <p className="text-xs text-muted-foreground max-w-[280px]">
+                Recording rent collections needs an internet connection so your float and the tenant's balance stay in sync.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-warning/30 bg-warning/5 p-3 space-y-1.5">
+              <p className="text-xs font-semibold text-warning-foreground">What you can do right now</p>
+              <ul className="text-[11px] text-muted-foreground space-y-1 list-disc pl-4">
+                <li>Move to a spot with mobile data or Wi-Fi.</li>
+                <li>Then reopen this tenant and tap <span className="font-semibold">Pay</span> again.</li>
+                <li>Your tenant list and balances stay viewable while offline.</li>
+              </ul>
+            </div>
+
+            <Button variant="outline" onClick={handleClose} className="w-full h-11">
+              Close
+            </Button>
+          </div>
+        ) : result ? (
           /* ───── Success View ───── */
           <div className="space-y-4 py-2">
             <div className="flex flex-col items-center gap-2">
