@@ -549,7 +549,11 @@ export function TidVerification() {
     } else if (e.key === 'Enter' || e.key === ' ') {
       if (highlightedIndex >= 0 && highlightedIndex < pendingSorted.length) {
         e.preventDefault();
-        pickPending(pendingSorted[highlightedIndex]);
+        const row = pendingSorted[highlightedIndex];
+        pickPending(row);
+        setPendingLiveMessage(
+          `Picked ${row.depositorName}, ${formatUGX(row.amount)}. Amount auto-filled.`
+        );
       }
     } else if (e.key === 'Escape') {
       // Esc priority: clear the search box first (most common case while
