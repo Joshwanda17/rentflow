@@ -79,6 +79,7 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
   const pendingScrollAdjustRef = useRef<{ prevHeight: number; prevScrollY: number } | null>(null);
 
   const [refreshing, setRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
 
   // Brief "applying realtime update" indicator so the feed doesn't feel jumpy
   const [isApplyingRealtime, setIsApplyingRealtime] = useState(false);
@@ -132,6 +133,7 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
         setRows((data ?? []) as HistoryRow[]);
         if (mode === 'manual') {
           toast.success('Vouch history refreshed');
+          setLastRefreshedAt(new Date());
         }
       }
     } catch (e: any) {
@@ -465,6 +467,12 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
           </button>
         </div>
       </div>
+
+      {lastRefreshedAt && (
+        <p className="text-[10px] text-muted-foreground -mt-1 mb-2 leading-tight">
+          Last refreshed: {format(lastRefreshedAt, 'd MMM yyyy, HH:mm:ss')}
+        </p>
+      )}
 
       {loading && (
         <p className="text-[11px] text-muted-foreground py-2">Loading…</p>
