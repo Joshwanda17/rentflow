@@ -184,6 +184,16 @@ export function VerifyDepositsHub() {
     verifierId !== 'all';
   const verifierFilter = verifierId === 'all' ? undefined : verifierId;
 
+  // Convert the date pickers to ISO bounds — inclusive day-windows so a
+  // single-day selection covers the full 24h. Children only use these for
+  // export queries; the live tables ignore them.
+  const exportFromIso = exportFrom
+    ? new Date(exportFrom.getFullYear(), exportFrom.getMonth(), exportFrom.getDate(), 0, 0, 0).toISOString()
+    : undefined;
+  const exportToIso = exportTo
+    ? new Date(exportTo.getFullYear(), exportTo.getMonth(), exportTo.getDate(), 23, 59, 59, 999).toISOString()
+    : undefined;
+
   const CHANNEL_CHIPS: { value: DepositChannel; label: string }[] = [
     { value: 'mtn', label: 'MTN MoMo' },
     { value: 'airtel', label: 'Airtel Money' },
