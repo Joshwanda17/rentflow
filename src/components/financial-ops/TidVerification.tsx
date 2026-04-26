@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
@@ -68,6 +68,82 @@ export function TidVerification() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejecting, setRejecting] = useState(false);
+
+  // Pending depositor pick-list — narrow the user-visible queue by the
+  // currently selected provider so the operator can click a row, see who
+  // they're verifying for, and let the form prefill the expected amount.
+  // Reloads whenever the provider changes; cap at 25 to keep the panel
+  // scannable on a 950px viewport.
+  type PendingDeposit = {
+    id: string;
+    user_id: string;
+    amount: number;
+    provider: string | null;
+    created_at: string;
+    depositorName: string;
+    depositorPhone: string;
+  };
+  const [pending, setPending] = useState<PendingDeposit[]>([]);
+  const [pendingLoading, setPendingLoading] = useState(false);
+  const [pickedId, setPickedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setPendingLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('deposit_requests')
+          .select('id, user_id, amount, provider, created_at')
+          .eq('status', 'pending')
+          .eq('provider', provider)
+          .order('created_at', { ascending: false })
+          .limit(25);
+        if (error) throw error;
+        const userIds = Array.from(new Set((data ?? []).map((d) => d.user_id)));
+        const profileMap = new Map<string, { name: string; phone: string }>();
+        if (userIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, full_name, phone')
+            .in('id', userIds);
+          (profiles ?? []).forEach((p: any) => {
+            profileMap.set(p.id, {
+              name: p.full_name ?? 'Unknown depositor',
+              phone: p.phone ?? '',
+            });
+          });
+        }
+        if (cancelled) return;
+        setPending(
+          (data ?? []).map((d: any) => ({
+            id: d.id,
+            user_id: d.user_id,
+            amount: Number(d.amount),
+            provider: d.provider,
+            created_at: d.created_at,
+            depositorName: profileMap.get(d.user_id)?.name ?? 'Unknown depositor',
+            depositorPhone: profileMap.get(d.user_id)?.phone ?? '',
+          })),
+        );
+      } catch (e) {
+        if (!cancelled) console.warn('[TidVerification] load pending failed', e);
+      } finally {
+        if (!cancelled) setPendingLoading(false);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [provider]);
+
+  /** Click a pending row to prefill the form (amount + provider). The TID
+   *  input intentionally stays empty — the operator types it from their
+   *  bank/MoMo statement to confirm the match. */
+  const pickPending = (p: PendingDeposit) => {
+    setPickedId(p.id);
+    setOperatorAmount(String(p.amount));
+    if (p.provider) setProvider(p.provider);
+  };
 
   const handleVerify = useCallback(async () => {
     const trimmedTid = tid.trim();
