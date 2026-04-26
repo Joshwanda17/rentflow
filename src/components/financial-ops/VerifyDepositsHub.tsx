@@ -48,6 +48,10 @@ export function VerifyDepositsHub() {
   const [channelFilters, setChannelFilters] = useState<DepositChannel[]>([]);
   const [minAmount, setMinAmount] = useState<string>('');
   const [maxAmount, setMaxAmount] = useState<string>('');
+  // Collapse the filter & export panel by default so the queue tabs and
+  // the TID form are the first things the operator sees on every visit.
+  // Auto-opens whenever a filter is active so applied scopes stay visible.
+  const [filtersOpen, setFiltersOpen] = useState(false);
   // Verifier (operator) filter — only narrows resolved/recently-verified rows.
   // Pending rows have no verifier yet so they are excluded when this is set.
   // Restored from localStorage so the operator's last selection survives a
@@ -275,6 +279,100 @@ export function VerifyDepositsHub() {
         </p>
       </div>
 
+      {/* Tabs first — operators told us the queue switcher is the most-used
+          control, so it now sits at the top instead of below the filters. */}
+      <Tabs value={tab} onValueChange={(v) => setTab(v as 'user' | 'field')}>
+        <TabsList className="grid grid-cols-2 w-full h-auto p-1">
+          <TabsTrigger value="user" className="flex flex-col items-center gap-1 py-2.5">
+            <div className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+              <span className="font-semibold text-sm">User Deposits</span>
+              {counts.user > 0 && (
+                <Badge className="h-5 min-w-5 px-1.5 text-[10px] bg-primary text-primary-foreground hover:bg-primary">
+                  {counts.user}
+                </Badge>
+              )}
+            </div>
+            <span className="text-[10px] text-muted-foreground font-normal">
+              Tenant &amp; funder top-ups
+            </span>
+          </TabsTrigger>
+          <TabsTrigger value="field" className="flex flex-col items-center gap-1 py-2.5">
+            <div className="flex items-center gap-2">
+              <Wallet className="h-4 w-4" />
+              <span className="font-semibold text-sm">Field Deposits</span>
+              {counts.field > 0 && (
+                <Badge className="h-5 min-w-5 px-1.5 text-[10px] bg-primary text-primary-foreground hover:bg-primary">
+                  {counts.field}
+                </Badge>
+              )}
+            </div>
+            <span className="text-[10px] text-muted-foreground font-normal">
+              Agent cash → float
+            </span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="user" className="mt-4 space-y-2">
+          <p className="text-[11px] text-muted-foreground">
+            CFO credits from <span className="font-semibold text-foreground">Welile Technologies Finance</span> are auto-approved and skip this queue.
+          </p>
+          {filtersActive && (
+            <p className="text-[11px] text-muted-foreground italic">
+              User deposits are looked up by Transaction ID — channel and amount
+              filters above only narrow the Field Deposits tab.
+            </p>
+          )}
+          <TidVerification />
+          <RecentlyVerifiedList
+            source="user"
+            verifierId={verifierFilter}
+            exportFromIso={exportFromIso}
+            exportToIso={exportToIso}
+          />
+        </TabsContent>
+
+        <TabsContent value="field" className="mt-4 space-y-2">
+          <p className="text-[11px] text-muted-foreground">
+            Approving credits the agent's float, allocates rent to tagged
+            tenants, and posts agent commission instantly.
+          </p>
+          <FieldDepositVerificationQueue
+            channels={channelFilters}
+            minAmount={minNum !== undefined && !Number.isNaN(minNum) ? minNum : undefined}
+            maxAmount={maxNum !== undefined && !Number.isNaN(maxNum) ? maxNum : undefined}
+            verifierId={verifierFilter}
+            exportFromIso={exportFromIso}
+            exportToIso={exportToIso}
+          />
+        </TabsContent>
+      </Tabs>
+
+      {/* Collapsible "Filters & export" section — kept below the tabs so the
+          page leads with the action area. Auto-opens when a filter is
+          active so the operator can always see what's narrowing the view. */}
+      <div className="rounded-lg border bg-muted/20">
+        <button
+          type="button"
+          onClick={() => setFiltersOpen((o) => !o)}
+          aria-expanded={filtersOpen || filtersActive}
+          className="w-full flex items-center justify-between gap-2 px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted/40 transition-colors rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          <span className="flex items-center gap-1.5">
+            <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+            Filters &amp; export
+            {filtersActive && (
+              <Badge variant="primary" className="h-4 px-1.5 text-[9px]">
+                Active
+              </Badge>
+            )}
+          </span>
+          <span className="text-[10px] text-muted-foreground">
+            {filtersOpen || filtersActive ? 'Hide' : 'Show'}
+          </span>
+        </button>
+        {(filtersOpen || filtersActive) && (
+          <div className="p-3 pt-0 space-y-3">
       {/* Filter bar — channel chips + amount window. Kept inline (no popover)
           so operators can see at a glance what's narrowing the queue. */}
       <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
@@ -653,76 +751,9 @@ export function VerifyDepositsHub() {
           </Badge>
         </div>
       )}
-
-      <Tabs value={tab} onValueChange={(v) => setTab(v as 'user' | 'field')}>
-        <TabsList className="grid grid-cols-2 w-full h-auto p-1">
-          <TabsTrigger value="user" className="flex flex-col items-center gap-1 py-2.5">
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              <span className="font-semibold text-sm">User Deposits</span>
-              {counts.user > 0 && (
-                <Badge className="h-5 min-w-5 px-1.5 text-[10px] bg-primary text-primary-foreground hover:bg-primary">
-                  {counts.user}
-                </Badge>
-              )}
-            </div>
-            <span className="text-[10px] text-muted-foreground font-normal">
-              Tenant &amp; funder top-ups
-            </span>
-          </TabsTrigger>
-          <TabsTrigger value="field" className="flex flex-col items-center gap-1 py-2.5">
-            <div className="flex items-center gap-2">
-              <Wallet className="h-4 w-4" />
-              <span className="font-semibold text-sm">Field Deposits</span>
-              {counts.field > 0 && (
-                <Badge className="h-5 min-w-5 px-1.5 text-[10px] bg-primary text-primary-foreground hover:bg-primary">
-                  {counts.field}
-                </Badge>
-              )}
-            </div>
-            <span className="text-[10px] text-muted-foreground font-normal">
-              Agent cash → float
-            </span>
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="user" className="mt-4 space-y-2">
-          <p className="text-[11px] text-muted-foreground">
-            CFO credits from <span className="font-semibold text-foreground">Welile Technologies Finance</span> are auto-approved and skip this queue.
-          </p>
-          {filtersActive && (
-            <p className="text-[11px] text-muted-foreground italic">
-              User deposits are looked up by Transaction ID — channel and amount
-              filters above only narrow the Field Deposits tab.
-            </p>
-          )}
-          <TidVerification />
-          {/* User-side verifications happen via TID search, not a list, so
-              the Verified by / Verified at columns surface here. The Field
-              Deposits tab shows them inline in the queue table itself. */}
-          <RecentlyVerifiedList
-            source="user"
-            verifierId={verifierFilter}
-            exportFromIso={exportFromIso}
-            exportToIso={exportToIso}
-          />
-        </TabsContent>
-
-        <TabsContent value="field" className="mt-4 space-y-2">
-          <p className="text-[11px] text-muted-foreground">
-            Approving credits the agent's float, allocates rent to tagged
-            tenants, and posts agent commission instantly.
-          </p>
-          <FieldDepositVerificationQueue
-            channels={channelFilters}
-            minAmount={minNum !== undefined && !Number.isNaN(minNum) ? minNum : undefined}
-            maxAmount={maxNum !== undefined && !Number.isNaN(maxNum) ? maxNum : undefined}
-            verifierId={verifierFilter}
-            exportFromIso={exportFromIso}
-            exportToIso={exportToIso}
-          />
-        </TabsContent>
-      </Tabs>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
