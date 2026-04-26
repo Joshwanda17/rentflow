@@ -755,7 +755,9 @@ export function TidVerification() {
     }
   }, [tid, operatorAmount, provider, user]);
 
-  const handleAutoApprove = useCallback(async (match: MatchResult) => {
+  // Actual backend commit. Kept private — public callers go through
+  // `handleAutoApprove`, which adds the 5-second undo window.
+  const commitApprove = useCallback(async (match: MatchResult) => {
     if (!user) return;
     setApproving(match.id);
 
@@ -800,10 +802,77 @@ export function TidVerification() {
     }
   }, [user, tid, operatorAmount, queryClient, pickedId, loadPending]);
 
-  const handleAutoApproveAll = useCallback(async () => {
-    const exact = matches.filter(m => m.status === 'matched' && !approvedIds.has(m.id));
-    for (const match of exact) await handleAutoApprove(match);
+  // Cancel a pending undo timer (no backend call has happened yet).
+  const cancelPendingApprove = useCallback((id: string) => {
+    const timer = undoTimersRef.current.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      undoTimersRef.current.delete(id);
+    }
+    setPendingUndoIds(prev => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }, []);
+
+  // Schedules an approval to fire in `UNDO_DELAY_MS`. The row is shown
+  // as "approving (undoable)" immediately for instant feedback, but the
+  // backend `approve-deposit` call only runs if the operator doesn't
+  // click Undo before the timer elapses.
+  const UNDO_DELAY_MS = 5000;
+  const handleAutoApprove = useCallback((match: MatchResult) => {
+    // If a previous undo for this row is still queued, ignore the
+    // duplicate click — the timer is already running.
+    if (undoTimersRef.current.has(match.id)) return;
+
+    setPendingUndoIds(prev => new Set(prev).add(match.id));
+
+    const timer = setTimeout(() => {
+      undoTimersRef.current.delete(match.id);
+      setPendingUndoIds(prev => {
+        if (!prev.has(match.id)) return prev;
+        const next = new Set(prev);
+        next.delete(match.id);
+        return next;
+      });
+      void commitApprove(match);
+    }, UNDO_DELAY_MS);
+    undoTimersRef.current.set(match.id, timer);
+
+    toast(`Approving ${formatUGX(match.amount)} — ${match.userName}`, {
+      description: 'Will commit in 5 seconds.',
+      duration: UNDO_DELAY_MS,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          cancelPendingApprove(match.id);
+          toast.info(`Cancelled approval for ${match.userName}`);
+        },
+      },
+    });
+  }, [commitApprove, cancelPendingApprove]);
+
+  const handleAutoApproveAll = useCallback(() => {
+    const exact = matches.filter(
+      m => m.status === 'matched' &&
+           !approvedIds.has(m.id) &&
+           !undoTimersRef.current.has(m.id),
+    );
+    if (exact.length === 0) return;
+    exact.forEach(match => handleAutoApprove(match));
   }, [matches, approvedIds, handleAutoApprove]);
+
+  // Cleanup any in-flight undo timers if the component unmounts so we
+  // don't fire approvals against a torn-down React tree.
+  useEffect(() => {
+    const timers = undoTimersRef.current;
+    return () => {
+      timers.forEach(t => clearTimeout(t));
+      timers.clear();
+    };
+  }, []);
 
   const openRejectDialog = (id: string) => {
     setRejectingId(id);
