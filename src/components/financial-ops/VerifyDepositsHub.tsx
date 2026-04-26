@@ -268,6 +268,31 @@ export function VerifyDepositsHub() {
         </div>
       </div>
 
+      {verifierFilter && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+            Active filter
+          </span>
+          <Badge
+            variant="primary"
+            className="flex items-center gap-1.5 pl-2 pr-1 py-1"
+          >
+            <span className="text-[11px]">
+              Verifier: {verifiers.find((v) => v.id === verifierFilter)?.full_name
+                ?? `Operator ${verifierFilter.slice(0, 8)}`}
+            </span>
+            <button
+              type="button"
+              onClick={() => setVerifierId('all')}
+              aria-label="Clear verifier filter"
+              className="rounded-full p-0.5 hover:bg-primary/20 transition-colors focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </Badge>
+        </div>
+      )}
+
       <Tabs value={tab} onValueChange={(v) => setTab(v as 'user' | 'field')}>
         <TabsList className="grid grid-cols-2 w-full h-auto p-1">
           <TabsTrigger value="user" className="flex flex-col items-center gap-1 py-2.5">
