@@ -220,6 +220,9 @@ export function TidVerification() {
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const pendingListRef = useRef<HTMLUListElement>(null);
   const pendingItemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  // Synchronous reentrancy guard for the "Load more" button — see
+  // loadMorePending below for rationale.
+  const loadMoreInFlightRef = useRef(false);
 
   // Page size for the pending pick-list. Kept small so the panel stays
   // scannable; operators can press "Load more" to fetch the next batch.
