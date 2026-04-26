@@ -520,6 +520,27 @@ export function TidVerification() {
                   );
                 })}
               </ul>
+              {pendingHasMore && !pendingSearch.trim() && (
+                <div className="px-2.5 py-1.5 border-t border-border/60">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full h-7 text-[11px]"
+                    onClick={loadMorePending}
+                    disabled={pendingLoadingMore}
+                  >
+                    {pendingLoadingMore ? (
+                      <>
+                        <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                        Loading…
+                      </>
+                    ) : (
+                      <>Load more (+{PENDING_PAGE_SIZE})</>
+                    )}
+                  </Button>
+                </div>
+              )}
             </ScrollArea>
           )}
         </div>
