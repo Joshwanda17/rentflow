@@ -4,9 +4,19 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatUGX } from '@/lib/rentCalculations';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 import { toast } from 'sonner';
-import { Loader2, RefreshCw, Inbox, ShieldCheck, ChevronRight, AlertTriangle } from 'lucide-react';
+import {
+  Loader2,
+  RefreshCw,
+  Inbox,
+  ShieldCheck,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  User as UserIcon,
+} from 'lucide-react';
 import {
   PendingBatch,
   channelLabel,
@@ -14,6 +24,32 @@ import {
   DepositChannel,
 } from '@/lib/fieldDepositBatches';
 import { FieldDepositVerifyDialog } from './FieldDepositVerifyDialog';
+import { supabase } from '@/integrations/supabase/client';
+import { useFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
+
+/**
+ * A row in the unified verification table — pending batches PLUS the most
+ * recent resolved batches, so the operator can see "Verified by / Verified at"
+ * directly in the queue without opening another panel.
+ */
+interface QueueRow {
+  id: string;
+  agent_id: string;
+  agent_name: string | null;
+  channel: DepositChannel;
+  declared_total: number;
+  proof_reference: string | null;
+  proof_submitted_at: string | null;
+  status: 'pending_finops_verification' | 'verified' | 'rejected';
+  verified_by_id: string | null;
+  verified_by_name: string | null;
+  verified_at: string | null;
+  items_count: number;
+  surplus: number;
+  /** Carries the full PendingBatch payload when this row is still pending,
+   *  so the verify dialog can be opened without a refetch. */
+  pendingPayload: PendingBatch | null;
+}
 
 interface Props {
   /** When provided, only batches whose channel is in this set are shown. Empty/undefined = all. */
@@ -25,7 +61,8 @@ interface Props {
 }
 
 export function FieldDepositVerificationQueue({ channels, minAmount, maxAmount }: Props = {}) {
-  const [batches, setBatches] = useState<PendingBatch[]>([]);
+  const autoRefresh = useFinOpsAutoRefresh();
+  const [rows, setRows] = useState<QueueRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [active, setActive] = useState<PendingBatch | null>(null);
@@ -33,8 +70,80 @@ export function FieldDepositVerificationQueue({ channels, minAmount, maxAmount }
   const load = useCallback(async (silent = false) => {
     if (!silent) setRefreshing(true);
     try {
-      const rows = await listPendingFinOpsBatches();
-      setBatches(rows);
+      // 1. Pending batches (rich payload, used to open the verify dialog).
+      const pending = await listPendingFinOpsBatches();
+
+      // 2. Most recently resolved batches — verified or rejected — so the
+      //    table can show who acted and when.
+      const { data: resolved, error: resolvedErr } = await supabase
+        .from('field_deposit_batches')
+        .select(
+          'id, agent_id, channel, declared_total, proof_reference, proof_submitted_at, status, finops_verified_by, finops_verified_at',
+        )
+        .in('status', ['verified', 'rejected'])
+        .not('finops_verified_by', 'is', null)
+        .order('finops_verified_at', { ascending: false })
+        .limit(15);
+      if (resolvedErr) throw resolvedErr;
+
+      // 3. Resolve operator + agent names for resolved rows in one round-trip.
+      const resolvedList = (resolved ?? []) as any[];
+      const profileIds = Array.from(
+        new Set(
+          [
+            ...resolvedList.map((r) => r.finops_verified_by).filter(Boolean),
+            ...resolvedList.map((r) => r.agent_id).filter(Boolean),
+          ],
+        ),
+      );
+      const profileMap = new Map<string, { full_name: string | null }>();
+      if (profileIds.length > 0) {
+        const { data: profs } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', profileIds);
+        for (const p of (profs ?? []) as any[]) profileMap.set(p.id, p);
+      }
+
+      const pendingRows: QueueRow[] = pending.map((b) => {
+        const tagged = b.items.reduce((s, i) => s + Number(i.amount || 0), 0);
+        return {
+          id: b.id,
+          agent_id: b.agent_id,
+          agent_name: b.agent_name,
+          channel: b.channel,
+          declared_total: Number(b.declared_total || 0),
+          proof_reference: b.proof_reference,
+          proof_submitted_at: b.proof_submitted_at,
+          status: 'pending_finops_verification',
+          verified_by_id: null,
+          verified_by_name: null,
+          verified_at: null,
+          items_count: b.items.length,
+          surplus: Math.max(0, Number(b.declared_total || 0) - tagged),
+          pendingPayload: b,
+        };
+      });
+
+      const resolvedRows: QueueRow[] = resolvedList.map((r) => ({
+        id: r.id,
+        agent_id: r.agent_id,
+        agent_name: profileMap.get(r.agent_id)?.full_name ?? null,
+        channel: r.channel as DepositChannel,
+        declared_total: Number(r.declared_total || 0),
+        proof_reference: r.proof_reference,
+        proof_submitted_at: r.proof_submitted_at,
+        status: r.status === 'verified' ? 'verified' : 'rejected',
+        verified_by_id: r.finops_verified_by,
+        verified_by_name: profileMap.get(r.finops_verified_by)?.full_name ?? null,
+        verified_at: r.finops_verified_at,
+        items_count: 0,
+        surplus: 0,
+        pendingPayload: null,
+      }));
+
+      // Pending always at the top — that's where action happens.
+      setRows([...pendingRows, ...resolvedRows]);
     } catch (e: any) {
       if (!silent) toast.error(e?.message ?? 'Failed to load deposits');
     } finally {
@@ -45,28 +154,30 @@ export function FieldDepositVerificationQueue({ channels, minAmount, maxAmount }
 
   useEffect(() => {
     load();
+    if (!autoRefresh) return;
     const id = setInterval(() => load(true), 15000);
     return () => clearInterval(id);
-  }, [load]);
+  }, [load, autoRefresh]);
 
   // Apply hub-level filters before any totals so badges match what the
   // operator actually sees in the list.
-  const visibleBatches = useMemo(() => {
-    return batches.filter((b) => {
-      if (channels && channels.length > 0 && !channels.includes(b.channel)) return false;
-      const amt = Number(b.declared_total || 0);
+  const visibleRows = useMemo(() => {
+    return rows.filter((r) => {
+      if (channels && channels.length > 0 && !channels.includes(r.channel)) return false;
+      const amt = r.declared_total;
       if (typeof minAmount === 'number' && amt < minAmount) return false;
       if (typeof maxAmount === 'number' && amt > maxAmount) return false;
       return true;
     });
-  }, [batches, channels, minAmount, maxAmount]);
+  }, [rows, channels, minAmount, maxAmount]);
 
-  const totalDeclared = visibleBatches.reduce((s, b) => s + Number(b.declared_total || 0), 0);
+  const pendingVisible = visibleRows.filter((r) => r.status === 'pending_finops_verification');
+  const totalDeclared = pendingVisible.reduce((s, r) => s + r.declared_total, 0);
   const filtersActive =
     (channels && channels.length > 0) ||
     typeof minAmount === 'number' ||
     typeof maxAmount === 'number';
-  const hiddenCount = batches.length - visibleBatches.length;
+  const hiddenCount = rows.length - visibleRows.length;
 
   return (
     <>
@@ -75,7 +186,7 @@ export function FieldDepositVerificationQueue({ channels, minAmount, maxAmount }
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-primary" />
-              Field Deposits — Pending Verification
+              Field Deposits — Verification Queue
             </CardTitle>
             <Button
               variant="ghost"
@@ -89,9 +200,9 @@ export function FieldDepositVerificationQueue({ channels, minAmount, maxAmount }
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <Badge variant="secondary" className="font-mono">
-              {visibleBatches.length} batch{visibleBatches.length === 1 ? '' : 'es'}
+              {pendingVisible.length} pending
             </Badge>
-            <Badge variant="secondary" className="font-mono">{formatUGX(totalDeclared)} declared</Badge>
+            <Badge variant="secondary" className="font-mono">{formatUGX(totalDeclared)} to verify</Badge>
             {filtersActive && hiddenCount > 0 && (
               <Badge variant="outline" className="text-[10px]">
                 {hiddenCount} hidden by filter
@@ -104,63 +215,120 @@ export function FieldDepositVerificationQueue({ channels, minAmount, maxAmount }
             <div className="py-10 flex justify-center">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
-          ) : visibleBatches.length === 0 ? (
+          ) : visibleRows.length === 0 ? (
             <div className="py-10 flex flex-col items-center text-center text-muted-foreground">
               <Inbox className="h-8 w-8 mb-2 opacity-50" />
               <p className="text-sm font-medium">
-                {filtersActive ? 'No batches match your filters' : 'All caught up'}
+                {filtersActive ? 'No batches match your filters' : 'Nothing here yet'}
               </p>
               <p className="text-xs">
                 {filtersActive
-                  ? `${batches.length} pending batch${batches.length === 1 ? '' : 'es'} hidden — clear filters to see them.`
-                  : 'No field deposit batches awaiting verification.'}
+                  ? `${rows.length} batch${rows.length === 1 ? '' : 'es'} hidden — clear filters to see them.`
+                  : 'No field deposit batches in the queue.'}
               </p>
             </div>
           ) : (
             <ScrollArea className="max-h-[60vh]">
-              <div className="divide-y rounded-md border">
-                {visibleBatches.map((b) => {
-                  const tagged = b.items.reduce((s, i) => s + Number(i.amount || 0), 0);
-                  const surplus = Math.max(0, Number(b.declared_total || 0) - tagged);
-                  return (
-                    <button
-                      key={b.id}
-                      onClick={() => setActive(b)}
-                      className="w-full flex items-center gap-3 p-3 text-left hover:bg-accent/30 transition-colors"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium text-sm truncate">
-                            {b.agent_name ?? b.agent_id.slice(0, 8)}
-                          </span>
-                          <Badge variant="outline" className="text-[10px]">
-                            {channelLabel(b.channel)}
-                          </Badge>
-                          {surplus > 0 && (
-                            <Badge variant="outline" className="text-[10px] border-warning/30 text-warning">
-                              <AlertTriangle className="h-2.5 w-2.5 mr-1" />
-                              Surplus
+              <table className="w-full text-xs">
+                <thead className="bg-muted/40 text-muted-foreground sticky top-0 z-10">
+                  <tr>
+                    <th className="text-left font-medium px-2 py-2">Batch</th>
+                    <th className="text-right font-medium px-2 py-2">Amount</th>
+                    <th className="text-left font-medium px-2 py-2">Status</th>
+                    <th className="text-left font-medium px-2 py-2">Verified by</th>
+                    <th className="text-left font-medium px-2 py-2 whitespace-nowrap">Verified at</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleRows.map((r) => {
+                    const isPending = r.status === 'pending_finops_verification';
+                    return (
+                      <tr
+                        key={r.id}
+                        onClick={() => {
+                          if (r.pendingPayload) setActive(r.pendingPayload);
+                        }}
+                        className={
+                          'border-t transition-colors ' +
+                          (isPending
+                            ? 'cursor-pointer hover:bg-accent/30 bg-background'
+                            : 'bg-muted/10')
+                        }
+                      >
+                        <td className="px-2 py-2 align-top">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-medium truncate max-w-[140px]">
+                              {r.agent_name ?? r.agent_id.slice(0, 8)}
+                            </span>
+                            <Badge variant="outline" className="text-[9px] h-4 px-1">
+                              {channelLabel(r.channel)}
+                            </Badge>
+                            {r.surplus > 0 && (
+                              <Badge variant="outline" className="text-[9px] h-4 px-1 border-warning/30 text-warning">
+                                <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
+                                Surplus
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground mt-0.5">
+                            {isPending && (
+                              <>
+                                {r.items_count} tenant{r.items_count === 1 ? '' : 's'} · proof{' '}
+                                <span className="font-mono">{r.proof_reference ?? '—'}</span>
+                              </>
+                            )}
+                            {!isPending && r.proof_reference && (
+                              <>proof <span className="font-mono">{r.proof_reference}</span></>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-2 py-2 align-top text-right font-mono font-semibold tabular-nums">
+                          {formatUGX(r.declared_total)}
+                        </td>
+                        <td className="px-2 py-2 align-top">
+                          {isPending ? (
+                            <Badge variant="outline" className="text-[9px] h-4 px-1 gap-0.5">
+                              <Clock className="h-2.5 w-2.5" /> Pending
+                            </Badge>
+                          ) : r.status === 'verified' ? (
+                            <Badge className="text-[9px] h-4 px-1 gap-0.5 bg-emerald-600 hover:bg-emerald-600">
+                              <CheckCircle2 className="h-2.5 w-2.5" /> Verified
+                            </Badge>
+                          ) : (
+                            <Badge variant="destructive" className="text-[9px] h-4 px-1 gap-0.5">
+                              <XCircle className="h-2.5 w-2.5" /> Rejected
                             </Badge>
                           )}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                          {b.items.length} tenant{b.items.length === 1 ? '' : 's'} · proof{' '}
-                          <span className="font-mono">{b.proof_reference ?? '—'}</span>
-                          {b.proof_submitted_at && (
-                            <> · {formatDistanceToNow(new Date(b.proof_submitted_at), { addSuffix: true })}</>
+                        </td>
+                        <td className="px-2 py-2 align-top">
+                          {r.verified_by_name ? (
+                            <div className="flex items-center gap-1">
+                              <UserIcon className="h-3 w-3 text-muted-foreground shrink-0" />
+                              <span className="font-medium truncate max-w-[120px]">
+                                {r.verified_by_name}
+                              </span>
+                            </div>
+                          ) : r.verified_by_id ? (
+                            <span className="text-muted-foreground font-mono">
+                              {r.verified_by_id.slice(0, 8)}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground italic">Awaiting</span>
                           )}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-mono font-semibold text-sm">
-                          {formatUGX(Number(b.declared_total))}
-                        </div>
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                    </button>
-                  );
-                })}
-              </div>
+                        </td>
+                        <td
+                          className="px-2 py-2 align-top text-muted-foreground tabular-nums whitespace-nowrap"
+                          title={r.verified_at ? format(new Date(r.verified_at), 'PPpp') : undefined}
+                        >
+                          {r.verified_at
+                            ? formatDistanceToNow(new Date(r.verified_at), { addSuffix: true })
+                            : '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </ScrollArea>
           )}
         </CardContent>
