@@ -36,6 +36,9 @@ import {
   Zap,
   Clock,
   Ban,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from 'lucide-react';
 
 interface MatchResult {
