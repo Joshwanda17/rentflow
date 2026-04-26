@@ -339,7 +339,7 @@ export function TidVerification() {
   // refresh) so the focus indicator never points to a stale row.
   useEffect(() => {
     setHighlightedIndex(-1);
-  }, [pendingSearch, provider, pending.length, matchField, amountRange, verification]);
+  }, [pendingSearch, provider, pending.length, matchField, amountRange, verification, sortColumn, sortDir]);
 
   // Keep the highlighted row in view when arrow-keying through a long list.
   useEffect(() => {
