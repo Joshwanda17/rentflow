@@ -316,6 +316,29 @@ export function TidVerification() {
     loadPending();
   }, [loadPending]);
 
+  // Global "/" hotkey to focus the pending search input — same shortcut
+  // pattern as GitHub/Slack, so operators can start filtering instantly
+  // without reaching for the mouse. Skipped when the user is already
+  // typing in another input/textarea/contenteditable, when a modifier
+  // key is held, or when the search input itself isn't mounted yet
+  // (e.g. before any pending rows have loaded).
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== '/') return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return;
+      const input = pendingSearchInputRef.current;
+      if (!input) return;
+      e.preventDefault();
+      input.focus();
+      input.select();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   // When the operator switches the provider dropdown, immediately reset
   // the pending list to its first-page state. `loadPending` will refetch
   // automatically (it depends on `provider` via `fetchPendingPage`), but
