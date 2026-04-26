@@ -334,7 +334,10 @@ Deno.serve(async (req) => {
     // ── Delegate the actual money movement to the same RPC the online
     //    flow uses. This single call: decrements agent float, credits
     //    landlord, writes ledger entries, inserts agent_collections row.
-    const noteSuffix = `[OFFLINE ${body.provisional_receipt_no} · proof:${proof.type}]`;
+    const proofTag = proof.type === "transaction_ref"
+      ? `proof:txn_ref:${proof.channel}:${proof.reference}`
+      : `proof:${proof.type}`;
+    const noteSuffix = `[OFFLINE ${body.provisional_receipt_no} · ${proofTag}]`;
     const combinedNotes = body.notes?.trim()
       ? `${body.notes.trim()} ${noteSuffix}`
       : noteSuffix;
