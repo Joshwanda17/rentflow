@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
@@ -92,6 +92,11 @@ export function TidVerification() {
   // The provider the picked row was originally tagged with — used to
   // detect when the operator changes the provider after picking.
   const [pickedProvider, setPickedProvider] = useState<string | null>(null);
+  // Keyboard navigation state for the pick-list. -1 means nothing
+  // highlighted; arrow keys move within `pendingFiltered`.
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const pendingListRef = useRef<HTMLUListElement>(null);
+  const pendingItemRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   // Page size for the pending pick-list. Kept small so the panel stays
   // scannable; operators can press "Load more" to fetch the next batch.
