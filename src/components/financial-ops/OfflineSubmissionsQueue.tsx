@@ -471,7 +471,7 @@ export function OfflineSubmissionsQueue() {
                       variant="outline"
                       size="sm"
                       onClick={markNeedsAttention}
-                      disabled={resolving || selected.status === 'needs_attention'}
+                      disabled={resolving}
                       className="gap-1.5"
                     >
                       <AlertCircle className="h-3.5 w-3.5" />
