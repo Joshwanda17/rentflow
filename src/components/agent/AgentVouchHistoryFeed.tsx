@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { History, ArrowUpRight, ArrowDownRight, RotateCcw, ExternalLink, CalendarIcon, Download, Copy, Check, AlertCircle, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -72,6 +72,23 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
   const [customEnd, setCustomEnd] = useState<Date | undefined>();
   const [exporting, setExporting] = useState(false);
 
+  // Scroll-position preservation for realtime inserts.
+  // We capture the document height + scrollY right before applying a realtime
+  // change, then after the DOM updates we add the height delta back to scrollY
+  // so the user stays anchored to the same visual row.
+  const pendingScrollAdjustRef = useRef<{ prevHeight: number; prevScrollY: number } | null>(null);
+
+  useLayoutEffect(() => {
+    const pending = pendingScrollAdjustRef.current;
+    if (!pending) return;
+    pendingScrollAdjustRef.current = null;
+    const newHeight = document.documentElement.scrollHeight;
+    const delta = newHeight - pending.prevHeight;
+    if (delta !== 0) {
+      window.scrollTo({ top: pending.prevScrollY + delta, behavior: 'instant' as ScrollBehavior });
+    }
+  }, [rows]);
+
   useEffect(() => {
     let cancelled = false;
     if (!agentId) { setLoading(false); return; }
@@ -106,8 +123,16 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
         { event: 'INSERT', schema: 'public', table: 'agent_vouch_limit_history', filter: `agent_id=eq.${agentId}` },
         (payload: any) => {
           const row = payload.new as HistoryRow;
+          // Capture scroll anchor BEFORE state update so the user's view stays put
+          pendingScrollAdjustRef.current = {
+            prevHeight: document.documentElement.scrollHeight,
+            prevScrollY: window.scrollY,
+          };
           setRows((prev) => {
-            if (prev.some((r) => r.id === row.id)) return prev;
+            if (prev.some((r) => r.id === row.id)) {
+              pendingScrollAdjustRef.current = null;
+              return prev;
+            }
             return [row, ...prev].slice(0, 200);
           });
           toast.success('New vouch history entry', {
@@ -120,6 +145,11 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
         { event: 'UPDATE', schema: 'public', table: 'agent_vouch_limit_history', filter: `agent_id=eq.${agentId}` },
         (payload: any) => {
           const row = payload.new as HistoryRow;
+          // Updates rarely change height, but capture anyway to be safe
+          pendingScrollAdjustRef.current = {
+            prevHeight: document.documentElement.scrollHeight,
+            prevScrollY: window.scrollY,
+          };
           setRows((prev) => prev.map((r) => (r.id === row.id ? row : r)));
           toast('Vouch history updated', {
             description: 'An existing record was updated.',
