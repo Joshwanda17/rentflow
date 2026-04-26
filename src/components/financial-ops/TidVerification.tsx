@@ -861,6 +861,11 @@ export function TidVerification() {
             a row to prefill the expected amount, then just type the
             TID/receipt/bank reference from their statement. */}
         <div className="rounded-md border bg-muted/20">
+          {/* Screen-reader-only live region announces highlighted/picked
+              depositor as the operator arrow-keys through the list. */}
+          <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+            {pendingLiveMessage}
+          </div>
           <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 border-b border-border/60">
             <div className="flex items-center gap-2 min-w-0">
               <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
