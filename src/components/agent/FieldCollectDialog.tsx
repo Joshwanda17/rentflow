@@ -917,52 +917,69 @@ export function FieldCollectDialog({ open, onOpenChange }: FieldCollectDialogPro
   /* Load + refresh tenant cache when opened */
   const refreshTenantCache = useCallback(async () => {
     if (!user?.id) return;
-    setTenantsLoading(true);
+
+    // ── 1) CACHE-FIRST: paint instantly from IndexedDB so the agent sees
+    //    their assigned caseload with zero network wait — works fully
+    //    offline. Only show the spinner if we genuinely have nothing
+    //    to render yet (first-ever open on this device).
+    let hadCache = false;
     try {
-      // Pull from server when online
-      if (navigator.onLine) {
-        const { data: referredData } = await supabase
+      const cached = await getCachedTenants(user.id);
+      if (cached.length > 0) {
+        setTenants(cached);
+        hadCache = true;
+      }
+    } catch (e) {
+      console.warn('[FieldCollectDialog] cache read failed', e);
+    }
+    if (!hadCache) setTenantsLoading(true);
+
+    // ── 2) BACKGROUND REFRESH: only when online. Failures are non-fatal —
+    //    cached data stays on screen.
+    if (!navigator.onLine) {
+      setTenantsLoading(false);
+      return;
+    }
+
+    try {
+      const { data: referredData } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone, monthly_rent')
+        .eq('referrer_id', user.id);
+
+      const referredIds = new Set((referredData || []).map(t => t.id));
+
+      const [{ data: referralRows }, { data: agentRequests }] = await Promise.all([
+        supabase.from('referrals').select('referred_id').eq('referrer_id', user.id),
+        supabase.from('rent_requests').select('tenant_id').eq('agent_id', user.id),
+      ]);
+
+      const extraIds = [
+        ...(referralRows || []).map(r => r.referred_id),
+        ...(agentRequests || []).map(r => r.tenant_id),
+      ].filter(id => id && !referredIds.has(id));
+
+      let extras: any[] = [];
+      if (extraIds.length) {
+        const { data } = await supabase
           .from('profiles')
           .select('id, full_name, phone, monthly_rent')
-          .eq('referrer_id', user.id);
-
-        const referredIds = new Set((referredData || []).map(t => t.id));
-
-        const [{ data: referralRows }, { data: agentRequests }] = await Promise.all([
-          supabase.from('referrals').select('referred_id').eq('referrer_id', user.id),
-          supabase.from('rent_requests').select('tenant_id').eq('agent_id', user.id),
-        ]);
-
-        const extraIds = [
-          ...(referralRows || []).map(r => r.referred_id),
-          ...(agentRequests || []).map(r => r.tenant_id),
-        ].filter(id => id && !referredIds.has(id));
-
-        let extras: any[] = [];
-        if (extraIds.length) {
-          const { data } = await supabase
-            .from('profiles')
-            .select('id, full_name, phone, monthly_rent')
-            .in('id', [...new Set(extraIds)]);
-          extras = data || [];
-        }
-
-        const all = [...(referredData || []), ...extras].map((t: any) => ({
-          tenantId: t.id as string,
-          fullName: (t.full_name as string) || 'Unnamed Tenant',
-          phone: (t.phone as string) || null,
-          monthlyRent: t.monthly_rent ?? null,
-        }));
-
-        await cacheTenants(user.id, all);
+          .in('id', [...new Set(extraIds)]);
+        extras = data || [];
       }
-      // Always read back from cache (works offline too)
-      const cached = await getCachedTenants(user.id);
-      setTenants(cached);
+
+      const all = [...(referredData || []), ...extras].map((t: any) => ({
+        tenantId: t.id as string,
+        fullName: (t.full_name as string) || 'Unnamed Tenant',
+        phone: (t.phone as string) || null,
+        monthlyRent: t.monthly_rent ?? null,
+      }));
+
+      await cacheTenants(user.id, all);
+      const fresh = await getCachedTenants(user.id);
+      setTenants(fresh);
     } catch (e) {
-      console.warn('Tenant cache refresh failed, using cache only', e);
-      const cached = await getCachedTenants(user.id);
-      setTenants(cached);
+      console.warn('[FieldCollectDialog] tenant refresh failed, keeping cache', e);
     } finally {
       setTenantsLoading(false);
     }
