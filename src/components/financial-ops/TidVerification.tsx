@@ -917,6 +917,34 @@ export function TidVerification() {
           <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
             {pendingLiveMessage}
           </div>
+          {/* Auto-pick confirmation banner — shows briefly when filters
+              narrow the list to one row and we auto-select it, with an
+              Undo link that restores the prior form snapshot. */}
+          {autoPicked && (
+            <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-primary/10 border-b border-primary/20 text-[11px]">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Zap className="h-3 w-3 text-primary shrink-0" />
+                <span className="truncate">
+                  Auto-picked{' '}
+                  <span className="font-semibold">{autoPicked.name}</span>{' '}
+                  <span className="text-muted-foreground">({formatUGX(autoPicked.amount)})</span>
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setPickedId(autoPicked.prev.pickedId);
+                  setPickedProvider(autoPicked.prev.pickedProvider);
+                  setOperatorAmount(autoPicked.prev.operatorAmount);
+                  setProvider(autoPicked.prev.provider);
+                  setAutoPicked(null);
+                }}
+                className="text-primary hover:underline font-medium shrink-0"
+              >
+                Undo
+              </button>
+            </div>
+          )}
           <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 border-b border-border/60">
             <div className="flex items-center gap-2 min-w-0">
               <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
