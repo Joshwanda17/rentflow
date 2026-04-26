@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Banknote, AlertCircle, CheckCircle2, Wallet, TrendingUp, WifiOff } from 'lucide-react';
+import { Loader2, Banknote, AlertCircle, CheckCircle2, Wallet, TrendingUp, WifiOff, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -13,6 +13,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { useOffline } from '@/contexts/OfflineContext';
 import { CommissionCelebration } from './CommissionCelebration';
+import { captureOfflineDraft } from '@/lib/offlineCollectionDrafts';
 
 interface AgentTenantCollectDialogProps {
   open: boolean;
@@ -36,6 +37,7 @@ export function AgentTenantCollectDialog({
   const [confirming, setConfirming] = useState(false);
   const [celebrationOpen, setCelebrationOpen] = useState(false);
   const [celebrationData, setCelebrationData] = useState<{ commission: number; amount: number } | null>(null);
+  const [draftSaved, setDraftSaved] = useState<{ provisional_receipt_no: string; amount: number } | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -43,6 +45,7 @@ export function AgentTenantCollectDialog({
       setNotes('');
       setResult(null);
       setConfirming(false);
+      setDraftSaved(null);
       refetchBalances();
     }
   }, [open]);
