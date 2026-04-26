@@ -100,6 +100,28 @@ export function FieldDepositVerificationQueue({
   const [exporting, setExporting] = useState(false);
   const [active, setActive] = useState<PendingBatch | null>(null);
 
+  // Single source of truth for table columns. Keeping render and export
+  // driven from the same registry guarantees the CSV can never include or
+  // omit a column relative to what the operator actually sees.
+  type ColKey =
+    | 'batch'
+    | 'amount'
+    | 'status'
+    | 'verified_by'
+    | 'verified_at';
+  const COLUMNS: { key: ColKey; label: string; csvHeaders: string[]; alwaysOn?: boolean }[] = [
+    { key: 'batch', label: 'Batch', csvHeaders: ['Batch ID', 'Agent ID', 'Agent name', 'Channel', 'Proof reference', 'Proof submitted at'], alwaysOn: true },
+    { key: 'amount', label: 'Amount', csvHeaders: ['Declared total (UGX)'] },
+    { key: 'status', label: 'Status', csvHeaders: ['Outcome', 'Rejection reason'] },
+    { key: 'verified_by', label: 'Verified by', csvHeaders: ['Verified by (ID)', 'Verified by'] },
+    { key: 'verified_at', label: 'Verified at', csvHeaders: ['Verified at'] },
+  ];
+  const [visibleCols, setVisibleCols] = useState<Record<ColKey, boolean>>({
+    batch: true, amount: true, status: true, verified_by: true, verified_at: true,
+  });
+  const isVisible = (k: ColKey) => visibleCols[k];
+  const toggleCol = (k: ColKey) => setVisibleCols((p) => ({ ...p, [k]: !p[k] }));
+
   const load = useCallback(async (silent = false) => {
     if (!silent) setRefreshing(true);
     try {
