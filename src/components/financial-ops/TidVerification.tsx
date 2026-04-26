@@ -86,6 +86,7 @@ export function TidVerification() {
   const [pending, setPending] = useState<PendingDeposit[]>([]);
   const [pendingLoading, setPendingLoading] = useState(false);
   const [pickedId, setPickedId] = useState<string | null>(null);
+  const [pendingSearch, setPendingSearch] = useState('');
 
   // Extracted so we can refresh the pick-list after verify/reject without
   // a full page reload — the just-actioned row simply disappears.
@@ -144,6 +145,19 @@ export function TidVerification() {
     setOperatorAmount(String(p.amount));
     if (p.provider) setProvider(p.provider);
   };
+
+  // Local filter — name, phone, or amount substring (digits only for amount).
+  const pendingFiltered = (() => {
+    const q = pendingSearch.trim().toLowerCase();
+    if (!q) return pending;
+    const qDigits = q.replace(/[^0-9]/g, '');
+    return pending.filter((p) => {
+      if (p.depositorName.toLowerCase().includes(q)) return true;
+      if (p.depositorPhone.toLowerCase().includes(q)) return true;
+      if (qDigits && String(p.amount).includes(qDigits)) return true;
+      return false;
+    });
+  })();
 
   const handleVerify = useCallback(async () => {
     const trimmedTid = tid.trim();
