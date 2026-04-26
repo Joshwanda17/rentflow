@@ -22,15 +22,23 @@ export function WalletOverviewCard() {
 
   // Live counters that drive the two big action buttons. We only need
   // the *count* of pending items, not the rows themselves, so we use
-  // head-only queries (cheap, RLS-respecting).
+  // head-only queries (cheap, RLS-respecting). Sequential awaits keep
+  // the inferred PostgREST union from blowing up `Promise.all`'s tuple.
   const { data: queues } = useQuery({
     queryKey: ['finops-wallet-overview-queues'],
     queryFn: async () => {
-      const [userDeposits, fieldDeposits, withdrawals] = await Promise.all([
-        supabase.from('manual_deposits').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-        supabase.from('field_deposit_batches').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-        supabase.from('withdrawal_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-      ]);
+      const userDeposits = await supabase
+        .from('deposit_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending');
+      const fieldDeposits = await supabase
+        .from('field_deposit_batches')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending_finops_verification');
+      const withdrawals = await supabase
+        .from('withdrawal_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending');
       return {
         depositsPending: (userDeposits.count ?? 0) + (fieldDeposits.count ?? 0),
         payoutsPending: withdrawals.count ?? 0,
