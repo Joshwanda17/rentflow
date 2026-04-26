@@ -28,11 +28,13 @@ import {
   XCircle,
   User as UserIcon,
   Download,
+  FileText,
   Columns3,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
 import { downloadCsv, csvTimestamp } from '@/lib/csvExport';
+import { downloadAuditPdf, pdfTimestampLabel } from '@/lib/pdfAuditReport';
 import { toast } from 'sonner';
 
 /**
