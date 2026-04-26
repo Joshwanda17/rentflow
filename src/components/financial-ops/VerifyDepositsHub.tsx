@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ShieldCheck, Wallet, User, Filter, X } from 'lucide-react';
+import { ShieldCheck, Wallet, User, Filter, X, Loader2 } from 'lucide-react';
 import { CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -385,9 +385,19 @@ export function VerifyDepositsHub() {
                 />
               </div>
               <SelectItem value="all">Any operator</SelectItem>
-              {meId && (
+              {meId ? (
                 <SelectItem value={meId}>
                   Me{meName ? ` (${meName})` : ''}
+                </SelectItem>
+              ) : (
+                // Keep the "Me" slot visible but disabled while the current
+                // user profile is still resolving, so operators get clear
+                // feedback instead of a missing option.
+                <SelectItem value="me" disabled>
+                  <span className="inline-flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Loading your profile…
+                  </span>
                 </SelectItem>
               )}
               {meId && (
