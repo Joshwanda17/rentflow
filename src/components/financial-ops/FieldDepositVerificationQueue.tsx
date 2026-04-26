@@ -64,9 +64,12 @@ interface Props {
   minAmount?: number;
   /** Maximum declared total (UGX). */
   maxAmount?: number;
+  /** When set, only show resolved batches verified by this operator user_id.
+   *  Pending batches (no verifier yet) are hidden while this is active. */
+  verifierId?: string;
 }
 
-export function FieldDepositVerificationQueue({ channels, minAmount, maxAmount }: Props = {}) {
+export function FieldDepositVerificationQueue({ channels, minAmount, maxAmount, verifierId }: Props = {}) {
   const autoRefresh = useFinOpsAutoRefresh();
   const [rows, setRows] = useState<QueueRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -173,9 +176,13 @@ export function FieldDepositVerificationQueue({ channels, minAmount, maxAmount }
       const amt = r.declared_total;
       if (typeof minAmount === 'number' && amt < minAmount) return false;
       if (typeof maxAmount === 'number' && amt > maxAmount) return false;
+      if (verifierId) {
+        // Pending rows have no verifier yet — hide them when filtering.
+        if (!r.verified_by_id || r.verified_by_id !== verifierId) return false;
+      }
       return true;
     });
-  }, [rows, channels, minAmount, maxAmount]);
+  }, [rows, channels, minAmount, maxAmount, verifierId]);
 
   const pendingVisible = visibleRows.filter((r) => r.status === 'pending_finops_verification');
   const totalDeclared = pendingVisible.reduce((s, r) => s + r.declared_total, 0);

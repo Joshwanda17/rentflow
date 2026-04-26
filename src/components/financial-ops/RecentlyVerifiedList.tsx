@@ -42,9 +42,11 @@ interface Row {
 interface Props {
   source: 'user';
   limit?: number;
+  /** When set, only show deposits resolved by this operator user_id. */
+  verifierId?: string;
 }
 
-export function RecentlyVerifiedList({ limit = 10 }: Props) {
+export function RecentlyVerifiedList({ limit = 10, verifierId }: Props) {
   const autoRefresh = useFinOpsAutoRefresh();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,7 +55,7 @@ export function RecentlyVerifiedList({ limit = 10 }: Props) {
   const load = useCallback(async (silent = false) => {
     if (!silent) setRefreshing(true);
     try {
-      const { data, error } = await supabase
+      let q = supabase
         .from('deposit_requests')
         .select(
           'id, amount, status, approved_at, rejected_at, processed_by, rejection_reason',
@@ -61,6 +63,8 @@ export function RecentlyVerifiedList({ limit = 10 }: Props) {
         .in('status', ['approved', 'rejected'])
         .order('updated_at', { ascending: false })
         .limit(limit);
+      if (verifierId) q = q.eq('processed_by', verifierId);
+      const { data, error } = await q;
       if (error) throw error;
 
       const list = (data ?? []) as any[];
@@ -93,7 +97,7 @@ export function RecentlyVerifiedList({ limit = 10 }: Props) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [limit]);
+  }, [limit, verifierId]);
 
   useEffect(() => {
     load();

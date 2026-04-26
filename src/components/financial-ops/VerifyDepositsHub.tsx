@@ -4,6 +4,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { ShieldCheck, Wallet, User, Filter, X } from 'lucide-react';
 import { TidVerification } from './TidVerification';
 import { FieldDepositVerificationQueue } from './FieldDepositVerificationQueue';
@@ -37,6 +44,54 @@ export function VerifyDepositsHub() {
   const [channelFilters, setChannelFilters] = useState<DepositChannel[]>([]);
   const [minAmount, setMinAmount] = useState<string>('');
   const [maxAmount, setMaxAmount] = useState<string>('');
+  // Verifier (operator) filter — only narrows resolved/recently-verified rows.
+  // Pending rows have no verifier yet so they are excluded when this is set.
+  const [verifierId, setVerifierId] = useState<string>('all');
+  const [verifiers, setVerifiers] = useState<{ id: string; full_name: string | null }[]>([]);
+
+  // Build a single distinct list of operators who have ever resolved a deposit
+  // — pulled from both deposit_requests (user side) and field_deposit_batches
+  // (field side). Loaded once; refreshed when auto-refresh tick fires so newly
+  // active operators show up without a manual reload.
+  useEffect(() => {
+    let cancelled = false;
+    const loadVerifiers = async () => {
+      const [userRes, fieldRes] = await Promise.all([
+        supabase
+          .from('deposit_requests')
+          .select('processed_by')
+          .in('status', ['approved', 'rejected'])
+          .not('processed_by', 'is', null)
+          .limit(500),
+        supabase
+          .from('field_deposit_batches')
+          .select('finops_verified_by')
+          .in('status', ['verified', 'rejected'])
+          .not('finops_verified_by', 'is', null)
+          .limit(500),
+      ]);
+      const ids = new Set<string>();
+      for (const r of (userRes.data ?? []) as any[]) if (r.processed_by) ids.add(r.processed_by);
+      for (const r of (fieldRes.data ?? []) as any[]) if (r.finops_verified_by) ids.add(r.finops_verified_by);
+      if (ids.size === 0) {
+        if (!cancelled) setVerifiers([]);
+        return;
+      }
+      const { data: profs } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', Array.from(ids));
+      if (cancelled) return;
+      const sorted = ((profs ?? []) as any[])
+        .map((p) => ({ id: p.id as string, full_name: (p.full_name as string | null) ?? null }))
+        .sort((a, b) => (a.full_name ?? '').localeCompare(b.full_name ?? ''));
+      setVerifiers(sorted);
+    };
+    loadVerifiers();
+    if (!autoRefresh) return () => { cancelled = true; };
+    const id = setInterval(loadVerifiers, 60_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [autoRefresh]);
 
   const toggleChannel = (c: DepositChannel) =>
     setChannelFilters((prev) =>
@@ -47,6 +102,7 @@ export function VerifyDepositsHub() {
     setChannelFilters([]);
     setMinAmount('');
     setMaxAmount('');
+    setVerifierId('all');
   };
 
   const minNum = minAmount ? Number(minAmount) : undefined;
@@ -54,7 +110,9 @@ export function VerifyDepositsHub() {
   const filtersActive =
     channelFilters.length > 0 ||
     (typeof minNum === 'number' && !Number.isNaN(minNum)) ||
-    (typeof maxNum === 'number' && !Number.isNaN(maxNum));
+    (typeof maxNum === 'number' && !Number.isNaN(maxNum)) ||
+    verifierId !== 'all';
+  const verifierFilter = verifierId === 'all' ? undefined : verifierId;
 
   const CHANNEL_CHIPS: { value: DepositChannel; label: string }[] = [
     { value: 'mtn', label: 'MTN MoMo' },
@@ -179,6 +237,35 @@ export function VerifyDepositsHub() {
             />
           </div>
         </div>
+
+        <div className="space-y-1">
+          <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
+            Verified by
+          </Label>
+          <Select value={verifierId} onValueChange={setVerifierId}>
+            <SelectTrigger className="h-8 text-sm">
+              <SelectValue placeholder="Any operator" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Any operator</SelectItem>
+              {verifiers.length === 0 && (
+                <div className="px-2 py-1.5 text-[11px] text-muted-foreground italic">
+                  No verifiers on record yet
+                </div>
+              )}
+              {verifiers.map((v) => (
+                <SelectItem key={v.id} value={v.id}>
+                  {v.full_name ?? `Operator ${v.id.slice(0, 8)}`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {verifierFilter && (
+            <p className="text-[10px] text-muted-foreground italic">
+              Hides pending deposits — only resolved items have a verifier.
+            </p>
+          )}
+        </div>
       </div>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as 'user' | 'field')}>
@@ -227,7 +314,7 @@ export function VerifyDepositsHub() {
           {/* User-side verifications happen via TID search, not a list, so
               the Verified by / Verified at columns surface here. The Field
               Deposits tab shows them inline in the queue table itself. */}
-          <RecentlyVerifiedList source="user" />
+          <RecentlyVerifiedList source="user" verifierId={verifierFilter} />
         </TabsContent>
 
         <TabsContent value="field" className="mt-4 space-y-2">
@@ -239,6 +326,7 @@ export function VerifyDepositsHub() {
             channels={channelFilters}
             minAmount={minNum !== undefined && !Number.isNaN(minNum) ? minNum : undefined}
             maxAmount={maxNum !== undefined && !Number.isNaN(maxNum) ? maxNum : undefined}
+            verifierId={verifierFilter}
           />
         </TabsContent>
       </Tabs>
