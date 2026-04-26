@@ -211,8 +211,12 @@ export function VerifyDepositsHub() {
     channelFilters.length > 0 ||
     (typeof minNum === 'number' && !Number.isNaN(minNum)) ||
     (typeof maxNum === 'number' && !Number.isNaN(maxNum)) ||
-    verifierId !== 'all';
-  const verifierFilter = verifierId === 'all' ? undefined : verifierId;
+    (verifierId !== 'all' && verifierId !== 'me');
+  // The `'me'` sentinel is treated as "no filter yet" until the auth user
+  // resolves and the effect above swaps it for the real id. This prevents
+  // a stray `processed_by = 'me'` query during the brief unresolved window.
+  const verifierFilter =
+    verifierId === 'all' || verifierId === 'me' ? undefined : verifierId;
 
   // Convert the date pickers to ISO bounds — inclusive day-windows so a
   // single-day selection covers the full 24h. Children only use these for
