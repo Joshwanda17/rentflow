@@ -9,6 +9,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuCheckboxItem,
+} from '@/components/ui/dropdown-menu';
 import { formatUGX } from '@/lib/rentCalculations';
 import { formatDistanceToNow, format } from 'date-fns';
 import {
@@ -20,6 +28,7 @@ import {
   XCircle,
   User as UserIcon,
   Download,
+  Columns3,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
