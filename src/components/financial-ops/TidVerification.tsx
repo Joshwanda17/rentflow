@@ -53,6 +53,49 @@ interface MatchResult {
 
 type ResultState = 'idle' | 'searching' | 'found' | 'not_found';
 
+/** Compact chip-style filter row used above the pending pick-list. Each
+ *  chip is a small toggle button; the active option uses the primary
+ *  color so the operator can see at a glance which facets are narrowed. */
+function FilterChipRow({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (next: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      <span className="text-[10px] uppercase tracking-wide text-muted-foreground shrink-0 w-12">
+        {label}
+      </span>
+      <div className="flex items-center gap-1 flex-wrap">
+        {options.map((opt) => {
+          const active = opt.value === value;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => onChange(opt.value)}
+              aria-pressed={active}
+              className={`h-6 px-2 rounded-full text-[10px] font-medium border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                active
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-background text-muted-foreground border-border hover:bg-accent hover:text-foreground'
+              }`}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function TidVerification() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
