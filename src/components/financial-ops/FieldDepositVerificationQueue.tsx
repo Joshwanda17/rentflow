@@ -239,15 +239,28 @@ export function FieldDepositVerificationQueue({
   const hiddenCount = rows.length - visibleRows.length;
 
   /**
-   * Pulls a larger window of resolved batches (up to 1000) so audit teams
-   * have a useful export, then writes a CSV with the same audit columns
-   * shown in the table — verifier, timestamp, rejection reason, etc.
-   * Honors active hub filters (channel, amount range) so operators export
-   * exactly what they're looking at.
+   * CSV export — sourced directly from `visibleRows` so the file always
+   * matches the on-screen filter set exactly. The column set follows the
+   * "Columns" visibility menu, so hiding "Status" in the table also hides
+   * Outcome / Rejection reason in the CSV. No silent column mismatches.
+   *
+   * For audit windows larger than what's loaded in memory, we backfill
+   * the resolved subset from the server using the same channel/amount/
+   * verifier/date filters, then de-dupe by batch id.
    */
   const handleExport = async () => {
     setExporting(true);
     try {
+      // Resolve agent + verifier names already cached in `visibleRows`.
+      const inMemoryNameMap = new Map<string, string | null>();
+      for (const r of visibleRows) {
+        if (r.agent_name) inMemoryNameMap.set(r.agent_id, r.agent_name);
+        if (r.verified_by_id && r.verified_by_name) inMemoryNameMap.set(r.verified_by_id, r.verified_by_name);
+      }
+
+      // Backfill resolved batches from the server using the SAME filters
+      // currently applied in the UI, so a deep audit window includes rows
+      // beyond the live page. Pending rows are always sourced from memory.
       let q = supabase
         .from('field_deposit_batches')
         .select(
@@ -260,25 +273,20 @@ export function FieldDepositVerificationQueue({
       if (channels && channels.length > 0) q = q.in('channel', channels);
       if (typeof minAmount === 'number') q = q.gte('declared_total', minAmount);
       if (typeof maxAmount === 'number') q = q.lte('declared_total', maxAmount);
-      // Honor the hub's export-only date window.
+      if (verifierId) q = q.eq('finops_verified_by', verifierId);
       if (exportFromIso) q = q.gte('finops_verified_at', exportFromIso);
       if (exportToIso) q = q.lte('finops_verified_at', exportToIso);
       const { data, error } = await q;
       if (error) throw error;
-      const list = (data ?? []) as any[];
-
-      if (list.length === 0) {
-        toast.info('Nothing to export — no resolved batches match these filters.');
-        return;
-      }
-
+      const serverList = (data ?? []) as any[];
       const ids = Array.from(
         new Set([
-          ...list.map((r) => r.finops_verified_by).filter(Boolean),
-          ...list.map((r) => r.agent_id).filter(Boolean),
+          ...serverList.map((r) => r.finops_verified_by).filter(Boolean),
+          ...serverList.map((r) => r.agent_id).filter(Boolean),
         ]),
-      );
+      ).filter((id) => !inMemoryNameMap.has(id));
       const nameMap = new Map<string, string | null>();
+      for (const [k, v] of inMemoryNameMap) nameMap.set(k, v);
       if (ids.length > 0) {
         const { data: profs } = await supabase
           .from('profiles')
@@ -287,38 +295,93 @@ export function FieldDepositVerificationQueue({
         for (const p of (profs ?? []) as any[]) nameMap.set(p.id, p.full_name);
       }
 
-      downloadCsv(
-        `field-deposits-audit-${new Date().toISOString().slice(0, 10)}.csv`,
-        [
-          'Batch ID',
-          'Agent ID',
-          'Agent name',
-          'Channel',
-          'Declared total (UGX)',
-          'Proof reference',
-          'Proof submitted at',
-          'Outcome',
-          'Verified by (ID)',
-          'Verified by',
-          'Verified at',
-          'Rejection reason',
-        ],
-        list.map((r) => [
+      // Merge server backfill with the in-memory visibleRows (which may
+      // include pending batches the export query skips).
+      type ExportRow = {
+        id: string; agent_id: string; agent_name: string | null;
+        channel: DepositChannel; declared_total: number;
+        proof_reference: string | null; proof_submitted_at: string | null;
+        status: string; verified_by_id: string | null; verified_by_name: string | null;
+        verified_at: string | null; rejection_reason: string | null;
+      };
+      const merged = new Map<string, ExportRow>();
+      for (const r of visibleRows) {
+        merged.set(r.id, {
+          id: r.id,
+          agent_id: r.agent_id,
+          agent_name: r.agent_name,
+          channel: r.channel,
+          declared_total: r.declared_total,
+          proof_reference: r.proof_reference,
+          proof_submitted_at: r.proof_submitted_at,
+          status: r.status === 'pending_finops_verification' ? 'pending' : r.status,
+          verified_by_id: r.verified_by_id,
+          verified_by_name: r.verified_by_name,
+          verified_at: r.verified_at,
+          rejection_reason: null,
+        });
+      }
+      for (const r of serverList) {
+        if (merged.has(r.id)) {
+          // Already in memory — keep but enrich with rejection_reason
+          const existing = merged.get(r.id)!;
+          existing.rejection_reason = r.rejection_reason ?? null;
+        } else {
+          merged.set(r.id, {
+            id: r.id,
+            agent_id: r.agent_id,
+            agent_name: nameMap.get(r.agent_id) ?? null,
+            channel: r.channel as DepositChannel,
+            declared_total: Number(r.declared_total || 0),
+            proof_reference: r.proof_reference ?? null,
+            proof_submitted_at: r.proof_submitted_at ?? null,
+            status: r.status,
+            verified_by_id: r.finops_verified_by ?? null,
+            verified_by_name: r.finops_verified_by ? (nameMap.get(r.finops_verified_by) ?? null) : null,
+            verified_at: r.finops_verified_at ?? null,
+            rejection_reason: r.rejection_reason ?? null,
+          });
+        }
+      }
+      const exportRows = Array.from(merged.values());
+
+      if (exportRows.length === 0) {
+        toast.info('Nothing to export — no batches match the current filters.');
+        return;
+      }
+
+      // Build headers + row cells from the visible-column registry only.
+      const headers: string[] = [];
+      const rowBuilders: ((r: ExportRow) => (string | number | null)[])[] = [];
+      for (const c of COLUMNS) {
+        if (!visibleCols[c.key]) continue;
+        headers.push(...c.csvHeaders);
+        if (c.key === 'batch') rowBuilders.push((r) => [
           r.id,
           r.agent_id,
-          nameMap.get(r.agent_id) ?? '',
-          channelLabel(r.channel as DepositChannel),
-          Number(r.declared_total || 0),
+          r.agent_name ?? '',
+          channelLabel(r.channel),
           r.proof_reference ?? '',
           csvTimestamp(r.proof_submitted_at),
-          r.status === 'verified' ? 'Approved' : 'Rejected',
-          r.finops_verified_by ?? '',
-          nameMap.get(r.finops_verified_by) ?? '',
-          csvTimestamp(r.finops_verified_at),
+        ]);
+        else if (c.key === 'amount') rowBuilders.push((r) => [r.declared_total]);
+        else if (c.key === 'status') rowBuilders.push((r) => [
+          r.status === 'verified' ? 'Approved' : r.status === 'rejected' ? 'Rejected' : 'Pending',
           r.rejection_reason ?? '',
-        ]),
+        ]);
+        else if (c.key === 'verified_by') rowBuilders.push((r) => [
+          r.verified_by_id ?? '',
+          r.verified_by_name ?? '',
+        ]);
+        else if (c.key === 'verified_at') rowBuilders.push((r) => [csvTimestamp(r.verified_at)]);
+      }
+
+      downloadCsv(
+        `field-deposits-audit-${new Date().toISOString().slice(0, 10)}.csv`,
+        headers,
+        exportRows.map((r) => rowBuilders.flatMap((b) => b(r))),
       );
-      toast.success(`Exported ${list.length} batch${list.length === 1 ? '' : 'es'} to CSV.`);
+      toast.success(`Exported ${exportRows.length} batch${exportRows.length === 1 ? '' : 'es'} to CSV.`);
     } catch (e: any) {
       toast.error(e?.message ?? 'Failed to export audit log');
     } finally {
