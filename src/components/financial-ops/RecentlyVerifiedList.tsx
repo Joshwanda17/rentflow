@@ -3,6 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { formatUGX } from '@/lib/rentCalculations';
 import { formatDistanceToNow, format } from 'date-fns';
 import {
@@ -184,11 +190,43 @@ export function RecentlyVerifiedList({ limit = 10 }: Props) {
                       </td>
                       <td
                         className="px-2 py-2 align-top text-muted-foreground tabular-nums whitespace-nowrap"
-                        title={r.resolved_at ? format(new Date(r.resolved_at), 'PPpp') : undefined}
                       >
-                        {r.resolved_at
-                          ? formatDistanceToNow(new Date(r.resolved_at), { addSuffix: true })
-                          : '—'}
+                        {r.resolved_at ? (
+                          <TooltipProvider delayDuration={150}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="cursor-help underline decoration-dotted decoration-muted-foreground/40 underline-offset-2">
+                                  {formatDistanceToNow(new Date(r.resolved_at), { addSuffix: true })}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent variant="dark" className="text-xs">
+                                <div className="flex items-center gap-1.5 font-semibold">
+                                  {approved ? (
+                                    <>
+                                      <CheckCircle2 className="h-3 w-3 text-success" />
+                                      Approved
+                                    </>
+                                  ) : (
+                                    <>
+                                      <XCircle className="h-3 w-3 text-destructive" />
+                                      Rejected
+                                    </>
+                                  )}
+                                </div>
+                                <div className="mt-0.5 tabular-nums opacity-90">
+                                  {format(new Date(r.resolved_at), 'PPpp')}
+                                </div>
+                                {r.processed_by_name && (
+                                  <div className="mt-0.5 opacity-75">
+                                    by {r.processed_by_name}
+                                  </div>
+                                )}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : (
+                          '—'
+                        )}
                       </td>
                     </tr>
                   );
