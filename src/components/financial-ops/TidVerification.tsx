@@ -87,6 +87,9 @@ export function TidVerification() {
   const [pendingLoading, setPendingLoading] = useState(false);
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [pendingSearch, setPendingSearch] = useState('');
+  // The provider the picked row was originally tagged with — used to
+  // detect when the operator changes the provider after picking.
+  const [pickedProvider, setPickedProvider] = useState<string | null>(null);
 
   // Extracted so we can refresh the pick-list after verify/reject without
   // a full page reload — the just-actioned row simply disappears.
@@ -143,8 +146,14 @@ export function TidVerification() {
   const pickPending = (p: PendingDeposit) => {
     setPickedId(p.id);
     setOperatorAmount(String(p.amount));
+    setPickedProvider(p.provider ?? null);
     if (p.provider) setProvider(p.provider);
   };
+
+  // True if the operator picked a row and then changed the provider away
+  // from what that row was submitted as — almost always a mistake.
+  const providerMismatch =
+    !!pickedId && !!pickedProvider && pickedProvider !== provider;
 
   // Local filter — name, phone, or amount substring (digits only for amount).
   const pendingFiltered = (() => {
