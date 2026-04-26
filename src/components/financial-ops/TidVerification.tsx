@@ -533,7 +533,42 @@ export function TidVerification() {
     if (pendingSorted.length !== 1) return;
     const only = pendingSorted[0];
     if (pickedId === only.id) return;
+    // Snapshot the form *before* the auto-pick mutates it so Undo can
+    // restore exactly what the operator had.
+    const snapshot = {
+      pickedId,
+      pickedProvider,
+      operatorAmount,
+      provider,
+    };
     pickPending(only);
+    const info: AutoPickInfo = {
+      id: only.id,
+      name: only.depositorName,
+      amount: only.amount,
+      prev: snapshot,
+    };
+    setAutoPicked(info);
+    // Toast with Undo — gives operators a fast keyboard/mouse path even
+    // if they've already scrolled away from the inline badge.
+    toast.success(`Auto-picked ${only.depositorName} (${formatUGX(only.amount)})`, {
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          setPickedId(info.prev.pickedId);
+          setPickedProvider(info.prev.pickedProvider);
+          setOperatorAmount(info.prev.operatorAmount);
+          setProvider(info.prev.provider);
+          setAutoPicked(null);
+        },
+      },
+      duration: 6000,
+    });
+    // Hide the inline badge after the same window so it doesn't linger.
+    const t = setTimeout(() => {
+      setAutoPicked((curr) => (curr?.id === info.id ? null : curr));
+    }, 6000);
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingSorted, pendingSearch, matchField, amountRange, verification]);
 
