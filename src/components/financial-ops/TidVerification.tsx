@@ -218,6 +218,11 @@ export function TidVerification() {
   // Keyboard navigation state for the pick-list. -1 means nothing
   // highlighted; arrow keys move within `pendingFiltered`.
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  // Screen-reader announcement for keyboard navigation of the pending
+  // depositors list. Updated when the highlight moves and when a row is
+  // picked via Enter, so non-sighted operators get the same feedback as
+  // sighted ones.
+  const [pendingLiveMessage, setPendingLiveMessage] = useState('');
   const pendingListRef = useRef<HTMLUListElement>(null);
   const pendingItemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   // Ref to the pending search input so the global "/" hotkey can focus it.
