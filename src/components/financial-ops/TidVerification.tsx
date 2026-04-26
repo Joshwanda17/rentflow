@@ -488,6 +488,21 @@ export function TidVerification() {
     if (el) el.scrollIntoView({ block: 'nearest' });
   }, [highlightedIndex]);
 
+  // Announce the currently highlighted depositor to assistive tech so
+  // keyboard-only / screen-reader users hear who they're about to pick.
+  // Cleared when nothing is highlighted to avoid stale announcements.
+  useEffect(() => {
+    if (highlightedIndex < 0 || highlightedIndex >= pendingSorted.length) {
+      setPendingLiveMessage('');
+      return;
+    }
+    const row = pendingSorted[highlightedIndex];
+    setPendingLiveMessage(
+      `Highlighted ${highlightedIndex + 1} of ${pendingSorted.length}: ` +
+      `${row.depositorName}, ${formatUGX(row.amount)}. Press Enter to pick.`
+    );
+  }, [highlightedIndex, pendingSorted]);
+
   // Auto-select when the search/filters narrow the list to exactly one row.
   // Saves a click for the common "type a name → one match" case. We only
   // auto-pick when the operator has actively narrowed (search text or a
