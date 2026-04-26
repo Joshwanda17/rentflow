@@ -72,13 +72,21 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
     }
   };
 
+  // Shared back button — bigger tap target, consistent label & spacing.
+  const SubBack = ({ onClick }: { onClick: () => void }) => (
+    <button
+      onClick={onClick}
+      className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors h-10 -ml-2 px-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+    >
+      <ArrowLeft className="h-4 w-4" /> Back to Financial Ops
+    </button>
+  );
+
   // Sub-view: Verify Deposits (unified — user TIDs + field/agent cash)
   if (view === 'deposits') {
     return (
-      <div className="space-y-4">
-        <button onClick={() => setView('home')} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="h-4 w-4" /> Back
-        </button>
+      <div className="space-y-5">
+        <SubBack onClick={() => setView('home')} />
         <VerifyDepositsHub />
       </div>
     );
@@ -87,10 +95,8 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
   // Sub-view: Offline Collections (agent IndexedDB drafts submitted with proof)
   if (view === 'offline_collections') {
     return (
-      <div className="space-y-4">
-        <button onClick={() => setView('home')} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="h-4 w-4" /> Back
-        </button>
+      <div className="space-y-5">
+        <SubBack onClick={() => setView('home')} />
         <OfflineSubmissionsQueue />
       </div>
     );
@@ -100,10 +106,8 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
   // Sub-view: Active tool
   if (activeTool) {
     return (
-      <div className="space-y-4">
-        <button onClick={() => setActiveTool(null)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="h-4 w-4" /> Back
-        </button>
+      <div className="space-y-5">
+        <SubBack onClick={() => setActiveTool(null)} />
         {activeTool === 'ops' && <ScaleDashboard />}
         {activeTool === 'queue' && <ApprovalQueue />}
         {activeTool === 'search' && <TransactionSearch />}
@@ -112,10 +116,15 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         {activeTool === 'audit' && <AuditFeed />}
         {activeTool === 'withdrawals' && (
           <>
-            <h2 className="text-lg font-bold flex items-center gap-2">
-              <Banknote className="h-5 w-5 text-destructive" />
-              Withdrawals & Payouts
-            </h2>
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2.5">
+                <Banknote className="h-6 w-6 text-destructive" />
+                Withdrawals & Payouts
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Cash-out requests waiting for a decision.
+              </p>
+            </div>
             <LandlordPayoutsQueue />
             <FinOpsWithdrawalVerification />
             <PendingWalletOperationsWidget requirePaymentRef={requirePaymentRef} />
@@ -127,8 +136,8 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         )}
         {activeTool === 'deductions' && (
           <div className="max-w-2xl w-full">
-            <h2 className="text-lg font-bold flex items-center gap-2 mb-4">
-              <MinusCircle className="h-5 w-5 text-orange-600" />
+            <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2.5 mb-4">
+              <MinusCircle className="h-6 w-6 text-orange-600" />
               Wallet Deductions
             </h2>
             <WalletDeductionPanel />
@@ -145,7 +154,18 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
 
   // Home: Core tools front and center
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+      {/* Page header — bigger title so the operator immediately knows where
+          they are without parsing. */}
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+          Financial Ops
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Verify deposits, approve withdrawals and keep the platform balanced.
+        </p>
+      </div>
+
       <WalletOverviewCard />
       <FinancialOpsPulseStrip />
 
@@ -156,51 +176,57 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
           handles every outgoing approval/rejection. Anything else is
           one tap away in "More". */}
       <div>
-        <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">
-          Wallet Management
+        <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3">
+          What do you want to do?
         </h2>
         <div className="grid grid-cols-1 gap-3">
           {/* 1. Verify ALL Deposits (user TIDs + field/agent cash → float) */}
           <button
             onClick={() => setView('deposits')}
-            className="flex items-center gap-4 p-5 rounded-2xl border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all text-left min-h-[80px]"
+            className="flex items-center gap-4 p-5 sm:p-6 rounded-2xl border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-all text-left min-h-[88px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
-            <div className="h-12 w-12 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
-              <ShieldCheck className="h-6 w-6 text-primary" />
+            <div className="h-14 w-14 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+              <ShieldCheck className="h-7 w-7 text-primary" />
             </div>
-            <div className="flex-1">
-              <p className="font-bold text-base">Verify Deposits</p>
-              <p className="text-xs text-muted-foreground">User top-ups & agent field cash — one place</p>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-base sm:text-lg">Verify Deposits</p>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                User top-ups & agent field cash — one place
+              </p>
             </div>
           </button>
 
           {/* 2. Approve or Reject Withdrawals */}
           <button
             onClick={() => openTool('withdrawals')}
-            className="flex items-center gap-4 p-5 rounded-2xl border-2 border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10 hover:border-orange-500/50 transition-all text-left min-h-[80px]"
+            className="flex items-center gap-4 p-5 sm:p-6 rounded-2xl border-2 border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10 hover:border-orange-500/50 transition-all text-left min-h-[88px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
-            <div className="h-12 w-12 rounded-xl bg-orange-500/15 flex items-center justify-center shrink-0">
-              <Banknote className="h-6 w-6 text-orange-600" />
+            <div className="h-14 w-14 rounded-xl bg-orange-500/15 flex items-center justify-center shrink-0">
+              <Banknote className="h-7 w-7 text-orange-600" />
             </div>
-            <div className="flex-1">
-              <p className="font-bold text-base">Approve or Reject Withdrawals</p>
-              <p className="text-xs text-muted-foreground">Cash-out requests waiting for a decision</p>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-base sm:text-lg">Approve or Reject Withdrawals</p>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                Cash-out requests waiting for a decision
+              </p>
             </div>
           </button>
 
           {/* 3. More — everything else */}
           <button
             onClick={() => setMoreSheet(true)}
-            className="flex items-center gap-4 p-5 rounded-2xl border border-border bg-card hover:bg-accent/40 transition-all text-left min-h-[80px]"
+            className="flex items-center gap-4 p-5 sm:p-6 rounded-2xl border border-border bg-card hover:bg-accent/40 transition-all text-left min-h-[88px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
-            <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center shrink-0">
-              <MoreHorizontal className="h-6 w-6 text-muted-foreground" />
+            <div className="h-14 w-14 rounded-xl bg-muted flex items-center justify-center shrink-0">
+              <MoreHorizontal className="h-7 w-7 text-muted-foreground" />
             </div>
-            <div className="flex-1">
-              <p className="font-bold text-base">More</p>
-              <p className="text-xs text-muted-foreground">Offline collections, ledger, deductions & support tools</p>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-base sm:text-lg">More</p>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                Offline collections, ledger, deductions & support tools
+              </p>
             </div>
-            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+            <ChevronDown className="h-5 w-5 text-muted-foreground shrink-0" />
           </button>
         </div>
       </div>
