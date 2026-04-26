@@ -25,6 +25,16 @@ const PRESETS: { value: Exclude<RangePreset, 'custom'>; label: string }[] = [
   { value: 'all', label: 'All' },
 ];
 
+function eventLabel(source: string): string {
+  switch (source) {
+    case 'collection_delete': return 'Collection reversed';
+    case 'collection_update': return 'Collection updated';
+    case 'collection_insert': return 'Collection recorded';
+    case 'backfill': return 'Historical backfill';
+    default: return 'Manual recompute';
+  }
+}
+
 /**
  * AgentVouchHistoryFeed
  * ---------------------------------------------------------------------
