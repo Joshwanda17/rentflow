@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import {
   Camera, PenLine, MessageSquare, ShieldCheck, WifiOff, Loader2,
-  AlertCircle, Trash2, RefreshCw, CheckCircle2,
+  AlertCircle, Trash2, RefreshCw, CheckCircle2, Receipt, Wifi,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
@@ -18,6 +18,7 @@ import {
   deleteDraft,
   type OfflineCollectionDraft,
   type ProofType,
+  type TxnRefChannel,
 } from '@/lib/offlineCollectionDrafts';
 
 interface Props {
@@ -41,7 +42,10 @@ export function AgentPendingSyncDrawer({ open, onOpenChange }: Props) {
   const [drafts, setDrafts] = useState<OfflineCollectionDraft[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
-  const [proofType, setProofType] = useState<ProofType>('photo');
+  const [proofType, setProofType] = useState<ProofType>('transaction_ref');
+  const [txnChannel, setTxnChannel] = useState<TxnRefChannel>('mtn_momo');
+  const [txnReference, setTxnReference] = useState('');
+  const [payerPhone, setPayerPhone] = useState('');
   const [smsCode, setSmsCode] = useState('');
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
@@ -66,7 +70,10 @@ export function AgentPendingSyncDrawer({ open, onOpenChange }: Props) {
   const activeDraft = drafts.find(d => d.draft_id === activeDraftId) || null;
 
   const resetProofUI = () => {
-    setProofType('photo');
+    setProofType('transaction_ref');
+    setTxnChannel('mtn_momo');
+    setTxnReference('');
+    setPayerPhone('');
     setSmsCode('');
     setPhotoDataUrl(null);
     setSignatureDataUrl(null);
@@ -115,7 +122,42 @@ export function AgentPendingSyncDrawer({ open, onOpenChange }: Props) {
     setSignatureDataUrl(null);
   };
 
+  // Reference format rules per channel
+  const refRules: Record<TxnRefChannel, { label: string; placeholder: string; pattern: RegExp; hint: string }> = {
+    mtn_momo: {
+      label: 'MTN MoMo Transaction ID',
+      placeholder: 'e.g. 12345678901',
+      pattern: /^[A-Z0-9]{8,20}$/i,
+      hint: 'Found in the MTN MoMo confirmation SMS — usually 10–12 digits.',
+    },
+    airtel_money: {
+      label: 'Airtel Money Transaction ID',
+      placeholder: 'e.g. AB231231.1234.A12345',
+      pattern: /^[A-Z0-9.]{8,30}$/i,
+      hint: 'Found in the Airtel Money confirmation SMS.',
+    },
+    momo_receipt: {
+      label: 'MoMo / Wallet Receipt Number',
+      placeholder: 'e.g. RCP-2025-001234',
+      pattern: /^[A-Z0-9-]{6,30}$/i,
+      hint: 'Receipt number printed or sent on the wallet provider receipt.',
+    },
+    bank_transfer: {
+      label: 'Bank Reference Number',
+      placeholder: 'e.g. STN240426001234',
+      pattern: /^[A-Z0-9-]{6,30}$/i,
+      hint: 'Reference printed on the deposit slip or bank SMS.',
+    },
+  };
+
+  const txnRefIsValid = (() => {
+    const ref = txnReference.trim();
+    if (!ref) return false;
+    return refRules[txnChannel].pattern.test(ref);
+  })();
+
   const proofIsReady = (() => {
+    if (proofType === 'transaction_ref') return txnRefIsValid;
     if (proofType === 'photo') return !!photoDataUrl;
     if (proofType === 'signature') return !!signatureDataUrl;
     if (proofType === 'sms_code') return /^\d{4,8}$/.test(smsCode);
@@ -128,6 +170,9 @@ export function AgentPendingSyncDrawer({ open, onOpenChange }: Props) {
     try {
       await attachProof(activeDraft.draft_id, {
         type: proofType,
+        channel: proofType === 'transaction_ref' ? txnChannel : undefined,
+        reference: proofType === 'transaction_ref' ? txnReference.trim().toUpperCase() : undefined,
+        payer_phone: proofType === 'transaction_ref' ? (payerPhone.trim() || null) : undefined,
         photo_data_url: proofType === 'photo' ? photoDataUrl! : undefined,
         signature_data_url: proofType === 'signature' ? signatureDataUrl! : undefined,
         sms_code: proofType === 'sms_code' ? smsCode : undefined,
@@ -207,29 +252,123 @@ export function AgentPendingSyncDrawer({ open, onOpenChange }: Props) {
               </div>
             </div>
 
+            {/* ═══ Pending Proof — Transaction Reference (PROMINENT) ═══ */}
+            <button
+              type="button"
+              onClick={() => setProofType('transaction_ref')}
+              className={`w-full rounded-2xl border-2 p-4 text-left transition-all ${
+                proofType === 'transaction_ref'
+                  ? 'border-primary bg-primary/10 ring-2 ring-primary/30'
+                  : 'border-primary/40 bg-primary/5 hover:border-primary/70'
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <div className="h-11 w-11 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+                  <Receipt className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-bold text-sm">Transaction Reference</p>
+                    <Badge className="text-[9px] bg-primary text-primary-foreground hover:bg-primary uppercase tracking-wide">
+                      Required
+                    </Badge>
+                    {!isOnline && (
+                      <Badge variant="outline" className="text-[9px] gap-1 border-warning/40 text-warning">
+                        <WifiOff className="h-2.5 w-2.5" /> capture now, verify online
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                    MTN MoMo / Airtel Money TXN ID, wallet receipt number, or bank reference. The strongest proof Financial Ops accepts.
+                  </p>
+                </div>
+              </div>
+            </button>
+
             <div>
-              <Label className="text-xs">Choose proof type</Label>
+              <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Or fall-back proof</Label>
               <div className="grid grid-cols-3 gap-2 mt-1.5">
                 <Button
                   type="button" variant={proofType === 'photo' ? 'default' : 'outline'}
-                  onClick={() => setProofType('photo')} className="h-16 flex-col gap-1"
+                  onClick={() => setProofType('photo')} className="h-14 flex-col gap-0.5"
                 >
                   <Camera className="h-4 w-4" /><span className="text-[10px]">Photo</span>
                 </Button>
                 <Button
                   type="button" variant={proofType === 'signature' ? 'default' : 'outline'}
-                  onClick={() => setProofType('signature')} className="h-16 flex-col gap-1"
+                  onClick={() => setProofType('signature')} className="h-14 flex-col gap-0.5"
                 >
                   <PenLine className="h-4 w-4" /><span className="text-[10px]">Signature</span>
                 </Button>
                 <Button
                   type="button" variant={proofType === 'sms_code' ? 'default' : 'outline'}
-                  onClick={() => setProofType('sms_code')} className="h-16 flex-col gap-1"
+                  onClick={() => setProofType('sms_code')} className="h-14 flex-col gap-0.5"
                 >
                   <MessageSquare className="h-4 w-4" /><span className="text-[10px]">SMS Code</span>
                 </Button>
               </div>
             </div>
+
+            {proofType === 'transaction_ref' && (
+              <div className="rounded-2xl border-2 border-primary/30 bg-primary/[0.03] p-3 space-y-3">
+                <div className="flex items-center gap-1.5 text-[11px] text-primary font-semibold">
+                  <Wifi className="h-3.5 w-3.5" />
+                  Capture the reference exactly as it appears in the SMS or receipt
+                </div>
+
+                <div>
+                  <Label className="text-xs">Channel</Label>
+                  <div className="grid grid-cols-2 gap-1.5 mt-1.5">
+                    {([
+                      { id: 'mtn_momo' as const, label: 'MTN MoMo' },
+                      { id: 'airtel_money' as const, label: 'Airtel Money' },
+                      { id: 'momo_receipt' as const, label: 'MoMo Receipt' },
+                      { id: 'bank_transfer' as const, label: 'Bank Transfer' },
+                    ]).map(opt => (
+                      <Button
+                        key={opt.id}
+                        type="button"
+                        variant={txnChannel === opt.id ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => { setTxnChannel(opt.id); setTxnReference(''); }}
+                        className="h-9 text-xs"
+                      >
+                        {opt.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-xs">{refRules[txnChannel].label}</Label>
+                  <Input
+                    value={txnReference}
+                    onChange={(e) => setTxnReference(e.target.value.toUpperCase().replace(/\s/g, '').slice(0, 30))}
+                    placeholder={refRules[txnChannel].placeholder}
+                    className="h-12 text-base font-mono font-bold tracking-wide mt-1"
+                    autoCapitalize="characters"
+                    spellCheck={false}
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-1">{refRules[txnChannel].hint}</p>
+                  {txnReference && !txnRefIsValid && (
+                    <p className="text-[10px] text-destructive mt-1 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" /> Reference format doesn't match {refRules[txnChannel].label}.
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <Label className="text-xs">Sender phone (optional)</Label>
+                  <Input
+                    value={payerPhone}
+                    onChange={(e) => setPayerPhone(e.target.value.replace(/[^\d+]/g, '').slice(0, 16))}
+                    placeholder="07xx xxx xxx"
+                    inputMode="tel"
+                    className="h-10 mt-1"
+                  />
+                </div>
+              </div>
+            )}
 
             {proofType === 'photo' && (
               <div className="space-y-2">
