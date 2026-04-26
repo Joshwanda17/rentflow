@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { History, ArrowUpRight, ArrowDownRight, RotateCcw, ExternalLink, CalendarIcon } from 'lucide-react';
+import { History, ArrowUpRight, ArrowDownRight, RotateCcw, ExternalLink, CalendarIcon, Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 
 type RangePreset = '7d' | '30d' | '90d' | 'all' | 'custom';
 
@@ -23,6 +24,16 @@ const PRESETS: { value: Exclude<RangePreset, 'custom'>; label: string }[] = [
   { value: '90d', label: '90d' },
   { value: 'all', label: 'All' },
 ];
+
+function eventLabel(source: string): string {
+  switch (source) {
+    case 'collection_delete': return 'Collection reversed';
+    case 'collection_update': return 'Collection updated';
+    case 'collection_insert': return 'Collection recorded';
+    case 'backfill': return 'Historical backfill';
+    default: return 'Manual recompute';
+  }
+}
 
 /**
  * AgentVouchHistoryFeed
@@ -58,6 +69,7 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
   const [preset, setPreset] = useState<RangePreset>('30d');
   const [customStart, setCustomStart] = useState<Date | undefined>();
   const [customEnd, setCustomEnd] = useState<Date | undefined>();
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -104,6 +116,105 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
   }, [rows, preset, customStart, customEnd]);
 
   const visible = showAll ? filteredRows : filteredRows.slice(0, limit);
+
+  const rangeLabel = (() => {
+    if (preset === '7d') return 'Last 7 days';
+    if (preset === '30d') return 'Last 30 days';
+    if (preset === '90d') return 'Last 90 days';
+    if (preset === 'all') return 'All time';
+    if (customStart || customEnd) {
+      return `${customStart ? format(customStart, 'd MMM yyyy') : '…'} – ${customEnd ? format(customEnd, 'd MMM yyyy') : '…'}`;
+    }
+    return 'Custom';
+  })();
+
+  async function handleExportPdf() {
+    if (filteredRows.length === 0) {
+      toast.error('No history rows to export for this date range.');
+      return;
+    }
+    setExporting(true);
+    try {
+      const { jsPDF } = await import('jspdf');
+      const autoTableMod: any = await import('jspdf-autotable');
+      const autoTable = autoTableMod.default || autoTableMod;
+
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+      const pw = doc.internal.pageSize.getWidth();
+      const margin = 14;
+      let y = 16;
+
+      doc.setFontSize(15);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(30, 41, 59);
+      doc.text('Welile Technologies Limited', margin, y);
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text('Agent Vouch History', margin, y + 5);
+      doc.text(
+        new Date().toLocaleString('en-UG', { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
+        pw - margin,
+        y + 5,
+        { align: 'right' },
+      );
+      y += 9;
+
+      doc.setDrawColor(59, 130, 246);
+      doc.setLineWidth(0.6);
+      doc.line(margin, y, pw - margin, y);
+      y += 6;
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(30, 41, 59);
+      doc.text('Range:', margin, y);
+      doc.setFont('helvetica', 'normal');
+      doc.text(rangeLabel, margin + 14, y);
+      doc.text(`Entries: ${filteredRows.length}`, pw - margin, y, { align: 'right' });
+      y += 5;
+
+      const totalDelta = filteredRows.reduce((s, r) => s + Number(r.delta_ugx ?? 0), 0);
+      const totalCollected = filteredRows.reduce((s, r) => s + Math.max(0, Number(r.collection_amount ?? 0)), 0);
+      doc.text(`Net change: ${totalDelta >= 0 ? '+' : ''}${formatUGX(totalDelta)}`, margin, y);
+      doc.text(`Cash collected: ${formatUGX(totalCollected)}`, pw - margin, y, { align: 'right' });
+      y += 4;
+
+      autoTable(doc, {
+        startY: y,
+        head: [['Date', 'Event', 'Cash (UGX)', 'Delta (UGX)', 'New limit (UGX)', 'Collection ID']],
+        body: filteredRows.map((r) => [
+          new Date(r.created_at).toLocaleString('en-UG', {
+            year: '2-digit', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit',
+          }),
+          eventLabel(r.change_source),
+          formatUGX(Number(r.collection_amount ?? 0)),
+          `${Number(r.delta_ugx ?? 0) > 0 ? '+' : ''}${formatUGX(Number(r.delta_ugx ?? 0))}`,
+          formatUGX(Number(r.new_effective_limit_ugx ?? 0)),
+          r.collection_id ? r.collection_id.slice(0, 8) : '—',
+        ]),
+        theme: 'striped',
+        styles: { fontSize: 8, cellPadding: 1.5 },
+        headStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold' },
+        columnStyles: {
+          2: { halign: 'right' },
+          3: { halign: 'right' },
+          4: { halign: 'right' },
+        },
+        margin: { left: margin, right: margin },
+      });
+
+      const fileName = `vouch-history-${format(new Date(), 'yyyy-MM-dd-HHmm')}.pdf`;
+      doc.save(fileName);
+      toast.success('Vouch history PDF downloaded');
+    } catch (e) {
+      console.error('Vouch history PDF export failed', e);
+      toast.error('Failed to export PDF');
+    } finally {
+      setExporting(false);
+    }
+  }
 
   return (
     <div className="rounded-xl border border-border/60 bg-card/70 p-2.5">
@@ -180,6 +291,20 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
               )}
             </PopoverContent>
           </Popover>
+          <button
+            type="button"
+            onClick={handleExportPdf}
+            disabled={exporting || loading || filteredRows.length === 0}
+            className={cn(
+              'h-6 px-2 rounded-md text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1 transition-colors',
+              'bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 dark:text-emerald-400',
+              'disabled:opacity-50 disabled:cursor-not-allowed',
+            )}
+            title="Download history as PDF"
+          >
+            <Download className="h-3 w-3" />
+            {exporting ? 'Exporting…' : 'PDF'}
+          </button>
         </div>
       </div>
 
