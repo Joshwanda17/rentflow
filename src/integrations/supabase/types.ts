@@ -7078,6 +7078,114 @@ export type Database = {
         }
         Relationships: []
       }
+      offline_collection_submissions: {
+        Row: {
+          agent_id: string
+          amount: number
+          captured_at: string
+          created_at: string
+          draft_id: string
+          failure_reason: string | null
+          gps_accuracy: number | null
+          gps_lat: number | null
+          gps_lng: number | null
+          id: string
+          notes: string | null
+          processed_at: string | null
+          proof_path: string | null
+          proof_type: string
+          provisional_receipt_no: string
+          rent_request_id: string
+          server_collection_id: string | null
+          server_receipt_no: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          captured_at: string
+          created_at?: string
+          draft_id: string
+          failure_reason?: string | null
+          gps_accuracy?: number | null
+          gps_lat?: number | null
+          gps_lng?: number | null
+          id?: string
+          notes?: string | null
+          processed_at?: string | null
+          proof_path?: string | null
+          proof_type: string
+          provisional_receipt_no: string
+          rent_request_id: string
+          server_collection_id?: string | null
+          server_receipt_no?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          captured_at?: string
+          created_at?: string
+          draft_id?: string
+          failure_reason?: string | null
+          gps_accuracy?: number | null
+          gps_lat?: number | null
+          gps_lng?: number | null
+          id?: string
+          notes?: string | null
+          processed_at?: string | null
+          proof_path?: string | null
+          proof_type?: string
+          provisional_receipt_no?: string
+          rent_request_id?: string
+          server_collection_id?: string | null
+          server_receipt_no?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offline_collection_submissions_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "offline_collection_submissions_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offline_collection_submissions_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "offline_collection_submissions_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "offline_collection_submissions_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       onboarding_targets: {
         Row: {
           achieved_count: number
