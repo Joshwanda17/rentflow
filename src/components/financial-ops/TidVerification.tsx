@@ -314,6 +314,20 @@ export function TidVerification() {
     loadPending();
   }, [loadPending]);
 
+  // When the operator switches the provider dropdown, immediately reset
+  // the pending list to its first-page state. `loadPending` will refetch
+  // automatically (it depends on `provider` via `fetchPendingPage`), but
+  // clearing the rows + `pendingHasMore` synchronously avoids a flash of
+  // stale rows from the previous provider and ensures the "Load more"
+  // button reappears only after the new first page reports a full batch.
+  useEffect(() => {
+    setPending([]);
+    setPendingHasMore(false);
+    // Don't reset `pickedId` / `pickedProvider` here — that's intentional
+    // so the mismatch warning + recap stay visible when the operator
+    // changes providers after picking a row.
+  }, [provider]);
+
   // Sync pick state to sessionStorage so a refresh restores the same pick
   // (and therefore the mismatch warning, recap, and prefilled amount).
   useEffect(() => {
