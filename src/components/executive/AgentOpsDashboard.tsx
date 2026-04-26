@@ -31,8 +31,17 @@ import { AgentAllocationReport } from './AgentAllocationReport';
 import { 
   Users, Banknote, DollarSign, Search, UserPlus, Trophy, BarChart3, 
   ClipboardList, AlertTriangle, Building2, Wallet, Bell, ArrowLeftRight,
-  ChevronLeft, Briefcase, TrendingUp, UsersRound, PiggyBank, HandCoins, ShieldCheck, FileBarChart, Network
+  ChevronLeft, Briefcase, TrendingUp, UsersRound, PiggyBank, HandCoins, ShieldCheck, FileBarChart, Network,
+  LayoutGrid, ChevronDown
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { format } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -320,6 +329,46 @@ export function AgentOpsDashboard() {
           <p className="text-xs text-muted-foreground">Agent Operations Manager</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="h-9 px-3 rounded-full border border-border bg-card flex items-center gap-1.5 text-xs font-semibold text-foreground hover:border-primary/30 active:scale-95 transition-all touch-manipulation"
+                aria-label="All Agent Ops sections"
+              >
+                <LayoutGrid className="h-4 w-4 text-primary" />
+                <span className="hidden xs:inline">All sections</span>
+                <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64 max-h-[70vh] overflow-y-auto">
+              {MORE_GROUPS.map((group, gi) => (
+                <div key={group.title}>
+                  {gi > 0 && <DropdownMenuSeparator />}
+                  <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    {group.title}
+                  </DropdownMenuLabel>
+                  {group.keys.map((key) => {
+                    const item = NAV_ITEMS.find((n) => n.key === key);
+                    if (!item) return null;
+                    const Icon = item.icon;
+                    return (
+                      <DropdownMenuItem
+                        key={item.key as string}
+                        onClick={() => setActiveView(item.key)}
+                        className="gap-2.5 cursor-pointer"
+                      >
+                        <span className={cn('p-1.5 rounded-md shrink-0', item.color)}>
+                          <Icon className="h-3.5 w-3.5 text-white" />
+                        </span>
+                        <span className="text-sm font-medium">{item.label}</span>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </div>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <button
             type="button"
             onClick={() => setActiveView('alerts')}
