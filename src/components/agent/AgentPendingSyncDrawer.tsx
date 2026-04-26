@@ -585,11 +585,24 @@ export function AgentPendingSyncDrawer({ open, onOpenChange }: Props) {
                   </div>
                 )}
                 {draft.status === 'ready_to_submit' && (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5 text-[11px] text-primary">
+                      <ShieldCheck className="h-3 w-3" />
+                      {draft.proof_bundle?.type === 'transaction_ref'
+                        ? <>TXN ref: <span className="font-mono font-bold">{draft.proof_bundle.reference}</span></>
+                        : <>Proof attached ({draft.proof_bundle?.type})</>}
+                    </div>
+                    {!isSubmittableToFinancialOps(draft) && (
+                      <div className="flex items-center gap-1.5 text-[11px] text-warning">
+                        <AlertCircle className="h-3 w-3" />
+                        Transaction Reference required before Financial Ops will accept this.
+                      </div>
+                    )}
+                  </div>
+                )}
+                {draft.status === 'syncing' && (
                   <div className="flex items-center gap-1.5 text-[11px] text-primary">
-                    <ShieldCheck className="h-3 w-3" />
-                    {draft.proof_bundle?.type === 'transaction_ref'
-                      ? <>TXN ref: <span className="font-mono font-bold">{draft.proof_bundle.reference}</span></>
-                      : <>Proof attached ({draft.proof_bundle?.type})</>}
+                    <Loader2 className="h-3 w-3 animate-spin" /> Submitting to Financial Ops…
                   </div>
                 )}
                 {draft.status === 'rejected' && draft.last_error && (
@@ -606,8 +619,40 @@ export function AgentPendingSyncDrawer({ open, onOpenChange }: Props) {
                     </Button>
                   )}
                   {draft.status === 'ready_to_submit' && (
-                    <Button size="sm" className="flex-1" disabled>
-                      Submit (coming next)
+                    isSubmittableToFinancialOps(draft) ? (
+                      <Button
+                        size="sm"
+                        className="flex-1 font-bold"
+                        onClick={() => handleSubmit(draft)}
+                        disabled={!isOnline || submittingId === draft.draft_id}
+                      >
+                        {submittingId === draft.draft_id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : !isOnline ? (
+                          <><WifiOff className="h-3.5 w-3.5 mr-1" /> Offline</>
+                        ) : (
+                          'Submit to Financial Ops'
+                        )}
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 border-warning/40 text-warning hover:text-warning"
+                        onClick={() => { resetProofUI(); setActiveDraftId(draft.draft_id); }}
+                      >
+                        Add Transaction Reference
+                      </Button>
+                    )
+                  )}
+                  {draft.status === 'rejected' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => { resetProofUI(); setActiveDraftId(draft.draft_id); }}
+                    >
+                      Fix &amp; retry
                     </Button>
                   )}
                   <Button
