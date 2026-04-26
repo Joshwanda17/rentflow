@@ -389,7 +389,9 @@ export function TidVerification() {
             <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
               Pending {provider.replace('_', ' ')} deposits
               {pending.length > 0 && (
-                <span className="ml-1 text-muted-foreground/80">({pending.length})</span>
+                <span className="ml-1 text-muted-foreground/80">
+                  ({pendingSearch.trim() ? `${pendingFiltered.length}/${pending.length}` : pending.length})
+                </span>
               )}
             </Label>
             {pickedId && (
@@ -402,6 +404,31 @@ export function TidVerification() {
               </button>
             )}
           </div>
+          {/* Search by name, phone, or amount — purely client-side over the
+              already-loaded pending rows. */}
+          {pending.length > 0 && (
+            <div className="px-2.5 py-1.5 border-b border-border/60">
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                <Input
+                  value={pendingSearch}
+                  onChange={(e) => setPendingSearch(e.target.value)}
+                  placeholder="Search name, phone, or amount…"
+                  className="h-7 pl-7 pr-7 text-xs"
+                />
+                {pendingSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setPendingSearch('')}
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label="Clear search"
+                  >
+                    <XCircle className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
           {pendingLoading ? (
             <div className="px-2.5 py-3 text-[11px] text-muted-foreground flex items-center gap-1.5">
               <Loader2 className="h-3 w-3 animate-spin" /> Loading pending deposits…
@@ -410,10 +437,14 @@ export function TidVerification() {
             <div className="px-2.5 py-3 text-[11px] text-muted-foreground italic">
               No pending {provider.replace('_', ' ')} deposits — switch provider above to see other channels.
             </div>
+          ) : pendingFiltered.length === 0 ? (
+            <div className="px-2.5 py-3 text-[11px] text-muted-foreground italic">
+              No depositors match “{pendingSearch}”.
+            </div>
           ) : (
             <ScrollArea className="max-h-44">
               <ul className="divide-y divide-border/60">
-                {pending.map((p) => {
+                {pendingFiltered.map((p) => {
                   const active = p.id === pickedId;
                   return (
                     <li key={p.id}>
