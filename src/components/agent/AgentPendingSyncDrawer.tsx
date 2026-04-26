@@ -12,10 +12,12 @@ import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useOffline } from '@/contexts/OfflineContext';
 import { formatUGX } from '@/lib/rentCalculations';
+import { supabase } from '@/integrations/supabase/client';
 import {
   listDrafts,
   attachProof,
   deleteDraft,
+  updateDraft,
   type OfflineCollectionDraft,
   type ProofType,
   type TxnRefChannel,
@@ -50,6 +52,7 @@ export function AgentPendingSyncDrawer({ open, onOpenChange }: Props) {
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
   const [savingProof, setSavingProof] = useState(false);
+  const [submittingId, setSubmittingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sigCanvasRef = useRef<HTMLCanvasElement>(null);
   const drawingRef = useRef(false);
