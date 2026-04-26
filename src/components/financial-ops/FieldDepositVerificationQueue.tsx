@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,10 +11,20 @@ import {
   PendingBatch,
   channelLabel,
   listPendingFinOpsBatches,
+  DepositChannel,
 } from '@/lib/fieldDepositBatches';
 import { FieldDepositVerifyDialog } from './FieldDepositVerifyDialog';
 
-export function FieldDepositVerificationQueue() {
+interface Props {
+  /** When provided, only batches whose channel is in this set are shown. Empty/undefined = all. */
+  channels?: DepositChannel[];
+  /** Minimum declared total (UGX). */
+  minAmount?: number;
+  /** Maximum declared total (UGX). */
+  maxAmount?: number;
+}
+
+export function FieldDepositVerificationQueue({ channels, minAmount, maxAmount }: Props = {}) {
   const [batches, setBatches] = useState<PendingBatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -39,7 +49,24 @@ export function FieldDepositVerificationQueue() {
     return () => clearInterval(id);
   }, [load]);
 
-  const totalDeclared = batches.reduce((s, b) => s + Number(b.declared_total || 0), 0);
+  // Apply hub-level filters before any totals so badges match what the
+  // operator actually sees in the list.
+  const visibleBatches = useMemo(() => {
+    return batches.filter((b) => {
+      if (channels && channels.length > 0 && !channels.includes(b.channel)) return false;
+      const amt = Number(b.declared_total || 0);
+      if (typeof minAmount === 'number' && amt < minAmount) return false;
+      if (typeof maxAmount === 'number' && amt > maxAmount) return false;
+      return true;
+    });
+  }, [batches, channels, minAmount, maxAmount]);
+
+  const totalDeclared = visibleBatches.reduce((s, b) => s + Number(b.declared_total || 0), 0);
+  const filtersActive =
+    (channels && channels.length > 0) ||
+    typeof minAmount === 'number' ||
+    typeof maxAmount === 'number';
+  const hiddenCount = batches.length - visibleBatches.length;
 
   return (
     <>
@@ -61,8 +88,15 @@ export function FieldDepositVerificationQueue() {
             </Button>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <Badge variant="secondary" className="font-mono">{batches.length} batch{batches.length === 1 ? '' : 'es'}</Badge>
+            <Badge variant="secondary" className="font-mono">
+              {visibleBatches.length} batch{visibleBatches.length === 1 ? '' : 'es'}
+            </Badge>
             <Badge variant="secondary" className="font-mono">{formatUGX(totalDeclared)} declared</Badge>
+            {filtersActive && hiddenCount > 0 && (
+              <Badge variant="outline" className="text-[10px]">
+                {hiddenCount} hidden by filter
+              </Badge>
+            )}
           </div>
         </CardHeader>
         <CardContent className="pt-0">
@@ -70,16 +104,22 @@ export function FieldDepositVerificationQueue() {
             <div className="py-10 flex justify-center">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
-          ) : batches.length === 0 ? (
+          ) : visibleBatches.length === 0 ? (
             <div className="py-10 flex flex-col items-center text-center text-muted-foreground">
               <Inbox className="h-8 w-8 mb-2 opacity-50" />
-              <p className="text-sm font-medium">All caught up</p>
-              <p className="text-xs">No field deposit batches awaiting verification.</p>
+              <p className="text-sm font-medium">
+                {filtersActive ? 'No batches match your filters' : 'All caught up'}
+              </p>
+              <p className="text-xs">
+                {filtersActive
+                  ? `${batches.length} pending batch${batches.length === 1 ? '' : 'es'} hidden — clear filters to see them.`
+                  : 'No field deposit batches awaiting verification.'}
+              </p>
             </div>
           ) : (
             <ScrollArea className="max-h-[60vh]">
               <div className="divide-y rounded-md border">
-                {batches.map((b) => {
+                {visibleBatches.map((b) => {
                   const tagged = b.items.reduce((s, i) => s + Number(i.amount || 0), 0);
                   const surplus = Math.max(0, Number(b.declared_total || 0) - tagged);
                   return (
