@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
@@ -92,6 +92,11 @@ export function TidVerification() {
   // The provider the picked row was originally tagged with — used to
   // detect when the operator changes the provider after picking.
   const [pickedProvider, setPickedProvider] = useState<string | null>(null);
+  // Keyboard navigation state for the pick-list. -1 means nothing
+  // highlighted; arrow keys move within `pendingFiltered`.
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const pendingListRef = useRef<HTMLUListElement>(null);
+  const pendingItemRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   // Page size for the pending pick-list. Kept small so the panel stays
   // scannable; operators can press "Load more" to fetch the next batch.
@@ -202,6 +207,59 @@ export function TidVerification() {
       return false;
     });
   })();
+
+  // Reset highlight when the visible list shape changes (search, provider,
+  // refresh) so the focus indicator never points to a stale row.
+  useEffect(() => {
+    setHighlightedIndex(-1);
+  }, [pendingSearch, provider, pending.length]);
+
+  // Keep the highlighted row in view when arrow-keying through a long list.
+  useEffect(() => {
+    if (highlightedIndex < 0) return;
+    const el = pendingItemRefs.current[highlightedIndex];
+    if (el) el.scrollIntoView({ block: 'nearest' });
+  }, [highlightedIndex]);
+
+  const handlePendingKeyDown = (e: React.KeyboardEvent<HTMLUListElement>) => {
+    if (pendingFiltered.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightedIndex((i) => {
+        const next = i < pendingFiltered.length - 1 ? i + 1 : 0;
+        pendingItemRefs.current[next]?.focus();
+        return next;
+      });
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightedIndex((i) => {
+        const next = i > 0 ? i - 1 : pendingFiltered.length - 1;
+        pendingItemRefs.current[next]?.focus();
+        return next;
+      });
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      setHighlightedIndex(0);
+      pendingItemRefs.current[0]?.focus();
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      const last = pendingFiltered.length - 1;
+      setHighlightedIndex(last);
+      pendingItemRefs.current[last]?.focus();
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      if (highlightedIndex >= 0 && highlightedIndex < pendingFiltered.length) {
+        e.preventDefault();
+        pickPending(pendingFiltered[highlightedIndex]);
+      }
+    } else if (e.key === 'Escape') {
+      if (pickedId) {
+        e.preventDefault();
+        setPickedId(null);
+        setPickedProvider(null);
+        setOperatorAmount('');
+      }
+    }
+  };
 
   const handleVerify = useCallback(async () => {
     const trimmedTid = tid.trim();
@@ -430,14 +488,21 @@ export function TidVerification() {
             TID/receipt/bank reference from their statement. */}
         <div className="rounded-md border bg-muted/20">
           <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 border-b border-border/60">
-            <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
-              Pending {provider.replace('_', ' ')} deposits
+            <div className="flex items-center gap-2 min-w-0">
+              <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                Pending {provider.replace('_', ' ')} deposits
+                {pending.length > 0 && (
+                  <span className="ml-1 text-muted-foreground/80">
+                    ({pendingSearch.trim() ? `${pendingFiltered.length}/${pending.length}` : pending.length})
+                  </span>
+                )}
+              </Label>
               {pending.length > 0 && (
-                <span className="ml-1 text-muted-foreground/80">
-                  ({pendingSearch.trim() ? `${pendingFiltered.length}/${pending.length}` : pending.length})
+                <span className="hidden sm:inline text-[10px] text-muted-foreground/70">
+                  ↑↓ navigate · Enter pick · Esc clear
                 </span>
               )}
-            </Label>
+            </div>
             {pickedId && (
               <button
                 type="button"
@@ -487,17 +552,27 @@ export function TidVerification() {
             </div>
           ) : (
             <ScrollArea className="max-h-44">
-              <ul className="divide-y divide-border/60">
-                {pendingFiltered.map((p) => {
+              <ul
+                ref={pendingListRef}
+                role="listbox"
+                aria-label="Pending depositors"
+                tabIndex={0}
+                onKeyDown={handlePendingKeyDown}
+                className="divide-y divide-border/60 outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
+              >
+                {pendingFiltered.map((p, idx) => {
                   const active = p.id === pickedId;
+                  const highlighted = idx === highlightedIndex;
                   return (
-                    <li key={p.id}>
+                    <li key={p.id} role="option" aria-selected={active}>
                       <button
+                        ref={(el) => { pendingItemRefs.current[idx] = el; }}
                         type="button"
-                        onClick={() => pickPending(p)}
-                        className={`w-full text-left px-2.5 py-2 hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors ${
+                        onClick={() => { pickPending(p); setHighlightedIndex(idx); }}
+                        onFocus={() => setHighlightedIndex(idx)}
+                        className={`w-full text-left px-2.5 py-2 hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary transition-colors ${
                           active ? 'bg-primary/10' : ''
-                        }`}
+                        } ${highlighted && !active ? 'bg-accent/40 ring-2 ring-inset ring-primary/60' : ''}`}
                       >
                         <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0">
