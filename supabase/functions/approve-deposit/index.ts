@@ -717,13 +717,13 @@ Deno.serve(async (req) => {
 
           results.push({ id: depositRequest.id, status: "approved", amount: depositRequest.amount, user_id: depositRequest.user_id, repayment_applied: repaymentApplied, debt_cleared: debtCleared, days_prepaid: daysPrepaid });
         } else {
-          // Reject
+          // Reject — safeRejectionReason is guaranteed non-empty (validated above).
           await supabaseAdmin
             .from("deposit_requests")
             .update({
               status: "rejected",
               rejected_at: new Date().toISOString(),
-              rejection_reason: safeRejectionReason || "Rejected by manager",
+              rejection_reason: safeRejectionReason,
               processed_by: user.id,
             })
             .eq("id", depositRequest.id);
@@ -731,7 +731,7 @@ Deno.serve(async (req) => {
           await supabaseAdmin.from("notifications").insert({
             user_id: depositRequest.user_id,
             title: "Deposit Rejected ❌",
-            message: `Your deposit of UGX ${depositRequest.amount.toLocaleString()} rejected by ${processorName}. Reason: ${safeRejectionReason || "No reason"}`,
+            message: `Your deposit of UGX ${depositRequest.amount.toLocaleString()} rejected by ${processorName}. Reason: ${safeRejectionReason}`,
             type: "warning",
             metadata: { deposit_request_id: depositRequest.id, amount: depositRequest.amount, reason: safeRejectionReason },
           });
