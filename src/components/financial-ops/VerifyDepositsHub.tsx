@@ -751,76 +751,9 @@ export function VerifyDepositsHub() {
           </Badge>
         </div>
       )}
-
-      <Tabs value={tab} onValueChange={(v) => setTab(v as 'user' | 'field')}>
-        <TabsList className="grid grid-cols-2 w-full h-auto p-1">
-          <TabsTrigger value="user" className="flex flex-col items-center gap-1 py-2.5">
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              <span className="font-semibold text-sm">User Deposits</span>
-              {counts.user > 0 && (
-                <Badge className="h-5 min-w-5 px-1.5 text-[10px] bg-primary text-primary-foreground hover:bg-primary">
-                  {counts.user}
-                </Badge>
-              )}
-            </div>
-            <span className="text-[10px] text-muted-foreground font-normal">
-              Tenant &amp; funder top-ups
-            </span>
-          </TabsTrigger>
-          <TabsTrigger value="field" className="flex flex-col items-center gap-1 py-2.5">
-            <div className="flex items-center gap-2">
-              <Wallet className="h-4 w-4" />
-              <span className="font-semibold text-sm">Field Deposits</span>
-              {counts.field > 0 && (
-                <Badge className="h-5 min-w-5 px-1.5 text-[10px] bg-primary text-primary-foreground hover:bg-primary">
-                  {counts.field}
-                </Badge>
-              )}
-            </div>
-            <span className="text-[10px] text-muted-foreground font-normal">
-              Agent cash → float
-            </span>
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="user" className="mt-4 space-y-2">
-          <p className="text-[11px] text-muted-foreground">
-            CFO credits from <span className="font-semibold text-foreground">Welile Technologies Finance</span> are auto-approved and skip this queue.
-          </p>
-          {filtersActive && (
-            <p className="text-[11px] text-muted-foreground italic">
-              User deposits are looked up by Transaction ID — channel and amount
-              filters above only narrow the Field Deposits tab.
-            </p>
-          )}
-          <TidVerification />
-          {/* User-side verifications happen via TID search, not a list, so
-              the Verified by / Verified at columns surface here. The Field
-              Deposits tab shows them inline in the queue table itself. */}
-          <RecentlyVerifiedList
-            source="user"
-            verifierId={verifierFilter}
-            exportFromIso={exportFromIso}
-            exportToIso={exportToIso}
-          />
-        </TabsContent>
-
-        <TabsContent value="field" className="mt-4 space-y-2">
-          <p className="text-[11px] text-muted-foreground">
-            Approving credits the agent's float, allocates rent to tagged
-            tenants, and posts agent commission instantly.
-          </p>
-          <FieldDepositVerificationQueue
-            channels={channelFilters}
-            minAmount={minNum !== undefined && !Number.isNaN(minNum) ? minNum : undefined}
-            maxAmount={maxNum !== undefined && !Number.isNaN(maxNum) ? maxNum : undefined}
-            verifierId={verifierFilter}
-            exportFromIso={exportFromIso}
-            exportToIso={exportToIso}
-          />
-        </TabsContent>
-      </Tabs>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
