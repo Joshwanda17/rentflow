@@ -487,6 +487,66 @@ export function VerifyDepositsHub() {
             </Button>
           )}
         </div>
+        {/* Quick shortcuts so operators can scope the export window to a
+            common review period in one click instead of opening both
+            calendars. Computed against local midnight so a "Today" pick
+            covers the operator's full working day. */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[10px] uppercase tracking-wide text-muted-foreground mr-1">
+            Quick range
+          </span>
+          {(() => {
+            const startOfToday = () => {
+              const d = new Date();
+              d.setHours(0, 0, 0, 0);
+              return d;
+            };
+            const startOfThisWeek = () => {
+              const d = startOfToday();
+              // Treat Monday as the first day of the week (ISO). Sunday=0.
+              const day = d.getDay();
+              const diff = day === 0 ? -6 : 1 - day;
+              d.setDate(d.getDate() + diff);
+              return d;
+            };
+            const startOfThisMonth = () => {
+              const d = startOfToday();
+              d.setDate(1);
+              return d;
+            };
+            const today = startOfToday();
+            const weekStart = startOfThisWeek();
+            const monthStart = startOfThisMonth();
+            const isSameDay = (a?: Date, b?: Date) =>
+              !!a && !!b &&
+              a.getFullYear() === b.getFullYear() &&
+              a.getMonth() === b.getMonth() &&
+              a.getDate() === b.getDate();
+            const now = new Date();
+            const shortcuts: { key: string; label: string; from: Date; to: Date }[] = [
+              { key: 'today', label: 'Today', from: today, to: now },
+              { key: 'week', label: 'This week', from: weekStart, to: now },
+              { key: 'month', label: 'This month', from: monthStart, to: now },
+            ];
+            return shortcuts.map((s) => {
+              const active =
+                isSameDay(exportFrom, s.from) && isSameDay(exportTo, now);
+              return (
+                <Button
+                  key={s.key}
+                  type="button"
+                  size="sm"
+                  variant={active ? 'default' : 'outline'}
+                  className="h-6 px-2 text-[11px]"
+                  onClick={() => { setExportFrom(s.from); setExportTo(now); }}
+                  aria-pressed={active}
+                >
+                  {s.label}
+                </Button>
+              );
+            });
+          })()}
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <div className="space-y-1">
             <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
