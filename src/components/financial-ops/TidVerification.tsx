@@ -295,6 +295,46 @@ export function TidVerification() {
   const filtersActive =
     matchField !== 'any' || amountRange !== 'any' || verification !== 'any';
 
+  // Apply column sort on top of the filtered list. When no column is
+  // active we keep the server's natural newest-first order so toggling
+  // sort off feels like an undo.
+  const pendingSorted = (() => {
+    if (!sortColumn) return pendingFiltered;
+    const dir = sortDir === 'asc' ? 1 : -1;
+    const copy = [...pendingFiltered];
+    copy.sort((a, b) => {
+      let av: string | number;
+      let bv: string | number;
+      if (sortColumn === 'amount') {
+        av = a.amount; bv = b.amount;
+      } else if (sortColumn === 'phone') {
+        av = a.depositorPhone || ''; bv = b.depositorPhone || '';
+      } else {
+        av = a.depositorName.toLowerCase();
+        bv = b.depositorName.toLowerCase();
+      }
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return 0;
+    });
+    return copy;
+  })();
+
+  // Cycle sort: same column → flip asc/desc; different column → start asc;
+  // a third click on the same column clears sort entirely (back to natural
+  // order).
+  const toggleSort = (col: SortColumn) => {
+    if (sortColumn !== col) {
+      setSortColumn(col);
+      setSortDir('asc');
+    } else if (sortDir === 'asc') {
+      setSortDir('desc');
+    } else {
+      setSortColumn(null);
+      setSortDir('asc');
+    }
+  };
+
   // Reset highlight when the visible list shape changes (search, provider,
   // refresh) so the focus indicator never points to a stale row.
   useEffect(() => {
