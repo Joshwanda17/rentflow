@@ -1,154 +1,93 @@
 import { useEffect, useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { formatUGX } from '@/lib/rentCalculations';
-import { format, formatDistanceToNow } from 'date-fns';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { formatUGX } from '@/lib/rentCalculations';
+import { formatDistanceToNow, format } from 'date-fns';
 import {
-  CheckCircle2,
-  XCircle,
-  History,
   Loader2,
   RefreshCw,
+  Inbox,
+  History,
+  CheckCircle2,
+  XCircle,
   User as UserIcon,
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { useFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
 
 /**
- * Compact table of the most recently verified or rejected deposits with
- * "Verified by" and "Verified at" columns.
- *
- * Used on the User Deposits tab where verification is driven by a TID
- * search rather than a visible queue — so this is the only surface where
- * the operator can see who acted on each user deposit. The Field Deposits
- * tab shows the same columns inline in its queue table.
+ * Compact audit trail of the most recent user-deposit verifications
+ * (approved or rejected). Shown under the TID search so an operator can
+ * confirm at a glance who acted on a deposit and when — and clearly
+ * distinguish approved vs rejected outcomes via a status indicator.
  */
-
-interface ResolvedRow {
+interface Row {
   id: string;
   amount: number;
-  outcome: 'approved' | 'rejected';
-  resolved_at: string;
-  resolved_by_id: string | null;
-  resolved_by_name: string | null;
-  subject: string;
+  status: 'approved' | 'rejected';
+  resolved_at: string | null;
+  processed_by_id: string | null;
+  processed_by_name: string | null;
   rejection_reason: string | null;
 }
 
 interface Props {
-  source: 'user' | 'field';
-  /** How many rows to fetch. Default 8 — enough to glance at without overwhelming. */
+  source: 'user';
   limit?: number;
 }
 
-export function RecentlyVerifiedList({ source, limit = 8 }: Props) {
+export function RecentlyVerifiedList({ limit = 10 }: Props) {
   const autoRefresh = useFinOpsAutoRefresh();
-  const [rows, setRows] = useState<ResolvedRow[]>([]);
+  const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setRefreshing(true);
     try {
-      let resolved: ResolvedRow[] = [];
+      const { data, error } = await supabase
+        .from('deposit_requests')
+        .select(
+          'id, amount, status, approved_at, rejected_at, processed_by, rejection_reason',
+        )
+        .in('status', ['approved', 'rejected'])
+        .order('updated_at', { ascending: false })
+        .limit(limit);
+      if (error) throw error;
 
-      if (source === 'user') {
-        const { data, error } = await supabase
-          .from('deposit_requests')
-          .select(
-            'id, amount, status, approved_at, rejected_at, processed_by, rejection_reason, user_id',
-          )
-          .in('status', ['approved', 'rejected'])
-          .not('processed_by', 'is', null)
-          .order('updated_at', { ascending: false })
-          .limit(limit);
-        if (error) throw error;
-
-        const list = (data ?? []) as any[];
-        const userIds = Array.from(
-          new Set(
-            [
-              ...list.map((r) => r.processed_by).filter(Boolean),
-              ...list.map((r) => r.user_id).filter(Boolean),
-            ],
-          ),
-        );
-        const profileMap = new Map<string, { full_name: string | null }>();
-        if (userIds.length > 0) {
-          const { data: profs } = await supabase
-            .from('profiles')
-            .select('id, full_name')
-            .in('id', userIds);
-          for (const p of (profs ?? []) as any[]) profileMap.set(p.id, p);
-        }
-
-        resolved = list.map((r) => {
-          const outcome: 'approved' | 'rejected' =
-            r.status === 'approved' ? 'approved' : 'rejected';
-          const ts = outcome === 'approved' ? r.approved_at : r.rejected_at;
-          return {
-            id: r.id,
-            amount: Number(r.amount ?? 0),
-            outcome,
-            resolved_at: ts ?? new Date().toISOString(),
-            resolved_by_id: r.processed_by ?? null,
-            resolved_by_name: profileMap.get(r.processed_by)?.full_name ?? null,
-            subject: profileMap.get(r.user_id)?.full_name ?? 'Unknown depositor',
-            rejection_reason: r.rejection_reason ?? null,
-          };
-        });
-      } else {
-        const { data, error } = await supabase
-          .from('field_deposit_batches')
-          .select(
-            'id, declared_total, status, finops_verified_at, finops_verified_by, rejection_reason, agent_id',
-          )
-          .in('status', ['verified', 'rejected'])
-          .not('finops_verified_by', 'is', null)
-          .order('finops_verified_at', { ascending: false })
-          .limit(limit);
-        if (error) throw error;
-
-        const list = (data ?? []) as any[];
-        const userIds = Array.from(
-          new Set(
-            [
-              ...list.map((r) => r.finops_verified_by).filter(Boolean),
-              ...list.map((r) => r.agent_id).filter(Boolean),
-            ],
-          ),
-        );
-        const profileMap = new Map<string, { full_name: string | null }>();
-        if (userIds.length > 0) {
-          const { data: profs } = await supabase
-            .from('profiles')
-            .select('id, full_name')
-            .in('id', userIds);
-          for (const p of (profs ?? []) as any[]) profileMap.set(p.id, p);
-        }
-
-        resolved = list.map((r) => ({
-          id: r.id,
-          amount: Number(r.declared_total ?? 0),
-          outcome: r.status === 'verified' ? 'approved' : 'rejected',
-          resolved_at: r.finops_verified_at ?? new Date().toISOString(),
-          resolved_by_id: r.finops_verified_by ?? null,
-          resolved_by_name:
-            profileMap.get(r.finops_verified_by)?.full_name ?? null,
-          subject: profileMap.get(r.agent_id)?.full_name ?? 'Unknown agent',
-          rejection_reason: r.rejection_reason ?? null,
-        }));
+      const list = (data ?? []) as any[];
+      const ids = Array.from(
+        new Set(list.map((r) => r.processed_by).filter(Boolean)),
+      );
+      const nameMap = new Map<string, string | null>();
+      if (ids.length > 0) {
+        const { data: profs } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', ids);
+        for (const p of (profs ?? []) as any[]) nameMap.set(p.id, p.full_name);
       }
 
-      setRows(resolved);
+      setRows(
+        list.map((r) => ({
+          id: r.id,
+          amount: Number(r.amount || 0),
+          status: r.status === 'approved' ? 'approved' : 'rejected',
+          resolved_at: r.status === 'approved' ? r.approved_at : r.rejected_at,
+          processed_by_id: r.processed_by ?? null,
+          processed_by_name: r.processed_by ? nameMap.get(r.processed_by) ?? null : null,
+          rejection_reason: r.rejection_reason ?? null,
+        })),
+      );
     } catch {
-      // Silent — secondary surface, not worth a toast.
+      // Silent — this list is auxiliary; don't disrupt the verify flow.
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [source, limit]);
+  }, [limit]);
 
   useEffect(() => {
     load();
@@ -158,106 +97,107 @@ export function RecentlyVerifiedList({ source, limit = 8 }: Props) {
   }, [load, autoRefresh]);
 
   return (
-    <div className="rounded-lg border bg-background">
-      <div className="flex items-center justify-between px-3 py-2 border-b">
-        <div className="flex items-center gap-1.5 text-xs font-semibold">
-          <History className="h-3.5 w-3.5 text-muted-foreground" />
-          Recently verified
-          <span className="text-[10px] font-normal text-muted-foreground">
-            (last {limit})
-          </span>
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <History className="h-4 w-4 text-muted-foreground" />
+            Recently verified
+          </CardTitle>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => load(false)}
+            disabled={refreshing}
+            className="h-7"
+          >
+            {refreshing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+          </Button>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 w-6 p-0"
-          onClick={() => load(false)}
-          disabled={refreshing}
-          aria-label="Refresh"
-        >
-          {refreshing ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
-          ) : (
-            <RefreshCw className="h-3 w-3" />
-          )}
-        </Button>
-      </div>
-
-      {loading ? (
-        <div className="py-6 flex justify-center">
-          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-        </div>
-      ) : rows.length === 0 ? (
-        <p className="text-[11px] text-muted-foreground text-center py-6">
-          Nothing verified yet — approved and rejected deposits will appear
-          here with the operator's name and timestamp.
+        <p className="text-[11px] text-muted-foreground">
+          Audit trail — who approved or rejected each user deposit.
         </p>
-      ) : (
-        <ScrollArea className="max-h-[40vh]">
-          <table className="w-full text-xs">
-            <thead className="bg-muted/40 text-muted-foreground sticky top-0">
-              <tr>
-                <th className="text-left font-medium px-3 py-1.5">Deposit</th>
-                <th className="text-left font-medium px-3 py-1.5">Verified by</th>
-                <th className="text-left font-medium px-3 py-1.5 whitespace-nowrap">Verified at</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id} className="border-t hover:bg-muted/20">
-                  <td className="px-3 py-1.5 align-top">
-                    <div className="flex items-center gap-1.5">
-                      {r.outcome === 'approved' ? (
-                        <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" />
-                      ) : (
-                        <XCircle className="h-3 w-3 text-destructive shrink-0" />
-                      )}
-                      <span className="font-mono font-semibold tabular-nums">
-                        {formatUGX(r.amount)}
-                      </span>
-                      <Badge
-                        variant="outline"
-                        className={`text-[9px] h-4 px-1 ${
-                          r.outcome === 'approved'
-                            ? 'border-emerald-300 text-emerald-700'
-                            : 'border-destructive/40 text-destructive'
-                        }`}
-                      >
-                        {r.outcome === 'approved' ? 'Approved' : 'Rejected'}
-                      </Badge>
-                    </div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-[200px]">
-                      {r.subject}
-                    </div>
-                    {r.outcome === 'rejected' && r.rejection_reason && (
-                      <div
-                        className="text-[10px] text-destructive/80 mt-0.5 truncate max-w-[260px]"
-                        title={r.rejection_reason}
-                      >
-                        “{r.rejection_reason}”
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-3 py-1.5 align-top">
-                    <div className="flex items-center gap-1">
-                      <UserIcon className="h-3 w-3 text-muted-foreground shrink-0" />
-                      <span className="font-medium truncate max-w-[140px]">
-                        {r.resolved_by_name ?? 'Unknown operator'}
-                      </span>
-                    </div>
-                  </td>
-                  <td
-                    className="px-3 py-1.5 align-top text-muted-foreground tabular-nums whitespace-nowrap"
-                    title={format(new Date(r.resolved_at), 'PPpp')}
-                  >
-                    {formatDistanceToNow(new Date(r.resolved_at), { addSuffix: true })}
-                  </td>
+      </CardHeader>
+      <CardContent className="pt-0">
+        {loading ? (
+          <div className="py-6 flex justify-center">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="py-6 flex flex-col items-center text-center text-muted-foreground">
+            <Inbox className="h-6 w-6 mb-1.5 opacity-50" />
+            <p className="text-xs">No deposits verified yet.</p>
+          </div>
+        ) : (
+          <ScrollArea className="max-h-[40vh]">
+            <table className="w-full text-xs">
+              <thead className="bg-muted/40 text-muted-foreground sticky top-0 z-10">
+                <tr>
+                  <th className="text-left font-medium px-2 py-2">Status</th>
+                  <th className="text-right font-medium px-2 py-2">Amount</th>
+                  <th className="text-left font-medium px-2 py-2">Verified by</th>
+                  <th className="text-left font-medium px-2 py-2 whitespace-nowrap">Verified at</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </ScrollArea>
-      )}
-    </div>
+              </thead>
+              <tbody>
+                {rows.map((r) => {
+                  const approved = r.status === 'approved';
+                  return (
+                    <tr key={r.id} className="border-t">
+                      <td className="px-2 py-2 align-top">
+                        {approved ? (
+                          <Badge className="text-[9px] h-4 px-1 gap-0.5 bg-success text-success-foreground hover:bg-success">
+                            <CheckCircle2 className="h-2.5 w-2.5" /> Approved
+                          </Badge>
+                        ) : (
+                          <Badge variant="destructive" className="text-[9px] h-4 px-1 gap-0.5">
+                            <XCircle className="h-2.5 w-2.5" /> Rejected
+                          </Badge>
+                        )}
+                        {!approved && r.rejection_reason && (
+                          <div
+                            className="mt-1 text-[10px] text-muted-foreground italic line-clamp-2 max-w-[160px]"
+                            title={r.rejection_reason}
+                          >
+                            {r.rejection_reason}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-2 py-2 align-top text-right font-mono font-semibold tabular-nums">
+                        {formatUGX(r.amount)}
+                      </td>
+                      <td className="px-2 py-2 align-top">
+                        {r.processed_by_name ? (
+                          <div className="flex items-center gap-1">
+                            <UserIcon className="h-3 w-3 text-muted-foreground shrink-0" />
+                            <span className="font-medium truncate max-w-[120px]">
+                              {r.processed_by_name}
+                            </span>
+                          </div>
+                        ) : r.processed_by_id ? (
+                          <span className="text-muted-foreground font-mono">
+                            {r.processed_by_id.slice(0, 8)}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground italic">System</span>
+                        )}
+                      </td>
+                      <td
+                        className="px-2 py-2 align-top text-muted-foreground tabular-nums whitespace-nowrap"
+                        title={r.resolved_at ? format(new Date(r.resolved_at), 'PPpp') : undefined}
+                      >
+                        {r.resolved_at
+                          ? formatDistanceToNow(new Date(r.resolved_at), { addSuffix: true })
+                          : '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </ScrollArea>
+        )}
+      </CardContent>
+    </Card>
   );
 }
