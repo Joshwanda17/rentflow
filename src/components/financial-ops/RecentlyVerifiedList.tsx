@@ -142,14 +142,12 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
   }, [load, autoRefresh]);
 
   /**
-   * On-demand audit export — pulls up to 1000 resolved user deposits with
-   * the same audit fields shown in the table (verifier, timestamp,
-   * rejection reason) so reconciliation teams have a complete record.
+   * Builds the export dataset (headers + row cells) from a server query
+   * mirroring the live table's filter set. Both CSV and PDF exports
+   * consume this identical payload so format choice never changes data.
    */
-  const handleExport = async () => {
-    setExporting(true);
-    try {
-      let q = supabase
+  const buildExportPayload = async () => {
+    let q = supabase
         .from('deposit_requests')
         .select(
           'id, amount, status, approved_at, rejected_at, processed_by, rejection_reason',
@@ -157,60 +155,103 @@ export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, ex
         .in('status', ['approved', 'rejected'])
         .order('updated_at', { ascending: false })
         .limit(1000);
-      // Mirror the live table's filter set so the CSV is a strict superset
-      // of what's visible (more rows allowed by the larger 1000 limit, but
-      // never different criteria).
-      if (verifierId) q = q.eq('processed_by', verifierId);
-      if (exportFromIso) q = q.gte('updated_at', exportFromIso);
-      if (exportToIso) q = q.lte('updated_at', exportToIso);
-      const { data, error } = await q;
-      if (error) throw error;
-      const list = (data ?? []) as any[];
+    if (verifierId) q = q.eq('processed_by', verifierId);
+    if (exportFromIso) q = q.gte('updated_at', exportFromIso);
+    if (exportToIso) q = q.lte('updated_at', exportToIso);
+    const { data, error } = await q;
+    if (error) throw error;
+    const list = (data ?? []) as any[];
 
-      if (list.length === 0) {
+    const ids = Array.from(new Set(list.map((r) => r.processed_by).filter(Boolean)));
+    const nameMap = new Map<string, string | null>();
+    if (ids.length > 0) {
+      const { data: profs } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', ids);
+      for (const p of (profs ?? []) as any[]) nameMap.set(p.id, p.full_name);
+    }
+
+    // Build headers + row cells from the visible-column registry, with
+    // an always-on Deposit ID prefix so the row can still be traced.
+    const headers: string[] = ['Deposit ID'];
+    const rowBuilders: ((r: any) => (string | number | null)[])[] = [(r) => [r.id]];
+    for (const c of COLUMNS) {
+      if (!visibleCols[c.key]) continue;
+      headers.push(...c.csvHeaders);
+      if (c.key === 'status') rowBuilders.push((r) => [
+        r.status === 'approved' ? 'Approved' : 'Rejected',
+        r.rejection_reason ?? '',
+      ]);
+      else if (c.key === 'amount') rowBuilders.push((r) => [Number(r.amount || 0)]);
+      else if (c.key === 'verified_by') rowBuilders.push((r) => [
+        r.processed_by ?? '',
+        nameMap.get(r.processed_by) ?? '',
+      ]);
+      else if (c.key === 'verified_at') rowBuilders.push((r) => [
+        csvTimestamp(r.status === 'approved' ? r.approved_at : r.rejected_at),
+      ]);
+    }
+
+    const rows = list.map((r) => rowBuilders.flatMap((b) => b(r)));
+    return { headers, rows, count: list.length };
+  };
+
+  const describeActiveFilters = (): string[] => {
+    const lines: string[] = [];
+    if (verifierId) lines.push(`Verifier: ${verifierId.slice(0, 8)}…`);
+    if (exportFromIso || exportToIso) {
+      lines.push(`Resolved between: ${pdfTimestampLabel(exportFromIso)} → ${pdfTimestampLabel(exportToIso)}`);
+    }
+    if (lines.length === 0) lines.push('No filters applied — full audit window.');
+    return lines;
+  };
+
+  const handleExportCsv = async () => {
+    setExporting(true);
+    try {
+      const { headers, rows, count } = await buildExportPayload();
+      if (count === 0) {
         toast.info('Nothing to export — no deposits match the current filters.');
         return;
       }
-
-      const ids = Array.from(
-        new Set(list.map((r) => r.processed_by).filter(Boolean)),
-      );
-      const nameMap = new Map<string, string | null>();
-      if (ids.length > 0) {
-        const { data: profs } = await supabase
-          .from('profiles')
-          .select('id, full_name')
-          .in('id', ids);
-        for (const p of (profs ?? []) as any[]) nameMap.set(p.id, p.full_name);
-      }
-
-      // Build headers + row cells from the visible-column registry, with
-      // a small always-on Deposit ID prefix so the row can still be traced.
-      const headers: string[] = ['Deposit ID'];
-      const rowBuilders: ((r: any) => (string | number | null)[])[] = [(r) => [r.id]];
-      for (const c of COLUMNS) {
-        if (!visibleCols[c.key]) continue;
-        headers.push(...c.csvHeaders);
-        if (c.key === 'status') rowBuilders.push((r) => [
-          r.status === 'approved' ? 'Approved' : 'Rejected',
-          r.rejection_reason ?? '',
-        ]);
-        else if (c.key === 'amount') rowBuilders.push((r) => [Number(r.amount || 0)]);
-        else if (c.key === 'verified_by') rowBuilders.push((r) => [
-          r.processed_by ?? '',
-          nameMap.get(r.processed_by) ?? '',
-        ]);
-        else if (c.key === 'verified_at') rowBuilders.push((r) => [
-          csvTimestamp(r.status === 'approved' ? r.approved_at : r.rejected_at),
-        ]);
-      }
-
       downloadCsv(
         `user-deposits-audit-${new Date().toISOString().slice(0, 10)}.csv`,
         headers,
-        list.map((r) => rowBuilders.flatMap((b) => b(r))),
+        rows,
       );
-      toast.success(`Exported ${list.length} deposit${list.length === 1 ? '' : 's'} to CSV.`);
+      toast.success(`Exported ${count} deposit${count === 1 ? '' : 's'} to CSV.`);
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Failed to export audit log');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  /**
+   * PDF audit report — same data as the CSV, rendered as a paginated
+   * landscape PDF with title block + active-filter summary for archive use.
+   */
+  const handleExportPdf = async () => {
+    setExporting(true);
+    try {
+      const { headers, rows, count } = await buildExportPayload();
+      if (count === 0) {
+        toast.info('Nothing to export — no deposits match the current filters.');
+        return;
+      }
+      await downloadAuditPdf(
+        `user-deposits-audit-${new Date().toISOString().slice(0, 10)}.pdf`,
+        headers,
+        rows,
+        {
+          title: 'User Deposit Verification — Audit Report',
+          subtitle: 'Welile Financial Operations',
+          filters: describeActiveFilters(),
+          footerLabel: 'Welile FinOps · User Deposit Audit',
+        },
+      );
+      toast.success(`Exported ${count} deposit${count === 1 ? '' : 's'} to PDF.`);
     } catch (e: any) {
       toast.error(e?.message ?? 'Failed to export audit log');
     } finally {
