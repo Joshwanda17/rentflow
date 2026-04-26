@@ -87,54 +87,54 @@ export function TidVerification() {
   const [pendingLoading, setPendingLoading] = useState(false);
   const [pickedId, setPickedId] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      setPendingLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('deposit_requests')
-          .select('id, user_id, amount, provider, created_at')
-          .eq('status', 'pending')
-          .eq('provider', provider)
-          .order('created_at', { ascending: false })
-          .limit(25);
-        if (error) throw error;
-        const userIds = Array.from(new Set((data ?? []).map((d) => d.user_id)));
-        const profileMap = new Map<string, { name: string; phone: string }>();
-        if (userIds.length > 0) {
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('id, full_name, phone')
-            .in('id', userIds);
-          (profiles ?? []).forEach((p: any) => {
-            profileMap.set(p.id, {
-              name: p.full_name ?? 'Unknown depositor',
-              phone: p.phone ?? '',
-            });
+  // Extracted so we can refresh the pick-list after verify/reject without
+  // a full page reload — the just-actioned row simply disappears.
+  const loadPending = useCallback(async () => {
+    setPendingLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('deposit_requests')
+        .select('id, user_id, amount, provider, created_at')
+        .eq('status', 'pending')
+        .eq('provider', provider)
+        .order('created_at', { ascending: false })
+        .limit(25);
+      if (error) throw error;
+      const userIds = Array.from(new Set((data ?? []).map((d) => d.user_id)));
+      const profileMap = new Map<string, { name: string; phone: string }>();
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone')
+          .in('id', userIds);
+        (profiles ?? []).forEach((p: any) => {
+          profileMap.set(p.id, {
+            name: p.full_name ?? 'Unknown depositor',
+            phone: p.phone ?? '',
           });
-        }
-        if (cancelled) return;
-        setPending(
-          (data ?? []).map((d: any) => ({
-            id: d.id,
-            user_id: d.user_id,
-            amount: Number(d.amount),
-            provider: d.provider,
-            created_at: d.created_at,
-            depositorName: profileMap.get(d.user_id)?.name ?? 'Unknown depositor',
-            depositorPhone: profileMap.get(d.user_id)?.phone ?? '',
-          })),
-        );
-      } catch (e) {
-        if (!cancelled) console.warn('[TidVerification] load pending failed', e);
-      } finally {
-        if (!cancelled) setPendingLoading(false);
+        });
       }
-    };
-    load();
-    return () => { cancelled = true; };
+      setPending(
+        (data ?? []).map((d: any) => ({
+          id: d.id,
+          user_id: d.user_id,
+          amount: Number(d.amount),
+          provider: d.provider,
+          created_at: d.created_at,
+          depositorName: profileMap.get(d.user_id)?.name ?? 'Unknown depositor',
+          depositorPhone: profileMap.get(d.user_id)?.phone ?? '',
+        })),
+      );
+    } catch (e) {
+      console.warn('[TidVerification] load pending failed', e);
+    } finally {
+      setPendingLoading(false);
+    }
   }, [provider]);
+
+  useEffect(() => {
+    loadPending();
+  }, [loadPending]);
 
   /** Click a pending row to prefill the form (amount + provider). The TID
    *  input intentionally stays empty — the operator types it from their
@@ -273,12 +273,16 @@ export function TidVerification() {
 
       queryClient.invalidateQueries({ queryKey: ['approval-queue-deposits'] });
       queryClient.invalidateQueries({ queryKey: ['financial-ops-pulse'] });
+
+      // Refresh the pick-list so the just-approved depositor disappears.
+      if (pickedId === match.id) setPickedId(null);
+      loadPending();
     } catch (err: any) {
       toast.error(err.message || 'Approval failed');
     } finally {
       setApproving(null);
     }
-  }, [user, tid, operatorAmount, queryClient]);
+  }, [user, tid, operatorAmount, queryClient, pickedId, loadPending]);
 
   const handleAutoApproveAll = useCallback(async () => {
     const exact = matches.filter(m => m.status === 'matched' && !approvedIds.has(m.id));
@@ -327,6 +331,10 @@ export function TidVerification() {
 
       queryClient.invalidateQueries({ queryKey: ['approval-queue-deposits'] });
       queryClient.invalidateQueries({ queryKey: ['financial-ops-pulse'] });
+
+      // Refresh the pick-list so the just-rejected depositor disappears.
+      if (pickedId === rejectingId) setPickedId(null);
+      loadPending();
     } catch (err: any) {
       toast.error(err.message || 'Rejection failed');
     } finally {
@@ -334,7 +342,7 @@ export function TidVerification() {
       setRejectDialogOpen(false);
       setRejectingId(null);
     }
-  }, [user, rejectingId, rejectionReason, matches, tid, operatorAmount, queryClient]);
+  }, [user, rejectingId, rejectionReason, matches, tid, operatorAmount, queryClient, pickedId, loadPending]);
 
   const reset = () => {
     setTid('');
