@@ -468,6 +468,12 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
         </div>
       </div>
 
+      {lastRefreshedAt && (
+        <p className="text-[10px] text-muted-foreground -mt-1 mb-2 leading-tight">
+          Last refreshed: {format(lastRefreshedAt, 'd MMM yyyy, HH:mm:ss')}
+        </p>
+      )}
+
       {loading && (
         <p className="text-[11px] text-muted-foreground py-2">Loading…</p>
       )}
