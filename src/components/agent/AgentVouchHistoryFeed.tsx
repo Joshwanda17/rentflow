@@ -722,4 +722,101 @@ function ReferenceRow({ id }: { id: string }) {
   );
 }
 
+function VouchLimitChart({
+  data,
+  summary,
+}: {
+  data: { t: number; limit: number }[];
+  summary: { start: number; end: number; peak: number; low: number; change: number; points: number };
+}) {
+  // Single point — show a flat indicator instead of a chart
+  if (data.length < 2) {
+    return (
+      <div className="rounded-lg border border-border/50 bg-muted/30 p-2.5 mb-2">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+            Earned vouch limit
+          </p>
+          <p className="text-[11px] font-semibold text-foreground">{formatUGX(summary.end)}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const W = 280;
+  const H = 56;
+  const PAD_X = 4;
+  const PAD_Y = 6;
+  const minT = data[0].t;
+  const maxT = data[data.length - 1].t;
+  const span = Math.max(1, maxT - minT);
+  const minV = summary.low;
+  const maxV = summary.peak;
+  const vSpan = Math.max(1, maxV - minV);
+
+  const pts = data.map((d) => {
+    const x = PAD_X + ((d.t - minT) / span) * (W - PAD_X * 2);
+    const y = PAD_Y + (1 - (d.limit - minV) / vSpan) * (H - PAD_Y * 2);
+    return [x, y] as const;
+  });
+
+  const linePath = pts.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(2)},${y.toFixed(2)}`).join(' ');
+  const areaPath = `${linePath} L${pts[pts.length - 1][0].toFixed(2)},${(H - PAD_Y).toFixed(2)} L${pts[0][0].toFixed(2)},${(H - PAD_Y).toFixed(2)} Z`;
+
+  const isUp = summary.change >= 0;
+  const trendTone = isUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
+
+  return (
+    <div className="rounded-lg border border-border/50 bg-muted/30 p-2.5 mb-2">
+      <div className="flex items-center justify-between gap-2 mb-1.5">
+        <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+          Earned vouch limit
+        </p>
+        <p className={cn('text-[10px] font-bold uppercase tracking-wider', trendTone)}>
+          {isUp ? '▲' : '▼'} {formatUGX(Math.abs(summary.change))}
+        </p>
+      </div>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="none"
+        className="w-full h-14"
+        role="img"
+        aria-label="Running earned vouch limit over time"
+      >
+        <defs>
+          <linearGradient id="vouchAreaFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d={areaPath} fill="url(#vouchAreaFill)" />
+        <path d={linePath} fill="none" stroke="hsl(var(--primary))" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+        {pts.length > 0 && (
+          <circle
+            cx={pts[pts.length - 1][0]}
+            cy={pts[pts.length - 1][1]}
+            r="2.5"
+            fill="hsl(var(--primary))"
+          />
+        )}
+      </svg>
+      <dl className="grid grid-cols-4 gap-1.5 mt-1.5">
+        <SummaryStat label="Start" value={formatUGX(summary.start)} />
+        <SummaryStat label="End" value={formatUGX(summary.end)} />
+        <SummaryStat label="Peak" value={formatUGX(summary.peak)} />
+        <SummaryStat label="Low" value={formatUGX(summary.low)} />
+      </dl>
+    </div>
+  );
+}
+
+function SummaryStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">{label}</dt>
+      <dd className="text-[10px] font-semibold text-foreground truncate">{value}</dd>
+    </div>
+  );
+}
+
 export default AgentVouchHistoryFeed;
