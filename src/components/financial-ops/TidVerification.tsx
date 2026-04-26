@@ -1711,12 +1711,82 @@ export function TidVerification() {
             resultState === 'searching' || !tid.trim() || !operatorAmount;
           if (!inFoundState && verifyDisabled && !providerMismatch) return null;
 
+          /**
+           * Real-time progress for the sticky bar.
+           *
+           *   verifying   – `handleVerify` is searching the deposits table
+           *   approving   – at least one match is in its 5s undoable window
+           *                 OR the backend `approve-deposit` call is live
+           *   done        – every visible match is already approved/rejected
+           *
+           * The bar shows a `Progress` driven by these phases so the operator
+           * can see something is happening even before the row UI updates.
+           */
+          const totalActionable = inFoundState
+            ? matches.filter(m => m.status === 'matched').length
+            : 0;
+          const settledCount = inFoundState
+            ? matches.filter(m => m.status === 'matched' && (approvedIds.has(m.id) || rejectedIds.has(m.id))).length
+            : 0;
+          const inFlightCount = inFoundState
+            ? matches.filter(
+                m => m.status === 'matched' &&
+                     !approvedIds.has(m.id) &&
+                     !rejectedIds.has(m.id) &&
+                     (pendingUndoIds.has(m.id) || approving === m.id),
+              ).length
+            : 0;
+
+          let phase: 'idle' | 'verifying' | 'approving' | 'done' = 'idle';
+          let phaseLabel = '';
+          let phaseValue = 0;
+          let phaseVariant: 'default' | 'success' = 'default';
+
+          if (resultState === 'searching') {
+            phase = 'verifying';
+            phaseLabel = 'Verifying transaction…';
+            phaseValue = 35;
+          } else if (inFoundState && totalActionable > 0 && settledCount === totalActionable) {
+            phase = 'done';
+            phaseLabel = `All ${totalActionable} approved`;
+            phaseValue = 100;
+            phaseVariant = 'success';
+          } else if (inFlightCount > 0) {
+            phase = 'approving';
+            // Count an in-flight item as 50% so progress visibly advances even
+            // before the row settles into approved.
+            const progressed = settledCount + inFlightCount * 0.5;
+            phaseValue = totalActionable > 0
+              ? Math.min(99, Math.round((progressed / totalActionable) * 100))
+              : 60;
+            phaseLabel = approving
+              ? `Approving ${settledCount + 1}/${totalActionable || 1}…`
+              : `Approving ${inFlightCount > 1 ? `${inFlightCount} matches` : '1 match'} — undoable`;
+          }
+
           return (
             <div
               className="sm:hidden fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-4px_12px_-4px_hsl(var(--foreground)/0.08)]"
               role="region"
               aria-label="Primary action"
             >
+              {phase !== 'idle' && (
+                <div className="mb-2" aria-live="polite">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <span className="text-[11px] font-medium text-muted-foreground inline-flex items-center gap-1.5">
+                      {phase !== 'done' && <Loader2 className="h-3 w-3 animate-spin" />}
+                      {phase === 'done' && <CheckCircle2 className="h-3 w-3 text-success" />}
+                      {phaseLabel}
+                    </span>
+                    {totalActionable > 0 && (
+                      <span className="text-[10px] tabular-nums text-muted-foreground">
+                        {settledCount}/{totalActionable}
+                      </span>
+                    )}
+                  </div>
+                  <Progress value={phaseValue} size="sm" variant={phaseVariant} />
+                </div>
+              )}
               {inFoundState && readyCount >= 2 ? (
                 <Button
                   size="lg"
