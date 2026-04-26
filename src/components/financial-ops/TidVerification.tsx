@@ -944,7 +944,9 @@ export function TidVerification() {
                 onChange={(e) => setTid(e.target.value.toUpperCase())}
                 placeholder="e.g. MP241231... or WEL-00001"
                 className="pl-9 h-12 font-mono text-base tracking-wide"
-                onKeyDown={(e) => e.key === 'Enter' && handleVerify()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !providerMismatch) handleVerify();
+                }}
               />
             </div>
           </div>
@@ -985,7 +987,12 @@ export function TidVerification() {
           />
           <Button
             onClick={handleVerify}
-            disabled={resultState === 'searching' || !tid.trim() || !operatorAmount}
+            disabled={
+              resultState === 'searching' ||
+              !tid.trim() ||
+              !operatorAmount ||
+              providerMismatch
+            }
             className="w-full h-12 sm:h-12 text-base font-semibold"
           >
             {resultState === 'searching' ? (
