@@ -14,6 +14,7 @@ import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalle
 import { WalletOverviewCard } from './WalletOverviewCard';
 import { OfflineSubmissionsQueue } from './OfflineSubmissionsQueue';
 import { VerifyDepositsHub } from './VerifyDepositsHub';
+import { MismatchMetricsPanel } from './MismatchMetricsPanel';
 
 
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
@@ -21,7 +22,7 @@ import { AgentRequisitionForm } from './AgentRequisitionForm';
 import { 
   ShieldCheck, Banknote, ArrowLeft, ChevronDown,
   ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, MinusCircle, FileText,
-  WifiOff, MoreHorizontal
+  WifiOff, MoreHorizontal, AlertTriangle
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 
@@ -29,7 +30,8 @@ type View = 'home' | 'deposits' | 'offline_collections';
 type Tool =
   | null
   | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit'
-  | 'withdrawals' | 'opportunities' | 'deductions' | 'requisitions';
+  | 'withdrawals' | 'opportunities' | 'deductions' | 'requisitions'
+  | 'mismatch_metrics';
 
 /**
  * Items hidden behind the "More" button. Per CFO mandate the dashboard
@@ -51,6 +53,7 @@ const moreActions: MoreAction[] = [
   { kind: 'tool', id: 'audit', label: 'Audit Trail', desc: 'Action history', icon: Shield },
   { kind: 'tool', id: 'opportunities', label: 'Capital Opportunities', desc: 'Investment summaries', icon: TrendingUp },
   { kind: 'tool', id: 'requisitions', label: 'Fund Requisitions', desc: 'Agent fund requests', icon: FileText },
+  { kind: 'tool', id: 'mismatch_metrics', label: 'Mismatch Metrics', desc: 'Operator provider-mismatch attempts', icon: AlertTriangle },
 ];
 
 export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymentRef?: boolean } = {}) {
@@ -148,6 +151,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
             <AgentRequisitionForm />
           </div>
         )}
+        {activeTool === 'mismatch_metrics' && <MismatchMetricsPanel />}
       </div>
     );
   }
