@@ -511,6 +511,7 @@ export function FieldDepositVerificationQueue({
                             : 'bg-muted/10')
                         }
                       >
+                        {isVisible('batch') && (
                         <td className="px-2 py-2 align-top">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-medium truncate max-w-[140px]">
@@ -538,9 +539,13 @@ export function FieldDepositVerificationQueue({
                             )}
                           </div>
                         </td>
+                        )}
+                        {isVisible('amount') && (
                         <td className="px-2 py-2 align-top text-right font-mono font-semibold tabular-nums">
                           {formatUGX(r.declared_total)}
                         </td>
+                        )}
+                        {isVisible('status') && (
                         <td className="px-2 py-2 align-top">
                           {isPending ? (
                             <Badge variant="outline" className="text-[9px] h-4 px-1 gap-0.5">
@@ -556,6 +561,8 @@ export function FieldDepositVerificationQueue({
                             </Badge>
                           )}
                         </td>
+                        )}
+                        {isVisible('verified_by') && (
                         <td className="px-2 py-2 align-top">
                           {r.verified_by_name ? (
                             <div className="flex items-center gap-1">
@@ -572,6 +579,8 @@ export function FieldDepositVerificationQueue({
                             <span className="text-muted-foreground italic">Awaiting</span>
                           )}
                         </td>
+                        )}
+                        {isVisible('verified_at') && (
                         <td
                           className="px-2 py-2 align-top text-muted-foreground tabular-nums whitespace-nowrap"
                         >
@@ -612,6 +621,7 @@ export function FieldDepositVerificationQueue({
                             '—'
                           )}
                         </td>
+                        )}
                       </tr>
                     );
                   })}
