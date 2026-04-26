@@ -45,6 +45,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
 import { downloadCsv, csvTimestamp } from '@/lib/csvExport';
 import { downloadAuditPdf, pdfTimestampLabel } from '@/lib/pdfAuditReport';
+import { downloadXlsx } from '@/lib/xlsxExport';
 
 /**
  * A row in the unified verification table — pending batches PLUS the most
@@ -437,6 +438,32 @@ export function FieldDepositVerificationQueue({
     }
   };
 
+  /**
+   * XLSX export — same payload as CSV/PDF, delivered as a real Excel file
+   * with a frozen header and auto-sized columns for spreadsheet workflows.
+   */
+  const handleExportXlsx = async () => {
+    setExporting(true);
+    try {
+      const { headers, rows, count } = await buildExportPayload();
+      if (count === 0) {
+        toast.info('Nothing to export — no batches match the current filters.');
+        return;
+      }
+      await downloadXlsx(
+        `field-deposits-audit-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        headers,
+        rows,
+        'Field Deposits',
+      );
+      toast.success(`Exported ${count} batch${count === 1 ? '' : 'es'} to XLSX.`);
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Failed to export audit log');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <>
       <Card>
@@ -505,6 +532,14 @@ export function FieldDepositVerificationQueue({
                   >
                     <Download className="mr-2 h-3.5 w-3.5" />
                     CSV (spreadsheet)
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={false}
+                    onCheckedChange={() => handleExportXlsx()}
+                    onSelect={(e) => e.preventDefault()}
+                  >
+                    <Download className="mr-2 h-3.5 w-3.5" />
+                    XLSX (Excel)
                   </DropdownMenuCheckboxItem>
                   <DropdownMenuCheckboxItem
                     checked={false}
