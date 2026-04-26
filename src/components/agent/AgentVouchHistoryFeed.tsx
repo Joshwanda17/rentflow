@@ -78,6 +78,28 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
   // so the user stays anchored to the same visual row.
   const pendingScrollAdjustRef = useRef<{ prevHeight: number; prevScrollY: number } | null>(null);
 
+  // Brief "applying realtime update" indicator so the feed doesn't feel jumpy
+  const [isApplyingRealtime, setIsApplyingRealtime] = useState(false);
+  const applyingTimeoutRef = useRef<number | null>(null);
+  const triggerApplyingPulse = () => {
+    setIsApplyingRealtime(true);
+    if (applyingTimeoutRef.current) {
+      window.clearTimeout(applyingTimeoutRef.current);
+    }
+    applyingTimeoutRef.current = window.setTimeout(() => {
+      setIsApplyingRealtime(false);
+      applyingTimeoutRef.current = null;
+    }, 600);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (applyingTimeoutRef.current) {
+        window.clearTimeout(applyingTimeoutRef.current);
+      }
+    };
+  }, []);
+
   useLayoutEffect(() => {
     const pending = pendingScrollAdjustRef.current;
     if (!pending) return;
@@ -135,6 +157,7 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
             }
             return [row, ...prev].slice(0, 200);
           });
+          triggerApplyingPulse();
           toast.success('New vouch history entry', {
             description: 'Feed refreshed with a new record.',
           });
@@ -151,6 +174,7 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
             prevScrollY: window.scrollY,
           };
           setRows((prev) => prev.map((r) => (r.id === row.id ? row : r)));
+          triggerApplyingPulse();
           toast('Vouch history updated', {
             description: 'An existing record was updated.',
           });
@@ -319,6 +343,15 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
           <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
             Vouch history
           </p>
+          {isApplyingRealtime && (
+            <span
+              className="inline-flex items-center gap-1 ml-1 px-1.5 h-4 rounded-full bg-primary/10 text-primary text-[9px] font-bold uppercase tracking-wider animate-pulse"
+              aria-live="polite"
+            >
+              <RefreshCw className="h-2.5 w-2.5 animate-spin" />
+              Updating
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1 flex-wrap">
           {PRESETS.map((p) => (
@@ -422,6 +455,13 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
 
       {!loading && chartData.length > 0 && (
         <VouchLimitChart data={chartData} summary={chartSummary} />
+      )}
+
+      {!loading && isApplyingRealtime && filteredRows.length > 0 && (
+        <div className="mb-2 space-y-1.5" aria-hidden="true">
+          <Skeleton className="h-1 w-full rounded-full" />
+          <Skeleton className="h-8 w-full rounded-md opacity-60" />
+        </div>
       )}
 
       {!loading && filteredRows.length > 0 && (
