@@ -319,9 +319,22 @@ export function VerifyDepositsHub() {
         </div>
 
         <div className="space-y-1">
-          <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
-            Verified by
-          </Label>
+          <div className="flex items-center justify-between gap-2 min-h-[14px]">
+            <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              Verified by
+            </Label>
+            {verifierId !== 'all' && (
+              <button
+                type="button"
+                onClick={() => setVerifierId('all')}
+                className="text-[10px] font-medium text-primary hover:underline focus:underline focus:outline-none"
+                title="Clear the verifier filter and show all operators"
+                aria-label="Reset verifier filter to Any operator"
+              >
+                Reset to Any operator
+              </button>
+            )}
+          </div>
           <Select value={verifierId} onValueChange={setVerifierId}>
             <SelectTrigger className="h-8 text-sm">
               <SelectValue placeholder="Any operator" />
