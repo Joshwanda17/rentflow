@@ -133,8 +133,8 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
         setRows((data ?? []) as HistoryRow[]);
         if (mode === 'manual') {
           toast.success('Vouch history refreshed');
+          setLastRefreshedAt(new Date());
         }
-        setLastRefreshedAt(new Date());
       }
     } catch (e: any) {
       if (mode === 'manual') toast.error(e?.message || 'Could not refresh vouch history.');
