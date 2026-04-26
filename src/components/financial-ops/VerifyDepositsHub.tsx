@@ -50,7 +50,28 @@ export function VerifyDepositsHub() {
   const [maxAmount, setMaxAmount] = useState<string>('');
   // Verifier (operator) filter — only narrows resolved/recently-verified rows.
   // Pending rows have no verifier yet so they are excluded when this is set.
-  const [verifierId, setVerifierId] = useState<string>('all');
+  // Restored from localStorage so the operator's last selection survives a
+  // reload. The sentinel value `'me'` means "the current user" — resolved
+  // to the real id once auth completes (id is unknown on first render).
+  const VERIFIER_STORAGE_KEY = 'finops:verifier-last-selection';
+  const [verifierId, setVerifierIdRaw] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'all';
+    const saved = window.localStorage.getItem(VERIFIER_STORAGE_KEY);
+    return saved && saved.length > 0 ? saved : 'all';
+  });
+  /**
+   * Wraps `setVerifierId` so every change is persisted. We store the literal
+   * `'me'` sentinel (not the resolved user id) so the preference still maps
+   * to "the current user" if a different operator signs in on the same
+   * device. Real operator ids are stored as-is.
+   */
+  const setVerifierId = (next: string) => {
+    setVerifierIdRaw(next);
+    try {
+      const toStore = meId && next === meId ? 'me' : next;
+      window.localStorage.setItem(VERIFIER_STORAGE_KEY, toStore);
+    } catch { /* storage may be unavailable */ }
+  };
   const [verifiers, setVerifiers] = useState<{ id: string; full_name: string | null }[]>([]);
   // Free-text filter over the verifier dropdown — handy once dozens of
   // operators have processed deposits and scrolling is tedious.
@@ -98,9 +119,18 @@ export function VerifyDepositsHub() {
   // if the operator hasn't already changed the filter this session.
   useEffect(() => {
     if (appliedDefaultMe) return;
-    if (!defaultToMe || !meId) return;
+    if (!meId) return;
+    // Resolve the persisted `'me'` sentinel to the real user id now that
+    // we know who the operator is. This takes priority over the
+    // "default to me" preference because it's an explicit prior choice.
+    if (verifierId === 'me') {
+      setVerifierIdRaw(meId);
+      setAppliedDefaultMe(true);
+      return;
+    }
+    if (!defaultToMe) { setAppliedDefaultMe(true); return; }
     if (verifierId !== 'all') { setAppliedDefaultMe(true); return; }
-    setVerifierId(meId);
+    setVerifierIdRaw(meId);
     setAppliedDefaultMe(true);
   }, [defaultToMe, meId, verifierId, appliedDefaultMe]);
 
@@ -181,8 +211,12 @@ export function VerifyDepositsHub() {
     channelFilters.length > 0 ||
     (typeof minNum === 'number' && !Number.isNaN(minNum)) ||
     (typeof maxNum === 'number' && !Number.isNaN(maxNum)) ||
-    verifierId !== 'all';
-  const verifierFilter = verifierId === 'all' ? undefined : verifierId;
+    (verifierId !== 'all' && verifierId !== 'me');
+  // The `'me'` sentinel is treated as "no filter yet" until the auth user
+  // resolves and the effect above swaps it for the real id. This prevents
+  // a stray `processed_by = 'me'` query during the brief unresolved window.
+  const verifierFilter =
+    verifierId === 'all' || verifierId === 'me' ? undefined : verifierId;
 
   // Convert the date pickers to ISO bounds — inclusive day-windows so a
   // single-day selection covers the full 24h. Children only use these for
