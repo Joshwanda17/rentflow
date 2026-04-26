@@ -1,8 +1,15 @@
 import { useEffect, useState } from 'react';
-import { History, ArrowUpRight, ArrowDownRight, RotateCcw } from 'lucide-react';
+import { History, ArrowUpRight, ArrowDownRight, RotateCcw, ExternalLink } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 
 /**
  * AgentVouchHistoryFeed
@@ -34,6 +41,7 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
   const [rows, setRows] = useState<HistoryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAll, setShowAll] = useState(false);
+  const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,7 +92,11 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
       {!loading && rows.length > 0 && (
         <ul className="divide-y divide-border/50">
           {visible.map((r) => (
-            <HistoryItem key={r.id} row={r} />
+            <HistoryItem
+              key={r.id}
+              row={r}
+              onViewCollection={(id) => setActiveCollectionId(id)}
+            />
           ))}
         </ul>
       )}
@@ -97,11 +109,16 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
           {showAll ? 'Show less' : `Show all ${rows.length}`}
         </button>
       )}
+
+      <CollectionDetailDialog
+        collectionId={activeCollectionId}
+        onClose={() => setActiveCollectionId(null)}
+      />
     </div>
   );
 }
 
-function HistoryItem({ row }: { row: HistoryRow }) {
+function HistoryItem({ row, onViewCollection }: { row: HistoryRow; onViewCollection: (id: string) => void }) {
   const delta = Number(row.delta_ugx ?? 0);
   const isReversal = row.change_source === 'collection_delete';
   const isUpdate = row.change_source === 'collection_update';
@@ -158,8 +175,114 @@ function HistoryItem({ row }: { row: HistoryRow }) {
             New: <span className="font-semibold text-foreground">{formatUGX(newLimit)}</span>
           </p>
         </div>
+        {row.collection_id && (
+          <button
+            type="button"
+            onClick={() => onViewCollection(row.collection_id!)}
+            className="mt-1 inline-flex items-center gap-1 text-[10px] font-semibold text-primary hover:underline"
+          >
+            <ExternalLink className="h-3 w-3" />
+            View collection
+          </button>
+        )}
       </div>
     </li>
+  );
+}
+
+interface CollectionDetail {
+  id: string;
+  amount: number;
+  created_at: string;
+  payment_method: string;
+  location_name: string | null;
+  notes: string | null;
+  momo_provider: string | null;
+  momo_phone: string | null;
+  momo_payer_name: string | null;
+  momo_transaction_id: string | null;
+  tenant_id: string;
+  tenant_name?: string | null;
+}
+
+function CollectionDetailDialog({
+  collectionId,
+  onClose,
+}: {
+  collectionId: string | null;
+  onClose: () => void;
+}) {
+  const [data, setData] = useState<CollectionDetail | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!collectionId) { setData(null); return; }
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      const { data: c } = await (supabase as any)
+        .from('ln')
+        .select('id, amount, created_at, payment_method, location_name, notes, momo_provider, momo_phone, momo_payer_name, momo_transaction_id, tenant_id')
+        .eq('id', collectionId)
+        .maybeSingle();
+      if (cancelled) return;
+      if (!c) { setData(null); setLoading(false); return; }
+      const { data: tenant } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', c.tenant_id)
+        .maybeSingle();
+      if (cancelled) return;
+      setData({ ...c, tenant_name: tenant?.full_name ?? null } as CollectionDetail);
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [collectionId]);
+
+  const open = !!collectionId;
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Collection detail</DialogTitle>
+          <DialogDescription>
+            Field collection record linked to this vouch adjustment.
+          </DialogDescription>
+        </DialogHeader>
+        {loading && <p className="text-sm text-muted-foreground py-4">Loading…</p>}
+        {!loading && !data && (
+          <p className="text-sm text-muted-foreground py-4">
+            Collection not found or no longer accessible.
+          </p>
+        )}
+        {!loading && data && (
+          <dl className="text-sm space-y-2">
+            <Row label="Amount" value={formatUGX(Number(data.amount))} strong />
+            <Row label="Date" value={new Date(data.created_at).toLocaleString()} />
+            <Row label="Tenant" value={data.tenant_name || data.tenant_id.slice(0, 8)} />
+            <Row label="Method" value={data.payment_method} />
+            {data.location_name && <Row label="Location" value={data.location_name} />}
+            {data.momo_provider && <Row label="MoMo provider" value={data.momo_provider} />}
+            {data.momo_phone && <Row label="MoMo phone" value={data.momo_phone} />}
+            {data.momo_payer_name && <Row label="Payer" value={data.momo_payer_name} />}
+            {data.momo_transaction_id && <Row label="Txn ID" value={data.momo_transaction_id} />}
+            {data.notes && <Row label="Notes" value={data.notes} />}
+          </dl>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <dt className="text-xs uppercase tracking-wide text-muted-foreground">{label}</dt>
+      <dd className={cn('text-right break-all', strong ? 'font-bold text-foreground' : 'text-foreground')}>
+        {value}
+      </dd>
+    </div>
   );
 }
 
