@@ -418,7 +418,7 @@ export function FieldDepositVerificationQueue({ channels, minAmount, maxAmount, 
                           {r.verified_by_name ? (
                             <div className="flex items-center gap-1">
                               <UserIcon className="h-3 w-3 text-muted-foreground shrink-0" />
-                              <span className="font-medium truncate max-w-[120px]">
+                              <span className="font-medium">
                                 {r.verified_by_name}
                               </span>
                             </div>
