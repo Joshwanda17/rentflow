@@ -48,6 +48,9 @@ export function VerifyDepositsHub() {
   // Pending rows have no verifier yet so they are excluded when this is set.
   const [verifierId, setVerifierId] = useState<string>('all');
   const [verifiers, setVerifiers] = useState<{ id: string; full_name: string | null }[]>([]);
+  // Free-text filter over the verifier dropdown — handy once dozens of
+  // operators have processed deposits and scrolling is tedious.
+  const [verifierSearch, setVerifierSearch] = useState<string>('');
 
   // Build a single distinct list of operators who have ever resolved a deposit
   // — pulled from both deposit_requests (user side) and field_deposit_batches
