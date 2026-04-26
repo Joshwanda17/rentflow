@@ -47,9 +47,14 @@ interface Props {
   limit?: number;
   /** When set, only show deposits resolved by this operator user_id. */
   verifierId?: string;
+  /** Export-only — start of the verification window (ISO). Filters CSV rows
+   *  by approved_at/rejected_at >= this timestamp. Live table is unaffected. */
+  exportFromIso?: string;
+  /** Export-only — end of the verification window (ISO), inclusive. */
+  exportToIso?: string;
 }
 
-export function RecentlyVerifiedList({ limit = 10, verifierId }: Props) {
+export function RecentlyVerifiedList({ limit = 10, verifierId, exportFromIso, exportToIso }: Props) {
   const autoRefresh = useFinOpsAutoRefresh();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
