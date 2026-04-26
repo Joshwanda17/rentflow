@@ -69,9 +69,21 @@ interface Props {
   /** When set, only show resolved batches verified by this operator user_id.
    *  Pending batches (no verifier yet) are hidden while this is active. */
   verifierId?: string;
+  /** Export-only — start of the verification window (ISO). Filters CSV rows
+   *  by finops_verified_at >= this timestamp. Live queue is unaffected. */
+  exportFromIso?: string;
+  /** Export-only — end of the verification window (ISO), inclusive. */
+  exportToIso?: string;
 }
 
-export function FieldDepositVerificationQueue({ channels, minAmount, maxAmount, verifierId }: Props = {}) {
+export function FieldDepositVerificationQueue({
+  channels,
+  minAmount,
+  maxAmount,
+  verifierId,
+  exportFromIso,
+  exportToIso,
+}: Props = {}) {
   const autoRefresh = useFinOpsAutoRefresh();
   const [rows, setRows] = useState<QueueRow[]>([]);
   const [loading, setLoading] = useState(true);
