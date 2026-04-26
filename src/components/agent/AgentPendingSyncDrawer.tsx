@@ -479,7 +479,10 @@ export function AgentPendingSyncDrawer({ open, onOpenChange }: Props) {
                 )}
                 {draft.status === 'ready_to_submit' && (
                   <div className="flex items-center gap-1.5 text-[11px] text-primary">
-                    <ShieldCheck className="h-3 w-3" /> Proof attached ({draft.proof_bundle?.type})
+                    <ShieldCheck className="h-3 w-3" />
+                    {draft.proof_bundle?.type === 'transaction_ref'
+                      ? <>TXN ref: <span className="font-mono font-bold">{draft.proof_bundle.reference}</span></>
+                      : <>Proof attached ({draft.proof_bundle?.type})</>}
                   </div>
                 )}
                 {draft.status === 'rejected' && draft.last_error && (
