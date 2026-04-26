@@ -78,6 +78,28 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
   // so the user stays anchored to the same visual row.
   const pendingScrollAdjustRef = useRef<{ prevHeight: number; prevScrollY: number } | null>(null);
 
+  // Brief "applying realtime update" indicator so the feed doesn't feel jumpy
+  const [isApplyingRealtime, setIsApplyingRealtime] = useState(false);
+  const applyingTimeoutRef = useRef<number | null>(null);
+  const triggerApplyingPulse = () => {
+    setIsApplyingRealtime(true);
+    if (applyingTimeoutRef.current) {
+      window.clearTimeout(applyingTimeoutRef.current);
+    }
+    applyingTimeoutRef.current = window.setTimeout(() => {
+      setIsApplyingRealtime(false);
+      applyingTimeoutRef.current = null;
+    }, 600);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (applyingTimeoutRef.current) {
+        window.clearTimeout(applyingTimeoutRef.current);
+      }
+    };
+  }, []);
+
   useLayoutEffect(() => {
     const pending = pendingScrollAdjustRef.current;
     if (!pending) return;
@@ -135,6 +157,7 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
             }
             return [row, ...prev].slice(0, 200);
           });
+          triggerApplyingPulse();
           toast.success('New vouch history entry', {
             description: 'Feed refreshed with a new record.',
           });
@@ -151,6 +174,7 @@ export function AgentVouchHistoryFeed({ agentId, limit = 10 }: Props) {
             prevScrollY: window.scrollY,
           };
           setRows((prev) => prev.map((r) => (r.id === row.id ? row : r)));
+          triggerApplyingPulse();
           toast('Vouch history updated', {
             description: 'An existing record was updated.',
           });
