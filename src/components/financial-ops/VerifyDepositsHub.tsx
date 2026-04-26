@@ -387,6 +387,90 @@ export function VerifyDepositsHub() {
         </div>
       </div>
 
+      {/* Export-only date window. Operators can scope the CSV download to a
+          specific verification period without filtering the live queue. */}
+      <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+            <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground" />
+            Export date range
+            <span className="text-[10px] font-normal text-muted-foreground italic">
+              (applies to CSV download only)
+            </span>
+          </div>
+          {(exportFrom || exportTo) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-[11px] gap-1"
+              onClick={() => { setExportFrom(undefined); setExportTo(undefined); }}
+            >
+              <X className="h-3 w-3" /> Clear
+            </Button>
+          )}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              From
+            </Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    'h-8 w-full justify-start text-left text-sm font-normal',
+                    !exportFrom && 'text-muted-foreground',
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                  {exportFrom ? format(exportFrom, 'PP') : 'Pick a start date'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={exportFrom}
+                  onSelect={setExportFrom}
+                  disabled={(d) => (exportTo ? d > exportTo : false) || d > new Date()}
+                  initialFocus
+                  className={cn('p-3 pointer-events-auto')}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              To
+            </Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    'h-8 w-full justify-start text-left text-sm font-normal',
+                    !exportTo && 'text-muted-foreground',
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                  {exportTo ? format(exportTo, 'PP') : 'Pick an end date'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={exportTo}
+                  onSelect={setExportTo}
+                  disabled={(d) => (exportFrom ? d < exportFrom : false) || d > new Date()}
+                  initialFocus
+                  className={cn('p-3 pointer-events-auto')}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
+      </div>
+
       {verifierFilter && (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
