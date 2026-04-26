@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   Camera, PenLine, MessageSquare, ShieldCheck, WifiOff, Loader2,
   AlertCircle, Trash2, RefreshCw, CheckCircle2, Receipt, Wifi,
+  Check, Circle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
@@ -422,6 +423,74 @@ export function AgentPendingSyncDrawer({ open, onOpenChange }: Props) {
                   <Wifi className="h-3.5 w-3.5" />
                   Capture the reference exactly as it appears in the SMS or receipt
                 </div>
+
+                {/* ─── Live submission checklist ─────────────────────────────
+                    Every item must turn green before Financial Ops will
+                    accept the draft. We surface the rules the edge function
+                    enforces so the agent never has to guess what's wrong. */}
+                {(() => {
+                  const refTrim = txnReference.trim().toUpperCase();
+                  const checks = [
+                    { key: 'channel', label: 'Channel selected (MTN, Airtel, Receipt or Bank)', ok: !!txnChannel },
+                    { key: 'ref-present', label: `${refRules[txnChannel].label} entered`, ok: refTrim.length > 0 },
+                    { key: 'ref-format', label: `Matches expected format for ${refRules[txnChannel].label}`, ok: txnRefIsValid },
+                  ] as const;
+                  const passed = checks.filter(c => c.ok).length;
+                  const allOk = passed === checks.length;
+                  return (
+                    <div
+                      className={`rounded-xl border p-2.5 ${
+                        allOk
+                          ? 'border-success/40 bg-success/5'
+                          : 'border-warning/40 bg-warning/5'
+                      }`}
+                      role="status"
+                      aria-live="polite"
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <p className={`text-[10px] uppercase tracking-wider font-bold ${
+                          allOk ? 'text-success' : 'text-warning'
+                        }`}>
+                          Submission checklist
+                        </p>
+                        <Badge
+                          variant="outline"
+                          className={`text-[9px] ${
+                            allOk
+                              ? 'border-success/40 text-success'
+                              : 'border-warning/40 text-warning'
+                          }`}
+                        >
+                          {passed}/{checks.length} passed
+                        </Badge>
+                      </div>
+                      <ul className="space-y-1">
+                        {checks.map(c => (
+                          <li
+                            key={c.key}
+                            className={`flex items-start gap-2 text-[11px] leading-snug ${
+                              c.ok ? 'text-success' : 'text-muted-foreground'
+                            }`}
+                          >
+                            {c.ok ? (
+                              <Check className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                            ) : (
+                              <Circle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-warning" />
+                            )}
+                            <span className={c.ok ? 'line-through opacity-80' : 'font-medium'}>
+                              {c.label}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                      {!allOk && (
+                        <p className="text-[10px] text-muted-foreground mt-1.5 pt-1.5 border-t border-warning/20">
+                          Financial Ops will <span className="font-bold text-warning">reject</span> this draft until every item above is green.
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 <div>
                   <Label className="text-xs">Channel</Label>
