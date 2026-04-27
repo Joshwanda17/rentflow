@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import OperationalFloatTenantAllocator, {
   encodeAllocationsNote,
+  decodeAllocationsFromNote,
   type TenantAllocation,
 } from './OperationalFloatTenantAllocator';
 
@@ -53,6 +54,15 @@ interface DepositFlowProps {
    * the "tap-through and mis-bucket" failure mode for agents.
    */
   requirePurposeChoice?: boolean;
+  /**
+   * Edit mode: when set, the dialog loads the given pending deposit
+   * request, prefills every field (including the per-tenant allocation
+   * breakdown decoded from `notes`), and the submit handler issues an
+   * UPDATE instead of an INSERT. Only `status='pending'` rows are
+   * editable — anything reviewed/approved/rejected falls back to a
+   * read-only toast and closes.
+   */
+  editRequestId?: string | null;
 }
 
 const DEPOSIT_PURPOSES: { id: DepositPurpose; label: string; emoji: string; desc: string }[] = [
