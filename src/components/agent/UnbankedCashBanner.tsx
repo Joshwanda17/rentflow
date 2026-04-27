@@ -1458,7 +1458,6 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
               })}
             </ul>
           </div>
-          </>)}
 
           {/* Shared inputs section */}
           <div className="px-4 py-3 mt-2 border-t border-border space-y-3">
