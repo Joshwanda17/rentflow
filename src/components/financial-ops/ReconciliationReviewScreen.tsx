@@ -189,7 +189,7 @@ export function ReconciliationReviewScreen({
 
       const allocations =
         pick.deposit_purpose === 'operational_float' && pick.notes
-          ? decodeAllocationsFromNote(pick.notes) ?? []
+          ? decodeAllocationsFromNote(pick.notes)?.allocations ?? []
           : [];
 
       const matchedVia: 'tid' | 'notes' = real ? 'tid' : 'notes';
