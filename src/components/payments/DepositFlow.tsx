@@ -943,6 +943,14 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   </p>
                 </div>
               )}
+              {depositPurpose === 'operational_float' && currentUserId && (
+                <OperationalFloatTenantAllocator
+                  agentId={currentUserId}
+                  totalAmount={parseFloat(amount) || 0}
+                  allocations={tenantAllocations}
+                  onChange={setTenantAllocations}
+                />
+              )}
               {depositPurpose === 'other' && (
                 <Input placeholder="Specify your reason..." value={reason} onChange={(e) => setReason(e.target.value)} className="h-10 text-sm" />
               )}
