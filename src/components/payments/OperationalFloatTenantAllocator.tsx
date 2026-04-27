@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Loader2, Search, Plus, Trash2, Users, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Loader2, Search, Plus, Trash2, Users, AlertCircle, CheckCircle2, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 
 /**
  * One row in the breakdown: which tenant (and a denormalised label so we
@@ -47,6 +49,10 @@ interface TenantOption {
   full_name: string;
   phone: string | null;
   monthly_rent?: number | null;
+  /** When the tenant's profile (and therefore monthly_rent) was last updated.
+   *  Surfaced in the per-row provenance tooltip so the agent can tell whether
+   *  the rent figure they're seeing is fresh or stale. */
+  monthly_rent_updated_at?: string | null;
 }
 
 /**
@@ -85,7 +91,7 @@ export default function OperationalFloatTenantAllocator({
         const [referredRes, referralRes, rentReqRes] = await Promise.all([
           supabase
             .from('profiles')
-            .select('id, full_name, phone, monthly_rent')
+            .select('id, full_name, phone, monthly_rent, updated_at')
             .eq('referrer_id', agentId)
             .order('created_at', { ascending: false })
             .limit(200),
@@ -101,7 +107,13 @@ export default function OperationalFloatTenantAllocator({
             .limit(200),
         ]);
 
-        const direct = (referredRes.data || []) as TenantOption[];
+        const direct = ((referredRes.data || []) as any[]).map((t) => ({
+          id: t.id,
+          full_name: t.full_name,
+          phone: t.phone,
+          monthly_rent: t.monthly_rent,
+          monthly_rent_updated_at: t.updated_at,
+        })) as TenantOption[];
         const directIds = new Set(direct.map((t) => t.id));
 
         const extraIds = [
@@ -114,9 +126,15 @@ export default function OperationalFloatTenantAllocator({
           const unique = [...new Set(extraIds)];
           const { data } = await supabase
             .from('profiles')
-            .select('id, full_name, phone, monthly_rent')
+            .select('id, full_name, phone, monthly_rent, updated_at')
             .in('id', unique);
-          extras = (data || []) as TenantOption[];
+          extras = ((data || []) as any[]).map((t) => ({
+            id: t.id,
+            full_name: t.full_name,
+            phone: t.phone,
+            monthly_rent: t.monthly_rent,
+            monthly_rent_updated_at: t.updated_at,
+          })) as TenantOption[];
         }
 
         if (!cancelled) setTenants([...direct, ...extras]);
@@ -142,6 +160,16 @@ export default function OperationalFloatTenantAllocator({
   const isOverAllocated = remaining < -0.5;
 
   const selectedIds = useMemo(() => new Set(allocations.map((a) => a.tenant_id)), [allocations]);
+
+  /** Quick lookup so each allocation row can find its source tenant
+   *  metadata (rent value + last-updated timestamp) for the provenance
+   *  tooltip. Allocations restored from `notes` won't be in `tenants`,
+   *  so the tooltip degrades gracefully. */
+  const tenantById = useMemo(() => {
+    const m = new Map<string, TenantOption>();
+    for (const t of tenants) m.set(t.id, t);
+    return m;
+  }, [tenants]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -312,7 +340,13 @@ export default function OperationalFloatTenantAllocator({
               >
                 <div className="flex items-center gap-2">
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium truncate">{a.tenant_name}</p>
+                    <div className="flex items-center gap-1 min-w-0">
+                      <p className="text-xs font-medium truncate">{a.tenant_name}</p>
+                      <RentSourceTooltip
+                        rent={a.monthly_rent ?? tenantById.get(a.tenant_id)?.monthly_rent ?? null}
+                        updatedAt={tenantById.get(a.tenant_id)?.monthly_rent_updated_at ?? null}
+                      />
+                    </div>
                     {a.tenant_phone && (
                       <p className="text-[10px] text-muted-foreground truncate">{a.tenant_phone}</p>
                     )}
@@ -412,8 +446,14 @@ export default function OperationalFloatTenantAllocator({
                   )}
                 </div>
                 {t.monthly_rent ? (
-                  <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
-                    rent {Number(t.monthly_rent).toLocaleString()}
+                  <span className="flex items-center gap-1 shrink-0">
+                    <span className="text-[10px] text-muted-foreground tabular-nums">
+                      rent {Number(t.monthly_rent).toLocaleString()}
+                    </span>
+                    <RentSourceTooltip
+                      rent={t.monthly_rent}
+                      updatedAt={t.monthly_rent_updated_at}
+                    />
                   </span>
                 ) : null}
               </button>
@@ -553,4 +593,59 @@ export function decodeAllocationsFromNote(note: string | null | undefined): {
   } catch {
     return { cleanNote: head, allocations: null };
   }
+}
+
+/**
+ * Compact info icon that explains where the rent figure on this row came
+ * from and when it was last touched. Hover (desktop) or tap (mobile)
+ * opens a tooltip — agents who suspect a stale rent value can use this
+ * to decide whether to ask Landlord Ops for a refresh before allocating.
+ */
+function RentSourceTooltip({
+  rent,
+  updatedAt,
+}: {
+  rent: number | null | undefined;
+  updatedAt: string | null | undefined;
+}) {
+  const hasRent = rent != null && Number(rent) > 0;
+  const updatedLabel = updatedAt
+    ? format(new Date(updatedAt), 'd MMM yyyy')
+    : 'Unknown';
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label="Where does this rent value come from?"
+          className="shrink-0 inline-flex items-center justify-center h-4 w-4 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          // Stop the click from bubbling into any parent button (e.g. the
+          // picker's "add tenant" row).
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Info className="h-3 w-3" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-[240px] text-xs">
+        <p className="font-semibold mb-1">Monthly rent source</p>
+        {hasRent ? (
+          <>
+            <p className="text-muted-foreground">
+              From the tenant's profile (<code className="text-[10px]">monthly_rent</code>),
+              kept up to date by Landlord Ops when their rent plan changes.
+            </p>
+            <p className="mt-1.5">
+              <span className="text-muted-foreground">Last updated:</span>{' '}
+              <span className="font-medium">{updatedLabel}</span>
+            </p>
+          </>
+        ) : (
+          <p className="text-muted-foreground">
+            No monthly rent on file for this tenant. Ask Landlord Ops to set
+            it on the tenant's profile so future allocations are validated.
+          </p>
+        )}
+      </TooltipContent>
+    </Tooltip>
+  );
 }
