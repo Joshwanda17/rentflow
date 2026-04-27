@@ -1374,7 +1374,7 @@ export function TidVerification() {
           <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 border-b border-border/60">
             <div className="flex items-center gap-2 min-w-0">
               <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                Pending {provider.replace('_', ' ')} deposits
+                Pending {pendingProviderFilter === 'all' ? 'all' : pendingProviderFilter.replace('_', ' ')} deposits
                 {pending.length > 0 && (
                   <span className="ml-1 text-muted-foreground/80">
                     ({pendingSearch.trim() ? `${pendingFiltered.length}/${pending.length}` : pending.length})
@@ -1448,9 +1448,10 @@ export function TidVerification() {
               <div className="space-y-1.5">
                 <FilterChipRow
                   label="Provider"
-                  value={provider}
-                  onChange={(v) => setProvider(v)}
+                  value={pendingProviderFilter}
+                  onChange={(v) => setPendingProviderFilter(v)}
                   options={[
+                    { value: 'all', label: 'All' },
                     { value: 'mtn', label: 'MTN' },
                     { value: 'airtel', label: 'Airtel' },
                     { value: 'bank_transfer', label: 'Bank' },
