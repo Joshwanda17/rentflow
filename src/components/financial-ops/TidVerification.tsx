@@ -183,6 +183,18 @@ export function TidVerification() {
   // Use state (not just ref) so the per-row UI updates when entries
   // are added/removed.
   const [pendingUndoIds, setPendingUndoIds] = useState<Set<string>>(new Set());
+  // Mirror of every match currently waiting in the undo window, keyed
+  // by match id. We need this in a ref (not just React state) so the
+  // unmount + `beforeunload` flush handlers can still find the row data
+  // after React has torn down. Without this, closing the dialog or
+  // navigating away during the undo window silently drops the approval —
+  // which is the bug operators on phones kept hitting ("verified
+  // deposits don't disappear").
+  const pendingMatchesRef = useRef<Map<string, MatchResult>>(new Map());
+  // Per-row countdown (seconds remaining) so we can render
+  // "Approving in 3…2…1" in the pending pick-list and on the match card.
+  const [undoCountdown, setUndoCountdown] = useState<Map<string, number>>(new Map());
+  const countdownTimersRef = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
 
   // Pending depositor pick-list — narrow the user-visible queue by the
   // currently selected provider so the operator can click a row, see who
@@ -800,6 +812,11 @@ export function TidVerification() {
   const commitApprove = useCallback(async (match: MatchResult) => {
     if (!user) return;
     setApproving(match.id);
+    // Optimistically remove from the pending pick-list so the row
+    // disappears instantly even on a slow phone connection. If the
+    // backend later fails, we restore via `loadPending()` below.
+    setPending((prev) => prev.filter((p) => p.id !== match.id));
+    pendingMatchesRef.current.delete(match.id);
 
     try {
       const { error } = await supabase.functions.invoke('approve-deposit', {
@@ -827,7 +844,9 @@ export function TidVerification() {
       });
 
       setApprovedIds(prev => new Set(prev).add(match.id));
-      toast.success(`Approved ${formatUGX(match.amount)} for ${match.userName}`);
+      toast.success(
+        `Removed from pending list ✓ — ${match.userName}, ${formatUGX(match.amount)} approved`,
+      );
 
       queryClient.invalidateQueries({ queryKey: ['approval-queue-deposits'] });
       queryClient.invalidateQueries({ queryKey: ['financial-ops-pulse'] });
@@ -836,7 +855,26 @@ export function TidVerification() {
       if (pickedId === match.id) setPickedId(null);
       loadPending();
     } catch (err: any) {
-      toast.error(err.message || 'Approval failed');
+      const msg = err?.message || 'Approval failed';
+      toast.error(msg);
+      // Diagnostic safety net — surfaces any silent failures to CFO
+      // review even when the operator dismisses the toast.
+      try {
+        await supabase.from('audit_logs').insert({
+          user_id: user.id,
+          action_type: 'tid_approve_failed',
+          table_name: 'deposit_requests',
+          record_id: match.id,
+          metadata: {
+            transaction_id: match.transaction_id,
+            amount: match.amount,
+            depositor_name: match.userName,
+            error_message: String(msg).slice(0, 500),
+          },
+        });
+      } catch { /* non-blocking */ }
+      // Restore the optimistically-removed row so the operator can retry.
+      loadPending();
     } finally {
       setApproving(null);
     }
@@ -849,6 +887,18 @@ export function TidVerification() {
       clearTimeout(timer);
       undoTimersRef.current.delete(id);
     }
+    const cd = countdownTimersRef.current.get(id);
+    if (cd) {
+      clearInterval(cd);
+      countdownTimersRef.current.delete(id);
+    }
+    pendingMatchesRef.current.delete(id);
+    setUndoCountdown((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Map(prev);
+      next.delete(id);
+      return next;
+    });
     setPendingUndoIds(prev => {
       if (!prev.has(id)) return prev;
       const next = new Set(prev);
@@ -861,16 +911,54 @@ export function TidVerification() {
   // as "approving (undoable)" immediately for instant feedback, but the
   // backend `approve-deposit` call only runs if the operator doesn't
   // click Undo before the timer elapses.
-  const UNDO_DELAY_MS = 5000;
+  // On phones (where this dialog gets backgrounded most often) we
+  // shorten the window so commits land faster and there's less chance
+  // of the operator wandering off mid-undo.
+  const isMobileViewport =
+    typeof window !== 'undefined' && window.innerWidth < 640;
+  const UNDO_DELAY_MS = isMobileViewport ? 3000 : 5000;
   const handleAutoApprove = useCallback((match: MatchResult) => {
     // If a previous undo for this row is still queued, ignore the
     // duplicate click — the timer is already running.
     if (undoTimersRef.current.has(match.id)) return;
 
     setPendingUndoIds(prev => new Set(prev).add(match.id));
+    pendingMatchesRef.current.set(match.id, match);
+    // Start a 1-second-tick countdown for the per-row UI.
+    const totalSeconds = Math.ceil(UNDO_DELAY_MS / 1000);
+    setUndoCountdown((prev) => {
+      const next = new Map(prev);
+      next.set(match.id, totalSeconds);
+      return next;
+    });
+    const interval = setInterval(() => {
+      setUndoCountdown((prev) => {
+        const cur = prev.get(match.id);
+        if (cur === undefined) return prev;
+        const next = new Map(prev);
+        if (cur <= 1) {
+          next.delete(match.id);
+        } else {
+          next.set(match.id, cur - 1);
+        }
+        return next;
+      });
+    }, 1000);
+    countdownTimersRef.current.set(match.id, interval);
 
     const timer = setTimeout(() => {
       undoTimersRef.current.delete(match.id);
+      const cd = countdownTimersRef.current.get(match.id);
+      if (cd) {
+        clearInterval(cd);
+        countdownTimersRef.current.delete(match.id);
+      }
+      setUndoCountdown((prev) => {
+        if (!prev.has(match.id)) return prev;
+        const next = new Map(prev);
+        next.delete(match.id);
+        return next;
+      });
       setPendingUndoIds(prev => {
         if (!prev.has(match.id)) return prev;
         const next = new Set(prev);
@@ -882,7 +970,7 @@ export function TidVerification() {
     undoTimersRef.current.set(match.id, timer);
 
     toast(`Approving ${formatUGX(match.amount)} — ${match.userName}`, {
-      description: 'Will commit in 5 seconds.',
+      description: `Will commit in ${totalSeconds} seconds. Tap Undo to cancel.`,
       duration: UNDO_DELAY_MS,
       action: {
         label: 'Undo',
@@ -892,7 +980,7 @@ export function TidVerification() {
         },
       },
     });
-  }, [commitApprove, cancelPendingApprove]);
+  }, [commitApprove, cancelPendingApprove, UNDO_DELAY_MS]);
 
   const handleAutoApproveAll = useCallback(() => {
     const exact = matches.filter(
@@ -904,13 +992,81 @@ export function TidVerification() {
     exact.forEach(match => handleAutoApprove(match));
   }, [matches, approvedIds, handleAutoApprove]);
 
-  // Cleanup any in-flight undo timers if the component unmounts so we
-  // don't fire approvals against a torn-down React tree.
+  // Keep a ref to the latest `commitApprove` so the unmount /
+  // `beforeunload` flush handlers always see the current closure
+  // (state, user, etc.) rather than a stale one captured on first
+  // mount. Without this, flushing-on-unmount would commit against an
+  // outdated `tid`/`operatorAmount`/`user`.
+  const commitApproveRef = useRef(commitApprove);
+  useEffect(() => {
+    commitApproveRef.current = commitApprove;
+  }, [commitApprove]);
+
+  // On unmount: do NOT silently drop queued approvals. If the operator
+  // approved a row and then closed the dialog before the undo window
+  // elapsed, fire the backend commit anyway. This is the durability
+  // guarantee that fixes "verified deposits don't disappear".
   useEffect(() => {
     const timers = undoTimersRef.current;
+    const countdowns = countdownTimersRef.current;
+    const queued = pendingMatchesRef.current;
     return () => {
+      // Cancel the timers (we're about to fire manually).
       timers.forEach(t => clearTimeout(t));
       timers.clear();
+      countdowns.forEach(c => clearInterval(c));
+      countdowns.clear();
+      // Flush any in-flight approvals — fire-and-forget through the
+      // latest closure so credentials + payload are correct.
+      queued.forEach((match) => {
+        try { void commitApproveRef.current(match); } catch { /* noop */ }
+      });
+      queued.clear();
+    };
+  }, []);
+
+  // If the user closes the tab or navigates away during the undo
+  // window, use sendBeacon to flush queued approvals to the edge
+  // function before the page unloads. This is best-effort — sendBeacon
+  // doesn't surface a response, but it reliably gets the request out
+  // even from a backgrounded mobile tab.
+  useEffect(() => {
+    const handler = () => {
+      const queued = pendingMatchesRef.current;
+      if (queued.size === 0) return;
+      try {
+        const url =
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/approve-deposit`;
+        // Auth — pull the access token from the active session
+        // synchronously via the cached supabase auth storage.
+        // sendBeacon doesn't accept custom headers, so we ship the
+        // token in the body. The edge function's auth check accepts
+        // `access_token` in the body as a fallback for beacons.
+        let accessToken: string | null = null;
+        try {
+          const raw = localStorage.getItem(
+            `sb-${import.meta.env.VITE_SUPABASE_PROJECT_ID}-auth-token`,
+          );
+          if (raw) accessToken = JSON.parse(raw)?.access_token ?? null;
+        } catch { /* ignore */ }
+        queued.forEach((match) => {
+          const blob = new Blob(
+            [JSON.stringify({
+              deposit_request_id: match.id,
+              action: 'approve',
+              access_token: accessToken,
+            })],
+            { type: 'application/json' },
+          );
+          navigator.sendBeacon?.(url, blob);
+        });
+      } catch { /* best-effort */ }
+    };
+    window.addEventListener('beforeunload', handler);
+    window.addEventListener('pagehide', handler);
+    return () => {
+      window.removeEventListener('beforeunload', handler);
+      window.removeEventListener('pagehide', handler);
     };
   }, []);
 
@@ -1012,7 +1168,7 @@ export function TidVerification() {
           Verify a user deposit
         </CardTitle>
         <p className="text-xs sm:text-sm text-muted-foreground">
-          Pick a depositor, type their Transaction ID, then approve the match.
+          Pick who paid, type their Transaction ID, then tap Approve. The row stays for a few seconds so you can Undo.
         </p>
       </CardHeader>
       <CardContent className="space-y-5 px-4 sm:px-6 pb-24 sm:pb-5">
@@ -1023,7 +1179,7 @@ export function TidVerification() {
         {/* ── Step 1 ───────────────────────────────────────────────────── */}
         <StepHeader
           n={1}
-          title="Pick the depositor"
+          title="Pick who paid"
           subtitle="Tap who is paying so the amount auto-fills."
         />
         {/* Pending depositors for the selected provider — operator can pick
@@ -1264,30 +1420,49 @@ export function TidVerification() {
                 {pendingSorted.map((p, idx) => {
                   const active = p.id === pickedId;
                   const highlighted = idx === highlightedIndex;
+                  const isApprovingRow = pendingUndoIds.has(p.id);
+                  const secondsLeft = undoCountdown.get(p.id);
                   return (
                     <li key={p.id} role="option" aria-selected={active}>
                       <button
                         ref={(el) => { pendingItemRefs.current[idx] = el; }}
                         type="button"
-                        onClick={() => { pickPending(p); setHighlightedIndex(idx); }}
+                        onClick={() => {
+                          if (isApprovingRow) return;
+                          pickPending(p);
+                          setHighlightedIndex(idx);
+                        }}
                         onFocus={() => setHighlightedIndex(idx)}
+                        disabled={isApprovingRow}
                         className={`w-full text-left px-2.5 py-2 hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary transition-colors ${
                           active ? 'bg-primary/10' : ''
-                        } ${highlighted && !active ? 'bg-accent/40 ring-2 ring-inset ring-primary/60' : ''}`}
+                        } ${highlighted && !active ? 'bg-accent/40 ring-2 ring-inset ring-primary/60' : ''} ${
+                          isApprovingRow ? 'bg-emerald-50 dark:bg-emerald-950/30 opacity-90 cursor-progress' : ''
+                        }`}
                       >
                         <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0">
                             <p className="text-xs font-medium truncate">
                               {p.depositorName}
                             </p>
-                            <p className="text-[10px] text-muted-foreground truncate">
-                              {p.depositorPhone || '—'} · {format(new Date(p.created_at), 'MMM d, HH:mm')}
-                            </p>
+                            {isApprovingRow ? (
+                              <p className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium truncate flex items-center gap-1">
+                                <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                                Approving in {secondsLeft ?? 0}…
+                              </p>
+                            ) : (
+                              <p className="text-[10px] text-muted-foreground truncate">
+                                {p.depositorPhone || '—'} · {format(new Date(p.created_at), 'MMM d, HH:mm')}
+                              </p>
+                            )}
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
                             <span className="text-xs font-semibold">{formatUGX(p.amount)}</span>
-                            {active && (
+                            {active && !isApprovingRow && (
                               <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+                            )}
+                            {isApprovingRow && (
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
                             )}
                           </div>
                         </div>
@@ -1683,7 +1858,7 @@ export function TidVerification() {
                                   ) : (
                                     <ArrowRight className="h-4 w-4" />
                                   )}
-                                  Approve
+                                  Approve & remove from list
                                 </Button>
                               )}
                               <Button
@@ -1863,29 +2038,39 @@ export function TidVerification() {
                 </div>
               )}
               {inFoundState && readyCount >= 2 ? (
-                <Button
-                  size="lg"
-                  className="w-full h-12 text-base font-semibold gap-2"
-                  onClick={handleAutoApproveAll}
-                  disabled={!!approving}
-                >
-                  <CheckCircle2 className="h-5 w-5" />
-                  Approve all ({readyCount})
-                </Button>
-              ) : inFoundState && onlyReady ? (
-                <Button
-                  size="lg"
-                  className="w-full h-12 text-base font-semibold gap-2"
-                  onClick={() => handleAutoApprove(onlyReady)}
-                  disabled={!!approving}
-                >
-                  {approving === onlyReady.id ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
+                <>
+                  <Button
+                    size="lg"
+                    className="w-full h-12 text-base font-semibold gap-2"
+                    onClick={handleAutoApproveAll}
+                    disabled={!!approving}
+                  >
                     <CheckCircle2 className="h-5 w-5" />
-                  )}
-                  Approve {formatUGX(onlyReady.amount)}
-                </Button>
+                    Approve all ({readyCount})
+                  </Button>
+                  <p className="text-[10px] text-center text-muted-foreground mt-1.5">
+                    Stays here for {Math.ceil(UNDO_DELAY_MS / 1000)} seconds in case you tapped the wrong one — tap Undo to cancel.
+                  </p>
+                </>
+              ) : inFoundState && onlyReady ? (
+                <>
+                  <Button
+                    size="lg"
+                    className="w-full h-12 text-base font-semibold gap-2"
+                    onClick={() => handleAutoApprove(onlyReady)}
+                    disabled={!!approving}
+                  >
+                    {approving === onlyReady.id ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="h-5 w-5" />
+                    )}
+                    Approve {formatUGX(onlyReady.amount)} & remove from list
+                  </Button>
+                  <p className="text-[10px] text-center text-muted-foreground mt-1.5">
+                    Stays here for {Math.ceil(UNDO_DELAY_MS / 1000)} seconds in case you tapped the wrong one — tap Undo to cancel.
+                  </p>
+                </>
               ) : (
                 <Button
                   size="lg"
