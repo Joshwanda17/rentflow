@@ -65,6 +65,14 @@ interface DepositFlowProps {
    * read-only toast and closes.
    */
   editRequestId?: string | null;
+  /**
+   * Optional handoff from the dashboard "Collect from receipt/reference"
+   * entry point. When supplied, the dialog opens straight on the
+   * Operational Float form with the matched amount, per-tenant
+   * allocations, reference, and channel pre-applied — no need for the
+   * agent to re-paste the TID into the in-form matcher.
+   */
+  prefillFromMatch?: MatchResult | null;
 }
 
 const DEPOSIT_PURPOSES: { id: DepositPurpose; label: string; emoji: string; desc: string }[] = [
@@ -98,7 +106,7 @@ const QUICK_AMOUNTS = [50000, 100000, 250000, 500000];
 const MIN_DEPOSIT = 500;
 const MAX_DEPOSIT = 10_000_000;
 
-export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowedPurposes, lockPurpose, requirePurposeChoice, editRequestId }: DepositFlowProps) {
+export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowedPurposes, lockPurpose, requirePurposeChoice, editRequestId, prefillFromMatch }: DepositFlowProps) {
   const navigate = useNavigate();
   const [step, setStep] = useState<'purpose' | 'channel' | 'form' | 'submitting' | 'success'>(
     requirePurposeChoice ? 'purpose' : 'channel'
