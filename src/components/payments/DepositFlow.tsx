@@ -65,6 +65,14 @@ interface DepositFlowProps {
    * read-only toast and closes.
    */
   editRequestId?: string | null;
+  /**
+   * Optional handoff from the dashboard "Collect from receipt/reference"
+   * entry point. When supplied, the dialog opens straight on the
+   * Operational Float form with the matched amount, per-tenant
+   * allocations, reference, and channel pre-applied — no need for the
+   * agent to re-paste the TID into the in-form matcher.
+   */
+  prefillFromMatch?: MatchResult | null;
 }
 
 const DEPOSIT_PURPOSES: { id: DepositPurpose; label: string; emoji: string; desc: string }[] = [
@@ -98,7 +106,7 @@ const QUICK_AMOUNTS = [50000, 100000, 250000, 500000];
 const MIN_DEPOSIT = 500;
 const MAX_DEPOSIT = 10_000_000;
 
-export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowedPurposes, lockPurpose, requirePurposeChoice, editRequestId }: DepositFlowProps) {
+export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowedPurposes, lockPurpose, requirePurposeChoice, editRequestId, prefillFromMatch }: DepositFlowProps) {
   const navigate = useNavigate();
   const [step, setStep] = useState<'purpose' | 'channel' | 'form' | 'submitting' | 'success'>(
     requirePurposeChoice ? 'purpose' : 'channel'
@@ -245,6 +253,40 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       setPurposeEntryPoint('default');
     }
   }, [open, defaultPurpose, lockPurpose, requirePurposeChoice]);
+
+  /**
+   * Handoff hydration from the dashboard "Collect from receipt/reference"
+   * entry. The dashboard already ran the matcher, so we land on the
+   * Operational Float form with everything pre-applied — amount, per-tenant
+   * allocations, channel/provider, and the pasted reference.
+   *
+   * Runs only on dialog open transitions to avoid clobbering edits the
+   * agent makes after landing on the form.
+   */
+  useEffect(() => {
+    if (!open || !prefillFromMatch || editRequestId) return;
+    const m = prefillFromMatch;
+    setDepositPurpose('operational_float');
+    setReason('Operational Float');
+    setShowPurposeGrid(false);
+    setStep('form');
+    setPurposeChosenAt(new Date().toISOString());
+    setPurposeEntryPoint('default');
+    if (m.amount > 0) setAmount(String(m.amount));
+    if (m.allocations?.length) setTenantAllocations(m.allocations);
+    if (m.providerHint === 'mtn' || m.providerHint === 'airtel') {
+      setChannel('momo');
+      setMomoProvider(m.providerHint);
+      if (m.reference) setTransactionId(m.reference);
+    } else if (m.providerHint === 'bank') {
+      setChannel('bank');
+      if (m.reference) setTransactionId(m.reference);
+    } else if (m.reference) {
+      // Unknown provider — still attach the ref to the TID field as a
+      // safe default so the agent doesn't have to re-type it.
+      setTransactionId(m.reference);
+    }
+  }, [open, prefillFromMatch, editRequestId]);
 
   /**
    * Edit-mode hydration. When the dialog opens with an `editRequestId`,

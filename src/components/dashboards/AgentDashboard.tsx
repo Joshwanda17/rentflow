@@ -91,6 +91,7 @@ import { FieldCollectDailyTotals } from '@/components/agent/FieldCollectDailyTot
 import { FieldCollectCard } from '@/components/agent/FieldCollectCard';
 import { FieldDepositQueueCard } from '@/components/agent/FieldDepositQueueCard';
 import { UnbankedCashBanner } from '@/components/agent/UnbankedCashBanner';
+import { CollectFromReferenceDialog } from '@/components/agent/CollectFromReferenceDialog';
 
 import { AgentTopUpTenantDialog } from '@/components/agent/AgentTopUpTenantDialog';
 import { AgentInvestForPartnerDialog } from '@/components/agent/AgentInvestForPartnerDialog';
@@ -237,6 +238,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [showQuickDeposit, setShowQuickDeposit] = useState(false);
   const [showQuickWithdraw, setShowQuickWithdraw] = useState(false);
   const [showQuickTransfer, setShowQuickTransfer] = useState(false);
+  const [collectFromRefOpen, setCollectFromRefOpen] = useState(false);
 
   const { isFinancialAgent } = useIsFinancialAgent();
   const realWithdrawableBalance = Math.max(0, withdrawableBalance);
@@ -406,6 +408,33 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
              * dismissed) until proof is submitted.
              */}
             <UnbankedCashBanner />
+
+            {/*
+             * Agent shortcut: paste a bank reference / MoMo TID / merchant
+             * receipt number you grabbed in the field, and we resolve it
+             * to either your in-flight Operational Float deposit or the
+             * un-deposited collections it covers — then auto-build the
+             * per-tenant breakdown so you don't re-type anything.
+             */}
+            <button
+              type="button"
+              onClick={() => { hapticTap(); setCollectFromRefOpen(true); }}
+              className="w-full flex items-center gap-3 p-3.5 rounded-2xl border border-primary/30 bg-primary/5 hover:bg-primary/10 active:scale-[0.98] transition-all touch-manipulation min-h-[64px] text-left"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              <div className="p-2.5 rounded-xl bg-primary/15 text-primary shrink-0">
+                <FileText className="h-5 w-5" strokeWidth={2.2} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-bold text-foreground truncate">
+                  Collect from receipt / reference
+                </div>
+                <div className="text-[11px] text-muted-foreground truncate">
+                  Paste a TID or bank ref → auto-build the breakdown
+                </div>
+              </div>
+              <span className="text-base text-primary shrink-0">›</span>
+            </button>
 
             {/*
              * Minimalist home: 4 priority tiles → today's totals → urgent alerts only.
@@ -596,6 +625,12 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       />
       <WithdrawFlow open={showQuickWithdraw} onOpenChange={setShowQuickWithdraw} availableBalance={realWithdrawableBalance} />
       <SendMoneyDialog open={showQuickTransfer} onOpenChange={setShowQuickTransfer} />
+
+      <CollectFromReferenceDialog
+        open={collectFromRefOpen}
+        onOpenChange={setCollectFromRefOpen}
+        agentId={user.id}
+      />
       
       <AgentMenuDrawer
         open={menuOpen}
