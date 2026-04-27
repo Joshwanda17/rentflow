@@ -1087,11 +1087,11 @@ function BulkResultsSummary({
         </div>
       </div>
 
-      {/* Shared photo recap */}
-      {photoAttached && (
+      {/* Shared photo recap — only when a single shared photo was used.
+          Per-batch mode shows the photo flag inline on each row instead. */}
+      {photoAttached && photoPreviewUrl && (
         <div className="flex items-center gap-2.5 rounded-lg border border-border bg-background p-2">
-          {photoPreviewUrl && (
-            <a
+          <a
               href={photoPreviewUrl}
               target="_blank"
               rel="noopener noreferrer"
@@ -1104,7 +1104,6 @@ function BulkResultsSummary({
                 loading="lazy"
               />
             </a>
-          )}
           <div className="text-[11px] leading-snug">
             <span className="font-semibold">Shared receipt photo</span> attached to every
             submitted batch.
