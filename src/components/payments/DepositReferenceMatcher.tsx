@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,6 +13,7 @@ import {
   ClipboardPaste,
   Wand2,
   Sparkles,
+  Zap,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -37,6 +38,10 @@ import type { TenantAllocation } from './OperationalFloatTenantAllocator';
 
 const MAX_DAYS = 7;
 const PLACEHOLDER_TIDS = new Set(['', 'NONE', 'N/A', 'NA', 'PENDING', 'TBD', 'UNKNOWN']);
+/** Debounce window for auto-search after the agent stops typing/pasting. */
+const AUTO_SEARCH_MS = 500;
+/** Minimum chars before we'll auto-fire a search. */
+const MIN_REF_LEN = 6;
 
 export interface MatchResult {
   /** When set, DepositFlow should reopen in edit mode against this deposit. */
@@ -93,6 +98,11 @@ function detectProvider(ref: string): 'mtn' | 'airtel' | 'bank' | undefined {
   return undefined;
 }
 
+/** A reference looks "well-formed" if it parses as a known provider pattern. */
+function looksWellFormed(ref: string): boolean {
+  return !!detectProvider(ref);
+}
+
 export default function DepositReferenceMatcher({
   agentId,
   currentAmount,
@@ -104,6 +114,33 @@ export default function DepositReferenceMatcher({
   const [phase, setPhase] = useState<'idle' | 'no-match' | 'collections'>('idle');
   const [collections, setCollections] = useState<CollectionRow[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [autoApplied, setAutoApplied] = useState(false);
+  const lastSearchedRef = useRef<string>('');
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const triedClipboardRef = useRef(false);
+
+  // On mount: opportunistically peek at the clipboard. Many agents paste
+  // straight from their MoMo SMS, so this saves a tap. Silent failure —
+  // if permission is denied we just leave the input empty.
+  useEffect(() => {
+    if (triedClipboardRef.current) return;
+    triedClipboardRef.current = true;
+    (async () => {
+      try {
+        if (!navigator.clipboard?.readText) return;
+        const text = await navigator.clipboard.readText();
+        if (!text || reference) return;
+        const m =
+          text.match(/\bMP\d{6,16}\b/i) ??
+          text.match(/\bTID\d{4,18}\b/i) ??
+          text.match(/\bFT[A-Z0-9]{6,18}\b/i);
+        if (m) setReference(m[0].toUpperCase());
+      } catch {
+        // Permission denied — agent will paste manually.
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handlePaste = async () => {
     try {
@@ -162,13 +199,71 @@ export default function DepositReferenceMatcher({
       ? [...placeholders].sort((a, b) => Math.abs(a.amount - target) - Math.abs(b.amount - target))
       : placeholders;
     const best = sorted[0];
+    // Surface the previously-missing tenant allocations: pull recent
+    // un-attached collections that sum to the deposit amount so the
+    // agent can see the breakdown right away when re-opening for edit.
+    const recovered = await recoverAllocationsForAmount(best.amount);
     return {
       editDepositId: best.id,
       amount: best.amount,
-      allocations: [],
+      allocations: recovered,
       reference: ref,
       providerHint: detectProvider(ref),
     };
+  };
+
+  /**
+   * Pull the agent's recent un-attached collections and return the subset
+   * (greedy from largest) that sums closest to `target`, aggregated per
+   * tenant. Used to surface the "previously missing" tenant breakdown
+   * when we match an existing placeholder deposit.
+   */
+  const recoverAllocationsForAmount = async (target: number): Promise<TenantAllocation[]> => {
+    if (target <= 0) return [];
+    const since = new Date(Date.now() - MAX_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await supabase
+      .from('agent_collections')
+      .select('id, amount, tenant_id, momo_transaction_id, created_at')
+      .eq('agent_id', agentId)
+      .gte('created_at', since)
+      .order('created_at', { ascending: false })
+      .limit(100);
+    if (error || !data) return [];
+    const rows = (data as any[]).filter((r) => !r.momo_transaction_id && r.tenant_id);
+    if (rows.length === 0) return [];
+    // Greedy subset-sum: largest first, take if it fits within tolerance.
+    const sortedDesc = [...rows].sort((a, b) => Number(b.amount) - Number(a.amount));
+    const picked: any[] = [];
+    let remaining = target;
+    for (const r of sortedDesc) {
+      const amt = Number(r.amount) || 0;
+      if (amt <= remaining + 1) {
+        picked.push(r);
+        remaining -= amt;
+      }
+      if (remaining <= 1) break;
+    }
+    if (picked.length === 0) return [];
+    // Hydrate tenant names.
+    const tenantIds = [...new Set(picked.map((r) => r.tenant_id))];
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, full_name, phone')
+      .in('id', tenantIds);
+    const nameById = new Map((profiles ?? []).map((p: any) => [p.id, p]));
+    // Aggregate per tenant.
+    const byTenant = new Map<string, TenantAllocation>();
+    for (const r of picked) {
+      const prev = byTenant.get(r.tenant_id);
+      const profile = nameById.get(r.tenant_id);
+      byTenant.set(r.tenant_id, {
+        tenant_id: r.tenant_id,
+        tenant_name: profile?.full_name ?? 'Unknown tenant',
+        tenant_phone: profile?.phone ?? null,
+        amount: (prev?.amount || 0) + Number(r.amount),
+      });
+    }
+    return Array.from(byTenant.values());
   };
 
   /**
@@ -242,6 +337,44 @@ export default function DepositReferenceMatcher({
     }
     setSelectedIds(preselect);
     setPhase('collections');
+
+    // High-confidence: the preselected subset sums EXACTLY to the
+    // current target (or within 1 UGX). Auto-apply so the agent doesn't
+    // have to confirm what the system already knows is right.
+    if (currentAmount > 0) {
+      const sumPre = enriched
+        .filter((c) => preselect.has(c.id))
+        .reduce((s, c) => s + c.amount, 0);
+      if (Math.abs(sumPre - currentAmount) <= 1) {
+        autoApplyFromCollections(enriched.filter((c) => preselect.has(c.id)));
+      }
+    }
+  };
+
+  /** Apply a fully-resolved collection subset without waiting for a click. */
+  const autoApplyFromCollections = (rows: CollectionRow[]) => {
+    if (rows.length === 0) return;
+    const byTenant = new Map<string, TenantAllocation>();
+    for (const c of rows) {
+      const prev = byTenant.get(c.tenant_id);
+      byTenant.set(c.tenant_id, {
+        tenant_id: c.tenant_id,
+        tenant_name: c.tenant_name,
+        tenant_phone: c.tenant_phone,
+        amount: (prev?.amount || 0) + c.amount,
+      });
+    }
+    const total = rows.reduce((s, c) => s + c.amount, 0);
+    setAutoApplied(true);
+    onApplyMatch({
+      amount: total,
+      allocations: Array.from(byTenant.values()),
+      reference: reference.trim().toUpperCase(),
+      providerHint: detectProvider(reference),
+    });
+    toast.success(
+      `Auto-matched ${rows.length} collection${rows.length === 1 ? '' : 's'} — UGX ${total.toLocaleString()}`,
+    );
   };
 
   const handleSearch = async () => {
@@ -250,12 +383,23 @@ export default function DepositReferenceMatcher({
       toast.error('Paste a TID, bank reference or receipt number first');
       return;
     }
+    if (lastSearchedRef.current === ref && phase !== 'idle') {
+      // Already searched this exact ref and showed results — don't spam.
+      return;
+    }
+    lastSearchedRef.current = ref;
     setSearching(true);
     setPhase('idle');
+    setAutoApplied(false);
     try {
       const depositMatch = await tryDepositMatch(ref);
       if (depositMatch) {
-        toast.success('Matched a pending deposit — reopening for edit');
+        const allocCount = depositMatch.allocations.length;
+        toast.success(
+          allocCount > 0
+            ? `Matched a pending deposit — recovered ${allocCount} tenant allocation${allocCount === 1 ? '' : 's'}`
+            : 'Matched a pending deposit — reopening for edit',
+        );
         onApplyMatch(depositMatch);
         return;
       }
@@ -264,6 +408,28 @@ export default function DepositReferenceMatcher({
       setSearching(false);
     }
   };
+
+  // Auto-search: as soon as the agent finishes typing/pasting a
+  // recognisably-formatted reference, fire the lookup without making
+  // them click "Find". Debounced to avoid hammering the DB on each
+  // keystroke. Manual click still works.
+  useEffect(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+    const ref = reference.trim().toUpperCase();
+    if (!ref || ref.length < MIN_REF_LEN) return;
+    if (!looksWellFormed(ref)) return; // Free-text — wait for explicit click.
+    if (lastSearchedRef.current === ref) return;
+    debounceTimerRef.current = setTimeout(() => {
+      handleSearch();
+    }, AUTO_SEARCH_MS);
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reference]);
 
   const toggle = (id: string) => {
     setSelectedIds((prev) => {
@@ -374,7 +540,20 @@ export default function DepositReferenceMatcher({
             )}
           </Button>
         </div>
+        <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+          <Zap className="h-3 w-3 text-primary" />
+          Recognised references auto-search and auto-fill the breakdown.
+        </p>
       </div>
+
+      {autoApplied && (
+        <div className="flex items-start gap-2 p-2 rounded-lg border border-success/30 bg-success/10">
+          <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0 mt-0.5" />
+          <p className="text-[11px] text-success-foreground">
+            Auto-matched — TID and tenant breakdown are filled in below. Review and submit.
+          </p>
+        </div>
+      )}
 
       {phase === 'no-match' && (
         <div className="flex items-start gap-2 p-2 rounded-lg border border-warning/30 bg-warning/10">
