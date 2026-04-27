@@ -43,6 +43,7 @@ import {
   LucideIcon,
 } from 'lucide-react';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
+import { GlossaryButton } from '@/components/shared/GlossaryButton';
 
 interface AgentMenuDrawerProps {
   open: boolean;
@@ -423,6 +424,10 @@ export function AgentMenuDrawer({
                       <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-3">
                         How It Works
                       </h4>
+                      {/* Glossary — shared team vocabulary */}
+                      <div className="mb-2">
+                        <GlossaryButton variant="menu" label="Glossary — what each term means" />
+                      </div>
                       <GuideAccordion
                         id="rent-payment"
                         icon={Wallet}
