@@ -767,6 +767,18 @@ function AwaitingBatchRow({ batch, onOpenWizard, onProofSubmitted }: AwaitingBat
             </p>
           </form>
         )}
+
+        {/* Rejection note */}
+        {isRejected && batch.rejection_reason && (
+          <div className="mt-2 ml-11 rounded-lg border border-destructive/30 bg-destructive/5 px-2.5 py-1.5">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-destructive">
+              Finance rejected this batch
+            </p>
+            <p className="text-[11px] text-foreground/80 mt-0.5">
+              {batch.rejection_reason}
+            </p>
+          </div>
+        )}
       </div>
     </li>
   );
