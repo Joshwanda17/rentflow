@@ -1396,9 +1396,20 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
               </div>
             )}
             {mode === 'per_batch' && (
-              <p className="text-[10px] text-muted-foreground leading-snug -mt-1">
-                Enter the transaction ID / reference next to each selected batch above. Leave a row blank only if you'll cover it with the shared receipt photo below.
-              </p>
+              <div className="-mt-1 space-y-1.5">
+                <p className="text-[10px] text-muted-foreground leading-snug">
+                  Enter the transaction ID / reference next to each selected batch above. Leave a row blank only if you'll cover it with the shared receipt photo below.
+                </p>
+                {hasDuplicates && (
+                  <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-2.5 py-2">
+                    <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
+                    <div className="text-[11px] text-destructive leading-snug">
+                      <span className="font-bold">Duplicate reference detected</span> ·{' '}
+                      {dupBatchIds.size} batch{dupBatchIds.size === 1 ? '' : 'es'} share{dupBatchIds.size === 1 ? 's' : ''} the same reference. Each deposit needs its own transaction ID so Finance can match the right amount.
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
 
             <div className="space-y-1">
