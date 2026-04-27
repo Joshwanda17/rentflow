@@ -446,8 +446,14 @@ export default function OperationalFloatTenantAllocator({
                   )}
                 </div>
                 {t.monthly_rent ? (
-                  <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
-                    rent {Number(t.monthly_rent).toLocaleString()}
+                  <span className="flex items-center gap-1 shrink-0">
+                    <span className="text-[10px] text-muted-foreground tabular-nums">
+                      rent {Number(t.monthly_rent).toLocaleString()}
+                    </span>
+                    <RentSourceTooltip
+                      rent={t.monthly_rent}
+                      updatedAt={t.monthly_rent_updated_at}
+                    />
                   </span>
                 ) : null}
               </button>
