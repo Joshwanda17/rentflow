@@ -1135,8 +1135,11 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
       const ids = Array.from(selected);
       let okCount = 0;
       let failCount = 0;
+      const runResults: BulkResult[] = [];
+      const photoAttached = !!imageUrl;
       for (const id of ids) {
         setRowState((s) => ({ ...s, [id]: { state: 'submitting' } }));
+        const meta = batches.find((b) => b.id === id);
         try {
           const { data: fresh, error: freshErr } = await supabase
             .from('field_deposit_batches')
@@ -1147,6 +1150,15 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
           if (fresh?.status !== 'awaiting_proof') {
             setRowState((s) => ({ ...s, [id]: { state: 'error', msg: `Already ${fresh?.status ?? 'changed'}` } }));
             failCount++;
+            runResults.push({
+              batchId: id,
+              channel: meta?.channel ?? 'cash',
+              declaredTotal: Number(meta?.declared_total ?? 0),
+              status: 'skipped',
+              refUsed: null,
+              photoAttached,
+              errorMsg: `Already ${fresh?.status ?? 'changed'} — skipped`,
+            });
             continue;
           }
           const ref = refForBatch(id);
@@ -1154,13 +1166,35 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
           await submitProofForBatch(id, finalRef, imageUrl);
           setRowState((s) => ({ ...s, [id]: { state: 'done' } }));
           okCount++;
+          runResults.push({
+            batchId: id,
+            channel: meta?.channel ?? 'cash',
+            declaredTotal: Number(meta?.declared_total ?? 0),
+            status: 'done',
+            refUsed: finalRef,
+            photoAttached,
+          });
         } catch (innerErr) {
           setRowState((s) => ({ ...s, [id]: { state: 'error', msg: innerErr instanceof Error ? innerErr.message : 'Failed' } }));
           failCount++;
+          runResults.push({
+            batchId: id,
+            channel: meta?.channel ?? 'cash',
+            declaredTotal: Number(meta?.declared_total ?? 0),
+            status: 'error',
+            refUsed: refForBatch(id) || null,
+            photoAttached,
+            errorMsg: innerErr instanceof Error ? innerErr.message : 'Failed',
+          });
         }
       }
+      setResults(runResults);
+      setHasRun(true);
       if (okCount > 0 && failCount === 0) {
         toast.success(`Submitted proof for ${okCount} batch${okCount === 1 ? '' : 'es'}`);
+        // Don't auto-close — let the agent review the in-dialog summary and
+        // close manually via the Done button. We still notify the parent so
+        // the underlying list refreshes in the background.
         onDone();
       } else if (okCount > 0) {
         toast.warning(`Submitted ${okCount} · ${failCount} failed — see list`);
