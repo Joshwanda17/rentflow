@@ -588,3 +588,58 @@ export function decodeAllocationsFromNote(note: string | null | undefined): {
     return { cleanNote: head, allocations: null };
   }
 }
+
+/**
+ * Compact info icon that explains where the rent figure on this row came
+ * from and when it was last touched. Hover (desktop) or tap (mobile)
+ * opens a tooltip — agents who suspect a stale rent value can use this
+ * to decide whether to ask Landlord Ops for a refresh before allocating.
+ */
+function RentSourceTooltip({
+  rent,
+  updatedAt,
+}: {
+  rent: number | null | undefined;
+  updatedAt: string | null | undefined;
+}) {
+  const hasRent = rent != null && Number(rent) > 0;
+  const updatedLabel = updatedAt
+    ? format(new Date(updatedAt), 'd MMM yyyy')
+    : 'Unknown';
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label="Where does this rent value come from?"
+          className="shrink-0 inline-flex items-center justify-center h-4 w-4 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          // Stop the click from bubbling into any parent button (e.g. the
+          // picker's "add tenant" row).
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Info className="h-3 w-3" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-[240px] text-xs">
+        <p className="font-semibold mb-1">Monthly rent source</p>
+        {hasRent ? (
+          <>
+            <p className="text-muted-foreground">
+              From the tenant's profile (<code className="text-[10px]">monthly_rent</code>),
+              kept up to date by Landlord Ops when their rent plan changes.
+            </p>
+            <p className="mt-1.5">
+              <span className="text-muted-foreground">Last updated:</span>{' '}
+              <span className="font-medium">{updatedLabel}</span>
+            </p>
+          </>
+        ) : (
+          <p className="text-muted-foreground">
+            No monthly rent on file for this tenant. Ask Landlord Ops to set
+            it on the tenant's profile so future allocations are validated.
+          </p>
+        )}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
