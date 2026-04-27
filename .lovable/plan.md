@@ -1,49 +1,62 @@
-## What you're seeing
+# Best way to prevent duplicate withdrawals
 
-The Financial Ops queue is full of five identical pending withdrawals from **Maphoe Maphosa → Raphael Oluwashola @ UGX 22,500**, all "requested about 4 hours ago". The existing safeguards only stop **double-tap** (same submission within milliseconds via `clientRequestId`). They do **not** stop a user from re-opening the dialog and submitting the same recipient + amount again 30 seconds, 2 minutes, or an hour later. That's why operators are now staring at five duplicate cards.
+## What's already in place (audited)
 
-## The guard
+1. **Client idempotency key** in `WithdrawRequestDialog.tsx` — `client_request_id` UUID reused across retries; DB has a unique partial index `(user_id, client_request_id)`.
+2. **In-session recipient guard** — `sessionStorage` map blocks/warns when the same user re-submits to the same recipient within 10 minutes.
+3. **DB trigger `prevent_duplicate_pending_withdrawal`** (deployed today) — blocks a second `pending` row with the same recipient + amount in the last 10 min, raising `DUPLICATE_PENDING_WITHDRAWAL` (SQLSTATE `23505`).
+4. **Operator-side grouping** in `FinOpsWithdrawalVerification` — duplicates are stacked with a "Reject N older duplicates" bulk action.
 
-Add two layers — a fast **client-side session guard** in the withdrawal dialog (catches honest mistakes / nervous re-submissions without a server round-trip) and a **server-side time-window guard** in the database (catches the same user submitting from a different tab, after a refresh, or from another device).
+## What's still leaking (evidence from the DB)
 
-### Layer 1 — Client session guard (`src/components/wallet/WithdrawRequestDialog.tsx`)
+A query on `withdrawal_requests` shows recent runs of identical rows ~1.8 s apart from the same user → same MoMo number → same amount, all with `client_request_id = NULL`. That `NULL` proves they were **not** submitted via `WithdrawRequestDialog`. They came through other code paths that have none of the guards above:
 
-- Maintain a `Map<recipientKey, { amount, submittedAt, requestId }>` in `sessionStorage` keyed under `welile:withdraw:recent:<userId>`.
-- `recipientKey` =
-  - mobile money → `"momo:<provider>:<normalised-phone>"`
-  - bank → `"bank:<bank>:<account-number>"`
-  - cash → `"cash:<agent-location>"`
-- Window: **10 minutes** for the same recipient regardless of amount, with a stricter check if the amount also matches.
-- Behaviour on submit:
-  1. If the same recipient has been submitted in the last 10 min for **the same amount**, BLOCK with a clear toast + a second-tap "Confirm I really mean to send this again" confirm dialog. Only proceed after explicit confirmation.
-  2. If the same recipient has been submitted in the last 10 min for a **different amount**, show a soft warning ("You sent UGX 22,500 to this number 3 minutes ago — continue?") with Confirm / Cancel.
-  3. On successful submission, write the entry into the map with timestamp.
-- Wipe entries older than 10 minutes on dialog open so the map self-prunes.
-- Show a small inline notice on the form when the recipient field changes to one already used recently in this session: *"You already sent UGX 22,500 to this number at 14:32. Pending operator approval."* — gives the user a chance to abort before even hitting Submit.
+| File | client_request_id | Re-entrant lock | Recipient session guard | Friendly DUPLICATE handling |
+|---|---|---|---|---|
+| `src/components/wallet/WithdrawRequestDialog.tsx` | ✅ | ✅ | ✅ | ✅ |
+| `src/components/agent/AgentProxyWithdrawalDialog.tsx` | ✅ | ✅ | ❌ | ❌ |
+| `src/components/payments/WithdrawFlow.tsx` | ❌ | ❌ | ❌ | ❌ |
+| `src/components/supporter/InvestmentWithdrawButton.tsx` | (to verify) | (to verify) | ❌ | ❌ |
 
-### Layer 2 — Server-side dedupe (database trigger)
+So the trigger is the only thing protecting these paths today, and even when it fires the user sees a raw Postgres error instead of a clean message — which encourages them to tap again.
 
-- Add a `BEFORE INSERT` trigger on `withdrawal_requests` that raises an exception when the same `user_id` already has a `status = 'pending'` row matching the same recipient (mobile_money_number+provider OR bank_account_number+bank_name OR cash) **and** the same `amount`, created in the last **10 minutes**.
-- Error message: `"DUPLICATE_PENDING_WITHDRAWAL: identical pending request already exists"` so the client can map it to a friendly toast.
-- This is the real safety net — it prevents the spam even if the user clears `sessionStorage`, opens an incognito tab, or runs two browsers.
-- Catch the trigger error in `handleSubmit` and surface it as: *"You already have a pending withdrawal of UGX 22,500 to this recipient. Wait for operations to approve or reject the existing one before submitting again."*
+## Plan — five changes, ordered by impact
 
-### Layer 3 — One-tap "review pending" link
+### 1. Harden `WithdrawFlow.tsx` (highest impact)
+- Add `isSubmittingRef` re-entrant lock around `processWithdrawal`.
+- Generate and send `client_request_id` on the insert (same UUID across retries).
+- Catch `error.code === '23505'`: if message contains `DUPLICATE_PENDING_WITHDRAWAL`, show the friendly "You already have a pending withdrawal of UGX X to this recipient — wait for operations to approve or reject it" toast and route the user to their pending list instead of throwing.
+- Disable the Confirm/Pay button while `loading` and for 1.5 s after a successful submission to absorb double-taps from low-end devices.
 
-- After the duplicate is blocked, show an action button on the toast: **"View my pending withdrawals"** — opens the existing pending withdrawals view so the user sees their queue rather than re-trying.
+### 2. Harden `AgentProxyWithdrawalDialog.tsx`
+- Same `DUPLICATE_PENDING_WITHDRAWAL` friendly-error handling on the catch path.
+- Add per-partner session guard: key on `proxy:<funderId>:<amount>` so an agent can't fire the same partner withdrawal twice within 10 minutes.
 
-## Operator-side relief (small)
+### 3. Audit and patch `InvestmentWithdrawButton.tsx`
+- Read it; if it inserts directly into `withdrawal_requests`, apply the same three guards (re-entrant lock + `client_request_id` + friendly 23505 handling).
 
-In `src/components/financial-ops/FinOpsWithdrawalVerification.tsx`, group **identical pending requests from the same user → same recipient → same amount within 10 min** under one expandable card with a "**5 duplicate submissions**" badge and a single **Reject all duplicates as duplicates** action — so even when older duplicates already slipped through (like the screenshot), ops can clear them in one tap instead of five.
+### 4. Tighten the DB trigger
+Two small but important changes to `prevent_duplicate_pending_withdrawal`:
+
+- **Cover proxy-partner withdrawals**: also block when `proxy_partner_id` matches and `payout_method` is null (this is the agent-proxy pattern — it currently slips through every branch of the trigger).
+- **Block on later operator stages too**: the trigger currently only checks `status = 'pending'`. Add `manager_approved` to the comparison so a user can't queue a duplicate while operations is mid-approval on the original.
+
+### 5. One-time cleanup of the historical spam
+A migration that, for each `(user_id, payout_method, recipient, amount)` group with multiple `pending` rows older than 1 hour, keeps the **oldest** and marks the rest `rejected` with reason "System cleanup: duplicate of older pending request" and writes `audit_logs` rows so the trail is preserved. This clears the screenshot backlog (the 5× UGX 30,000 to `09165223393`, 5× UGX 22,500, etc.) without any human approving phantom payouts.
+
+## Why this is the right shape
+
+- **Defence in depth**: client lock (instant) → session guard (no network) → idempotency key (network retry) → DB trigger (cross-tab, cleared storage, multiple devices) → operator grouping (last-mile catch).
+- **Single source of truth for the rule**: the trigger is the canonical guard; every client path just translates its error into a friendly message. New withdrawal entry points added later get protection automatically.
+- **No false positives**: 10-minute window + recipient-aware comparison means legitimate "I really do want to send another UGX 30,000 to my supplier in an hour" still works.
+- **Cleans up the mess we already have**, so Financial Ops stops seeing the duplicate stack you screenshotted.
+
+## Files touched
+- `src/components/payments/WithdrawFlow.tsx`
+- `src/components/agent/AgentProxyWithdrawalDialog.tsx`
+- `src/components/supporter/InvestmentWithdrawButton.tsx` (after read)
+- New migration: tighten trigger + cleanup historical duplicates
 
 ## Out of scope
-
-- No change to the approval / payout flow itself.
-- No change to the withdrawal pricing, working hours, or balance checks.
-- The existing `clientRequestId` idempotency stays as-is — it's still useful for network retries within a single submission attempt.
-
-## Files to change
-
-- `src/components/wallet/WithdrawRequestDialog.tsx` — recipient-key session guard, soft warning, hard block + confirm.
-- `src/components/financial-ops/FinOpsWithdrawalVerification.tsx` — duplicate grouping + bulk-reject-as-duplicates.
-- New migration — `BEFORE INSERT` trigger on `withdrawal_requests` enforcing the 10-minute / same-amount / same-recipient block while a previous request is still pending.
+- Changing the 10-minute window (configurable later if Ops asks).
+- Rate-limiting submissions per minute (the recipient+amount key is more precise and less annoying).
