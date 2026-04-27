@@ -832,17 +832,23 @@ Deno.serve(async (req) => {
             : "";
 
           let notifTitle = "Deposit Approved! 💰";
-          if (debtCleared > 0 || daysPrepaid > 0) notifTitle = "Deposit Approved & Auto-Applied! 💰";
+          if (isFloatDeposit) notifTitle = "Float Deposit Approved! 🏘️";
+          else if (debtCleared > 0 || daysPrepaid > 0) notifTitle = "Deposit Approved & Auto-Applied! 💰";
           else if (repaymentApplied > 0) notifTitle = "Deposit Approved & Rent Deducted! 💰";
 
           await supabaseAdmin.from("notifications").insert({
             user_id: depositRequest.user_id,
             title: notifTitle,
-            message: `Your deposit of UGX ${depositRequest.amount.toLocaleString()} approved by ${processorName}.${repaymentNote}${debtNote}${prepaidNote}`,
+            message: isFloatDeposit
+              ? `Your operational float deposit of UGX ${depositRequest.amount.toLocaleString()} was approved by ${processorName} and credited to your Float bucket.`
+              : `Your deposit of UGX ${depositRequest.amount.toLocaleString()} approved by ${processorName}.${repaymentNote}${debtNote}${prepaidNote}`,
             type: "success",
             metadata: {
               deposit_request_id: depositRequest.id,
               amount: depositRequest.amount,
+              deposit_purpose: rawPurpose || null,
+              ledger_category: depositCategory,
+              wallet_bucket: depositBucket,
               repayment_applied: repaymentApplied,
               debt_cleared: debtCleared,
               days_prepaid: daysPrepaid,
