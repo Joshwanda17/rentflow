@@ -484,6 +484,13 @@ function AwaitingBatchRow({ batch, onOpenWizard, onProofSubmitted }: AwaitingBat
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Guard 1: client-side status gate (covers stale UI / double-clicks)
+    if (!isAwaiting) {
+      toast.error('This batch already has proof submitted and cannot be resubmitted');
+      onProofSubmitted();
+      return;
+    }
+    if (submitting) return; // Guard 2: in-flight double-submit
     const ref = reference.trim();
     if (ref.length < 4 && !file) {
       toast.error('Enter a transaction ID / reference, or attach a receipt photo');
@@ -491,6 +498,23 @@ function AwaitingBatchRow({ batch, onOpenWizard, onProofSubmitted }: AwaitingBat
     }
     setSubmitting(true);
     try {
+      // Guard 3: server-side freshness check — re-read status before uploading
+      // anything, in case another tab/device already submitted proof for this batch.
+      const { data: fresh, error: freshErr } = await supabase
+        .from('field_deposit_batches')
+        .select('status')
+        .eq('id', batch.id)
+        .single();
+      if (freshErr) throw freshErr;
+      if (fresh?.status !== 'awaiting_proof') {
+        toast.error(
+          fresh?.status === 'pending_finops_verification'
+            ? 'Proof was already submitted for this batch and is awaiting Finance review'
+            : `This batch is now '${fresh?.status}' and cannot accept new proof`,
+        );
+        onProofSubmitted();
+        return;
+      }
       let imageUrl: string | null = null;
       if (file) {
         const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
