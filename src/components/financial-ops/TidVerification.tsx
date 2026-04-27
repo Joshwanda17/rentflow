@@ -1370,6 +1370,17 @@ export function TidVerification() {
                   All chips compose with the search box and with each other. */}
               <div className="space-y-1.5">
                 <FilterChipRow
+                  label="Provider"
+                  value={provider}
+                  onChange={(v) => setProvider(v)}
+                  options={[
+                    { value: 'mtn', label: 'MTN' },
+                    { value: 'airtel', label: 'Airtel' },
+                    { value: 'bank_transfer', label: 'Bank' },
+                    { value: 'agent_cash', label: 'Agent Cash' },
+                  ]}
+                />
+                <FilterChipRow
                   label="Match"
                   value={matchField}
                   onChange={(v) => setMatchField(v as MatchField)}
