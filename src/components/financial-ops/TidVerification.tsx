@@ -1243,7 +1243,13 @@ export function TidVerification() {
         throw new Error('Rejection did not complete — deposit remains pending for retry.');
       }
 
+      // Reject can be triggered from the matched-results card OR from a row
+      // in the pending pick-list. Fall back to the pending row so the audit
+      // log still captures who/what we rejected.
       const match = matches.find(m => m.id === rejectingId);
+      const pendingRow = !match ? pending.find(p => p.id === rejectingId) : null;
+      const depositorName = match?.userName || pendingRow?.depositorName;
+      const depositorAmount = match?.amount ?? pendingRow?.amount;
       await supabase.from('audit_logs').insert({
         user_id: user.id,
         action_type: 'tid_verified_reject',
@@ -1251,16 +1257,17 @@ export function TidVerification() {
         record_id: rejectingId,
         metadata: {
           transaction_id: match?.transaction_id,
-          amount: match?.amount,
-          depositor_name: match?.userName,
+          amount: depositorAmount,
+          depositor_name: depositorName,
           rejection_reason: rejectionReason.trim(),
           operator_entered_tid: tid.trim(),
           operator_entered_amount: operatorAmount,
+          source: match ? 'matched_card' : 'pending_list',
         },
       });
 
       setRejectedIds(prev => new Set(prev).add(rejectingId));
-      toast.success(`Rejected deposit for ${match?.userName || 'user'}`);
+      toast.success(`Rejected deposit for ${depositorName || 'user'}`);
 
       queryClient.invalidateQueries({ queryKey: ['approval-queue-deposits'] });
       queryClient.invalidateQueries({ queryKey: ['financial-ops-pulse'] });
@@ -1275,7 +1282,7 @@ export function TidVerification() {
       setRejectDialogOpen(false);
       setRejectingId(null);
     }
-  }, [user, rejectingId, rejectionReason, matches, tid, operatorAmount, queryClient, pickedId, loadPending]);
+  }, [user, rejectingId, rejectionReason, matches, pending, tid, operatorAmount, queryClient, pickedId, loadPending]);
 
   const reset = () => {
     setTid('');
@@ -1582,58 +1589,81 @@ export function TidVerification() {
                 className="divide-y divide-border/60 outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
               >
                 {pendingSorted.map((p, idx) => {
-                  const active = p.id === pickedId;
-                  const highlighted = idx === highlightedIndex;
-                  const isApprovingRow = pendingUndoIds.has(p.id);
-                  const secondsLeft = undoCountdown.get(p.id);
-                  return (
-                    <li key={p.id} role="option" aria-selected={active}>
-                      <button
-                        ref={(el) => { pendingItemRefs.current[idx] = el; }}
-                        type="button"
-                        onClick={() => {
-                          if (isApprovingRow) return;
-                          pickPending(p);
-                          setHighlightedIndex(idx);
-                        }}
-                        onFocus={() => setHighlightedIndex(idx)}
-                        disabled={isApprovingRow}
-                        className={`w-full text-left px-2.5 py-2 hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary transition-colors ${
-                          active ? 'bg-primary/10' : ''
-                        } ${highlighted && !active ? 'bg-accent/40 ring-2 ring-inset ring-primary/60' : ''} ${
-                          isApprovingRow ? 'bg-emerald-50 dark:bg-emerald-950/30 opacity-90 cursor-progress' : ''
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="text-xs font-medium truncate">
-                              {p.depositorName}
-                            </p>
-                            {isApprovingRow ? (
-                              <p className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium truncate flex items-center gap-1">
-                                <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                                Approving in {secondsLeft ?? 0}…
-                              </p>
-                            ) : (
-                              <p className="text-[10px] text-muted-foreground truncate">
-                                {p.depositorPhone || '—'} · {format(new Date(p.created_at), 'MMM d, HH:mm')}
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <span className="text-xs font-semibold">{formatUGX(p.amount)}</span>
-                            {active && !isApprovingRow && (
-                              <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-                            )}
-                            {isApprovingRow && (
-                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                            )}
-                          </div>
-                        </div>
-                      </button>
-                    </li>
-                  );
-                })}
+                   const active = p.id === pickedId;
+                   const highlighted = idx === highlightedIndex;
+                   const isApprovingRow = pendingUndoIds.has(p.id);
+                   const isRejectedRow = rejectedIds.has(p.id);
+                   const secondsLeft = undoCountdown.get(p.id);
+                   return (
+                     <li key={p.id} role="option" aria-selected={active}>
+                       <div
+                         className={`group relative flex items-stretch transition-colors ${
+                           active ? 'bg-primary/10' : ''
+                         } ${highlighted && !active ? 'bg-accent/40 ring-2 ring-inset ring-primary/60' : ''} ${
+                           isApprovingRow ? 'bg-emerald-50 dark:bg-emerald-950/30 opacity-90' : ''
+                         } ${isRejectedRow ? 'opacity-50' : ''} hover:bg-accent/40`}
+                       >
+                         <button
+                           ref={(el) => { pendingItemRefs.current[idx] = el; }}
+                           type="button"
+                           onClick={() => {
+                             if (isApprovingRow || isRejectedRow) return;
+                             pickPending(p);
+                             setHighlightedIndex(idx);
+                           }}
+                           onFocus={() => setHighlightedIndex(idx)}
+                           disabled={isApprovingRow || isRejectedRow}
+                           className={`flex-1 min-w-0 text-left px-2.5 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${
+                             isApprovingRow ? 'cursor-progress' : ''
+                           }`}
+                         >
+                           <div className="flex items-center justify-between gap-2">
+                             <div className="min-w-0">
+                               <p className="text-xs font-medium truncate">
+                                 {p.depositorName}
+                               </p>
+                               {isApprovingRow ? (
+                                 <p className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium truncate flex items-center gap-1">
+                                   <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                                   Approving in {secondsLeft ?? 0}…
+                                 </p>
+                               ) : (
+                                 <p className="text-[10px] text-muted-foreground truncate">
+                                   {p.depositorPhone || '—'} · {format(new Date(p.created_at), 'MMM d, HH:mm')}
+                                 </p>
+                               )}
+                             </div>
+                             <div className="flex items-center gap-1.5 shrink-0">
+                               <span className="text-xs font-semibold">{formatUGX(p.amount)}</span>
+                               {active && !isApprovingRow && (
+                                 <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+                               )}
+                               {isApprovingRow && (
+                                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                               )}
+                             </div>
+                           </div>
+                         </button>
+                         {/* Per-row Reject — opens reason dialog. Hidden while
+                             a pre-approval countdown is running on this row. */}
+                         {!isApprovingRow && !isRejectedRow && (
+                           <button
+                             type="button"
+                             title="Reject this deposit"
+                             aria-label={`Reject deposit from ${p.depositorName}`}
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               openRejectDialog(p.id);
+                             }}
+                             className="shrink-0 px-2 flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-destructive border-l border-border/60"
+                           >
+                             <XCircle className="h-3.5 w-3.5" />
+                           </button>
+                         )}
+                       </div>
+                     </li>
+                   );
+                 })}
               </ul>
               {/* Infinite scroll sentinel + soft loading indicator. */}
               {pendingHasMore && !pendingSearch.trim() && (
