@@ -104,7 +104,7 @@ const QUICK_AMOUNTS = [50000, 100000, 250000, 500000];
 /** Deposit limits in UGX (raw, never formatted). Mirrored in the UI hint
  *  under the amount input so users see exactly what's enforced. */
 const MIN_DEPOSIT = 500;
-const MAX_DEPOSIT = 10_000_000;
+const MAX_DEPOSIT = 1_000_000_000;
 
 export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowedPurposes, lockPurpose, requirePurposeChoice, editRequestId, prefillFromMatch }: DepositFlowProps) {
   const navigate = useNavigate();
