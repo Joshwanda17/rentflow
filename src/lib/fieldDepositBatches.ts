@@ -180,6 +180,32 @@ export async function cancelAwaitingBatch(batchId: string): Promise<void> {
   if (error) throw error;
 }
 
+/**
+ * Edit how much the agent says they actually banked for an `awaiting_proof`
+ * batch. RLS only allows this while the batch is still awaiting proof — once
+ * it's submitted to FinOps the declared total is locked.
+ */
+export async function updateBatchDeclaredTotal(
+  batchId: string,
+  newDeclaredTotal: number,
+  notes?: string | null,
+): Promise<FieldDepositBatch> {
+  if (!Number.isFinite(newDeclaredTotal) || newDeclaredTotal <= 0) {
+    throw new Error('Banked amount must be greater than zero');
+  }
+  const patch: Record<string, unknown> = { declared_total: newDeclaredTotal };
+  if (typeof notes === 'string') patch.notes = notes.trim() || null;
+  const { data, error } = await supabase
+    .from('field_deposit_batches')
+    .update(patch)
+    .eq('id', batchId)
+    .eq('status', 'awaiting_proof')
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data as FieldDepositBatch;
+}
+
 /* --------------------------------------------------------------------- */
 /* FinOps verification queue                                             */
 /* --------------------------------------------------------------------- */
