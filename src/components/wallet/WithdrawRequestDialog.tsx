@@ -43,6 +43,91 @@ const PAYOUT_OPTIONS: { value: PayoutMode; label: string; sublabel: string; icon
 import { formatDynamic } from '@/lib/currencyFormat';
 const formatCurrency = formatDynamic;
 
+// ─── Recipient session guard ──────────────────────────────────────────────
+// Stops a single user from spamming Financial Ops with multiple identical
+// pending withdrawals (e.g. five UGX 22,500 requests to the same MoMo
+// number) by re-opening the dialog after a refresh, switching tabs, or
+// just nervously tapping again. Layer 2 (the server trigger) is the real
+// safety net; this layer just gives the user immediate, friendly feedback
+// without a network round-trip.
+const RECENT_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+const recentStorageKey = (userId: string) => `welile:withdraw:recent:${userId}`;
+
+type RecentRecipientEntry = {
+  amount: number;
+  submittedAt: number; // ms epoch
+  recipientLabel: string;
+};
+
+function readRecentRecipients(userId: string): Record<string, RecentRecipientEntry> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = sessionStorage.getItem(recentStorageKey(userId));
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, RecentRecipientEntry>;
+    // Self-prune anything older than the window so the map doesn't grow
+    // unbounded across long sessions.
+    const cutoff = Date.now() - RECENT_WINDOW_MS;
+    const cleaned: Record<string, RecentRecipientEntry> = {};
+    for (const [k, v] of Object.entries(parsed)) {
+      if (v && typeof v.submittedAt === 'number' && v.submittedAt > cutoff) {
+        cleaned[k] = v;
+      }
+    }
+    return cleaned;
+  } catch {
+    return {};
+  }
+}
+
+function writeRecentRecipient(
+  userId: string,
+  key: string,
+  entry: RecentRecipientEntry,
+): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const current = readRecentRecipients(userId);
+    current[key] = entry;
+    sessionStorage.setItem(recentStorageKey(userId), JSON.stringify(current));
+  } catch {
+    /* sessionStorage full / disabled — non-fatal */
+  }
+}
+
+function buildRecipientKey(args: {
+  payoutMode: PayoutMode;
+  momoNumber: string;
+  bankName: string;
+  bankAccountNumber: string;
+}): { key: string; label: string } | null {
+  const { payoutMode, momoNumber, bankName, bankAccountNumber } = args;
+  if (payoutMode === 'mtn' || payoutMode === 'airtel') {
+    const normalised = momoNumber.replace(/\D/g, '');
+    if (!normalised) return null;
+    return {
+      key: `momo:${payoutMode}:${normalised}`,
+      label: `${payoutMode.toUpperCase()} ${momoNumber.trim()}`,
+    };
+  }
+  if (payoutMode === 'bank') {
+    if (!bankAccountNumber.trim()) return null;
+    return {
+      key: `bank:${(bankName || '').toLowerCase()}:${bankAccountNumber.trim()}`,
+      label: `${bankName || 'bank'} A/C ${bankAccountNumber.trim()}`,
+    };
+  }
+  if (payoutMode === 'cash') {
+    return { key: 'cash:Nearest Agent', label: 'Cash at agent' };
+  }
+  return null;
+}
+
+function formatRelativeMinutes(submittedAt: number): string {
+  const minutes = Math.max(1, Math.round((Date.now() - submittedAt) / 60000));
+  return minutes === 1 ? '1 minute ago' : `${minutes} minutes ago`;
+}
+
 export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, onSuccess, prefillAmount, prefillReason, linkedParty }: WithdrawRequestDialogProps) {
   const { user } = useAuth();
   const [amount, setAmount] = useState<number>(0);
