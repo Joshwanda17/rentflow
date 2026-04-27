@@ -812,6 +812,11 @@ export function TidVerification() {
   const commitApprove = useCallback(async (match: MatchResult) => {
     if (!user) return;
     setApproving(match.id);
+    // Optimistically remove from the pending pick-list so the row
+    // disappears instantly even on a slow phone connection. If the
+    // backend later fails, we restore via `loadPending()` below.
+    setPending((prev) => prev.filter((p) => p.id !== match.id));
+    pendingMatchesRef.current.delete(match.id);
 
     try {
       const { error } = await supabase.functions.invoke('approve-deposit', {
@@ -839,7 +844,9 @@ export function TidVerification() {
       });
 
       setApprovedIds(prev => new Set(prev).add(match.id));
-      toast.success(`Approved ${formatUGX(match.amount)} for ${match.userName}`);
+      toast.success(
+        `Removed from pending list ✓ — ${match.userName}, ${formatUGX(match.amount)} approved`,
+      );
 
       queryClient.invalidateQueries({ queryKey: ['approval-queue-deposits'] });
       queryClient.invalidateQueries({ queryKey: ['financial-ops-pulse'] });
@@ -848,7 +855,26 @@ export function TidVerification() {
       if (pickedId === match.id) setPickedId(null);
       loadPending();
     } catch (err: any) {
-      toast.error(err.message || 'Approval failed');
+      const msg = err?.message || 'Approval failed';
+      toast.error(msg);
+      // Diagnostic safety net — surfaces any silent failures to CFO
+      // review even when the operator dismisses the toast.
+      try {
+        await supabase.from('audit_logs').insert({
+          user_id: user.id,
+          action_type: 'tid_approve_failed',
+          table_name: 'deposit_requests',
+          record_id: match.id,
+          metadata: {
+            transaction_id: match.transaction_id,
+            amount: match.amount,
+            depositor_name: match.userName,
+            error_message: String(msg).slice(0, 500),
+          },
+        });
+      } catch { /* non-blocking */ }
+      // Restore the optimistically-removed row so the operator can retry.
+      loadPending();
     } finally {
       setApproving(null);
     }
