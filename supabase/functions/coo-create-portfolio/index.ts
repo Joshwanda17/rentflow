@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildPartnershipAgreementRequest, dispatchTransactionalEmail } from "../_shared/partnership-emails.ts";
+import { withRetry } from "../_shared/rpcRetry.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -131,9 +132,25 @@ Deno.serve(async (req) => {
 
     const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
+    const opStartedAt = Date.now();
+    const isLargeAmount = body.amount >= 5_000_000;
+    if (isLargeAmount) {
+      console.log(
+        `[coo-create-portfolio] LARGE op start partner=${body.partner_id} ` +
+        `amount=${body.amount} method=${body.payment_method} source=${body.source_wallet_user_id} ref=${referenceId}`,
+      );
+    }
+
     // ── Deduct from selected wallet via balanced ledger RPC ──
     // Uses 'partner_funding' (allowlisted) — same pattern as coo-invest-for-partner.
-    const { data: txGroupId, error: ledgerErr } = await adminClient.rpc("create_ledger_transaction", {
+    // Wrapped in bounded retry — large amounts (10M+) occasionally hit
+    // transient pooler/connection failures and surface as user-facing
+    // "Edge Function returned non-2xx". Insufficient-balance and other
+    // validation errors are NOT retried (filtered inside withRetry).
+    const ledgerRes = await withRetry<string>(
+      "create_portfolio_ledger",
+      referenceId,
+      () => adminClient.rpc("create_ledger_transaction", {
       entries: [
         {
           user_id: body.source_wallet_user_id,
@@ -161,10 +178,16 @@ Deno.serve(async (req) => {
           transaction_date: contributionDate.toISOString(),
         },
       ],
-    });
+      }),
+    );
+    const txGroupId = ledgerRes.data;
+    const ledgerErr = ledgerRes.error as { message?: string } | null;
 
     if (ledgerErr) {
-      console.error("[coo-create-portfolio] Ledger RPC failed:", ledgerErr.message);
+      console.error(
+        `[coo-create-portfolio] Ledger RPC failed for ${referenceId} after ${ledgerRes.attempts} attempts (${ledgerRes.ms}ms):`,
+        ledgerErr.message,
+      );
       // Insufficient-balance is a user-correctable validation error, not a runtime crash.
       // Return 400 with a friendly message so the caller toasts cleanly instead of
       // bubbling a 500 / blank-screen runtime overlay.
@@ -186,9 +209,12 @@ Deno.serve(async (req) => {
     // withdrawable_balance bucket stays in sync with the just-posted debit.
     // Without this, ledger trigger updates `balance` but the per-bucket fields
     // can drift if the bucket router ever misses a category.
-    const { error: recomputeErr } = await adminClient.rpc("recompute_wallet_buckets", {
-      p_user_id: body.source_wallet_user_id,
-    });
+    const recomputeRes = await withRetry<unknown>(
+      "recompute_wallet_buckets",
+      referenceId,
+      () => adminClient.rpc("recompute_wallet_buckets", { p_user_id: body.source_wallet_user_id }),
+    );
+    const recomputeErr = recomputeRes.error as { message?: string } | null;
     if (recomputeErr) {
       console.warn(`[coo-create-portfolio] Bucket recompute failed for ${body.source_wallet_user_id} (non-blocking):`, recomputeErr.message);
     }
@@ -256,6 +282,12 @@ Deno.serve(async (req) => {
     });
 
     console.log(`[coo-create-portfolio] ${caller.id} created portfolio ${referenceId} for partner ${body.partner_id}, source=${body.payment_method}, amt=${body.amount}`);
+    if (isLargeAmount) {
+      console.log(
+        `[coo-create-portfolio] LARGE op done ref=${referenceId} amount=${body.amount} ` +
+        `total_ms=${Date.now() - opStartedAt}`,
+      );
+    }
 
     // Partnership Agreement email — fire-and-forget, target = partner (not the COO actor)
     try {
