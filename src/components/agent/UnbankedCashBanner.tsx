@@ -1557,6 +1557,7 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
               )}
             </div>
           </div>
+          </>)}
 
           {/* Footer */}
           <div className="px-4 py-3 border-t border-border bg-muted/30 flex items-center gap-2">
