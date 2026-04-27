@@ -989,12 +989,47 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 </div>
               )}
               {depositPurpose === 'operational_float' && currentUserId && (
-                <OperationalFloatTenantAllocator
-                  agentId={currentUserId}
-                  totalAmount={parseFloat(amount) || 0}
-                  allocations={tenantAllocations}
-                  onChange={setTenantAllocations}
-                />
+                <>
+                  <OperationalFloatTenantAllocator
+                    agentId={currentUserId}
+                    totalAmount={parseFloat(amount) || 0}
+                    allocations={tenantAllocations}
+                    onChange={setTenantAllocations}
+                  />
+                  {(() => {
+                    const total = parseFloat(amount) || 0;
+                    const sum = tenantAllocations.reduce((s, a) => s + (a.amount || 0), 0);
+                    const diff = total - sum;
+                    if (tenantAllocations.length === 0 || total <= 0) return null;
+                    if (Math.abs(diff) <= 1) {
+                      return (
+                        <div className="flex items-start gap-2 p-2.5 rounded-lg border border-success/30 bg-success/10">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0 mt-0.5" />
+                          <p className="text-[11px] text-success-foreground">
+                            Breakdown balanced — UGX {sum.toLocaleString()} across {tenantAllocations.length} tenant{tenantAllocations.length === 1 ? '' : 's'}.
+                          </p>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="flex items-start gap-2 p-2.5 rounded-lg border border-destructive/30 bg-destructive/10">
+                        <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
+                        <div className="text-[11px] text-destructive space-y-0.5">
+                          <p className="font-semibold">
+                            Breakdown does not match deposit total — submission blocked.
+                          </p>
+                          <p>
+                            Allocated <span className="font-semibold">UGX {sum.toLocaleString()}</span> of{' '}
+                            <span className="font-semibold">UGX {total.toLocaleString()}</span>.{' '}
+                            {diff > 0
+                              ? <>You still need to allocate <span className="font-semibold">UGX {diff.toLocaleString()}</span>.</>
+                              : <>You are over by <span className="font-semibold">UGX {Math.abs(diff).toLocaleString()}</span> — reduce a tenant's amount.</>}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </>
               )}
               {depositPurpose === 'other' && (
                 <Input placeholder="Specify your reason..." value={reason} onChange={(e) => setReason(e.target.value)} className="h-10 text-sm" />
@@ -1007,9 +1042,28 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
               <p className="text-[10px] text-muted-foreground">Ensure all details match your {channel === 'momo' ? 'SMS' : channel === 'bank' ? 'bank receipt' : 'physical receipt'}. Incorrect info delays verification.</p>
             </div>
 
-            <Button onClick={handleSubmit} disabled={isSubmitting || (channel === 'momo' && !isTidValid())} className="w-full h-11" size="lg">
-              {isSubmitting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Submitting...</> : 'Submit Deposit Request'}
-            </Button>
+            {(() => {
+              const total = parseFloat(amount) || 0;
+              const sum = tenantAllocations.reduce((s, a) => s + (a.amount || 0), 0);
+              const opsAllocBlocked =
+                depositPurpose === 'operational_float' &&
+                tenantAllocations.length > 0 &&
+                (Math.abs(total - sum) > 1 || tenantAllocations.some((a) => !a.amount || a.amount <= 0));
+              return (
+                <Button
+                  onClick={handleSubmit}
+                  disabled={isSubmitting || (channel === 'momo' && !isTidValid()) || opsAllocBlocked}
+                  className="w-full h-11"
+                  size="lg"
+                >
+                  {isSubmitting
+                    ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Submitting...</>
+                    : opsAllocBlocked
+                      ? 'Fix tenant breakdown to submit'
+                      : 'Submit Deposit Request'}
+                </Button>
+              );
+            })()}
           </div>
         )}
       </DialogContent>
