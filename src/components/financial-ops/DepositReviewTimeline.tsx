@@ -10,6 +10,7 @@ import {
   Receipt,
   Copy,
   CheckCheck,
+  Users,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -49,7 +50,14 @@ interface DepositLike {
   receipt_number?: string | null;
 }
 
-type EventKind = 'submitted' | 'edited' | 'approved' | 'rejected' | 'flagged';
+type EventKind =
+  | 'submitted'
+  | 'edited'
+  | 'approved'
+  | 'rejected'
+  | 'flagged'
+  | 'breakdown_created'
+  | 'breakdown_edited';
 
 interface TimelineEvent {
   kind: EventKind;
@@ -95,6 +103,18 @@ const KIND_META: Record<
   flagged: {
     icon: Flag,
     label: 'Flagged for audit',
+    tone: 'text-warning',
+    ring: 'bg-warning/10 ring-warning/30',
+  },
+  breakdown_created: {
+    icon: Users,
+    label: 'Breakdown captured',
+    tone: 'text-primary',
+    ring: 'bg-primary/10 ring-primary/30',
+  },
+  breakdown_edited: {
+    icon: Users,
+    label: 'Breakdown edited',
     tone: 'text-warning',
     ring: 'bg-warning/10 ring-warning/30',
   },
@@ -146,10 +166,61 @@ interface Props {
 export function DepositReviewTimeline({ request }: Props) {
   const [actors, setActors] = useState<Map<string, ProfileLite>>(new Map());
   const [copied, setCopied] = useState(false);
+  const [auditEvents, setAuditEvents] = useState<TimelineEvent[]>([]);
 
-  const events = request ? buildEvents(request) : [];
+  const baseEvents = request ? buildEvents(request) : [];
+  const events = [...baseEvents, ...auditEvents].sort(
+    (a, b) => new Date(a.at).getTime() - new Date(b.at).getTime(),
+  );
   const reference =
     (request?.transaction_id || request?.receipt_number || '').toString().trim();
+
+  // Pull the durable breakdown audit trail for this deposit. Every edit
+  // to the per-tenant allocations is captured server-side via the
+  // operational_float_audit_log trigger, so reviewers can trace changes
+  // by transaction_id without trusting the client.
+  useEffect(() => {
+    if (!request?.id) {
+      setAuditEvents([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('operational_float_audit_log')
+        .select('action, changed_at, changed_by, changed_fields, previous_amount, new_amount')
+        .eq('deposit_request_id', request.id)
+        .order('changed_at', { ascending: true });
+      if (cancelled) return;
+      if (error || !data) {
+        setAuditEvents([]);
+        return;
+      }
+      const mapped: TimelineEvent[] = data.map((row: any) => {
+        const fields: string[] = Array.isArray(row.changed_fields) ? row.changed_fields : [];
+        const detailParts: string[] = [];
+        if (fields.includes('amount') && row.previous_amount != null && row.new_amount != null) {
+          detailParts.push(
+            `Amount: UGX ${Number(row.previous_amount).toLocaleString()} → UGX ${Number(row.new_amount).toLocaleString()}`,
+          );
+        }
+        if (fields.includes('allocations')) detailParts.push('Per-tenant breakdown updated');
+        if (fields.includes('transaction_id')) detailParts.push('Reference / TID updated');
+        return {
+          kind: row.action === 'created' ? 'breakdown_created' : 'breakdown_edited',
+          at: row.changed_at,
+          actorId: row.changed_by ?? null,
+          detail: detailParts.length ? detailParts.join(' · ') : null,
+        };
+      });
+      // The 'created' audit row duplicates the 'submitted' card we
+      // already render — drop it to keep the strip tight.
+      setAuditEvents(mapped.filter((e) => e.kind !== 'breakdown_created'));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [request?.id]);
 
   // Resolve actor names in a single round trip — covers both the
   // submitting user and any reviewer recorded in processed_by.
