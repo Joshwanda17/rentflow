@@ -9890,6 +9890,57 @@ export type Database = {
           },
         ]
       }
+      saved_payout_methods: {
+        Row: {
+          bank_account_name: string | null
+          bank_account_number: string | null
+          bank_name: string | null
+          created_at: string
+          id: string
+          is_default: boolean
+          last_used_at: string | null
+          momo_name: string | null
+          momo_number: string | null
+          momo_provider: string | null
+          nickname: string | null
+          payout_mode: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_name?: string | null
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          last_used_at?: string | null
+          momo_name?: string | null
+          momo_number?: string | null
+          momo_provider?: string | null
+          nickname?: string | null
+          payout_mode: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_name?: string | null
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          last_used_at?: string | null
+          momo_name?: string | null
+          momo_number?: string | null
+          momo_provider?: string | null
+          nickname?: string | null
+          payout_mode?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       scheduled_payouts: {
         Row: {
           amount: number
