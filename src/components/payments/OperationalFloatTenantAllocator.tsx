@@ -276,6 +276,44 @@ export default function OperationalFloatTenantAllocator({
   };
 
   /**
+   * Pure-function preview of `autoAllocateRemaining` — produces the same
+   * shares the click handler would, but without mutating state. Drives
+   * the small "Preview" panel under the Auto-allocate button so the
+   * agent can see exactly what each tenant will receive (and confirm the
+   * total matches the deposit) before committing.
+   */
+  const autoAllocatePreview = useMemo(() => {
+    if (allocations.length === 0 || remaining <= 0) return null;
+    const weights = allocations.map((a) => Math.max(0, Number(a.monthly_rent || 0)));
+    const weightSum = weights.reduce((acc, w) => acc + w, 0);
+    const useEqual = weightSum <= 0;
+    const shares = allocations.map((_, i) => {
+      const share = useEqual
+        ? remaining / allocations.length
+        : (remaining * weights[i]) / weightSum;
+      return Math.floor(share);
+    });
+    const distributed = shares.reduce((acc, s) => acc + s, 0);
+    const drift = Math.round(remaining) - distributed;
+    if (drift !== 0) shares[shares.length - 1] += drift;
+
+    const rows = allocations.map((a, i) => ({
+      tenant_id: a.tenant_id,
+      tenant_name: a.tenant_name,
+      currentAmount: a.amount,
+      addAmount: shares[i],
+      finalAmount: Math.max(0, a.amount + shares[i]),
+    }));
+    const projectedTotal = rows.reduce((s, r) => s + r.finalAmount, 0);
+    return {
+      rows,
+      projectedTotal,
+      strategy: useEqual ? ('equal' as const) : ('rent_weighted' as const),
+      matchesDeposit: Math.abs(projectedTotal - (totalAmount || 0)) < 1,
+    };
+  }, [allocations, remaining, totalAmount]);
+
+  /**
    * Per-row headroom check. We only flag rows where:
    *   - we actually know the tenant's monthly rent ( > 0 ), AND
    *   - the allocated amount strictly exceeds that rent.
@@ -522,6 +560,73 @@ export default function OperationalFloatTenantAllocator({
             >
               Add to last tenant
             </Button>
+          </div>
+        )}
+        {/* Preview: shows exactly what each tenant will receive after the
+            agent taps "Auto-allocate remaining", and confirms the projected
+            total lands on the deposit amount. Hidden when there's nothing
+            to distribute or the form isn't already showing the buttons. */}
+        {autoAllocatePreview && !isBalanced && !isOverAllocated && (
+          <div className="mt-1 rounded-md border border-primary/20 bg-primary/5 p-2 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-semibold text-primary uppercase tracking-wide">
+                Auto-allocate preview
+              </p>
+              <span className="text-[9px] text-muted-foreground">
+                {autoAllocatePreview.strategy === 'rent_weighted'
+                  ? 'weighted by monthly rent'
+                  : 'split equally'}
+              </span>
+            </div>
+            <ul className="space-y-0.5">
+              {autoAllocatePreview.rows.map((r) => (
+                <li
+                  key={r.tenant_id}
+                  className="flex items-center justify-between text-[11px] gap-2"
+                >
+                  <span className="truncate text-foreground/90">{r.tenant_name}</span>
+                  <span className="font-mono tabular-nums whitespace-nowrap">
+                    {r.currentAmount > 0 && (
+                      <span className="text-muted-foreground">
+                        {r.currentAmount.toLocaleString()}
+                        <span className="mx-0.5">+</span>
+                      </span>
+                    )}
+                    <span className="text-primary font-medium">
+                      {r.addAmount.toLocaleString()}
+                    </span>
+                    <span className="text-muted-foreground"> = </span>
+                    <span className="font-semibold text-foreground">
+                      {r.finalAmount.toLocaleString()}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <div
+              className={`flex items-center justify-between text-[11px] pt-1 border-t ${
+                autoAllocatePreview.matchesDeposit
+                  ? 'text-emerald-600 border-emerald-500/30'
+                  : 'text-warning border-warning/30'
+              }`}
+            >
+              <span className="flex items-center gap-1 font-medium">
+                {autoAllocatePreview.matchesDeposit ? (
+                  <>
+                    <CheckCircle2 className="h-3 w-3" />
+                    Matches deposit total
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="h-3 w-3" />
+                    Doesn't match deposit
+                  </>
+                )}
+              </span>
+              <span className="font-mono tabular-nums">
+                UGX {autoAllocatePreview.projectedTotal.toLocaleString()} / {(totalAmount || 0).toLocaleString()}
+              </span>
+            </div>
           </div>
         )}
         {headroomBreaches.length > 0 && (
