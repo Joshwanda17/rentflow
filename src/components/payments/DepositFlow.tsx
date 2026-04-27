@@ -13,6 +13,7 @@ import OperationalFloatTenantAllocator, {
   decodeAllocationsFromNote,
   type TenantAllocation,
 } from './OperationalFloatTenantAllocator';
+import DepositReferenceMatcher, { type MatchResult } from './DepositReferenceMatcher';
 
 /**
  * Extract a Mobile Money / bank reference from arbitrary SMS text.
@@ -140,7 +141,12 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
    * original allocations payload so handleSubmit can re-encode notes the
    * same way it was created (and so we can detect "nothing changed").
    */
-  const isEditMode = !!editRequestId;
+  // Either the parent supplied an edit target (UserDepositRequests "Edit
+  // allocations" button) OR the in-form Reference Matcher discovered a
+  // pending deposit and asked us to flip into edit mode for that row.
+  const [matchedEditId, setMatchedEditId] = useState<string | null>(null);
+  const activeEditId = editRequestId ?? matchedEditId;
+  const isEditMode = !!activeEditId;
   const [editLoading, setEditLoading] = useState(false);
 
   /**
@@ -242,7 +248,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
    * approved/reviewed deposit would silently desync the ledger.
    */
   useEffect(() => {
-    if (!open || !editRequestId) return;
+    if (!open || !activeEditId) return;
     let cancelled = false;
     (async () => {
       setEditLoading(true);
@@ -250,7 +256,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         const { data, error } = await supabase
           .from('deposit_requests')
           .select('*')
-          .eq('id', editRequestId)
+          .eq('id', activeEditId)
           .maybeSingle();
         if (error) throw error;
         if (!data) {
@@ -336,7 +342,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, editRequestId]);
+  }, [open, activeEditId]);
 
   const validateTid = (value: string, provider?: 'mtn' | 'airtel') => {
     const upper = value.trim().toUpperCase();
@@ -459,7 +465,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       if (
         existing &&
         existing.length > 0 &&
-        !(isEditMode && existing.length === 1 && existing[0].id === editRequestId)
+        !(isEditMode && existing.length === 1 && existing[0].id === activeEditId)
       ) {
         toast.error('This reference has already been used');
         setStep('form');
@@ -498,7 +504,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           ? encodeAllocationsNote(baseNotes, tenantAllocations)
           : baseNotes;
 
-      if (isEditMode && editRequestId) {
+      if (isEditMode && activeEditId) {
         // UPDATE — restricted by RLS to the owner's own pending row.
         // Status is intentionally NOT touched; the row stays 'pending' so
         // Financial Ops still owns the next move. We do, however, stamp
@@ -522,7 +528,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
               last_edited_at: new Date().toISOString(),
             },
           } as any)
-          .eq('id', editRequestId)
+          .eq('id', activeEditId)
           .eq('status', 'pending'); // hard guard: never overwrite a reviewed row
         if (updError) throw updError;
         toast.success('Deposit updated — Financial Ops will see your changes');
@@ -585,6 +591,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     setShowPurposeGrid(!lockPurpose);
     setBankSlipFile(null);
     setTenantAllocations([]);
+    setMatchedEditId(null);
     onOpenChange(false);
   };
 
@@ -1162,6 +1169,50 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
               )}
               {depositPurpose === 'operational_float' && currentUserId && (
                 <>
+                  {!isEditMode && (
+                    <DepositReferenceMatcher
+                      agentId={currentUserId}
+                      currentAmount={parseFloat(amount) || 0}
+                      onApplyMatch={(m: MatchResult) => {
+                        // Path A: matched a pending deposit row → flip
+                        // the dialog into edit mode for that row. The
+                        // hydrator effect will repopulate every field.
+                        if (m.editDepositId) {
+                          if (m.reference) setTransactionId(m.reference);
+                          if (m.providerHint === 'mtn' || m.providerHint === 'airtel') {
+                            setChannel('momo');
+                            setMomoProvider(m.providerHint);
+                          } else if (m.providerHint === 'bank') {
+                            setChannel('bank');
+                          }
+                          setMatchedEditId(m.editDepositId);
+                          return;
+                        }
+                        // Path B: matched a bundle of unattached
+                        // collections → prefill the form with the sum,
+                        // the allocations, and the pasted reference.
+                        if (m.amount > 0) setAmount(String(m.amount));
+                        if (m.allocations.length) setTenantAllocations(m.allocations);
+                        if (m.reference) {
+                          if (channel === 'momo') {
+                            setTransactionId(m.reference);
+                            validateTid(m.reference);
+                          } else if (channel === 'bank') {
+                            setTransactionId(m.reference);
+                          } else {
+                            setReceiptNumber(m.reference.replace(/^RCT/i, ''));
+                          }
+                        }
+                        if (m.providerHint === 'mtn' || m.providerHint === 'airtel') {
+                          setChannel('momo');
+                          setMomoProvider(m.providerHint);
+                          validateTid(m.reference, m.providerHint);
+                        } else if (m.providerHint === 'bank') {
+                          setChannel('bank');
+                        }
+                      }}
+                    />
+                  )}
                   <OperationalFloatTenantAllocator
                     agentId={currentUserId}
                     totalAmount={parseFloat(amount) || 0}
