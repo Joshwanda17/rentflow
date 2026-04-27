@@ -285,8 +285,47 @@ export function FinOpsWithdrawalVerification() {
   const renderPendingCard = (req: WithdrawalRequest) => {
     const bankLabel = getPayoutLabel(req);
     const ageBadge = getAgeBadge(req.created_at);
+    const cluster = (() => {
+      const k = duplicateKeyFor(req);
+      if (!k) return null;
+      return duplicateClusters.get(k) ?? null;
+    })();
+    const isNewestInCluster = cluster ? cluster[0].id === req.id : false;
+    const olderCount = cluster ? cluster.length - 1 : 0;
     return (
       <div key={req.id} className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-2">
+        {cluster && (
+          <div className={`flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg border ${
+            isNewestInCluster
+              ? 'bg-destructive/10 border-destructive/30'
+              : 'bg-muted/40 border-border/50'
+          }`}>
+            <span className="text-[11px] font-semibold flex items-center gap-1.5">
+              <span className={isNewestInCluster ? 'text-destructive' : 'text-muted-foreground'}>
+                ⚠ {cluster.length} duplicate submissions
+              </span>
+              <span className="text-muted-foreground font-normal">
+                · same recipient · same amount
+              </span>
+              {!isNewestInCluster && (
+                <span className="text-[10px] text-muted-foreground italic">
+                  (older copy)
+                </span>
+              )}
+            </span>
+            {isNewestInCluster && olderCount > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-[11px] px-2 text-destructive border-destructive/40"
+                onClick={() => handleBulkRejectDuplicates(cluster)}
+                disabled={!!processing}
+              >
+                Reject {olderCount} older duplicate{olderCount === 1 ? '' : 's'}
+              </Button>
+            )}
+          </div>
+        )}
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">
             <UserAvatar fullName={req.user?.full_name || ''} avatarUrl={req.user?.avatar_url} size="sm" />
