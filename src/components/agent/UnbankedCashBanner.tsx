@@ -1241,8 +1241,8 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
           </button>
         </div>
 
-        {/* Mode toggle */}
-        <div className="px-4 pt-3">
+        {/* Mode toggle (hidden once we have a results summary to show) */}
+        {!hasRun && <div className="px-4 pt-3">
           <div className="inline-flex w-full rounded-lg border border-border bg-muted/40 p-0.5 text-[11px] font-bold uppercase tracking-wider">
             <button
               type="button"
@@ -1267,7 +1267,7 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
               Different per batch
             </button>
           </div>
-        </div>
+        </div>}
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
           {/* Selection list */}
