@@ -3,12 +3,14 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   Banknote, AlertTriangle, ChevronRight, ShieldAlert,
   ChevronDown, Clock, FileText, User as UserIcon,
+  Camera, Loader2, CheckCircle2, X, Upload,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import {
   listAgentBatches,
   listUnbatchedFieldCollections,
   listBatchItems,
+  submitProofForBatch,
   type FieldDepositBatch,
   type UnbatchedFieldCollection,
   type BatchItemDetail,
@@ -17,6 +19,8 @@ import {
 import { FieldDepositWizardDialog } from '@/components/agent/FieldDepositWizardDialog';
 import { hapticTap } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface AwaitingBatchWithItems extends FieldDepositBatch {
   items: BatchItemDetail[];
