@@ -995,6 +995,16 @@ type BulkResult = {
  *  via a different mobile money / bank transaction). */
 type RefMode = 'shared' | 'per_batch';
 
+/**
+ * Receipt photo input mode (independent from `RefMode`):
+ * - 'shared'   = one optional photo attached to every selected batch.
+ * - 'per_batch' = each selected batch can have its own optional photo.
+ *
+ * Per-batch photos are useful when each deposit produced a distinct slip
+ * (e.g., separate bank teller receipts per merchant code transfer).
+ */
+type PhotoMode = 'shared' | 'per_batch';
+
 /* ---------------------------------------------------------------------- */
 /* Bulk results summary panel                                              */
 /* ---------------------------------------------------------------------- */
@@ -1077,11 +1087,11 @@ function BulkResultsSummary({
         </div>
       </div>
 
-      {/* Shared photo recap */}
-      {photoAttached && (
+      {/* Shared photo recap — only when a single shared photo was used.
+          Per-batch mode shows the photo flag inline on each row instead. */}
+      {photoAttached && photoPreviewUrl && (
         <div className="flex items-center gap-2.5 rounded-lg border border-border bg-background p-2">
-          {photoPreviewUrl && (
-            <a
+          <a
               href={photoPreviewUrl}
               target="_blank"
               rel="noopener noreferrer"
@@ -1094,7 +1104,6 @@ function BulkResultsSummary({
                 loading="lazy"
               />
             </a>
-          )}
           <div className="text-[11px] leading-snug">
             <span className="font-semibold">Shared receipt photo</span> attached to every
             submitted batch.
@@ -1156,11 +1165,13 @@ function BulkResultsSummary({
                         No reference recorded
                       </div>
                     )}
-                    {/* Photo flag (only meaningful when one was uploaded) */}
-                    {photoAttached && (
+                    {/* Photo flag — driven by the per-row outcome so per-batch
+                        photo mode shows it ONLY for rows that actually had
+                        a photo attached. */}
+                    {r.photoAttached && (
                       <div className="mt-0.5 text-[10px] text-muted-foreground inline-flex items-center gap-1">
                         <Camera className="h-3 w-3" />
-                        Shared photo attached
+                        Receipt photo attached
                       </div>
                     )}
                     {/* Error / skipped reason */}
@@ -1206,6 +1217,17 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
   const [perBatchRef, setPerBatchRef] = useState<Record<string, string>>({});
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  /** Photo-mode toggle (shared vs per-batch). Independent from `mode`
+   *  because a deposit's reference and its receipt photo can come from
+   *  different sources — e.g., one bank confirmation SMS reference but
+   *  separate teller slips. */
+  const [photoMode, setPhotoMode] = useState<PhotoMode>('shared');
+  /** Per-batch file uploads when `photoMode === 'per_batch'`. Keyed by
+   *  batch id; missing entries mean "no photo for that batch". */
+  const [perBatchFile, setPerBatchFile] = useState<Record<string, File>>({});
+  /** Object-URL previews for `perBatchFile`. Lifecycle is managed in an
+   *  effect below so we revoke URLs as files are replaced/removed. */
+  const [perBatchPreviewUrl, setPerBatchPreviewUrl] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [rowState, setRowState] = useState<Record<string, { state: BulkRowState; msg?: string }>>({});
   /** Per-batch outcomes from the most recent submit. Empty until the agent
@@ -1220,6 +1242,20 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
     setPreviewUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [file]);
+
+  // Keep `perBatchPreviewUrl` in sync with `perBatchFile`. Creates fresh
+  // object URLs as files are added/swapped and revokes stale ones to avoid
+  // memory leaks (URL.createObjectURL refs persist until revoked).
+  useEffect(() => {
+    const nextUrls: Record<string, string> = {};
+    for (const [id, f] of Object.entries(perBatchFile)) {
+      nextUrls[id] = URL.createObjectURL(f);
+    }
+    setPerBatchPreviewUrl(nextUrls);
+    return () => {
+      Object.values(nextUrls).forEach((u) => URL.revokeObjectURL(u));
+    };
+  }, [perBatchFile]);
 
   const toggle = (id: string) => {
     if (submitting) return;
@@ -1238,6 +1274,27 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
     if (!f) return;
     if (f.size > 5 * 1024 * 1024) { toast.error('Receipt image must be under 5 MB'); return; }
     setFile(f);
+  };
+
+  /** Add or replace the per-batch photo for one row, with the same 5 MB
+   *  cap used by the shared upload to keep storage costs predictable. */
+  const setPerBatchFileChecked = (id: string, f: File | null) => {
+    if (f && f.size > 5 * 1024 * 1024) {
+      toast.error('Receipt image must be under 5 MB');
+      return;
+    }
+    setPerBatchFile((prev) => {
+      const next = { ...prev };
+      if (f) next[id] = f;
+      else delete next[id];
+      return next;
+    });
+  };
+
+  /** Resolve the photo File for a batch given the current photo mode. */
+  const fileForBatch = (id: string): File | null => {
+    if (photoMode === 'shared') return file;
+    return perBatchFile[id] ?? null;
   };
 
   const totalSelected = batches
@@ -1292,19 +1349,28 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
    */
   const missingRefIds = useMemo(() => {
     if (mode !== 'per_batch') return new Set<string>();
-    if (file) return new Set<string>(); // a shared photo covers any missing ref
+    // A shared photo covers EVERY missing ref at once.
+    if (photoMode === 'shared' && file) return new Set<string>();
     const out = new Set<string>();
     for (const id of selected) {
       const r = (perBatchRef[id] ?? '').trim();
-      if (r.length < 4) out.add(id);
+      if (r.length >= 4) continue;
+      // In per-batch photo mode, a row's own photo also satisfies the rule.
+      if (photoMode === 'per_batch' && perBatchFile[id]) continue;
+      out.add(id);
     }
     return out;
-  }, [mode, selected, perBatchRef, file]);
+  }, [mode, selected, perBatchRef, file, photoMode, perBatchFile]);
 
   /** Submission is hard-blocked while ANY required reference is missing. */
   const hasMissingRefs = missingRefIds.size > 0;
   const sharedModeBlocked =
-    mode === 'shared' && selected.size > 0 && sharedRef.trim().length < 4 && !file;
+    mode === 'shared' &&
+    selected.size > 0 &&
+    sharedRef.trim().length < 4 &&
+    // A shared-mode submission needs either the shared ref OR *some* photo
+    // that we can attach to all batches — that's only the shared photo.
+    !(photoMode === 'shared' && file);
   const submitBlocked = selected.size === 0 || hasMissingRefs || sharedModeBlocked;
 
   /** Resolve the reference for a batch given the current mode. */
@@ -1317,7 +1383,11 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
   const validateBeforeSubmit = (): string | null => {
     if (selected.size === 0) return 'Pick at least one batch';
     if (mode === 'shared') {
-      if (sharedRef.trim().length < 4 && !file) {
+      // The shared receipt photo only counts when we're actually using
+      // shared photo mode — a per-batch photo can't be the fallback for
+      // a missing shared reference because it doesn't apply to all rows.
+      const hasSharedPhoto = photoMode === 'shared' && !!file;
+      if (sharedRef.trim().length < 4 && !hasSharedPhoto) {
         return 'Enter a shared reference or attach a receipt photo';
       }
     } else {
@@ -1346,26 +1416,40 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
     }
     setSubmitting(true);
     try {
-      // Upload the photo ONCE; reuse the same public URL for every batch.
-      let imageUrl: string | null = null;
-      if (file) {
-        const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-        const path = `field-deposit-proofs/bulk/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+      /** Upload one File to Supabase Storage and return its public URL.
+       *  Used for both the single shared upload and the lazy per-batch
+       *  uploads below — keeps the storage path scheme consistent. */
+      const uploadOne = async (f: File): Promise<string> => {
+        const ext = f.name.split('.').pop()?.toLowerCase() || 'jpg';
+        const path = `field-deposit-proofs/bulk/${Date.now()}_${Math.random()
+          .toString(36)
+          .slice(2)}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from('receipts')
-          .upload(path, file, { contentType: file.type || undefined, upsert: false });
+          .upload(path, f, { contentType: f.type || undefined, upsert: false });
         if (upErr) throw upErr;
-        imageUrl = supabase.storage.from('receipts').getPublicUrl(path).data.publicUrl;
+        return supabase.storage.from('receipts').getPublicUrl(path).data.publicUrl;
+      };
+
+      // In shared photo mode, upload ONCE and reuse the URL for every batch.
+      // In per_batch photo mode, each batch uploads its own file inside the
+      // loop below (only when one is attached).
+      let sharedImageUrl: string | null = null;
+      if (photoMode === 'shared' && file) {
+        sharedImageUrl = await uploadOne(file);
       }
 
       const ids = Array.from(selected);
       let okCount = 0;
       let failCount = 0;
       const runResults: BulkResult[] = [];
-      const photoAttached = !!imageUrl;
       for (const id of ids) {
         setRowState((s) => ({ ...s, [id]: { state: 'submitting' } }));
         const meta = batches.find((b) => b.id === id);
+        // Resolve the right photo for THIS batch up front so it shows in
+        // the result summary even if the row fails before submit.
+        const batchFile = fileForBatch(id);
+        const photoAttached = photoMode === 'shared' ? !!sharedImageUrl : !!batchFile;
         try {
           const { data: fresh, error: freshErr } = await supabase
             .from('field_deposit_batches')
@@ -1386,6 +1470,13 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
               errorMsg: `Already ${fresh?.status ?? 'changed'} — skipped`,
             });
             continue;
+          }
+          // Lazy per-batch upload — only when (a) we're in per_batch photo
+          // mode and (b) the agent attached a photo for this row. Failures
+          // are caught by the surrounding try/catch and reported per-row.
+          let imageUrl: string | null = sharedImageUrl;
+          if (photoMode === 'per_batch' && batchFile) {
+            imageUrl = await uploadOne(batchFile);
           }
           const ref = refForBatch(id);
           const finalRef = ref.length >= 4 ? ref : `RECEIPT-${id.slice(0, 8)}`;
@@ -1502,7 +1593,9 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
               results={results}
               batches={batches}
               photoAttached={results.some((r) => r.photoAttached)}
-              photoPreviewUrl={previewUrl}
+              // Only pass the preview URL when a shared photo was actually
+              // used — per_batch mode has no single representative thumbnail.
+              photoPreviewUrl={photoMode === 'shared' ? previewUrl : null}
               onRetryFailures={() => {
                 // Re-arm the dialog with only the failed batches selected so
                 // the agent can fix references and resubmit. We keep their
@@ -1690,6 +1783,79 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
                           </div>
                         );
                       })()}
+                      {/* Per-batch receipt photo — only when picked AND
+                          per_batch photo mode. Lives in the same card as
+                          the per-batch reference so the agent sees both
+                          inputs together. */}
+                      {isPicked && photoMode === 'per_batch' && (() => {
+                        const f = perBatchFile[b.id];
+                        const url = perBatchPreviewUrl[b.id];
+                        return (
+                          <div className="px-3 pb-3 -mt-1 space-y-1">
+                            <span className="text-[10px] font-medium text-muted-foreground block">
+                              Receipt photo for this batch
+                            </span>
+                            {f ? (
+                              <div className="flex items-center gap-2 rounded-md border border-border bg-background p-1.5">
+                                {url && (
+                                  <a
+                                    href={url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="relative h-9 w-9 shrink-0 rounded overflow-hidden border border-border bg-muted block"
+                                  >
+                                    <img
+                                      src={url}
+                                      alt={`Receipt preview for batch ${b.id.slice(0, 8)}`}
+                                      className="h-full w-full object-cover"
+                                      loading="lazy"
+                                    />
+                                  </a>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1 text-[11px]">
+                                    <CheckCircle2 className="h-3 w-3 text-success shrink-0" />
+                                    <span className="truncate font-medium">{f.name}</span>
+                                  </div>
+                                  <div className="text-[10px] text-muted-foreground">
+                                    {(f.size / 1024).toFixed(0)} KB
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setPerBatchFileChecked(b.id, null)}
+                                  disabled={submitting}
+                                  className="h-6 w-6 rounded hover:bg-accent flex items-center justify-center shrink-0"
+                                  aria-label={`Remove receipt for batch ${b.id.slice(0, 8)}`}
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </div>
+                            ) : (
+                              <label
+                                className={cn(
+                                  'flex items-center justify-center gap-1.5 h-8 rounded-md border border-dashed border-border bg-background cursor-pointer hover:bg-accent/30 transition-colors text-[11px] font-medium text-muted-foreground',
+                                  submitting && 'opacity-50 pointer-events-none',
+                                )}
+                              >
+                                <Camera className="h-3.5 w-3.5" />
+                                Tap to add photo for this batch
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  capture="environment"
+                                  className="sr-only"
+                                  onChange={(e) => {
+                                    const f = e.target.files?.[0];
+                                    if (f) setPerBatchFileChecked(b.id, f);
+                                  }}
+                                  disabled={submitting}
+                                />
+                              </label>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </li>
                 );
@@ -1752,10 +1918,42 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
             )}
 
             <div className="space-y-1">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
-                Receipt photo (optional · shared)
-              </label>
-              {file ? (
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Receipt photo (optional · {photoMode === 'shared' ? 'shared' : 'per batch'})
+                </label>
+                {/* Photo-mode toggle. Tiny segmented control mirroring the
+                    one used for references at the top of the dialog. */}
+                <div className="inline-flex rounded-md border border-border bg-muted/40 p-0.5 text-[10px] font-bold uppercase tracking-wider shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => !submitting && setPhotoMode('shared')}
+                    disabled={submitting}
+                    className={cn(
+                      'h-6 px-2 rounded transition-colors',
+                      photoMode === 'shared'
+                        ? 'bg-background shadow-sm text-foreground'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    Shared
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => !submitting && setPhotoMode('per_batch')}
+                    disabled={submitting}
+                    className={cn(
+                      'h-6 px-2 rounded transition-colors',
+                      photoMode === 'per_batch'
+                        ? 'bg-background shadow-sm text-foreground'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    Per batch
+                  </button>
+                </div>
+              </div>
+              {photoMode === 'shared' ? (file ? (
                 <div className="flex items-center gap-3 rounded-lg border border-border bg-background p-2">
                   {previewUrl && (
                     <a
@@ -1806,6 +2004,18 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
                     disabled={submitting}
                   />
                 </label>
+              )) : (
+                /* Per-batch photo mode: summary card + a hint pointing the
+                   agent up to each row's inline upload control. We don't
+                   re-render uploaders here because each batch card already
+                   has its own (added below the per-batch reference field). */
+                <div className="rounded-lg border border-dashed border-border bg-muted/20 px-3 py-2 text-[11px] text-muted-foreground leading-snug">
+                  Attach a receipt directly under each selected batch above.{' '}
+                  <span className="font-semibold text-foreground">
+                    {Object.keys(perBatchFile).length}
+                  </span>{' '}
+                  / {selected.size} attached so far.
+                </div>
               )}
             </div>
           </div>
