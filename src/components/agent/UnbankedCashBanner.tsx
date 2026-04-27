@@ -973,6 +973,23 @@ interface BulkProofDialogProps {
 }
 
 type BulkRowState = 'pending' | 'submitting' | 'done' | 'error';
+
+/** Per-batch outcome captured during the bulk submit run. Lives in state so
+ *  we can render an in-dialog summary after submission completes — agents
+ *  often need to screenshot the result or copy a reference for follow-up. */
+type BulkResult = {
+  batchId: string;
+  channel: DepositChannel;
+  declaredTotal: number;
+  status: 'done' | 'error' | 'skipped';
+  /** The reference string actually sent to submitProofForBatch (after
+   *  fallback to `RECEIPT-<id>` if the agent left it blank). */
+  refUsed: string | null;
+  /** True if the shared receipt photo was attached to this batch. */
+  photoAttached: boolean;
+  /** Failure reason, if any. */
+  errorMsg?: string;
+};
 /** 'shared' = one reference for all selected batches. 'per_batch' = each
  *  selected batch gets its own input (typical when each batch was deposited
  *  via a different mobile money / bank transaction). */
