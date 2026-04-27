@@ -1725,6 +1725,20 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
                 <p className="text-[10px] text-muted-foreground leading-snug">
                   Enter the transaction ID / reference next to each selected batch above. Leave a row blank only if you'll cover it with the shared receipt photo below.
                 </p>
+                {hasMissingRefs && (
+                  <div
+                    className="flex items-start gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-2.5 py-2"
+                    role="alert"
+                  >
+                    <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
+                    <div className="text-[11px] text-destructive leading-snug">
+                      <span className="font-bold">
+                        {missingRefIds.size} batch{missingRefIds.size === 1 ? '' : 'es'} missing a reference
+                      </span>{' '}
+                      · Add a transaction ID for each, or attach a shared receipt photo below to cover them all.
+                    </div>
+                  </div>
+                )}
                 {hasDuplicates && (
                   <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-2.5 py-2">
                     <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
