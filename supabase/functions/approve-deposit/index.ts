@@ -17,7 +17,17 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    const authHeader = req.headers.get("Authorization");
+    const body = await req.json().catch(() => ({}));
+    const { deposit_request_id, action, rejection_reason, bulk_ids, access_token } = body as {
+      deposit_request_id?: string;
+      action?: string;
+      rejection_reason?: string;
+      bulk_ids?: string[];
+      access_token?: string;
+    };
+
+    const authHeader = req.headers.get("Authorization")
+      || (typeof access_token === 'string' && access_token.length > 0 ? `Bearer ${access_token}` : null);
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: "Missing authorization header" }),
@@ -36,14 +46,6 @@ Deno.serve(async (req) => {
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    const body = await req.json().catch(() => ({}));
-    const { deposit_request_id, action, rejection_reason, bulk_ids } = body as {
-      deposit_request_id?: string;
-      action?: string;
-      rejection_reason?: string;
-      bulk_ids?: string[];
-    };
 
     if (!action || !["approve", "reject"].includes(action)) {
       return new Response(
