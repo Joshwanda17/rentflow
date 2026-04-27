@@ -140,6 +140,72 @@ Deno.serve(async (req) => {
     for (const depositRequest of depositRequests) {
       try {
         if (action === "approve") {
+          // ── Idempotency guard ────────────────────────────────────────
+          // The wallet-credit ledger RPC and the `status='approved'` UPDATE
+          // are TWO separate writes. If the UPDATE silently fails (RLS,
+          // trigger reject without raising, race), the row stays 'pending'
+          // and the operator re-clicks Approve → ledger credits AGAIN.
+          //
+          // We've seen this in production (LUKODDA JOSEPH, 2026-04-27 —
+          // single deposit credited 3×). Refuse to re-credit if a
+          // wallet_deposit ledger entry for this deposit already exists.
+          {
+            const { count: existingCredits, error: existingErr } =
+              await supabaseAdmin
+                .from('general_ledger')
+                .select('id', { count: 'exact', head: true })
+                .eq('source_table', 'deposit_requests')
+                .eq('source_id', depositRequest.id)
+                .eq('category', 'wallet_deposit')
+                .eq('direction', 'cash_in')
+                .eq('ledger_scope', 'wallet');
+
+            if (!existingErr && (existingCredits ?? 0) > 0) {
+              // Wallet was already credited on a prior call — just reconcile
+              // the request status (which clearly didn't stick last time)
+              // and return success without touching the ledger.
+              console.warn(
+                `[approve-deposit] Idempotent re-approve for ${depositRequest.id} — ` +
+                `${existingCredits} existing wallet_deposit credit(s); skipping ledger RPC.`,
+              );
+
+              const { data: reconRows, error: reconErr } = await supabaseAdmin
+                .from('deposit_requests')
+                .update({
+                  status: 'approved',
+                  approved_at:
+                    depositRequest.approved_at || new Date().toISOString(),
+                  processed_by: depositRequest.processed_by || user.id,
+                })
+                .eq('id', depositRequest.id)
+                .eq('status', 'pending')
+                .select('id');
+
+              await supabaseAdmin.from('audit_logs').insert({
+                user_id: user.id,
+                action_type: 'approve_idempotent_skip',
+                table_name: 'deposit_requests',
+                record_id: depositRequest.id,
+                metadata: {
+                  amount: depositRequest.amount,
+                  target_user_id: depositRequest.user_id,
+                  existing_wallet_credits: existingCredits,
+                  reconcile_update_rows: reconRows?.length ?? 0,
+                  reconcile_update_error: reconErr?.message ?? null,
+                  transaction_id: depositRequest.transaction_id ?? null,
+                },
+              });
+
+              results.push({
+                id: depositRequest.id,
+                status: 'approved',
+                amount: depositRequest.amount,
+                user_id: depositRequest.user_id,
+              });
+              continue;
+            }
+          }
+
           // Ensure wallet row exists (sync_wallet_from_ledger handles actual balance).
           // We intentionally do NOT mark the request 'approved' yet — only after the
           // wallet-deposit ledger RPC succeeds. This prevents a "phantom-approved"
@@ -235,10 +301,51 @@ Deno.serve(async (req) => {
           }
 
           // ✅ Ledger credit confirmed — NOW mark the request approved.
-          await supabaseAdmin
-            .from("deposit_requests")
-            .update({ status: "approved", approved_at: new Date().toISOString(), processed_by: user.id })
-            .eq("id", depositRequest.id);
+          // CRITICAL: capture the result and verify a row was actually
+          // updated. A silent failure here (RLS, trigger, race) is what
+          // caused the LUKODDA JOSEPH 3× double-credit incident — the
+          // ledger fired but the row stayed 'pending', so the operator
+          // re-clicked and re-credited.
+          const { data: updatedRows, error: updateErr } = await supabaseAdmin
+            .from('deposit_requests')
+            .update({
+              status: 'approved',
+              approved_at: new Date().toISOString(),
+              processed_by: user.id,
+            })
+            .eq('id', depositRequest.id)
+            .eq('status', 'pending')
+            .select('id');
+
+          if (updateErr || !updatedRows || updatedRows.length === 0) {
+            // The wallet was credited but the request couldn't be marked
+            // approved. Surface this loudly so ops can intervene before
+            // anyone re-clicks Approve. The idempotency guard above will
+            // prevent a double-credit on retry, but we still need a hard
+            // signal.
+            const errMsg =
+              updateErr?.message
+              || 'deposit_requests UPDATE returned 0 rows (RLS or status race)';
+            console.error(
+              `[approve-deposit] CRITICAL: wallet credited but status update failed for ${depositRequest.id}: ${errMsg}`,
+            );
+            await supabaseAdmin.from('audit_logs').insert({
+              user_id: user.id,
+              action_type: 'approve_status_update_failed',
+              table_name: 'deposit_requests',
+              record_id: depositRequest.id,
+              metadata: {
+                amount: depositRequest.amount,
+                target_user_id: depositRequest.user_id,
+                error: errMsg,
+                wallet_already_credited: true,
+                transaction_id: depositRequest.transaction_id ?? null,
+              },
+            });
+            throw new Error(
+              `Wallet credited but failed to mark deposit approved: ${errMsg}`,
+            );
+          }
 
           // ── Operational Float Sweep ──
           // If an agent deposits with purpose=operational_float, sweep the credited
