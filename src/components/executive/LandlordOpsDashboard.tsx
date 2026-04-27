@@ -1315,37 +1315,47 @@ export function LandlordOpsDashboard() {
   // ─── PIPELINE VIEW ───
   if (view === 'pipeline') {
     return (
+      <>
       <div className="space-y-4">
         <BackButton />
         <RentPipelineQueue stage="agent_verified" />
         <DealPipeline />
       </div>
+      {renderDialogs()}
+      </>
     );
   }
 
   // ─── CHAIN VIEW ───
   if (view === 'chain') {
     return (
+      <>
       <div className="space-y-4">
         <BackButton />
         <ChainHealthTab />
       </div>
+      {renderDialogs()}
+      </>
     );
   }
 
   // ─── MATCHING VIEW ───
   if (view === 'matching') {
     return (
+      <>
       <div className="space-y-4">
         <BackButton />
         <TenantMatchingQueue onViewingCreated={() => refetch()} />
       </div>
+      {renderDialogs()}
+      </>
     );
   }
 
   // ─── AGENTS VIEW ───
   if (view === 'agents') {
     return (
+      <>
       <div className="space-y-3">
         <BackButton />
         <h2 className="text-lg font-bold flex items-center gap-2"><Users className="h-5 w-5 text-indigo-600" /> Listing Agents ({agentSummary.length})</h2>
@@ -1380,12 +1390,15 @@ export function LandlordOpsDashboard() {
           })}
         </div>
       </div>
+      {renderDialogs()}
+      </>
     );
   }
 
   // ─── ANALYTICS VIEW ───
   if (view === 'analytics') {
     return (
+      <>
       <div className="space-y-4">
         <BackButton />
         <h2 className="text-lg font-bold">Analytics</h2>
@@ -1397,12 +1410,15 @@ export function LandlordOpsDashboard() {
         </div>
         <VacancyAnalytics listings={rows as any} />
       </div>
+      {renderDialogs()}
+      </>
     );
   }
 
   // ─── ADVANCE REQUESTS VIEW ───
   if (view === 'advance-requests') {
     return (
+      <>
       <div className="space-y-6">
         <BackButton />
         <h2 className="text-lg font-bold">Agent Advance Requests</h2>
@@ -1410,22 +1426,28 @@ export function LandlordOpsDashboard() {
         <BusinessAdvanceQueue stage="landlord_ops" />
         <RentHistoryVerificationQueue dept="landlord_ops" />
       </div>
+      {renderDialogs()}
+      </>
     );
   }
 
   // ─── LANDLORDS PAID VIEW ───
   if (view === 'landlords-paid') {
     return (
+      <>
       <div className="space-y-4">
         <BackButton />
         <LandlordsPaidView />
       </div>
+      {renderDialogs()}
+      </>
     );
   }
 
   // ─── LANDLORDS & TENANTS VIEW ───
   if (view === 'landlords-tenants') {
     return (
+      <>
       <div className="space-y-4">
         <BackButton />
         <LandlordsWithTenantsView />
