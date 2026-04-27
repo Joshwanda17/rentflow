@@ -750,14 +750,70 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             {/* ─── Bank slip upload (optional) ─── */}
             {channel === 'bank' && (
               <div className="space-y-1.5">
-                <Label className="text-xs flex items-center gap-1.5"><Upload className="h-3.5 w-3.5" /> Bank Deposit Slip (optional)</Label>
-                <Input
-                  type="file"
-                  accept="image/*,.pdf"
-                  onChange={(e) => setBankSlipFile(e.target.files?.[0] || null)}
-                  className="h-10 text-xs"
-                />
-                {bankSlipFile && <p className="text-[10px] text-emerald-600">📎 {bankSlipFile.name}</p>}
+                <Label className="text-xs flex items-center gap-1.5">
+                  <Upload className="h-3.5 w-3.5" /> Bank Deposit Slip (optional)
+                </Label>
+
+                {!bankSlipFile ? (
+                  // Two side-by-side actions: open the camera (mobile) or
+                  // pick from gallery / files. Camera capture is a no-op on
+                  // desktop and falls back to the file picker.
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="flex flex-col items-center justify-center gap-1 h-20 rounded-lg border-2 border-dashed border-border hover:border-primary/60 hover:bg-primary/5 cursor-pointer transition-colors">
+                      <Camera className="h-5 w-5 text-muted-foreground" />
+                      <span className="text-[10px] font-medium text-muted-foreground">Take photo</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={(e) => setBankSlipFile(e.target.files?.[0] || null)}
+                      />
+                    </label>
+                    <label className="flex flex-col items-center justify-center gap-1 h-20 rounded-lg border-2 border-dashed border-border hover:border-primary/60 hover:bg-primary/5 cursor-pointer transition-colors">
+                      <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                      <span className="text-[10px] font-medium text-muted-foreground">Pick from gallery</span>
+                      <input
+                        type="file"
+                        accept="image/*,.pdf"
+                        className="hidden"
+                        onChange={(e) => setBankSlipFile(e.target.files?.[0] || null)}
+                      />
+                    </label>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 p-2 rounded-lg border border-border bg-muted/30">
+                    {bankSlipPreview ? (
+                      <img
+                        src={bankSlipPreview}
+                        alt="Bank slip preview"
+                        className="h-16 w-16 rounded object-cover border border-border shrink-0"
+                      />
+                    ) : (
+                      <div className="h-16 w-16 rounded bg-background border border-border flex items-center justify-center shrink-0">
+                        <Upload className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium truncate">{bankSlipFile.name}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {(bankSlipFile.size / 1024).toFixed(0)} KB · {bankSlipFile.type || 'file'}
+                      </p>
+                      <p className="text-[10px] text-emerald-600 mt-0.5">Ready to attach</p>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Remove slip"
+                      onClick={() => setBankSlipFile(null)}
+                      className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+                <p className="text-[10px] text-muted-foreground">
+                  Helps Financial Ops verify your deposit faster. Image or PDF, up to ~5 MB.
+                </p>
               </div>
             )}
 
