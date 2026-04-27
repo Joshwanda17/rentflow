@@ -38,7 +38,7 @@ const AIRTIME_AMOUNTS = [1000, 2000, 5000, 10000, 20000, 50000];
 
 export function BillPaymentDialog({ open, onOpenChange }: BillPaymentDialogProps) {
   const { user } = useAuth();
-  const { wallet, refreshWallet } = useWallet();
+  const { wallet } = useWallet();
   const [category, setCategory] = useState<BillCategory | null>(null);
   const [accountNumber, setAccountNumber] = useState('');
   const [amount, setAmount] = useState('');
@@ -64,39 +64,21 @@ export function BillPaymentDialog({ open, onOpenChange }: BillPaymentDialogProps
       return;
     }
 
-    if ((wallet?.balance || 0) < amountNum) {
-      toast.error('Insufficient wallet balance');
-      return;
-    }
-
     setLoading(true);
     try {
-      // Record as a pending bill payment in general_ledger
-      const { error } = await supabase.from('general_ledger').insert({
-        user_id: user.id,
-        amount: amountNum,
-        direction: 'out',
-        category: `bill_payment_${category}`,
-        source_table: 'bill_payments',
-        description: `${selectedCategory?.label} payment - ${accountNumber.trim()}`,
-          currency: 'UGX',
-        reference_id: `BILL-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      // Backend-only flow — server validates spendable balance, writes balanced
+      // ledger pair, and the wallet UI refreshes via the realtime `wallets`
+      // subscription in useWallet. The client must NOT touch wallet/ledger.
+      const { data, error } = await supabase.functions.invoke('pay-bill', {
+        body: {
+          category,
+          account_number: accountNumber.trim(),
+          amount: amountNum,
+        },
       });
+      if (error) throw new Error(error.message || 'Payment failed');
+      if (data?.error) throw new Error(data.error);
 
-      if (error) throw error;
-
-      // Deduct from wallet
-      const { error: walletError } = await supabase
-        .from('wallets')
-        .update({ 
-          balance: (wallet?.balance || 0) - amountNum,
-          updated_at: new Date().toISOString() 
-        })
-        .eq('user_id', user.id);
-
-      if (walletError) throw walletError;
-
-      await refreshWallet();
       setSuccess(true);
       toast.success(`${selectedCategory?.label} payment of ${formatCurrency(amountNum)} submitted!`);
     } catch (error: any) {
