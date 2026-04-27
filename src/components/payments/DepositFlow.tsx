@@ -96,7 +96,7 @@ const QUICK_AMOUNTS = [50000, 100000, 250000, 500000];
 const MIN_DEPOSIT = 500;
 const MAX_DEPOSIT = 10_000_000;
 
-export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowedPurposes, lockPurpose, requirePurposeChoice }: DepositFlowProps) {
+export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowedPurposes, lockPurpose, requirePurposeChoice, editRequestId }: DepositFlowProps) {
   const navigate = useNavigate();
   const [step, setStep] = useState<'purpose' | 'channel' | 'form' | 'submitting' | 'success'>(
     requirePurposeChoice ? 'purpose' : 'channel'
@@ -133,6 +133,15 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   const [purposeEntryPoint, setPurposeEntryPoint] = useState<'gate' | 'default' | 'in_form'>(
     requirePurposeChoice ? 'gate' : (defaultPurpose ? 'default' : 'in_form')
   );
+  /**
+   * Edit-mode bookkeeping. `editLoading` flips on while we hydrate the
+   * existing row from `deposit_requests`; the dialog shows a small
+   * "Loading…" state to avoid flashing an empty form. We snapshot the
+   * original allocations payload so handleSubmit can re-encode notes the
+   * same way it was created (and so we can detect "nothing changed").
+   */
+  const isEditMode = !!editRequestId;
+  const [editLoading, setEditLoading] = useState(false);
 
   /**
    * Generate / clean up a preview blob URL whenever the slip file changes.
