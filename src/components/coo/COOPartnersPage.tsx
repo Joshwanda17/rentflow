@@ -304,6 +304,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [mergeDialogPortfolioId, setMergeDialogPortfolioId] = useState<string | null>(null);
   const [mergeReason, setMergeReason] = useState('');
   const [mergingTopUp, setMergingTopUp] = useState(false);
+  const [cancelDialogPortfolioId, setCancelDialogPortfolioId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancellingTopUp, setCancellingTopUp] = useState(false);
 
   // Portfolio name editing
   const [editingNameId, setEditingNameId] = useState<string | null>(null);
