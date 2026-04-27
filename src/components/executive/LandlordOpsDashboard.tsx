@@ -893,6 +893,7 @@ export function LandlordOpsDashboard() {
       ? locationGroups.filter(g => g.region.toLowerCase().includes(search.toLowerCase()) || g.district?.toLowerCase().includes(search.toLowerCase()))
       : locationGroups;
     return (
+      <>
       <div className="space-y-3">
         <BackButton />
         <h2 className="text-lg font-bold flex items-center gap-2"><MapPin className="h-5 w-5 text-purple-600" /> Locations ({locationGroups.length})</h2>
@@ -925,6 +926,8 @@ export function LandlordOpsDashboard() {
           {filtered.length === 0 && <p className="text-center text-muted-foreground py-8">No locations found</p>}
         </div>
       </div>
+      {renderDialogs()}
+      </>
     );
   }
 
