@@ -540,7 +540,20 @@ export default function DepositReferenceMatcher({
             )}
           </Button>
         </div>
+        <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+          <Zap className="h-3 w-3 text-primary" />
+          Recognised references auto-search and auto-fill the breakdown.
+        </p>
       </div>
+
+      {autoApplied && (
+        <div className="flex items-start gap-2 p-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10">
+          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
+          <p className="text-[11px] text-emerald-700">
+            Auto-matched — TID and tenant breakdown are filled in below. Review and submit.
+          </p>
+        </div>
+      )}
 
       {phase === 'no-match' && (
         <div className="flex items-start gap-2 p-2 rounded-lg border border-warning/30 bg-warning/10">
