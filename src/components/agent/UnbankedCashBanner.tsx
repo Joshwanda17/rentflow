@@ -1275,6 +1275,27 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
     setFile(f);
   };
 
+  /** Add or replace the per-batch photo for one row, with the same 5 MB
+   *  cap used by the shared upload to keep storage costs predictable. */
+  const setPerBatchFileChecked = (id: string, f: File | null) => {
+    if (f && f.size > 5 * 1024 * 1024) {
+      toast.error('Receipt image must be under 5 MB');
+      return;
+    }
+    setPerBatchFile((prev) => {
+      const next = { ...prev };
+      if (f) next[id] = f;
+      else delete next[id];
+      return next;
+    });
+  };
+
+  /** Resolve the photo File for a batch given the current photo mode. */
+  const fileForBatch = (id: string): File | null => {
+    if (photoMode === 'shared') return file;
+    return perBatchFile[id] ?? null;
+  };
+
   const totalSelected = batches
     .filter((b) => selected.has(b.id))
     .reduce((s, b) => s + Number(b.declared_total || 0), 0);
