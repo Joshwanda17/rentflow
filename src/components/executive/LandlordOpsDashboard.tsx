@@ -634,6 +634,17 @@ export function LandlordOpsDashboard() {
         console.error('[handleVerifyListing] Data error:', data.error);
         throw new Error(data.error);
       }
+      // Permanently remove from the pending list by patching the cache directly,
+      // then trigger a background refetch to reconcile related fields.
+      queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) => {
+        if (!Array.isArray(old)) return old;
+        return old.map(l => l.id === listing.id ? { ...l, verified: true, listing_bonus_paid: true } : l);
+      });
+      setOptimisticallyVerifiedIds(prev => {
+        const next = new Set(prev);
+        next.delete(listing.id);
+        return next;
+      });
       refetch();
     } catch (err: any) {
       // Roll back optimistic removal so the operator can retry.
