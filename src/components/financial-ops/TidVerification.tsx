@@ -1168,7 +1168,7 @@ export function TidVerification() {
           Verify a user deposit
         </CardTitle>
         <p className="text-xs sm:text-sm text-muted-foreground">
-          Pick a depositor, type their Transaction ID, then approve the match.
+          Pick who paid, type their Transaction ID, then tap Approve. The row stays for a few seconds so you can Undo.
         </p>
       </CardHeader>
       <CardContent className="space-y-5 px-4 sm:px-6 pb-24 sm:pb-5">
@@ -1179,7 +1179,7 @@ export function TidVerification() {
         {/* ── Step 1 ───────────────────────────────────────────────────── */}
         <StepHeader
           n={1}
-          title="Pick the depositor"
+          title="Pick who paid"
           subtitle="Tap who is paying so the amount auto-fills."
         />
         {/* Pending depositors for the selected provider — operator can pick
