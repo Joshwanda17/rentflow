@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import OperationalFloatTenantAllocator, {
   encodeAllocationsNote,
+  decodeAllocationsFromNote,
   type TenantAllocation,
 } from './OperationalFloatTenantAllocator';
 
@@ -53,6 +54,15 @@ interface DepositFlowProps {
    * the "tap-through and mis-bucket" failure mode for agents.
    */
   requirePurposeChoice?: boolean;
+  /**
+   * Edit mode: when set, the dialog loads the given pending deposit
+   * request, prefills every field (including the per-tenant allocation
+   * breakdown decoded from `notes`), and the submit handler issues an
+   * UPDATE instead of an INSERT. Only `status='pending'` rows are
+   * editable — anything reviewed/approved/rejected falls back to a
+   * read-only toast and closes.
+   */
+  editRequestId?: string | null;
 }
 
 const DEPOSIT_PURPOSES: { id: DepositPurpose; label: string; emoji: string; desc: string }[] = [
@@ -86,7 +96,7 @@ const QUICK_AMOUNTS = [50000, 100000, 250000, 500000];
 const MIN_DEPOSIT = 500;
 const MAX_DEPOSIT = 10_000_000;
 
-export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowedPurposes, lockPurpose, requirePurposeChoice }: DepositFlowProps) {
+export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowedPurposes, lockPurpose, requirePurposeChoice, editRequestId }: DepositFlowProps) {
   const navigate = useNavigate();
   const [step, setStep] = useState<'purpose' | 'channel' | 'form' | 'submitting' | 'success'>(
     requirePurposeChoice ? 'purpose' : 'channel'
@@ -123,6 +133,15 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   const [purposeEntryPoint, setPurposeEntryPoint] = useState<'gate' | 'default' | 'in_form'>(
     requirePurposeChoice ? 'gate' : (defaultPurpose ? 'default' : 'in_form')
   );
+  /**
+   * Edit-mode bookkeeping. `editLoading` flips on while we hydrate the
+   * existing row from `deposit_requests`; the dialog shows a small
+   * "Loading…" state to avoid flashing an empty form. We snapshot the
+   * original allocations payload so handleSubmit can re-encode notes the
+   * same way it was created (and so we can detect "nothing changed").
+   */
+  const isEditMode = !!editRequestId;
+  const [editLoading, setEditLoading] = useState(false);
 
   /**
    * Generate / clean up a preview blob URL whenever the slip file changes.
@@ -211,6 +230,113 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       setPurposeEntryPoint('default');
     }
   }, [open, defaultPurpose, lockPurpose, requirePurposeChoice]);
+
+  /**
+   * Edit-mode hydration. When the dialog opens with an `editRequestId`,
+   * load the existing pending row, decode the allocations tail off the
+   * notes column, and prefill every field so the agent can adjust amounts
+   * without re-typing the TID, date, channel, etc.
+   *
+   * Read-only safeguard: if the row is no longer pending (Financial Ops
+   * already touched it) we surface a toast and close — editing an
+   * approved/reviewed deposit would silently desync the ledger.
+   */
+  useEffect(() => {
+    if (!open || !editRequestId) return;
+    let cancelled = false;
+    (async () => {
+      setEditLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('deposit_requests')
+          .select('*')
+          .eq('id', editRequestId)
+          .maybeSingle();
+        if (error) throw error;
+        if (!data) {
+          toast.error('Deposit request not found');
+          onOpenChange(false);
+          return;
+        }
+        if (data.status !== 'pending') {
+          toast.error('This deposit is already under review and can no longer be edited');
+          onOpenChange(false);
+          return;
+        }
+        if (cancelled) return;
+
+        // Channel + provider — derive from stored `provider` enum
+        const prov = String(data.provider || '');
+        if (prov === 'mtn' || prov === 'airtel') {
+          setChannel('momo');
+          setMomoProvider(prov);
+        } else if (prov === 'bank_transfer') {
+          setChannel('bank');
+        } else if (prov === 'cash_deposit') {
+          setChannel('cash');
+        } else if (prov === 'agent_cash') {
+          setChannel('agent_cash');
+        }
+
+        setAmount(String(data.amount ?? ''));
+
+        // Reference: bank/momo go in transactionId, cash/agent_cash in receiptNumber (RCT-prefixed)
+        const ref = String(data.transaction_id || '');
+        if (prov === 'cash_deposit' || prov === 'agent_cash') {
+          setReceiptNumber(ref.replace(/^RCT/i, ''));
+        } else {
+          setTransactionId(ref);
+        }
+
+        // Date / time
+        if (data.transaction_date) {
+          const d = new Date(data.transaction_date);
+          setTransactionDate(d.toISOString().split('T')[0]);
+          setTransactionTime(d.toTimeString().slice(0, 5));
+        }
+
+        // Purpose
+        const audit = (data.purpose_audit ?? null) as { chosen_purpose?: string } | null;
+        const purpose = (data.deposit_purpose ?? audit?.chosen_purpose ?? '') as DepositPurpose | '';
+        if (purpose) {
+          setDepositPurpose(purpose);
+          const label = DEPOSIT_PURPOSES.find((p) => p.id === purpose)?.label;
+          if (label && purpose !== 'other') setReason(label);
+          setShowPurposeGrid(false);
+          setStep('form');
+        }
+
+        // Decode allocations tail off notes; restore reason text from the
+        // human-readable head if present (strip leading "Purpose: …" tag).
+        const { cleanNote, allocations: decoded } = decodeAllocationsFromNote(data.notes);
+        if (decoded && decoded.length) {
+          setTenantAllocations(decoded);
+        }
+        if (cleanNote) {
+          // notes look like "Purpose: X | <reason> | Agent: Y | Bank slip: Z"
+          const parts = cleanNote.split('|').map((s) => s.trim()).filter(Boolean);
+          const reasonPart = parts.find(
+            (p) => !/^purpose:/i.test(p) && !/^agent:/i.test(p) && !/^bank slip:/i.test(p),
+          );
+          if (reasonPart && (purpose === 'other' || !purpose)) {
+            setReason(reasonPart);
+          }
+          const agentPart = parts.find((p) => /^agent:/i.test(p));
+          if (agentPart) setAgentName(agentPart.replace(/^agent:\s*/i, ''));
+        }
+      } catch (err: any) {
+        console.error('[DepositFlow] edit hydrate failed', err);
+        toast.error('Could not load deposit for editing', { description: err?.message });
+        onOpenChange(false);
+      } finally {
+        if (!cancelled) setEditLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editRequestId]);
 
   const validateTid = (value: string, provider?: 'mtn' | 'airtel') => {
     const upper = value.trim().toUpperCase();
@@ -324,12 +450,17 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       const txDateTime = new Date(`${transactionDate}T${transactionTime}`);
       const normalizedRef = getReferenceId();
 
-      // Duplicate check
+      // Duplicate check — skip when editing the same row, otherwise the
+      // edited request would always collide with itself on its own TID.
       const { data: existing } = await supabase
         .from('deposit_requests')
         .select('id')
         .filter('transaction_id', 'eq', normalizedRef);
-      if (existing && existing.length > 0) {
+      if (
+        existing &&
+        existing.length > 0 &&
+        !(isEditMode && existing.length === 1 && existing[0].id === editRequestId)
+      ) {
         toast.error('This reference has already been used');
         setStep('form');
         setIsSubmitting(false);
@@ -367,29 +498,59 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           ? encodeAllocationsNote(baseNotes, tenantAllocations)
           : baseNotes;
 
-      const { error: depositError } = await supabase
-        .from('deposit_requests')
-        .insert({
-          user_id: user.id,
-          amount: parseFloat(amount),
-          status: 'pending',
-          provider: providerValue,
-          transaction_id: normalizedRef,
-          transaction_date: txDateTime.toISOString(),
-          notes,
-          deposit_purpose: depositPurpose,
-          purpose_audit: {
-            chosen_purpose: depositPurpose,
-            chosen_at: purposeChosenAt ?? new Date().toISOString(),
-            chosen_by: user.id,
-            entry_point: purposeEntryPoint,
-            required_choice: !!requirePurposeChoice,
-          },
-        } as any);
+      if (isEditMode && editRequestId) {
+        // UPDATE — restricted by RLS to the owner's own pending row.
+        // Status is intentionally NOT touched; the row stays 'pending' so
+        // Financial Ops still owns the next move. We do, however, stamp
+        // an `edited_at`-style breadcrumb into purpose_audit so reviewers
+        // can see the row was reopened by the agent.
+        const { error: updError } = await supabase
+          .from('deposit_requests')
+          .update({
+            amount: parseFloat(amount),
+            provider: providerValue,
+            transaction_id: normalizedRef,
+            transaction_date: txDateTime.toISOString(),
+            notes,
+            deposit_purpose: depositPurpose,
+            purpose_audit: {
+              chosen_purpose: depositPurpose,
+              chosen_at: purposeChosenAt ?? new Date().toISOString(),
+              chosen_by: user.id,
+              entry_point: purposeEntryPoint,
+              required_choice: !!requirePurposeChoice,
+              last_edited_at: new Date().toISOString(),
+            },
+          } as any)
+          .eq('id', editRequestId)
+          .eq('status', 'pending'); // hard guard: never overwrite a reviewed row
+        if (updError) throw updError;
+        toast.success('Deposit updated — Financial Ops will see your changes');
+      } else {
+        const { error: depositError } = await supabase
+          .from('deposit_requests')
+          .insert({
+            user_id: user.id,
+            amount: parseFloat(amount),
+            status: 'pending',
+            provider: providerValue,
+            transaction_id: normalizedRef,
+            transaction_date: txDateTime.toISOString(),
+            notes,
+            deposit_purpose: depositPurpose,
+            purpose_audit: {
+              chosen_purpose: depositPurpose,
+              chosen_at: purposeChosenAt ?? new Date().toISOString(),
+              chosen_by: user.id,
+              entry_point: purposeEntryPoint,
+              required_choice: !!requirePurposeChoice,
+            },
+          } as any);
 
-      if (depositError) throw depositError;
+        if (depositError) throw depositError;
 
-      toast.success('Deposit submitted for verification');
+        toast.success('Deposit submitted for verification');
+      }
       setStep('success');
     } catch (error: any) {
       console.error('Deposit error:', error);
@@ -436,17 +597,28 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Phone className="h-5 w-5 text-primary" />
-            Deposit to Wallet
+            {isEditMode ? 'Edit Deposit Request' : 'Deposit to Wallet'}
           </DialogTitle>
         </DialogHeader>
 
-        {step === 'success' ? (
+        {editLoading ? (
+          <div className="py-12 text-center space-y-3">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+            <p className="text-muted-foreground text-sm">Loading deposit details…</p>
+          </div>
+        ) : step === 'success' ? (
           <div className="py-8 text-center space-y-4">
             <div className="w-16 h-16 mx-auto bg-success/20 rounded-full flex items-center justify-center">
               <CheckCircle2 className="h-8 w-8 text-success" />
             </div>
-            <h3 className="text-lg font-semibold">Request Submitted!</h3>
-            <p className="text-muted-foreground text-sm">Your deposit is being verified.</p>
+            <h3 className="text-lg font-semibold">
+              {isEditMode ? 'Changes Saved!' : 'Request Submitted!'}
+            </h3>
+            <p className="text-muted-foreground text-sm">
+              {isEditMode
+                ? 'Financial Ops will see your updated allocations on their next review.'
+                : 'Your deposit is being verified.'}
+            </p>
             <div className="space-y-2">
               <Button onClick={handleClose} className="w-full">Done</Button>
               <Button variant="outline" className="w-full" onClick={() => { handleClose(); navigate('/deposit-history'); }}>
@@ -457,7 +629,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         ) : step === 'submitting' ? (
           <div className="py-12 text-center space-y-4">
             <Loader2 className="h-10 w-10 animate-spin mx-auto text-primary" />
-            <p className="text-muted-foreground">Submitting...</p>
+            <p className="text-muted-foreground">{isEditMode ? 'Saving changes…' : 'Submitting...'}</p>
           </div>
         ) : step === 'purpose' ? (
           /* ─── Mandatory Purpose Choice (agents) ─── */
@@ -1057,10 +1229,12 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   size="lg"
                 >
                   {isSubmitting
-                    ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Submitting...</>
+                    ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> {isEditMode ? 'Saving…' : 'Submitting...'}</>
                     : opsAllocBlocked
                       ? 'Fix tenant breakdown to submit'
-                      : 'Submit Deposit Request'}
+                      : isEditMode
+                        ? 'Save Changes'
+                        : 'Submit Deposit Request'}
                 </Button>
               );
             })()}

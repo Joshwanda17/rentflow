@@ -1,12 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Clock, CheckCircle2, XCircle, Wallet, ChevronDown, ChevronUp, Target } from 'lucide-react';
+import { Clock, CheckCircle2, XCircle, Wallet, ChevronDown, ChevronUp, Target, Pencil } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+
+// Lazy — DepositFlow pulls a heavy form tree we don't want on first paint
+// of every wallet view; the edit button only opens it on demand.
+const DepositFlow = lazy(() => import('@/components/payments/DepositFlow'));
 
 interface DepositRequest {
   id: string;
@@ -49,6 +53,7 @@ export function UserDepositRequests() {
   const [requests, setRequests] = useState<DepositRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-UG', {
@@ -101,6 +106,15 @@ export function UserDepositRequests() {
     // Realtime removed — deposit_requests not in realtime whitelist
   }, [user]);
 
+  // After an edit closes, refresh the list so the agent sees the new
+  // amount / allocation summary immediately.
+  const handleEditClose = (open: boolean) => {
+    if (!open) {
+      setEditingId(null);
+      fetchRequests();
+    }
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'approved':
@@ -146,6 +160,7 @@ export function UserDepositRequests() {
   const pendingCount = requests.filter(r => r.status === 'pending').length;
 
   return (
+    <>
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <CollapsibleTrigger asChild>
         <Button
@@ -224,12 +239,36 @@ export function UserDepositRequests() {
                       Reason: {request.rejection_reason}
                     </p>
                   )}
+                      {request.status === 'pending' &&
+                        (request.deposit_purpose === 'operational_float' ||
+                          request.purpose_audit?.chosen_purpose === 'operational_float') && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="mt-2 h-7 text-xs"
+                            onClick={() => setEditingId(request.id)}
+                          >
+                            <Pencil className="h-3 w-3 mr-1" />
+                            Edit allocations
+                          </Button>
+                        )}
                 </motion.div>
               ))}
             </AnimatePresence>
           </CardContent>
         </Card>
       </CollapsibleContent>
-    </Collapsible>
+        </Collapsible>
+
+        {editingId && (
+          <Suspense fallback={null}>
+            <DepositFlow
+              open={!!editingId}
+              onOpenChange={handleEditClose}
+              editRequestId={editingId}
+            />
+          </Suspense>
+        )}
+      </>
   );
 }
