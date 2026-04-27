@@ -1020,6 +1020,42 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
     .filter((b) => selected.has(b.id))
     .reduce((s, b) => s + Number(b.declared_total || 0), 0);
 
+  /**
+   * In per-batch mode, find references that the agent has typed into MORE
+   * than one selected row. Same reference across multiple batches is almost
+   * always a copy-paste mistake — Finance reconciles 1 reference → 1 deposit,
+   * so a duplicate would point to the wrong amount on at least one batch.
+   *
+   * - Comparison is case-insensitive and whitespace-trimmed.
+   * - Empty values are ignored (those are caught by the "missing" check).
+   * - Returns: `dupSet` (the set of duplicated reference strings, normalized)
+   *   and `dupBatchIds` (the batch IDs whose ref is duplicated).
+   */
+  const { dupSet, dupBatchIds } = useMemo(() => {
+    if (mode !== 'per_batch') {
+      return { dupSet: new Set<string>(), dupBatchIds: new Set<string>() };
+    }
+    const counts = new Map<string, string[]>(); // normalized ref -> batch ids
+    for (const id of selected) {
+      const raw = (perBatchRef[id] ?? '').trim();
+      if (raw.length < 4) continue;
+      const key = raw.toLowerCase();
+      const list = counts.get(key) ?? [];
+      list.push(id);
+      counts.set(key, list);
+    }
+    const dupSet = new Set<string>();
+    const dupBatchIds = new Set<string>();
+    for (const [key, ids] of counts) {
+      if (ids.length > 1) {
+        dupSet.add(key);
+        ids.forEach((id) => dupBatchIds.add(id));
+      }
+    }
+    return { dupSet, dupBatchIds };
+  }, [mode, selected, perBatchRef]);
+  const hasDuplicates = dupBatchIds.size > 0;
+
   /** Resolve the reference for a batch given the current mode. */
   const refForBatch = (id: string): string => {
     if (mode === 'shared') return sharedRef.trim();
