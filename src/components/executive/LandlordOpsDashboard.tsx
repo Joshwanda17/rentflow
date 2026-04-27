@@ -1231,7 +1231,6 @@ export function LandlordOpsDashboard() {
                   variant="outline"
                   className="h-11 gap-2 font-bold border-destructive/40 text-destructive hover:bg-destructive/10"
                   onClick={() => setActionDialog({ listing: house, type: 'reject' })}
-                  disabled={verifying === house.id}
                 >
                   <XCircle className="h-4 w-4" />
                   Reject
@@ -1240,9 +1239,8 @@ export function LandlordOpsDashboard() {
                   size="sm"
                   className="h-11 gap-2 font-bold"
                   onClick={() => handleVerifyListing(house)}
-                  disabled={verifying === house.id}
                 >
-                  {verifying === house.id ? <div className="h-4 w-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                  <ShieldCheck className="h-4 w-4" />
                   Verify → UGX 5K
                 </Button>
               </div>
