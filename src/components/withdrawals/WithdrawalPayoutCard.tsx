@@ -4,11 +4,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/components/ui/dialog';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { supabase } from '@/integrations/supabase/client';
+import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
+import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import {
   Banknote, CheckCircle2, Loader2, Building2, Clock, Smartphone,
-  UserCheck, ArrowRight, Phone, CreditCard, ChevronDown,
+  UserCheck, ArrowRight, Phone, CreditCard, ChevronDown, XCircle,
 } from 'lucide-react';
 
 export interface WithdrawalPayoutCardProps {
@@ -35,6 +44,52 @@ export function WithdrawalPayoutCard({
 }: WithdrawalPayoutCardProps) {
   const [reference, setReference] = useState('');
   const [open, setOpen] = useState(false);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState<string>('');
+  const [rejectNotes, setRejectNotes] = useState('');
+  const [rejecting, setRejecting] = useState(false);
+  const qc = useQueryClient();
+
+  const REJECT_REASONS = [
+    'Customer no-show',
+    'Wrong amount',
+    'ID mismatch',
+    'Suspected fraud',
+    'Recipient details invalid',
+    'Other',
+  ];
+
+  async function handleReject() {
+    if (!rejectReason) return;
+    const composed = `${rejectReason}${rejectNotes.trim() ? ` — ${rejectNotes.trim()}` : ''}`;
+    if (composed.length < 10) {
+      toast.error('Please add a few more details (min 10 characters total)');
+      return;
+    }
+    setRejecting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('reject-withdrawal', {
+        body: { withdrawal_ids: [withdrawal.id], reason: composed, withdrawal_type: 'wallet' },
+      });
+      if (error || data?.error) {
+        const msg = await extractEdgeFunctionError({ data, error }, 'Failed to reject');
+        throw new Error(msg);
+      }
+      const row = data?.results?.[0];
+      if (row?.status && row.status !== 'rejected') {
+        throw new Error(row.status.replace(/_/g, ' '));
+      }
+      toast.success('Withdrawal rejected · funds restored');
+      setRejectOpen(false);
+      setRejectReason('');
+      setRejectNotes('');
+      qc.invalidateQueries({ queryKey: ['cashout-agent-all-withdrawals'] });
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setRejecting(false);
+    }
+  }
 
   const method = withdrawal.payout_method || 'cash';
   const isMoMo = ['mobile_money', 'mtn_mobile_money', 'airtel_money'].includes(method);
@@ -195,11 +250,73 @@ export function WithdrawalPayoutCard({
                     Confirm Paid
                   </Button>
                 </div>
+                <Button
+                  variant="ghost"
+                  className="w-full h-9 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 gap-1"
+                  onClick={() => setRejectOpen(true)}
+                  disabled={isCompletePending || rejecting}
+                >
+                  <XCircle className="h-3.5 w-3.5" />
+                  Reject this payout
+                </Button>
               </div>
             )}
           </CardContent>
         </CollapsibleContent>
       </Collapsible>
+
+      <Dialog open={rejectOpen} onOpenChange={(v) => !rejecting && setRejectOpen(v)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reject payout · {formatUGX(withdrawal.amount)}</DialogTitle>
+            <DialogDescription>
+              Funds will be restored to <span className="font-semibold">{recipientName}</span>'s wallet. This action is logged.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">Reason</label>
+              <Select value={rejectReason} onValueChange={setRejectReason}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Select a reason..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {REJECT_REASONS.map(r => (
+                    <SelectItem key={r} value={r}>{r}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">
+                Notes {rejectReason === 'Other' ? <span className="text-destructive">*</span> : <span className="text-muted-foreground">(optional)</span>}
+              </label>
+              <Textarea
+                value={rejectNotes}
+                onChange={(e) => setRejectNotes(e.target.value)}
+                placeholder="Add context for the audit log..."
+                rows={3}
+                maxLength={500}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectOpen(false)} disabled={rejecting}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={handleReject}
+              disabled={
+                rejecting ||
+                !rejectReason ||
+                (rejectReason === 'Other' && rejectNotes.trim().length < 5)
+              }
+            >
+              {rejecting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <XCircle className="h-4 w-4 mr-1.5" />}
+              Confirm reject
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

@@ -52,8 +52,28 @@ Deno.serve(async (req) => {
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id);
-    const allowedRoles = ['manager', 'super_admin', 'cfo', 'coo', 'operations'];
+    const allowedRoles = ['manager', 'super_admin', 'cfo', 'coo', 'operations', 'agent'];
     const hasRole = roles?.some(r => allowedRoles.includes(r.role));
+    const isAgentOnly = !!roles?.length && roles.every(r => r.role === 'agent');
+
+    // If caller is only an agent, they must be an active cashout agent and may
+    // ONLY reject withdrawals they themselves have claimed. Enforced per-row below.
+    let cashoutAgentId: string | null = null;
+    if (isAgentOnly) {
+      const { data: ca } = await admin
+        .from('cashout_agents')
+        .select('id')
+        .eq('agent_id', user.id)
+        .eq('is_active', true)
+        .maybeSingle();
+      cashoutAgentId = ca?.id ?? null;
+      if (!cashoutAgentId) {
+        return new Response(JSON.stringify({ error: 'Insufficient permissions' }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     if (!hasRole) {
       return new Response(JSON.stringify({ error: 'Insufficient permissions' }), {
         status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -79,6 +99,19 @@ Deno.serve(async (req) => {
       if (wr.status === 'rejected' || wr.status === 'completed' || wr.status === 'approved') {
         results.push({ id: wId, status: 'already_' + wr.status, refunded: false });
         continue;
+      }
+
+      // Agent-only callers can only reject items they themselves have claimed,
+      // and only on the regular wallet withdrawal table.
+      if (isAgentOnly) {
+        if (withdrawal_type === 'float') {
+          results.push({ id: wId, status: 'forbidden_float', refunded: false });
+          continue;
+        }
+        if ((wr as any).assigned_cashout_agent_id !== cashoutAgentId) {
+          results.push({ id: wId, status: 'not_your_claim', refunded: false });
+          continue;
+        }
       }
 
       const userId = withdrawal_type === 'float' ? wr.agent_id : wr.user_id;
