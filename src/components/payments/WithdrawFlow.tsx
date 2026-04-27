@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import StepperModal, { Step } from './StepperModal';
 import ConfirmSummaryCard from './ConfirmSummaryCard';
 import ProcessingScreen from './ProcessingScreen';
@@ -101,6 +101,19 @@ export default function WithdrawFlow({
   // status tracker subscription on the success step.
   const [createdRequestId, setCreatedRequestId] = useState<string | null>(null);
   const [withdrawalRef, setWithdrawalRef] = useState('');
+
+  // ─── Duplicate-submission guards ────────────────────────────────────
+  // 1. Re-entrant lock: blocks double-tap on slow phones before the
+  //    network round-trip even starts.
+  // 2. Stable client_request_id: reused across network retries so the DB
+  //    unique partial index `(user_id, client_request_id)` collapses any
+  //    accidental duplicates into a single row.
+  // 3. Friendly handling of the server-side DUPLICATE_PENDING_WITHDRAWAL
+  //    trigger error so the user sees a clear message instead of a raw
+  //    Postgres exception (which they typically respond to by tapping
+  //    again, making the problem worse).
+  const isSubmittingRef = useRef(false);
+  const clientRequestIdRef = useRef<string | null>(null);
 
   // Withdrawable = withdrawable_balance + advance_balance (advance is recoverable
   // user money). Float is operational/company money and stays locked.
@@ -219,8 +232,16 @@ export default function WithdrawFlow({
 
   const processWithdrawal = async () => {
     if (!user) return;
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
 
     try {
+      if (!clientRequestIdRef.current) {
+        clientRequestIdRef.current =
+          (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      }
       const insertData: any = {
         user_id: user.id,
         amount: amount,
@@ -228,6 +249,7 @@ export default function WithdrawFlow({
         mobile_money_number: payoutMode === 'mobile_money' ? momoNumber.trim() : null,
         mobile_money_name: payoutMode === 'mobile_money' ? momoName.trim() : (payoutMode === 'bank_transfer' ? bankAccountName.trim() : 'Cash Pickup'),
         mobile_money_provider: payoutMode === 'mobile_money' ? momoProvider.toLowerCase() : (payoutMode === 'bank_transfer' ? 'bank' : 'cash'),
+        client_request_id: clientRequestIdRef.current,
       };
 
       const { data: insertedRow, error: requestError } = await supabase
@@ -237,6 +259,30 @@ export default function WithdrawFlow({
         .single();
 
       if (requestError) {
+        // 23505 = unique_violation. Two distinct cases:
+        //   1. Idempotency key collision → genuine network retry of *this*
+        //      submission. Treat as success (the row already exists).
+        //   2. Trigger `prevent_duplicate_pending_withdrawal` fired → the
+        //      user already has an identical request waiting. Show a
+        //      friendly message and stop, do NOT throw.
+        if ((requestError as any).code === '23505') {
+          const msg = String((requestError as any).message || '');
+          if (msg.includes('DUPLICATE_PENDING_WITHDRAWAL')) {
+            toast.error(
+              `You already have a pending withdrawal of UGX ${amount.toLocaleString()} to this recipient. Wait for operations to approve or reject the existing one before submitting again.`,
+              { duration: 8000 },
+            );
+            // Reset so a different recipient/amount can be tried.
+            clientRequestIdRef.current = null;
+            isSubmittingRef.current = false;
+            return;
+          }
+          // Idempotency key collision — the original insert already
+          // succeeded server-side. Surface a soft success and stop.
+          toast.success('Withdrawal already submitted.');
+          isSubmittingRef.current = false;
+          return;
+        }
         throw new Error(requestError.message || 'Failed to submit withdrawal request');
       }
 
@@ -281,10 +327,17 @@ export default function WithdrawFlow({
 
       // Disbursement confirmation email is sent by the approval pipeline,
       // NOT here — funds aren't actually out yet.
+      // Submission committed — release the idempotency key so the next
+      // intentional withdrawal gets a fresh one.
+      clientRequestIdRef.current = null;
     } catch (error: any) {
       console.error('Withdrawal failed:', error);
       setPaymentStatus('failed');
       toast.error(error.message || 'Withdrawal failed');
+      // Keep clientRequestIdRef so a manual retry from the user collapses
+      // into the same row server-side via the unique index.
+    } finally {
+      isSubmittingRef.current = false;
     }
   };
 
