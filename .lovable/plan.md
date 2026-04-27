@@ -1,34 +1,60 @@
-## Goal
-Add a visible "Cancel" action in the COO / Partner Operations partner-portfolio card so staff can cancel a parked / pending next-ROI top-up. The backend already supports it — only the UI button + confirmation dialog are missing.
+## What happened to LUKODDA JOSEPH's 1,500,000
 
-## Background (what's already there)
-- Edge function `cancel-pending-topups` already exists. It:
-  - Requires `portfolio_id` and a `reason` (≥10 chars).
-  - Cancels all `pending_wallet_operations` rows where `status = 'approved'` (i.e. the parked top-ups awaiting merge into principal — what the user calls "pending next ROI top-up").
-  - Refunds the partner wallet via balanced ledger entries, writes an audit log, and notifies the partner.
-- The Manager screen (`InvestmentAccountsManager.tsx`) already wires this function up.
-- In `COOPartnersPage.tsx` the same data is loaded into `approvedTopUps[p.id]` (lines 805–825), and the existing **Apply Top-up** button at line 2142 is rendered exactly when `approvedTopUps[p.id]?.total > 0` — but there is no Cancel sibling.
+The "approved" ROI payout exists in the ledger but **never landed in any wallet bucket**.
 
-## Changes (single file: `src/components/coo/COOPartnersPage.tsx`)
+**Trace:**
+- 2026-04-27 10:17:59 UTC — `approve-wallet-operation` processed a managed ROI payout.
+  - Partner: WAKABI SIMON PETER (`e145f9f8-…`), portfolio `9b0c5216-…` (UGX 10,000,000 active).
+  - Routed via "PAY TO WALLET" to LUKODDA JOSEPH's proxy-agent wallet (`b4d7c324-…`).
+  - Reference: `PAY-MOGVHQ88-FWCE`. Amount: 1,500,000.
+- Ledger rows written (balanced double-entry, scope=`wallet`):
+  - cash_in 1,500,000, category `roi_wallet_credit`, **`account = NULL`**, `wallet_id = 24562f3b-…`
+  - cash_out 1,500,000, category `roi_expense` (platform contra)
+- Wallet bucket update: **never happened**. Per platform rules, only `apply_wallet_movement` may write `withdrawable / float / advance` buckets, and it requires a non-null `account` to know which bucket to credit. With `account=NULL`, the router has no target — the credit is logged but vanishes.
+- Side effects:
+  - `investor_portfolios.total_roi_earned` for portfolio `9b0c5216` is still **0** (payout never recorded against the portfolio).
+  - `next_roi_date` was advanced to 2026-05-27 even though the money was never delivered.
+  - `wallet_unrouted_movements` is empty, so this also bypassed the safety net.
 
-1. **State + handler**
-   - Add `cancelDialogPortfolioId`, `cancelReason`, `cancellingTopUp` state (mirror of the Manager view).
-   - Add `handleCancelPendingTopUps()` that calls `supabase.functions.invoke('cancel-pending-topups', { body: { portfolio_id, reason } })`, toasts the result, closes the dialog, and refreshes the partner detail via `openPartnerDetail(detailPartner.profile.id)`.
+This is a systemic bug, not a one-off. Any "Pay to Wallet" managed payout where the operator did not explicitly pick a target bucket is at risk.
 
-2. **New "Cancel" button in the actions row (line 2049 div)**
-   - Render right next to the existing **Apply Top-up** button (line 2142–2151), gated by the same `!readOnly && approvedTopUps[p.id]?.total > 0` condition.
-   - Style: `variant="ghost"`, destructive red (`text-destructive hover:text-destructive hover:bg-destructive/10`), `Ban` icon (already imported), label: `Cancel Top-up` with the parked total in a small badge, e.g. `Cancel Top-up ({formatUGX(approvedTopUps[p.id].total)})`.
-   - `onClick` opens the confirmation dialog by setting `cancelDialogPortfolioId = p.id`.
+## Fix plan
 
-3. **Confirmation `AlertDialog`** (placed near the existing merge dialog)
-   - Title: "Cancel Pending Top-Up?"
-   - Body: shows the parked amount and op count, warns the funds will be refunded to the partner wallet and the next ROI cycle will not include this principal.
-   - Required `Textarea` for `cancelReason` (min 10 chars; submit disabled until met).
-   - Footer: `Cancel` (close) + `Confirm Cancel` (calls `handleCancelPendingTopUps`, shows spinner while `cancellingTopUp`).
+### 1. Recover the 1,500,000 for LUKODDA JOSEPH (one-off migration)
 
-4. **No backend / DB changes** — the edge function and ledger plumbing are already in place.
+Credit Lukodda's `withdrawable_balance` by 1,500,000 via the sanctioned writer, with a clear audit trail:
 
-## Acceptance
-- In COO → Partners → open a partner → if a portfolio has parked (approved-but-not-merged) top-ups, an obvious red **Cancel Top-up** button appears in the actions row alongside Edit / Top Up / Renew / Delete / Apply Top-up / Compound.
-- Clicking it opens a confirmation dialog requiring a 10+ character reason.
-- On confirm: parked ops flip to `cancelled`, the partner wallet is refunded, the partner card refreshes, and both **Apply Top-up** and **Cancel Top-up** disappear (because `approvedTopUps[p.id]` is now empty).
+- Call `apply_wallet_movement` (the sole authorized wallet writer) with:
+  - user_id = `b4d7c324-…`, amount = 1,500,000, direction = `cash_in`, account = `withdrawable`
+  - category = `roi_wallet_credit`, reference_id = `RECOVERY-PAY-MOGVHQ88-FWCE`
+  - description: "Recovery: 1,500,000 ROI payout for portfolio 9b0c5216 (PAY-MOGVHQ88-FWCE) — original credit landed in ledger but was never routed to a wallet bucket."
+- Update `investor_portfolios.total_roi_earned` for `9b0c5216-…` += 1,500,000.
+- Insert an audit_log entry tagging the original ledger transaction_group `f2513a95-…`.
+- Verify wallet movement: balance should rise from 109,456,062 → 110,956,062.
+
+### 2. Patch `approve-wallet-operation` so future managed payouts cannot lose money
+
+In `supabase/functions/approve-wallet-operation/index.ts` (around line 162):
+
+- **Default the bucket**: when `op.account` is NULL for any wallet-credit category (`roi_payout`, `supporter_platform_rewards`, `agent_commission_payout`, `agent_requisition`, `salary_payment`, `employee_advance`, `platform_expense_disbursement`), default `account = 'withdrawable'` before writing the ledger entry.
+- **Hard-fail safety**: after `create_ledger_transaction` returns, re-read the wallet snapshot. If the bucket delta does not match the credit, mark the operation as `failed`, raise a 500, and surface the error to the operator (no silent success).
+- **Record the bucket on the pending op** for traceability: stamp the resolved `account` into `pending_wallet_operations.metadata`.
+
+### 3. Backfill scan for other lost credits
+
+Run a one-off audit script:
+- For every `general_ledger` row where `ledger_scope='wallet'`, `direction='cash_in'`, `account IS NULL`, and `wallet_id IS NOT NULL`:
+  - Cross-check whether the wallet's running bucket sum reflects the credit.
+  - For each confirmed gap, recover via `apply_wallet_movement` with reference `RECOVERY-<original-ref>` and patch the related portfolio's `total_roi_earned` if applicable.
+- Report results to the operator (count of gaps, total recovered, list of affected partners).
+
+### Out of scope
+- No change to `next_roi_date` advancement logic — it correctly advanced for portfolio `9b0c5216` since the payout is now being honored via recovery.
+- No UI change in COO/Partner Operations — only backend correctness.
+
+## Technical details
+
+- Edge function file to patch: `supabase/functions/approve-wallet-operation/index.ts` lines ~140–210.
+- Sole wallet writer (per platform constitution): `apply_wallet_movement` RPC.
+- Tables touched by recovery: `wallets` (via RPC), `investor_portfolios`, `audit_log`, and the resulting `general_ledger` recovery rows.
+- All recovery ledger rows will use `classification='production'` and a distinct `reference_id` prefixed `RECOVERY-` so the CFO Reconciliation dashboard can audit them.

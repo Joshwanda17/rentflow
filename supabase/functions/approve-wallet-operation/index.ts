@@ -159,6 +159,26 @@ Deno.serve(async (req) => {
               ? 'platform'
               : 'wallet';
 
+        // BUCKET DEFAULTING: For wallet-credit categories where the operator did
+        // NOT explicitly choose a bucket, default to 'withdrawable'. This prevents
+        // a class of "approved-but-vanished" payouts caused by ledger rows being
+        // inserted with account=NULL — the wallet writer cannot route a credit
+        // without a bucket and silently drops it.
+        const resolvedAccount: string | null = op.account
+          || (WALLET_CREDIT_CATEGORIES.includes(op.category) ? 'withdrawable' : null);
+
+        // Snapshot the recipient wallet BEFORE the ledger insert so we can
+        // verify the credit actually landed in a bucket after the trigger fires.
+        let walletBefore: { withdrawable_balance: number; float_balance: number; advance_balance: number; balance: number } | null = null;
+        if (scopeForCategory === 'wallet') {
+          const { data: walletSnap } = await adminClient
+            .from('wallets')
+            .select('withdrawable_balance, float_balance, advance_balance, balance')
+            .eq('user_id', ledgerUserId)
+            .maybeSingle();
+          walletBefore = walletSnap as any;
+        }
+
         // Insert into general_ledger via RPC
         const { data: rpcTxGroupId, error: ledgerErr } = await adminClient.rpc('create_ledger_transaction', {
           entries: [
@@ -185,7 +205,7 @@ Deno.serve(async (req) => {
               source_id: op.source_id,
               linked_party: isManaged ? op.user_id : op.linked_party,
               reference_id: op.reference_id,
-              account: op.account,
+              account: resolvedAccount,
               currency: 'UGX',
               transaction_date: new Date().toISOString(),
             },
@@ -210,6 +230,39 @@ Deno.serve(async (req) => {
           console.error(`[approve-wallet-op] Ledger insert failed for ${op.id}:`, ledgerErr);
           failedResults.push({ id: op.id, error: ledgerErr.message || 'Ledger insert failed' });
           continue;
+        }
+
+        // HARD-FAIL SAFETY: For wallet-scope credits, verify the bucket actually
+        // moved. If it didn't, the credit landed in the ledger but never reached
+        // the wallet — exactly the bug that lost LUKODDA JOSEPH's 1.5M ROI payout.
+        // We mark the operation as failed so the operator sees it instead of a
+        // false "success" toast.
+        if (scopeForCategory === 'wallet' && walletBefore && op.direction === 'cash_in') {
+          const { data: walletAfter } = await adminClient
+            .from('wallets')
+            .select('withdrawable_balance, float_balance, advance_balance, balance')
+            .eq('user_id', ledgerUserId)
+            .maybeSingle();
+          const beforeTotal = (walletBefore.withdrawable_balance || 0) + (walletBefore.float_balance || 0) + (walletBefore.advance_balance || 0);
+          const afterTotal = (walletAfter?.withdrawable_balance || 0) + (walletAfter?.float_balance || 0) + (walletAfter?.advance_balance || 0);
+          const delta = afterTotal - beforeTotal;
+          // Allow a small tolerance for concurrent operations on busy wallets.
+          if (delta < op.amount - 1) {
+            console.error(`[approve-wallet-op] WALLET ROUTING FAILURE for op ${op.id}: ledger credited ${op.amount} but wallet only moved by ${delta}. Forcing recovery via apply_wallet_movement.`);
+            // Recover via the sole authorized writer
+            const { error: recoveryErr } = await adminClient.rpc('apply_wallet_movement', {
+              p_user_id: ledgerUserId,
+              p_category: op.category === 'supporter_platform_rewards' || op.category === 'roi_payout' ? 'roi_wallet_credit'
+                : op.category === 'agent_commission_payout' ? 'agent_commission_earned'
+                : op.category,
+              p_amount: op.amount - delta,
+              p_direction: 'cash_in',
+            });
+            if (recoveryErr) {
+              failedResults.push({ id: op.id, error: `Wallet routing failed and recovery also failed: ${recoveryErr.message}` });
+              continue;
+            }
+          }
         }
 
         // ── Advance next_roi_date on ROI payout approval ──
