@@ -17,7 +17,17 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    const authHeader = req.headers.get("Authorization");
+    const body = await req.json().catch(() => ({}));
+    const { deposit_request_id, action, rejection_reason, bulk_ids, access_token } = body as {
+      deposit_request_id?: string;
+      action?: string;
+      rejection_reason?: string;
+      bulk_ids?: string[];
+      access_token?: string;
+    };
+
+    const authHeader = req.headers.get("Authorization")
+      || (typeof access_token === 'string' && access_token.length > 0 ? `Bearer ${access_token}` : null);
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: "Missing authorization header" }),
@@ -36,14 +46,6 @@ Deno.serve(async (req) => {
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    const body = await req.json().catch(() => ({}));
-    const { deposit_request_id, action, rejection_reason, bulk_ids } = body as {
-      deposit_request_id?: string;
-      action?: string;
-      rejection_reason?: string;
-      bulk_ids?: string[];
-    };
 
     if (!action || !["approve", "reject"].includes(action)) {
       return new Response(
@@ -858,7 +860,30 @@ Deno.serve(async (req) => {
         }
       } catch (innerErr) {
         console.error(`[approve-deposit] Error processing ${depositRequest.id}:`, innerErr);
-        results.push({ id: depositRequest.id, status: "error", amount: depositRequest.amount, user_id: depositRequest.user_id });
+        const alreadyCredited = action === 'approve'
+          ? await supabaseAdmin
+              .from('general_ledger')
+              .select('id', { count: 'exact', head: true })
+              .eq('source_table', 'deposit_requests')
+              .eq('source_id', depositRequest.id)
+              .eq('category', 'wallet_deposit')
+              .eq('direction', 'cash_in')
+              .eq('ledger_scope', 'wallet')
+          : { count: 0 };
+
+        if (action === 'approve' && (alreadyCredited.count ?? 0) > 0) {
+          await supabaseAdmin
+            .from('deposit_requests')
+            .update({
+              status: 'approved',
+              approved_at: depositRequest.approved_at || new Date().toISOString(),
+              processed_by: depositRequest.processed_by || user.id,
+            })
+            .eq('id', depositRequest.id);
+          results.push({ id: depositRequest.id, status: "approved", amount: depositRequest.amount, user_id: depositRequest.user_id });
+        } else {
+          results.push({ id: depositRequest.id, status: "error", amount: depositRequest.amount, user_id: depositRequest.user_id });
+        }
       }
     }
 
@@ -894,13 +919,15 @@ Deno.serve(async (req) => {
     }
 
 
+    const failedCount = results.filter(r => r.status === 'error').length;
+
     return new Response(
       JSON.stringify({
-        success: true,
+        success: failedCount === 0,
         message: `${results.filter(r => r.status !== 'error').length} deposit(s) ${action}d`,
         results,
       }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: failedCount === 0 ? 200 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";

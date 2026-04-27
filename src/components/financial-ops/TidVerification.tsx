@@ -370,6 +370,41 @@ export function TidVerification() {
     loadPending();
   }, [loadPending]);
 
+  // Keep the visible queue honest even when an approval completes from an
+  // undo flush, another tab, or another operator session: any row that stops
+  // being pending is immediately removed from local state.
+  useEffect(() => {
+    const channel = supabase
+      .channel(`finops-pending-deposits-${provider}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'deposit_requests' },
+        (payload) => {
+          const next = (payload.new ?? {}) as { id?: string; status?: string; provider?: string };
+          const old = (payload.old ?? {}) as { id?: string };
+          const id = next.id || old.id;
+          if (!id) return;
+          if (payload.eventType === 'DELETE' || next.status !== 'pending' || next.provider !== provider) {
+            setPending((prev) => prev.filter((p) => p.id !== id));
+            if (pickedId === id) setPickedId(null);
+          } else if (next.status === 'pending' && next.provider === provider) {
+            loadPending();
+          }
+        },
+      )
+      .subscribe();
+
+    const refreshOnFocus = () => loadPending();
+    window.addEventListener('focus', refreshOnFocus);
+    document.addEventListener('visibilitychange', refreshOnFocus);
+
+    return () => {
+      window.removeEventListener('focus', refreshOnFocus);
+      document.removeEventListener('visibilitychange', refreshOnFocus);
+      supabase.removeChannel(channel);
+    };
+  }, [loadPending, pickedId, provider]);
+
   // Global "/" hotkey to focus the pending search input — same shortcut
   // pattern as GitHub/Slack, so operators can start filtering instantly
   // without reaching for the mouse. Skipped when the user is already
@@ -819,7 +854,7 @@ export function TidVerification() {
     pendingMatchesRef.current.delete(match.id);
 
     try {
-      const { error } = await supabase.functions.invoke('approve-deposit', {
+      const { data, error } = await supabase.functions.invoke('approve-deposit', {
         body: { deposit_request_id: match.id, action: 'approve' },
       });
 
@@ -827,6 +862,13 @@ export function TidVerification() {
         const { extractFromErrorObject } = await import('@/lib/extractEdgeFunctionError');
         const msg = await extractFromErrorObject(error, 'Failed to approve deposit');
         throw new Error(msg);
+      }
+
+      const result = Array.isArray((data as any)?.results)
+        ? (data as any).results.find((r: any) => r.id === match.id)
+        : null;
+      if ((data as any)?.success === false || result?.status === 'error') {
+        throw new Error('Approval did not complete — deposit remains pending for retry.');
       }
 
       await supabase.from('audit_logs').insert({
@@ -1081,7 +1123,7 @@ export function TidVerification() {
     setRejecting(true);
 
     try {
-      const { error } = await supabase.functions.invoke('approve-deposit', {
+      const { data, error } = await supabase.functions.invoke('approve-deposit', {
         body: { deposit_request_id: rejectingId, action: 'reject', rejection_reason: rejectionReason.trim() },
       });
 
@@ -1089,6 +1131,13 @@ export function TidVerification() {
         const { extractFromErrorObject } = await import('@/lib/extractEdgeFunctionError');
         const msg = await extractFromErrorObject(error, 'Failed to reject deposit');
         throw new Error(msg);
+      }
+
+      const result = Array.isArray((data as any)?.results)
+        ? (data as any).results.find((r: any) => r.id === rejectingId)
+        : null;
+      if ((data as any)?.success === false || result?.status === 'error') {
+        throw new Error('Rejection did not complete — deposit remains pending for retry.');
       }
 
       const match = matches.find(m => m.id === rejectingId);
