@@ -285,7 +285,6 @@ export function UnbankedCashBanner() {
                   </span>
                 </div>
                 <ul className="divide-y divide-border/40">
-                  {awaitingBatches.map((b) => {
                   {awaitingBatches.map((b) => (
                     <AwaitingBatchRow
                       key={b.id}
