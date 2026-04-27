@@ -15,6 +15,7 @@ import {
   type FieldDepositBatch,
   type UnbatchedFieldCollection,
   type BatchItemDetail,
+  type BatchStatus,
   channelLabel,
 } from '@/lib/fieldDepositBatches';
 import { FieldDepositWizardDialog } from '@/components/agent/FieldDepositWizardDialog';
@@ -26,6 +27,18 @@ import { toast } from 'sonner';
 interface AwaitingBatchWithItems extends FieldDepositBatch {
   items: BatchItemDetail[];
 }
+
+/** Batch statuses we surface in the banner. Past 'verified'/'rejected' rows
+ *  are kept around briefly so the agent sees their proof landed. */
+const VISIBLE_STATUSES: BatchStatus[] = [
+  'awaiting_proof',
+  'pending_finops_verification',
+  'verified',
+  'rejected',
+];
+
+/** How long after verification/rejection we keep the row visible. */
+const RESOLVED_VISIBILITY_MS = 24 * 60 * 60 * 1000; // 24h
 
 /**
  * Persistent, top-of-dashboard banner that surfaces field cash the agent has
@@ -56,10 +69,20 @@ export function UnbankedCashBanner() {
         listUnbatchedFieldCollections(user.id),
         listAgentBatches(user.id, 25),
       ]);
-      const awaiting = batches.filter(b => b.status === 'awaiting_proof');
-      // Pull items per awaiting batch so the drill-down can show tenant + amount.
+      const visible = batches.filter((b) => {
+        if (!VISIBLE_STATUSES.includes(b.status)) return false;
+        // Hide resolved batches that are older than RESOLVED_VISIBILITY_MS.
+        if (b.status === 'verified' || b.status === 'rejected') {
+          const ts = b.finops_verified_at ?? b.updated_at;
+          if (ts && Date.now() - new Date(ts).getTime() > RESOLVED_VISIBILITY_MS) {
+            return false;
+          }
+        }
+        return true;
+      });
+      // Pull items per visible batch so the drill-down can show tenant + amount.
       const withItems: AwaitingBatchWithItems[] = await Promise.all(
-        awaiting.map(async (b) => {
+        visible.map(async (b) => {
           try {
             const items = await listBatchItems(b.id);
             return { ...b, items };
@@ -85,17 +108,21 @@ export function UnbankedCashBanner() {
 
   const unbatchedTotal = unbatched.reduce((s, r) => s + Number(r.amount || 0), 0);
   const unbatchedCount = unbatched.length;
-  const awaitingTotal = awaitingBatches.reduce(
+  // "Hanging" cash = only batches still awaiting agent proof. Once submitted,
+  // the money is in Finance's court so it doesn't count against the agent.
+  const stillAwaiting = awaitingBatches.filter((b) => b.status === 'awaiting_proof');
+  const awaitingTotal = stillAwaiting.reduce(
     (s, b) => s + Number(b.declared_total || 0),
     0,
   );
   const grandTotal = unbatchedTotal + awaitingTotal;
-  const grandCount = unbatchedCount + awaitingBatches.length;
+  const grandCount = unbatchedCount + stillAwaiting.length;
+  const hasResolvedRows = awaitingBatches.length > stillAwaiting.length;
 
-  // Nothing hanging → render nothing.
-  if (!loaded || grandTotal <= 0) return null;
+  // Nothing hanging AND nothing recently resolved → render nothing.
+  if (!loaded || (grandTotal <= 0 && !hasResolvedRows)) return null;
 
-  const oldestAwaiting = awaitingBatches[awaitingBatches.length - 1];
+  const oldestAwaiting = stillAwaiting[stillAwaiting.length - 1];
   const ageHours = oldestAwaiting
     ? Math.floor((Date.now() - new Date(oldestAwaiting.created_at).getTime()) / 3_600_000)
     : 0;
