@@ -43,6 +43,91 @@ const PAYOUT_OPTIONS: { value: PayoutMode; label: string; sublabel: string; icon
 import { formatDynamic } from '@/lib/currencyFormat';
 const formatCurrency = formatDynamic;
 
+// ─── Recipient session guard ──────────────────────────────────────────────
+// Stops a single user from spamming Financial Ops with multiple identical
+// pending withdrawals (e.g. five UGX 22,500 requests to the same MoMo
+// number) by re-opening the dialog after a refresh, switching tabs, or
+// just nervously tapping again. Layer 2 (the server trigger) is the real
+// safety net; this layer just gives the user immediate, friendly feedback
+// without a network round-trip.
+const RECENT_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+const recentStorageKey = (userId: string) => `welile:withdraw:recent:${userId}`;
+
+type RecentRecipientEntry = {
+  amount: number;
+  submittedAt: number; // ms epoch
+  recipientLabel: string;
+};
+
+function readRecentRecipients(userId: string): Record<string, RecentRecipientEntry> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = sessionStorage.getItem(recentStorageKey(userId));
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, RecentRecipientEntry>;
+    // Self-prune anything older than the window so the map doesn't grow
+    // unbounded across long sessions.
+    const cutoff = Date.now() - RECENT_WINDOW_MS;
+    const cleaned: Record<string, RecentRecipientEntry> = {};
+    for (const [k, v] of Object.entries(parsed)) {
+      if (v && typeof v.submittedAt === 'number' && v.submittedAt > cutoff) {
+        cleaned[k] = v;
+      }
+    }
+    return cleaned;
+  } catch {
+    return {};
+  }
+}
+
+function writeRecentRecipient(
+  userId: string,
+  key: string,
+  entry: RecentRecipientEntry,
+): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const current = readRecentRecipients(userId);
+    current[key] = entry;
+    sessionStorage.setItem(recentStorageKey(userId), JSON.stringify(current));
+  } catch {
+    /* sessionStorage full / disabled — non-fatal */
+  }
+}
+
+function buildRecipientKey(args: {
+  payoutMode: 'mtn' | 'airtel' | 'bank' | 'cash';
+  momoNumber: string;
+  bankName: string;
+  bankAccountNumber: string;
+}): { key: string; label: string } | null {
+  const { payoutMode, momoNumber, bankName, bankAccountNumber } = args;
+  if (payoutMode === 'mtn' || payoutMode === 'airtel') {
+    const normalised = momoNumber.replace(/\D/g, '');
+    if (!normalised) return null;
+    return {
+      key: `momo:${payoutMode}:${normalised}`,
+      label: `${payoutMode.toUpperCase()} ${momoNumber.trim()}`,
+    };
+  }
+  if (payoutMode === 'bank') {
+    if (!bankAccountNumber.trim()) return null;
+    return {
+      key: `bank:${(bankName || '').toLowerCase()}:${bankAccountNumber.trim()}`,
+      label: `${bankName || 'bank'} A/C ${bankAccountNumber.trim()}`,
+    };
+  }
+  if (payoutMode === 'cash') {
+    return { key: 'cash:Nearest Agent', label: 'Cash at agent' };
+  }
+  return null;
+}
+
+function formatRelativeMinutes(submittedAt: number): string {
+  const minutes = Math.max(1, Math.round((Date.now() - submittedAt) / 60000));
+  return minutes === 1 ? '1 minute ago' : `${minutes} minutes ago`;
+}
+
 export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, onSuccess, prefillAmount, prefillReason, linkedParty }: WithdrawRequestDialogProps) {
   const { user } = useAuth();
   const [amount, setAmount] = useState<number>(0);
@@ -141,6 +226,25 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
   const meetsMinBalance = availableBalance >= 500;
   const isFormValid = meetsMinBalance && amount >= 500 && amount <= availableBalance && isPayoutValid() && reason.trim().length >= 10 && workingHoursStatus.isOpen;
 
+  // Live look-up of the current recipient against the in-session map.
+  // Drives the inline notice on the form so the user is warned BEFORE
+  // they hit Submit. Recomputes whenever the recipient inputs change.
+  const recentRecipientMatch = (() => {
+    if (!user || !payoutMode) return null;
+    const info = buildRecipientKey({
+      payoutMode,
+      momoNumber,
+      bankName,
+      bankAccountNumber,
+    });
+    if (!info) return null;
+    const recent = readRecentRecipients(user.id);
+    const hit = recent[info.key];
+    if (!hit) return null;
+    if (Date.now() - hit.submittedAt >= RECENT_WINDOW_MS) return null;
+    return { ...hit, recipientLabel: info.label };
+  })();
+
   const handleSubmit = async () => {
     if (!user) { toast.error('Please log in first'); return; }
     // Re-entrant guard: prevent double-tap / rapid double submission
@@ -152,6 +256,51 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
     if (amount < 500) { toast.error('Minimum withdrawal is UGX 500'); isSubmittingRef.current = false; return; }
     if (amount > availableBalance) { toast.error(`Insufficient available balance. You have UGX ${pendingAmount.toLocaleString()} in pending withdrawals.`); isSubmittingRef.current = false; return; }
     if (!isPayoutValid()) { toast.error('Please complete payout details'); isSubmittingRef.current = false; return; }
+
+    // ─── Recipient session guard ────────────────────────────────────────
+    // Catches the "submit five identical withdrawals to the same number"
+    // pattern before it ever hits the network. Server-side trigger
+    // (`prevent_duplicate_pending_withdrawal`) is the real safety net for
+    // cross-tab / cleared-storage attempts.
+    const recipientInfo = buildRecipientKey({
+      payoutMode: payoutMode as 'mtn' | 'airtel' | 'bank' | 'cash',
+      momoNumber,
+      bankName,
+      bankAccountNumber,
+    });
+    if (recipientInfo) {
+      const recent = readRecentRecipients(user.id);
+      const existing = recent[recipientInfo.key];
+      if (existing && Date.now() - existing.submittedAt < RECENT_WINDOW_MS) {
+        const sameAmount = existing.amount === amount;
+        if (sameAmount) {
+          // Hard block — explicit confirm required.
+          const proceed = window.confirm(
+            `You already submitted UGX ${existing.amount.toLocaleString()} to ` +
+              `${recipientInfo.label} ${formatRelativeMinutes(existing.submittedAt)}. ` +
+              `That request is still waiting for operator approval.\n\n` +
+              `Sending the same amount again will create a duplicate that operations may reject.\n\n` +
+              `Tap OK only if you really mean to send another UGX ${amount.toLocaleString()} to the same recipient.`,
+          );
+          if (!proceed) {
+            toast.info('Duplicate blocked — your earlier request is still pending.');
+            isSubmittingRef.current = false;
+            return;
+          }
+        } else {
+          // Soft warn — different amount but same recipient very recently.
+          const proceed = window.confirm(
+            `You sent UGX ${existing.amount.toLocaleString()} to ` +
+              `${recipientInfo.label} ${formatRelativeMinutes(existing.submittedAt)}.\n\n` +
+              `Continue with this new UGX ${amount.toLocaleString()} request?`,
+          );
+          if (!proceed) {
+            isSubmittingRef.current = false;
+            return;
+          }
+        }
+      }
+    }
 
     setLoading(true);
     // Stable idempotency key for the lifetime of this submission attempt.
@@ -190,6 +339,26 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
           // 23505 = unique_violation. Means a previous attempt already committed
           // this exact submission server-side. Treat as success.
           if ((error as any).code === '23505') {
+            // Two distinct cases share this code:
+            //   1. Idempotency key collision → genuine duplicate of *this*
+            //      submission (network retry). Treat as success.
+            //   2. Our `prevent_duplicate_pending_withdrawal` trigger fired
+            //      → user already has another pending request for the same
+            //      recipient + amount in the last 10 min. Block, surface a
+            //      friendly message, and stop the success flow.
+            const msg = String((error as any).message || '');
+            if (msg.includes('DUPLICATE_PENDING_WITHDRAWAL')) {
+              toast.error(
+                `You already have a pending withdrawal of UGX ${amount.toLocaleString()} ` +
+                  `to this recipient. Wait for operations to approve or reject the ` +
+                  `existing one before submitting again.`,
+                { duration: 8000 },
+              );
+              setLoading(false);
+              isSubmittingRef.current = false;
+              clientRequestIdRef.current = null;
+              return;
+            }
             console.info('[WithdrawRequestDialog] Duplicate suppressed by idempotency key');
           } else {
             throw error;
@@ -311,6 +480,15 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
         setSuccess(true);
         toast.success('Withdrawal request submitted! 🎉');
         onSuccess?.();
+        // Record this recipient in the session map so a re-open within
+        // 10 minutes triggers the guard above.
+        if (recipientInfo) {
+          writeRecentRecipient(user.id, recipientInfo.key, {
+            amount,
+            submittedAt: Date.now(),
+            recipientLabel: recipientInfo.label,
+          });
+        }
         setLoading(false);
         isSubmittingRef.current = false;
         clientRequestIdRef.current = null;
@@ -500,6 +678,20 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
                       <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                         {selectedOption?.label} Details
                       </p>
+
+                      {recentRecipientMatch && (
+                        <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50">
+                          <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                          <div className="text-[11px] leading-snug text-amber-900 dark:text-amber-200">
+                            <p className="font-semibold">
+                              You already sent UGX {recentRecipientMatch.amount.toLocaleString()} to {recentRecipientMatch.recipientLabel} {formatRelativeMinutes(recentRecipientMatch.submittedAt)}.
+                            </p>
+                            <p className="opacity-90 mt-0.5">
+                              That request is still pending operator approval. Re-submitting may create a duplicate.
+                            </p>
+                          </div>
+                        </div>
+                      )}
 
                       {(payoutMode === 'mtn' || payoutMode === 'airtel') && (
                         <>
