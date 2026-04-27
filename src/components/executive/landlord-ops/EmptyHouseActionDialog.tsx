@@ -42,20 +42,31 @@ export function EmptyHouseActionDialog({
       if (isDelete) {
         const { error } = await supabase.from('house_listings').delete().eq('id', listingId);
         if (error) throw error;
+      } else if (isReject) {
+        // Atomic reject + audit + agent notification via SECURITY DEFINER RPC.
+        const { data, error } = await supabase.rpc('reject_house_listing', {
+          p_listing_id: listingId,
+          p_reason: reason.trim(),
+        });
+        if (error) throw error;
+        if (data && typeof data === 'object' && 'error' in (data as any)) {
+          throw new Error((data as any).error);
+        }
       } else {
-        const newStatus = isReject ? 'rejected' : 'delisted';
-        const { error } = await supabase.from('house_listings').update({ status: newStatus }).eq('id', listingId);
+        const { error } = await supabase.from('house_listings').update({ status: 'delisted' }).eq('id', listingId);
         if (error) throw error;
       }
 
-      // Audit log
-      await supabase.from('audit_logs').insert({
-        user_id: userId,
-        action_type: isDelete ? 'listing_deleted' : isReject ? 'listing_rejected' : 'listing_delisted',
-        table_name: 'house_listings',
-        record_id: listingId,
-        metadata: { reason: reason.trim(), listing_title: listingTitle },
-      });
+      // Audit log for delete/delist (reject is logged inside the RPC for attribution).
+      if (!isReject) {
+        await supabase.from('audit_logs').insert({
+          user_id: userId,
+          action_type: isDelete ? 'listing_deleted' : 'listing_delisted',
+          table_name: 'house_listings',
+          record_id: listingId,
+          metadata: { reason: reason.trim(), listing_title: listingTitle },
+        });
+      }
 
       toast({ title: `${label}ed`, description: `${listingTitle} has been ${label.toLowerCase()}ed.` });
       setReason('');
