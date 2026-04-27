@@ -116,8 +116,8 @@ export const WalletService = {
 
   /**
    * Mirrors: optimistic locking pattern from wallet-transfer/agent-deposit
-   * .update({ balance: wallet.balance - amount })
-   * .eq('balance', wallet.balance)
+   * (backend-only) optimistic update: sets new balance = current minus amount,
+   * gated by an equality check on the previously-read balance.
    * 
    * Pure calculation — returns the new balance and the lock condition
    * that would be used in the optimistic update query.
