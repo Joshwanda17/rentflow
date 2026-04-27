@@ -473,14 +473,22 @@ Deno.serve(async (req) => {
           let rentRequestId: string | null = null;
           let newOutstanding = 0;
 
+          // Float deposits are operational money the agent collected from
+          // tenants in the field. They must NEVER be auto-applied to the
+          // depositing agent's own rent / debt / prepay — that money does
+          // not belong to the agent personally. Skip the entire auto-apply
+          // pipeline below for float deposits.
+          if (!isFloatDeposit) {
+
           // Re-read wallet after ledger credit to know available balance
           const { data: walletAfterCredit } = await supabaseAdmin
             .from("wallets")
-            .select("balance")
+            .select("withdrawable_balance")
             .eq("user_id", depositRequest.user_id)
             .single();
 
-          let availableBalance = walletAfterCredit?.balance || 0;
+          // Auto-apply only ever spends withdrawable money — never float.
+          let availableBalance = Number(walletAfterCredit?.withdrawable_balance || 0);
 
           const { data: activeRentRequest } = await supabaseAdmin
             .from("rent_requests")
