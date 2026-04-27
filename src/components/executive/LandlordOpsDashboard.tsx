@@ -206,6 +206,8 @@ export function LandlordOpsDashboard() {
   const [landlordPage, setLandlordPage] = useState(1);
   const [landlordCategory, setLandlordCategory] = useState('all');
   const [verifying, setVerifying] = useState<string | null>(null);
+  // Optimistically removed from the verification queue (until refetch confirms or rollback restores).
+  const [optimisticallyVerifiedIds, setOptimisticallyVerifiedIds] = useState<Set<string>>(new Set());
   const [previewImages, setPreviewImages] = useState<{ images: string[]; title: string } | null>(null);
   const [adjustListing, setAdjustListing] = useState<ListingWithLandlord | null>(null);
   const [actionDialog, setActionDialog] = useState<{ listing: ListingWithLandlord; type: 'delete' | 'delist' | 'reject' } | null>(null);
@@ -604,7 +606,18 @@ export function LandlordOpsDashboard() {
 
   const handleVerifyListing = async (listing: ListingWithLandlord) => {
     if (!user) return;
-    setVerifying(listing.id);
+    // INSTANT UX: hide the card immediately, show a toast right now, run the
+    // edge function in the background. If it fails, restore the card and
+    // surface the error.
+    setOptimisticallyVerifiedIds(prev => {
+      const next = new Set(prev);
+      next.add(listing.id);
+      return next;
+    });
+    toast({
+      title: '✅ Verified → UGX 5,000 Credited',
+      description: `${listing.title} verified. UGX 5,000 credited to the agent's commission wallet.`,
+    });
     try {
       const { data, error } = await supabase.functions.invoke('credit-listing-bonus', {
         body: { listing_id: listing.id },
@@ -620,19 +633,15 @@ export function LandlordOpsDashboard() {
         console.error('[handleVerifyListing] Data error:', data.error);
         throw new Error(data.error);
       }
-      if (data?.already_paid) {
-        toast({ title: '✅ Already Verified', description: 'This listing was already verified and bonus paid.' });
-      } else {
-        toast({
-          title: '✅ Verified → UGX 5,000 Credited',
-          description: `${listing.title} verified. UGX 5,000 instantly credited to the agent's commission wallet.`,
-        });
-      }
       refetch();
     } catch (err: any) {
+      // Roll back optimistic removal so the operator can retry.
+      setOptimisticallyVerifiedIds(prev => {
+        const next = new Set(prev);
+        next.delete(listing.id);
+        return next;
+      });
       toast({ title: 'Verification Failed', description: err.message, variant: 'destructive' });
-    } finally {
-      setVerifying(null);
     }
   };
 
