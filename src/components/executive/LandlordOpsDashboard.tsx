@@ -693,6 +693,25 @@ export function LandlordOpsDashboard() {
 
   const refetchAll = () => { refetch(); refetchLandlords(); refetchLC1(); };
 
+  // Shared dialogs renderer — must be present in every sub-view that uses
+  // setActionDialog / setPreviewImages / setAssignPerson / etc. Otherwise
+  // those buttons set state but no dialog is mounted and "nothing happens"
+  // until the user navigates back to a view that does mount LandlordDialogs.
+  const renderDialogs = () => (
+    <LandlordDialogs
+      editLandlord={editLandlord} setEditLandlord={setEditLandlord}
+      editLC1={editLC1} setEditLC1={setEditLC1}
+      assignPerson={assignPerson} setAssignPerson={setAssignPerson}
+      deleteLandlord={deleteLandlord} setDeleteLandlord={setDeleteLandlord}
+      deleteReason={deleteReason} setDeleteReason={setDeleteReason}
+      deleting={deleting} setDeleting={setDeleting}
+      previewImages={previewImages} setPreviewImages={setPreviewImages}
+      adjustListing={adjustListing} setAdjustListing={setAdjustListing}
+      actionDialog={actionDialog} setActionDialog={setActionDialog}
+      user={user} refetchAll={refetchAll} queryClient={queryClient}
+    />
+  );
+
   // ─── LANDLORDS VIEW ───
   if (view === 'landlords') {
     type LandlordCategory = 'all' | 'verified' | 'pending' | 'has_tenants' | 'no_tenants';
