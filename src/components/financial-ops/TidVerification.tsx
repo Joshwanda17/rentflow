@@ -903,15 +903,59 @@ export function TidVerification() {
     pendingMatchesRef.current.delete(match.id);
 
     try {
-      const { data, error } = await supabase.functions.invoke('approve-deposit', {
-        body: { deposit_request_id: match.id, action: 'approve' },
-      });
-
-      if (error) {
-        const { extractFromErrorObject } = await import('@/lib/extractEdgeFunctionError');
-        const msg = await extractFromErrorObject(error, 'Failed to approve deposit');
-        throw new Error(msg);
+      // ── Retry wrapper ────────────────────────────────────────────
+      // Large-amount deposits (≥10M) trigger the rent-repayment +
+      // float-sweep branches inside `approve-deposit`, which can take
+      // 3-6s and occasionally cold-start past the gateway timeout. The
+      // server-side idempotency guard (existing wallet_deposit ledger
+      // entry → skip ledger RPC) makes a retry SAFE: a successful first
+      // attempt that times out at the network layer will be detected
+      // and reconciled on retry without double-crediting.
+      const MAX_ATTEMPTS = 3;
+      const tag = `[approve-deposit] ${match.id} (${formatUGX(match.amount)})`;
+      let data: any = null;
+      let lastErr: any = null;
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        const t0 = Date.now();
+        try {
+          console.info(`${tag} attempt ${attempt}/${MAX_ATTEMPTS} → invoking`);
+          const res = await supabase.functions.invoke('approve-deposit', {
+            body: { deposit_request_id: match.id, action: 'approve' },
+          });
+          const dt = Date.now() - t0;
+          if (res.error) {
+            console.warn(`${tag} attempt ${attempt} failed in ${dt}ms`, res.error);
+            lastErr = res.error;
+            // Only retry on transient signals — auth/validation errors
+            // (4xx) won't get better with a retry.
+            const status = (res.error as any)?.context?.status ?? (res.error as any)?.status;
+            const transient =
+              !status || status >= 500 || status === 408 || status === 429
+              || /network|timeout|fetch failed|aborted|FunctionsFetchError/i.test(String(res.error?.message || ''));
+            if (!transient || attempt === MAX_ATTEMPTS) {
+              const { extractFromErrorObject } = await import('@/lib/extractEdgeFunctionError');
+              const msg = await extractFromErrorObject(res.error, 'Failed to approve deposit');
+              throw new Error(msg);
+            }
+            // Exponential backoff: 600ms, 1.5s
+            await new Promise((r) => setTimeout(r, attempt === 1 ? 600 : 1500));
+            continue;
+          }
+          console.info(`${tag} attempt ${attempt} succeeded in ${dt}ms`);
+          data = res.data;
+          lastErr = null;
+          break;
+        } catch (thrown: any) {
+          // Network / fetch-level throw (no res object). Same retry rule.
+          const dt = Date.now() - t0;
+          lastErr = thrown;
+          const transient = /network|timeout|fetch failed|aborted|load failed/i.test(String(thrown?.message || ''));
+          console.warn(`${tag} attempt ${attempt} threw in ${dt}ms (transient=${transient})`, thrown);
+          if (!transient || attempt === MAX_ATTEMPTS) throw thrown;
+          await new Promise((r) => setTimeout(r, attempt === 1 ? 600 : 1500));
+        }
       }
+      if (lastErr) throw lastErr;
 
       const result = Array.isArray((data as any)?.results)
         ? (data as any).results.find((r: any) => r.id === match.id)
