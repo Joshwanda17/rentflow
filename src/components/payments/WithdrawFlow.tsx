@@ -214,50 +214,41 @@ export default function WithdrawFlow({
         ? `REQ-${String(insertedRow.id).replace(/-/g, '').slice(0, 12).toUpperCase()}`
         : '';
       setWithdrawalRef(requestId);
-      setPaymentStatus('success');
-      toast.success('Withdrawal request submitted! Please wait for manager approval before funds are released.');
+      setCreatedRequestId(insertedRow?.id ?? null);
+      // IMPORTANT: a withdrawal is NOT successful until Financial Ops
+      // approves and disburses. Keep status as `pending` and let the
+      // realtime tracker flip it to success when the DB row updates.
+      setPaymentStatus('pending');
+      toast.success(
+        'Withdrawal request submitted. Funds will be released once Financial Ops approves.',
+      );
       onSuccess?.();
 
-      // Fire-and-forget: if this user is a funder/partner, send disbursement confirmation email
+      // Persist destination so the user doesn't re-type next time. Skip
+      // for cash pickup (no destination details to save) and skip when
+      // they reused an existing saved method (just bump last_used_at).
       try {
-        const sb: any = supabase;
-        const profileRes: any = await sb.from('profiles').select('email, full_name').eq('id', user.id).maybeSingle();
-        const portfolioRes: any = await sb.from('investor_portfolios').select('portfolio_code').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
-        const roleRes: any = await sb.from('user_roles').select('role').eq('user_id', user.id).eq('role', 'supporter').maybeSingle();
-
-        const email = profileRes.data?.email;
-        const isFunder = !!roleRes.data || !!portfolioRes.data;
-
-        if (email && isFunder) {
-          const payoutMethodLabel =
-            payoutMode === 'mobile_money' ? `${momoProvider} Mobile Money (${momoNumber.trim()})` :
-            payoutMode === 'bank_transfer' ? `${bankName} - ${bankAccountNumber.trim()}` :
-            'Cash Pickup at Office';
-
-          await supabase.functions.invoke('send-transactional-email', {
-            body: {
-              templateName: 'returns-disbursement-confirmation',
-              recipientEmail: email,
-              idempotencyKey: `partner-withdraw-${user.id}-${insertedRow?.id ?? requestId}`,
-              templateData: {
-                partner_name: profileRes.data?.full_name || 'Partner',
-                request_id: requestId,
-                portfolio_code: portfolioRes.data?.portfolio_code || '',
-                amount,
-                currency: 'UGX',
-                date: new Date().toISOString(),
-                payout_method: payoutMethodLabel,
-                company_name: 'Welile',
-                logo_url: 'https://welilereceipts.com/welile-logo.png',
-                is_managed_by_agent: false,
-                agent_name: '',
-              },
-            },
+        if (selectedSavedId) {
+          savedMethods.touch.mutate(selectedSavedId);
+        } else if (saveAsNew && payoutMode !== 'cash') {
+          await savedMethods.create.mutateAsync({
+            payout_mode: payoutMode,
+            nickname: savedNickname.trim() || null,
+            momo_provider: payoutMode === 'mobile_money' ? momoProvider : null,
+            momo_number: payoutMode === 'mobile_money' ? momoNumber.trim() : null,
+            momo_name: payoutMode === 'mobile_money' ? momoName.trim() : null,
+            bank_name: payoutMode === 'bank_transfer' ? bankName : null,
+            bank_account_name: payoutMode === 'bank_transfer' ? bankAccountName.trim() : null,
+            bank_account_number: payoutMode === 'bank_transfer' ? bankAccountNumber.trim() : null,
+            is_default: false,
           });
         }
-      } catch (emailErr) {
-        console.warn('[WithdrawFlow] Disbursement email enqueue failed (non-blocking):', emailErr);
+      } catch (saveErr) {
+        console.warn('[WithdrawFlow] Could not save payout method (non-blocking):', saveErr);
       }
+
+      // Disbursement confirmation email is sent by the approval pipeline,
+      // NOT here — funds aren't actually out yet.
     } catch (error: any) {
       console.error('Withdrawal failed:', error);
       setPaymentStatus('failed');
