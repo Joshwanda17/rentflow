@@ -12,6 +12,7 @@ import {
   AlertCircle,
   ClipboardPaste,
   Wand2,
+  Sparkles,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -74,6 +75,14 @@ interface Props {
   /** Current deposit amount in the form, in UGX. Drives auto-suggest. */
   currentAmount: number;
   onApplyMatch: (match: MatchResult) => void;
+  /**
+   * When true, render the matcher as a prominent CTA panel ("Auto-build
+   * breakdown from receipt/reference"). DepositFlow turns this on for
+   * the lump-sum case — agent typed an amount but hasn't tagged any
+   * tenants yet — to make the auto-build path obvious instead of having
+   * the agent type each tenant amount by hand.
+   */
+  highlight?: boolean;
 }
 
 function detectProvider(ref: string): 'mtn' | 'airtel' | 'bank' | undefined {
@@ -84,7 +93,12 @@ function detectProvider(ref: string): 'mtn' | 'airtel' | 'bank' | undefined {
   return undefined;
 }
 
-export default function DepositReferenceMatcher({ agentId, currentAmount, onApplyMatch }: Props) {
+export default function DepositReferenceMatcher({
+  agentId,
+  currentAmount,
+  onApplyMatch,
+  highlight = false,
+}: Props) {
   const [reference, setReference] = useState('');
   const [searching, setSearching] = useState(false);
   const [phase, setPhase] = useState<'idle' | 'no-match' | 'collections'>('idle');
@@ -291,13 +305,29 @@ export default function DepositReferenceMatcher({ agentId, currentAmount, onAppl
   };
 
   return (
-    <div className="space-y-3 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 p-3">
+    <div
+      className={`space-y-3 rounded-xl border-2 p-3 transition-colors ${
+        highlight
+          ? 'border-primary bg-primary/10 shadow-sm shadow-primary/10'
+          : 'border-dashed border-primary/30 bg-primary/5'
+      }`}
+    >
       <div className="flex items-start gap-2">
-        <Receipt className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+        {highlight ? (
+          <Sparkles className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+        ) : (
+          <Receipt className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+        )}
         <div className="min-w-0">
-          <p className="text-xs font-semibold">Collect from receipt / reference</p>
+          <p className="text-xs font-semibold">
+            {highlight
+              ? 'Auto-build breakdown from receipt / reference'
+              : 'Collect from receipt / reference'}
+          </p>
           <p className="text-[10px] text-muted-foreground">
-            Forgot to capture the TID in the field? Paste it here — we'll find your matching deposit or pull the unattached collections it covers.
+            {highlight
+              ? `Big lump sum without per-tenant TIDs? Paste your bank reference or receipt number — we'll pull every unattached field collection it covers and build the per-tenant breakdown for you.`
+              : `Forgot to capture the TID in the field? Paste it here — we'll find your matching deposit or pull the unattached collections it covers.`}
           </p>
         </div>
       </div>
