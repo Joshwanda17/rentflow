@@ -71,6 +71,13 @@ export default function WithdrawFlow({
   const [currency, setCurrency] = useState('UGX');
   const [pin, setPin] = useState('');
 
+  // Saved payout destinations — persisted across withdrawals so users
+  // don't re-type MoMo / bank details every time.
+  const savedMethods = useSavedPayoutMethods();
+  const [selectedSavedId, setSelectedSavedId] = useState<string | null>(null);
+  const [saveAsNew, setSaveAsNew] = useState(true);
+  const [savedNickname, setSavedNickname] = useState('');
+
   // Payout mode state
   const [payoutMode, setPayoutMode] = useState<'mobile_money' | 'bank_transfer' | 'cash'>('mobile_money');
   
@@ -86,7 +93,12 @@ export default function WithdrawFlow({
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
-  const [paymentStatus, setPaymentStatus] = useState<'success' | 'failed'>('success');
+  // Withdrawal receipts start as `pending` because Financial Ops must
+  // approve and disburse before the request is truly successful.
+  const [paymentStatus, setPaymentStatus] = useState<'pending' | 'success' | 'failed'>('pending');
+  // Real DB UUID of the new withdrawal_requests row. Drives the live
+  // status tracker subscription on the success step.
+  const [createdRequestId, setCreatedRequestId] = useState<string | null>(null);
   const [withdrawalRef, setWithdrawalRef] = useState('');
 
   // Withdrawable = withdrawable_balance + advance_balance (advance is recoverable
