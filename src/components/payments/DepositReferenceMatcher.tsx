@@ -547,9 +547,9 @@ export default function DepositReferenceMatcher({
       </div>
 
       {autoApplied && (
-        <div className="flex items-start gap-2 p-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10">
-          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0 mt-0.5" />
-          <p className="text-[11px] text-emerald-700">
+        <div className="flex items-start gap-2 p-2 rounded-lg border border-success/30 bg-success/10">
+          <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0 mt-0.5" />
+          <p className="text-[11px] text-success-foreground">
             Auto-matched — TID and tenant breakdown are filled in below. Review and submit.
           </p>
         </div>
