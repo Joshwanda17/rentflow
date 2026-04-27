@@ -8,6 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Loader2, CheckCircle2, Phone, Calendar, Clock, Hash, AlertCircle, History, Building2, Banknote, Upload, Receipt, Copy, ShieldAlert, ClipboardPaste, Camera, X, ImageIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import OperationalFloatTenantAllocator, {
+  encodeAllocationsNote,
+  type TenantAllocation,
+} from './OperationalFloatTenantAllocator';
 
 /**
  * Extract a Mobile Money / bank reference from arbitrary SMS text.
@@ -106,6 +110,14 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   const [bankSlipPreview, setBankSlipPreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tidError, setTidError] = useState('');
+  /**
+   * Per-tenant breakdown for an Operational Float deposit. The agent
+   * collected one bulk amount in the field, dropped it at the merchant
+   * code under one TID, and now needs to tell us *which tenants* it came
+   * from. Empty for non-op-float deposits.
+   */
+  const [tenantAllocations, setTenantAllocations] = useState<TenantAllocation[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   // Audit: capture the exact moment the user picked the purpose + which UI surface asked them.
   const [purposeChosenAt, setPurposeChosenAt] = useState<string | null>(null);
   const [purposeEntryPoint, setPurposeEntryPoint] = useState<'gate' | 'default' | 'in_form'>(
@@ -125,6 +137,18 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     setBankSlipPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [bankSlipFile]);
+
+  // Resolve the current user once so the allocator can scope its tenant
+  // search without each render hitting auth.getUser().
+  useEffect(() => {
+    let cancelled = false;
+    supabase.auth.getUser().then(({ data }) => {
+      if (!cancelled) setCurrentUserId(data?.user?.id ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   /**
    * Read the clipboard, extract the first valid TID from the pasted text,
@@ -261,6 +285,25 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     if (!depositPurpose) { toast.error('Select the deposit purpose'); return false; }
     if (depositPurpose === 'other' && !reason.trim()) { toast.error('Enter the reason for this deposit'); return false; }
 
+    // Operational Float deposits MUST carry a tenant breakdown so Financial
+    // Ops can reconcile the bulk drop. Skip when no allocations were made
+    // (legacy / no tenants linked yet) — the agent can still submit, but if
+    // they DID start a breakdown it has to balance.
+    if (depositPurpose === 'operational_float' && tenantAllocations.length > 0) {
+      const sum = tenantAllocations.reduce((s, a) => s + (a.amount || 0), 0);
+      const total = parseFloat(amount);
+      if (tenantAllocations.some((a) => !a.amount || a.amount <= 0)) {
+        toast.error('Each tenant in the breakdown needs an amount greater than 0');
+        return false;
+      }
+      if (Math.abs(sum - total) > 1) {
+        toast.error(
+          `Tenant breakdown (UGX ${sum.toLocaleString()}) must equal deposit total (UGX ${total.toLocaleString()})`,
+        );
+        return false;
+      }
+    }
+
     const txDate = new Date(`${transactionDate}T${transactionTime}`);
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -309,12 +352,20 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
 
       const providerValue = channel === 'momo' ? momoProvider : channel === 'bank' ? 'bank_transfer' : channel === 'cash' ? 'cash_deposit' : 'agent_cash';
       const purposeLabel = DEPOSIT_PURPOSES.find(p => p.id === depositPurpose)?.label || depositPurpose;
-      const notes = [
+      const baseNotes = [
         `Purpose: ${purposeLabel}`,
         reason.trim() ? reason.trim() : '',
         channel === 'agent_cash' ? `Agent: ${agentName.trim()}` : '',
         bankSlipUrl ? `Bank slip: ${bankSlipUrl}` : '',
       ].filter(Boolean).join(' | ');
+
+      // For Operational Float drops, append the per-tenant breakdown to
+      // notes as a structured tail. Financial Ops parses this and shows a
+      // tenant-by-tenant table at approval time.
+      const notes =
+        depositPurpose === 'operational_float' && tenantAllocations.length > 0
+          ? encodeAllocationsNote(baseNotes, tenantAllocations)
+          : baseNotes;
 
       const { error: depositError } = await supabase
         .from('deposit_requests')
@@ -372,6 +423,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     setDepositPurpose(requirePurposeChoice ? '' : (defaultPurpose ?? ''));
     setShowPurposeGrid(!lockPurpose);
     setBankSlipFile(null);
+    setTenantAllocations([]);
     onOpenChange(false);
   };
 
@@ -935,6 +987,14 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                     This deposit will be credited as <span className="font-semibold text-primary">Company Operations Float</span> — restricted to landlord disbursements only. Not withdrawable as personal funds.
                   </p>
                 </div>
+              )}
+              {depositPurpose === 'operational_float' && currentUserId && (
+                <OperationalFloatTenantAllocator
+                  agentId={currentUserId}
+                  totalAmount={parseFloat(amount) || 0}
+                  allocations={tenantAllocations}
+                  onChange={setTenantAllocations}
+                />
               )}
               {depositPurpose === 'other' && (
                 <Input placeholder="Specify your reason..." value={reason} onChange={(e) => setReason(e.target.value)} className="h-10 text-sm" />
