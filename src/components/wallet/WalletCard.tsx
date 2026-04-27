@@ -71,9 +71,9 @@ export function WalletCard() {
 
   // Headline number is `available` (ledger-bounded). The cached wallet
   // figure is intentionally hidden — surfacing it confuses users when
-  // it sits above their true ledger position.
-  const cachedBalance = wallet?.balance || 0;
-  const balance = available || 0;
+  // it sits above their true ledger position. We still wait for the
+  // wallet row to load before showing 0 to avoid a flash.
+  const balance = wallet ? (available || 0) : 0;
   const dotColor = getBalanceDotClass(balance);
 
   if (loading && !wallet) {
