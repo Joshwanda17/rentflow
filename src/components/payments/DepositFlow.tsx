@@ -748,13 +748,59 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Phone className="h-5 w-5 text-primary" />
-            {isEditMode ? 'Edit Deposit Request' : 'Deposit to Wallet'}
-          </DialogTitle>
+      {/*
+        Mobile-first dialog shell.
+        On phones: full screen (no rounded corners, no margins) so everything
+        the user reads/taps is at thumb-friendly distance and the keyboard
+        doesn't squash the form. On tablet/desktop: classic centered card.
+        The body becomes a scroll region between a sticky header (title +
+        step + back) and a sticky footer (the primary action) — never
+        chase a button hidden below the fold.
+      */}
+      <DialogContent className="p-0 gap-0 sm:max-w-md w-screen h-svh sm:h-auto sm:max-h-[90vh] sm:rounded-2xl rounded-none overflow-hidden flex flex-col">
+        {/* Sticky header */}
+        <DialogHeader className="px-4 py-3 border-b bg-background sticky top-0 z-10 space-y-0">
+          <div className="flex items-center gap-3">
+            {/* Step-aware back: only shown when there's somewhere to go back to. */}
+            {step === 'form' && (
+              <button
+                type="button"
+                onClick={() => setStep('channel')}
+                aria-label="Back"
+                className="-ml-1 h-9 w-9 rounded-full flex items-center justify-center hover:bg-muted active:scale-95 transition"
+              >
+                <span className="text-lg leading-none">‹</span>
+              </button>
+            )}
+            {step === 'channel' && requirePurposeChoice && depositPurpose && (
+              <button
+                type="button"
+                onClick={() => setStep('purpose')}
+                aria-label="Back"
+                className="-ml-1 h-9 w-9 rounded-full flex items-center justify-center hover:bg-muted active:scale-95 transition"
+              >
+                <span className="text-lg leading-none">‹</span>
+              </button>
+            )}
+            <div className="min-w-0 flex-1">
+              <DialogTitle className="text-base font-semibold leading-tight">
+                {isEditMode ? 'Edit deposit' : 'Deposit to wallet'}
+              </DialogTitle>
+              {/* Tiny step caption — plain language, no jargon. */}
+              {!editLoading && step !== 'submitting' && step !== 'success' && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {step === 'purpose'
+                    ? 'Step 1 of 3 · What is this for?'
+                    : step === 'channel'
+                      ? `Step ${requirePurposeChoice ? '2' : '1'} of ${requirePurposeChoice ? '3' : '2'} · How are you paying?`
+                      : `Step ${requirePurposeChoice ? '3' : '2'} of ${requirePurposeChoice ? '3' : '2'} · Enter details`}
+                </p>
+              )}
+            </div>
+          </div>
         </DialogHeader>
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto px-4 py-4">
 
         {editLoading ? (
           <div className="py-12 text-center space-y-3">
@@ -793,12 +839,12 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
               <ShieldAlert className="h-4 w-4 text-warning shrink-0 mt-0.5" />
               <div className="space-y-0.5">
                 <p className="text-xs font-semibold text-foreground">Choose what this deposit is for</p>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Operational Float (company cash) and Personal Deposit (your own money) land in different wallet buckets and follow different rules. Pick carefully — you cannot change this after submission.
                 </p>
               </div>
             </div>
-            <div className="grid gap-3">
+            <div className="grid gap-2.5">
               {DEPOSIT_PURPOSES
                 .filter((p) => !allowedPurposes || allowedPurposes.includes(p.id))
                 .map((p) => (
@@ -814,23 +860,14 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                       setPurposeEntryPoint('gate');
                       setStep('channel');
                     }}
-                    className="flex items-start gap-3 p-4 rounded-xl border-2 border-border text-left transition-all hover:border-primary hover:bg-primary/5 hover:shadow-md active:scale-[0.98] touch-manipulation"
+                    className="flex items-center gap-3 p-4 min-h-[76px] rounded-2xl border-2 border-border text-left transition-all hover:border-primary hover:bg-primary/5 active:scale-[0.98] touch-manipulation"
                   >
-                    <span className="text-2xl shrink-0">{p.emoji}</span>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-sm">{p.label}</p>
-                      <p className="text-[11px] text-muted-foreground">{p.desc}</p>
-                      {p.id === 'operational_float' && (
-                        <p className="text-[10px] text-primary font-medium mt-1">
-                          → Restricted to landlord disbursements. Not withdrawable.
-                        </p>
-                      )}
-                      {p.id === 'personal_deposit' && (
-                        <p className="text-[10px] text-emerald-600 font-medium mt-1">
-                          → Lands in your withdrawable wallet. You can cash out to MoMo.
-                        </p>
-                      )}
+                    <span className="text-3xl shrink-0">{p.emoji}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-base leading-tight">{p.label}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{p.desc}</p>
                     </div>
+                    <span aria-hidden className="text-muted-foreground text-lg">›</span>
                   </button>
                 ))}
             </div>
@@ -839,20 +876,20 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           /* ─── Channel Selection ─── */
           <div className="space-y-3">
             {requirePurposeChoice && depositPurpose && (
-              <button
-                onClick={() => setStep('purpose')}
-                className="text-xs text-primary font-medium flex items-center gap-1"
-              >
-                ← Change purpose ({DEPOSIT_PURPOSES.find(p => p.id === depositPurpose)?.label})
-              </button>
+              <div className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/50 text-xs">
+                <span className="text-base">{DEPOSIT_PURPOSES.find(p => p.id === depositPurpose)?.emoji}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-foreground">{DEPOSIT_PURPOSES.find(p => p.id === depositPurpose)?.label}</p>
+                  <p className="text-muted-foreground text-xs">Tap back at the top to change.</p>
+                </div>
+              </div>
             )}
-            <p className="text-sm text-muted-foreground">Choose how you want to deposit</p>
-            <div className="grid gap-3">
+            <div className="grid gap-2.5">
               {[
-                { id: 'agent_cash' as DepositChannel, provider: null, icon: Banknote, label: 'Cash with Agent', desc: 'Pay cash to a Welile agent near you', color: 'border-emerald-500 bg-emerald-500/5' },
-                { id: 'momo' as DepositChannel, provider: 'mtn' as const, icon: Phone, label: 'MTN MoMo', desc: 'Pay via MTN Mobile Money', color: 'border-[hsl(var(--warning))] bg-[hsl(var(--warning))]/5' },
-                { id: 'momo' as DepositChannel, provider: 'airtel' as const, icon: Phone, label: 'Airtel Money', desc: 'Pay via Airtel Money', color: 'border-destructive bg-destructive/5' },
-                { id: 'bank' as DepositChannel, provider: null, icon: Building2, label: 'Bank Transfer', desc: 'Equity Bank Uganda deposit', color: 'border-blue-500 bg-blue-500/5' },
+                { id: 'agent_cash' as DepositChannel, provider: null, icon: Banknote, label: 'Cash with agent', desc: 'Pay cash to a Welile agent', tone: 'border-emerald-500/40 bg-emerald-500/5 hover:border-emerald-500' },
+                { id: 'momo' as DepositChannel, provider: 'mtn' as const, icon: Phone, label: 'MTN MoMo', desc: 'Pay via MTN Mobile Money', tone: 'border-[hsl(var(--warning))]/40 bg-[hsl(var(--warning))]/5 hover:border-[hsl(var(--warning))]' },
+                { id: 'momo' as DepositChannel, provider: 'airtel' as const, icon: Phone, label: 'Airtel Money', desc: 'Pay via Airtel Money', tone: 'border-destructive/40 bg-destructive/5 hover:border-destructive' },
+                { id: 'bank' as DepositChannel, provider: null, icon: Building2, label: 'Bank transfer', desc: 'Equity Bank Uganda', tone: 'border-blue-500/40 bg-blue-500/5 hover:border-blue-500' },
               ].map((ch, idx) => (
                 <button
                   key={idx}
@@ -861,27 +898,30 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                     if (ch.provider) setMomoProvider(ch.provider);
                     setStep('form');
                   }}
-                  className={`flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all hover:shadow-md active:scale-[0.98] touch-manipulation ${ch.color}`}
+                  className={`flex items-center gap-3 p-4 min-h-[76px] rounded-2xl border-2 text-left transition-all active:scale-[0.98] touch-manipulation ${ch.tone}`}
                 >
-                  <div className="w-10 h-10 rounded-lg bg-background flex items-center justify-center shrink-0">
+                  <div className="w-11 h-11 rounded-xl bg-background flex items-center justify-center shrink-0 shadow-sm">
                     <ch.icon className="h-5 w-5 text-foreground" />
                   </div>
-                  <div>
-                    <p className="font-semibold text-sm">{ch.label}</p>
-                    <p className="text-xs text-muted-foreground">{ch.desc}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-base leading-tight">{ch.label}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{ch.desc}</p>
                   </div>
+                  <span aria-hidden className="text-muted-foreground text-lg">›</span>
                 </button>
               ))}
             </div>
           </div>
         ) : (
           /* ─── Form ─── */
-          <div className="space-y-4 w-full max-w-full">
-            {/* Back to channel */}
-            <button onClick={() => setStep('channel')} className="text-xs text-primary font-medium flex items-center gap-1 flex-wrap break-words">
-              <span>←</span>
-              <span className="break-words">Change deposit method ({getProviderLabel()})</span>
-            </button>
+          <div className="space-y-4 w-full max-w-full pb-2">
+            {/* Selected method chip — quieter than a back link, since the
+                sticky header already handles back navigation. */}
+            <div className="flex items-center gap-2 text-xs">
+              <span className="px-2 py-1 rounded-full bg-muted text-muted-foreground font-medium">
+                {getProviderLabel()}
+              </span>
+            </div>
 
             {/* ─── MoMo Instructions (Tab-Based) ─── */}
             {channel === 'momo' && (
@@ -908,7 +948,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
 
                 {/* Merchant ID — prominent with copy */}
                 <div className="p-3 bg-muted/60 rounded-xl text-center space-y-1">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Merchant ID</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Merchant ID</p>
                   <div className="flex items-center justify-center gap-2">
                     <p className="text-2xl font-mono font-bold tracking-widest">{MERCHANT_CODES[momoProvider]}</p>
                     <button
@@ -924,7 +964,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                       <Copy className="h-4 w-4 text-muted-foreground" />
                     </button>
                   </div>
-                  <p className="text-[10px] text-primary font-medium">{MERCHANT_NAME}</p>
+                  <p className="text-xs text-primary font-medium">{MERCHANT_NAME}</p>
                 </div>
 
                 {/* Timeline Steps */}
@@ -942,7 +982,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   ]).map((s, i, arr) => (
                     <div key={i} className="flex gap-3 items-start">
                       <div className="flex flex-col items-center">
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${momoProvider === 'mtn' ? 'bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))]' : 'bg-destructive text-destructive-foreground'}`}>
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${momoProvider === 'mtn' ? 'bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))]' : 'bg-destructive text-destructive-foreground'}`}>
                           {i + 1}
                         </div>
                         {i < arr.length - 1 && <div className="w-px h-4 bg-border" />}
@@ -1038,39 +1078,47 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
 
             {/* ─── Amount ─── */}
             <div className="space-y-2">
-              <Label className="text-xs">Amount (UGX)</Label>
-              <Input
-                type="number"
-                placeholder="Enter amount"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                min={MIN_DEPOSIT}
-                max={MAX_DEPOSIT}
-                aria-invalid={
-                  !!amount &&
-                  Number.isFinite(parseFloat(amount)) &&
-                  (parseFloat(amount) < MIN_DEPOSIT || parseFloat(amount) > MAX_DEPOSIT)
-                }
-                className="text-lg font-semibold h-11"
-              />
-              {/* Permanent limit hint + live boundary error so the user sees
-                  the rule and the violation in the same spot. */}
-              <p className="text-[10px] text-muted-foreground">
-                Deposit between {formatCurrency(MIN_DEPOSIT)} and {formatCurrency(MAX_DEPOSIT)}
+              <Label className="text-sm font-medium">How much?</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium text-sm pointer-events-none">UGX</span>
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="0"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  min={MIN_DEPOSIT}
+                  max={MAX_DEPOSIT}
+                  aria-invalid={
+                    !!amount &&
+                    Number.isFinite(parseFloat(amount)) &&
+                    (parseFloat(amount) < MIN_DEPOSIT || parseFloat(amount) > MAX_DEPOSIT)
+                  }
+                  className="text-2xl font-bold tabular-nums h-14 pl-14 pr-3"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Between {formatCurrency(MIN_DEPOSIT)} and {formatCurrency(MAX_DEPOSIT)}
               </p>
               {!!amount && Number.isFinite(parseFloat(amount)) && parseFloat(amount) > 0 && parseFloat(amount) < MIN_DEPOSIT && (
-                <p className="text-[10px] text-destructive font-medium">
-                  Minimum deposit is {formatCurrency(MIN_DEPOSIT)}
+                <p className="text-xs text-destructive font-medium">
+                  Minimum is {formatCurrency(MIN_DEPOSIT)}
                 </p>
               )}
               {!!amount && Number.isFinite(parseFloat(amount)) && parseFloat(amount) > MAX_DEPOSIT && (
-                <p className="text-[10px] text-destructive font-medium">
-                  Maximum deposit is {formatCurrency(MAX_DEPOSIT)}
+                <p className="text-xs text-destructive font-medium">
+                  Maximum is {formatCurrency(MAX_DEPOSIT)}
                 </p>
               )}
-              <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-1.5">
+              <div className="grid grid-cols-3 gap-2 pt-1">
                 {QUICK_AMOUNTS.map((amt) => (
-                  <Button key={amt} type="button" variant={amount === String(amt) ? 'default' : 'outline'} size="sm" className="text-xs h-7 w-full sm:w-auto" onClick={() => setAmount(String(amt))}>
+                  <Button
+                    key={amt}
+                    type="button"
+                    variant={amount === String(amt) ? 'default' : 'outline'}
+                    className="text-sm h-11 font-medium"
+                    onClick={() => setAmount(String(amt))}
+                  >
                     {formatCurrency(amt)}
                   </Button>
                 ))}
@@ -1088,7 +1136,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   <button
                     type="button"
                     onClick={handlePasteTid}
-                    className="text-[10px] font-semibold text-primary inline-flex items-center gap-1 hover:underline underline-offset-2"
+                    className="text-xs font-semibold text-primary inline-flex items-center gap-1 hover:underline underline-offset-2"
                   >
                     <ClipboardPaste className="h-3 w-3" />
                     Paste from SMS
@@ -1125,16 +1173,16 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   )}
                 </div>
                 {channel === 'momo' && tidError && (
-                  <p className="text-[10px] text-destructive flex items-center gap-1">
+                  <p className="text-xs text-destructive flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" /> {tidError}
                   </p>
                 )}
                 {channel === 'momo' && transactionId.trim() && !tidError && (
-                  <p className="text-[10px] text-emerald-600 flex items-center gap-1">
+                  <p className="text-xs text-emerald-600 flex items-center gap-1">
                     <CheckCircle2 className="h-3 w-3" /> Valid TID format
                   </p>
                 )}
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   {channel === 'bank'
                     ? 'Find this on your bank receipt or transfer confirmation'
                     : 'Enter the exact TID from your payment confirmation SMS — or tap "Paste from SMS" above'}
@@ -1158,7 +1206,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                       className="font-mono border-0 focus:ring-0 rounded-l-none text-sm"
                     />
                   </div>
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     {channel === 'agent_cash' ? 'From the physical receipt the agent gave you' : 'From your cash deposit receipt'}
                   </p>
                 </div>
@@ -1185,7 +1233,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   <div className="grid grid-cols-2 gap-2">
                     <label className="flex flex-col items-center justify-center gap-1 h-20 rounded-lg border-2 border-dashed border-border hover:border-primary/60 hover:bg-primary/5 cursor-pointer transition-colors">
                       <Camera className="h-5 w-5 text-muted-foreground" />
-                      <span className="text-[10px] font-medium text-muted-foreground">Take photo</span>
+                      <span className="text-xs font-medium text-muted-foreground">Take photo</span>
                       <input
                         type="file"
                         accept="image/*"
@@ -1196,7 +1244,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                     </label>
                     <label className="flex flex-col items-center justify-center gap-1 h-20 rounded-lg border-2 border-dashed border-border hover:border-primary/60 hover:bg-primary/5 cursor-pointer transition-colors">
                       <ImageIcon className="h-5 w-5 text-muted-foreground" />
-                      <span className="text-[10px] font-medium text-muted-foreground">Pick from gallery</span>
+                      <span className="text-xs font-medium text-muted-foreground">Pick from gallery</span>
                       <input
                         type="file"
                         accept="image/*,.pdf"
@@ -1220,10 +1268,10 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                     )}
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-medium truncate">{bankSlipFile.name}</p>
-                      <p className="text-[10px] text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         {(bankSlipFile.size / 1024).toFixed(0)} KB · {bankSlipFile.type || 'file'}
                       </p>
-                      <p className="text-[10px] text-emerald-600 mt-0.5">Ready to attach</p>
+                      <p className="text-xs text-emerald-600 mt-0.5">Ready to attach</p>
                     </div>
                     <button
                       type="button"
@@ -1235,7 +1283,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                     </button>
                   </div>
                 )}
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Helps Financial Ops verify your deposit faster. Image or PDF, up to ~5 MB.
                 </p>
               </div>
@@ -1261,7 +1309,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   <button
                     type="button"
                     onClick={() => setShowPurposeGrid((s) => !s)}
-                    className="text-[10px] text-primary font-medium underline-offset-2 hover:underline"
+                    className="text-xs text-primary font-medium underline-offset-2 hover:underline"
                   >
                     {showPurposeGrid ? 'Hide options' : 'Change purpose'}
                   </button>
@@ -1272,7 +1320,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   <span className="text-base shrink-0">{DEPOSIT_PURPOSES.find(p => p.id === depositPurpose)?.emoji}</span>
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-xs">{DEPOSIT_PURPOSES.find(p => p.id === depositPurpose)?.label}</p>
-                    <p className="text-[10px] text-muted-foreground break-words">
+                    <p className="text-xs text-muted-foreground break-words">
                       {DEPOSIT_PURPOSES.find(p => p.id === depositPurpose)?.desc}
                     </p>
                   </div>
@@ -1301,7 +1349,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                     <span className="text-base shrink-0">{p.emoji}</span>
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold break-words">{p.label}</p>
-                      <p className="text-[10px] text-muted-foreground break-words line-clamp-2">{p.desc}</p>
+                      <p className="text-xs text-muted-foreground break-words line-clamp-2">{p.desc}</p>
                     </div>
                   </button>
                 ))}
@@ -1310,7 +1358,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
               {depositPurpose === 'operational_float' && (
                 <div className="flex items-start gap-2 p-2 bg-primary/5 rounded-lg border border-primary/20">
                   <AlertCircle className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     This deposit will be credited as <span className="font-semibold text-primary">Company Operations Float</span> — restricted to landlord disbursements only. Not withdrawable as personal funds.
                   </p>
                 </div>
@@ -1413,7 +1461,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                       return (
                         <div className="flex items-start gap-2 p-2.5 rounded-lg border border-success/30 bg-success/10">
                           <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0 mt-0.5" />
-                          <p className="text-[11px] text-success-foreground">
+                          <p className="text-xs text-success-foreground">
                             Breakdown balanced — UGX {sum.toLocaleString()} across {tenantAllocations.length} tenant{tenantAllocations.length === 1 ? '' : 's'}.
                           </p>
                         </div>
@@ -1422,7 +1470,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                     return (
                       <div className="flex items-start gap-2 p-2.5 rounded-lg border border-destructive/30 bg-destructive/10">
                         <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
-                        <div className="text-[11px] text-destructive space-y-0.5">
+                        <div className="text-xs text-destructive space-y-0.5">
                           <p className="font-semibold">
                             Breakdown does not match deposit total — submission blocked.
                           </p>
@@ -1447,35 +1495,49 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             {/* ─── Warning ─── */}
             <div className="flex items-start gap-2 p-2.5 bg-warning/10 rounded-lg border border-warning/20">
               <AlertCircle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
-              <p className="text-[10px] text-muted-foreground">Ensure all details match your {channel === 'momo' ? 'SMS' : channel === 'bank' ? 'bank receipt' : 'physical receipt'}. Incorrect info delays verification.</p>
+              <p className="text-xs text-muted-foreground">Ensure all details match your {channel === 'momo' ? 'SMS' : channel === 'bank' ? 'bank receipt' : 'physical receipt'}. Incorrect info delays verification.</p>
             </div>
 
-            {(() => {
-              const total = parseFloat(amount) || 0;
-              const sum = tenantAllocations.reduce((s, a) => s + (a.amount || 0), 0);
-              const opsAllocBlocked =
-                depositPurpose === 'operational_float' &&
-                tenantAllocations.length > 0 &&
-                (Math.abs(total - sum) > 1 || tenantAllocations.some((a) => !a.amount || a.amount <= 0));
-              return (
-                <Button
-                  onClick={handleSubmit}
-                  disabled={isSubmitting || (channel === 'momo' && !isTidValid()) || opsAllocBlocked}
-                  className="w-full h-11"
-                  size="lg"
-                >
-                  {isSubmitting
-                    ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> {isEditMode ? 'Saving…' : 'Submitting...'}</>
-                    : opsAllocBlocked
-                      ? 'Fix tenant breakdown to submit'
-                      : isEditMode
-                        ? 'Save Changes'
-                        : 'Submit Deposit Request'}
-                </Button>
-              );
-            })()}
           </div>
         )}
+        {/* /scroll body */}
+        </div>
+        {/* Sticky footer — primary action lives here only on the form
+            step. Other steps are big tap-target grids (Choose purpose /
+            Choose method) which act as their own CTAs. */}
+        {step === 'form' && !editLoading && (() => {
+          const total = parseFloat(amount) || 0;
+          const sum = tenantAllocations.reduce((s, a) => s + (a.amount || 0), 0);
+          const opsAllocBlocked =
+            depositPurpose === 'operational_float' &&
+            tenantAllocations.length > 0 &&
+            (Math.abs(total - sum) > 1 || tenantAllocations.some((a) => !a.amount || a.amount <= 0));
+          const blocked =
+            isSubmitting || (channel === 'momo' && !isTidValid()) || opsAllocBlocked;
+          return (
+            <div className="sticky bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              <Button
+                onClick={handleSubmit}
+                disabled={blocked}
+                className="w-full h-12 text-base font-semibold"
+                size="lg"
+              >
+                {isSubmitting
+                  ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> {isEditMode ? 'Saving…' : 'Submitting…'}</>
+                  : opsAllocBlocked
+                    ? 'Fix tenant breakdown to continue'
+                    : isEditMode
+                      ? 'Save changes'
+                      : 'Confirm deposit'}
+              </Button>
+              {total > 0 && !blocked && (
+                <p className="text-center text-xs text-muted-foreground mt-1.5">
+                  Depositing <span className="font-semibold text-foreground">{formatCurrency(total)}</span>
+                </p>
+              )}
+            </div>
+          );
+        })()}
       </DialogContent>
     </Dialog>
   );
