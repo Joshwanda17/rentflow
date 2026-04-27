@@ -247,7 +247,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
    * approved/reviewed deposit would silently desync the ledger.
    */
   useEffect(() => {
-    if (!open || !editRequestId) return;
+    if (!open || !activeEditId) return;
     let cancelled = false;
     (async () => {
       setEditLoading(true);
@@ -255,7 +255,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         const { data, error } = await supabase
           .from('deposit_requests')
           .select('*')
-          .eq('id', editRequestId)
+          .eq('id', activeEditId)
           .maybeSingle();
         if (error) throw error;
         if (!data) {
@@ -341,7 +341,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, editRequestId]);
+  }, [open, activeEditId]);
 
   const validateTid = (value: string, provider?: 'mtn' | 'airtel') => {
     const upper = value.trim().toUpperCase();
@@ -464,7 +464,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       if (
         existing &&
         existing.length > 0 &&
-        !(isEditMode && existing.length === 1 && existing[0].id === editRequestId)
+        !(isEditMode && existing.length === 1 && existing[0].id === activeEditId)
       ) {
         toast.error('This reference has already been used');
         setStep('form');
@@ -503,7 +503,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           ? encodeAllocationsNote(baseNotes, tenantAllocations)
           : baseNotes;
 
-      if (isEditMode && editRequestId) {
+      if (isEditMode && activeEditId) {
         // UPDATE — restricted by RLS to the owner's own pending row.
         // Status is intentionally NOT touched; the row stays 'pending' so
         // Financial Ops still owns the next move. We do, however, stamp
@@ -527,7 +527,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
               last_edited_at: new Date().toISOString(),
             },
           } as any)
-          .eq('id', editRequestId)
+          .eq('id', activeEditId)
           .eq('status', 'pending'); // hard guard: never overwrite a reviewed row
         if (updError) throw updError;
         toast.success('Deposit updated — Financial Ops will see your changes');
