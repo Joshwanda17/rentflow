@@ -1,141 +1,85 @@
+# Auto-Freeze Phantom Wallet Surplus
+
 ## Goal
 
-Enforce strict backend authority for deposits. Every deposit credits **`withdrawable_balance` first**. Float funding becomes an explicit, backend-only **internal transfer** — never a hidden "sweep" inferred from a frontend-supplied purpose. The frontend keeps a `deposit_type` selector for UX (so the user expresses intent), but performs **zero routing, validation, or balance math** — it just sends `{ amount, deposit_type }` and waits for realtime.
+Whenever `wallets.balance` exceeds the ledger truth (sum of credits − debits in `general_ledger`), the database itself locks the unbacked surplus into `wallets.locked_balance` and writes an audit record. No edge function, no cron, no human action required — the trigger fires inline on every wallet write.
 
-## What's already correct (leave alone)
+Plus a one-shot reconciliation that locks the existing **UGX 36,500,000** phantom drift on LUKODDA JOSEPH (and any other current offenders) the instant the migration runs.
 
-- `wallet_route_for_category('wallet_deposit', 'cash_in')` already returns `withdrawable / +1`. **No DB function changes needed.**
-- The frontend ledger-write guard (`scripts/guard-frontend-ledger-writes.mjs`) is in place — `wallets.update` / `general_ledger.insert` are already physically blocked from `src/`.
-- Realtime wallet subscription (`useWalletRealtime.ts`) already drives UI updates.
-- `create_ledger_transaction` is the single ledger writer.
+## How it works
 
-## What's broken (the actual drift surface)
-
-`supabase/functions/approve-deposit/index.ts` (lines 352–472) contains an **"operational float sweep"** that:
-
-1. Reads `deposit_purpose` from the request and looks up the user's role.
-2. **Auto-routes** ambiguous agent deposits to float without the user asking.
-3. Writes a second ledger pair using `agent_float_deposit` — which routes to the **float bucket** in the same wallet.
-4. Inserts an `agent_float_funding` row to mirror the hidden movement.
-
-This is exactly the "backend decides routing based on role + interpretation" pattern the user wants removed. It also bypasses the new strict contract: **all deposits → withdrawable, then explicit transfer**.
-
-`DepositFlow.tsx` carries 5 purpose options, conditional UI, and per-tenant allocation logic that all feed `deposit_purpose` to the backend.
-
-## Backend changes
-
-### 1. Rewrite `approve-deposit` — single, unconditional flow
-
-Every approved deposit becomes exactly **one** balanced ledger pair:
-
-```
-[wallet cash_in  wallet_deposit]  +  [platform cash_out wallet_deposit]
+```text
+wallet UPDATE/INSERT
+        │
+        ▼
+trigger: auto_freeze_phantom_surplus  (BEFORE row write)
+        │
+        ├── compute ledger_total = SUM(cash_in) − SUM(cash_out) for user_id
+        ├── compute spendable    = NEW.balance − NEW.locked_balance
+        │
+        ├── IF spendable > ledger_total:
+        │       surplus = spendable − ledger_total
+        │       NEW.locked_balance := NEW.locked_balance + surplus
+        │       INSERT INTO phantom_freeze_audit (...)
+        │
+        └── (sync_authorized bypass already handled by existing
+             enforce_wallet_ledger_only trigger — no conflict)
 ```
 
-- **Delete** the entire "Operational Float Sweep" block (lines ~352–472).
-- **Delete** `agent_float_funding` insert from this function (float funding is no longer a side-effect of a deposit).
-- **Keep** the idempotency guard, the ledger-first ordering, and the rent-repayment auto-debit (rent auto-debit is policy, not routing — it still operates on `withdrawable_balance` after the credit lands).
-- **Stop reading** `deposit_purpose` for routing. The column may still be stored for analytics but is no longer used to decide where money lands.
+## Components
 
-Result: a deposit of UGX 100k for an agent lands 100k in `withdrawable_balance`. Period.
+### 1. New audit table: `phantom_freeze_audit`
 
-### 2. New edge function: `transfer-to-float`
+Records every automatic freeze for the CFO Reconciliation Center.
 
-Handles the second, explicit step when a user (agent) wants float. Strictly backend-controlled.
+| column | purpose |
+|---|---|
+| `id` | uuid PK |
+| `user_id` | whose wallet was frozen |
+| `wallet_id` | wallet row affected |
+| `surplus_locked` | numeric — amount auto-locked |
+| `wallet_balance_before` | numeric snapshot |
+| `ledger_total_at_freeze` | numeric snapshot |
+| `previous_locked_balance` | numeric snapshot |
+| `new_locked_balance` | numeric snapshot |
+| `trigger_reason` | text — e.g. `auto_phantom_freeze` / `initial_reconciliation` |
+| `frozen_at` | timestamptz default now() |
 
-Input:
-```json
-{ "amount": 50000 }
+RLS: only CFO + service role can SELECT.
+
+### 2. Trigger function: `public.auto_freeze_phantom_surplus()`
+
+- `BEFORE INSERT OR UPDATE OF balance, locked_balance ON public.wallets`
+- Skips when `current_setting('wallet.sync_authorized', true) = 'true'` and the write originates from `apply_wallet_movement` (so legitimate ledger-driven writes never self-trigger a freeze loop).
+- Reads `general_ledger` total for the user (single aggregate query, indexed on `user_id`).
+- If `spendable > ledger_total`, mutates `NEW.locked_balance` in place and writes the audit row.
+- Idempotent: re-running on an already-locked wallet is a no-op.
+
+### 3. One-shot reconciliation block (runs inside the migration)
+
+```text
+FOR each wallet WHERE (balance − locked_balance) > ledger_total:
+    lock the surplus
+    insert phantom_freeze_audit row with reason = 'initial_reconciliation'
 ```
 
-Logic:
-- AuthN: extract caller from JWT. No `user_id` in body.
-- AuthZ: caller must hold the `agent` role (look up `user_roles`). Non-agents get 403.
-- **Backend validation** (frontend does none): re-read `wallets.withdrawable_balance` for the caller; reject with `INSUFFICIENT_WITHDRAWABLE` if `< amount`.
-- Issue one balanced ledger pair using **existing** category `agent_float_deposit` (already routed to the float bucket by `wallet_route_for_category`):
+Expected immediate effect:
+- **LUKODDA JOSEPH** — locks UGX 36,500,000.
+- Any other phantom-drift wallet surfaced by `phantom_wallet_drift` is locked the same way.
 
-```
-[wallet cash_out agent_float_deposit ]  ← drains withdrawable
-[wallet cash_in  agent_float_deposit ]  ← credits float
-```
+### 4. CFO surface (no UI change required now)
 
-Wait — `wallet_route_for_category` currently routes both directions of `agent_float_deposit` to the **float** bucket. To make the transfer balance correctly within one wallet (drain withdrawable, credit float) we need two distinct categories:
+The existing CFO Reconciliation Center already reads `phantom_wallet_drift`. It will additionally see `phantom_freeze_audit` rows via the existing realtime channel — no frontend work needed in this step. (A dedicated "Phantom Freeze History" panel can come later if you want it.)
 
-- **Use existing** `wallet_deduction` (routes to `withdrawable`, signed by direction) for the cash_out leg.
-- **Use existing** `agent_float_deposit` (routes to `float`) for the cash_in leg.
+## Guarantees
 
-Both are already in the strict-mode allowlist and already routed correctly by the bucket router — no DB migration required. Pair them under the same `transaction_group_id` via a single `create_ledger_transaction` call so they post atomically.
+- ✅ Money can never become spendable beyond what the ledger proves the user owns.
+- ✅ Works for every write path: edge functions, RPCs, manual SQL, future code — the DB enforces it.
+- ✅ Reversal is CFO-only via the existing `release-locked-funds` flow with full audit trail.
+- ✅ No effect on bucket-misallocation cases (e.g. Carolyne) — her `balance` matches her ledger; she has zero surplus, so nothing is frozen. Her float→withdrawable unwind remains a separate fix.
+- ✅ Compatible with `enforce_wallet_ledger_only` — runs `BEFORE` it and only adjusts `locked_balance`, which is permitted.
 
-- Insert one `agent_float_funding` row (`status: 'approved'`, source = `transfer-to-float`) for operational reporting.
-- Audit log + `logSystemEvent('float_transfer_completed', ...)`.
+## Out of scope (separate follow-ups)
 
-### 3. Database — no migration needed
-
-The router already enforces correct bucket routing for both categories used. No `wallet_route_for_category` rewrite, no schema change.
-
-## Frontend changes
-
-### 4. `src/components/payments/DepositFlow.tsx` — collapse to two intents
-
-- Replace the 5-option `DepositPurpose` enum with `type DepositType = 'personal' | 'float'`.
-- Remove `partnership_deposit`, `personal_rent_repayment`, `other` purpose tiles (their behavior was already a mirage — they all credited `withdrawable_balance`; the rent-repayment auto-debit happens regardless of purpose).
-- For non-agents: the picker is hidden and `deposit_type='personal'` is sent. No choice, no logic.
-- For agents: show two tiles — **Personal Top-Up** vs **Operational Float**. Picking Float just stores the choice; **no allocation UI, no per-tenant breakdown, no balance math**.
-- Delete every `if (depositPurpose === 'operational_float')` branch (allocation grid, tenant lookup, validation gates) — these all encode routing logic in the client.
-- Delete `walletBalance` prop usage for any pre-flight check; the component must not read `wallet.balance` to decide what's allowed.
-- Submit path:
-  ```ts
-  await invokeEdgeFunction('submit-deposit-request', {
-    body: { amount, channel, transaction_id, deposit_type }
-  });
-  ```
-  (deposit-request creation stays as-is; only the `deposit_purpose → deposit_type` rename and the removed branches matter.)
-
-### 5. New "Move to Float" action (agents only)
-
-Small UI on the agent dashboard / wallet sheet:
-- Input: amount.
-- Action: `invokeEdgeFunction('transfer-to-float', { body: { amount } })`.
-- No balance check, no `if (wallet.withdrawable < amount)` — the backend rejects with a structured error and `invokeEdgeFunction` already toasts it.
-- No `setWallet`, no `refetchWallet` — `useWalletRealtime` handles the update.
-
-### 6. Files to clean
-
-- `src/components/payments/DepositFlow.tsx` — purpose enum collapse, delete allocation logic, delete pre-flight balance reads.
-- `src/components/wallet/PendingMovesStrip.tsx`, `UserDepositRequests.tsx`, `FullScreenWalletSheet.tsx`, `DepositHistory.tsx`, `FinancialStatement.tsx`, `ReconciliationReviewScreen.tsx`, `DepositReviewTimeline.tsx`, `TidVerification.tsx`, `CollectFromReferenceDialog.tsx`, `PaymentConfirmationForm.tsx`, `PartnerWalletWidget.tsx`, `UserDetailsDialog.tsx`, `AgentDetailsDialog.tsx`, `AgentDashboard.tsx`, `lib/depositPurposeVisibility.ts` — these only **read** `deposit_purpose` for display. Map old values → `deposit_type` at the read boundary; no logic changes.
-
-### 7. Strengthen the CI guard
-
-Add three new forbidden patterns to `scripts/guard-frontend-ledger-writes.mjs` so future drift is impossible:
-
-- `wallet\.(balance|withdrawable_balance|float_balance)\s*[-+]\s*` (no client-side balance math)
-- `routeToFloat\s*\(`
-- `validateBalance\s*\(`
-
-Whitelist: read-only display formatters that contain literal `balance` substrings but no arithmetic.
-
-## Validation checklist
-
-- `rg "deposit_purpose.*===.*operational_float" src` → 0 hits in mutation/branching contexts (display-only mappers OK).
-- `rg "wallet\.(balance|withdrawable_balance|float_balance)\s*[-+]" src` → 0 hits.
-- A non-agent depositing 100k via any purpose → 100k lands in `withdrawable_balance`, 0 in `float_balance`.
-- An agent depositing 100k → 100k lands in `withdrawable_balance` (no auto-sweep), regardless of selected `deposit_type`.
-- An agent calling `transfer-to-float` with 30k → withdrawable −30k, float +30k, ledger has one balanced pair under one `transaction_group_id`, one `agent_float_funding` row.
-- An agent calling `transfer-to-float` with more than their withdrawable → backend returns `INSUFFICIENT_WITHDRAWABLE`, no ledger entry, toast surfaces error, UI doesn't change.
-- CI guard fails when re-introducing any forbidden pattern.
-
-## Out of scope
-
-- Existing approved deposits and the historical `agent_float_funding` rows they produced — leave alone, they're already balanced by their original ledger pairs.
-- `record-bank-float-transfer` (CFO bank-to-agent funding) — already backend-only; no change.
-- Withdrawal flows — orthogonal.
-
-## Deliverables
-
-1. `approve-deposit/index.ts` — sweep block deleted, single balanced credit only.
-2. New edge function `transfer-to-float/index.ts`.
-3. `DepositFlow.tsx` refactored — `deposit_type` of `'personal' | 'float'`, no routing logic, no balance math.
-4. New "Move to Float" UI on agent wallet.
-5. Display-only files updated to map legacy `deposit_purpose` → `deposit_type` at read time.
-6. CI guard extended with 3 new forbidden patterns.
-7. Confirmation summary listing every removed branch and its backend replacement.
+- Float → Withdrawable release tool for Carolyne and other proxy agents.
+- "Short drift" reconciliation (wallet < ledger) — these users are owed money, not phantom; needs a different remediation path.
