@@ -183,6 +183,18 @@ export function TidVerification() {
   // Use state (not just ref) so the per-row UI updates when entries
   // are added/removed.
   const [pendingUndoIds, setPendingUndoIds] = useState<Set<string>>(new Set());
+  // Mirror of every match currently waiting in the undo window, keyed
+  // by match id. We need this in a ref (not just React state) so the
+  // unmount + `beforeunload` flush handlers can still find the row data
+  // after React has torn down. Without this, closing the dialog or
+  // navigating away during the undo window silently drops the approval —
+  // which is the bug operators on phones kept hitting ("verified
+  // deposits don't disappear").
+  const pendingMatchesRef = useRef<Map<string, MatchResult>>(new Map());
+  // Per-row countdown (seconds remaining) so we can render
+  // "Approving in 3…2…1" in the pending pick-list and on the match card.
+  const [undoCountdown, setUndoCountdown] = useState<Map<string, number>>(new Map());
+  const countdownTimersRef = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
 
   // Pending depositor pick-list — narrow the user-visible queue by the
   // currently selected provider so the operator can click a row, see who
