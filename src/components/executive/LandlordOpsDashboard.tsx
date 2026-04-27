@@ -861,7 +861,7 @@ export function LandlordOpsDashboard() {
         previewImages={previewImages} setPreviewImages={setPreviewImages}
         adjustListing={adjustListing} setAdjustListing={setAdjustListing}
         actionDialog={actionDialog} setActionDialog={setActionDialog}
-        user={user} refetchAll={refetchAll}
+        user={user} refetchAll={refetchAll} queryClient={queryClient}
       />
       </>
     );
