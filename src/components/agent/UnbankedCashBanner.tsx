@@ -1561,30 +1561,41 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
 
           {/* Footer */}
           <div className="px-4 py-3 border-t border-border bg-muted/30 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={submitting}
-              className="h-10 px-4 rounded-lg border border-border bg-background text-xs font-bold uppercase tracking-wider hover:bg-accent/40 disabled:opacity-50"
-            >
-              {submitting ? 'Working…' : 'Cancel'}
-            </button>
-            <button
-              type="submit"
-              disabled={submitting || selected.size === 0}
-              className="flex-1 h-10 rounded-lg bg-destructive text-destructive-foreground text-xs font-bold uppercase tracking-wider hover:bg-destructive/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Submitting {selected.size}…
-                </>
-              ) : (
-                <>
-                  <Upload className="h-3.5 w-3.5" />
-                  Submit proof for {selected.size || 0} batch{selected.size === 1 ? '' : 'es'}
-                </>
-              )}
-            </button>
+            {hasRun ? (
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 h-10 rounded-lg bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Done
+              </button>
+            ) : (<>
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={submitting}
+                className="h-10 px-4 rounded-lg border border-border bg-background text-xs font-bold uppercase tracking-wider hover:bg-accent/40 disabled:opacity-50"
+              >
+                {submitting ? 'Working…' : 'Cancel'}
+              </button>
+              <button
+                type="submit"
+                disabled={submitting || selected.size === 0}
+                className="flex-1 h-10 rounded-lg bg-destructive text-destructive-foreground text-xs font-bold uppercase tracking-wider hover:bg-destructive/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Submitting {selected.size}…
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-3.5 w-3.5" />
+                    Submit proof for {selected.size || 0} batch{selected.size === 1 ? '' : 'es'}
+                  </>
+                )}
+              </button>
+            </>)}
           </div>
         </form>
       </div>
