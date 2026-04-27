@@ -8,6 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Loader2, CheckCircle2, Phone, Calendar, Clock, Hash, AlertCircle, History, Building2, Banknote, Upload, Receipt, Copy, ShieldAlert, ClipboardPaste, Camera, X, ImageIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import OperationalFloatTenantAllocator, {
+  encodeAllocationsNote,
+  type TenantAllocation,
+} from './OperationalFloatTenantAllocator';
 
 /**
  * Extract a Mobile Money / bank reference from arbitrary SMS text.
@@ -101,6 +105,14 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   const [bankSlipPreview, setBankSlipPreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tidError, setTidError] = useState('');
+  /**
+   * Per-tenant breakdown for an Operational Float deposit. The agent
+   * collected one bulk amount in the field, dropped it at the merchant
+   * code under one TID, and now needs to tell us *which tenants* it came
+   * from. Empty for non-op-float deposits.
+   */
+  const [tenantAllocations, setTenantAllocations] = useState<TenantAllocation[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   // Audit: capture the exact moment the user picked the purpose + which UI surface asked them.
   const [purposeChosenAt, setPurposeChosenAt] = useState<string | null>(null);
   const [purposeEntryPoint, setPurposeEntryPoint] = useState<'gate' | 'default' | 'in_form'>(
@@ -120,6 +132,18 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     setBankSlipPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [bankSlipFile]);
+
+  // Resolve the current user once so the allocator can scope its tenant
+  // search without each render hitting auth.getUser().
+  useEffect(() => {
+    let cancelled = false;
+    supabase.auth.getUser().then(({ data }) => {
+      if (!cancelled) setCurrentUserId(data?.user?.id ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   /**
    * Read the clipboard, extract the first valid TID from the pasted text,
