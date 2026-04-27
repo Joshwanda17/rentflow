@@ -839,7 +839,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
               <ShieldAlert className="h-4 w-4 text-warning shrink-0 mt-0.5" />
               <div className="space-y-0.5">
                 <p className="text-xs font-semibold text-foreground">Choose what this deposit is for</p>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Operational Float (company cash) and Personal Deposit (your own money) land in different wallet buckets and follow different rules. Pick carefully — you cannot change this after submission.
                 </p>
               </div>
@@ -880,7 +880,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 <span className="text-base">{DEPOSIT_PURPOSES.find(p => p.id === depositPurpose)?.emoji}</span>
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-foreground">{DEPOSIT_PURPOSES.find(p => p.id === depositPurpose)?.label}</p>
-                  <p className="text-muted-foreground text-[11px]">Tap back at the top to change.</p>
+                  <p className="text-muted-foreground text-xs">Tap back at the top to change.</p>
                 </div>
               </div>
             )}
@@ -948,7 +948,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
 
                 {/* Merchant ID — prominent with copy */}
                 <div className="p-3 bg-muted/60 rounded-xl text-center space-y-1">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Merchant ID</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Merchant ID</p>
                   <div className="flex items-center justify-center gap-2">
                     <p className="text-2xl font-mono font-bold tracking-widest">{MERCHANT_CODES[momoProvider]}</p>
                     <button
@@ -964,7 +964,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                       <Copy className="h-4 w-4 text-muted-foreground" />
                     </button>
                   </div>
-                  <p className="text-[10px] text-primary font-medium">{MERCHANT_NAME}</p>
+                  <p className="text-xs text-primary font-medium">{MERCHANT_NAME}</p>
                 </div>
 
                 {/* Timeline Steps */}
@@ -982,7 +982,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   ]).map((s, i, arr) => (
                     <div key={i} className="flex gap-3 items-start">
                       <div className="flex flex-col items-center">
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${momoProvider === 'mtn' ? 'bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))]' : 'bg-destructive text-destructive-foreground'}`}>
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${momoProvider === 'mtn' ? 'bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))]' : 'bg-destructive text-destructive-foreground'}`}>
                           {i + 1}
                         </div>
                         {i < arr.length - 1 && <div className="w-px h-4 bg-border" />}
@@ -1136,7 +1136,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   <button
                     type="button"
                     onClick={handlePasteTid}
-                    className="text-[10px] font-semibold text-primary inline-flex items-center gap-1 hover:underline underline-offset-2"
+                    className="text-xs font-semibold text-primary inline-flex items-center gap-1 hover:underline underline-offset-2"
                   >
                     <ClipboardPaste className="h-3 w-3" />
                     Paste from SMS
@@ -1173,16 +1173,16 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   )}
                 </div>
                 {channel === 'momo' && tidError && (
-                  <p className="text-[10px] text-destructive flex items-center gap-1">
+                  <p className="text-xs text-destructive flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" /> {tidError}
                   </p>
                 )}
                 {channel === 'momo' && transactionId.trim() && !tidError && (
-                  <p className="text-[10px] text-emerald-600 flex items-center gap-1">
+                  <p className="text-xs text-emerald-600 flex items-center gap-1">
                     <CheckCircle2 className="h-3 w-3" /> Valid TID format
                   </p>
                 )}
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   {channel === 'bank'
                     ? 'Find this on your bank receipt or transfer confirmation'
                     : 'Enter the exact TID from your payment confirmation SMS — or tap "Paste from SMS" above'}
@@ -1206,7 +1206,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                       className="font-mono border-0 focus:ring-0 rounded-l-none text-sm"
                     />
                   </div>
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     {channel === 'agent_cash' ? 'From the physical receipt the agent gave you' : 'From your cash deposit receipt'}
                   </p>
                 </div>
@@ -1233,7 +1233,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   <div className="grid grid-cols-2 gap-2">
                     <label className="flex flex-col items-center justify-center gap-1 h-20 rounded-lg border-2 border-dashed border-border hover:border-primary/60 hover:bg-primary/5 cursor-pointer transition-colors">
                       <Camera className="h-5 w-5 text-muted-foreground" />
-                      <span className="text-[10px] font-medium text-muted-foreground">Take photo</span>
+                      <span className="text-xs font-medium text-muted-foreground">Take photo</span>
                       <input
                         type="file"
                         accept="image/*"
@@ -1244,7 +1244,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                     </label>
                     <label className="flex flex-col items-center justify-center gap-1 h-20 rounded-lg border-2 border-dashed border-border hover:border-primary/60 hover:bg-primary/5 cursor-pointer transition-colors">
                       <ImageIcon className="h-5 w-5 text-muted-foreground" />
-                      <span className="text-[10px] font-medium text-muted-foreground">Pick from gallery</span>
+                      <span className="text-xs font-medium text-muted-foreground">Pick from gallery</span>
                       <input
                         type="file"
                         accept="image/*,.pdf"
@@ -1268,10 +1268,10 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                     )}
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-medium truncate">{bankSlipFile.name}</p>
-                      <p className="text-[10px] text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         {(bankSlipFile.size / 1024).toFixed(0)} KB · {bankSlipFile.type || 'file'}
                       </p>
-                      <p className="text-[10px] text-emerald-600 mt-0.5">Ready to attach</p>
+                      <p className="text-xs text-emerald-600 mt-0.5">Ready to attach</p>
                     </div>
                     <button
                       type="button"
@@ -1283,7 +1283,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                     </button>
                   </div>
                 )}
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Helps Financial Ops verify your deposit faster. Image or PDF, up to ~5 MB.
                 </p>
               </div>
@@ -1309,7 +1309,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   <button
                     type="button"
                     onClick={() => setShowPurposeGrid((s) => !s)}
-                    className="text-[10px] text-primary font-medium underline-offset-2 hover:underline"
+                    className="text-xs text-primary font-medium underline-offset-2 hover:underline"
                   >
                     {showPurposeGrid ? 'Hide options' : 'Change purpose'}
                   </button>
@@ -1320,7 +1320,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   <span className="text-base shrink-0">{DEPOSIT_PURPOSES.find(p => p.id === depositPurpose)?.emoji}</span>
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-xs">{DEPOSIT_PURPOSES.find(p => p.id === depositPurpose)?.label}</p>
-                    <p className="text-[10px] text-muted-foreground break-words">
+                    <p className="text-xs text-muted-foreground break-words">
                       {DEPOSIT_PURPOSES.find(p => p.id === depositPurpose)?.desc}
                     </p>
                   </div>
@@ -1349,7 +1349,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                     <span className="text-base shrink-0">{p.emoji}</span>
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold break-words">{p.label}</p>
-                      <p className="text-[10px] text-muted-foreground break-words line-clamp-2">{p.desc}</p>
+                      <p className="text-xs text-muted-foreground break-words line-clamp-2">{p.desc}</p>
                     </div>
                   </button>
                 ))}
@@ -1358,7 +1358,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
               {depositPurpose === 'operational_float' && (
                 <div className="flex items-start gap-2 p-2 bg-primary/5 rounded-lg border border-primary/20">
                   <AlertCircle className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     This deposit will be credited as <span className="font-semibold text-primary">Company Operations Float</span> — restricted to landlord disbursements only. Not withdrawable as personal funds.
                   </p>
                 </div>
@@ -1461,7 +1461,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                       return (
                         <div className="flex items-start gap-2 p-2.5 rounded-lg border border-success/30 bg-success/10">
                           <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0 mt-0.5" />
-                          <p className="text-[11px] text-success-foreground">
+                          <p className="text-xs text-success-foreground">
                             Breakdown balanced — UGX {sum.toLocaleString()} across {tenantAllocations.length} tenant{tenantAllocations.length === 1 ? '' : 's'}.
                           </p>
                         </div>
@@ -1470,7 +1470,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                     return (
                       <div className="flex items-start gap-2 p-2.5 rounded-lg border border-destructive/30 bg-destructive/10">
                         <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
-                        <div className="text-[11px] text-destructive space-y-0.5">
+                        <div className="text-xs text-destructive space-y-0.5">
                           <p className="font-semibold">
                             Breakdown does not match deposit total — submission blocked.
                           </p>
@@ -1495,7 +1495,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             {/* ─── Warning ─── */}
             <div className="flex items-start gap-2 p-2.5 bg-warning/10 rounded-lg border border-warning/20">
               <AlertCircle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
-              <p className="text-[10px] text-muted-foreground">Ensure all details match your {channel === 'momo' ? 'SMS' : channel === 'bank' ? 'bank receipt' : 'physical receipt'}. Incorrect info delays verification.</p>
+              <p className="text-xs text-muted-foreground">Ensure all details match your {channel === 'momo' ? 'SMS' : channel === 'bank' ? 'bank receipt' : 'physical receipt'}. Incorrect info delays verification.</p>
             </div>
 
           </div>
