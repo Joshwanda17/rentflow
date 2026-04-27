@@ -13,6 +13,7 @@ import OperationalFloatTenantAllocator, {
   decodeAllocationsFromNote,
   type TenantAllocation,
 } from './OperationalFloatTenantAllocator';
+import DepositReferenceMatcher, { type MatchResult } from './DepositReferenceMatcher';
 
 /**
  * Extract a Mobile Money / bank reference from arbitrary SMS text.
@@ -590,6 +591,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     setShowPurposeGrid(!lockPurpose);
     setBankSlipFile(null);
     setTenantAllocations([]);
+    setMatchedEditId(null);
     onOpenChange(false);
   };
 
@@ -1167,6 +1169,50 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
               )}
               {depositPurpose === 'operational_float' && currentUserId && (
                 <>
+                  {!isEditMode && (
+                    <DepositReferenceMatcher
+                      agentId={currentUserId}
+                      currentAmount={parseFloat(amount) || 0}
+                      onApplyMatch={(m: MatchResult) => {
+                        // Path A: matched a pending deposit row → flip
+                        // the dialog into edit mode for that row. The
+                        // hydrator effect will repopulate every field.
+                        if (m.editDepositId) {
+                          if (m.reference) setTransactionId(m.reference);
+                          if (m.providerHint === 'mtn' || m.providerHint === 'airtel') {
+                            setChannel('momo');
+                            setMomoProvider(m.providerHint);
+                          } else if (m.providerHint === 'bank') {
+                            setChannel('bank');
+                          }
+                          setMatchedEditId(m.editDepositId);
+                          return;
+                        }
+                        // Path B: matched a bundle of unattached
+                        // collections → prefill the form with the sum,
+                        // the allocations, and the pasted reference.
+                        if (m.amount > 0) setAmount(String(m.amount));
+                        if (m.allocations.length) setTenantAllocations(m.allocations);
+                        if (m.reference) {
+                          if (channel === 'momo') {
+                            setTransactionId(m.reference);
+                            validateTid(m.reference);
+                          } else if (channel === 'bank') {
+                            setTransactionId(m.reference);
+                          } else {
+                            setReceiptNumber(m.reference.replace(/^RCT/i, ''));
+                          }
+                        }
+                        if (m.providerHint === 'mtn' || m.providerHint === 'airtel') {
+                          setChannel('momo');
+                          setMomoProvider(m.providerHint);
+                          validateTid(m.reference, m.providerHint);
+                        } else if (m.providerHint === 'bank') {
+                          setChannel('bank');
+                        }
+                      }}
+                    />
+                  )}
                   <OperationalFloatTenantAllocator
                     agentId={currentUserId}
                     totalAmount={parseFloat(amount) || 0}
