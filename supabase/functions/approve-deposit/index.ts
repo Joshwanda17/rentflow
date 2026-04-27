@@ -7,6 +7,68 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// ── Server-side retry helper for transient RPC failures ──
+// Large deposits (10M / 15M) trigger the most complex paths in this
+// function (deposit ledger → rent repayment → debt clearance → prepay
+// → commission credits). These paths each issue several Postgres RPCs
+// and any one of them can flake on a transient connection drop or a
+// brief 5xx from the database pooler, causing the whole approval to
+// 500 even though the wallet was already credited.
+//
+// We wrap each RPC in a small bounded retry with structured logging
+// so we (a) surface exactly which sub-step failed and (b) recover
+// from transient flakes automatically. We deliberately do NOT retry
+// the wallet_deposit credit itself here — that one is protected by
+// the idempotency guard at the top of the loop and re-attempted by
+// the client retry layer in TidVerification.tsx.
+async function withRetry<T>(
+  label: string,
+  depositId: string,
+  fn: () => Promise<{ data?: T; error: any } | { error: any }>,
+  maxAttempts = 3,
+): Promise<{ data?: T; error: any; attempts: number; ms: number }> {
+  let lastErr: any = null;
+  const t0 = Date.now();
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const stepStart = Date.now();
+    try {
+      const res: any = await fn();
+      const stepMs = Date.now() - stepStart;
+      if (!res?.error) {
+        if (attempt > 1) {
+          console.log(
+            `[approve-deposit] ${label} succeeded on attempt ${attempt}/${maxAttempts} ` +
+            `(deposit=${depositId}, step_ms=${stepMs}, total_ms=${Date.now() - t0})`,
+          );
+        }
+        return { data: res.data, error: null, attempts: attempt, ms: Date.now() - t0 };
+      }
+      lastErr = res.error;
+      const msg = String(res.error?.message ?? res.error ?? "");
+      const code = String(res.error?.code ?? "");
+      const isTransient =
+        /timeout|fetch failed|network|ECONNRESET|ETIMEDOUT|EAI_AGAIN|connection|temporarily|deadlock|serializ/i.test(msg) ||
+        ["08006", "08001", "08004", "40001", "40P01", "57014", "57P01", "57P03"].includes(code);
+      console.warn(
+        `[approve-deposit] ${label} attempt ${attempt}/${maxAttempts} failed ` +
+        `(deposit=${depositId}, step_ms=${stepMs}, transient=${isTransient}, code=${code}): ${msg}`,
+      );
+      if (!isTransient || attempt === maxAttempts) break;
+      await new Promise((r) => setTimeout(r, 250 * attempt));
+    } catch (thrown: any) {
+      lastErr = thrown;
+      const msg = String(thrown?.message ?? thrown);
+      console.warn(
+        `[approve-deposit] ${label} attempt ${attempt}/${maxAttempts} threw ` +
+        `(deposit=${depositId}): ${msg}`,
+      );
+      if (attempt === maxAttempts) break;
+      await new Promise((r) => setTimeout(r, 250 * attempt));
+    }
+  }
+  return { data: undefined, error: lastErr, attempts: maxAttempts, ms: Date.now() - t0 };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
