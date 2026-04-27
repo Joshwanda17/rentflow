@@ -16,6 +16,7 @@ import {
   type UnbatchedFieldCollection,
   type BatchItemDetail,
   type BatchStatus,
+  type DepositChannel,
   channelLabel,
 } from '@/lib/fieldDepositBatches';
 import { FieldDepositWizardDialog } from '@/components/agent/FieldDepositWizardDialog';
