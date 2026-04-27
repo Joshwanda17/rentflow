@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import StepperModal, { Step } from './StepperModal';
 import ConfirmSummaryCard from './ConfirmSummaryCard';
 import ProcessingScreen from './ProcessingScreen';
 import ReceiptCard from './ReceiptCard';
+import WithdrawalStatusTracker from './WithdrawalStatusTracker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,11 +12,33 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { formatCurrency, SUPPORTED_CURRENCIES } from '@/lib/paymentMethods';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Wallet, TrendingUp, Lock, Phone, Building2, Banknote } from 'lucide-react';
+import { Wallet, TrendingUp, Lock, Phone, Building2, Banknote, Plus, Trash2, BadgeCheck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { UGANDA_BANKS, PAYOUT_METHODS } from '@/lib/ugandaBanks';
+import { useSavedPayoutMethods, type SavedPayoutMethod } from '@/hooks/useSavedPayoutMethods';
+import { Checkbox } from '@/components/ui/checkbox';
+
+/**
+ * Maps a Ugandan mobile-money number to its provider based on the operator
+ * prefix. Returns null when the prefix is unknown so we don't override the
+ * user's manual choice on incomplete input.
+ * - MTN: 077, 078, 076, 039
+ * - Airtel: 070, 074, 075
+ */
+function detectMomoProvider(raw: string): 'MTN' | 'Airtel' | null {
+  const digits = raw.replace(/\D/g, '');
+  // Normalise +2567xxxx → 07xxxx
+  const normalised = digits.startsWith('256') ? `0${digits.slice(3)}` : digits;
+  if (normalised.length < 3) return null;
+  const prefix = normalised.slice(0, 3);
+  if (['077', '078', '076', '039'].includes(prefix)) return 'MTN';
+  if (['070', '074', '075'].includes(prefix)) return 'Airtel';
+  return null;
+}
+
+const MIN_WITHDRAWAL = 1000;
 
 interface WithdrawFlowProps {
   open: boolean;
