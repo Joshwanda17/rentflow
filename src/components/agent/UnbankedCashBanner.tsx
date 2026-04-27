@@ -1,15 +1,26 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { Banknote, AlertTriangle, ChevronRight, ShieldAlert } from 'lucide-react';
+import {
+  Banknote, AlertTriangle, ChevronRight, ShieldAlert,
+  ChevronDown, Clock, FileText, User as UserIcon,
+} from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import {
   listAgentBatches,
   listUnbatchedFieldCollections,
+  listBatchItems,
   type FieldDepositBatch,
+  type UnbatchedFieldCollection,
+  type BatchItemDetail,
+  channelLabel,
 } from '@/lib/fieldDepositBatches';
 import { FieldDepositWizardDialog } from '@/components/agent/FieldDepositWizardDialog';
 import { hapticTap } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
+
+interface AwaitingBatchWithItems extends FieldDepositBatch {
+  items: BatchItemDetail[];
+}
 
 /**
  * Persistent, top-of-dashboard banner that surfaces field cash the agent has
@@ -26,24 +37,34 @@ import { cn } from '@/lib/utils';
  */
 export function UnbankedCashBanner() {
   const { user } = useAuth();
-  const [unbatchedTotal, setUnbatchedTotal] = useState(0);
-  const [unbatchedCount, setUnbatchedCount] = useState(0);
-  const [awaitingBatches, setAwaitingBatches] = useState<FieldDepositBatch[]>([]);
+  const [unbatched, setUnbatched] = useState<UnbatchedFieldCollection[]>([]);
+  const [awaitingBatches, setAwaitingBatches] = useState<AwaitingBatchWithItems[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [proofForBatch, setProofForBatch] = useState<FieldDepositBatch | null>(null);
+  const [expanded, setExpanded] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const [unbatched, batches] = await Promise.all([
+      const [unbatchedRows, batches] = await Promise.all([
         listUnbatchedFieldCollections(user.id),
         listAgentBatches(user.id, 25),
       ]);
-      const total = unbatched.reduce((s, r) => s + Number(r.amount || 0), 0);
-      setUnbatchedTotal(total);
-      setUnbatchedCount(unbatched.length);
-      setAwaitingBatches(batches.filter(b => b.status === 'awaiting_proof'));
+      const awaiting = batches.filter(b => b.status === 'awaiting_proof');
+      // Pull items per awaiting batch so the drill-down can show tenant + amount.
+      const withItems: AwaitingBatchWithItems[] = await Promise.all(
+        awaiting.map(async (b) => {
+          try {
+            const items = await listBatchItems(b.id);
+            return { ...b, items };
+          } catch {
+            return { ...b, items: [] };
+          }
+        }),
+      );
+      setUnbatched(unbatchedRows);
+      setAwaitingBatches(withItems);
     } catch {
       /* silent — banner just stays hidden if we can't load */
     } finally {
@@ -57,6 +78,8 @@ export function UnbankedCashBanner() {
     return () => window.clearInterval(t);
   }, [refresh]);
 
+  const unbatchedTotal = unbatched.reduce((s, r) => s + Number(r.amount || 0), 0);
+  const unbatchedCount = unbatched.length;
   const awaitingTotal = awaitingBatches.reduce(
     (s, b) => s + Number(b.declared_total || 0),
     0,
@@ -180,6 +203,157 @@ export function UnbankedCashBanner() {
             </button>
           )}
         </div>
+
+        {/* Drill-down toggle */}
+        <button
+          type="button"
+          onClick={() => { hapticTap(); setExpanded(v => !v); }}
+          className="w-full flex items-center justify-between gap-2 px-4 py-2.5 border-t border-border/60 bg-background/40 hover:bg-background/70 transition-colors text-left"
+          style={{ WebkitTapHighlightColor: 'transparent' }}
+          aria-expanded={expanded}
+        >
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {expanded ? 'Hide' : 'See'} every hanging entry ({grandCount})
+          </span>
+          <ChevronDown
+            className={cn(
+              'h-4 w-4 text-muted-foreground transition-transform shrink-0',
+              expanded && 'rotate-180',
+            )}
+          />
+        </button>
+
+        {/* Drill-down list */}
+        {expanded && (
+          <div className="border-t border-border/60 divide-y divide-border/60 bg-background/30">
+            {/* Group A: not yet deposited */}
+            {unbatched.length > 0 && (
+              <div>
+                <div className="px-4 pt-2.5 pb-1 flex items-center gap-1.5">
+                  <Banknote className="h-3 w-3 text-warning" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-warning">
+                    Not yet deposited · {unbatched.length}
+                  </span>
+                </div>
+                <ul className="divide-y divide-border/40">
+                  {unbatched.map((row) => (
+                    <li key={row.id}>
+                      <button
+                        type="button"
+                        onClick={() => { hapticTap(); setWizardOpen(true); }}
+                        className="w-full px-4 py-2.5 flex items-center gap-3 text-left hover:bg-accent/40 transition-colors min-h-[56px]"
+                        style={{ WebkitTapHighlightColor: 'transparent' }}
+                      >
+                        <div className="h-8 w-8 rounded-lg bg-warning/15 text-warning flex items-center justify-center shrink-0">
+                          <UserIcon className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold truncate">
+                            {row.tenant_name || 'Walk-up tenant'}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
+                            <Clock className="h-2.5 w-2.5" />
+                            {formatDateTime(row.captured_at)}
+                            <span className="opacity-50">·</span>
+                            <span className="font-mono">#{row.id.slice(0, 8)}</span>
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-bold">{formatUGX(row.amount)}</p>
+                          <p className="text-[9px] uppercase tracking-wider text-warning font-semibold">
+                            Bank now →
+                          </p>
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Group B: awaiting proof — grouped by batch */}
+            {awaitingBatches.length > 0 && (
+              <div>
+                <div className="px-4 pt-2.5 pb-1 flex items-center gap-1.5">
+                  <AlertTriangle className="h-3 w-3 text-destructive" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-destructive">
+                    Awaiting proof · {awaitingBatches.length} deposit{awaitingBatches.length === 1 ? '' : 's'}
+                  </span>
+                </div>
+                <ul className="divide-y divide-border/40">
+                  {awaitingBatches.map((b) => {
+                    const batchAge = Math.floor(
+                      (Date.now() - new Date(b.created_at).getTime()) / 3_600_000,
+                    );
+                    return (
+                      <li key={b.id}>
+                        <button
+                          type="button"
+                          onClick={() => { hapticTap(); setProofForBatch(b); }}
+                          className="w-full px-4 py-2.5 text-left hover:bg-accent/40 transition-colors"
+                          style={{ WebkitTapHighlightColor: 'transparent' }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-lg bg-destructive/15 text-destructive flex items-center justify-center shrink-0">
+                              <FileText className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold truncate">
+                                {channelLabel(b.channel)}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
+                                <Clock className="h-2.5 w-2.5" />
+                                {formatDateTime(b.created_at)}
+                                {batchAge > 0 && (
+                                  <>
+                                    <span className="opacity-50">·</span>
+                                    <span className={cn(batchAge >= 24 && 'text-destructive font-semibold')}>
+                                      {batchAge}h old
+                                    </span>
+                                  </>
+                                )}
+                                <span className="opacity-50">·</span>
+                                <span className="font-mono">#{b.id.slice(0, 8)}</span>
+                              </p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-sm font-bold">
+                                {formatUGX(Number(b.declared_total))}
+                              </p>
+                              <p className="text-[9px] uppercase tracking-wider text-destructive font-semibold">
+                                Add proof →
+                              </p>
+                            </div>
+                          </div>
+                          {/* Items inside this batch */}
+                          {b.items.length > 0 && (
+                            <ul className="mt-2 pl-11 space-y-0.5">
+                              {b.items.slice(0, 5).map((it) => (
+                                <li key={it.id} className="flex items-center justify-between gap-2 text-[11px]">
+                                  <span className="truncate text-muted-foreground">
+                                    · {it.tenant_name || 'Walk-up'}
+                                  </span>
+                                  <span className="font-mono shrink-0">
+                                    {formatUGX(it.amount)}
+                                  </span>
+                                </li>
+                              ))}
+                              {b.items.length > 5 && (
+                                <li className="text-[10px] text-muted-foreground italic">
+                                  + {b.items.length - 5} more…
+                                </li>
+                              )}
+                            </ul>
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <FieldDepositWizardDialog
@@ -200,4 +374,22 @@ export function UnbankedCashBanner() {
       )}
     </>
   );
+}
+
+function formatDateTime(iso: string): string {
+  const d = new Date(iso);
+  const today = new Date();
+  const sameDay =
+    d.getFullYear() === today.getFullYear() &&
+    d.getMonth() === today.getMonth() &&
+    d.getDate() === today.getDate();
+  if (sameDay) {
+    return `Today ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  }
+  return d.toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
