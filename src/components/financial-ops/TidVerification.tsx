@@ -1282,7 +1282,7 @@ export function TidVerification() {
       setRejectDialogOpen(false);
       setRejectingId(null);
     }
-  }, [user, rejectingId, rejectionReason, matches, tid, operatorAmount, queryClient, pickedId, loadPending]);
+  }, [user, rejectingId, rejectionReason, matches, pending, tid, operatorAmount, queryClient, pickedId, loadPending]);
 
   const reset = () => {
     setTid('');
