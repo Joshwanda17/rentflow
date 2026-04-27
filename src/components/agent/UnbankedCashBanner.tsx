@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Banknote, AlertTriangle, ChevronRight, ShieldAlert,
@@ -1020,6 +1020,42 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
     .filter((b) => selected.has(b.id))
     .reduce((s, b) => s + Number(b.declared_total || 0), 0);
 
+  /**
+   * In per-batch mode, find references that the agent has typed into MORE
+   * than one selected row. Same reference across multiple batches is almost
+   * always a copy-paste mistake — Finance reconciles 1 reference → 1 deposit,
+   * so a duplicate would point to the wrong amount on at least one batch.
+   *
+   * - Comparison is case-insensitive and whitespace-trimmed.
+   * - Empty values are ignored (those are caught by the "missing" check).
+   * - Returns: `dupSet` (the set of duplicated reference strings, normalized)
+   *   and `dupBatchIds` (the batch IDs whose ref is duplicated).
+   */
+  const { dupSet, dupBatchIds } = useMemo(() => {
+    if (mode !== 'per_batch') {
+      return { dupSet: new Set<string>(), dupBatchIds: new Set<string>() };
+    }
+    const counts = new Map<string, string[]>(); // normalized ref -> batch ids
+    for (const id of selected) {
+      const raw = (perBatchRef[id] ?? '').trim();
+      if (raw.length < 4) continue;
+      const key = raw.toLowerCase();
+      const list = counts.get(key) ?? [];
+      list.push(id);
+      counts.set(key, list);
+    }
+    const dupSet = new Set<string>();
+    const dupBatchIds = new Set<string>();
+    for (const [key, ids] of counts) {
+      if (ids.length > 1) {
+        dupSet.add(key);
+        ids.forEach((id) => dupBatchIds.add(id));
+      }
+    }
+    return { dupSet, dupBatchIds };
+  }, [mode, selected, perBatchRef]);
+  const hasDuplicates = dupBatchIds.size > 0;
+
   /** Resolve the reference for a batch given the current mode. */
   const refForBatch = (id: string): string => {
     if (mode === 'shared') return sharedRef.trim();
@@ -1051,6 +1087,15 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
     if (submitting) return;
     const err = validateBeforeSubmit();
     if (err) { toast.error(err); return; }
+    // Soft-block on duplicate per-batch references — let the agent confirm
+    // if they really want to proceed (rare but possible: e.g., one big bank
+    // transfer covering multiple batches that they're STILL splitting).
+    if (mode === 'per_batch' && hasDuplicates) {
+      const ok = window.confirm(
+        `${dupBatchIds.size} batches share the same reference. Finance usually matches one reference to one deposit. Submit anyway?`,
+      );
+      if (!ok) return;
+    }
     setSubmitting(true);
     try {
       // Upload the photo ONCE; reuse the same public URL for every batch.
@@ -1252,6 +1297,7 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
                         const hasInput = trimmed.length > 0;
                         const isValidShape = hasInput && hint.pattern.test(trimmed);
                         const isTooShort = hasInput && trimmed.length < 4;
+                        const isDuplicate = dupBatchIds.has(b.id);
                         return (
                           <div className="px-3 pb-2 -mt-1 space-y-1">
                             <div className="flex items-center justify-between gap-2">
@@ -1280,36 +1326,44 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
                               placeholder={hint.placeholder}
                               className={cn(
                                 'w-full h-9 px-3 rounded-md border bg-background text-xs font-mono focus:outline-none focus:ring-2 focus:ring-primary transition-colors',
-                                hasInput && isValidShape && 'border-success/60',
-                                hasInput && !isValidShape && !isTooShort && 'border-warning/60',
-                                !hasInput && 'border-border',
+                                isDuplicate && 'border-destructive/70 ring-1 ring-destructive/30',
+                                !isDuplicate && hasInput && isValidShape && 'border-success/60',
+                                !isDuplicate && hasInput && !isValidShape && !isTooShort && 'border-warning/60',
+                                !isDuplicate && !hasInput && 'border-border',
                               )}
                               disabled={submitting}
                               inputMode="text"
                               autoComplete="off"
                               spellCheck={false}
                               aria-describedby={`bulk-ref-hint-${b.id}`}
+                              aria-invalid={isDuplicate || undefined}
                             />
                             <div
                               id={`bulk-ref-hint-${b.id}`}
                               className="text-[10px] leading-snug"
                             >
-                              {!hasInput && (
+                              {isDuplicate && (
+                                <span className="text-destructive inline-flex items-center gap-1 font-semibold">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  Same reference used on another selected batch — each deposit needs its own.
+                                </span>
+                              )}
+                              {!isDuplicate && !hasInput && (
                                 <span className="text-muted-foreground">{hint.help}</span>
                               )}
-                              {hasInput && isTooShort && (
+                              {!isDuplicate && hasInput && isTooShort && (
                                 <span className="text-muted-foreground inline-flex items-center gap-1">
                                   <AlertTriangle className="h-3 w-3 text-warning" />
                                   Too short — most {channelLabel(b.channel)} references are 8+ chars.
                                 </span>
                               )}
-                              {hasInput && !isTooShort && isValidShape && (
+                              {!isDuplicate && hasInput && !isTooShort && isValidShape && (
                                 <span className="text-success inline-flex items-center gap-1 font-medium">
                                   <CheckCircle2 className="h-3 w-3" />
                                   Looks like a valid {channelLabel(b.channel)} reference.
                                 </span>
                               )}
-                              {hasInput && !isTooShort && !isValidShape && (
+                              {!isDuplicate && hasInput && !isTooShort && !isValidShape && (
                                 <span className="text-warning inline-flex items-center gap-1">
                                   <AlertTriangle className="h-3 w-3" />
                                   Format unusual — expected like{' '}
@@ -1351,9 +1405,20 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
               </div>
             )}
             {mode === 'per_batch' && (
-              <p className="text-[10px] text-muted-foreground leading-snug -mt-1">
-                Enter the transaction ID / reference next to each selected batch above. Leave a row blank only if you'll cover it with the shared receipt photo below.
-              </p>
+              <div className="-mt-1 space-y-1.5">
+                <p className="text-[10px] text-muted-foreground leading-snug">
+                  Enter the transaction ID / reference next to each selected batch above. Leave a row blank only if you'll cover it with the shared receipt photo below.
+                </p>
+                {hasDuplicates && (
+                  <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-2.5 py-2">
+                    <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
+                    <div className="text-[11px] text-destructive leading-snug">
+                      <span className="font-bold">Duplicate reference detected</span> ·{' '}
+                      {dupBatchIds.size} batch{dupBatchIds.size === 1 ? '' : 'es'} share{dupBatchIds.size === 1 ? 's' : ''} the same reference. Each deposit needs its own transaction ID so Finance can match the right amount.
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
 
             <div className="space-y-1">
