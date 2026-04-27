@@ -3,7 +3,7 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   Banknote, AlertTriangle, ChevronRight, ShieldAlert,
   ChevronDown, Clock, FileText, User as UserIcon,
-  Camera, Loader2, CheckCircle2, X, Upload,
+  Camera, Loader2, CheckCircle2, X, Upload, Pencil, Check,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import {
@@ -11,6 +11,7 @@ import {
   listUnbatchedFieldCollections,
   listBatchItems,
   submitProofForBatch,
+  updateBatchDeclaredTotal,
   type FieldDepositBatch,
   type UnbatchedFieldCollection,
   type BatchItemDetail,
