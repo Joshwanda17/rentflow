@@ -973,10 +973,229 @@ interface BulkProofDialogProps {
 }
 
 type BulkRowState = 'pending' | 'submitting' | 'done' | 'error';
+
+/** Per-batch outcome captured during the bulk submit run. Lives in state so
+ *  we can render an in-dialog summary after submission completes — agents
+ *  often need to screenshot the result or copy a reference for follow-up. */
+type BulkResult = {
+  batchId: string;
+  channel: DepositChannel;
+  declaredTotal: number;
+  status: 'done' | 'error' | 'skipped';
+  /** The reference string actually sent to submitProofForBatch (after
+   *  fallback to `RECEIPT-<id>` if the agent left it blank). */
+  refUsed: string | null;
+  /** True if the shared receipt photo was attached to this batch. */
+  photoAttached: boolean;
+  /** Failure reason, if any. */
+  errorMsg?: string;
+};
 /** 'shared' = one reference for all selected batches. 'per_batch' = each
  *  selected batch gets its own input (typical when each batch was deposited
  *  via a different mobile money / bank transaction). */
 type RefMode = 'shared' | 'per_batch';
+
+/* ---------------------------------------------------------------------- */
+/* Bulk results summary panel                                              */
+/* ---------------------------------------------------------------------- */
+
+interface BulkResultsSummaryProps {
+  results: BulkResult[];
+  batches: AwaitingBatchWithItems[];
+  /** True if a shared receipt photo was uploaded for this run. */
+  photoAttached: boolean;
+  /** Local object-URL preview of the uploaded receipt (lives only as long
+   *  as the dialog session). Used so the agent can re-verify what was sent. */
+  photoPreviewUrl: string | null;
+  onRetryFailures: () => void;
+}
+
+/**
+ * Post-submission breakdown shown in place of the form once the agent
+ * finishes a bulk submit. Lists every selected batch with its outcome,
+ * the reference Finance will see, and whether the shared photo was
+ * attached — so agents can screenshot or copy details before closing.
+ */
+function BulkResultsSummary({
+  results,
+  photoAttached,
+  photoPreviewUrl,
+  onRetryFailures,
+}: BulkResultsSummaryProps) {
+  const okResults = results.filter((r) => r.status === 'done');
+  const failResults = results.filter((r) => r.status !== 'done');
+  const okTotal = okResults.reduce((s, r) => s + r.declaredTotal, 0);
+  const failTotal = failResults.reduce((s, r) => s + r.declaredTotal, 0);
+
+  return (
+    <div className="px-4 py-4 space-y-3">
+      {/* Top-line counters */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-lg border border-success/40 bg-success/10 px-3 py-2">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-success/80">
+            Submitted
+          </div>
+          <div className="text-lg font-bold text-success leading-tight">
+            {okResults.length}
+          </div>
+          <div className="text-[10px] text-success/80 font-mono mt-0.5">
+            {formatUGX(okTotal)}
+          </div>
+        </div>
+        <div
+          className={cn(
+            'rounded-lg border px-3 py-2',
+            failResults.length > 0
+              ? 'border-destructive/40 bg-destructive/10'
+              : 'border-border bg-muted/30',
+          )}
+        >
+          <div
+            className={cn(
+              'text-[10px] font-bold uppercase tracking-wider',
+              failResults.length > 0 ? 'text-destructive/80' : 'text-muted-foreground',
+            )}
+          >
+            Failed / skipped
+          </div>
+          <div
+            className={cn(
+              'text-lg font-bold leading-tight',
+              failResults.length > 0 ? 'text-destructive' : 'text-muted-foreground',
+            )}
+          >
+            {failResults.length}
+          </div>
+          <div
+            className={cn(
+              'text-[10px] font-mono mt-0.5',
+              failResults.length > 0 ? 'text-destructive/80' : 'text-muted-foreground',
+            )}
+          >
+            {formatUGX(failTotal)}
+          </div>
+        </div>
+      </div>
+
+      {/* Shared photo recap */}
+      {photoAttached && (
+        <div className="flex items-center gap-2.5 rounded-lg border border-border bg-background p-2">
+          {photoPreviewUrl && (
+            <a
+              href={photoPreviewUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="relative h-10 w-10 shrink-0 rounded-md overflow-hidden border border-border bg-muted block"
+            >
+              <img
+                src={photoPreviewUrl}
+                alt="Submitted receipt"
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            </a>
+          )}
+          <div className="text-[11px] leading-snug">
+            <span className="font-semibold">Shared receipt photo</span> attached to every
+            submitted batch.
+          </div>
+        </div>
+      )}
+
+      {/* Per-batch breakdown */}
+      <div className="space-y-1.5">
+        <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          Per-batch breakdown
+        </div>
+        <ul className="space-y-1.5">
+          {results.map((r) => {
+            const isOk = r.status === 'done';
+            const isSkipped = r.status === 'skipped';
+            return (
+              <li
+                key={r.batchId}
+                className={cn(
+                  'rounded-lg border bg-background p-2.5',
+                  isOk && 'border-success/40',
+                  !isOk && !isSkipped && 'border-destructive/40 bg-destructive/5',
+                  isSkipped && 'border-warning/40 bg-warning/5',
+                )}
+              >
+                <div className="flex items-start gap-2">
+                  <div className="shrink-0 mt-0.5">
+                    {isOk ? (
+                      <CheckCircle2 className="h-4 w-4 text-success" />
+                    ) : isSkipped ? (
+                      <AlertTriangle className="h-4 w-4 text-warning" />
+                    ) : (
+                      <X className="h-4 w-4 text-destructive" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <span className="font-mono text-muted-foreground">
+                        #{r.batchId.slice(0, 8)}
+                      </span>
+                      <span className="text-muted-foreground/60">·</span>
+                      <span className="truncate">{channelLabel(r.channel)}</span>
+                      <span className="text-muted-foreground/60">·</span>
+                      <span className="font-mono font-semibold">
+                        {formatUGX(r.declaredTotal)}
+                      </span>
+                    </div>
+                    {/* Reference used */}
+                    {r.refUsed ? (
+                      <div className="mt-1 text-[10px] flex items-baseline gap-1.5">
+                        <span className="text-muted-foreground shrink-0">Ref:</span>
+                        <span className="font-mono font-semibold break-all">
+                          {r.refUsed}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="mt-1 text-[10px] text-muted-foreground italic">
+                        No reference recorded
+                      </div>
+                    )}
+                    {/* Photo flag (only meaningful when one was uploaded) */}
+                    {photoAttached && (
+                      <div className="mt-0.5 text-[10px] text-muted-foreground inline-flex items-center gap-1">
+                        <Camera className="h-3 w-3" />
+                        Shared photo attached
+                      </div>
+                    )}
+                    {/* Error / skipped reason */}
+                    {!isOk && r.errorMsg && (
+                      <div
+                        className={cn(
+                          'mt-1 text-[10px] font-medium',
+                          isSkipped ? 'text-warning' : 'text-destructive',
+                        )}
+                      >
+                        {r.errorMsg}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
+      {/* Retry CTA — only relevant when at least one batch didn't go through. */}
+      {failResults.length > 0 && (
+        <button
+          type="button"
+          onClick={onRetryFailures}
+          className="w-full h-9 rounded-lg border border-border bg-background text-xs font-bold uppercase tracking-wider hover:bg-accent/40 inline-flex items-center justify-center gap-2"
+        >
+          <Upload className="h-3.5 w-3.5" />
+          Retry {failResults.length} failed
+        </button>
+      )}
+    </div>
+  );
+}
 
 function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
   const [selected, setSelected] = useState<Set<string>>(
@@ -989,6 +1208,11 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [rowState, setRowState] = useState<Record<string, { state: BulkRowState; msg?: string }>>({});
+  /** Per-batch outcomes from the most recent submit. Empty until the agent
+   *  runs the submission at least once. Used to render the in-dialog
+   *  results summary that replaces the form when `hasRun` is true. */
+  const [results, setResults] = useState<BulkResult[]>([]);
+  const [hasRun, setHasRun] = useState(false);
 
   useEffect(() => {
     if (!file) { setPreviewUrl(null); return; }
@@ -1113,8 +1337,11 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
       const ids = Array.from(selected);
       let okCount = 0;
       let failCount = 0;
+      const runResults: BulkResult[] = [];
+      const photoAttached = !!imageUrl;
       for (const id of ids) {
         setRowState((s) => ({ ...s, [id]: { state: 'submitting' } }));
+        const meta = batches.find((b) => b.id === id);
         try {
           const { data: fresh, error: freshErr } = await supabase
             .from('field_deposit_batches')
@@ -1125,6 +1352,15 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
           if (fresh?.status !== 'awaiting_proof') {
             setRowState((s) => ({ ...s, [id]: { state: 'error', msg: `Already ${fresh?.status ?? 'changed'}` } }));
             failCount++;
+            runResults.push({
+              batchId: id,
+              channel: meta?.channel ?? 'cash_merchant',
+              declaredTotal: Number(meta?.declared_total ?? 0),
+              status: 'skipped',
+              refUsed: null,
+              photoAttached,
+              errorMsg: `Already ${fresh?.status ?? 'changed'} — skipped`,
+            });
             continue;
           }
           const ref = refForBatch(id);
@@ -1132,13 +1368,35 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
           await submitProofForBatch(id, finalRef, imageUrl);
           setRowState((s) => ({ ...s, [id]: { state: 'done' } }));
           okCount++;
+          runResults.push({
+            batchId: id,
+            channel: meta?.channel ?? 'cash_merchant',
+            declaredTotal: Number(meta?.declared_total ?? 0),
+            status: 'done',
+            refUsed: finalRef,
+            photoAttached,
+          });
         } catch (innerErr) {
           setRowState((s) => ({ ...s, [id]: { state: 'error', msg: innerErr instanceof Error ? innerErr.message : 'Failed' } }));
           failCount++;
+          runResults.push({
+            batchId: id,
+            channel: meta?.channel ?? 'cash_merchant',
+            declaredTotal: Number(meta?.declared_total ?? 0),
+            status: 'error',
+            refUsed: refForBatch(id) || null,
+            photoAttached,
+            errorMsg: innerErr instanceof Error ? innerErr.message : 'Failed',
+          });
         }
       }
+      setResults(runResults);
+      setHasRun(true);
       if (okCount > 0 && failCount === 0) {
         toast.success(`Submitted proof for ${okCount} batch${okCount === 1 ? '' : 'es'}`);
+        // Don't auto-close — let the agent review the in-dialog summary and
+        // close manually via the Done button. We still notify the parent so
+        // the underlying list refreshes in the background.
         onDone();
       } else if (okCount > 0) {
         toast.warning(`Submitted ${okCount} · ${failCount} failed — see list`);
@@ -1185,8 +1443,8 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
           </button>
         </div>
 
-        {/* Mode toggle */}
-        <div className="px-4 pt-3">
+        {/* Mode toggle (hidden once we have a results summary to show) */}
+        {!hasRun && <div className="px-4 pt-3">
           <div className="inline-flex w-full rounded-lg border border-border bg-muted/40 p-0.5 text-[11px] font-bold uppercase tracking-wider">
             <button
               type="button"
@@ -1211,9 +1469,31 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
               Different per batch
             </button>
           </div>
-        </div>
+        </div>}
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+          {hasRun ? (
+            /* ─────── Post-submission summary ─────── */
+            <BulkResultsSummary
+              results={results}
+              batches={batches}
+              photoAttached={results.some((r) => r.photoAttached)}
+              photoPreviewUrl={previewUrl}
+              onRetryFailures={() => {
+                // Re-arm the dialog with only the failed batches selected so
+                // the agent can fix references and resubmit. We keep their
+                // existing per-batch refs intact (refs that worked stay).
+                const failedIds = results
+                  .filter((r) => r.status !== 'done')
+                  .map((r) => r.batchId);
+                if (failedIds.length === 0) return;
+                setSelected(new Set(failedIds));
+                setRowState({});
+                setResults([]);
+                setHasRun(false);
+              }}
+            />
+          ) : (<>
           {/* Selection list */}
           <div className="px-4 pt-3">
             <div className="flex items-center justify-between mb-2">
@@ -1479,33 +1759,45 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
               )}
             </div>
           </div>
+          </>)}
 
           {/* Footer */}
           <div className="px-4 py-3 border-t border-border bg-muted/30 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={submitting}
-              className="h-10 px-4 rounded-lg border border-border bg-background text-xs font-bold uppercase tracking-wider hover:bg-accent/40 disabled:opacity-50"
-            >
-              {submitting ? 'Working…' : 'Cancel'}
-            </button>
-            <button
-              type="submit"
-              disabled={submitting || selected.size === 0}
-              className="flex-1 h-10 rounded-lg bg-destructive text-destructive-foreground text-xs font-bold uppercase tracking-wider hover:bg-destructive/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Submitting {selected.size}…
-                </>
-              ) : (
-                <>
-                  <Upload className="h-3.5 w-3.5" />
-                  Submit proof for {selected.size || 0} batch{selected.size === 1 ? '' : 'es'}
-                </>
-              )}
-            </button>
+            {hasRun ? (
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 h-10 rounded-lg bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Done
+              </button>
+            ) : (<>
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={submitting}
+                className="h-10 px-4 rounded-lg border border-border bg-background text-xs font-bold uppercase tracking-wider hover:bg-accent/40 disabled:opacity-50"
+              >
+                {submitting ? 'Working…' : 'Cancel'}
+              </button>
+              <button
+                type="submit"
+                disabled={submitting || selected.size === 0}
+                className="flex-1 h-10 rounded-lg bg-destructive text-destructive-foreground text-xs font-bold uppercase tracking-wider hover:bg-destructive/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Submitting {selected.size}…
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-3.5 w-3.5" />
+                    Submit proof for {selected.size || 0} batch{selected.size === 1 ? '' : 'es'}
+                  </>
+                )}
+              </button>
+            </>)}
           </div>
         </form>
       </div>
