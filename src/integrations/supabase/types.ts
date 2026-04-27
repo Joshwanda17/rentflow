@@ -5056,6 +5056,51 @@ export type Database = {
         }
         Relationships: []
       }
+      glossary_terms: {
+        Row: {
+          also: string[]
+          category: string
+          created_at: string
+          created_by: string | null
+          example: string | null
+          id: string
+          is_active: boolean
+          short: string
+          sort_order: number
+          term: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          also?: string[]
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          example?: string | null
+          id?: string
+          is_active?: boolean
+          short: string
+          sort_order?: number
+          term: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          also?: string[]
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          example?: string | null
+          id?: string
+          is_active?: boolean
+          short?: string
+          sort_order?: number
+          term?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       house_listings: {
         Row: {
           access_fee: number
