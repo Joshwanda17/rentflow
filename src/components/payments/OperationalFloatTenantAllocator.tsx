@@ -276,6 +276,44 @@ export default function OperationalFloatTenantAllocator({
   };
 
   /**
+   * Pure-function preview of `autoAllocateRemaining` — produces the same
+   * shares the click handler would, but without mutating state. Drives
+   * the small "Preview" panel under the Auto-allocate button so the
+   * agent can see exactly what each tenant will receive (and confirm the
+   * total matches the deposit) before committing.
+   */
+  const autoAllocatePreview = useMemo(() => {
+    if (allocations.length === 0 || remaining <= 0) return null;
+    const weights = allocations.map((a) => Math.max(0, Number(a.monthly_rent || 0)));
+    const weightSum = weights.reduce((acc, w) => acc + w, 0);
+    const useEqual = weightSum <= 0;
+    const shares = allocations.map((_, i) => {
+      const share = useEqual
+        ? remaining / allocations.length
+        : (remaining * weights[i]) / weightSum;
+      return Math.floor(share);
+    });
+    const distributed = shares.reduce((acc, s) => acc + s, 0);
+    const drift = Math.round(remaining) - distributed;
+    if (drift !== 0) shares[shares.length - 1] += drift;
+
+    const rows = allocations.map((a, i) => ({
+      tenant_id: a.tenant_id,
+      tenant_name: a.tenant_name,
+      currentAmount: a.amount,
+      addAmount: shares[i],
+      finalAmount: Math.max(0, a.amount + shares[i]),
+    }));
+    const projectedTotal = rows.reduce((s, r) => s + r.finalAmount, 0);
+    return {
+      rows,
+      projectedTotal,
+      strategy: useEqual ? ('equal' as const) : ('rent_weighted' as const),
+      matchesDeposit: Math.abs(projectedTotal - (totalAmount || 0)) < 1,
+    };
+  }, [allocations, remaining, totalAmount]);
+
+  /**
    * Per-row headroom check. We only flag rows where:
    *   - we actually know the tenant's monthly rent ( > 0 ), AND
    *   - the allocated amount strictly exceeds that rent.
