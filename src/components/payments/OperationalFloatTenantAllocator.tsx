@@ -340,7 +340,13 @@ export default function OperationalFloatTenantAllocator({
               >
                 <div className="flex items-center gap-2">
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium truncate">{a.tenant_name}</p>
+                    <div className="flex items-center gap-1 min-w-0">
+                      <p className="text-xs font-medium truncate">{a.tenant_name}</p>
+                      <RentSourceTooltip
+                        rent={a.monthly_rent ?? tenantById.get(a.tenant_id)?.monthly_rent ?? null}
+                        updatedAt={tenantById.get(a.tenant_id)?.monthly_rent_updated_at ?? null}
+                      />
+                    </div>
                     {a.tenant_phone && (
                       <p className="text-[10px] text-muted-foreground truncate">{a.tenant_phone}</p>
                     )}
