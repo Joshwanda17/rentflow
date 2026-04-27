@@ -108,8 +108,17 @@ const MAX_DEPOSIT = 10_000_000;
 
 export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowedPurposes, lockPurpose, requirePurposeChoice, editRequestId, prefillFromMatch }: DepositFlowProps) {
   const navigate = useNavigate();
+  /**
+   * Universal purpose-capture rule: if a caller didn't pre-select a purpose
+   * AND didn't explicitly request the gate, we still force the gate. This
+   * guarantees EVERY dashboard (tenant, agent, supporter, landlord, …)
+   * captures an explicit deposit purpose — never an empty / inferred one.
+   * Callers that pin a purpose via `defaultPurpose` (e.g. supporter top-up)
+   * keep their existing skip-the-gate behaviour.
+   */
+  const mustChoosePurpose = requirePurposeChoice || !defaultPurpose;
   const [step, setStep] = useState<'purpose' | 'channel' | 'form' | 'submitting' | 'success'>(
-    requirePurposeChoice ? 'purpose' : 'channel'
+    mustChoosePurpose ? 'purpose' : 'channel'
   );
   const [channel, setChannel] = useState<DepositChannel>('momo');
   const [momoProvider, setMomoProvider] = useState<'mtn' | 'airtel'>('mtn');
@@ -121,7 +130,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   const [transactionTime, setTransactionTime] = useState('');
   const [reason, setReason] = useState('');
   const [depositPurpose, setDepositPurpose] = useState<DepositPurpose | ''>(
-    requirePurposeChoice ? '' : (defaultPurpose ?? '')
+    mustChoosePurpose ? '' : (defaultPurpose ?? '')
   );
   const [showPurposeGrid, setShowPurposeGrid] = useState<boolean>(!lockPurpose);
   const [bankSlipFile, setBankSlipFile] = useState<File | null>(null);
@@ -149,7 +158,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   // Audit: capture the exact moment the user picked the purpose + which UI surface asked them.
   const [purposeChosenAt, setPurposeChosenAt] = useState<string | null>(null);
   const [purposeEntryPoint, setPurposeEntryPoint] = useState<'gate' | 'default' | 'in_form'>(
-    requirePurposeChoice ? 'gate' : (defaultPurpose ? 'default' : 'in_form')
+    mustChoosePurpose ? 'gate' : (defaultPurpose ? 'default' : 'in_form')
   );
   /**
    * Edit-mode bookkeeping. `editLoading` flips on while we hydrate the
@@ -312,7 +321,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
 
   // Re-apply default when dialog re-opens
   useEffect(() => {
-    if (open && requirePurposeChoice) {
+    if (open && mustChoosePurpose) {
       // Force a fresh choice every time the dialog opens
       setStep('purpose');
       setDepositPurpose('');
@@ -330,7 +339,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       setPurposeChosenAt(new Date().toISOString());
       setPurposeEntryPoint('default');
     }
-  }, [open, defaultPurpose, lockPurpose, requirePurposeChoice]);
+  }, [open, defaultPurpose, lockPurpose, mustChoosePurpose]);
 
   /**
    * Handoff hydration from the dashboard "Collect from receipt/reference"
@@ -723,7 +732,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   };
 
   const handleClose = () => {
-    setStep(requirePurposeChoice ? 'purpose' : 'channel');
+    setStep(mustChoosePurpose ? 'purpose' : 'channel');
     setChannel('momo');
     setMomoProvider('mtn');
     setAmount('');
@@ -733,7 +742,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     setTransactionDate('');
     setTransactionTime('');
     setReason('');
-    setDepositPurpose(requirePurposeChoice ? '' : (defaultPurpose ?? ''));
+    setDepositPurpose(mustChoosePurpose ? '' : (defaultPurpose ?? ''));
     setShowPurposeGrid(!lockPurpose);
     setBankSlipFile(null);
     setTenantAllocations([]);
