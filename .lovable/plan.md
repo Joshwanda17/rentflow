@@ -1,101 +1,50 @@
-# Fix Landlord Ops Verification + Auto-Pay Listing Bonus
+## What's actually happening
 
-## What's Wrong
+You're picking a depositor, entering the TID, and it looks like the deposit was verified — but the row stays in the pending list.
 
-### Issue 1: "Only internal staff can verify listings" 403
-The deployed `.limit(1)` fix is correct, but the function is still brittle:
-1. **Treasury Guard runs BEFORE role check** — if `credits_paused` ever toggles on, Landlord Ops sees a confusing 423 instead of the real authorization status.
-2. **Role allow-list omits `landlord_ops` permission grants** — a staffer with only `staff_permissions.permitted_dashboard='landlord_ops'` (no base ops role) gets rejected.
+I checked the database: **no MTN deposits have been approved in the last 2 hours**, even though you've been verifying. So the problem isn't the list refusing to refresh — it's that the approvals are never being committed to the backend in the first place.
 
-### Issue 2: Two-step approval is a needless bottleneck
-Today: Landlord Ops verifies → row sits in `pending_cfo` → CFO must manually approve → agent finally gets UGX 5,000. Historical data shows 2 bonuses stuck pending forever. For a flat UGX 5,000 verification incentive, the CFO step adds no value.
+## Why
 
----
+The "approve" button doesn't commit immediately. It schedules a 5-second **undoable** approval (so you can hit Undo if you tapped the wrong row), and only then calls the backend. Two things break this on a phone:
 
-## The Fix (3 parts)
+1. **Silent drop on unmount.** If you close the dialog, switch tabs, or navigate away during those 5 seconds, the timer is cleared on cleanup and the backend is never called. No error, no toast — the row just stays pending.
+2. **Unclear feedback.** The toast says "Will commit in 5 seconds" but it's easy to miss on mobile, and there's no visual signal on the row itself that approval is pending or has actually committed.
+3. **The "verify" wording is misleading.** The screen header says *"Pick a depositor, type their Transaction ID, then approve the match."* Operators reasonably assume picking + typing the TID = verified. The separate **Auto-approve** click is required and isn't obvious.
 
-### Part 1 — Resilient role check (`credit-listing-bonus`)
-- Reorder: **role check FIRST**, treasury guard SECOND.
-- Expand allow-list to accept either:
-  - base role in `(manager, coo, super_admin, operations, employee, ceo)`, OR
-  - `staff_permissions` row with `permitted_dashboard='landlord_ops'`.
-- Improve error message to include the user ID that was checked.
+## Fix
 
-### Part 2 — Auto-credit on verification (skip CFO queue)
-Replace the "create pending_cfo row" path with a direct ledger write inside `credit-listing-bonus`:
+### 1. Make approvals durable (`src/components/financial-ops/TidVerification.tsx`)
 
-1. Verify listing + landlord (unchanged).
-2. Insert `listing_bonus_approvals` row with `status='paid'`, `landlord_ops_approved_*` AND `cfo_approved_by=managerId` (auto-self-approved with note "auto-approved on verification"), `paid_at=now()`.
-3. Call `create_ledger_transaction` RPC with the same balanced legs the existing `approve-listing-bonus` uses:
-   - `cash_in` UGX 5,000 → agent wallet, category `agent_commission_earned`, scope `wallet`
-   - `cash_out` UGX 5,000 → platform, category `agent_commission_earned`, scope `platform`
-4. Insert `agent_earnings` row (matches `credit-landlord-verification-bonus` pattern).
-5. Notify agent: "Listing verified — UGX 5,000 credited to your commission wallet."
-6. Audit log `action_type='listing_bonus_auto_paid'`.
+- On component unmount, **flush any pending undo timers immediately** — fire `commitApprove` for each queued match instead of clearing them. This guarantees that anything the operator approved is sent to the backend even if they close the dialog within 5 s.
+- Add a `beforeunload` handler that fires queued commits synchronously (best-effort `navigator.sendBeacon` fallback to the edge function) so closing the tab doesn't drop approvals either.
+- Reduce the default undo window from 5 s → **3 s** on mobile widths (`window.innerWidth < 640`) so commits land faster on phones.
 
-**Treasury Guard override (per your confirmation):** Listing bonus auto-credit bypasses `credits_paused` — this is a fixed verification incentive funded from existing platform float, not a discretionary disbursement.
+### 2. Visible per-row state on the pending pick-list
 
-### Part 3 — Keep CFO queue as manual override
-- `approve-listing-bonus` stays untouched for edge cases (bulk historical fixes, disputes).
-- `ListingBonusApprovalQueue` UI: filter out `status='paid'` rows where `landlord_ops_approved_by = cfo_approved_by` (auto-paid signature). Show only true pending/rejected ones.
+- When a row is in the "approving (undoable)" state, mark it on the pending list with a small spinner + countdown ("Approving in 3…2…1") and disable re-picking.
+- When the row is committed and `loadPending()` re-runs, the row drops off as today — but also briefly toast "Removed from pending list ✓ — *Lukodda Joseph, USh 1,000,000 approved*" so the operator gets explicit confirmation tied to the pending list, not just the match card.
 
----
+### 3. Clearer step labelling
 
-## Files to Edit
+- Rename Step 1 from *"Pick the depositor"* → *"1. Pick who paid"* and Step 2 currently labelled "Enter TID" → *"2. Enter Transaction ID and approve"*.
+- Replace the **Auto-approve** button label with **"Approve & remove from list"** so it's unambiguous what the action does.
+- After the approve button, show a tiny inline note: *"Stays here for 3 seconds in case you tap the wrong one — tap Undo to cancel."*
 
-1. **`supabase/functions/credit-listing-bonus/index.ts`** — reorder checks, expand role allow-list (add `staff_permissions` query + `ceo`), remove treasury guard for the auto-credit path, replace pending-CFO insert with ledger write + `agent_earnings` insert + agent notification + audit log.
-2. **`src/components/executive/LandlordOpsDashboard.tsx`** — toast text: "✅ Verified → UGX 5,000 credited to agent" (remove "forwarded to CFO" copy).
-3. **`src/components/executive/ListingBonusApprovalQueue.tsx`** — hide auto-paid rows (where `landlord_ops_approved_by = cfo_approved_by` and `status='paid'`).
+### 4. Self-healing pending list
 
-## Files NOT Touched
-- `approve-listing-bonus/index.ts` (manual CFO override)
-- Any migration / RLS / schema
-- Agent dashboards (already read from `agent_earnings` + wallet)
-- Trust scoring (already triggered by `agent_commission_earned`)
+- After every approve commit, in addition to `loadPending()`, also locally splice the approved id out of the `pending` state immediately (optimistic). Today the row only disappears after the network refetch lands; on a slow 3G phone connection that can be 2–5 s of confusion.
+- If `loadPending()` later returns the row again (e.g., backend rolled back), restore it and toast a warning. This makes the list feel instant on phones while staying correct.
 
----
+### 5. Diagnostic safety net
 
-## Impact Assessment
+- If `commitApprove` ever returns an error, on top of the existing toast also write a row to `audit_logs` with `action_type: 'tid_approve_failed'` and the error message, so we can see in production whether any approvals are silently failing at the edge function rather than the timer.
 
-| Area | Change | Risk |
-|---|---|---|
-| `credit-listing-bonus` | Reorder + ledger write + agent_earnings insert | Medium — touches money flow. Mitigated by reusing exact RPC pattern from `approve-listing-bonus` |
-| Landlord Ops toast | Copy update | Low |
-| CFO queue UI | Filter auto-paid rows | Low |
-| Treasury Guard | Bypassed for this flow per your confirmation | Low — single-purpose UGX 5K incentive, fully funded |
-| Ledger | One auto-credit per verification, identical legs to existing CFO path | None |
-| Trust score | `agent_commission_earned` already wired | None |
-| Backward compat | Existing `pending_cfo` rows still work via CFO queue | None |
+## Out of scope
 
----
+- No backend / SQL / `approve-deposit` edge function changes — the function works fine; the issue is purely client-side timer + UX.
+- No changes to the search, pick filters, or amount input.
 
-## Technical Details
+## Files to edit
 
-**Ledger entries shape (matches `approve-listing-bonus`):**
-```
-[
-  { account: agent_wallet_id, cash_in: 5000, cash_out: 0, category: 'agent_commission_earned', scope: 'wallet' },
-  { account: platform_account, cash_in: 0, cash_out: 5000, category: 'agent_commission_earned', scope: 'platform' }
-]
-```
-- `entries` passed as raw JSON array (NOT `JSON.stringify`'d) per ledger serialization standard.
-- Reason field: `"Listing verification bonus — auto-paid on Landlord Ops verification"` (≥10 chars).
-
-**Role check query (replaces current `.in()` only):**
-```sql
-SELECT 1
-FROM user_roles ur
-WHERE ur.user_id = $1
-  AND ur.enabled = true
-  AND ur.role IN ('manager','coo','super_admin','operations','employee','ceo')
-UNION
-SELECT 1
-FROM staff_permissions sp
-WHERE sp.user_id = $1
-  AND sp.permitted_dashboard = 'landlord_ops'
-LIMIT 1;
-```
-(Implemented as two parallel Supabase queries since the JS client doesn't compose UNION cleanly.)
-
-**Auto-paid signature for UI filter:**
-`status = 'paid' AND landlord_ops_approved_by = cfo_approved_by AND landlord_ops_notes ILIKE '%auto%'`
+- `src/components/financial-ops/TidVerification.tsx` — timer flush on unmount + beforeunload, optimistic splice, row state on pending list, button/copy changes, mobile undo window.
