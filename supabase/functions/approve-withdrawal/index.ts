@@ -224,7 +224,8 @@ Deno.serve(async (req) => {
     // money parked in the agent wallet). We split the debit so the available
     // withdrawable portion (which already includes advance-funded balance) is
     // drained as `wallet_withdrawal`, and any remainder is drained from float
-    // as `agent_landlord_payout` — keeping the same total and a single platform
+    // as `agent_float_used_for_rent` (a locked-allowlist category that routes
+    // to the float bucket) — keeping the same total and a single platform
     // cash_in leg so the transaction is still balanced.
     const refUpper = reference.trim().toUpperCase();
     const baseDesc = `${payment_method} ref: ${refUpper}`;
@@ -256,7 +257,7 @@ Deno.serve(async (req) => {
         user_id: fundingUserId,
         amount: floatPortion,
         direction: "cash_out",
-        category: "agent_landlord_payout",
+        category: "agent_float_used_for_rent",
         ledger_scope: "wallet",
         description: `Proxy payout from float – ${baseDesc}`,
         currency: "UGX",
