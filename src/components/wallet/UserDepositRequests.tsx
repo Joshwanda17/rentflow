@@ -160,6 +160,7 @@ export function UserDepositRequests() {
   const pendingCount = requests.filter(r => r.status === 'pending').length;
 
   return (
+    <>
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <CollapsibleTrigger asChild>
         <Button
