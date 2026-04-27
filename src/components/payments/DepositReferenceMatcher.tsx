@@ -199,13 +199,71 @@ export default function DepositReferenceMatcher({
       ? [...placeholders].sort((a, b) => Math.abs(a.amount - target) - Math.abs(b.amount - target))
       : placeholders;
     const best = sorted[0];
+    // Surface the previously-missing tenant allocations: pull recent
+    // un-attached collections that sum to the deposit amount so the
+    // agent can see the breakdown right away when re-opening for edit.
+    const recovered = await recoverAllocationsForAmount(best.amount);
     return {
       editDepositId: best.id,
       amount: best.amount,
-      allocations: [],
+      allocations: recovered,
       reference: ref,
       providerHint: detectProvider(ref),
     };
+  };
+
+  /**
+   * Pull the agent's recent un-attached collections and return the subset
+   * (greedy from largest) that sums closest to `target`, aggregated per
+   * tenant. Used to surface the "previously missing" tenant breakdown
+   * when we match an existing placeholder deposit.
+   */
+  const recoverAllocationsForAmount = async (target: number): Promise<TenantAllocation[]> => {
+    if (target <= 0) return [];
+    const since = new Date(Date.now() - MAX_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await supabase
+      .from('agent_collections')
+      .select('id, amount, tenant_id, momo_transaction_id, created_at')
+      .eq('agent_id', agentId)
+      .gte('created_at', since)
+      .order('created_at', { ascending: false })
+      .limit(100);
+    if (error || !data) return [];
+    const rows = (data as any[]).filter((r) => !r.momo_transaction_id && r.tenant_id);
+    if (rows.length === 0) return [];
+    // Greedy subset-sum: largest first, take if it fits within tolerance.
+    const sortedDesc = [...rows].sort((a, b) => Number(b.amount) - Number(a.amount));
+    const picked: any[] = [];
+    let remaining = target;
+    for (const r of sortedDesc) {
+      const amt = Number(r.amount) || 0;
+      if (amt <= remaining + 1) {
+        picked.push(r);
+        remaining -= amt;
+      }
+      if (remaining <= 1) break;
+    }
+    if (picked.length === 0) return [];
+    // Hydrate tenant names.
+    const tenantIds = [...new Set(picked.map((r) => r.tenant_id))];
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, full_name, phone')
+      .in('id', tenantIds);
+    const nameById = new Map((profiles ?? []).map((p: any) => [p.id, p]));
+    // Aggregate per tenant.
+    const byTenant = new Map<string, TenantAllocation>();
+    for (const r of picked) {
+      const prev = byTenant.get(r.tenant_id);
+      const profile = nameById.get(r.tenant_id);
+      byTenant.set(r.tenant_id, {
+        tenant_id: r.tenant_id,
+        tenant_name: profile?.full_name ?? 'Unknown tenant',
+        tenant_phone: profile?.phone ?? null,
+        amount: (prev?.amount || 0) + Number(r.amount),
+      });
+    }
+    return Array.from(byTenant.values());
   };
 
   /**
