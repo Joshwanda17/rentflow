@@ -24,6 +24,12 @@ const FORBIDDEN = [
   { re: /\.from\(\s*['"]general_ledger['"]\s*\)\s*\.insert\s*\(/, label: "general_ledger.insert(" },
   { re: /\.from\(\s*['"]general_ledger['"]\s*\)\s*\.update\s*\(/, label: "general_ledger.update(" },
   { re: /\.from\(\s*['"]general_ledger['"]\s*\)\s*\.delete\s*\(/, label: "general_ledger.delete(" },
+  // Frontend MUST NOT do balance arithmetic — backend is the only authority.
+  // Catches:  wallet.balance - amount,  w.withdrawable_balance += x,  etc.
+  { re: /\bwallet\??\.(balance|withdrawable_balance|float_balance|advance_balance)\s*[-+]\s*\w/, label: "client-side wallet arithmetic" },
+  // Common drift-prone helpers — must live in backend, not frontend.
+  { re: /\brouteToFloat\s*\(/, label: "routeToFloat(" },
+  { re: /\bvalidateBalance\s*\(/, label: "validateBalance(" },
 ];
 
 // Allowlist: file path → reason. Bootstrapping a wallet row with balance 0 is

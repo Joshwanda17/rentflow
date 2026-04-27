@@ -349,127 +349,20 @@ Deno.serve(async (req) => {
             );
           }
 
-          // ── Operational Float Sweep ──
-          // If an agent deposits with purpose=operational_float, sweep the credited
-          // amount from their personal wallet into their agent_landlord_float bucket
-          // so it can be used to pay landlords/tenants (NOT their personal wallet).
-          let sweptToFloat = 0;
-          {
-            const explicitFloat = depositRequest.deposit_purpose === 'operational_float';
-            const ambiguousPurpose = !depositRequest.deposit_purpose
-              || depositRequest.deposit_purpose === 'other';
-
-            // Look up agent role once
-            const { data: agentRoleRow } = await supabaseAdmin
-              .from('user_roles')
-              .select('role')
-              .eq('user_id', depositRequest.user_id)
-              .eq('role', 'agent')
-              .maybeSingle();
-
-            const isAgent = !!agentRoleRow;
-
-            // Detect proxy-agent role: these agents fund partner portfolios from
-            // their wallet ledger (via coo-create-portfolio) and must NOT have
-            // their deposits swept into landlord-payout float.
-            const { data: proxyRow } = await supabaseAdmin
-              .from('proxy_agent_assignments')
-              .select('id')
-              .eq('agent_id', depositRequest.user_id)
-              .eq('is_active', true)
-              .eq('approval_status', 'approved')
-              .limit(1)
-              .maybeSingle();
-            const isProxyAgent = !!proxyRow;
-
-            if (isAgent && isProxyAgent && !explicitFloat) {
-              console.log(
-                `[approve-deposit] Skipping float sweep — user ${depositRequest.user_id} is a proxy agent; deposit stays in wallet for partner portfolio funding`
-              );
-            }
-
-            // Sweep when:
-            //  (a) explicitly tagged operational_float (always honoured), OR
-            //  (b) ambiguous purpose AND agent is NOT a proxy agent.
-            const shouldSweep = isAgent
-              && !(isProxyAgent && !explicitFloat)
-              && (explicitFloat || ambiguousPurpose);
-            const autoRouted = isAgent && !explicitFloat && ambiguousPurpose;
-
-            if (shouldSweep) {
-              const sweepAmount = Number(depositRequest.amount);
-              const { error: sweepLedgerErr } = await supabaseAdmin.rpc('create_ledger_transaction', {
-                entries: [
-                  {
-                    user_id: depositRequest.user_id,
-                    amount: sweepAmount,
-                    direction: 'cash_out',
-                    category: 'agent_float_deposit',
-                    ledger_scope: 'wallet',
-                    source_table: 'deposit_requests',
-                    source_id: depositRequest.id,
-                    reference_id: depositRequest.transaction_id || depositRequest.id,
-                    description: autoRouted
-                      ? `Auto-routed to operational float — agent deposit w/ ambiguous purpose (${depositRequest.provider || 'mobile money'})`
-                      : `Sweep to operational float (${depositRequest.provider || 'mobile money'})`,
-                    currency: 'UGX',
-                    transaction_date: new Date().toISOString(),
-                  },
-                  {
-                    user_id: depositRequest.user_id,
-                    direction: 'cash_in',
-                    amount: sweepAmount,
-                    category: 'agent_float_deposit',
-                    ledger_scope: 'platform',
-                    source_table: 'deposit_requests',
-                    source_id: depositRequest.id,
-                    description: 'Operational float credited to agent landlord float',
-                    currency: 'UGX',
-                    transaction_date: new Date().toISOString(),
-                  },
-                ],
-              });
-
-              if (sweepLedgerErr) {
-                console.error(`[approve-deposit] Float sweep ledger failed for ${depositRequest.id}:`, sweepLedgerErr.message);
-              } else {
-                // Note: agent_landlord_float is updated automatically by the
-                // general_ledger_route_buckets trigger on agent_float_deposit entries.
-                await supabaseAdmin.from('agent_float_funding').insert({
-                  agent_id: depositRequest.user_id,
-                  amount: sweepAmount,
-                  status: 'approved',
-                  funded_by: user.id,
-                  bank_reference: depositRequest.transaction_id,
-                  bank_name: depositRequest.provider,
-                  notes: autoRouted
-                    ? `Auto-routed agent deposit (ambiguous purpose) via ${depositRequest.provider || 'mobile money'} (deposit ${depositRequest.id})`
-                    : `Self-deposit operational float via ${depositRequest.provider || 'mobile money'} (deposit ${depositRequest.id})`,
-                });
-
-                // Audit the auto-routing override so it is traceable
-                if (autoRouted) {
-                  await supabaseAdmin.from('audit_logs').insert({
-                    user_id: user.id,
-                    action_type: 'auto_routed_to_float',
-                    table_name: 'deposit_requests',
-                    record_id: depositRequest.id,
-                    metadata: {
-                      reason: `Agent deposit ${depositRequest.id} (UGX ${sweepAmount}) had no/ambiguous purpose — auto-routed to operational float by approve-deposit safety net.`,
-                      agent_id: depositRequest.user_id,
-                      amount: sweepAmount,
-                      original_purpose: depositRequest.deposit_purpose ?? null,
-                      provider: depositRequest.provider ?? null,
-                      transaction_id: depositRequest.transaction_id ?? null,
-                    },
-                  } as any);
-                }
-
-                sweptToFloat = sweepAmount;
-                console.log(`[approve-deposit] Swept UGX ${sweepAmount} to operational float for agent ${depositRequest.user_id}${autoRouted ? ' (auto-routed)' : ''}`);
-              }
-            }
-          }
+          // ── STRICT BACKEND-AUTHORITY CONTRACT ───────────────────────
+          // Every approved deposit lands in `withdrawable_balance`. Period.
+          //
+          // The previous "operational float sweep" (which inferred routing
+          // from `deposit_purpose` + agent-role + proxy-status) has been
+          // permanently removed. Routing money based on a frontend-supplied
+          // purpose violated the strict contract:
+          //   user intent → backend → ledger → trigger → wallet → realtime
+          //
+          // Float funding is now a separate, explicit, backend-only step
+          // that the agent must invoke via `transfer-to-float`. The
+          // `deposit_purpose` column is preserved for analytics ONLY and
+          // is no longer read here.
+          // ────────────────────────────────────────────────────────────
 
           // ── Step 1: Auto-deduct rent repayment ──
           // The sync_wallet_from_ledger trigger has now credited the wallet.
