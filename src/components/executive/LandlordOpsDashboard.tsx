@@ -1244,6 +1244,7 @@ export function LandlordOpsDashboard() {
   // ─── VERIFICATION VIEW ───
   if (view === 'verify') {
     return (
+      <>
       <div className="space-y-3">
         <BackButton />
         <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> Verification Queue ({unverifiedListings.length})</h2>
@@ -1291,6 +1292,8 @@ export function LandlordOpsDashboard() {
           )}
         </div>
       </div>
+      {renderDialogs()}
+      </>
     );
   }
 
