@@ -155,6 +155,8 @@ Deno.serve(async (req) => {
     }
 
     // ── 1. Create wallet transaction (visible in tx history) ──
+    // Idempotency: a partial unique index on (sender, recipient, amount,
+    // description, 5-min bucket) blocks accidental duplicates (code 23505).
     const { error: txErr } = await supabase.from("wallet_transactions").insert({
       sender_id: walletOwnerId,
       recipient_id: walletOwnerId,
@@ -163,6 +165,18 @@ Deno.serve(async (req) => {
     });
 
     if (txErr) {
+      if ((txErr as any).code === "23505") {
+        console.warn(
+          `[coo-wallet-to-portfolio] DUPLICATE BLOCKED — wallet=${walletOwnerId} portfolio=${portfolio_id} amount=${topupAmount}`,
+        );
+        return jsonRes({
+          error:
+            `This transfer was already recorded moments ago. ` +
+            `Refresh the portfolio to see the updated balance. ` +
+            `(Duplicate submission blocked.)`,
+          duplicate: true,
+        }, 409);
+      }
       console.error("[coo-wallet-to-portfolio] wallet_transactions insert error:", txErr);
       return jsonRes({ error: "Failed to record wallet transaction" }, 500);
     }
