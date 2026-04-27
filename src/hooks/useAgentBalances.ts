@@ -61,23 +61,23 @@ export function useAgentBalances(agentId?: string) {
       const floatBalance = Number(wallet?.float_balance ?? 0);
       const advanceBalance = Number(wallet?.advance_balance ?? 0);
 
-      // Compute true commission balance: earned - withdrawn/spent
+      // Compute true commission balance by NETTING in vs out per row.
+      // CRITICAL: legacy ghost/back-fill data sometimes contains a paired
+      // entry where the SAME category (e.g. 'agent_commission_earned') has
+      // both a cash_in AND a matching cash_out on the wallet scope —
+      // economically a no-op, but a one-sided "credits only" sum surfaces
+      // it as a phantom commission balance. SSENKAALI PIUS (2026-04-27):
+      // 5,600,000 cash_in + 5,600,000 cash_out of agent_commission_earned
+      // → wallet correctly reads 0, but dashboard showed 5,600,000.
+      // Net every row instead.
       let commissionBalance = 0;
       if (!commissionRes.error && commissionRes.data) {
         for (const row of commissionRes.data as any[]) {
           const amt = Number(row.amount) || 0;
           const isIn = row.direction === 'cash_in' || row.direction === 'credit';
           const isOut = row.direction === 'cash_out' || row.direction === 'debit';
-          if (isIn && (
-            row.category === 'agent_commission_earned' ||
-            row.category === 'agent_commission' ||
-            row.category === 'agent_bonus' ||
-            row.category === 'partner_commission'
-          )) {
-            commissionBalance += amt;
-          } else if (isOut && (row.category === 'agent_commission_withdrawal' || row.category === 'agent_commission_used_for_rent')) {
-            commissionBalance -= amt;
-          }
+          if (isIn) commissionBalance += amt;
+          else if (isOut) commissionBalance -= amt;
         }
         commissionBalance = Math.max(0, commissionBalance);
       } else if (commissionRes.error) {
