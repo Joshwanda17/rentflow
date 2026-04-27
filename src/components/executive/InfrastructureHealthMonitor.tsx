@@ -1,8 +1,12 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Server, Users, AlertTriangle, CheckCircle, ArrowUp, Activity, Wifi, Clock } from 'lucide-react';
+import { Server, AlertTriangle, CheckCircle, ArrowUp } from 'lucide-react';
 import { subHours, subMinutes } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
+import { useEffect, useState } from 'react';
 
 interface HealthMetric {
   label: string;
@@ -11,14 +15,78 @@ interface HealthMetric {
   hint?: string;
 }
 
-const INSTANCE_LIMITS = {
-  mini: { connections: 20, concurrentUsers: 15, label: 'Mini' },
-  small: { connections: 50, concurrentUsers: 40, label: 'Small' },
-  medium: { connections: 100, concurrentUsers: 80, label: 'Medium' },
+type InstanceSize = 'mini' | 'small' | 'medium' | 'large';
+
+const INSTANCE_LIMITS: Record<InstanceSize, { connections: number; concurrentUsers: number; label: string }> = {
+  mini:   { connections: 20,  concurrentUsers: 15,  label: 'Mini' },
+  small:  { connections: 50,  concurrentUsers: 40,  label: 'Small' },
+  medium: { connections: 100, concurrentUsers: 80,  label: 'Medium' },
   large: { connections: 200, concurrentUsers: 150, label: 'Large' },
 };
 
+const INSTANCE_ORDER: InstanceSize[] = ['mini', 'small', 'medium', 'large'];
+
 export function InfrastructureHealthMonitor() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  // ─── Current Lovable Cloud instance size ──────────────────────────
+  // Lovable Cloud doesn't expose the live instance size to the client,
+  // so leadership records it manually here. Persisted in
+  // `infrastructure_settings` (singleton row, RLS-gated to CTO/CEO/admin).
+  const { data: settings } = useQuery({
+    queryKey: ['infrastructure-settings'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('infrastructure_settings')
+        .select('current_instance, updated_at')
+        .eq('id', true)
+        .maybeSingle();
+      return data ?? { current_instance: 'mini' as InstanceSize, updated_at: null };
+    },
+    staleTime: 60_000,
+  });
+
+  const currentSize = (settings?.current_instance as InstanceSize) ?? 'mini';
+  const currentInstance = INSTANCE_LIMITS[currentSize];
+
+  // Can the current user change the recorded instance? Cheap RLS probe:
+  // attempt a no-op update; if it succeeds we know they're allowed.
+  // Stored in local state so we don't write on every render.
+  const [canEditInstance, setCanEditInstance] = useState(false);
+  useEffect(() => {
+    if (!user) { setCanEditInstance(false); return; }
+    let cancelled = false;
+    (async () => {
+      const { error } = await supabase
+        .from('infrastructure_settings')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', true)
+        .select('id');
+      if (!cancelled) setCanEditInstance(!error);
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  const updateInstance = useMutation({
+    mutationFn: async (next: InstanceSize) => {
+      const { error } = await supabase
+        .from('infrastructure_settings')
+        .update({
+          current_instance: next,
+          updated_by: user?.id ?? null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', true);
+      if (error) throw error;
+    },
+    onSuccess: (_d, next) => {
+      toast.success(`Instance set to ${INSTANCE_LIMITS[next].label}`);
+      queryClient.invalidateQueries({ queryKey: ['infrastructure-settings'] });
+    },
+    onError: (err: any) => toast.error(err.message ?? 'Could not update instance'),
+  });
+
   // Concurrent users: active in last 15 minutes
   const { data: concurrentUsers, isLoading: loadingConcurrent } = useQuery({
     queryKey: ['cto-concurrent-users'],
@@ -48,12 +116,17 @@ export function InfrastructureHealthMonitor() {
     staleTime: 120000,
   });
 
-  // DB latency probe
+  // DB latency probe.
+  // Was: `select id, count: 'exact'` on profiles → that runs a COUNT(*)
+  // on the whole table which gets expensive as profiles grow and
+  // produces a misleading "infrastructure overload" reading. The actual
+  // network/RTT is the metric we want, so probe with a single-row PK
+  // lookup that returns instantly regardless of table size.
   const { data: latency } = useQuery({
     queryKey: ['cto-infra-latency'],
     queryFn: async () => {
       const t0 = performance.now();
-      await supabase.from('profiles').select('id', { count: 'exact', head: true });
+      await supabase.from('profiles').select('id').limit(1);
       return Math.round(performance.now() - t0);
     },
     staleTime: 60000,
@@ -82,7 +155,6 @@ export function InfrastructureHealthMonitor() {
     staleTime: 300000,
   });
 
-  const currentInstance = INSTANCE_LIMITS.mini;
   const concurrent = concurrentUsers || 0;
   const utilizationPct = Math.round((concurrent / currentInstance.concurrentUsers) * 100);
 
@@ -115,9 +187,16 @@ export function InfrastructureHealthMonitor() {
 
   // Upgrade recommendation logic
   const shouldUpgrade = 
+    currentSize !== 'large' && (
     concurrent > currentInstance.concurrentUsers * 0.7 ||
     (latency || 0) > 800 ||
-    (peakUsers || 0) > currentInstance.concurrentUsers;
+    (peakUsers || 0) > currentInstance.concurrentUsers
+    );
+
+  const nextSize: InstanceSize | null = (() => {
+    const idx = INSTANCE_ORDER.indexOf(currentSize);
+    return idx >= 0 && idx < INSTANCE_ORDER.length - 1 ? INSTANCE_ORDER[idx + 1] : null;
+  })();
 
   const upgradeReasons: string[] = [];
   if (concurrent > currentInstance.concurrentUsers * 0.7) {
@@ -153,13 +232,31 @@ export function InfrastructureHealthMonitor() {
           <div>
             <h3 className="text-sm font-semibold">Infrastructure Health Monitor</h3>
             <p className="text-xs text-muted-foreground">
-              Instance: <span className="font-medium text-foreground">Mini</span> · 
+              Instance: <span className="font-medium text-foreground">{currentInstance.label}</span> · 
               Capacity: <span className={cn('font-medium', utilizationPct > 80 ? 'text-destructive' : utilizationPct > 50 ? 'text-amber-600' : 'text-green-600')}>
                 {utilizationPct}%
               </span>
             </p>
           </div>
         </div>
+        {canEditInstance && (
+          <Select
+            value={currentSize}
+            onValueChange={(v) => updateInstance.mutate(v as InstanceSize)}
+            disabled={updateInstance.isPending}
+          >
+            <SelectTrigger className="h-8 w-[120px] text-xs">
+              <SelectValue placeholder="Instance" />
+            </SelectTrigger>
+            <SelectContent>
+              {INSTANCE_ORDER.map((s) => (
+                <SelectItem key={s} value={s} className="text-xs">
+                  {INSTANCE_LIMITS[s].label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {/* Utilization Bar */}
@@ -205,20 +302,22 @@ export function InfrastructureHealthMonitor() {
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
           <div className="flex items-center gap-2">
             <ArrowUp className="h-4 w-4 text-amber-600" />
-            <p className="text-sm font-semibold text-amber-700">Upgrade Recommended → Small Instance</p>
+            <p className="text-sm font-semibold text-amber-700">
+              Upgrade Recommended{nextSize ? ` → ${INSTANCE_LIMITS[nextSize].label} Instance` : ''}
+            </p>
           </div>
           <ul className="text-xs text-amber-700/80 space-y-1 list-disc list-inside">
             {upgradeReasons.map((r, i) => <li key={i}>{r}</li>)}
           </ul>
           <p className="text-[10px] text-muted-foreground">
-            Go to Cloud → Advanced settings to change instance size
+            Go to Cloud → Advanced settings to change instance size, then update the dropdown above so this widget reads the right limits.
           </p>
         </div>
       ) : (
         <div className="rounded-xl border border-green-500/30 bg-green-500/5 p-3 flex items-center gap-2">
           <CheckCircle className="h-4 w-4 text-green-600" />
           <div>
-            <p className="text-sm font-semibold text-green-700">Mini Instance — Sufficient</p>
+            <p className="text-sm font-semibold text-green-700">{currentInstance.label} Instance — Sufficient</p>
             <p className="text-[10px] text-muted-foreground">
               No upgrade needed. Utilization is within healthy limits.
             </p>
