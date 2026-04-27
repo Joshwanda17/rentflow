@@ -489,7 +489,7 @@ export function TenantOpsDashboard() {
                 disabled={printingPdf}
               >
                 {printingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
-                Print Report
+                Print Weekly Report
               </Button>
             </div>
 
