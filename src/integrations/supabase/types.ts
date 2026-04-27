@@ -5350,6 +5350,27 @@ export type Database = {
           },
         ]
       }
+      infrastructure_settings: {
+        Row: {
+          current_instance: string
+          id: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          current_instance?: string
+          id?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          current_instance?: string
+          id?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       internship_applications: {
         Row: {
           created_at: string
