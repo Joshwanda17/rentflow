@@ -13720,6 +13720,7 @@ export type Database = {
         }[]
       }
       test_wallet_drift_fix: { Args: never; Returns: Json }
+      topup_dedup_bucket: { Args: { ts: string }; Returns: string }
       update_agent_collection_streak: {
         Args: { p_agent_id: string }
         Returns: undefined
