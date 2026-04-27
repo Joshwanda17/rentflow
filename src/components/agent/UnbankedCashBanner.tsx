@@ -3,12 +3,14 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   Banknote, AlertTriangle, ChevronRight, ShieldAlert,
   ChevronDown, Clock, FileText, User as UserIcon,
+  Camera, Loader2, CheckCircle2, X, Upload,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import {
   listAgentBatches,
   listUnbatchedFieldCollections,
   listBatchItems,
+  submitProofForBatch,
   type FieldDepositBatch,
   type UnbatchedFieldCollection,
   type BatchItemDetail,
@@ -17,6 +19,8 @@ import {
 import { FieldDepositWizardDialog } from '@/components/agent/FieldDepositWizardDialog';
 import { hapticTap } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface AwaitingBatchWithItems extends FieldDepositBatch {
   items: BatchItemDetail[];
@@ -281,74 +285,14 @@ export function UnbankedCashBanner() {
                   </span>
                 </div>
                 <ul className="divide-y divide-border/40">
-                  {awaitingBatches.map((b) => {
-                    const batchAge = Math.floor(
-                      (Date.now() - new Date(b.created_at).getTime()) / 3_600_000,
-                    );
-                    return (
-                      <li key={b.id}>
-                        <button
-                          type="button"
-                          onClick={() => { hapticTap(); setProofForBatch(b); }}
-                          className="w-full px-4 py-2.5 text-left hover:bg-accent/40 transition-colors"
-                          style={{ WebkitTapHighlightColor: 'transparent' }}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-lg bg-destructive/15 text-destructive flex items-center justify-center shrink-0">
-                              <FileText className="h-4 w-4" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-semibold truncate">
-                                {channelLabel(b.channel)}
-                              </p>
-                              <p className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
-                                <Clock className="h-2.5 w-2.5" />
-                                {formatDateTime(b.created_at)}
-                                {batchAge > 0 && (
-                                  <>
-                                    <span className="opacity-50">·</span>
-                                    <span className={cn(batchAge >= 24 && 'text-destructive font-semibold')}>
-                                      {batchAge}h old
-                                    </span>
-                                  </>
-                                )}
-                                <span className="opacity-50">·</span>
-                                <span className="font-mono">#{b.id.slice(0, 8)}</span>
-                              </p>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <p className="text-sm font-bold">
-                                {formatUGX(Number(b.declared_total))}
-                              </p>
-                              <p className="text-[9px] uppercase tracking-wider text-destructive font-semibold">
-                                Add proof →
-                              </p>
-                            </div>
-                          </div>
-                          {/* Items inside this batch */}
-                          {b.items.length > 0 && (
-                            <ul className="mt-2 pl-11 space-y-0.5">
-                              {b.items.slice(0, 5).map((it) => (
-                                <li key={it.id} className="flex items-center justify-between gap-2 text-[11px]">
-                                  <span className="truncate text-muted-foreground">
-                                    · {it.tenant_name || 'Walk-up'}
-                                  </span>
-                                  <span className="font-mono shrink-0">
-                                    {formatUGX(it.amount)}
-                                  </span>
-                                </li>
-                              ))}
-                              {b.items.length > 5 && (
-                                <li className="text-[10px] text-muted-foreground italic">
-                                  + {b.items.length - 5} more…
-                                </li>
-                              )}
-                            </ul>
-                          )}
-                        </button>
-                      </li>
-                    );
-                  })}
+                  {awaitingBatches.map((b) => (
+                    <AwaitingBatchRow
+                      key={b.id}
+                      batch={b}
+                      onOpenWizard={() => setProofForBatch(b)}
+                      onProofSubmitted={refresh}
+                    />
+                  ))}
                 </ul>
               </div>
             )}
@@ -392,4 +336,242 @@ function formatDateTime(iso: string): string {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+/* ---------------------------------------------------------------------- */
+/* Inline awaiting-batch row with quick-proof entry                        */
+/* ---------------------------------------------------------------------- */
+
+interface AwaitingBatchRowProps {
+  batch: AwaitingBatchWithItems;
+  /** Open the full wizard (fallback for users who want all options). */
+  onOpenWizard: () => void;
+  /** Called after a successful inline proof submission. */
+  onProofSubmitted: () => void;
+}
+
+function AwaitingBatchRow({ batch, onOpenWizard, onProofSubmitted }: AwaitingBatchRowProps) {
+  const [open, setOpen] = useState(false);
+  const [reference, setReference] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const batchAge = Math.floor(
+    (Date.now() - new Date(batch.created_at).getTime()) / 3_600_000,
+  );
+  const isOverdue = batchAge >= 24;
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > 5 * 1024 * 1024) {
+      toast.error('Receipt image must be under 5 MB');
+      return;
+    }
+    setFile(f);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const ref = reference.trim();
+    if (ref.length < 4 && !file) {
+      toast.error('Enter a transaction ID / reference, or attach a receipt photo');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      let imageUrl: string | null = null;
+      if (file) {
+        const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+        const path = `field-deposit-proofs/${batch.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from('receipts')
+          .upload(path, file, { contentType: file.type || undefined, upsert: false });
+        if (upErr) throw upErr;
+        const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(path);
+        imageUrl = urlData.publicUrl;
+      }
+      // submitProofForBatch requires a non-empty reference. If the agent only
+      // attached a photo with no reference, use a placeholder marker.
+      const finalRef = ref.length >= 4 ? ref : `RECEIPT-${batch.id.slice(0, 8)}`;
+      await submitProofForBatch(batch.id, finalRef, imageUrl);
+      toast.success('Proof submitted · Finance has been notified');
+      setOpen(false);
+      setReference('');
+      setFile(null);
+      onProofSubmitted();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to submit proof');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <li>
+      <div className="px-4 py-2.5">
+        {/* Header row — tap to expand inline form */}
+        <button
+          type="button"
+          onClick={() => { hapticTap(); setOpen(v => !v); }}
+          className="w-full flex items-center gap-3 text-left"
+          style={{ WebkitTapHighlightColor: 'transparent' }}
+          aria-expanded={open}
+        >
+          <div className="h-8 w-8 rounded-lg bg-destructive/15 text-destructive flex items-center justify-center shrink-0">
+            <FileText className="h-4 w-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold truncate">
+              {channelLabel(batch.channel)}
+            </p>
+            <p className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
+              <Clock className="h-2.5 w-2.5" />
+              {formatDateTime(batch.created_at)}
+              {batchAge > 0 && (
+                <>
+                  <span className="opacity-50">·</span>
+                  <span className={cn(isOverdue && 'text-destructive font-semibold')}>
+                    {batchAge}h old
+                  </span>
+                </>
+              )}
+              <span className="opacity-50">·</span>
+              <span className="font-mono">#{batch.id.slice(0, 8)}</span>
+            </p>
+          </div>
+          <div className="text-right shrink-0">
+            <p className="text-sm font-bold">
+              {formatUGX(Number(batch.declared_total))}
+            </p>
+            <p className="text-[9px] uppercase tracking-wider text-destructive font-semibold flex items-center justify-end gap-0.5">
+              {open ? 'Close' : 'Add proof'}
+              <ChevronDown className={cn('h-3 w-3 transition-transform', open && 'rotate-180')} />
+            </p>
+          </div>
+        </button>
+
+        {/* Items */}
+        {batch.items.length > 0 && !open && (
+          <ul className="mt-2 pl-11 space-y-0.5">
+            {batch.items.slice(0, 5).map((it) => (
+              <li key={it.id} className="flex items-center justify-between gap-2 text-[11px]">
+                <span className="truncate text-muted-foreground">
+                  · {it.tenant_name || 'Walk-up'}
+                </span>
+                <span className="font-mono shrink-0">{formatUGX(it.amount)}</span>
+              </li>
+            ))}
+            {batch.items.length > 5 && (
+              <li className="text-[10px] text-muted-foreground italic">
+                + {batch.items.length - 5} more…
+              </li>
+            )}
+          </ul>
+        )}
+
+        {/* Inline proof form */}
+        {open && (
+          <form onSubmit={handleSubmit} className="mt-3 ml-11 space-y-2.5">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                Transaction ID / bank reference
+              </label>
+              <input
+                type="text"
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+                placeholder="e.g. MTN12345ABC, EQB-9988…"
+                className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary"
+                disabled={submitting}
+                inputMode="text"
+                autoComplete="off"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                Receipt photo (optional)
+              </label>
+              {file ? (
+                <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2">
+                  <span className="text-xs truncate flex items-center gap-1.5 min-w-0">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" />
+                    <span className="truncate">{file.name}</span>
+                    <span className="text-muted-foreground text-[10px] shrink-0">
+                      {(file.size / 1024).toFixed(0)} KB
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setFile(null)}
+                    disabled={submitting}
+                    className="h-6 w-6 rounded-md hover:bg-accent flex items-center justify-center shrink-0"
+                    aria-label="Remove receipt"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <label
+                  className={cn(
+                    'flex items-center justify-center gap-2 h-10 rounded-lg border-2 border-dashed border-border bg-background cursor-pointer hover:bg-accent/30 transition-colors',
+                    submitting && 'opacity-50 pointer-events-none',
+                  )}
+                >
+                  <Camera className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Tap to add receipt photo
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="sr-only"
+                    onChange={handleFileChange}
+                    disabled={submitting}
+                  />
+                </label>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                type="submit"
+                disabled={submitting}
+                className="flex-1 h-10 rounded-lg bg-destructive text-destructive-foreground text-xs font-bold uppercase tracking-wider hover:bg-destructive/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Submitting…
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-3.5 w-3.5" />
+                    Submit proof
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => { hapticTap(); onOpenWizard(); }}
+                disabled={submitting}
+                className="h-10 px-3 rounded-lg border border-border bg-background text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:bg-accent/40 transition-colors"
+                title="Open the full deposit wizard"
+              >
+                More options
+              </button>
+            </div>
+
+            <p className="text-[10px] text-muted-foreground leading-snug">
+              At least one of <span className="font-semibold">reference</span> or{' '}
+              <span className="font-semibold">receipt photo</span> is required.
+              Finance will verify before float and commission post.
+            </p>
+          </form>
+        )}
+      </div>
+    </li>
+  );
 }
