@@ -14,6 +14,7 @@ import OperationalFloatTenantAllocator, {
   type TenantAllocation,
 } from './OperationalFloatTenantAllocator';
 import DepositReferenceMatcher, { type MatchResult } from './DepositReferenceMatcher';
+import AllocationEditDiffPanel from './AllocationEditDiffPanel';
 
 /**
  * Extract a Mobile Money / bank reference from arbitrary SMS text.
