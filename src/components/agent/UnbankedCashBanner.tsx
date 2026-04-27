@@ -1216,6 +1216,17 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
   const [perBatchRef, setPerBatchRef] = useState<Record<string, string>>({});
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  /** Photo-mode toggle (shared vs per-batch). Independent from `mode`
+   *  because a deposit's reference and its receipt photo can come from
+   *  different sources — e.g., one bank confirmation SMS reference but
+   *  separate teller slips. */
+  const [photoMode, setPhotoMode] = useState<PhotoMode>('shared');
+  /** Per-batch file uploads when `photoMode === 'per_batch'`. Keyed by
+   *  batch id; missing entries mean "no photo for that batch". */
+  const [perBatchFile, setPerBatchFile] = useState<Record<string, File>>({});
+  /** Object-URL previews for `perBatchFile`. Lifecycle is managed in an
+   *  effect below so we revoke URLs as files are replaced/removed. */
+  const [perBatchPreviewUrl, setPerBatchPreviewUrl] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [rowState, setRowState] = useState<Record<string, { state: BulkRowState; msg?: string }>>({});
   /** Per-batch outcomes from the most recent submit. Empty until the agent
@@ -1230,6 +1241,20 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
     setPreviewUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [file]);
+
+  // Keep `perBatchPreviewUrl` in sync with `perBatchFile`. Creates fresh
+  // object URLs as files are added/swapped and revokes stale ones to avoid
+  // memory leaks (URL.createObjectURL refs persist until revoked).
+  useEffect(() => {
+    const nextUrls: Record<string, string> = {};
+    for (const [id, f] of Object.entries(perBatchFile)) {
+      nextUrls[id] = URL.createObjectURL(f);
+    }
+    setPerBatchPreviewUrl(nextUrls);
+    return () => {
+      Object.values(nextUrls).forEach((u) => URL.revokeObjectURL(u));
+    };
+  }, [perBatchFile]);
 
   const toggle = (id: string) => {
     if (submitting) return;
