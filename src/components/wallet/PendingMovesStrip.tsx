@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, ArrowDownToLine, Plus, ChevronRight } from 'lucide-react';
+import { Loader2, ArrowDownToLine, Plus, ChevronRight, Users } from 'lucide-react';
+import { decodeAllocationsFromNote, type TenantAllocation } from '@/components/payments/OperationalFloatTenantAllocator';
 
 /**
  * One row in the pending strip. We normalise deposits and withdrawals
@@ -16,6 +17,14 @@ interface PendingMove {
   status: string;
   stage: string;
   created_at: string;
+  /**
+   * For deposits only. When the deposit was filed as `operational_float`
+   * we surface its per-tenant breakdown inline so the agent can see, at
+   * the wallet level, *who* this in-flight cash will be credited to as
+   * the request walks through approval.
+   */
+  allocations?: TenantAllocation[] | null;
+  transaction_id?: string | null;
 }
 
 /** Map a raw DB status to a short user-facing stage label. */
@@ -60,7 +69,7 @@ export function PendingMovesStrip() {
       const [depRes, wdRes] = await Promise.all([
         supabase
           .from('deposit_requests')
-          .select('id, amount, status, created_at')
+          .select('id, amount, status, created_at, deposit_purpose, notes, transaction_id')
           .eq('user_id', user.id)
           .in('status', OPEN_STATUSES)
           .order('created_at', { ascending: false })
@@ -75,14 +84,20 @@ export function PendingMovesStrip() {
       ]);
       if (cancelled) return;
       const merged: PendingMove[] = [
-        ...(depRes.data ?? []).map((d: any) => ({
-          id: `d-${d.id}`,
-          kind: 'deposit' as const,
-          amount: Number(d.amount ?? 0),
-          status: d.status,
-          stage: stageLabel('deposit', d.status),
-          created_at: d.created_at,
-        })),
+        ...(depRes.data ?? []).map((d: any) => {
+          const isOpFloat = d.deposit_purpose === 'operational_float';
+          const decoded = isOpFloat ? decodeAllocationsFromNote(d.notes) : null;
+          return {
+            id: `d-${d.id}`,
+            kind: 'deposit' as const,
+            amount: Number(d.amount ?? 0),
+            status: d.status,
+            stage: stageLabel('deposit', d.status),
+            created_at: d.created_at,
+            allocations: decoded?.allocations ?? null,
+            transaction_id: d.transaction_id ?? null,
+          };
+        }),
         ...(wdRes.data ?? []).map((w: any) => ({
           id: `w-${w.id}`,
           kind: 'withdrawal' as const,
@@ -137,12 +152,17 @@ export function PendingMovesStrip() {
 
   const headline = moves[0];
   const remaining = moves.length - 1;
+  const headlineHasAllocs = !!headline.allocations && headline.allocations.length > 0;
 
   return (
     <div className="rounded-xl border border-warning/40 bg-warning/5 overflow-hidden">
       <button
         type="button"
-        onClick={() => (moves.length > 1 ? setExpanded((v) => !v) : navigate('/transactions'))}
+        onClick={() =>
+          moves.length > 1 || headlineHasAllocs
+            ? setExpanded((v) => !v)
+            : navigate('/transactions')
+        }
         className="w-full flex items-center gap-2.5 p-2.5 text-left hover:bg-warning/10 transition-colors"
       >
         <span className="relative flex h-2 w-2 shrink-0">
@@ -167,9 +187,19 @@ export function PendingMovesStrip() {
           <p className="text-[10px] text-muted-foreground truncate">
             {headline.stage}
             {remaining > 0 && ` · +${remaining} more pending`}
+            {headlineHasAllocs && (
+              <>
+                {' · '}
+                <span className="inline-flex items-center gap-0.5 text-primary font-medium">
+                  <Users className="h-2.5 w-2.5" />
+                  {headline.allocations!.length} tenant
+                  {headline.allocations!.length === 1 ? '' : 's'}
+                </span>
+              </>
+            )}
           </p>
         </div>
-        {moves.length > 1 ? (
+        {moves.length > 1 || headlineHasAllocs ? (
           <ChevronRight
             className={`h-4 w-4 text-muted-foreground transition-transform ${expanded ? 'rotate-90' : ''}`}
           />
@@ -178,24 +208,55 @@ export function PendingMovesStrip() {
         )}
       </button>
 
+      {/* Headline op-float breakdown — surfaced first because it's the
+          most actionable info ("who am I crediting with this drop?"). */}
+      {expanded && headlineHasAllocs && (
+        <AllocationBreakdown
+          allocations={headline.allocations!}
+          transactionId={headline.transaction_id ?? null}
+          stage={headline.stage}
+        />
+      )}
+
       {expanded && moves.length > 1 && (
         <ul className="border-t border-warning/30 divide-y divide-warning/20">
           {moves.slice(1, 6).map((m) => (
-            <li key={m.id} className="flex items-center gap-2 px-2.5 py-1.5">
-              <div className="p-1 rounded bg-background border border-border/60 shrink-0">
-                {m.kind === 'deposit' ? (
-                  <Plus className="h-3 w-3 text-success" />
-                ) : (
-                  <ArrowDownToLine className="h-3 w-3 text-warning" />
-                )}
+            <li key={m.id} className="px-2.5 py-1.5">
+              <div className="flex items-center gap-2">
+                <div className="p-1 rounded bg-background border border-border/60 shrink-0">
+                  {m.kind === 'deposit' ? (
+                    <Plus className="h-3 w-3 text-success" />
+                  ) : (
+                    <ArrowDownToLine className="h-3 w-3 text-warning" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-medium truncate">
+                    {m.kind === 'deposit' ? 'Deposit' : 'Withdrawal'} ·{' '}
+                    {m.amount >= 1000 ? `${(m.amount / 1000).toFixed(0)}K` : m.amount} UGX
+                  </p>
+                  <p className="text-[9px] text-muted-foreground truncate">
+                    {m.stage}
+                    {m.allocations && m.allocations.length > 0 && (
+                      <>
+                        {' · '}
+                        <span className="inline-flex items-center gap-0.5 text-primary font-medium">
+                          <Users className="h-2 w-2" />
+                          {m.allocations.length}
+                        </span>
+                      </>
+                    )}
+                  </p>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-medium truncate">
-                  {m.kind === 'deposit' ? 'Deposit' : 'Withdrawal'} ·{' '}
-                  {m.amount >= 1000 ? `${(m.amount / 1000).toFixed(0)}K` : m.amount} UGX
-                </p>
-                <p className="text-[9px] text-muted-foreground truncate">{m.stage}</p>
-              </div>
+              {m.allocations && m.allocations.length > 0 && (
+                <AllocationBreakdown
+                  allocations={m.allocations}
+                  transactionId={m.transaction_id ?? null}
+                  stage={m.stage}
+                  compact
+                />
+              )}
             </li>
           ))}
           {moves.length > 6 && (
@@ -211,6 +272,70 @@ export function PendingMovesStrip() {
           )}
         </ul>
       )}
+    </div>
+  );
+}
+
+/**
+ * Per-tenant breakdown panel for an in-flight Operational Float deposit.
+ * Renders the live status chip + a compact tenant list with amounts so
+ * the agent can see at-a-glance who their pending drop will credit as
+ * Financial Ops moves the request through approval.
+ */
+function AllocationBreakdown({
+  allocations,
+  transactionId,
+  stage,
+  compact = false,
+}: {
+  allocations: TenantAllocation[];
+  transactionId: string | null;
+  stage: string;
+  compact?: boolean;
+}) {
+  const total = allocations.reduce((sum, a) => sum + Number(a.amount || 0), 0);
+  return (
+    <div
+      className={`border-t border-warning/30 bg-background/40 ${
+        compact ? 'mt-1.5 rounded-md border px-2 py-1.5' : 'p-2.5'
+      }`}
+    >
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary">
+          <Users className="h-2.5 w-2.5" />
+          {allocations.length} tenant{allocations.length === 1 ? '' : 's'} · {stage}
+        </span>
+        {transactionId && (
+          <span
+            className="text-[9px] font-mono text-muted-foreground truncate max-w-[45%]"
+            title={transactionId}
+          >
+            {transactionId}
+          </span>
+        )}
+      </div>
+      <ul className="space-y-0.5">
+        {allocations.slice(0, 6).map((a) => (
+          <li
+            key={a.tenant_id}
+            className="flex items-center justify-between gap-2 text-[10px]"
+          >
+            <span className="truncate text-foreground">{a.tenant_name}</span>
+            <span className="font-mono tabular-nums text-muted-foreground shrink-0">
+              UGX {Number(a.amount || 0).toLocaleString()}
+            </span>
+          </li>
+        ))}
+        {allocations.length > 6 && (
+          <li className="text-[9px] italic text-muted-foreground">
+            +{allocations.length - 6} more…
+          </li>
+        )}
+      </ul>
+      <div className="mt-1 pt-1 border-t border-border/60 flex items-center justify-between text-[10px] font-semibold">
+        <span className="text-muted-foreground">Allocated total</span>
+        <span className="font-mono tabular-nums">UGX {total.toLocaleString()}</span>
+      </div>
     </div>
   );
 }
