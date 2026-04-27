@@ -13060,6 +13060,14 @@ export type Database = {
           with_territory: number
         }[]
       }
+      get_agent_display_names: {
+        Args: { _ids: string[] }
+        Returns: {
+          full_name: string
+          id: string
+          phone: string
+        }[]
+      }
       get_agent_mission_stats: { Args: { p_agent_id?: string }; Returns: Json }
       get_agent_network_summary: { Args: { p_agent_id: string }; Returns: Json }
       get_agent_ops_balances: {

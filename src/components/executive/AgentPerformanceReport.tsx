@@ -345,14 +345,34 @@ export function AgentPerformanceReport() {
 
       let profilesMap: Record<string, string> = {};
       if (agentIds.length) {
-        const BATCH = 50;
+        // Resolve display names via SECURITY DEFINER RPC so staff dashboards
+        // show every agent's name regardless of per-row profile RLS coverage.
+        const BATCH = 200;
         for (let i = 0; i < agentIds.length; i += BATCH) {
-          const { data: profs } = await supabase
-            .from('profiles')
-            .select('id, full_name')
-            .in('id', agentIds.slice(i, i + BATCH));
-          (profs || []).forEach(p => { profilesMap[p.id] = p.full_name || p.id.slice(0, 8); });
+          const slice = agentIds.slice(i, i + BATCH);
+          const { data: profs, error: rpcErr } = await supabase
+            .rpc('get_agent_display_names', { _ids: slice });
+          if (rpcErr) {
+            console.warn('[AgentPerformanceReport] name RPC failed, falling back:', rpcErr);
+            const { data: fallback } = await supabase
+              .from('profiles')
+              .select('id, full_name, phone')
+              .in('id', slice);
+            (fallback || []).forEach((p: any) => {
+              profilesMap[p.id] = p.full_name?.trim() || p.phone || `Agent ${p.id.slice(0, 6)}`;
+            });
+          } else {
+            (profs || []).forEach((p: any) => {
+              profilesMap[p.id] = (p.full_name && p.full_name.trim())
+                || p.phone
+                || `Agent ${p.id.slice(0, 6)}`;
+            });
+          }
         }
+        // Final safety net for any id we still couldn't resolve.
+        agentIds.forEach(id => {
+          if (!profilesMap[id]) profilesMap[id] = `Agent ${id.slice(0, 6)}`;
+        });
       }
 
       // Aggregate per agent
@@ -437,7 +457,7 @@ export function AgentPerformanceReport() {
         const gap = expectedWeekly - a.collected;
         return {
           rank: 0,
-          agent_name: profilesMap[id] || id.slice(0, 8),
+          agent_name: profilesMap[id] || `Agent ${id.slice(0, 6)}`,
           tenants_paid: tenantsPaid,
           tenants_total: tenantsTotal,
           pct_paid: pctPaid,
