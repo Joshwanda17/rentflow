@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Wallet, Send, Plus, ArrowUpRight, ArrowDownLeft, HandCoins, Bell, History, TrendingUp, TrendingDown, ArrowDownToLine } from 'lucide-react';
+import { Wallet, Send, Plus, ArrowUpRight, ArrowDownLeft, HandCoins, Bell, History, TrendingUp, TrendingDown, ArrowDownToLine, BadgeCheck } from 'lucide-react';
 import { useWallet } from '@/hooks/useWallet';
 import { getBalanceColorClass, getBalanceDotClass, formatSyncTime } from '@/lib/walletUtils';
 import { SendMoneyDialog } from './SendMoneyDialog';
@@ -20,6 +20,7 @@ import { WalletStatement } from './WalletStatement';
 import { MyReferralsCount } from './MyReferralsCount';
 
 import { RecentAutoCharges } from './RecentAutoCharges';
+import { PendingMovesStrip } from './PendingMovesStrip';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
@@ -136,6 +137,12 @@ export function WalletCard() {
                   className="text-3xl sm:text-2xl font-bold tracking-tight block"
                 />
               </div>
+              {/* Zero-fees assurance — Welile wallet never deducts withdrawal
+                  or deposit fees. Tiny pill so it doesn't fight the balance. */}
+              <div className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full bg-primary-foreground/15 border border-primary-foreground/25 text-[10px] font-semibold tracking-wide">
+                <BadgeCheck className="h-3 w-3" />
+                Zero fees
+              </div>
               {/* Sync status - subtle, non-intrusive */}
               <p className="text-[10px] opacity-60 mt-0.5">
                 {isOfflineData ? '📴 Offline • ' : ''}
@@ -181,6 +188,9 @@ export function WalletCard() {
         </div>
         
         <CardContent className="p-3.5 sm:p-4 space-y-3.5">
+          {/* Realtime in-flight deposits/withdrawals — auto-hidden when empty. */}
+          <PendingMovesStrip />
+
           {/* Action buttons - Large touch targets */}
           <div className="grid grid-cols-4 gap-2">
             <Button 
