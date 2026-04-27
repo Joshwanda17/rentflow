@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,6 +13,7 @@ import {
   ClipboardPaste,
   Wand2,
   Sparkles,
+  Zap,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -37,6 +38,10 @@ import type { TenantAllocation } from './OperationalFloatTenantAllocator';
 
 const MAX_DAYS = 7;
 const PLACEHOLDER_TIDS = new Set(['', 'NONE', 'N/A', 'NA', 'PENDING', 'TBD', 'UNKNOWN']);
+/** Debounce window for auto-search after the agent stops typing/pasting. */
+const AUTO_SEARCH_MS = 500;
+/** Minimum chars before we'll auto-fire a search. */
+const MIN_REF_LEN = 6;
 
 export interface MatchResult {
   /** When set, DepositFlow should reopen in edit mode against this deposit. */
@@ -91,6 +96,11 @@ function detectProvider(ref: string): 'mtn' | 'airtel' | 'bank' | undefined {
   if (/^TID\d{4,18}$/.test(u)) return 'airtel';
   if (/^FT[A-Z0-9]{6,18}$/.test(u)) return 'bank';
   return undefined;
+}
+
+/** A reference looks "well-formed" if it parses as a known provider pattern. */
+function looksWellFormed(ref: string): boolean {
+  return !!detectProvider(ref);
 }
 
 export default function DepositReferenceMatcher({
