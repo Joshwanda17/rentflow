@@ -26,12 +26,18 @@ import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { SkeletonWallet } from '@/components/ui/skeleton';
 import { fetchPendingCounts, invalidatePendingCountsCache } from '@/lib/pendingCountsCache';
+import { useAvailableBalance } from '@/hooks/useAvailableBalance';
 
 export function WalletCard() {
   const navigate = useNavigate();
   const { wallet, transactions, loading, isOfflineData, lastSyncedAt, refreshWallet, refreshTransactions } = useWallet();
   const { user } = useAuth();
   const { profile } = useProfile();
+  // Truthy "available" = LEAST(cached wallet balance, ledger net). This
+  // mirrors what wallet-deduction enforces server-side, so the user only
+  // ever sees a figure they can actually move. Avoids the confusing
+  // "Insufficient ledger balance" error after a withdraw attempt.
+  const { available, refresh: refreshAvailable } = useAvailableBalance(user?.id);
   const [sendOpen, setSendOpen] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
@@ -59,11 +65,15 @@ export function WalletCard() {
       fetchPendingCount();
       refreshWallet();
       refreshTransactions();
+      void refreshAvailable();
     }
   };
 
-  // Show cached balance immediately — never show skeleton if we have cached data
-  const balance = wallet?.balance || 0;
+  // Headline number is `available` (ledger-bounded). The cached wallet
+  // figure is intentionally hidden — surfacing it confuses users when
+  // it sits above their true ledger position. We still wait for the
+  // wallet row to load before showing 0 to avoid a flash.
+  const balance = wallet ? (available || 0) : 0;
   const dotColor = getBalanceDotClass(balance);
 
   if (loading && !wallet) {
@@ -84,7 +94,7 @@ export function WalletCard() {
   );
 
   const handleRefresh = async () => {
-    await Promise.all([refreshWallet(), refreshTransactions(), fetchPendingCount()]);
+    await Promise.all([refreshWallet(), refreshTransactions(), fetchPendingCount(), refreshAvailable()]);
   };
 
   return (
@@ -310,8 +320,8 @@ export function WalletCard() {
       <WithdrawRequestDialog 
         open={withdrawOpen} 
         onOpenChange={setWithdrawOpen} 
-        walletBalance={wallet?.balance || 0}
-        onSuccess={refreshWallet}
+        walletBalance={balance}
+        onSuccess={() => { refreshWallet(); void refreshAvailable(); }}
       />
       <TransactionReceipt 
         open={receiptOpen} 
