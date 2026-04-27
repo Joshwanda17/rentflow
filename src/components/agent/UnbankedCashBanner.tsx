@@ -4,6 +4,7 @@ import {
   Banknote, AlertTriangle, ChevronRight, ShieldAlert,
   ChevronDown, Clock, FileText, User as UserIcon,
   Camera, Loader2, CheckCircle2, X, Upload, Pencil, Check,
+  Layers, CircleDashed,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import {
@@ -62,6 +63,7 @@ export function UnbankedCashBanner() {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [proofForBatch, setProofForBatch] = useState<FieldDepositBatch | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!user?.id) return;
@@ -307,11 +309,24 @@ export function UnbankedCashBanner() {
             {/* Group B: awaiting proof — grouped by batch */}
             {awaitingBatches.length > 0 && (
               <div>
-                <div className="px-4 pt-2.5 pb-1 flex items-center gap-1.5">
-                  <AlertTriangle className="h-3 w-3 text-destructive" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-destructive">
-                    Deposit batches · {awaitingBatches.length}
-                  </span>
+                <div className="px-4 pt-2.5 pb-1 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <AlertTriangle className="h-3 w-3 text-destructive shrink-0" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-destructive truncate">
+                      Deposit batches · {awaitingBatches.length}
+                    </span>
+                  </div>
+                  {stillAwaiting.length >= 2 && (
+                    <button
+                      type="button"
+                      onClick={() => { hapticTap(); setBulkOpen(true); }}
+                      className="inline-flex items-center gap-1 rounded-full bg-destructive text-destructive-foreground px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider hover:bg-destructive/90 transition-colors shrink-0"
+                      title="Submit one proof for several awaiting batches at once"
+                    >
+                      <Layers className="h-3 w-3" />
+                      Bulk submit ({stillAwaiting.length})
+                    </button>
+                  )}
                 </div>
                 <ul className="divide-y divide-border/40">
                   {awaitingBatches.map((b) => (
@@ -343,6 +358,13 @@ export function UnbankedCashBanner() {
             }
           }}
           attachProofTo={proofForBatch}
+        />
+      )}
+      {bulkOpen && (
+        <BulkProofDialog
+          batches={stillAwaiting}
+          onClose={() => setBulkOpen(false)}
+          onDone={() => { setBulkOpen(false); refresh(); }}
         />
       )}
     </>
