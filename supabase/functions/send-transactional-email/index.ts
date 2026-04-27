@@ -313,7 +313,9 @@ Deno.serve(async (req) => {
     payload: {
       message_id: messageId,
       to: effectiveRecipient,
-      from: `Welile <info@${FROM_DOMAIN}>`,
+      from: templateName.startsWith('partnership-')
+        ? `Welile Partnerships <partnership@${FROM_DOMAIN}>`
+        : `Welile <info@${FROM_DOMAIN}>`,
       sender_domain: SENDER_DOMAIN,
       subject: resolvedSubject,
       html,
