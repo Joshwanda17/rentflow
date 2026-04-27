@@ -1280,6 +1280,33 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
   }, [mode, selected, perBatchRef]);
   const hasDuplicates = dupBatchIds.size > 0;
 
+  /**
+   * Selected batches in per-batch mode whose reference is empty or shorter
+   * than 4 chars AND that have no shared receipt photo to fall back on.
+   * Used to (a) hard-disable the submit button, (b) light up the offending
+   * rows in red, and (c) show an inline banner explaining what's missing.
+   *
+   * In shared mode, the single shared reference / photo combo is checked
+   * separately by `validateBeforeSubmit` — this memo intentionally returns
+   * an empty set so per-row hints don't fire in that mode.
+   */
+  const missingRefIds = useMemo(() => {
+    if (mode !== 'per_batch') return new Set<string>();
+    if (file) return new Set<string>(); // a shared photo covers any missing ref
+    const out = new Set<string>();
+    for (const id of selected) {
+      const r = (perBatchRef[id] ?? '').trim();
+      if (r.length < 4) out.add(id);
+    }
+    return out;
+  }, [mode, selected, perBatchRef, file]);
+
+  /** Submission is hard-blocked while ANY required reference is missing. */
+  const hasMissingRefs = missingRefIds.size > 0;
+  const sharedModeBlocked =
+    mode === 'shared' && selected.size > 0 && sharedRef.trim().length < 4 && !file;
+  const submitBlocked = selected.size === 0 || hasMissingRefs || sharedModeBlocked;
+
   /** Resolve the reference for a batch given the current mode. */
   const refForBatch = (id: string): string => {
     if (mode === 'shared') return sharedRef.trim();
@@ -1294,13 +1321,10 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
         return 'Enter a shared reference or attach a receipt photo';
       }
     } else {
-      // per_batch: every selected batch needs a reference OR the shared photo
-      const missing = Array.from(selected).filter((id) => {
-        const r = (perBatchRef[id] ?? '').trim();
-        return r.length < 4 && !file;
-      });
-      if (missing.length > 0) {
-        return `Add a reference (or attach a photo) for ${missing.length} batch${missing.length === 1 ? '' : 'es'}`;
+      // per_batch: every selected batch needs a reference OR the shared photo.
+      // Reuse the memoized set so this stays in lock-step with the inline UI.
+      if (missingRefIds.size > 0) {
+        return `Add a reference (or attach a photo) for ${missingRefIds.size} batch${missingRefIds.size === 1 ? '' : 'es'}`;
       }
     }
     return null;
@@ -1578,6 +1602,10 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
                         const isValidShape = hasInput && hint.pattern.test(trimmed);
                         const isTooShort = hasInput && trimmed.length < 4;
                         const isDuplicate = dupBatchIds.has(b.id);
+                        // Hard-blocked when ref is unusable (empty / <4 chars)
+                        // AND no shared photo can cover it. Wins over duplicate
+                        // styling because it's a stricter blocker.
+                        const isMissingRequired = missingRefIds.has(b.id);
                         return (
                           <div className="px-3 pb-2 -mt-1 space-y-1">
                             <div className="flex items-center justify-between gap-2">
@@ -1606,44 +1634,52 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
                               placeholder={hint.placeholder}
                               className={cn(
                                 'w-full h-9 px-3 rounded-md border bg-background text-xs font-mono focus:outline-none focus:ring-2 focus:ring-primary transition-colors',
-                                isDuplicate && 'border-destructive/70 ring-1 ring-destructive/30',
-                                !isDuplicate && hasInput && isValidShape && 'border-success/60',
-                                !isDuplicate && hasInput && !isValidShape && !isTooShort && 'border-warning/60',
-                                !isDuplicate && !hasInput && 'border-border',
+                                isMissingRequired && 'border-destructive/70 ring-1 ring-destructive/40',
+                                !isMissingRequired && isDuplicate && 'border-destructive/70 ring-1 ring-destructive/30',
+                                !isMissingRequired && !isDuplicate && hasInput && isValidShape && 'border-success/60',
+                                !isMissingRequired && !isDuplicate && hasInput && !isValidShape && !isTooShort && 'border-warning/60',
+                                !isMissingRequired && !isDuplicate && !hasInput && 'border-border',
                               )}
                               disabled={submitting}
                               inputMode="text"
                               autoComplete="off"
                               spellCheck={false}
                               aria-describedby={`bulk-ref-hint-${b.id}`}
-                              aria-invalid={isDuplicate || undefined}
+                              aria-invalid={isMissingRequired || isDuplicate || undefined}
+                              aria-required={isMissingRequired || undefined}
                             />
                             <div
                               id={`bulk-ref-hint-${b.id}`}
                               className="text-[10px] leading-snug"
                             >
-                              {isDuplicate && (
+                              {isMissingRequired && (
+                                <span className="text-destructive inline-flex items-center gap-1 font-semibold">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  Reference required — add one or attach a shared receipt photo below.
+                                </span>
+                              )}
+                              {!isMissingRequired && isDuplicate && (
                                 <span className="text-destructive inline-flex items-center gap-1 font-semibold">
                                   <AlertTriangle className="h-3 w-3" />
                                   Same reference used on another selected batch — each deposit needs its own.
                                 </span>
                               )}
-                              {!isDuplicate && !hasInput && (
+                              {!isMissingRequired && !isDuplicate && !hasInput && (
                                 <span className="text-muted-foreground">{hint.help}</span>
                               )}
-                              {!isDuplicate && hasInput && isTooShort && (
+                              {!isMissingRequired && !isDuplicate && hasInput && isTooShort && (
                                 <span className="text-muted-foreground inline-flex items-center gap-1">
                                   <AlertTriangle className="h-3 w-3 text-warning" />
                                   Too short — most {channelLabel(b.channel)} references are 8+ chars.
                                 </span>
                               )}
-                              {!isDuplicate && hasInput && !isTooShort && isValidShape && (
+                              {!isMissingRequired && !isDuplicate && hasInput && !isTooShort && isValidShape && (
                                 <span className="text-success inline-flex items-center gap-1 font-medium">
                                   <CheckCircle2 className="h-3 w-3" />
                                   Looks like a valid {channelLabel(b.channel)} reference.
                                 </span>
                               )}
-                              {!isDuplicate && hasInput && !isTooShort && !isValidShape && (
+                              {!isMissingRequired && !isDuplicate && hasInput && !isTooShort && !isValidShape && (
                                 <span className="text-warning inline-flex items-center gap-1">
                                   <AlertTriangle className="h-3 w-3" />
                                   Format unusual — expected like{' '}
@@ -1689,6 +1725,20 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
                 <p className="text-[10px] text-muted-foreground leading-snug">
                   Enter the transaction ID / reference next to each selected batch above. Leave a row blank only if you'll cover it with the shared receipt photo below.
                 </p>
+                {hasMissingRefs && (
+                  <div
+                    className="flex items-start gap-2 rounded-lg border border-destructive/50 bg-destructive/10 px-2.5 py-2"
+                    role="alert"
+                  >
+                    <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
+                    <div className="text-[11px] text-destructive leading-snug">
+                      <span className="font-bold">
+                        {missingRefIds.size} batch{missingRefIds.size === 1 ? '' : 'es'} missing a reference
+                      </span>{' '}
+                      · Add a transaction ID for each, or attach a shared receipt photo below to cover them all.
+                    </div>
+                  </div>
+                )}
                 {hasDuplicates && (
                   <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-2.5 py-2">
                     <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
@@ -1783,7 +1833,14 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
               </button>
               <button
                 type="submit"
-                disabled={submitting || selected.size === 0}
+                disabled={submitting || submitBlocked}
+                title={
+                  hasMissingRefs
+                    ? `${missingRefIds.size} batch${missingRefIds.size === 1 ? '' : 'es'} missing a reference`
+                    : sharedModeBlocked
+                      ? 'Enter a shared reference or attach a receipt photo'
+                      : undefined
+                }
                 className="flex-1 h-10 rounded-lg bg-destructive text-destructive-foreground text-xs font-bold uppercase tracking-wider hover:bg-destructive/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
               >
                 {submitting ? (
