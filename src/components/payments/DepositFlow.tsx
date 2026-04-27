@@ -656,28 +656,50 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             {/* ─── Reference / TID / Receipt ─── */}
             {channel !== 'agent_cash' && channel !== 'cash' ? (
               <div className="space-y-1.5">
-                <Label className="text-xs flex items-center gap-1.5">
-                  <Hash className="h-3.5 w-3.5" />
-                  {channel === 'bank' ? 'Bank Reference Number' : 'Transaction ID'} <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  type="text"
-                  inputMode="text"
-                  placeholder={
-                    channel === 'bank'
-                      ? 'e.g. FT24123456789'
-                      : momoProvider === 'mtn'
-                        ? 'e.g. MP39665905645'
-                        : 'e.g. TID144205097399'
-                  }
-                  value={transactionId}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setTransactionId(val);
-                    if (channel === 'momo') validateTid(val);
-                  }}
-                  className={`font-mono text-sm ${channel === 'momo' && tidError ? 'border-destructive focus:ring-destructive' : channel === 'momo' && transactionId.trim() && !tidError ? 'border-emerald-500 focus:ring-emerald-500' : ''}`}
-                />
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-xs flex items-center gap-1.5">
+                    <Hash className="h-3.5 w-3.5" />
+                    {channel === 'bank' ? 'Bank Reference Number' : 'Transaction ID'} <span className="text-destructive">*</span>
+                  </Label>
+                  <button
+                    type="button"
+                    onClick={handlePasteTid}
+                    className="text-[10px] font-semibold text-primary inline-flex items-center gap-1 hover:underline underline-offset-2"
+                  >
+                    <ClipboardPaste className="h-3 w-3" />
+                    Paste from SMS
+                  </button>
+                </div>
+                <div className="relative">
+                  <Input
+                    type="text"
+                    inputMode="text"
+                    placeholder={
+                      channel === 'bank'
+                        ? 'e.g. FT24123456789'
+                        : momoProvider === 'mtn'
+                          ? 'e.g. MP39665905645'
+                          : 'e.g. TID144205097399'
+                    }
+                    value={transactionId}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setTransactionId(val);
+                      if (channel === 'momo') validateTid(val);
+                    }}
+                    className={`font-mono text-sm pr-9 ${channel === 'momo' && tidError ? 'border-destructive focus:ring-destructive' : channel === 'momo' && transactionId.trim() && !tidError ? 'border-emerald-500 focus:ring-emerald-500' : ''}`}
+                  />
+                  {transactionId.trim() && (
+                    <button
+                      type="button"
+                      aria-label="Copy transaction ID"
+                      onClick={() => copyValue(transactionId.trim().toUpperCase(), 'TID')}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
                 {channel === 'momo' && tidError && (
                   <p className="text-[10px] text-destructive flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" /> {tidError}
@@ -691,7 +713,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 <p className="text-[10px] text-muted-foreground">
                   {channel === 'bank'
                     ? 'Find this on your bank receipt or transfer confirmation'
-                    : 'Enter the exact TID from your payment confirmation SMS'}
+                    : 'Enter the exact TID from your payment confirmation SMS — or tap "Paste from SMS" above'}
                 </p>
               </div>
             ) : (
