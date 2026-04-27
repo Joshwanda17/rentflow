@@ -468,6 +468,11 @@ export function encodeAllocationsNote(
       n: a.tenant_name,
       p: a.tenant_phone || null,
       a: a.amount,
+      // Carry the rent snapshot + override decision so a) edit-mode
+      // re-hydration doesn't re-warn on already-confirmed rows, and
+      // b) Financial Ops can audit "agent confirmed over-rent".
+      r: a.monthly_rent ?? null,
+      o: a.override_headroom ? 1 : 0,
     })),
   );
   const tail = `${ALLOCATIONS_PREFIX}${payload}`;
@@ -492,6 +497,8 @@ export function decodeAllocationsFromNote(note: string | null | undefined): {
         tenant_name: String(row?.n ?? 'Unknown tenant'),
         tenant_phone: row?.p ?? null,
         amount: Number(row?.a ?? 0),
+        monthly_rent: row?.r != null ? Number(row.r) : null,
+        override_headroom: row?.o === 1 || row?.o === true,
       }))
       .filter((a) => a.tenant_id);
     return { cleanNote: head, allocations: allocations.length ? allocations : null };
