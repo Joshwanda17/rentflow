@@ -170,18 +170,16 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
       toast.error(error?.message || 'Failed to submit payment confirmation', {
         description: [error?.code && `Code: ${error.code}`, error?.hint && `Hint: ${error.hint}`, error?.details && `Details: ${error.details}`]
           .filter(Boolean).join(' • ') || undefined,
+        duration: 12000,
       });
-          duration: 12000,
-        });
-        setErrorDetails({
-          title: 'Submission failed',
-          message: error?.message || 'Unknown error occurred while submitting deposit.',
-          code: error?.code,
-          hint: error?.hint,
-          details: error?.details,
-          raw: rawDump,
-        });
-      }
+      setErrorDetails({
+        title: 'Submission failed',
+        message: error?.message || 'Unknown error occurred while submitting deposit.',
+        code: error?.code,
+        hint: error?.hint,
+        details: error?.details,
+        raw: rawDump,
+      });
     } finally {
       setIsSubmitting(false);
     }
