@@ -599,7 +599,17 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   ].map(([label, value]) => (
                     <div key={label} className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-0.5 sm:gap-2">
                       <span className="text-muted-foreground shrink-0">{label}</span>
-                      <span className="font-mono font-semibold sm:text-right break-all">{value}</span>
+                      <div className="flex items-center gap-1.5 min-w-0 sm:justify-end">
+                        <span className="font-mono font-semibold sm:text-right break-all">{value}</span>
+                        <button
+                          type="button"
+                          aria-label={`Copy ${label}`}
+                          onClick={() => copyValue(String(value), label)}
+                          className="p-1 rounded hover:bg-blue-500/10 text-muted-foreground hover:text-blue-600 transition-colors shrink-0"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
