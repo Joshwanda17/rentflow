@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { RentPipelineQueue } from './RentPipelineQueue';
 import { AdvanceRequestsQueue } from '@/components/ops/AdvanceRequestsQueue';
@@ -206,6 +206,7 @@ export function LandlordOpsDashboard() {
   const [landlordPage, setLandlordPage] = useState(1);
   const [landlordCategory, setLandlordCategory] = useState('all');
   const [verifying, setVerifying] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   // Optimistically removed from the verification queue (until refetch confirms or rollback restores).
   const [optimisticallyVerifiedIds, setOptimisticallyVerifiedIds] = useState<Set<string>>(new Set());
   const [previewImages, setPreviewImages] = useState<{ images: string[]; title: string } | null>(null);
@@ -434,7 +435,12 @@ export function LandlordOpsDashboard() {
   const rows = listings || [];
   const landlordsList = allLandlords || [];
   const noLandlordList = noLandlordTenants || [];
-  const unverifiedListings = rows.filter(l => !l.verified && !optimisticallyVerifiedIds.has(l.id));
+  const unverifiedListings = rows.filter(l =>
+    !l.verified
+    && l.status !== 'rejected'
+    && l.status !== 'delisted'
+    && !optimisticallyVerifiedIds.has(l.id)
+  );
   const verifiedListings = rows.filter(l => l.verified);
   const withImages = rows.filter(l => l.image_urls && l.image_urls.length > 0);
   const withGPS = rows.filter(l => l.latitude && l.longitude);
@@ -633,6 +639,17 @@ export function LandlordOpsDashboard() {
         console.error('[handleVerifyListing] Data error:', data.error);
         throw new Error(data.error);
       }
+      // Permanently remove from the pending list by patching the cache directly,
+      // then trigger a background refetch to reconcile related fields.
+      queryClient.setQueryData<any[]>(['exec-house-listings-ops'], (old) => {
+        if (!Array.isArray(old)) return old;
+        return old.map(l => l.id === listing.id ? { ...l, verified: true, listing_bonus_paid: true } : l);
+      });
+      setOptimisticallyVerifiedIds(prev => {
+        const next = new Set(prev);
+        next.delete(listing.id);
+        return next;
+      });
       refetch();
     } catch (err: any) {
       // Roll back optimistic removal so the operator can retry.
@@ -844,7 +861,7 @@ export function LandlordOpsDashboard() {
         previewImages={previewImages} setPreviewImages={setPreviewImages}
         adjustListing={adjustListing} setAdjustListing={setAdjustListing}
         actionDialog={actionDialog} setActionDialog={setActionDialog}
-        user={user} refetchAll={refetchAll}
+        user={user} refetchAll={refetchAll} queryClient={queryClient}
       />
       </>
     );
@@ -960,7 +977,7 @@ export function LandlordOpsDashboard() {
         previewImages={previewImages} setPreviewImages={setPreviewImages}
         adjustListing={adjustListing} setAdjustListing={setAdjustListing}
         actionDialog={actionDialog} setActionDialog={setActionDialog}
-        user={user} refetchAll={refetchAll}
+        user={user} refetchAll={refetchAll} queryClient={queryClient}
       />
       </>
     );
@@ -1466,14 +1483,14 @@ export function LandlordOpsDashboard() {
         previewImages={previewImages} setPreviewImages={setPreviewImages}
         adjustListing={adjustListing} setAdjustListing={setAdjustListing}
         actionDialog={actionDialog} setActionDialog={setActionDialog}
-        user={user} refetchAll={refetchAll}
+        user={user} refetchAll={refetchAll} queryClient={queryClient}
       />
     </div>
   );
 }
 
 // ─── Shared Dialogs Component ───
-function LandlordDialogs({ editLandlord, setEditLandlord, editLC1, setEditLC1, assignPerson, setAssignPerson, deleteLandlord, setDeleteLandlord, deleteReason, setDeleteReason, deleting, setDeleting, previewImages, setPreviewImages, adjustListing, setAdjustListing, actionDialog, setActionDialog, user, refetchAll }: any) {
+function LandlordDialogs({ editLandlord, setEditLandlord, editLC1, setEditLC1, assignPerson, setAssignPerson, deleteLandlord, setDeleteLandlord, deleteReason, setDeleteReason, deleting, setDeleting, previewImages, setPreviewImages, adjustListing, setAdjustListing, actionDialog, setActionDialog, user, refetchAll, queryClient }: any) {
   const { toast } = useToast();
   return (
     <>
@@ -1491,7 +1508,19 @@ function LandlordDialogs({ editLandlord, setEditLandlord, editLC1, setEditLC1, a
           listingTitle={actionDialog.listing.title}
           actionType={actionDialog.type}
           userId={user?.id || ''}
-          onComplete={refetchAll}
+          onComplete={() => {
+            // Instantly remove the listing from the pending list by patching the
+            // React Query cache. The full refetch below reconciles related fields.
+            const targetId = actionDialog.listing.id;
+            const action = actionDialog.type;
+            queryClient?.setQueryData?.(['exec-house-listings-ops'], (old: any) => {
+              if (!Array.isArray(old)) return old;
+              if (action === 'delete') return old.filter((l: any) => l.id !== targetId);
+              const newStatus = action === 'reject' ? 'rejected' : 'delisted';
+              return old.map((l: any) => l.id === targetId ? { ...l, status: newStatus } : l);
+            });
+            refetchAll();
+          }}
         />
       )}
       <EditLandlordDialog
