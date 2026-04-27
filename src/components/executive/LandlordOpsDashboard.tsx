@@ -434,7 +434,7 @@ export function LandlordOpsDashboard() {
   const rows = listings || [];
   const landlordsList = allLandlords || [];
   const noLandlordList = noLandlordTenants || [];
-  const unverifiedListings = rows.filter(l => !l.verified);
+  const unverifiedListings = rows.filter(l => !l.verified && !optimisticallyVerifiedIds.has(l.id));
   const verifiedListings = rows.filter(l => l.verified);
   const withImages = rows.filter(l => l.image_urls && l.image_urls.length > 0);
   const withGPS = rows.filter(l => l.latitude && l.longitude);
