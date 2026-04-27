@@ -889,6 +889,30 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     }
   }
 
+  /* ─── Cancel Pending (Parked) Top-Ups & Refund Wallet ─── */
+  async function handleCancelPendingTopUps() {
+    if (!cancelDialogPortfolioId || cancelReason.trim().length < 10) return;
+    setCancellingTopUp(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('cancel-pending-topups', {
+        body: { portfolio_id: cancelDialogPortfolioId, reason: cancelReason.trim() },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Cancelled ${formatUGX(data.total_cancelled)} pending principal`, {
+        description: `${data.ops_count} top-up(s) refunded to partner wallet.`,
+      });
+      setCancelDialogPortfolioId(null);
+      setCancelReason('');
+      if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
+      refreshInBackground();
+    } catch (e: any) {
+      toast.error('Failed to cancel top-ups', { description: e.message });
+    } finally {
+      setCancellingTopUp(false);
+    }
+  }
+
   /* ─── Save portfolio account name ─── */
   async function handleSavePortfolioName(portfolioId: string) {
     const trimmed = editingNameValue.trim();
