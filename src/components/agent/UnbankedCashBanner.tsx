@@ -1634,44 +1634,52 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
                               placeholder={hint.placeholder}
                               className={cn(
                                 'w-full h-9 px-3 rounded-md border bg-background text-xs font-mono focus:outline-none focus:ring-2 focus:ring-primary transition-colors',
-                                isDuplicate && 'border-destructive/70 ring-1 ring-destructive/30',
-                                !isDuplicate && hasInput && isValidShape && 'border-success/60',
-                                !isDuplicate && hasInput && !isValidShape && !isTooShort && 'border-warning/60',
-                                !isDuplicate && !hasInput && 'border-border',
+                                isMissingRequired && 'border-destructive/70 ring-1 ring-destructive/40',
+                                !isMissingRequired && isDuplicate && 'border-destructive/70 ring-1 ring-destructive/30',
+                                !isMissingRequired && !isDuplicate && hasInput && isValidShape && 'border-success/60',
+                                !isMissingRequired && !isDuplicate && hasInput && !isValidShape && !isTooShort && 'border-warning/60',
+                                !isMissingRequired && !isDuplicate && !hasInput && 'border-border',
                               )}
                               disabled={submitting}
                               inputMode="text"
                               autoComplete="off"
                               spellCheck={false}
                               aria-describedby={`bulk-ref-hint-${b.id}`}
-                              aria-invalid={isDuplicate || undefined}
+                              aria-invalid={isMissingRequired || isDuplicate || undefined}
+                              aria-required={isMissingRequired || undefined}
                             />
                             <div
                               id={`bulk-ref-hint-${b.id}`}
                               className="text-[10px] leading-snug"
                             >
-                              {isDuplicate && (
+                              {isMissingRequired && (
+                                <span className="text-destructive inline-flex items-center gap-1 font-semibold">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  Reference required — add one or attach a shared receipt photo below.
+                                </span>
+                              )}
+                              {!isMissingRequired && isDuplicate && (
                                 <span className="text-destructive inline-flex items-center gap-1 font-semibold">
                                   <AlertTriangle className="h-3 w-3" />
                                   Same reference used on another selected batch — each deposit needs its own.
                                 </span>
                               )}
-                              {!isDuplicate && !hasInput && (
+                              {!isMissingRequired && !isDuplicate && !hasInput && (
                                 <span className="text-muted-foreground">{hint.help}</span>
                               )}
-                              {!isDuplicate && hasInput && isTooShort && (
+                              {!isMissingRequired && !isDuplicate && hasInput && isTooShort && (
                                 <span className="text-muted-foreground inline-flex items-center gap-1">
                                   <AlertTriangle className="h-3 w-3 text-warning" />
                                   Too short — most {channelLabel(b.channel)} references are 8+ chars.
                                 </span>
                               )}
-                              {!isDuplicate && hasInput && !isTooShort && isValidShape && (
+                              {!isMissingRequired && !isDuplicate && hasInput && !isTooShort && isValidShape && (
                                 <span className="text-success inline-flex items-center gap-1 font-medium">
                                   <CheckCircle2 className="h-3 w-3" />
                                   Looks like a valid {channelLabel(b.channel)} reference.
                                 </span>
                               )}
-                              {!isDuplicate && hasInput && !isTooShort && !isValidShape && (
+                              {!isMissingRequired && !isDuplicate && hasInput && !isTooShort && !isValidShape && (
                                 <span className="text-warning inline-flex items-center gap-1">
                                   <AlertTriangle className="h-3 w-3" />
                                   Format unusual — expected like{' '}
