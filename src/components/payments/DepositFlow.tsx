@@ -1320,6 +1320,21 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                         // the dialog into edit mode for that row. The
                         // hydrator effect will repopulate every field.
                         if (m.editDepositId) {
+                          // Snapshot the agent's in-progress work + stash
+                          // the match so we can restore + pre-fill if the
+                          // hydrator fails (row gone, already approved,
+                          // network blip, etc.).
+                          preEditSnapshotRef.current = {
+                            allocations: tenantAllocations.map(a => ({ ...a })),
+                            amount,
+                            transactionId,
+                            receiptNumber,
+                          };
+                          pendingMatchFallbackRef.current = {
+                            reference: m.reference,
+                            amount: m.amount,
+                            providerHint: m.providerHint,
+                          };
                           if (m.reference) setTransactionId(m.reference);
                           if (m.providerHint === 'mtn' || m.providerHint === 'airtel') {
                             setChannel('momo');
