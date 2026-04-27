@@ -562,6 +562,73 @@ export default function OperationalFloatTenantAllocator({
             </Button>
           </div>
         )}
+        {/* Preview: shows exactly what each tenant will receive after the
+            agent taps "Auto-allocate remaining", and confirms the projected
+            total lands on the deposit amount. Hidden when there's nothing
+            to distribute or the form isn't already showing the buttons. */}
+        {autoAllocatePreview && !isBalanced && !isOverAllocated && (
+          <div className="mt-1 rounded-md border border-primary/20 bg-primary/5 p-2 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-semibold text-primary uppercase tracking-wide">
+                Auto-allocate preview
+              </p>
+              <span className="text-[9px] text-muted-foreground">
+                {autoAllocatePreview.strategy === 'rent_weighted'
+                  ? 'weighted by monthly rent'
+                  : 'split equally'}
+              </span>
+            </div>
+            <ul className="space-y-0.5">
+              {autoAllocatePreview.rows.map((r) => (
+                <li
+                  key={r.tenant_id}
+                  className="flex items-center justify-between text-[11px] gap-2"
+                >
+                  <span className="truncate text-foreground/90">{r.tenant_name}</span>
+                  <span className="font-mono tabular-nums whitespace-nowrap">
+                    {r.currentAmount > 0 && (
+                      <span className="text-muted-foreground">
+                        {r.currentAmount.toLocaleString()}
+                        <span className="mx-0.5">+</span>
+                      </span>
+                    )}
+                    <span className="text-primary font-medium">
+                      {r.addAmount.toLocaleString()}
+                    </span>
+                    <span className="text-muted-foreground"> = </span>
+                    <span className="font-semibold text-foreground">
+                      {r.finalAmount.toLocaleString()}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <div
+              className={`flex items-center justify-between text-[11px] pt-1 border-t ${
+                autoAllocatePreview.matchesDeposit
+                  ? 'text-emerald-600 border-emerald-500/30'
+                  : 'text-warning border-warning/30'
+              }`}
+            >
+              <span className="flex items-center gap-1 font-medium">
+                {autoAllocatePreview.matchesDeposit ? (
+                  <>
+                    <CheckCircle2 className="h-3 w-3" />
+                    Matches deposit total
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="h-3 w-3" />
+                    Doesn't match deposit
+                  </>
+                )}
+              </span>
+              <span className="font-mono tabular-nums">
+                UGX {autoAllocatePreview.projectedTotal.toLocaleString()} / {(totalAmount || 0).toLocaleString()}
+              </span>
+            </div>
+          </div>
+        )}
         {headroomBreaches.length > 0 && (
           <div className="flex items-start gap-1.5 rounded-md bg-warning/10 border border-warning/30 px-2 py-1 mt-1">
             <AlertCircle className="h-3 w-3 text-warning shrink-0 mt-0.5" />
