@@ -2038,29 +2038,39 @@ export function TidVerification() {
                 </div>
               )}
               {inFoundState && readyCount >= 2 ? (
-                <Button
-                  size="lg"
-                  className="w-full h-12 text-base font-semibold gap-2"
-                  onClick={handleAutoApproveAll}
-                  disabled={!!approving}
-                >
-                  <CheckCircle2 className="h-5 w-5" />
-                  Approve all ({readyCount})
-                </Button>
-              ) : inFoundState && onlyReady ? (
-                <Button
-                  size="lg"
-                  className="w-full h-12 text-base font-semibold gap-2"
-                  onClick={() => handleAutoApprove(onlyReady)}
-                  disabled={!!approving}
-                >
-                  {approving === onlyReady.id ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
+                <>
+                  <Button
+                    size="lg"
+                    className="w-full h-12 text-base font-semibold gap-2"
+                    onClick={handleAutoApproveAll}
+                    disabled={!!approving}
+                  >
                     <CheckCircle2 className="h-5 w-5" />
-                  )}
-                  Approve {formatUGX(onlyReady.amount)}
-                </Button>
+                    Approve all ({readyCount})
+                  </Button>
+                  <p className="text-[10px] text-center text-muted-foreground mt-1.5">
+                    Stays here for {Math.ceil(UNDO_DELAY_MS / 1000)} seconds in case you tapped the wrong one — tap Undo to cancel.
+                  </p>
+                </>
+              ) : inFoundState && onlyReady ? (
+                <>
+                  <Button
+                    size="lg"
+                    className="w-full h-12 text-base font-semibold gap-2"
+                    onClick={() => handleAutoApprove(onlyReady)}
+                    disabled={!!approving}
+                  >
+                    {approving === onlyReady.id ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="h-5 w-5" />
+                    )}
+                    Approve {formatUGX(onlyReady.amount)} & remove from list
+                  </Button>
+                  <p className="text-[10px] text-center text-muted-foreground mt-1.5">
+                    Stays here for {Math.ceil(UNDO_DELAY_MS / 1000)} seconds in case you tapped the wrong one — tap Undo to cancel.
+                  </p>
+                </>
               ) : (
                 <Button
                   size="lg"
