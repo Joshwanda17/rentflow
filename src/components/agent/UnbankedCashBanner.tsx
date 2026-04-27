@@ -286,73 +286,14 @@ export function UnbankedCashBanner() {
                 </div>
                 <ul className="divide-y divide-border/40">
                   {awaitingBatches.map((b) => {
-                    const batchAge = Math.floor(
-                      (Date.now() - new Date(b.created_at).getTime()) / 3_600_000,
-                    );
-                    return (
-                      <li key={b.id}>
-                        <button
-                          type="button"
-                          onClick={() => { hapticTap(); setProofForBatch(b); }}
-                          className="w-full px-4 py-2.5 text-left hover:bg-accent/40 transition-colors"
-                          style={{ WebkitTapHighlightColor: 'transparent' }}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-lg bg-destructive/15 text-destructive flex items-center justify-center shrink-0">
-                              <FileText className="h-4 w-4" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-semibold truncate">
-                                {channelLabel(b.channel)}
-                              </p>
-                              <p className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
-                                <Clock className="h-2.5 w-2.5" />
-                                {formatDateTime(b.created_at)}
-                                {batchAge > 0 && (
-                                  <>
-                                    <span className="opacity-50">·</span>
-                                    <span className={cn(batchAge >= 24 && 'text-destructive font-semibold')}>
-                                      {batchAge}h old
-                                    </span>
-                                  </>
-                                )}
-                                <span className="opacity-50">·</span>
-                                <span className="font-mono">#{b.id.slice(0, 8)}</span>
-                              </p>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <p className="text-sm font-bold">
-                                {formatUGX(Number(b.declared_total))}
-                              </p>
-                              <p className="text-[9px] uppercase tracking-wider text-destructive font-semibold">
-                                Add proof →
-                              </p>
-                            </div>
-                          </div>
-                          {/* Items inside this batch */}
-                          {b.items.length > 0 && (
-                            <ul className="mt-2 pl-11 space-y-0.5">
-                              {b.items.slice(0, 5).map((it) => (
-                                <li key={it.id} className="flex items-center justify-between gap-2 text-[11px]">
-                                  <span className="truncate text-muted-foreground">
-                                    · {it.tenant_name || 'Walk-up'}
-                                  </span>
-                                  <span className="font-mono shrink-0">
-                                    {formatUGX(it.amount)}
-                                  </span>
-                                </li>
-                              ))}
-                              {b.items.length > 5 && (
-                                <li className="text-[10px] text-muted-foreground italic">
-                                  + {b.items.length - 5} more…
-                                </li>
-                              )}
-                            </ul>
-                          )}
-                        </button>
-                      </li>
-                    );
-                  })}
+                  {awaitingBatches.map((b) => (
+                    <AwaitingBatchRow
+                      key={b.id}
+                      batch={b}
+                      onOpenWizard={() => setProofForBatch(b)}
+                      onProofSubmitted={refresh}
+                    />
+                  ))}
                 </ul>
               </div>
             )}
