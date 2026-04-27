@@ -12,7 +12,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -106,7 +105,7 @@ export function FieldDepositVerifyDialog({ batch, open, onClose, onResolved }: P
 
   return (
     <Dialog open={open} onOpenChange={(o) => (!o && !busy ? onClose() : null)}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden flex flex-col p-0">
         <DialogHeader>
           <DialogTitle>Verify Field Deposit</DialogTitle>
           <DialogDescription>
@@ -114,7 +113,7 @@ export function FieldDepositVerifyDialog({ batch, open, onClose, onResolved }: P
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 -mx-6 px-6">
+        <div className="flex-1 min-h-0 overflow-y-auto px-6">
           <div className="space-y-4">
             {/* Summary */}
             <div className="rounded-lg border bg-muted/30 p-3 space-y-2 text-sm">
@@ -271,9 +270,9 @@ export function FieldDepositVerifyDialog({ batch, open, onClose, onResolved }: P
 
             <FieldDepositAuditTrail batchId={batch.id} />
           </div>
-        </ScrollArea>
+        </div>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2">
+        <DialogFooter className="flex-col sm:flex-row gap-2 px-6 pb-6 pt-4 border-t bg-background">
           <Button
             variant="destructive"
             onClick={handleReject}
