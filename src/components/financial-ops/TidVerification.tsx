@@ -992,13 +992,81 @@ export function TidVerification() {
     exact.forEach(match => handleAutoApprove(match));
   }, [matches, approvedIds, handleAutoApprove]);
 
-  // Cleanup any in-flight undo timers if the component unmounts so we
-  // don't fire approvals against a torn-down React tree.
+  // Keep a ref to the latest `commitApprove` so the unmount /
+  // `beforeunload` flush handlers always see the current closure
+  // (state, user, etc.) rather than a stale one captured on first
+  // mount. Without this, flushing-on-unmount would commit against an
+  // outdated `tid`/`operatorAmount`/`user`.
+  const commitApproveRef = useRef(commitApprove);
+  useEffect(() => {
+    commitApproveRef.current = commitApprove;
+  }, [commitApprove]);
+
+  // On unmount: do NOT silently drop queued approvals. If the operator
+  // approved a row and then closed the dialog before the undo window
+  // elapsed, fire the backend commit anyway. This is the durability
+  // guarantee that fixes "verified deposits don't disappear".
   useEffect(() => {
     const timers = undoTimersRef.current;
+    const countdowns = countdownTimersRef.current;
+    const queued = pendingMatchesRef.current;
     return () => {
+      // Cancel the timers (we're about to fire manually).
       timers.forEach(t => clearTimeout(t));
       timers.clear();
+      countdowns.forEach(c => clearInterval(c));
+      countdowns.clear();
+      // Flush any in-flight approvals — fire-and-forget through the
+      // latest closure so credentials + payload are correct.
+      queued.forEach((match) => {
+        try { void commitApproveRef.current(match); } catch { /* noop */ }
+      });
+      queued.clear();
+    };
+  }, []);
+
+  // If the user closes the tab or navigates away during the undo
+  // window, use sendBeacon to flush queued approvals to the edge
+  // function before the page unloads. This is best-effort — sendBeacon
+  // doesn't surface a response, but it reliably gets the request out
+  // even from a backgrounded mobile tab.
+  useEffect(() => {
+    const handler = () => {
+      const queued = pendingMatchesRef.current;
+      if (queued.size === 0) return;
+      try {
+        const url =
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/approve-deposit`;
+        // Auth — pull the access token from the active session
+        // synchronously via the cached supabase auth storage.
+        // sendBeacon doesn't accept custom headers, so we ship the
+        // token in the body. The edge function's auth check accepts
+        // `access_token` in the body as a fallback for beacons.
+        let accessToken: string | null = null;
+        try {
+          const raw = localStorage.getItem(
+            `sb-${import.meta.env.VITE_SUPABASE_PROJECT_ID}-auth-token`,
+          );
+          if (raw) accessToken = JSON.parse(raw)?.access_token ?? null;
+        } catch { /* ignore */ }
+        queued.forEach((match) => {
+          const blob = new Blob(
+            [JSON.stringify({
+              deposit_request_id: match.id,
+              action: 'approve',
+              access_token: accessToken,
+            })],
+            { type: 'application/json' },
+          );
+          navigator.sendBeacon?.(url, blob);
+        });
+      } catch { /* best-effort */ }
+    };
+    window.addEventListener('beforeunload', handler);
+    window.addEventListener('pagehide', handler);
+    return () => {
+      window.removeEventListener('beforeunload', handler);
+      window.removeEventListener('pagehide', handler);
     };
   }, []);
 
