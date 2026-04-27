@@ -1858,7 +1858,7 @@ export function TidVerification() {
                                   ) : (
                                     <ArrowRight className="h-4 w-4" />
                                   )}
-                                  Approve
+                                  Approve & remove from list
                                 </Button>
                               )}
                               <Button
