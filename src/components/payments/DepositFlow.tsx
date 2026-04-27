@@ -1173,6 +1173,13 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                     <DepositReferenceMatcher
                       agentId={currentUserId}
                       currentAmount={parseFloat(amount) || 0}
+                      highlight={
+                        // Lump-sum path: agent typed an amount but
+                        // hasn't started tagging tenants yet. Make the
+                        // auto-build CTA the obvious next step.
+                        (parseFloat(amount) || 0) > 0 &&
+                        tenantAllocations.length === 0
+                      }
                       onApplyMatch={(m: MatchResult) => {
                         // Path A: matched a pending deposit row → flip
                         // the dialog into edit mode for that row. The
