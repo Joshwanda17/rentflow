@@ -611,23 +611,6 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       const txDateTime = new Date(`${transactionDate}T${transactionTime}`);
       const normalizedRef = getReferenceId();
 
-      // Duplicate check — skip when editing the same row, otherwise the
-      // edited request would always collide with itself on its own TID.
-      const { data: existing } = await supabase
-        .from('deposit_requests')
-        .select('id')
-        .filter('transaction_id', 'eq', normalizedRef);
-      if (
-        existing &&
-        existing.length > 0 &&
-        !(isEditMode && existing.length === 1 && existing[0].id === activeEditId)
-      ) {
-        toast.error('This reference has already been used');
-        setStep('form');
-        setIsSubmitting(false);
-        return;
-      }
-
       // Upload bank slip if provided
       let bankSlipUrl: string | null = null;
       if (channel === 'bank' && bankSlipFile) {
@@ -715,16 +698,9 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       setStep('success');
     } catch (error: any) {
       console.error('Deposit error:', error);
-      // Postgres unique violation — TID already used (possibly by another user, hidden by RLS)
-      if (error?.code === '23505' || /duplicate key|already (been )?(used|submitted)/i.test(error?.message || '')) {
-        toast.error('This transaction reference has already been submitted', {
-          description: 'Each MoMo / bank reference can only be used once. Please double-check the TID on your SMS receipt, or use a different transaction.',
-        });
-      } else {
-        toast.error('Failed to submit deposit', {
-          description: error?.message || 'Please try again or contact support.',
-        });
-      }
+      toast.error('Failed to submit deposit', {
+        description: error?.message || 'Please try again or contact support.',
+      });
       setStep('form');
     } finally {
       setIsSubmitting(false);

@@ -167,33 +167,19 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
       const rawDump = (() => {
         try { return JSON.stringify(error, Object.getOwnPropertyNames(error), 2); } catch { return String(error); }
       })();
-      if (error?.code === '23505' || /duplicate key|already (been )?(used|submitted)|unique/i.test(error?.message || '')) {
-        toast.error('This transaction reference has already been submitted', {
-          description: 'Each MoMo or bank reference can only be used once. Double-check the reference and try again.',
-        });
-        setErrorDetails({
-          title: 'Duplicate transaction reference',
-          message: 'Each MoMo or bank reference can only be used once.',
-          code: error?.code,
-          hint: error?.hint,
-          details: error?.details,
-          raw: rawDump,
-        });
-      } else {
-        toast.error(error?.message || 'Failed to submit payment confirmation', {
-          description: [error?.code && `Code: ${error.code}`, error?.hint && `Hint: ${error.hint}`, error?.details && `Details: ${error.details}`]
-            .filter(Boolean).join(' • ') || undefined,
-          duration: 12000,
-        });
-        setErrorDetails({
-          title: 'Submission failed',
-          message: error?.message || 'Unknown error occurred while submitting deposit.',
-          code: error?.code,
-          hint: error?.hint,
-          details: error?.details,
-          raw: rawDump,
-        });
-      }
+      toast.error(error?.message || 'Failed to submit payment confirmation', {
+        description: [error?.code && `Code: ${error.code}`, error?.hint && `Hint: ${error.hint}`, error?.details && `Details: ${error.details}`]
+          .filter(Boolean).join(' • ') || undefined,
+        duration: 12000,
+      });
+      setErrorDetails({
+        title: 'Submission failed',
+        message: error?.message || 'Unknown error occurred while submitting deposit.',
+        code: error?.code,
+        hint: error?.hint,
+        details: error?.details,
+        raw: rawDump,
+      });
     } finally {
       setIsSubmitting(false);
     }
