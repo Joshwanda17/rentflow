@@ -1166,11 +1166,13 @@ function BulkResultsSummary({
                         No reference recorded
                       </div>
                     )}
-                    {/* Photo flag (only meaningful when one was uploaded) */}
-                    {photoAttached && (
+                    {/* Photo flag — driven by the per-row outcome so per-batch
+                        photo mode shows it ONLY for rows that actually had
+                        a photo attached. */}
+                    {r.photoAttached && (
                       <div className="mt-0.5 text-[10px] text-muted-foreground inline-flex items-center gap-1">
                         <Camera className="h-3 w-3" />
-                        Shared photo attached
+                        Receipt photo attached
                       </div>
                     )}
                     {/* Error / skipped reason */}
