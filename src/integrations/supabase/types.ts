@@ -7261,6 +7261,66 @@ export type Database = {
         }
         Relationships: []
       }
+      operational_float_audit_log: {
+        Row: {
+          action: string
+          changed_at: string
+          changed_by: string | null
+          changed_fields: string[]
+          deposit_request_id: string
+          id: string
+          new_allocations: Json | null
+          new_amount: number | null
+          previous_allocations: Json | null
+          previous_amount: number | null
+          source: string | null
+          transaction_id: string | null
+        }
+        Insert: {
+          action: string
+          changed_at?: string
+          changed_by?: string | null
+          changed_fields?: string[]
+          deposit_request_id: string
+          id?: string
+          new_allocations?: Json | null
+          new_amount?: number | null
+          previous_allocations?: Json | null
+          previous_amount?: number | null
+          source?: string | null
+          transaction_id?: string | null
+        }
+        Update: {
+          action?: string
+          changed_at?: string
+          changed_by?: string | null
+          changed_fields?: string[]
+          deposit_request_id?: string
+          id?: string
+          new_allocations?: Json | null
+          new_amount?: number | null
+          previous_allocations?: Json | null
+          previous_amount?: number | null
+          source?: string | null
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "operational_float_audit_log_deposit_request_id_fkey"
+            columns: ["deposit_request_id"]
+            isOneToOne: false
+            referencedRelation: "agent_misrouted_deposits_preview"
+            referencedColumns: ["deposit_id"]
+          },
+          {
+            foreignKeyName: "operational_float_audit_log_deposit_request_id_fkey"
+            columns: ["deposit_request_id"]
+            isOneToOne: false
+            referencedRelation: "deposit_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       operations_departments: {
         Row: {
           assigned_by: string | null
@@ -12843,6 +12903,10 @@ export type Database = {
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
+      }
+      extract_operational_float_allocations: {
+        Args: { p_notes: string }
+        Returns: Json
       }
       find_duplicate_phones: {
         Args: never
