@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -165,6 +165,84 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   const activeEditId = editRequestId ?? matchedEditId;
   const isEditMode = !!activeEditId;
   const [editLoading, setEditLoading] = useState(false);
+
+  /**
+   * Edit-mode fallback bookkeeping.
+   *
+   * When the Reference Matcher tells us "I found a pending deposit, flip
+   * into edit mode for it", we stash two things:
+   *
+   *   • `pendingMatchFallbackRef` — the ref / amount / provider hint that
+   *     should be applied IF the hydrator can't actually open the row
+   *     (deleted, already approved, network blip, RLS).
+   *   • `preEditSnapshotRef` — the agent's in-progress allocations,
+   *     amount and TID, captured at the instant we requested the flip.
+   *     If the flip fails we restore this so the agent doesn't lose
+   *     their work — we just pre-fill the reference and amount on top
+   *     of what they already had.
+   */
+  const pendingMatchFallbackRef = useRef<{
+    reference: string;
+    amount: number;
+    providerHint?: 'mtn' | 'airtel' | 'bank';
+  } | null>(null);
+  const preEditSnapshotRef = useRef<{
+    allocations: typeof tenantAllocations;
+    amount: string;
+    transactionId: string;
+    receiptNumber: string;
+  } | null>(null);
+
+  /**
+   * Restore the agent's in-progress state and pre-fill ref + amount from
+   * the stashed match. Used when edit-mode hydration fails for any
+   * reason. Idempotent — safe to call once per failed flip.
+   */
+  const applyMatchFallback = (failureReason: string) => {
+    const fallback = pendingMatchFallbackRef.current;
+    const snapshot = preEditSnapshotRef.current;
+    pendingMatchFallbackRef.current = null;
+    preEditSnapshotRef.current = null;
+    if (!fallback) return false;
+
+    // Drop edit mode so the form treats this as a fresh deposit again.
+    setMatchedEditId(null);
+
+    // Restore the agent's previous allocations + entered amount/ref.
+    if (snapshot) {
+      setTenantAllocations(snapshot.allocations);
+      if (snapshot.amount) setAmount(snapshot.amount);
+      if (snapshot.transactionId) setTransactionId(snapshot.transactionId);
+      if (snapshot.receiptNumber) setReceiptNumber(snapshot.receiptNumber);
+    }
+
+    // Pre-fill amount only if the agent hadn't typed one — never clobber
+    // a number they already entered.
+    const hadAmount = !!(snapshot?.amount && parseFloat(snapshot.amount) > 0);
+    if (!hadAmount && fallback.amount > 0) {
+      setAmount(String(fallback.amount));
+    }
+
+    // Pre-fill the reference into the right field for the active channel.
+    if (fallback.providerHint === 'mtn' || fallback.providerHint === 'airtel') {
+      setChannel('momo');
+      setMomoProvider(fallback.providerHint);
+      setTransactionId(fallback.reference);
+    } else if (fallback.providerHint === 'bank') {
+      setChannel('bank');
+      setTransactionId(fallback.reference);
+    } else {
+      // Unknown provider — leave channel as-is and put the ref in the
+      // currently-active field so the agent sees it.
+      setTransactionId(fallback.reference);
+    }
+
+    toast.message('Kept your current allocations', {
+      description: `${failureReason} — pre-filled the reference (${fallback.reference})${fallback.amount > 0 && !hadAmount ? ` and amount (${fallback.amount.toLocaleString()})` : ''} so you can continue.`,
+      duration: 6000,
+    });
+    return true;
+  };
 
   /**
    * Generate / clean up a preview blob URL whenever the slip file changes.
