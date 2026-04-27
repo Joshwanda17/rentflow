@@ -1656,6 +1656,7 @@ export function TidVerification() {
                   <SelectItem value="mtn">MTN</SelectItem>
                   <SelectItem value="airtel">Airtel</SelectItem>
                   <SelectItem value="bank_transfer">Bank</SelectItem>
+                  <SelectItem value="agent_cash">Agent Cash</SelectItem>
                   <SelectItem value="agent_cash">Cash/Rcpt</SelectItem>
                 </SelectContent>
               </Select>
