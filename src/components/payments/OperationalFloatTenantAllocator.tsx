@@ -16,6 +16,20 @@ export interface TenantAllocation {
   tenant_name: string;
   tenant_phone?: string | null;
   amount: number;
+  /**
+   * Tenant's monthly rent at the time of allocation (UGX). Used purely
+   * client-side to warn agents who allocate more than one month's rent
+   * to a single tenant in a single deposit. Optional — may be missing
+   * for legacy tenants whose profile has no `monthly_rent` set.
+   */
+  monthly_rent?: number | null;
+  /**
+   * Per-row acknowledgement that the agent intentionally allocated more
+   * than the tenant's monthly rent. Set when they confirm the override
+   * dialog. Persisted in the encoded notes payload so Financial Ops can
+   * see the agent explicitly said "yes, this exceeds rent".
+   */
+  override_headroom?: boolean;
 }
 
 interface Props {
@@ -156,6 +170,7 @@ export default function OperationalFloatTenantAllocator({
         tenant_name: t.full_name,
         tenant_phone: t.phone || null,
         amount: suggest > 0 ? suggest : 0,
+        monthly_rent: t.monthly_rent ?? null,
       },
     ]);
     setSearch('');
@@ -166,7 +181,13 @@ export default function OperationalFloatTenantAllocator({
     onChange(
       allocations.map((a) =>
         a.tenant_id === tenantId
-          ? { ...a, amount: Number.isFinite(num) && num >= 0 ? num : 0 }
+          ? {
+              ...a,
+              amount: Number.isFinite(num) && num >= 0 ? num : 0,
+              // Any edit invalidates a previous override — the agent
+              // must reconfirm if they push back over headroom.
+              override_headroom: false,
+            }
           : a,
       ),
     );
@@ -182,9 +203,46 @@ export default function OperationalFloatTenantAllocator({
     // for an agent who's reconciling "what's left".
     const next = [...allocations];
     const last = next[next.length - 1];
-    next[next.length - 1] = { ...last, amount: Math.max(0, last.amount + remaining) };
+    next[next.length - 1] = {
+      ...last,
+      amount: Math.max(0, last.amount + remaining),
+      override_headroom: false,
+    };
     onChange(next);
   };
+
+  /**
+   * Per-row headroom check. We only flag rows where:
+   *   - we actually know the tenant's monthly rent ( > 0 ), AND
+   *   - the allocated amount strictly exceeds that rent.
+   * Tenants with no `monthly_rent` on file are silently allowed (we
+   * don't have ground truth to warn against).
+   */
+  const headroomFor = (a: TenantAllocation) => {
+    const rent = Number(a.monthly_rent || 0);
+    if (!rent) return { exceeds: false, rent: 0, over: 0 };
+    const over = a.amount - rent;
+    return { exceeds: over > 0.5, rent, over };
+  };
+
+  const confirmOverride = (a: TenantAllocation, info: { rent: number; over: number }) => {
+    const ok = window.confirm(
+      `Heads up — you've allocated UGX ${a.amount.toLocaleString()} to ${a.tenant_name}, ` +
+        `which is UGX ${Math.round(info.over).toLocaleString()} more than their monthly rent ` +
+        `of UGX ${info.rent.toLocaleString()}.\n\n` +
+        `Continue anyway? Financial Ops will see this was confirmed.`,
+    );
+    if (!ok) return;
+    onChange(
+      allocations.map((row) =>
+        row.tenant_id === a.tenant_id ? { ...row, override_headroom: true } : row,
+      ),
+    );
+  };
+
+  const headroomBreaches = allocations
+    .map((a) => ({ a, info: headroomFor(a) }))
+    .filter((row) => row.info.exceeds && !row.a.override_headroom);
 
   return (
     <div className="space-y-3 rounded-xl border-2 border-primary/20 bg-primary/5 p-3">
@@ -201,36 +259,76 @@ export default function OperationalFloatTenantAllocator({
       {/* Selected tenant rows */}
       {allocations.length > 0 && (
         <div className="space-y-1.5">
-          {allocations.map((a) => (
-            <div
-              key={a.tenant_id}
-              className="flex items-center gap-2 rounded-lg bg-background border border-border p-2"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium truncate">{a.tenant_name}</p>
-                {a.tenant_phone && (
-                  <p className="text-[10px] text-muted-foreground truncate">{a.tenant_phone}</p>
+          {allocations.map((a) => {
+            const info = headroomFor(a);
+            const flagged = info.exceeds && !a.override_headroom;
+            const overridden = info.exceeds && a.override_headroom;
+            return (
+              <div
+                key={a.tenant_id}
+                className={`rounded-lg bg-background border p-2 transition-colors ${
+                  flagged
+                    ? 'border-warning/60 bg-warning/5'
+                    : overridden
+                      ? 'border-warning/30'
+                      : 'border-border'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium truncate">{a.tenant_name}</p>
+                    {a.tenant_phone && (
+                      <p className="text-[10px] text-muted-foreground truncate">{a.tenant_phone}</p>
+                    )}
+                  </div>
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    value={a.amount || ''}
+                    placeholder="0"
+                    onChange={(e) => updateAmount(a.tenant_id, e.target.value)}
+                    className={`h-8 w-28 text-right font-mono text-xs ${
+                      flagged ? 'border-warning focus-visible:ring-warning' : ''
+                    }`}
+                    aria-label={`Amount for ${a.tenant_name}`}
+                  />
+                  <button
+                    type="button"
+                    aria-label={`Remove ${a.tenant_name}`}
+                    onClick={() => removeTenant(a.tenant_id)}
+                    className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                {flagged && (
+                  <div className="mt-1.5 flex items-center justify-between gap-2 rounded-md bg-warning/10 border border-warning/30 px-2 py-1">
+                    <div className="flex items-start gap-1.5 min-w-0">
+                      <AlertCircle className="h-3 w-3 text-warning shrink-0 mt-0.5" />
+                      <p className="text-[10px] text-warning-foreground leading-tight">
+                        Exceeds rent by UGX {Math.round(info.over).toLocaleString()} (rent UGX {info.rent.toLocaleString()}).
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => confirmOverride(a, info)}
+                      className="h-6 px-2 text-[10px] text-warning hover:text-warning shrink-0"
+                    >
+                      Override
+                    </Button>
+                  </div>
+                )}
+                {overridden && (
+                  <p className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground italic">
+                    <CheckCircle2 className="h-3 w-3 text-warning" />
+                    Over-rent override confirmed
+                  </p>
                 )}
               </div>
-              <Input
-                type="number"
-                inputMode="numeric"
-                value={a.amount || ''}
-                placeholder="0"
-                onChange={(e) => updateAmount(a.tenant_id, e.target.value)}
-                className="h-8 w-28 text-right font-mono text-xs"
-                aria-label={`Amount for ${a.tenant_name}`}
-              />
-              <button
-                type="button"
-                aria-label={`Remove ${a.tenant_name}`}
-                onClick={() => removeTenant(a.tenant_id)}
-                className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -337,6 +435,14 @@ export default function OperationalFloatTenantAllocator({
           >
             Add remaining to last tenant
           </Button>
+        )}
+        {headroomBreaches.length > 0 && (
+          <div className="flex items-start gap-1.5 rounded-md bg-warning/10 border border-warning/30 px-2 py-1 mt-1">
+            <AlertCircle className="h-3 w-3 text-warning shrink-0 mt-0.5" />
+            <p className="text-[10px] text-warning-foreground leading-tight">
+              {headroomBreaches.length} tenant{headroomBreaches.length === 1 ? '' : 's'} allocated above their monthly rent. Tap <span className="font-semibold">Override</span> on each row to confirm.
+            </p>
+          </div>
         )}
       </div>
     </div>
