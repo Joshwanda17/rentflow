@@ -2996,6 +2996,57 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Cancel Pending Top-Ups Dialog */}
+      <Dialog
+        open={!!cancelDialogPortfolioId}
+        onOpenChange={(open) => { if (!open) { setCancelDialogPortfolioId(null); setCancelReason(''); } }}
+      >
+        <DialogContent stable className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm flex items-center gap-2">
+              <Ban className="h-4 w-4 text-destructive" /> Cancel Pending Top-Up?
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              The parked top-up will be cancelled and the full amount refunded back to the partner's wallet. The next ROI cycle will not include this principal.
+            </DialogDescription>
+          </DialogHeader>
+          {cancelDialogPortfolioId && approvedTopUps[cancelDialogPortfolioId] && (
+            <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-xs">
+              <p className="font-semibold text-destructive">
+                {approvedTopUps[cancelDialogPortfolioId].count} pending top-up{approvedTopUps[cancelDialogPortfolioId].count > 1 ? 's' : ''} totaling {formatUGX(approvedTopUps[cancelDialogPortfolioId].total)}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Will be refunded to the partner's wallet immediately.
+              </p>
+            </div>
+          )}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium">Reason for cancellation (min 10 chars)</Label>
+            <Textarea
+              value={cancelReason}
+              onChange={e => setCancelReason(e.target.value)}
+              placeholder="e.g. Partner requested refund, duplicate top-up, wrong portfolio..."
+              className="text-xs min-h-[70px]"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => { setCancelDialogPortfolioId(null); setCancelReason(''); }}>
+              Keep Top-up
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              className="gap-1.5"
+              disabled={cancellingTopUp || cancelReason.trim().length < 10}
+              onClick={handleCancelPendingTopUps}
+            >
+              {cancellingTopUp ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Ban className="h-3.5 w-3.5" />}
+              Confirm Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
