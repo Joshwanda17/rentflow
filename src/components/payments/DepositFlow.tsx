@@ -1229,10 +1229,12 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   size="lg"
                 >
                   {isSubmitting
-                    ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Submitting...</>
+                    ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> {isEditMode ? 'Saving…' : 'Submitting...'}</>
                     : opsAllocBlocked
                       ? 'Fix tenant breakdown to submit'
-                      : 'Submit Deposit Request'}
+                      : isEditMode
+                        ? 'Save Changes'
+                        : 'Submit Deposit Request'}
                 </Button>
               );
             })()}
