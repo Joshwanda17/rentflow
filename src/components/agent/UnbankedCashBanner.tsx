@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Banknote, AlertTriangle, ChevronRight, ShieldAlert,
