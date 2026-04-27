@@ -1596,6 +1596,18 @@ export function TidVerification() {
                                 <Hash className="h-2.5 w-2.5" /> ••••{m.transaction_id.slice(-2)}
                               </Badge>
                             )}
+                            {m.deposit_purpose === 'operational_float' && (
+                              <Badge className="bg-primary/15 text-primary text-[9px] h-4 gap-0.5 px-1 border border-primary/30">
+                                <Users className="h-2.5 w-2.5" />
+                                Op-Float · {m.allocations?.length ?? 0} tenants
+                              </Badge>
+                            )}
+                            {m.matchedVia === 'notes' && (
+                              <Badge variant="outline" className="text-[9px] h-4 gap-0.5 px-1 border-primary/30 text-primary">
+                                <Receipt className="h-2.5 w-2.5" />
+                                Matched via receipt
+                              </Badge>
+                            )}
                             {m.status === 'matched' ? (
                               <Badge className="bg-emerald-600 text-[9px] h-4 gap-0.5 px-1">
                                 <CheckCircle2 className="h-2.5 w-2.5" /> Match
@@ -1622,6 +1634,30 @@ export function TidVerification() {
                             <span>{m.provider || 'MoMo'}</span>
                             <span>{format(new Date(m.created_at), 'dd MMM HH:mm')}</span>
                           </div>
+                          {m.deposit_purpose === 'operational_float' && m.allocations && m.allocations.length > 0 && (
+                            <div className="mt-1.5 rounded-md border border-border bg-muted/40 p-1.5 space-y-0.5">
+                              <p className="text-[9px] uppercase tracking-wide text-muted-foreground font-semibold flex items-center gap-1">
+                                <Users className="h-2.5 w-2.5" />
+                                Tenant breakdown — verify before approving
+                              </p>
+                              <div className="max-h-28 overflow-y-auto divide-y divide-border/60">
+                                {m.allocations.map((a) => (
+                                  <div key={a.tenant_id} className="flex items-center justify-between text-[10px] py-0.5">
+                                    <span className="truncate text-foreground">{a.tenant_name}</span>
+                                    <span className="font-mono tabular-nums shrink-0 ml-2">
+                                      {formatUGX(a.amount)}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="flex items-center justify-between text-[10px] pt-0.5 border-t border-border/60">
+                                <span className="text-muted-foreground">Allocated total</span>
+                                <span className="font-mono font-semibold tabular-nums">
+                                  {formatUGX(m.allocations.reduce((s, a) => s + (Number(a.amount) || 0), 0))}
+                                </span>
+                              </div>
+                            </div>
+                          )}
                           {!isDone && isUndoable && (
                             <div className="flex flex-col sm:flex-row gap-2 mt-2">
                               <Button
