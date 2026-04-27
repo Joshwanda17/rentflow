@@ -660,7 +660,35 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             {/* ─── Amount ─── */}
             <div className="space-y-2">
               <Label className="text-xs">Amount (UGX)</Label>
-              <Input type="number" placeholder="Enter amount" value={amount} onChange={(e) => setAmount(e.target.value)} min="500" className="text-lg font-semibold h-11" />
+              <Input
+                type="number"
+                placeholder="Enter amount"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                min={MIN_DEPOSIT}
+                max={MAX_DEPOSIT}
+                aria-invalid={
+                  !!amount &&
+                  Number.isFinite(parseFloat(amount)) &&
+                  (parseFloat(amount) < MIN_DEPOSIT || parseFloat(amount) > MAX_DEPOSIT)
+                }
+                className="text-lg font-semibold h-11"
+              />
+              {/* Permanent limit hint + live boundary error so the user sees
+                  the rule and the violation in the same spot. */}
+              <p className="text-[10px] text-muted-foreground">
+                Deposit between {formatCurrency(MIN_DEPOSIT)} and {formatCurrency(MAX_DEPOSIT)}
+              </p>
+              {!!amount && Number.isFinite(parseFloat(amount)) && parseFloat(amount) > 0 && parseFloat(amount) < MIN_DEPOSIT && (
+                <p className="text-[10px] text-destructive font-medium">
+                  Minimum deposit is {formatCurrency(MIN_DEPOSIT)}
+                </p>
+              )}
+              {!!amount && Number.isFinite(parseFloat(amount)) && parseFloat(amount) > MAX_DEPOSIT && (
+                <p className="text-[10px] text-destructive font-medium">
+                  Maximum deposit is {formatCurrency(MAX_DEPOSIT)}
+                </p>
+              )}
               <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-1.5">
                 {QUICK_AMOUNTS.map((amt) => (
                   <Button key={amt} type="button" variant={amount === String(amt) ? 'default' : 'outline'} size="sm" className="text-xs h-7 w-full sm:w-auto" onClick={() => setAmount(String(amt))}>
