@@ -89,6 +89,7 @@ interface PartnerRow {
   joinedAt: string;
   lastActivity: string;
   nextRoiDate: string | null;
+  payoutDates?: string[];
 }
 
 interface NearingPayoutPortfolio {
@@ -528,7 +529,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     const walletMap = new Map((wallets as any[]).map(w => [w.user_id, w.balance || 0]));
 
     const supporterIdSet = new Set(ids);
-    const partnerAgg = new Map<string, { funded: number; deals: number; roiPercentage: number; payoutDay: number; roiMode: string; lastActivity: string; nextRoiDate: string | null }>();
+    const partnerAgg = new Map<string, { funded: number; deals: number; roiPercentage: number; payoutDay: number; roiMode: string; lastActivity: string; nextRoiDate: string | null; payoutDates: string[] }>();
 
     dedupedPortfolios.forEach(p => {
       const ownerId = p.investor_id && supporterIdSet.has(p.investor_id)
@@ -538,7 +539,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           : null;
       if (!ownerId) return;
 
-      const existing = partnerAgg.get(ownerId) || { funded: 0, deals: 0, roiPercentage: 0, payoutDay: 0, roiMode: 'monthly_payout', lastActivity: '', nextRoiDate: null as string | null };
+      const existing = partnerAgg.get(ownerId) || { funded: 0, deals: 0, roiPercentage: 0, payoutDay: 0, roiMode: 'monthly_payout', lastActivity: '', nextRoiDate: null as string | null, payoutDates: [] as string[] };
       existing.funded += (p.investment_amount || 0);
       existing.deals += 1;
       if (existing.deals === 1 || !existing.roiPercentage) {
@@ -550,6 +551,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       if (!existing.nextRoiDate || effectiveDate < existing.nextRoiDate) {
         existing.nextRoiDate = effectiveDate;
       }
+      // Track ALL portfolio next-payout dates so the date-range filter can
+      // include partners with ANY portfolio paying in the selected window.
+      existing.payoutDates.push(effectiveDate);
       if (!existing.lastActivity || p.created_at > existing.lastActivity) {
         existing.lastActivity = p.created_at;
       }
@@ -557,7 +561,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     });
 
     const tableRows: PartnerRow[] = ids.map(id => {
-      const agg = partnerAgg.get(id) || { funded: 0, deals: 0, roiPercentage: 15, payoutDay: 15, roiMode: 'monthly_payout', lastActivity: '', nextRoiDate: null };
+      const agg = partnerAgg.get(id) || { funded: 0, deals: 0, roiPercentage: 15, payoutDay: 15, roiMode: 'monthly_payout', lastActivity: '', nextRoiDate: null, payoutDates: [] as string[] };
       const profile = profileMap.get(id);
       const isSuspended = !!profile?.frozen_at;
       return {
@@ -576,6 +580,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         joinedAt: profile?.created_at || '',
         lastActivity: agg.lastActivity || '',
         nextRoiDate: agg.nextRoiDate,
+        payoutDates: agg.payoutDates,
       };
     });
 
@@ -1223,14 +1228,20 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     if (filterWallet === 'has_balance') result = result.filter(r => (r.walletBalance || 0) > 0);
     else if (filterWallet === 'empty') result = result.filter(r => (r.walletBalance || 0) <= 0);
     if (payoutDateFrom || payoutDateTo) {
+      // Include partners that have ANY portfolio with a next-payout date
+      // inside the selected window (inclusive on both ends).
+      const fromMs = payoutDateFrom ? new Date(payoutDateFrom.getFullYear(), payoutDateFrom.getMonth(), payoutDateFrom.getDate()).getTime() : null;
+      const toMs = payoutDateTo ? new Date(payoutDateTo.getFullYear(), payoutDateTo.getMonth(), payoutDateTo.getDate(), 23, 59, 59, 999).getTime() : null;
       result = result.filter(r => {
-        const portfolioData = (r as any).nextRoiDate;
-        if (!portfolioData) return false;
-        const nextPayout = new Date(portfolioData + 'T00:00:00');
-        if (isNaN(nextPayout.getTime())) return false;
-        if (payoutDateFrom && nextPayout < payoutDateFrom) return false;
-        if (payoutDateTo && nextPayout > payoutDateTo) return false;
-        return true;
+        const dates: string[] = ((r as any).payoutDates as string[] | undefined) ?? ((r as any).nextRoiDate ? [(r as any).nextRoiDate] : []);
+        if (!dates.length) return false;
+        return dates.some(d => {
+          const t = new Date(d + 'T00:00:00').getTime();
+          if (isNaN(t)) return false;
+          if (fromMs !== null && t < fromMs) return false;
+          if (toMs !== null && t > toMs) return false;
+          return true;
+        });
       });
     }
     if (sortKey && sortDir) {
