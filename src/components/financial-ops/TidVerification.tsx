@@ -41,7 +41,11 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
+  Users,
+  Receipt,
 } from 'lucide-react';
+import { decodeAllocationsFromNote } from '@/components/payments/OperationalFloatTenantAllocator';
+import type { TenantAllocation } from '@/components/payments/OperationalFloatTenantAllocator';
 
 interface MatchResult {
   id: string;
@@ -54,6 +58,12 @@ interface MatchResult {
   userName: string;
   userPhone: string;
   status: 'matched' | 'amount_mismatch';
+  /** When set, this is an operational_float deposit — show tenant breakdown. */
+  deposit_purpose?: string | null;
+  /** Decoded per-tenant allocations from the notes payload. */
+  allocations?: TenantAllocation[] | null;
+  /** True when the search matched against the notes (receipt/reference) rather than the TID column. */
+  matchedVia?: 'tid' | 'notes';
 }
 
 type ResultState = 'idle' | 'searching' | 'found' | 'not_found';
