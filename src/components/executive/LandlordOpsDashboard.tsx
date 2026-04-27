@@ -206,6 +206,7 @@ export function LandlordOpsDashboard() {
   const [landlordPage, setLandlordPage] = useState(1);
   const [landlordCategory, setLandlordCategory] = useState('all');
   const [verifying, setVerifying] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   // Optimistically removed from the verification queue (until refetch confirms or rollback restores).
   const [optimisticallyVerifiedIds, setOptimisticallyVerifiedIds] = useState<Set<string>>(new Set());
   const [previewImages, setPreviewImages] = useState<{ images: string[]; title: string } | null>(null);
