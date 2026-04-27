@@ -4,6 +4,7 @@ import {
   Banknote, AlertTriangle, ChevronRight, ShieldAlert,
   ChevronDown, Clock, FileText, User as UserIcon,
   Camera, Loader2, CheckCircle2, X, Upload, Pencil, Check,
+  Layers,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import {
@@ -62,6 +63,7 @@ export function UnbankedCashBanner() {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [proofForBatch, setProofForBatch] = useState<FieldDepositBatch | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!user?.id) return;
@@ -307,11 +309,24 @@ export function UnbankedCashBanner() {
             {/* Group B: awaiting proof — grouped by batch */}
             {awaitingBatches.length > 0 && (
               <div>
-                <div className="px-4 pt-2.5 pb-1 flex items-center gap-1.5">
-                  <AlertTriangle className="h-3 w-3 text-destructive" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-destructive">
-                    Deposit batches · {awaitingBatches.length}
-                  </span>
+                <div className="px-4 pt-2.5 pb-1 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <AlertTriangle className="h-3 w-3 text-destructive shrink-0" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-destructive truncate">
+                      Deposit batches · {awaitingBatches.length}
+                    </span>
+                  </div>
+                  {stillAwaiting.length >= 2 && (
+                    <button
+                      type="button"
+                      onClick={() => { hapticTap(); setBulkOpen(true); }}
+                      className="inline-flex items-center gap-1 rounded-full bg-destructive text-destructive-foreground px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider hover:bg-destructive/90 transition-colors shrink-0"
+                      title="Submit one proof for several awaiting batches at once"
+                    >
+                      <Layers className="h-3 w-3" />
+                      Bulk submit ({stillAwaiting.length})
+                    </button>
+                  )}
                 </div>
                 <ul className="divide-y divide-border/40">
                   {awaitingBatches.map((b) => (
@@ -343,6 +358,13 @@ export function UnbankedCashBanner() {
             }
           }}
           attachProofTo={proofForBatch}
+        />
+      )}
+      {bulkOpen && (
+        <BulkProofDialog
+          batches={stillAwaiting}
+          onClose={() => setBulkOpen(false)}
+          onDone={() => { setBulkOpen(false); refresh(); }}
         />
       )}
     </>
@@ -936,5 +958,373 @@ function AwaitingBatchRow({ batch, onOpenWizard, onProofSubmitted }: AwaitingBat
         )}
       </div>
     </li>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* Bulk-proof submission dialog                                            */
+/* ---------------------------------------------------------------------- */
+
+interface BulkProofDialogProps {
+  /** Only awaiting_proof batches should be passed in. */
+  batches: AwaitingBatchWithItems[];
+  onClose: () => void;
+  onDone: () => void;
+}
+
+type BulkRowState = 'pending' | 'submitting' | 'done' | 'error';
+
+/**
+ * Lets the agent select several awaiting batches and submit ONE shared
+ * reference (and optional photo) for all of them in one pass. Submission is
+ * sequential per batch so we can show per-row status and not blow up if one
+ * batch is rejected by the server (e.g., status raced to pending elsewhere).
+ */
+function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
+  const [selected, setSelected] = useState<Set<string>>(
+    () => new Set(batches.map((b) => b.id)),
+  );
+  const [reference, setReference] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [rowState, setRowState] = useState<Record<string, { state: BulkRowState; msg?: string }>>({});
+
+  useEffect(() => {
+    if (!file) { setPreviewUrl(null); return; }
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  const toggle = (id: string) => {
+    if (submitting) return;
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAll = () => !submitting && setSelected(new Set(batches.map((b) => b.id)));
+  const clearAll = () => !submitting && setSelected(new Set());
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > 5 * 1024 * 1024) { toast.error('Receipt image must be under 5 MB'); return; }
+    setFile(f);
+  };
+
+  const totalSelected = batches
+    .filter((b) => selected.has(b.id))
+    .reduce((s, b) => s + Number(b.declared_total || 0), 0);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (submitting) return;
+    const ref = reference.trim();
+    if (selected.size === 0) { toast.error('Pick at least one batch'); return; }
+    if (ref.length < 4 && !file) {
+      toast.error('Enter a reference or attach a receipt photo');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      // Upload the photo ONCE; reuse the same public URL for every batch.
+      let imageUrl: string | null = null;
+      if (file) {
+        const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+        const path = `field-deposit-proofs/bulk/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from('receipts')
+          .upload(path, file, { contentType: file.type || undefined, upsert: false });
+        if (upErr) throw upErr;
+        imageUrl = supabase.storage.from('receipts').getPublicUrl(path).data.publicUrl;
+      }
+
+      const ids = Array.from(selected);
+      let okCount = 0;
+      let failCount = 0;
+      for (const id of ids) {
+        setRowState((s) => ({ ...s, [id]: { state: 'submitting' } }));
+        try {
+          // Re-read status to avoid resubmitting an already-progressed batch.
+          const { data: fresh, error: freshErr } = await supabase
+            .from('field_deposit_batches')
+            .select('status')
+            .eq('id', id)
+            .single();
+          if (freshErr) throw freshErr;
+          if (fresh?.status !== 'awaiting_proof') {
+            setRowState((s) => ({
+              ...s,
+              [id]: { state: 'error', msg: `Already ${fresh?.status ?? 'changed'}` },
+            }));
+            failCount++;
+            continue;
+          }
+          const finalRef = ref.length >= 4 ? ref : `RECEIPT-${id.slice(0, 8)}`;
+          await submitProofForBatch(id, finalRef, imageUrl);
+          setRowState((s) => ({ ...s, [id]: { state: 'done' } }));
+          okCount++;
+        } catch (err) {
+          setRowState((s) => ({
+            ...s,
+            [id]: { state: 'error', msg: err instanceof Error ? err.message : 'Failed' },
+          }));
+          failCount++;
+        }
+      }
+      if (okCount > 0 && failCount === 0) {
+        toast.success(`Submitted proof for ${okCount} batch${okCount === 1 ? '' : 'es'}`);
+        onDone();
+      } else if (okCount > 0) {
+        toast.warning(`Submitted ${okCount} · ${failCount} failed — see list`);
+      } else {
+        toast.error('No batches were submitted');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Bulk submit failed');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Bulk submit proof"
+      onClick={() => !submitting && onClose()}
+    >
+      <div
+        className="w-full sm:max-w-lg bg-background rounded-t-2xl sm:rounded-2xl shadow-2xl border border-border max-h-[90vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Bulk submit proof
+            </p>
+            <h2 className="text-base font-bold leading-tight truncate">
+              {selected.size} of {batches.length} selected · {formatUGX(totalSelected)}
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={submitting}
+            className="h-8 w-8 rounded-md hover:bg-accent flex items-center justify-center shrink-0 disabled:opacity-50"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+          {/* Selection list */}
+          <div className="px-4 pt-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Pick batches to clear
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={selectAll}
+                  disabled={submitting}
+                  className="text-[10px] font-medium text-primary hover:underline disabled:opacity-50"
+                >
+                  All
+                </button>
+                <span className="text-muted-foreground/50 text-[10px]">·</span>
+                <button
+                  type="button"
+                  onClick={clearAll}
+                  disabled={submitting}
+                  className="text-[10px] font-medium text-muted-foreground hover:underline disabled:opacity-50"
+                >
+                  None
+                </button>
+              </div>
+            </div>
+            <ul className="space-y-1.5">
+              {batches.map((b) => {
+                const isPicked = selected.has(b.id);
+                const rs = rowState[b.id];
+                return (
+                  <li key={b.id}>
+                    <label
+                      className={cn(
+                        'flex items-center gap-2.5 rounded-lg border bg-background px-3 py-2 cursor-pointer transition-colors',
+                        isPicked ? 'border-primary/60 bg-primary/5' : 'border-border hover:bg-accent/30',
+                        submitting && 'cursor-default',
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isPicked}
+                        onChange={() => toggle(b.id)}
+                        disabled={submitting}
+                        className="h-4 w-4 rounded border-border text-primary focus:ring-primary shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="font-mono text-muted-foreground">
+                            #{b.id.slice(0, 8)}
+                          </span>
+                          <span className="text-muted-foreground/60">·</span>
+                          <span className="truncate">{channelLabel(b.channel)}</span>
+                        </div>
+                        <div className="text-[10px] text-muted-foreground mt-0.5">
+                          {b.items.length} entr{b.items.length === 1 ? 'y' : 'ies'} ·{' '}
+                          {formatDateTime(b.created_at)}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-sm font-bold font-mono">
+                          {formatUGX(Number(b.declared_total))}
+                        </div>
+                        {rs && (
+                          <div className="text-[10px] mt-0.5 flex items-center justify-end gap-1">
+                            {rs.state === 'submitting' && (
+                              <span className="text-muted-foreground flex items-center gap-1">
+                                <Loader2 className="h-3 w-3 animate-spin" /> Sending
+                              </span>
+                            )}
+                            {rs.state === 'done' && (
+                              <span className="text-success flex items-center gap-1 font-semibold">
+                                <CheckCircle2 className="h-3 w-3" /> Sent
+                              </span>
+                            )}
+                            {rs.state === 'error' && (
+                              <span className="text-destructive flex items-center gap-1 font-semibold" title={rs.msg}>
+                                <X className="h-3 w-3" /> {rs.msg ?? 'Failed'}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+
+          {/* Shared proof inputs */}
+          <div className="px-4 py-3 mt-2 border-t border-border space-y-3">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                Shared transaction ID / reference
+              </label>
+              <input
+                type="text"
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+                placeholder="Used for every selected batch"
+                className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary"
+                disabled={submitting}
+                inputMode="text"
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <p className="text-[10px] text-muted-foreground leading-snug">
+                Same reference is attached to every selected batch. Finance will reconcile by amount.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                Receipt photo (optional · shared)
+              </label>
+              {file ? (
+                <div className="flex items-center gap-3 rounded-lg border border-border bg-background p-2">
+                  {previewUrl && (
+                    <a
+                      href={previewUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="relative h-12 w-12 shrink-0 rounded-md overflow-hidden border border-border bg-muted block"
+                    >
+                      <img src={previewUrl} alt="Receipt preview" className="h-full w-full object-cover" loading="lazy" />
+                    </a>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" />
+                      <span className="truncate font-medium">{file.name}</span>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                      {(file.size / 1024).toFixed(0)} KB · uploaded once, attached to each batch
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFile(null)}
+                    disabled={submitting}
+                    className="h-7 w-7 rounded-md hover:bg-accent flex items-center justify-center shrink-0"
+                    aria-label="Remove receipt"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <label
+                  className={cn(
+                    'flex items-center justify-center gap-2 h-10 rounded-lg border-2 border-dashed border-border bg-background cursor-pointer hover:bg-accent/30 transition-colors',
+                    submitting && 'opacity-50 pointer-events-none',
+                  )}
+                >
+                  <Camera className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Tap to add a single receipt photo
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="sr-only"
+                    onChange={handleFileChange}
+                    disabled={submitting}
+                  />
+                </label>
+              )}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="px-4 py-3 border-t border-border bg-muted/30 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={submitting}
+              className="h-10 px-4 rounded-lg border border-border bg-background text-xs font-bold uppercase tracking-wider hover:bg-accent/40 disabled:opacity-50"
+            >
+              {submitting ? 'Working…' : 'Cancel'}
+            </button>
+            <button
+              type="submit"
+              disabled={submitting || selected.size === 0}
+              className="flex-1 h-10 rounded-lg bg-destructive text-destructive-foreground text-xs font-bold uppercase tracking-wider hover:bg-destructive/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Submitting {selected.size}…
+                </>
+              ) : (
+                <>
+                  <Upload className="h-3.5 w-3.5" />
+                  Submit proof for {selected.size || 0} batch{selected.size === 1 ? '' : 'es'}
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
