@@ -318,6 +318,64 @@ export function RequestDetailSheet({ open, onOpenChange, userId, requestType, re
                   </div>
                 )}
 
+                {/* Operational Float — per-tenant breakdown.
+                    Surfaces the structured allocation the agent submitted
+                    so reviewers can see exactly which tenants this single
+                    bulk drop is meant to cover. */}
+                {tenantAllocations && tenantAllocations.length > 0 && (
+                  <div className="rounded-2xl border-2 border-primary/30 bg-primary/5 p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-bold flex items-center gap-2">
+                        <User className="h-3.5 w-3.5 text-primary" />
+                        Per-tenant breakdown
+                        <span className="text-[10px] font-normal text-muted-foreground">
+                          ({tenantAllocations.length} tenant{tenantAllocations.length === 1 ? '' : 's'})
+                        </span>
+                      </p>
+                      <span
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                          allocationsBalanced
+                            ? 'bg-emerald-500/10 text-emerald-600'
+                            : 'bg-destructive/10 text-destructive'
+                        }`}
+                      >
+                        {allocationsBalanced ? 'Balanced' : 'Mismatch'}
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      {tenantAllocations.map((a) => (
+                        <div
+                          key={a.tenant_id}
+                          className="flex items-center justify-between gap-2 rounded-lg bg-background p-2 border border-border"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-medium truncate">{a.tenant_name}</p>
+                            {a.tenant_phone && (
+                              <p className="text-[10px] text-muted-foreground truncate">{a.tenant_phone}</p>
+                            )}
+                          </div>
+                          <p className="text-xs font-mono font-semibold tabular-nums shrink-0">
+                            {formatUGX(a.amount)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="pt-2 border-t border-primary/20 flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Allocated total</span>
+                      <span className="font-mono font-bold tabular-nums">{formatUGX(allocatedSum)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Deposit total</span>
+                      <span className="font-mono tabular-nums">{formatUGX(requestData?.amount || 0)}</span>
+                    </div>
+                    {!allocationsBalanced && (
+                      <p className="text-[10px] text-destructive">
+                        ⚠ Tenant breakdown does not match the deposit amount. Verify with the agent before approval.
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <Separator />
 
                 {/* Recent Ledger Transactions */}
