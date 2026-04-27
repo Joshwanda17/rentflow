@@ -91,6 +91,7 @@ import { FieldCollectDailyTotals } from '@/components/agent/FieldCollectDailyTot
 import { FieldCollectCard } from '@/components/agent/FieldCollectCard';
 import { FieldDepositQueueCard } from '@/components/agent/FieldDepositQueueCard';
 import { UnbankedCashBanner } from '@/components/agent/UnbankedCashBanner';
+import { CollectFromReferenceDialog } from '@/components/agent/CollectFromReferenceDialog';
 
 import { AgentTopUpTenantDialog } from '@/components/agent/AgentTopUpTenantDialog';
 import { AgentInvestForPartnerDialog } from '@/components/agent/AgentInvestForPartnerDialog';
@@ -237,6 +238,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [showQuickDeposit, setShowQuickDeposit] = useState(false);
   const [showQuickWithdraw, setShowQuickWithdraw] = useState(false);
   const [showQuickTransfer, setShowQuickTransfer] = useState(false);
+  const [collectFromRefOpen, setCollectFromRefOpen] = useState(false);
 
   const { isFinancialAgent } = useIsFinancialAgent();
   const realWithdrawableBalance = Math.max(0, withdrawableBalance);
