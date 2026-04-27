@@ -1069,6 +1069,7 @@ export function LandlordOpsDashboard() {
         )
       : noLandlordList;
     return (
+      <>
       <div className="space-y-3">
         <BackButton />
         <h2 className="text-lg font-bold flex items-center gap-2"><UserX className="h-5 w-5 text-orange-600" /> No Landlord Listed ({noLandlordList.length})</h2>
@@ -1161,12 +1162,15 @@ export function LandlordOpsDashboard() {
           )}
         </div>
       </div>
+      {renderDialogs()}
+      </>
     );
   }
 
   // ─── EMPTY HOUSES VIEW ───
   if (view === 'empty') {
     return (
+      <>
       <div className="space-y-3">
         <BackButton />
         <h2 className="text-lg font-bold flex items-center gap-2"><DoorOpen className="h-5 w-5 text-destructive" /> Empty Houses ({emptyLandlords.length})</h2>
@@ -1205,12 +1209,15 @@ export function LandlordOpsDashboard() {
           )}
         </div>
       </div>
+      {renderDialogs()}
+      </>
     );
   }
 
   // ─── OCCUPIED HOUSES VIEW ───
   if (view === 'occupied') {
     return (
+      <>
       <div className="space-y-3">
         <BackButton />
         <h2 className="text-lg font-bold flex items-center gap-2"><UserCheck className="h-5 w-5 text-green-600" /> Occupied Houses ({occupiedLandlords.length})</h2>
@@ -1244,6 +1251,8 @@ export function LandlordOpsDashboard() {
           })}
         </div>
       </div>
+      {renderDialogs()}
+      </>
     );
   }
 
