@@ -439,46 +439,102 @@ function AwaitingBatchRow({ batch, onOpenWizard, onProofSubmitted }: AwaitingBat
   return (
     <li>
       <div className="px-4 py-2.5">
-        {/* Header row — tap to expand inline form */}
-        <button
-          type="button"
-          onClick={() => { hapticTap(); setOpen(v => !v); }}
-          className="w-full flex items-center gap-3 text-left"
-          style={{ WebkitTapHighlightColor: 'transparent' }}
-          aria-expanded={open}
-        >
-          <div className="h-8 w-8 rounded-lg bg-destructive/15 text-destructive flex items-center justify-center shrink-0">
-            <FileText className="h-4 w-4" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold truncate">
-              {channelLabel(batch.channel)}
-            </p>
-            <p className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
-              <Clock className="h-2.5 w-2.5" />
-              {formatDateTime(batch.created_at)}
-              {batchAge > 0 && (
-                <>
-                  <span className="opacity-50">·</span>
-                  <span className={cn(isOverdue && 'text-destructive font-semibold')}>
-                    {batchAge}h old
-                  </span>
-                </>
-              )}
-              <span className="opacity-50">·</span>
-              <span className="font-mono">#{batch.id.slice(0, 8)}</span>
-            </p>
-          </div>
+        {/* Header row — left side toggles inline form, right side edits banked amount */}
+        <div className="w-full flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => { hapticTap(); setOpen(v => !v); }}
+            className="flex items-center gap-3 min-w-0 flex-1 text-left"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
+            aria-expanded={open}
+          >
+            <div className="h-8 w-8 rounded-lg bg-destructive/15 text-destructive flex items-center justify-center shrink-0">
+              <FileText className="h-4 w-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold truncate">
+                {channelLabel(batch.channel)}
+              </p>
+              <p className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
+                <Clock className="h-2.5 w-2.5" />
+                {formatDateTime(batch.created_at)}
+                {batchAge > 0 && (
+                  <>
+                    <span className="opacity-50">·</span>
+                    <span className={cn(isOverdue && 'text-destructive font-semibold')}>
+                      {batchAge}h old
+                    </span>
+                  </>
+                )}
+                <span className="opacity-50">·</span>
+                <span className="font-mono">#{batch.id.slice(0, 8)}</span>
+              </p>
+            </div>
+          </button>
+
+          {/* Editable banked amount */}
           <div className="text-right shrink-0">
-            <p className="text-sm font-bold">
-              {formatUGX(Number(batch.declared_total))}
-            </p>
-            <p className="text-[9px] uppercase tracking-wider text-destructive font-semibold flex items-center justify-end gap-0.5">
-              {open ? 'Close' : 'Add proof'}
-              <ChevronDown className={cn('h-3 w-3 transition-transform', open && 'rotate-180')} />
-            </p>
+            {editingAmount ? (
+              <div className="flex items-center gap-1">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={amountDraft}
+                  onChange={(e) => setAmountDraft(e.target.value.replace(/[^\d]/g, ''))}
+                  className="h-8 w-24 px-2 rounded-md border border-border bg-background text-sm font-bold text-right focus:outline-none focus:ring-2 focus:ring-primary"
+                  disabled={savingAmount}
+                  autoFocus
+                  aria-label="Banked amount in UGX"
+                />
+                <button
+                  type="button"
+                  onClick={handleSaveAmount}
+                  disabled={savingAmount}
+                  className="h-8 w-8 rounded-md bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 disabled:opacity-50"
+                  aria-label="Save banked amount"
+                >
+                  {savingAmount ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Check className="h-3.5 w-3.5" />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingAmount(false);
+                    setAmountDraft(String(Math.round(Number(batch.declared_total) || 0)));
+                  }}
+                  disabled={savingAmount}
+                  className="h-8 w-8 rounded-md border border-border bg-background flex items-center justify-center hover:bg-accent/40 disabled:opacity-50"
+                  aria-label="Cancel edit"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => { hapticTap(); setEditingAmount(true); }}
+                  className="inline-flex items-center gap-1 text-sm font-bold hover:text-primary transition-colors"
+                  title="Edit banked amount"
+                >
+                  {formatUGX(Number(batch.declared_total))}
+                  <Pencil className="h-3 w-3 opacity-60" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { hapticTap(); setOpen(v => !v); }}
+                  className="block text-[9px] uppercase tracking-wider text-destructive font-semibold flex items-center justify-end gap-0.5 ml-auto"
+                >
+                  {open ? 'Close' : 'Add proof'}
+                  <ChevronDown className={cn('h-3 w-3 transition-transform', open && 'rotate-180')} />
+                </button>
+              </>
+            )}
           </div>
-        </button>
+        </div>
 
         {/* Items */}
         {batch.items.length > 0 && !open && (
