@@ -5,9 +5,29 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, CheckCircle2, Phone, Calendar, Clock, Hash, AlertCircle, History, Building2, Banknote, Upload, Receipt, Copy, ShieldAlert } from 'lucide-react';
+import { Loader2, CheckCircle2, Phone, Calendar, Clock, Hash, AlertCircle, History, Building2, Banknote, Upload, Receipt, Copy, ShieldAlert, ClipboardPaste, Camera, X, ImageIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+
+/**
+ * Extract a Mobile Money / bank reference from arbitrary SMS text.
+ * Looks for the first matching token by priority:
+ *   1. MTN MoMo "MP" + 8-14 digits
+ *   2. Airtel "TID" + 6-15 digits
+ *   3. Generic bank "FT" + 8-14 chars
+ * Returns the uppercased token or null if nothing recognisable was found.
+ */
+function extractTidFromText(raw: string): string | null {
+  if (!raw) return null;
+  const s = raw.toUpperCase().replace(/\s+/g, ' ');
+  const mtn = s.match(/\bMP\d{6,16}\b/);
+  if (mtn) return mtn[0];
+  const airtel = s.match(/\bTID\d{4,18}\b/);
+  if (airtel) return airtel[0];
+  const bank = s.match(/\bFT[A-Z0-9]{6,18}\b/);
+  if (bank) return bank[0];
+  return null;
+}
 
 type DepositChannel = 'momo' | 'bank' | 'agent_cash' | 'cash';
 type DepositPurpose = 'operational_float' | 'personal_deposit' | 'partnership_deposit' | 'personal_rent_repayment' | 'other';
