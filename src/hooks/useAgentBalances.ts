@@ -26,7 +26,10 @@ export function useAgentBalances(agentId?: string) {
     queryFn: async (): Promise<AgentSplitBalances> => {
       if (!effectiveId) throw new Error('No agent ID available');
 
-      // Read wallet buckets + commission earnings ledger in parallel
+      // Read wallet buckets + true commission earnings ledger in parallel.
+      // Do not include referral bonuses or legacy proxy investment entries here:
+      // those are not earned agent commission, and old ghost/back-fill rows can
+      // otherwise resurface in the dashboard after the wallet has been zeroed.
       const [walletRes, commissionRes] = await Promise.all([
         supabase
           .from('wallets')
@@ -45,8 +48,6 @@ export function useAgentBalances(agentId?: string) {
             'agent_commission_withdrawal',
             'agent_commission_used_for_rent',
             'partner_commission',
-            'referral_bonus',
-            'proxy_investment_commission',
           ]),
       ]);
 
@@ -71,9 +72,7 @@ export function useAgentBalances(agentId?: string) {
             row.category === 'agent_commission_earned' ||
             row.category === 'agent_commission' ||
             row.category === 'agent_bonus' ||
-            row.category === 'partner_commission' ||
-            row.category === 'referral_bonus' ||
-            row.category === 'proxy_investment_commission'
+            row.category === 'partner_commission'
           )) {
             commissionBalance += amt;
           } else if (isOut && (row.category === 'agent_commission_withdrawal' || row.category === 'agent_commission_used_for_rent')) {
