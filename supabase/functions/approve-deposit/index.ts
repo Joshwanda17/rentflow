@@ -913,7 +913,7 @@ Deno.serve(async (req) => {
               .select('id', { count: 'exact', head: true })
               .eq('source_table', 'deposit_requests')
               .eq('source_id', depositRequest.id)
-              .eq('category', 'wallet_deposit')
+              .in('category', ['wallet_deposit', 'agent_float_deposit'])
               .eq('direction', 'cash_in')
               .eq('ledger_scope', 'wallet')
           : { count: 0 };
