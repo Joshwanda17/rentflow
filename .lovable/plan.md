@@ -1,47 +1,34 @@
-## Fix My Tenants — names not rendering & list shows wrong tenants
+## Goal
+Add a visible "Cancel" action in the COO / Partner Operations partner-portfolio card so staff can cancel a parked / pending next-ROI top-up. The backend already supports it — only the UI button + confirmation dialog are missing.
 
-Two issues on the agent **My Tenants** sheet (`src/components/agent/AgentTenantsSheet.tsx`):
+## Background (what's already there)
+- Edge function `cancel-pending-topups` already exists. It:
+  - Requires `portfolio_id` and a `reason` (≥10 chars).
+  - Cancels all `pending_wallet_operations` rows where `status = 'approved'` (i.e. the parked top-ups awaiting merge into principal — what the user calls "pending next ROI top-up").
+  - Refunds the partner wallet via balanced ledger entries, writes an audit log, and notifies the partner.
+- The Manager screen (`InvestmentAccountsManager.tsx`) already wires this function up.
+- In `COOPartnersPage.tsx` the same data is loaded into `approvedTopUps[p.id]` (lines 805–825), and the existing **Apply Top-up** button at line 2142 is rendered exactly when `approvedTopUps[p.id]?.total > 0` — but there is no Cancel sibling.
 
-### 1. Names invisible (layout bug)
+## Changes (single file: `src/components/coo/COOPartnersPage.tsx`)
 
-The avatar correctly shows the first letter (`N`, `A`), proving `tenant.full_name` reaches the row. But the name `<p>` collapses to zero visible text because:
+1. **State + handler**
+   - Add `cancelDialogPortfolioId`, `cancelReason`, `cancellingTopUp` state (mirror of the Manager view).
+   - Add `handleCancelPendingTopUps()` that calls `supabase.functions.invoke('cancel-pending-topups', { body: { portfolio_id, reason } })`, toasts the result, closes the dialog, and refreshes the partner detail via `openPartnerDetail(detailPartner.profile.id)`.
 
-- It uses `truncate` (which clips overflow) inside a flex row.
-- The right-hand column (amount + **Field Collect** button) has no `shrink-0` on its outer container, so on narrow phones it expands and squeezes the name slot to ~0 width → `truncate` clips the entire name.
+2. **New "Cancel" button in the actions row (line 2049 div)**
+   - Render right next to the existing **Apply Top-up** button (line 2142–2151), gated by the same `!readOnly && approvedTopUps[p.id]?.total > 0` condition.
+   - Style: `variant="ghost"`, destructive red (`text-destructive hover:text-destructive hover:bg-destructive/10`), `Ban` icon (already imported), label: `Cancel Top-up` with the parked total in a small badge, e.g. `Cancel Top-up ({formatUGX(approvedTopUps[p.id].total)})`.
+   - `onClick` opens the confirmation dialog by setting `cancelDialogPortfolioId = p.id`.
 
-**Fix (line ~714–822):**
-- Add `shrink-0` to the right-side amount/button column wrapper (line 822 already has `shrink-0`, but the **Field Collect button** widens it on every render — wrap the column in a fixed/max-width and set `whitespace-nowrap` only where intended).
-- Replace `truncate` on the name `<p>` (line 716) with `break-words` and keep `min-w-0` on the parent (line 714, already present). Long names wrap to a 2nd line instead of vanishing.
-- Verify the row still looks clean on iPhone SE width (375px).
+3. **Confirmation `AlertDialog`** (placed near the existing merge dialog)
+   - Title: "Cancel Pending Top-Up?"
+   - Body: shows the parked amount and op count, warns the funds will be refunded to the partner wallet and the next ROI cycle will not include this principal.
+   - Required `Textarea` for `cancelReason` (min 10 chars; submit disabled until met).
+   - Footer: `Cancel` (close) + `Confirm Cancel` (calls `handleCancelPendingTopUps`, shows spinner while `cancellingTopUp`).
 
-### 2. Joshua sees 104 tenants (scope leak via admin RLS)
+4. **No backend / DB changes** — the edge function and ledger plumbing are already in place.
 
-Joshua Wanda has roles `agent + manager + cfo + super_admin`. The `fetchTenants` queries (lines 172–207) rely on RLS to filter rows, but admin RLS policies grant him every profile, so the `.in('id', uniqueIds)` call returns far more than intended whenever superuser policies overlap.
-
-In practice the bigger source of bloat is that `extraTenantIds` is built from referrals + `rent_requests.tenant_id` where `agent_id = user.id`, and the resulting `.in()` profile fetch is unfiltered by the agent relationship — any RLS-visible row passes through.
-
-**Fix:**
-- Keep the source-of-truth join client-side: only render tenants whose IDs come from one of three explicit agent-owned sources:
-  1. `profiles.referrer_id = user.id`
-  2. `referrals.referrer_id = user.id`
-  3. `rent_requests.agent_id = user.id`
-- After fetching extra profiles by ID, filter the merged `tenantList` to `referredIds ∪ extraTenantIds` (it already is in code, but make this explicit and guard against duplicates by ID).
-- Add a console warning when the merged list size exceeds the union size — surfaces future RLS leaks early.
-
-This makes the page show only Joshua's actual ~2 tenants regardless of his admin roles.
-
-### Files touched
-
-- `src/components/agent/AgentTenantsSheet.tsx` — layout fix (name `<p>` + right column) and tighter scoping in `fetchTenants`.
-
-### Out of scope
-
-- No DB / RLS changes. Admin roles still see all tenants elsewhere; this is a UI-scope fix specific to the agent **My Tenants** page.
-- No changes to Field Collect, risk chips, or the expanded details panel.
-
-### QA checklist
-
-- Joshua sees only his real referrals/assignments (expected: ~2 rows).
-- Both tenants render full names (`Namukisha Esther`, `Akandinda Wilson`) above their phone numbers.
-- Long names wrap instead of disappearing on 375px width.
-- Field Collect button still tappable; amount column still right-aligned.
+## Acceptance
+- In COO → Partners → open a partner → if a portfolio has parked (approved-but-not-merged) top-ups, an obvious red **Cancel Top-up** button appears in the actions row alongside Edit / Top Up / Renew / Delete / Apply Top-up / Compound.
+- Clicking it opens a confirmation dialog requiring a 10+ character reason.
+- On confirm: parked ops flip to `cancelled`, the partner wallet is refunded, the partner card refreshes, and both **Apply Top-up** and **Cancel Top-up** disappear (because `approvedTopUps[p.id]` is now empty).

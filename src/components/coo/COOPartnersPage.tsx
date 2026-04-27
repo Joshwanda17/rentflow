@@ -304,6 +304,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [mergeDialogPortfolioId, setMergeDialogPortfolioId] = useState<string | null>(null);
   const [mergeReason, setMergeReason] = useState('');
   const [mergingTopUp, setMergingTopUp] = useState(false);
+  const [cancelDialogPortfolioId, setCancelDialogPortfolioId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancellingTopUp, setCancellingTopUp] = useState(false);
 
   // Portfolio name editing
   const [editingNameId, setEditingNameId] = useState<string | null>(null);
@@ -883,6 +886,30 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       toast.error('Failed to merge top-ups', { description: e.message });
     } finally {
       setMergingTopUp(false);
+    }
+  }
+
+  /* ─── Cancel Pending (Parked) Top-Ups & Refund Wallet ─── */
+  async function handleCancelPendingTopUps() {
+    if (!cancelDialogPortfolioId || cancelReason.trim().length < 10) return;
+    setCancellingTopUp(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('cancel-pending-topups', {
+        body: { portfolio_id: cancelDialogPortfolioId, reason: cancelReason.trim() },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      toast.success(`Cancelled ${formatUGX(data.total_cancelled)} pending principal`, {
+        description: `${data.ops_count} top-up(s) refunded to partner wallet.`,
+      });
+      setCancelDialogPortfolioId(null);
+      setCancelReason('');
+      if (detailPartner?.profile?.id) openPartnerDetail(detailPartner.profile.id);
+      refreshInBackground();
+    } catch (e: any) {
+      toast.error('Failed to cancel top-ups', { description: e.message });
+    } finally {
+      setCancellingTopUp(false);
     }
   }
 
@@ -2149,6 +2176,17 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                     <ArrowRightLeft className="h-3.5 w-3.5" /> Apply Top-up
                                   </Button>
                                 )}
+                                {!readOnly && approvedTopUps[p.id]?.total > 0 && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-9 px-3 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5 font-semibold min-h-[44px]"
+                                    onClick={() => { setCancelDialogPortfolioId(p.id); setCancelReason(''); }}
+                                    title="Cancel pending top-up and refund partner wallet"
+                                  >
+                                    <Ban className="h-3.5 w-3.5" /> Cancel Top-up ({formatUGX(approvedTopUps[p.id].total)})
+                                  </Button>
+                                )}
                                 {!readOnly && p.status === 'active' && (
                                   <Button
                                     variant="ghost"
@@ -2954,6 +2992,57 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             >
               {mergingTopUp ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowRightLeft className="h-3.5 w-3.5" />}
               Apply Now
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel Pending Top-Ups Dialog */}
+      <Dialog
+        open={!!cancelDialogPortfolioId}
+        onOpenChange={(open) => { if (!open) { setCancelDialogPortfolioId(null); setCancelReason(''); } }}
+      >
+        <DialogContent stable className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm flex items-center gap-2">
+              <Ban className="h-4 w-4 text-destructive" /> Cancel Pending Top-Up?
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              The parked top-up will be cancelled and the full amount refunded back to the partner's wallet. The next ROI cycle will not include this principal.
+            </DialogDescription>
+          </DialogHeader>
+          {cancelDialogPortfolioId && approvedTopUps[cancelDialogPortfolioId] && (
+            <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-xs">
+              <p className="font-semibold text-destructive">
+                {approvedTopUps[cancelDialogPortfolioId].count} pending top-up{approvedTopUps[cancelDialogPortfolioId].count > 1 ? 's' : ''} totaling {formatUGX(approvedTopUps[cancelDialogPortfolioId].total)}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Will be refunded to the partner's wallet immediately.
+              </p>
+            </div>
+          )}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium">Reason for cancellation (min 10 chars)</Label>
+            <Textarea
+              value={cancelReason}
+              onChange={e => setCancelReason(e.target.value)}
+              placeholder="e.g. Partner requested refund, duplicate top-up, wrong portfolio..."
+              className="text-xs min-h-[70px]"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => { setCancelDialogPortfolioId(null); setCancelReason(''); }}>
+              Keep Top-up
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              className="gap-1.5"
+              disabled={cancellingTopUp || cancelReason.trim().length < 10}
+              onClick={handleCancelPendingTopUps}
+            >
+              {cancellingTopUp ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Ban className="h-3.5 w-3.5" />}
+              Confirm Cancel
             </Button>
           </DialogFooter>
         </DialogContent>
