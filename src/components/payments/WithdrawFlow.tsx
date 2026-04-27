@@ -151,6 +151,37 @@ export default function WithdrawFlow({
     setIsProcessing(false);
     setIsComplete(false);
     setWithdrawalRef('');
+    setSelectedSavedId(null);
+    setSaveAsNew(true);
+    setSavedNickname('');
+  };
+
+  /**
+   * Pre-fill the destination form from a saved payout method. Switches
+   * payoutMode to match the saved row, then hydrates the relevant fields.
+   * Marks the row as "selected" so we skip re-creating it on submit.
+   */
+  const applySavedMethod = (m: SavedPayoutMethod) => {
+    setSelectedSavedId(m.id);
+    setSaveAsNew(false);
+    setPayoutMode(m.payout_mode);
+    if (m.payout_mode === 'mobile_money') {
+      setMomoProvider((m.momo_provider as 'MTN' | 'Airtel') ?? 'MTN');
+      setMomoNumber(m.momo_number ?? '');
+      setMomoName(m.momo_name ?? '');
+    } else if (m.payout_mode === 'bank_transfer') {
+      setBankName(m.bank_name ?? '');
+      setBankAccountName(m.bank_account_name ?? '');
+      setBankAccountNumber(m.bank_account_number ?? '');
+    }
+  };
+
+  /** Clear the saved-method selection so edits don't silently mutate it. */
+  const clearSavedSelection = () => {
+    if (selectedSavedId) {
+      setSelectedSavedId(null);
+      setSaveAsNew(true);
+    }
   };
 
   const handleClose = () => {
