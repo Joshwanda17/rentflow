@@ -67,8 +67,27 @@ export function AgentProxyWithdrawalDialog({
         client_request_id: clientRequestId,
       } as any);
       if (error) {
-        // Idempotency: collapse retried inserts into one row
-        if ((error as any).code !== '23505') throw error;
+        // 23505 = unique_violation. Either the idempotency key collided
+        // (genuine network retry — treat as success) or the dedupe
+        // trigger fired because an identical proxy withdrawal is already
+        // waiting. Surface a friendly message in the latter case so the
+        // agent doesn't keep tapping.
+        if ((error as any).code === '23505') {
+          const msg = String((error as any).message || '');
+          if (msg.includes('DUPLICATE_PENDING_WITHDRAWAL')) {
+            toast.error(
+              `A withdrawal of ${formatUGX(amount)} for ${funderName} is already waiting for Financial Ops approval.`,
+              { duration: 8000 },
+            );
+            clientRequestIdRef.current = null;
+            isSubmittingRef.current = false;
+            setLoading(false);
+            return;
+          }
+          // Idempotency-key collision: original insert succeeded.
+        } else {
+          throw error;
+        }
       }
 
       // Get the newly created withdrawal request ID for audit
