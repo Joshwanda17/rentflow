@@ -163,11 +163,16 @@ export function AgentTenantCollectDialog({
       <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
-            <Banknote className="h-5 w-5 text-success" />
             {confirming ? (
-              <><AlertCircle className="h-5 w-5 text-warning" /> Confirm Payment</>
+              <>
+                <AlertCircle className="h-5 w-5 text-warning" />
+                Confirm Payment
+              </>
             ) : (
-              <>Pay for {tenant.full_name}</>
+              <>
+                <Banknote className="h-5 w-5 text-success" />
+                Pay for {tenant.full_name}
+              </>
             )}
           </DialogTitle>
         </DialogHeader>
