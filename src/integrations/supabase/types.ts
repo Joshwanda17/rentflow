@@ -8058,6 +8058,45 @@ export type Database = {
           },
         ]
       }
+      phantom_freeze_audit: {
+        Row: {
+          frozen_at: string
+          id: string
+          ledger_total_at_freeze: number
+          new_locked_balance: number
+          previous_locked_balance: number
+          surplus_locked: number
+          trigger_reason: string
+          user_id: string
+          wallet_balance_before: number
+          wallet_id: string | null
+        }
+        Insert: {
+          frozen_at?: string
+          id?: string
+          ledger_total_at_freeze: number
+          new_locked_balance: number
+          previous_locked_balance: number
+          surplus_locked: number
+          trigger_reason?: string
+          user_id: string
+          wallet_balance_before: number
+          wallet_id?: string | null
+        }
+        Update: {
+          frozen_at?: string
+          id?: string
+          ledger_total_at_freeze?: number
+          new_locked_balance?: number
+          previous_locked_balance?: number
+          surplus_locked?: number
+          trigger_reason?: string
+          user_id?: string
+          wallet_balance_before?: number
+          wallet_id?: string | null
+        }
+        Relationships: []
+      }
       phantom_wallet_drift: {
         Row: {
           created_at: string
@@ -12810,6 +12849,10 @@ export type Database = {
         }[]
       }
       compute_daily_stats: { Args: never; Returns: undefined }
+      compute_wallet_ledger_total: {
+        Args: { _user_id: string }
+        Returns: number
+      }
       confirm_field_collection: {
         Args: {
           p_field_collection_id: string
@@ -13546,6 +13589,10 @@ export type Database = {
       }
       reject_house_listing: {
         Args: { p_listing_id: string; p_reason: string }
+        Returns: Json
+      }
+      release_phantom_lock: {
+        Args: { _amount: number; _reason: string; _user_id: string }
         Returns: Json
       }
       release_stale_cashout_claims: {
