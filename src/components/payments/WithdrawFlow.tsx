@@ -192,7 +192,7 @@ export default function WithdrawFlow({
   const canProceed = () => {
     switch (currentStep) {
       case 0: return true;
-      case 1: return amount > 0 && amount <= maxAmount;
+      case 1: return amount >= MIN_WITHDRAWAL && amount <= maxAmount;
       case 2: return !!payoutMode;
       case 3: {
         if (payoutMode === 'mobile_money') return momoNumber.trim().length >= 9 && momoName.trim().length >= 2;
