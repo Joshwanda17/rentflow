@@ -9,6 +9,7 @@ import RoleSwitcher from '@/components/RoleSwitcher';
 import { SidebarSkeleton, TopBarSkeleton } from '@/components/skeletons/SectionSkeletons';
 import { executiveSidebarConfig, roleLabels, roleDashboardRoutes } from './executiveSidebarConfig';
 import type { SidebarSection } from './executiveSidebarConfig';
+import { GlossaryButton } from '@/components/shared/GlossaryButton';
 
 
 interface ExecutiveDashboardLayoutProps {
@@ -233,6 +234,9 @@ export default function ExecutiveDashboardLayout({
             variant="header"
           />
         </div>
+
+        {/* Glossary — shared team vocabulary */}
+        <GlossaryButton variant="header" />
 
         {/* Sign Out */}
         <button
