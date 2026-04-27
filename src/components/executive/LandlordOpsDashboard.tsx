@@ -1508,7 +1508,19 @@ function LandlordDialogs({ editLandlord, setEditLandlord, editLC1, setEditLC1, a
           listingTitle={actionDialog.listing.title}
           actionType={actionDialog.type}
           userId={user?.id || ''}
-          onComplete={refetchAll}
+          onComplete={() => {
+            // Instantly remove the listing from the pending list by patching the
+            // React Query cache. The full refetch below reconciles related fields.
+            const targetId = actionDialog.listing.id;
+            const action = actionDialog.type;
+            queryClient?.setQueryData?.(['exec-house-listings-ops'], (old: any) => {
+              if (!Array.isArray(old)) return old;
+              if (action === 'delete') return old.filter((l: any) => l.id !== targetId);
+              const newStatus = action === 'reject' ? 'rejected' : 'delisted';
+              return old.map((l: any) => l.id === targetId ? { ...l, status: newStatus } : l);
+            });
+            refetchAll();
+          }}
         />
       )}
       <EditLandlordDialog
