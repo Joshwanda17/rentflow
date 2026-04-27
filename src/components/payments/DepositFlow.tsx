@@ -781,7 +781,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 <span className="text-lg leading-none">‹</span>
               </button>
             )}
-            {step === 'channel' && requirePurposeChoice && depositPurpose && (
+            {step === 'channel' && mustChoosePurpose && depositPurpose && (
               <button
                 type="button"
                 onClick={() => setStep('purpose')}
@@ -801,8 +801,8 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   {step === 'purpose'
                     ? 'Step 1 of 3 · What is this for?'
                     : step === 'channel'
-                      ? `Step ${requirePurposeChoice ? '2' : '1'} of ${requirePurposeChoice ? '3' : '2'} · How are you paying?`
-                      : `Step ${requirePurposeChoice ? '3' : '2'} of ${requirePurposeChoice ? '3' : '2'} · Enter details`}
+                      ? `Step ${mustChoosePurpose ? '2' : '1'} of ${mustChoosePurpose ? '3' : '2'} · How are you paying?`
+                      : `Step ${mustChoosePurpose ? '3' : '2'} of ${mustChoosePurpose ? '3' : '2'} · Enter details`}
                 </p>
               )}
             </div>
@@ -884,7 +884,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         ) : step === 'channel' ? (
           /* ─── Channel Selection ─── */
           <div className="space-y-3">
-            {requirePurposeChoice && depositPurpose && (
+            {mustChoosePurpose && depositPurpose && (
               <div className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/50 text-xs">
                 <span className="text-base">{DEPOSIT_PURPOSES.find(p => p.id === depositPurpose)?.emoji}</span>
                 <div className="min-w-0 flex-1">
