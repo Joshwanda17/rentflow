@@ -679,6 +679,20 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
                         {selectedOption?.label} Details
                       </p>
 
+                      {recentRecipientMatch && (
+                        <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50">
+                          <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                          <div className="text-[11px] leading-snug text-amber-900 dark:text-amber-200">
+                            <p className="font-semibold">
+                              You already sent UGX {recentRecipientMatch.amount.toLocaleString()} to {recentRecipientMatch.recipientLabel} {formatRelativeMinutes(recentRecipientMatch.submittedAt)}.
+                            </p>
+                            <p className="opacity-90 mt-0.5">
+                              That request is still pending operator approval. Re-submitting may create a duplicate.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
                       {(payoutMode === 'mtn' || payoutMode === 'airtel') && (
                         <>
                           <div className="space-y-1.5">
