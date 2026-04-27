@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { decodeAllocationsFromNote } from '@/components/payments/OperationalFloatTenantAllocator';
+import { DepositReviewTimeline } from '@/components/financial-ops/DepositReviewTimeline';
 
 interface RequestDetailSheetProps {
   open: boolean;
@@ -316,6 +317,13 @@ export function RequestDetailSheet({ open, onOpenChange, userId, requestType, re
                       ))}
                     </div>
                   </div>
+                )}
+
+                {/* Review timeline — deposits only. Anchors the chain
+                    of events (submit → edit → approve / changes) to the
+                    TID/receipt so reviewers can follow what happened. */}
+                {requestType === 'deposits' && (
+                  <DepositReviewTimeline request={requestData} />
                 )}
 
                 {/* Operational Float — per-tenant breakdown.
