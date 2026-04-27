@@ -89,6 +89,7 @@ interface PartnerRow {
   joinedAt: string;
   lastActivity: string;
   nextRoiDate: string | null;
+  payoutDates?: string[];
 }
 
 interface NearingPayoutPortfolio {
