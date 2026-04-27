@@ -819,7 +819,7 @@ export function TidVerification() {
     pendingMatchesRef.current.delete(match.id);
 
     try {
-      const { error } = await supabase.functions.invoke('approve-deposit', {
+      const { data, error } = await supabase.functions.invoke('approve-deposit', {
         body: { deposit_request_id: match.id, action: 'approve' },
       });
 
@@ -827,6 +827,13 @@ export function TidVerification() {
         const { extractFromErrorObject } = await import('@/lib/extractEdgeFunctionError');
         const msg = await extractFromErrorObject(error, 'Failed to approve deposit');
         throw new Error(msg);
+      }
+
+      const result = Array.isArray((data as any)?.results)
+        ? (data as any).results.find((r: any) => r.id === match.id)
+        : null;
+      if ((data as any)?.success === false || result?.status === 'error') {
+        throw new Error('Approval did not complete — deposit remains pending for retry.');
       }
 
       await supabase.from('audit_logs').insert({
@@ -1081,7 +1088,7 @@ export function TidVerification() {
     setRejecting(true);
 
     try {
-      const { error } = await supabase.functions.invoke('approve-deposit', {
+      const { data, error } = await supabase.functions.invoke('approve-deposit', {
         body: { deposit_request_id: rejectingId, action: 'reject', rejection_reason: rejectionReason.trim() },
       });
 
@@ -1089,6 +1096,13 @@ export function TidVerification() {
         const { extractFromErrorObject } = await import('@/lib/extractEdgeFunctionError');
         const msg = await extractFromErrorObject(error, 'Failed to reject deposit');
         throw new Error(msg);
+      }
+
+      const result = Array.isArray((data as any)?.results)
+        ? (data as any).results.find((r: any) => r.id === rejectingId)
+        : null;
+      if ((data as any)?.success === false || result?.status === 'error') {
+        throw new Error('Rejection did not complete — deposit remains pending for retry.');
       }
 
       const match = matches.find(m => m.id === rejectingId);
