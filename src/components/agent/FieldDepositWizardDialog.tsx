@@ -20,6 +20,7 @@ import {
   type DepositChannel, type FieldDepositBatch, type UnbatchedFieldCollection,
   channelLabel, listUnbatchedFieldCollections, createBatchWithItems, submitProofForBatch,
 } from '@/lib/fieldDepositBatches';
+import { GlossaryTip } from '@/components/shared/GlossaryTip';
 
 interface FieldDepositWizardDialogProps {
   open: boolean;
@@ -205,6 +206,10 @@ export function FieldDepositWizardDialog({ open, onOpenChange, attachProofTo }: 
         {/* ─────────── STEP 1 ─────────── */}
         {step === 1 && !attachProofTo && (
           <div className="px-5 py-4 space-y-4">
+            <GlossaryTip
+              terms={['Deposit / Refill', 'Float', 'Cash on Hand', 'Reconciliation']}
+              intro="Banking your collected cash refills your float. Finance verifies before it posts."
+            />
             <div>
               <Label className="text-sm font-semibold">How did you deposit?</Label>
               <div className="grid grid-cols-1 gap-2 mt-2">

@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { addEntry, deleteEntry, getEntries, newClientUuid, type FieldEntry } from '@/lib/fieldCollectStore';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
+import { GlossaryTip } from '@/components/shared/GlossaryTip';
 
 interface TenantFieldCollectDialogProps {
   open: boolean;
@@ -139,6 +140,11 @@ export function TenantFieldCollectDialog({
         </DialogHeader>
 
         <div className="px-5 py-4 space-y-4">
+          <GlossaryTip
+            terms={['Cash Collected', 'Float', 'Tracking ID']}
+            intro="Tap any term for a plain-English reminder of what it means."
+          />
+
           {/* Session running total */}
           <div className="rounded-2xl border bg-gradient-to-br from-primary/10 to-primary/5 p-4">
             <p className="text-xs text-muted-foreground">This session</p>
