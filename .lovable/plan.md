@@ -1,50 +1,49 @@
-## What's actually happening
+## What you're seeing
 
-You're picking a depositor, entering the TID, and it looks like the deposit was verified — but the row stays in the pending list.
+The Financial Ops queue is full of five identical pending withdrawals from **Maphoe Maphosa → Raphael Oluwashola @ UGX 22,500**, all "requested about 4 hours ago". The existing safeguards only stop **double-tap** (same submission within milliseconds via `clientRequestId`). They do **not** stop a user from re-opening the dialog and submitting the same recipient + amount again 30 seconds, 2 minutes, or an hour later. That's why operators are now staring at five duplicate cards.
 
-I checked the database: **no MTN deposits have been approved in the last 2 hours**, even though you've been verifying. So the problem isn't the list refusing to refresh — it's that the approvals are never being committed to the backend in the first place.
+## The guard
 
-## Why
+Add two layers — a fast **client-side session guard** in the withdrawal dialog (catches honest mistakes / nervous re-submissions without a server round-trip) and a **server-side time-window guard** in the database (catches the same user submitting from a different tab, after a refresh, or from another device).
 
-The "approve" button doesn't commit immediately. It schedules a 5-second **undoable** approval (so you can hit Undo if you tapped the wrong row), and only then calls the backend. Two things break this on a phone:
+### Layer 1 — Client session guard (`src/components/wallet/WithdrawRequestDialog.tsx`)
 
-1. **Silent drop on unmount.** If you close the dialog, switch tabs, or navigate away during those 5 seconds, the timer is cleared on cleanup and the backend is never called. No error, no toast — the row just stays pending.
-2. **Unclear feedback.** The toast says "Will commit in 5 seconds" but it's easy to miss on mobile, and there's no visual signal on the row itself that approval is pending or has actually committed.
-3. **The "verify" wording is misleading.** The screen header says *"Pick a depositor, type their Transaction ID, then approve the match."* Operators reasonably assume picking + typing the TID = verified. The separate **Auto-approve** click is required and isn't obvious.
+- Maintain a `Map<recipientKey, { amount, submittedAt, requestId }>` in `sessionStorage` keyed under `welile:withdraw:recent:<userId>`.
+- `recipientKey` =
+  - mobile money → `"momo:<provider>:<normalised-phone>"`
+  - bank → `"bank:<bank>:<account-number>"`
+  - cash → `"cash:<agent-location>"`
+- Window: **10 minutes** for the same recipient regardless of amount, with a stricter check if the amount also matches.
+- Behaviour on submit:
+  1. If the same recipient has been submitted in the last 10 min for **the same amount**, BLOCK with a clear toast + a second-tap "Confirm I really mean to send this again" confirm dialog. Only proceed after explicit confirmation.
+  2. If the same recipient has been submitted in the last 10 min for a **different amount**, show a soft warning ("You sent UGX 22,500 to this number 3 minutes ago — continue?") with Confirm / Cancel.
+  3. On successful submission, write the entry into the map with timestamp.
+- Wipe entries older than 10 minutes on dialog open so the map self-prunes.
+- Show a small inline notice on the form when the recipient field changes to one already used recently in this session: *"You already sent UGX 22,500 to this number at 14:32. Pending operator approval."* — gives the user a chance to abort before even hitting Submit.
 
-## Fix
+### Layer 2 — Server-side dedupe (database trigger)
 
-### 1. Make approvals durable (`src/components/financial-ops/TidVerification.tsx`)
+- Add a `BEFORE INSERT` trigger on `withdrawal_requests` that raises an exception when the same `user_id` already has a `status = 'pending'` row matching the same recipient (mobile_money_number+provider OR bank_account_number+bank_name OR cash) **and** the same `amount`, created in the last **10 minutes**.
+- Error message: `"DUPLICATE_PENDING_WITHDRAWAL: identical pending request already exists"` so the client can map it to a friendly toast.
+- This is the real safety net — it prevents the spam even if the user clears `sessionStorage`, opens an incognito tab, or runs two browsers.
+- Catch the trigger error in `handleSubmit` and surface it as: *"You already have a pending withdrawal of UGX 22,500 to this recipient. Wait for operations to approve or reject the existing one before submitting again."*
 
-- On component unmount, **flush any pending undo timers immediately** — fire `commitApprove` for each queued match instead of clearing them. This guarantees that anything the operator approved is sent to the backend even if they close the dialog within 5 s.
-- Add a `beforeunload` handler that fires queued commits synchronously (best-effort `navigator.sendBeacon` fallback to the edge function) so closing the tab doesn't drop approvals either.
-- Reduce the default undo window from 5 s → **3 s** on mobile widths (`window.innerWidth < 640`) so commits land faster on phones.
+### Layer 3 — One-tap "review pending" link
 
-### 2. Visible per-row state on the pending pick-list
+- After the duplicate is blocked, show an action button on the toast: **"View my pending withdrawals"** — opens the existing pending withdrawals view so the user sees their queue rather than re-trying.
 
-- When a row is in the "approving (undoable)" state, mark it on the pending list with a small spinner + countdown ("Approving in 3…2…1") and disable re-picking.
-- When the row is committed and `loadPending()` re-runs, the row drops off as today — but also briefly toast "Removed from pending list ✓ — *Lukodda Joseph, USh 1,000,000 approved*" so the operator gets explicit confirmation tied to the pending list, not just the match card.
+## Operator-side relief (small)
 
-### 3. Clearer step labelling
-
-- Rename Step 1 from *"Pick the depositor"* → *"1. Pick who paid"* and Step 2 currently labelled "Enter TID" → *"2. Enter Transaction ID and approve"*.
-- Replace the **Auto-approve** button label with **"Approve & remove from list"** so it's unambiguous what the action does.
-- After the approve button, show a tiny inline note: *"Stays here for 3 seconds in case you tap the wrong one — tap Undo to cancel."*
-
-### 4. Self-healing pending list
-
-- After every approve commit, in addition to `loadPending()`, also locally splice the approved id out of the `pending` state immediately (optimistic). Today the row only disappears after the network refetch lands; on a slow 3G phone connection that can be 2–5 s of confusion.
-- If `loadPending()` later returns the row again (e.g., backend rolled back), restore it and toast a warning. This makes the list feel instant on phones while staying correct.
-
-### 5. Diagnostic safety net
-
-- If `commitApprove` ever returns an error, on top of the existing toast also write a row to `audit_logs` with `action_type: 'tid_approve_failed'` and the error message, so we can see in production whether any approvals are silently failing at the edge function rather than the timer.
+In `src/components/financial-ops/FinOpsWithdrawalVerification.tsx`, group **identical pending requests from the same user → same recipient → same amount within 10 min** under one expandable card with a "**5 duplicate submissions**" badge and a single **Reject all duplicates as duplicates** action — so even when older duplicates already slipped through (like the screenshot), ops can clear them in one tap instead of five.
 
 ## Out of scope
 
-- No backend / SQL / `approve-deposit` edge function changes — the function works fine; the issue is purely client-side timer + UX.
-- No changes to the search, pick filters, or amount input.
+- No change to the approval / payout flow itself.
+- No change to the withdrawal pricing, working hours, or balance checks.
+- The existing `clientRequestId` idempotency stays as-is — it's still useful for network retries within a single submission attempt.
 
-## Files to edit
+## Files to change
 
-- `src/components/financial-ops/TidVerification.tsx` — timer flush on unmount + beforeunload, optimistic splice, row state on pending list, button/copy changes, mobile undo window.
+- `src/components/wallet/WithdrawRequestDialog.tsx` — recipient-key session guard, soft warning, hard block + confirm.
+- `src/components/financial-ops/FinOpsWithdrawalVerification.tsx` — duplicate grouping + bulk-reject-as-duplicates.
+- New migration — `BEFORE INSERT` trigger on `withdrawal_requests` enforcing the 10-minute / same-amount / same-recipient block while a previous request is still pending.
