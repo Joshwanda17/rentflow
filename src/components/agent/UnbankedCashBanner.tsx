@@ -1245,23 +1245,81 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
                       </label>
 
                       {/* Per-batch reference field — only when picked AND per-batch mode */}
-                      {isPicked && mode === 'per_batch' && (
-                        <div className="px-3 pb-2 -mt-1">
-                          <input
-                            type="text"
-                            value={perBatchRef[b.id] ?? ''}
-                            onChange={(e) =>
-                              setPerBatchRef((p) => ({ ...p, [b.id]: e.target.value }))
-                            }
-                            placeholder={`Reference for #${b.id.slice(0, 8)}…`}
-                            className="w-full h-9 px-3 rounded-md border border-border bg-background text-xs font-mono focus:outline-none focus:ring-2 focus:ring-primary"
-                            disabled={submitting}
-                            inputMode="text"
-                            autoComplete="off"
-                            spellCheck={false}
-                          />
-                        </div>
-                      )}
+                      {isPicked && mode === 'per_batch' && (() => {
+                        const hint = CHANNEL_REF_HINT[b.channel];
+                        const raw = perBatchRef[b.id] ?? '';
+                        const trimmed = raw.trim();
+                        const hasInput = trimmed.length > 0;
+                        const isValidShape = hasInput && hint.pattern.test(trimmed);
+                        const isTooShort = hasInput && trimmed.length < 4;
+                        return (
+                          <div className="px-3 pb-2 -mt-1 space-y-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[10px] font-medium text-muted-foreground truncate">
+                                {hint.label}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  hapticTap();
+                                  setPerBatchRef((p) => ({ ...p, [b.id]: hint.example }));
+                                }}
+                                disabled={submitting}
+                                className="text-[10px] font-medium text-primary hover:underline disabled:opacity-50 shrink-0"
+                                title="Fill the example format"
+                              >
+                                Use example
+                              </button>
+                            </div>
+                            <input
+                              type="text"
+                              value={raw}
+                              onChange={(e) =>
+                                setPerBatchRef((p) => ({ ...p, [b.id]: e.target.value }))
+                              }
+                              placeholder={hint.placeholder}
+                              className={cn(
+                                'w-full h-9 px-3 rounded-md border bg-background text-xs font-mono focus:outline-none focus:ring-2 focus:ring-primary transition-colors',
+                                hasInput && isValidShape && 'border-success/60',
+                                hasInput && !isValidShape && !isTooShort && 'border-warning/60',
+                                !hasInput && 'border-border',
+                              )}
+                              disabled={submitting}
+                              inputMode="text"
+                              autoComplete="off"
+                              spellCheck={false}
+                              aria-describedby={`bulk-ref-hint-${b.id}`}
+                            />
+                            <div
+                              id={`bulk-ref-hint-${b.id}`}
+                              className="text-[10px] leading-snug"
+                            >
+                              {!hasInput && (
+                                <span className="text-muted-foreground">{hint.help}</span>
+                              )}
+                              {hasInput && isTooShort && (
+                                <span className="text-muted-foreground inline-flex items-center gap-1">
+                                  <AlertTriangle className="h-3 w-3 text-warning" />
+                                  Too short — most {channelLabel(b.channel)} references are 8+ chars.
+                                </span>
+                              )}
+                              {hasInput && !isTooShort && isValidShape && (
+                                <span className="text-success inline-flex items-center gap-1 font-medium">
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  Looks like a valid {channelLabel(b.channel)} reference.
+                                </span>
+                              )}
+                              {hasInput && !isTooShort && !isValidShape && (
+                                <span className="text-warning inline-flex items-center gap-1">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  Format unusual — expected like{' '}
+                                  <span className="font-mono font-semibold">{hint.example}</span>
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </li>
                 );
