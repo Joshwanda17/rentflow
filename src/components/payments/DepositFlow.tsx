@@ -1498,32 +1498,46 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
               <p className="text-[10px] text-muted-foreground">Ensure all details match your {channel === 'momo' ? 'SMS' : channel === 'bank' ? 'bank receipt' : 'physical receipt'}. Incorrect info delays verification.</p>
             </div>
 
-            {(() => {
-              const total = parseFloat(amount) || 0;
-              const sum = tenantAllocations.reduce((s, a) => s + (a.amount || 0), 0);
-              const opsAllocBlocked =
-                depositPurpose === 'operational_float' &&
-                tenantAllocations.length > 0 &&
-                (Math.abs(total - sum) > 1 || tenantAllocations.some((a) => !a.amount || a.amount <= 0));
-              return (
-                <Button
-                  onClick={handleSubmit}
-                  disabled={isSubmitting || (channel === 'momo' && !isTidValid()) || opsAllocBlocked}
-                  className="w-full h-11"
-                  size="lg"
-                >
-                  {isSubmitting
-                    ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> {isEditMode ? 'Saving…' : 'Submitting...'}</>
-                    : opsAllocBlocked
-                      ? 'Fix tenant breakdown to submit'
-                      : isEditMode
-                        ? 'Save Changes'
-                        : 'Submit Deposit Request'}
-                </Button>
-              );
-            })()}
           </div>
         )}
+        {/* /scroll body */}
+        </div>
+        {/* Sticky footer — primary action lives here only on the form
+            step. Other steps are big tap-target grids (Choose purpose /
+            Choose method) which act as their own CTAs. */}
+        {step === 'form' && !editLoading && (() => {
+          const total = parseFloat(amount) || 0;
+          const sum = tenantAllocations.reduce((s, a) => s + (a.amount || 0), 0);
+          const opsAllocBlocked =
+            depositPurpose === 'operational_float' &&
+            tenantAllocations.length > 0 &&
+            (Math.abs(total - sum) > 1 || tenantAllocations.some((a) => !a.amount || a.amount <= 0));
+          const blocked =
+            isSubmitting || (channel === 'momo' && !isTidValid()) || opsAllocBlocked;
+          return (
+            <div className="sticky bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              <Button
+                onClick={handleSubmit}
+                disabled={blocked}
+                className="w-full h-12 text-base font-semibold"
+                size="lg"
+              >
+                {isSubmitting
+                  ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> {isEditMode ? 'Saving…' : 'Submitting…'}</>
+                  : opsAllocBlocked
+                    ? 'Fix tenant breakdown to continue'
+                    : isEditMode
+                      ? 'Save changes'
+                      : 'Confirm deposit'}
+              </Button>
+              {total > 0 && !blocked && (
+                <p className="text-center text-xs text-muted-foreground mt-1.5">
+                  Depositing <span className="font-semibold text-foreground">{formatCurrency(total)}</span>
+                </p>
+              )}
+            </div>
+          );
+        })()}
       </DialogContent>
     </Dialog>
   );
