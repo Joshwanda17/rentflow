@@ -1517,7 +1517,7 @@ export function TidVerification() {
                     : <ArrowUpDown className="h-2.5 w-2.5 opacity-50" />}
                 </button>
               </div>
-              <ScrollArea className="max-h-44">
+              <ScrollArea className="h-[28rem] max-h-[60vh]">
                 <ul
                 ref={pendingListRef}
                 role="listbox"
