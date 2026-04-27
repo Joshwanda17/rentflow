@@ -15,6 +15,7 @@ import {
   type FieldDepositBatch,
   type UnbatchedFieldCollection,
   type BatchItemDetail,
+  type BatchStatus,
   channelLabel,
 } from '@/lib/fieldDepositBatches';
 import { FieldDepositWizardDialog } from '@/components/agent/FieldDepositWizardDialog';
@@ -26,6 +27,18 @@ import { toast } from 'sonner';
 interface AwaitingBatchWithItems extends FieldDepositBatch {
   items: BatchItemDetail[];
 }
+
+/** Batch statuses we surface in the banner. Past 'verified'/'rejected' rows
+ *  are kept around briefly so the agent sees their proof landed. */
+const VISIBLE_STATUSES: BatchStatus[] = [
+  'awaiting_proof',
+  'pending_finops_verification',
+  'verified',
+  'rejected',
+];
+
+/** How long after verification/rejection we keep the row visible. */
+const RESOLVED_VISIBILITY_MS = 24 * 60 * 60 * 1000; // 24h
 
 /**
  * Persistent, top-of-dashboard banner that surfaces field cash the agent has
@@ -56,10 +69,20 @@ export function UnbankedCashBanner() {
         listUnbatchedFieldCollections(user.id),
         listAgentBatches(user.id, 25),
       ]);
-      const awaiting = batches.filter(b => b.status === 'awaiting_proof');
-      // Pull items per awaiting batch so the drill-down can show tenant + amount.
+      const visible = batches.filter((b) => {
+        if (!VISIBLE_STATUSES.includes(b.status)) return false;
+        // Hide resolved batches that are older than RESOLVED_VISIBILITY_MS.
+        if (b.status === 'verified' || b.status === 'rejected') {
+          const ts = b.finops_verified_at ?? b.updated_at;
+          if (ts && Date.now() - new Date(ts).getTime() > RESOLVED_VISIBILITY_MS) {
+            return false;
+          }
+        }
+        return true;
+      });
+      // Pull items per visible batch so the drill-down can show tenant + amount.
       const withItems: AwaitingBatchWithItems[] = await Promise.all(
-        awaiting.map(async (b) => {
+        visible.map(async (b) => {
           try {
             const items = await listBatchItems(b.id);
             return { ...b, items };
@@ -85,17 +108,21 @@ export function UnbankedCashBanner() {
 
   const unbatchedTotal = unbatched.reduce((s, r) => s + Number(r.amount || 0), 0);
   const unbatchedCount = unbatched.length;
-  const awaitingTotal = awaitingBatches.reduce(
+  // "Hanging" cash = only batches still awaiting agent proof. Once submitted,
+  // the money is in Finance's court so it doesn't count against the agent.
+  const stillAwaiting = awaitingBatches.filter((b) => b.status === 'awaiting_proof');
+  const awaitingTotal = stillAwaiting.reduce(
     (s, b) => s + Number(b.declared_total || 0),
     0,
   );
   const grandTotal = unbatchedTotal + awaitingTotal;
-  const grandCount = unbatchedCount + awaitingBatches.length;
+  const grandCount = unbatchedCount + stillAwaiting.length;
+  const hasResolvedRows = awaitingBatches.length > stillAwaiting.length;
 
-  // Nothing hanging → render nothing.
-  if (!loaded || grandTotal <= 0) return null;
+  // Nothing hanging AND nothing recently resolved → render nothing.
+  if (!loaded || (grandTotal <= 0 && !hasResolvedRows)) return null;
 
-  const oldestAwaiting = awaitingBatches[awaitingBatches.length - 1];
+  const oldestAwaiting = stillAwaiting[stillAwaiting.length - 1];
   const ageHours = oldestAwaiting
     ? Math.floor((Date.now() - new Date(oldestAwaiting.created_at).getTime()) / 3_600_000)
     : 0;
@@ -189,10 +216,10 @@ export function UnbankedCashBanner() {
               <ChevronRight className="h-4 w-4 shrink-0" />
             </button>
           )}
-          {awaitingBatches.length > 0 && (
+          {stillAwaiting.length > 0 && (
             <button
               type="button"
-              onClick={() => { hapticTap(); setProofForBatch(awaitingBatches[0]); }}
+              onClick={() => { hapticTap(); setProofForBatch(stillAwaiting[0]); }}
               className="flex items-center justify-between gap-2 rounded-xl border-2 border-foreground/20 bg-background px-3 py-2.5 text-left hover:bg-accent transition-all active:scale-[0.98] min-h-[48px]"
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
@@ -201,7 +228,7 @@ export function UnbankedCashBanner() {
                   Add proof
                 </p>
                 <p className="text-sm font-semibold truncate">
-                  {formatUGX(Number(awaitingBatches[0].declared_total))} · oldest deposit
+                  {formatUGX(Number(stillAwaiting[0].declared_total))} · oldest deposit
                 </p>
               </div>
               <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -218,7 +245,7 @@ export function UnbankedCashBanner() {
           aria-expanded={expanded}
         >
           <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            {expanded ? 'Hide' : 'See'} every hanging entry ({grandCount})
+            {expanded ? 'Hide' : 'See'} every entry ({unbatchedCount + awaitingBatches.length})
           </span>
           <ChevronDown
             className={cn(
@@ -282,7 +309,7 @@ export function UnbankedCashBanner() {
                 <div className="px-4 pt-2.5 pb-1 flex items-center gap-1.5">
                   <AlertTriangle className="h-3 w-3 text-destructive" />
                   <span className="text-[10px] font-bold uppercase tracking-wider text-destructive">
-                    Awaiting proof · {awaitingBatches.length} deposit{awaitingBatches.length === 1 ? '' : 's'}
+                    Deposit batches · {awaitingBatches.length}
                   </span>
                 </div>
                 <ul className="divide-y divide-border/40">
@@ -339,6 +366,52 @@ function formatDateTime(iso: string): string {
   });
 }
 
+/* Status pill metadata used by AwaitingBatchRow */
+function getStatusBadge(status: BatchStatus): {
+  label: string;
+  cls: string;
+  textCls: string;
+  Icon: typeof CheckCircle2;
+} {
+  switch (status) {
+    case 'awaiting_proof':
+      return {
+        label: 'Awaiting proof',
+        cls: 'bg-destructive/15 text-destructive border-destructive/30',
+        textCls: 'text-destructive',
+        Icon: AlertTriangle,
+      };
+    case 'pending_finops_verification':
+      return {
+        label: 'Proof pending review',
+        cls: 'bg-warning/15 text-warning border-warning/30',
+        textCls: 'text-warning',
+        Icon: Clock,
+      };
+    case 'verified':
+      return {
+        label: 'Verified',
+        cls: 'bg-success/15 text-success border-success/30',
+        textCls: 'text-success',
+        Icon: CheckCircle2,
+      };
+    case 'rejected':
+      return {
+        label: 'Rejected',
+        cls: 'bg-destructive/20 text-destructive border-destructive/40',
+        textCls: 'text-destructive',
+        Icon: X,
+      };
+    default:
+      return {
+        label: status,
+        cls: 'bg-muted text-muted-foreground border-border',
+        textCls: 'text-muted-foreground',
+        Icon: FileText,
+      };
+  }
+}
+
 /* ---------------------------------------------------------------------- */
 /* Inline awaiting-batch row with quick-proof entry                        */
 /* ---------------------------------------------------------------------- */
@@ -366,6 +439,15 @@ function AwaitingBatchRow({ batch, onOpenWizard, onProofSubmitted }: AwaitingBat
     (Date.now() - new Date(batch.created_at).getTime()) / 3_600_000,
   );
   const isOverdue = batchAge >= 24;
+
+  /* Status-driven UI gating */
+  const isAwaiting = batch.status === 'awaiting_proof';
+  const isPending = batch.status === 'pending_finops_verification';
+  const isVerified = batch.status === 'verified';
+  const isRejected = batch.status === 'rejected';
+  const canEditAmount = isAwaiting;
+  const canAddProof = isAwaiting;
+  const status = getStatusBadge(batch.status);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -455,13 +537,30 @@ function AwaitingBatchRow({ batch, onOpenWizard, onProofSubmitted }: AwaitingBat
               <p className="text-sm font-semibold truncate">
                 {channelLabel(batch.channel)}
               </p>
+              {/* Status pill — always visible so the agent can see proof has landed */}
+              <p className="mt-1 flex flex-wrap items-center gap-1">
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider border',
+                    status.cls,
+                  )}
+                >
+                  <status.Icon className="h-2.5 w-2.5" />
+                  {status.label}
+                </span>
+                {batch.proof_reference && (isPending || isVerified) && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-background/70 border border-border px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground max-w-[140px] truncate">
+                    {batch.proof_reference.startsWith('RECEIPT-') ? '📷 Receipt' : `Ref ${batch.proof_reference}`}
+                  </span>
+                )}
+              </p>
               <p className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
                 <Clock className="h-2.5 w-2.5" />
                 {formatDateTime(batch.created_at)}
                 {batchAge > 0 && (
                   <>
                     <span className="opacity-50">·</span>
-                    <span className={cn(isOverdue && 'text-destructive font-semibold')}>
+                    <span className={cn(isOverdue && isAwaiting && 'text-destructive font-semibold')}>
                       {batchAge}h old
                     </span>
                   </>
@@ -474,7 +573,7 @@ function AwaitingBatchRow({ batch, onOpenWizard, onProofSubmitted }: AwaitingBat
 
           {/* Editable banked amount */}
           <div className="text-right shrink-0">
-            {editingAmount ? (
+            {editingAmount && canEditAmount ? (
               <div className="flex items-center gap-1">
                 <input
                   type="text"
@@ -514,23 +613,35 @@ function AwaitingBatchRow({ batch, onOpenWizard, onProofSubmitted }: AwaitingBat
               </div>
             ) : (
               <>
-                <button
-                  type="button"
-                  onClick={() => { hapticTap(); setEditingAmount(true); }}
-                  className="inline-flex items-center gap-1 text-sm font-bold hover:text-primary transition-colors"
-                  title="Edit banked amount"
-                >
-                  {formatUGX(Number(batch.declared_total))}
-                  <Pencil className="h-3 w-3 opacity-60" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { hapticTap(); setOpen(v => !v); }}
-                  className="block text-[9px] uppercase tracking-wider text-destructive font-semibold flex items-center justify-end gap-0.5 ml-auto"
-                >
-                  {open ? 'Close' : 'Add proof'}
-                  <ChevronDown className={cn('h-3 w-3 transition-transform', open && 'rotate-180')} />
-                </button>
+                {canEditAmount ? (
+                  <button
+                    type="button"
+                    onClick={() => { hapticTap(); setEditingAmount(true); }}
+                    className="inline-flex items-center gap-1 text-sm font-bold hover:text-primary transition-colors"
+                    title="Edit banked amount"
+                  >
+                    {formatUGX(Number(batch.declared_total))}
+                    <Pencil className="h-3 w-3 opacity-60" />
+                  </button>
+                ) : (
+                  <p className="text-sm font-bold">{formatUGX(Number(batch.declared_total))}</p>
+                )}
+                {canAddProof ? (
+                  <button
+                    type="button"
+                    onClick={() => { hapticTap(); setOpen(v => !v); }}
+                    className="block text-[9px] uppercase tracking-wider text-destructive font-semibold flex items-center justify-end gap-0.5 ml-auto"
+                  >
+                    {open ? 'Close' : 'Add proof'}
+                    <ChevronDown className={cn('h-3 w-3 transition-transform', open && 'rotate-180')} />
+                  </button>
+                ) : (
+                  <p className={cn('text-[9px] uppercase tracking-wider font-semibold', status.textCls)}>
+                    {isPending && 'Awaiting Finance'}
+                    {isVerified && 'Float credited'}
+                    {isRejected && 'See Finance note'}
+                  </p>
+                )}
               </>
             )}
           </div>
@@ -556,7 +667,7 @@ function AwaitingBatchRow({ batch, onOpenWizard, onProofSubmitted }: AwaitingBat
         )}
 
         {/* Inline proof form */}
-        {open && (
+        {open && canAddProof && (
           <form onSubmit={handleSubmit} className="mt-3 ml-11 space-y-2.5">
             <div className="space-y-1">
               <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
@@ -655,6 +766,18 @@ function AwaitingBatchRow({ batch, onOpenWizard, onProofSubmitted }: AwaitingBat
               Finance will verify before float and commission post.
             </p>
           </form>
+        )}
+
+        {/* Rejection note */}
+        {isRejected && batch.rejection_reason && (
+          <div className="mt-2 ml-11 rounded-lg border border-destructive/30 bg-destructive/5 px-2.5 py-1.5">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-destructive">
+              Finance rejected this batch
+            </p>
+            <p className="text-[11px] text-foreground/80 mt-0.5">
+              {batch.rejection_reason}
+            </p>
+          </div>
         )}
       </div>
     </li>
