@@ -1415,26 +1415,40 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
     }
     setSubmitting(true);
     try {
-      // Upload the photo ONCE; reuse the same public URL for every batch.
-      let imageUrl: string | null = null;
-      if (file) {
-        const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-        const path = `field-deposit-proofs/bulk/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+      /** Upload one File to Supabase Storage and return its public URL.
+       *  Used for both the single shared upload and the lazy per-batch
+       *  uploads below — keeps the storage path scheme consistent. */
+      const uploadOne = async (f: File): Promise<string> => {
+        const ext = f.name.split('.').pop()?.toLowerCase() || 'jpg';
+        const path = `field-deposit-proofs/bulk/${Date.now()}_${Math.random()
+          .toString(36)
+          .slice(2)}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from('receipts')
-          .upload(path, file, { contentType: file.type || undefined, upsert: false });
+          .upload(path, f, { contentType: f.type || undefined, upsert: false });
         if (upErr) throw upErr;
-        imageUrl = supabase.storage.from('receipts').getPublicUrl(path).data.publicUrl;
+        return supabase.storage.from('receipts').getPublicUrl(path).data.publicUrl;
+      };
+
+      // In shared photo mode, upload ONCE and reuse the URL for every batch.
+      // In per_batch photo mode, each batch uploads its own file inside the
+      // loop below (only when one is attached).
+      let sharedImageUrl: string | null = null;
+      if (photoMode === 'shared' && file) {
+        sharedImageUrl = await uploadOne(file);
       }
 
       const ids = Array.from(selected);
       let okCount = 0;
       let failCount = 0;
       const runResults: BulkResult[] = [];
-      const photoAttached = !!imageUrl;
       for (const id of ids) {
         setRowState((s) => ({ ...s, [id]: { state: 'submitting' } }));
         const meta = batches.find((b) => b.id === id);
+        // Resolve the right photo for THIS batch up front so it shows in
+        // the result summary even if the row fails before submit.
+        const batchFile = fileForBatch(id);
+        const photoAttached = photoMode === 'shared' ? !!sharedImageUrl : !!batchFile;
         try {
           const { data: fresh, error: freshErr } = await supabase
             .from('field_deposit_batches')
@@ -1455,6 +1469,13 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
               errorMsg: `Already ${fresh?.status ?? 'changed'} — skipped`,
             });
             continue;
+          }
+          // Lazy per-batch upload — only when (a) we're in per_batch photo
+          // mode and (b) the agent attached a photo for this row. Failures
+          // are caught by the surrounding try/catch and reported per-row.
+          let imageUrl: string | null = sharedImageUrl;
+          if (photoMode === 'per_batch' && batchFile) {
+            imageUrl = await uploadOne(batchFile);
           }
           const ref = refForBatch(id);
           const finalRef = ref.length >= 4 ? ref : `RECEIPT-${id.slice(0, 8)}`;
