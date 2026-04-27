@@ -552,7 +552,7 @@ export default function SupporterDashboard({
         open={showPaymentPartners} 
         onOpenChange={setShowPaymentPartners}
         dashboardType="supporter"
-        title="Add Investment via Mobile Money"
+        title="Add Investment"
       />
       
       <SupporterAgreementModal
