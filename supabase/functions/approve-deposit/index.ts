@@ -202,6 +202,14 @@ Deno.serve(async (req) => {
     const results: Array<{ id: string; status: string; amount: number; user_id: string; repayment_applied?: number; debt_cleared?: number; days_prepaid?: number }> = [];
 
     for (const depositRequest of depositRequests) {
+      const depositStartedAt = Date.now();
+      const isLargeDeposit = Number(depositRequest.amount) >= 10_000_000;
+      if (isLargeDeposit) {
+        console.log(
+          `[approve-deposit] LARGE deposit start id=${depositRequest.id} ` +
+          `amount=${depositRequest.amount} user=${depositRequest.user_id} action=${action}`,
+        );
+      }
       try {
         if (action === "approve") {
           // ── Idempotency guard ────────────────────────────────────────
@@ -469,8 +477,11 @@ Deno.serve(async (req) => {
                 repaymentApplied = 0;
                 newOutstanding = outstanding;
               } else {
-                // Balanced RPC: wallet cash_out + platform cash_in
-                const { data: txGroupId, error: rentLedgerErr } = await supabaseAdmin.rpc('create_ledger_transaction', {
+                // Balanced RPC: wallet cash_out + platform cash_in (retried on transient failures)
+                const rentLedgerRes = await withRetry<string>(
+                  'rent_repayment_ledger',
+                  depositRequest.id,
+                  () => supabaseAdmin.rpc('create_ledger_transaction', {
                   entries: [
                     {
                       user_id: depositRequest.user_id,
@@ -498,9 +509,16 @@ Deno.serve(async (req) => {
                       transaction_date: new Date().toISOString(),
                     },
                   ],
-                });
+                  }),
+                );
+                const txGroupId = rentLedgerRes.data;
+                const rentLedgerErr = rentLedgerRes.error;
                 if (rentLedgerErr) {
-                  console.error(`[approve-deposit] Rent ledger RPC failed:`, rentLedgerErr);
+                  console.error(
+                    `[approve-deposit] Rent ledger RPC permanently failed for ${depositRequest.id} ` +
+                    `after ${rentLedgerRes.attempts} attempts (${rentLedgerRes.ms}ms):`,
+                    rentLedgerErr,
+                  );
                 }
 
                 availableBalance -= repaymentApplied;
@@ -553,8 +571,11 @@ Deno.serve(async (req) => {
                 .update({ accumulated_debt: debt - debtCleared, updated_at: new Date().toISOString() })
                 .eq("id", activeSub.id);
 
-              // Balanced RPC: wallet cash_out + platform cash_in for debt clearance
-              const { error: debtLedgerErr } = await supabaseAdmin.rpc('create_ledger_transaction', {
+              // Balanced RPC: wallet cash_out + platform cash_in for debt clearance (retried on transient failures)
+              const debtLedgerRes = await withRetry<string>(
+                'debt_clearance_ledger',
+                depositRequest.id,
+                () => supabaseAdmin.rpc('create_ledger_transaction', {
                 entries: [
                   {
                     user_id: depositRequest.user_id,
@@ -582,8 +603,16 @@ Deno.serve(async (req) => {
                     transaction_date: new Date().toISOString(),
                   },
                 ],
-              });
-              if (debtLedgerErr) console.error(`[approve-deposit] Debt ledger RPC failed:`, debtLedgerErr);
+                }),
+              );
+              const debtLedgerErr = debtLedgerRes.error;
+              if (debtLedgerErr) {
+                console.error(
+                  `[approve-deposit] Debt ledger RPC permanently failed for ${depositRequest.id} ` +
+                  `after ${debtLedgerRes.attempts} attempts (${debtLedgerRes.ms}ms):`,
+                  debtLedgerErr,
+                );
+              }
 
               availableBalance -= debtCleared;
 
@@ -637,8 +666,11 @@ Deno.serve(async (req) => {
                 })
                 .eq("id", activeSub.id);
 
-              // Balanced RPC: wallet cash_out + platform cash_in for prepaid fees
-              const { error: prepayLedgerErr } = await supabaseAdmin.rpc('create_ledger_transaction', {
+              // Balanced RPC: wallet cash_out + platform cash_in for prepaid fees (retried on transient failures)
+              const prepayLedgerRes = await withRetry<string>(
+                'prepay_ledger',
+                depositRequest.id,
+                () => supabaseAdmin.rpc('create_ledger_transaction', {
                 entries: [
                   {
                     user_id: depositRequest.user_id,
@@ -666,8 +698,16 @@ Deno.serve(async (req) => {
                     transaction_date: new Date().toISOString(),
                   },
                 ],
-              });
-              if (prepayLedgerErr) console.error(`[approve-deposit] Prepay ledger RPC failed:`, prepayLedgerErr);
+                }),
+              );
+              const prepayLedgerErr = prepayLedgerRes.error;
+              if (prepayLedgerErr) {
+                console.error(
+                  `[approve-deposit] Prepay ledger RPC permanently failed for ${depositRequest.id} ` +
+                  `after ${prepayLedgerRes.attempts} attempts (${prepayLedgerRes.ms}ms):`,
+                  prepayLedgerErr,
+                );
+              }
 
               availableBalance -= prepaidAmount;
 
