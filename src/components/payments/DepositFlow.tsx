@@ -140,7 +140,12 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
    * original allocations payload so handleSubmit can re-encode notes the
    * same way it was created (and so we can detect "nothing changed").
    */
-  const isEditMode = !!editRequestId;
+  // Either the parent supplied an edit target (UserDepositRequests "Edit
+  // allocations" button) OR the in-form Reference Matcher discovered a
+  // pending deposit and asked us to flip into edit mode for that row.
+  const [matchedEditId, setMatchedEditId] = useState<string | null>(null);
+  const activeEditId = editRequestId ?? matchedEditId;
+  const isEditMode = !!activeEditId;
   const [editLoading, setEditLoading] = useState(false);
 
   /**
