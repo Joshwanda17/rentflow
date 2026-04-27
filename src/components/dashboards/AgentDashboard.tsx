@@ -625,6 +625,12 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       />
       <WithdrawFlow open={showQuickWithdraw} onOpenChange={setShowQuickWithdraw} availableBalance={realWithdrawableBalance} />
       <SendMoneyDialog open={showQuickTransfer} onOpenChange={setShowQuickTransfer} />
+
+      <CollectFromReferenceDialog
+        open={collectFromRefOpen}
+        onOpenChange={setCollectFromRefOpen}
+        agentId={user.id}
+      />
       
       <AgentMenuDrawer
         open={menuOpen}
