@@ -860,7 +860,30 @@ Deno.serve(async (req) => {
         }
       } catch (innerErr) {
         console.error(`[approve-deposit] Error processing ${depositRequest.id}:`, innerErr);
-        results.push({ id: depositRequest.id, status: "error", amount: depositRequest.amount, user_id: depositRequest.user_id });
+        const alreadyCredited = action === 'approve'
+          ? await supabaseAdmin
+              .from('general_ledger')
+              .select('id', { count: 'exact', head: true })
+              .eq('source_table', 'deposit_requests')
+              .eq('source_id', depositRequest.id)
+              .eq('category', 'wallet_deposit')
+              .eq('direction', 'cash_in')
+              .eq('ledger_scope', 'wallet')
+          : { count: 0 };
+
+        if (action === 'approve' && (alreadyCredited.count ?? 0) > 0) {
+          await supabaseAdmin
+            .from('deposit_requests')
+            .update({
+              status: 'approved',
+              approved_at: depositRequest.approved_at || new Date().toISOString(),
+              processed_by: depositRequest.processed_by || user.id,
+            })
+            .eq('id', depositRequest.id);
+          results.push({ id: depositRequest.id, status: "approved", amount: depositRequest.amount, user_id: depositRequest.user_id });
+        } else {
+          results.push({ id: depositRequest.id, status: "error", amount: depositRequest.amount, user_id: depositRequest.user_id });
+        }
       }
     }
 
