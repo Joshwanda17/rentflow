@@ -238,6 +238,51 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
     if (amount > availableBalance) { toast.error(`Insufficient available balance. You have UGX ${pendingAmount.toLocaleString()} in pending withdrawals.`); isSubmittingRef.current = false; return; }
     if (!isPayoutValid()) { toast.error('Please complete payout details'); isSubmittingRef.current = false; return; }
 
+    // ─── Recipient session guard ────────────────────────────────────────
+    // Catches the "submit five identical withdrawals to the same number"
+    // pattern before it ever hits the network. Server-side trigger
+    // (`prevent_duplicate_pending_withdrawal`) is the real safety net for
+    // cross-tab / cleared-storage attempts.
+    const recipientInfo = buildRecipientKey({
+      payoutMode: payoutMode as 'mtn' | 'airtel' | 'bank' | 'cash',
+      momoNumber,
+      bankName,
+      bankAccountNumber,
+    });
+    if (recipientInfo) {
+      const recent = readRecentRecipients(user.id);
+      const existing = recent[recipientInfo.key];
+      if (existing && Date.now() - existing.submittedAt < RECENT_WINDOW_MS) {
+        const sameAmount = existing.amount === amount;
+        if (sameAmount) {
+          // Hard block — explicit confirm required.
+          const proceed = window.confirm(
+            `You already submitted UGX ${existing.amount.toLocaleString()} to ` +
+              `${recipientInfo.label} ${formatRelativeMinutes(existing.submittedAt)}. ` +
+              `That request is still waiting for operator approval.\n\n` +
+              `Sending the same amount again will create a duplicate that operations may reject.\n\n` +
+              `Tap OK only if you really mean to send another UGX ${amount.toLocaleString()} to the same recipient.`,
+          );
+          if (!proceed) {
+            toast.info('Duplicate blocked — your earlier request is still pending.');
+            isSubmittingRef.current = false;
+            return;
+          }
+        } else {
+          // Soft warn — different amount but same recipient very recently.
+          const proceed = window.confirm(
+            `You sent UGX ${existing.amount.toLocaleString()} to ` +
+              `${recipientInfo.label} ${formatRelativeMinutes(existing.submittedAt)}.\n\n` +
+              `Continue with this new UGX ${amount.toLocaleString()} request?`,
+          );
+          if (!proceed) {
+            isSubmittingRef.current = false;
+            return;
+          }
+        }
+      }
+    }
+
     setLoading(true);
     // Stable idempotency key for the lifetime of this submission attempt.
     // Reused across network retries so the DB unique index on (user_id, client_request_id)
@@ -275,6 +320,26 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
           // 23505 = unique_violation. Means a previous attempt already committed
           // this exact submission server-side. Treat as success.
           if ((error as any).code === '23505') {
+            // Two distinct cases share this code:
+            //   1. Idempotency key collision → genuine duplicate of *this*
+            //      submission (network retry). Treat as success.
+            //   2. Our `prevent_duplicate_pending_withdrawal` trigger fired
+            //      → user already has another pending request for the same
+            //      recipient + amount in the last 10 min. Block, surface a
+            //      friendly message, and stop the success flow.
+            const msg = String((error as any).message || '');
+            if (msg.includes('DUPLICATE_PENDING_WITHDRAWAL')) {
+              toast.error(
+                `You already have a pending withdrawal of UGX ${amount.toLocaleString()} ` +
+                  `to this recipient. Wait for operations to approve or reject the ` +
+                  `existing one before submitting again.`,
+                { duration: 8000 },
+              );
+              setLoading(false);
+              isSubmittingRef.current = false;
+              clientRequestIdRef.current = null;
+              return;
+            }
             console.info('[WithdrawRequestDialog] Duplicate suppressed by idempotency key');
           } else {
             throw error;
@@ -396,6 +461,15 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
         setSuccess(true);
         toast.success('Withdrawal request submitted! 🎉');
         onSuccess?.();
+        // Record this recipient in the session map so a re-open within
+        // 10 minutes triggers the guard above.
+        if (recipientInfo) {
+          writeRecentRecipient(user.id, recipientInfo.key, {
+            amount,
+            submittedAt: Date.now(),
+            recipientLabel: recipientInfo.label,
+          });
+        }
         setLoading(false);
         isSubmittingRef.current = false;
         clientRequestIdRef.current = null;
