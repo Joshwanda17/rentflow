@@ -1006,6 +1006,11 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [rowState, setRowState] = useState<Record<string, { state: BulkRowState; msg?: string }>>({});
+  /** Per-batch outcomes from the most recent submit. Empty until the agent
+   *  runs the submission at least once. Used to render the in-dialog
+   *  results summary that replaces the form when `hasRun` is true. */
+  const [results, setResults] = useState<BulkResult[]>([]);
+  const [hasRun, setHasRun] = useState(false);
 
   useEffect(() => {
     if (!file) { setPreviewUrl(null); return; }
