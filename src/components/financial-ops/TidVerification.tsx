@@ -1420,30 +1420,49 @@ export function TidVerification() {
                 {pendingSorted.map((p, idx) => {
                   const active = p.id === pickedId;
                   const highlighted = idx === highlightedIndex;
+                  const isApprovingRow = pendingUndoIds.has(p.id);
+                  const secondsLeft = undoCountdown.get(p.id);
                   return (
                     <li key={p.id} role="option" aria-selected={active}>
                       <button
                         ref={(el) => { pendingItemRefs.current[idx] = el; }}
                         type="button"
-                        onClick={() => { pickPending(p); setHighlightedIndex(idx); }}
+                        onClick={() => {
+                          if (isApprovingRow) return;
+                          pickPending(p);
+                          setHighlightedIndex(idx);
+                        }}
                         onFocus={() => setHighlightedIndex(idx)}
+                        disabled={isApprovingRow}
                         className={`w-full text-left px-2.5 py-2 hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary transition-colors ${
                           active ? 'bg-primary/10' : ''
-                        } ${highlighted && !active ? 'bg-accent/40 ring-2 ring-inset ring-primary/60' : ''}`}
+                        } ${highlighted && !active ? 'bg-accent/40 ring-2 ring-inset ring-primary/60' : ''} ${
+                          isApprovingRow ? 'bg-emerald-50 dark:bg-emerald-950/30 opacity-90 cursor-progress' : ''
+                        }`}
                       >
                         <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0">
                             <p className="text-xs font-medium truncate">
                               {p.depositorName}
                             </p>
-                            <p className="text-[10px] text-muted-foreground truncate">
-                              {p.depositorPhone || '—'} · {format(new Date(p.created_at), 'MMM d, HH:mm')}
-                            </p>
+                            {isApprovingRow ? (
+                              <p className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium truncate flex items-center gap-1">
+                                <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                                Approving in {secondsLeft ?? 0}…
+                              </p>
+                            ) : (
+                              <p className="text-[10px] text-muted-foreground truncate">
+                                {p.depositorPhone || '—'} · {format(new Date(p.created_at), 'MMM d, HH:mm')}
+                              </p>
+                            )}
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
                             <span className="text-xs font-semibold">{formatUGX(p.amount)}</span>
-                            {active && (
+                            {active && !isApprovingRow && (
                               <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+                            )}
+                            {isApprovingRow && (
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
                             )}
                           </div>
                         </div>
