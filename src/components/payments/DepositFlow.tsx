@@ -597,17 +597,28 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Phone className="h-5 w-5 text-primary" />
-            Deposit to Wallet
+            {isEditMode ? 'Edit Deposit Request' : 'Deposit to Wallet'}
           </DialogTitle>
         </DialogHeader>
 
-        {step === 'success' ? (
+        {editLoading ? (
+          <div className="py-12 text-center space-y-3">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+            <p className="text-muted-foreground text-sm">Loading deposit details…</p>
+          </div>
+        ) : step === 'success' ? (
           <div className="py-8 text-center space-y-4">
             <div className="w-16 h-16 mx-auto bg-success/20 rounded-full flex items-center justify-center">
               <CheckCircle2 className="h-8 w-8 text-success" />
             </div>
-            <h3 className="text-lg font-semibold">Request Submitted!</h3>
-            <p className="text-muted-foreground text-sm">Your deposit is being verified.</p>
+            <h3 className="text-lg font-semibold">
+              {isEditMode ? 'Changes Saved!' : 'Request Submitted!'}
+            </h3>
+            <p className="text-muted-foreground text-sm">
+              {isEditMode
+                ? 'Financial Ops will see your updated allocations on their next review.'
+                : 'Your deposit is being verified.'}
+            </p>
             <div className="space-y-2">
               <Button onClick={handleClose} className="w-full">Done</Button>
               <Button variant="outline" className="w-full" onClick={() => { handleClose(); navigate('/deposit-history'); }}>
@@ -618,7 +629,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         ) : step === 'submitting' ? (
           <div className="py-12 text-center space-y-4">
             <Loader2 className="h-10 w-10 animate-spin mx-auto text-primary" />
-            <p className="text-muted-foreground">Submitting...</p>
+            <p className="text-muted-foreground">{isEditMode ? 'Saving changes…' : 'Submitting...'}</p>
           </div>
         ) : step === 'purpose' ? (
           /* ─── Mandatory Purpose Choice (agents) ─── */
