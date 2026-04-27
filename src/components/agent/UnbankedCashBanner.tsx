@@ -1602,6 +1602,10 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
                         const isValidShape = hasInput && hint.pattern.test(trimmed);
                         const isTooShort = hasInput && trimmed.length < 4;
                         const isDuplicate = dupBatchIds.has(b.id);
+                        // Hard-blocked when ref is unusable (empty / <4 chars)
+                        // AND no shared photo can cover it. Wins over duplicate
+                        // styling because it's a stricter blocker.
+                        const isMissingRequired = missingRefIds.has(b.id);
                         return (
                           <div className="px-3 pb-2 -mt-1 space-y-1">
                             <div className="flex items-center justify-between gap-2">
