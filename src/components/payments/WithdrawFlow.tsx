@@ -648,21 +648,38 @@ export default function WithdrawFlow({
         if (isProcessing) {
           return <ProcessingScreen onComplete={handleProcessingComplete} />;
         }
+        // Submission failed before a row was created — fall back to the
+        // legacy receipt so the user can see the failure + retry.
+        if (!createdRequestId || paymentStatus === 'failed') {
+          return (
+            <ReceiptCard
+              status={paymentStatus === 'pending' ? 'pending' : paymentStatus}
+              amount={amount}
+              currency={currency}
+              fees={0}
+              recipient={getPayoutSummary()}
+              reference={withdrawalRef || 'PENDING'}
+              method={payoutMode === 'mobile_money' ? 'Mobile Money' : payoutMode === 'bank_transfer' ? 'Bank Transfer' : 'Cash Pickup'}
+              date={new Date()}
+              onDownload={() => {}}
+              onShare={() => {}}
+              onTryAgain={() => setCurrentStep(2)}
+              onChangeMethod={() => setCurrentStep(2)}
+              onContactSupport={() => {}}
+              onClose={handleClose}
+            />
+          );
+        }
+        // Live status tracker — subscribes to withdrawal_requests and
+        // updates Submitted → Ops review → Disbursed in realtime, with a
+        // self-cancel button while still pending.
         return (
-          <ReceiptCard
-            status={paymentStatus}
+          <WithdrawalStatusTracker
+            requestId={createdRequestId}
             amount={amount}
             currency={currency}
-            fees={0}
-            recipient={getPayoutSummary()}
+            recipientLabel={getPayoutSummary()}
             reference={withdrawalRef || 'PENDING'}
-            method={payoutMode === 'mobile_money' ? 'Mobile Money' : payoutMode === 'bank_transfer' ? 'Bank Transfer' : 'Cash Pickup'}
-            date={new Date()}
-            onDownload={() => {}}
-            onShare={() => {}}
-            onTryAgain={() => setCurrentStep(2)}
-            onChangeMethod={() => setCurrentStep(2)}
-            onContactSupport={() => {}}
             onClose={handleClose}
           />
         );
