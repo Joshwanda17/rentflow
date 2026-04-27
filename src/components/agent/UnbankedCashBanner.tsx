@@ -1833,7 +1833,14 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
               </button>
               <button
                 type="submit"
-                disabled={submitting || selected.size === 0}
+                disabled={submitting || submitBlocked}
+                title={
+                  hasMissingRefs
+                    ? `${missingRefIds.size} batch${missingRefIds.size === 1 ? '' : 'es'} missing a reference`
+                    : sharedModeBlocked
+                      ? 'Enter a shared reference or attach a receipt photo'
+                      : undefined
+                }
                 className="flex-1 h-10 rounded-lg bg-destructive text-destructive-foreground text-xs font-bold uppercase tracking-wider hover:bg-destructive/90 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
               >
                 {submitting ? (
