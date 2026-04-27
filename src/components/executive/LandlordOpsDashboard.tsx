@@ -1012,6 +1012,7 @@ export function LandlordOpsDashboard() {
       ? cityGroups.filter(g => g.city.toLowerCase().includes(search.toLowerCase()))
       : cityGroups;
     return (
+      <>
       <div className="space-y-3">
         <BackButton />
         <h2 className="text-lg font-bold flex items-center gap-2"><Globe className="h-5 w-5 text-teal-600" /> Cities We Operate In ({cityGroups.length})</h2>
@@ -1052,6 +1053,8 @@ export function LandlordOpsDashboard() {
           {filtered.length === 0 && <p className="text-center text-muted-foreground py-8">No cities found</p>}
         </div>
       </div>
+      {renderDialogs()}
+      </>
     );
   }
 
