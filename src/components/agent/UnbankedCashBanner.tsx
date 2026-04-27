@@ -1280,6 +1280,33 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
   }, [mode, selected, perBatchRef]);
   const hasDuplicates = dupBatchIds.size > 0;
 
+  /**
+   * Selected batches in per-batch mode whose reference is empty or shorter
+   * than 4 chars AND that have no shared receipt photo to fall back on.
+   * Used to (a) hard-disable the submit button, (b) light up the offending
+   * rows in red, and (c) show an inline banner explaining what's missing.
+   *
+   * In shared mode, the single shared reference / photo combo is checked
+   * separately by `validateBeforeSubmit` — this memo intentionally returns
+   * an empty set so per-row hints don't fire in that mode.
+   */
+  const missingRefIds = useMemo(() => {
+    if (mode !== 'per_batch') return new Set<string>();
+    if (file) return new Set<string>(); // a shared photo covers any missing ref
+    const out = new Set<string>();
+    for (const id of selected) {
+      const r = (perBatchRef[id] ?? '').trim();
+      if (r.length < 4) out.add(id);
+    }
+    return out;
+  }, [mode, selected, perBatchRef, file]);
+
+  /** Submission is hard-blocked while ANY required reference is missing. */
+  const hasMissingRefs = missingRefIds.size > 0;
+  const sharedModeBlocked =
+    mode === 'shared' && selected.size > 0 && sharedRef.trim().length < 4 && !file;
+  const submitBlocked = selected.size === 0 || hasMissingRefs || sharedModeBlocked;
+
   /** Resolve the reference for a batch given the current mode. */
   const refForBatch = (id: string): string => {
     if (mode === 'shared') return sharedRef.trim();
@@ -1294,13 +1321,10 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
         return 'Enter a shared reference or attach a receipt photo';
       }
     } else {
-      // per_batch: every selected batch needs a reference OR the shared photo
-      const missing = Array.from(selected).filter((id) => {
-        const r = (perBatchRef[id] ?? '').trim();
-        return r.length < 4 && !file;
-      });
-      if (missing.length > 0) {
-        return `Add a reference (or attach a photo) for ${missing.length} batch${missing.length === 1 ? '' : 'es'}`;
+      // per_batch: every selected batch needs a reference OR the shared photo.
+      // Reuse the memoized set so this stays in lock-step with the inline UI.
+      if (missingRefIds.size > 0) {
+        return `Add a reference (or attach a photo) for ${missingRefIds.size} batch${missingRefIds.size === 1 ? '' : 'es'}`;
       }
     }
     return null;
