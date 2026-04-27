@@ -337,6 +337,44 @@ export default function DepositReferenceMatcher({
     }
     setSelectedIds(preselect);
     setPhase('collections');
+
+    // High-confidence: the preselected subset sums EXACTLY to the
+    // current target (or within 1 UGX). Auto-apply so the agent doesn't
+    // have to confirm what the system already knows is right.
+    if (currentAmount > 0) {
+      const sumPre = enriched
+        .filter((c) => preselect.has(c.id))
+        .reduce((s, c) => s + c.amount, 0);
+      if (Math.abs(sumPre - currentAmount) <= 1) {
+        autoApplyFromCollections(enriched.filter((c) => preselect.has(c.id)));
+      }
+    }
+  };
+
+  /** Apply a fully-resolved collection subset without waiting for a click. */
+  const autoApplyFromCollections = (rows: CollectionRow[]) => {
+    if (rows.length === 0) return;
+    const byTenant = new Map<string, TenantAllocation>();
+    for (const c of rows) {
+      const prev = byTenant.get(c.tenant_id);
+      byTenant.set(c.tenant_id, {
+        tenant_id: c.tenant_id,
+        tenant_name: c.tenant_name,
+        tenant_phone: c.tenant_phone,
+        amount: (prev?.amount || 0) + c.amount,
+      });
+    }
+    const total = rows.reduce((s, c) => s + c.amount, 0);
+    setAutoApplied(true);
+    onApplyMatch({
+      amount: total,
+      allocations: Array.from(byTenant.values()),
+      reference: reference.trim().toUpperCase(),
+      providerHint: detectProvider(reference),
+    });
+    toast.success(
+      `Auto-matched ${rows.length} collection${rows.length === 1 ? '' : 's'} — UGX ${total.toLocaleString()}`,
+    );
   };
 
   const handleSearch = async () => {
@@ -345,12 +383,23 @@ export default function DepositReferenceMatcher({
       toast.error('Paste a TID, bank reference or receipt number first');
       return;
     }
+    if (lastSearchedRef.current === ref && phase !== 'idle') {
+      // Already searched this exact ref and showed results — don't spam.
+      return;
+    }
+    lastSearchedRef.current = ref;
     setSearching(true);
     setPhase('idle');
+    setAutoApplied(false);
     try {
       const depositMatch = await tryDepositMatch(ref);
       if (depositMatch) {
-        toast.success('Matched a pending deposit — reopening for edit');
+        const allocCount = depositMatch.allocations.length;
+        toast.success(
+          allocCount > 0
+            ? `Matched a pending deposit — recovered ${allocCount} tenant allocation${allocCount === 1 ? '' : 's'}`
+            : 'Matched a pending deposit — reopening for edit',
+        );
         onApplyMatch(depositMatch);
         return;
       }
@@ -359,6 +408,28 @@ export default function DepositReferenceMatcher({
       setSearching(false);
     }
   };
+
+  // Auto-search: as soon as the agent finishes typing/pasting a
+  // recognisably-formatted reference, fire the lookup without making
+  // them click "Find". Debounced to avoid hammering the DB on each
+  // keystroke. Manual click still works.
+  useEffect(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+    const ref = reference.trim().toUpperCase();
+    if (!ref || ref.length < MIN_REF_LEN) return;
+    if (!looksWellFormed(ref)) return; // Free-text — wait for explicit click.
+    if (lastSearchedRef.current === ref) return;
+    debounceTimerRef.current = setTimeout(() => {
+      handleSearch();
+    }, AUTO_SEARCH_MS);
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reference]);
 
   const toggle = (id: string) => {
     setSelectedIds((prev) => {
