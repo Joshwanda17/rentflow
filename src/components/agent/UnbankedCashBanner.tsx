@@ -216,10 +216,10 @@ export function UnbankedCashBanner() {
               <ChevronRight className="h-4 w-4 shrink-0" />
             </button>
           )}
-          {awaitingBatches.length > 0 && (
+          {stillAwaiting.length > 0 && (
             <button
               type="button"
-              onClick={() => { hapticTap(); setProofForBatch(awaitingBatches[0]); }}
+              onClick={() => { hapticTap(); setProofForBatch(stillAwaiting[0]); }}
               className="flex items-center justify-between gap-2 rounded-xl border-2 border-foreground/20 bg-background px-3 py-2.5 text-left hover:bg-accent transition-all active:scale-[0.98] min-h-[48px]"
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
@@ -228,7 +228,7 @@ export function UnbankedCashBanner() {
                   Add proof
                 </p>
                 <p className="text-sm font-semibold truncate">
-                  {formatUGX(Number(awaitingBatches[0].declared_total))} · oldest deposit
+                  {formatUGX(Number(stillAwaiting[0].declared_total))} · oldest deposit
                 </p>
               </div>
               <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -245,7 +245,7 @@ export function UnbankedCashBanner() {
           aria-expanded={expanded}
         >
           <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            {expanded ? 'Hide' : 'See'} every hanging entry ({grandCount})
+            {expanded ? 'Hide' : 'See'} every entry ({unbatchedCount + awaitingBatches.length})
           </span>
           <ChevronDown
             className={cn(
@@ -309,7 +309,7 @@ export function UnbankedCashBanner() {
                 <div className="px-4 pt-2.5 pb-1 flex items-center gap-1.5">
                   <AlertTriangle className="h-3 w-3 text-destructive" />
                   <span className="text-[10px] font-bold uppercase tracking-wider text-destructive">
-                    Awaiting proof · {awaitingBatches.length} deposit{awaitingBatches.length === 1 ? '' : 's'}
+                    Deposit batches · {awaitingBatches.length}
                   </span>
                 </div>
                 <ul className="divide-y divide-border/40">
