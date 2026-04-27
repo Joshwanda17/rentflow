@@ -231,6 +231,112 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     }
   }, [open, defaultPurpose, lockPurpose, requirePurposeChoice]);
 
+  /**
+   * Edit-mode hydration. When the dialog opens with an `editRequestId`,
+   * load the existing pending row, decode the allocations tail off the
+   * notes column, and prefill every field so the agent can adjust amounts
+   * without re-typing the TID, date, channel, etc.
+   *
+   * Read-only safeguard: if the row is no longer pending (Financial Ops
+   * already touched it) we surface a toast and close — editing an
+   * approved/reviewed deposit would silently desync the ledger.
+   */
+  useEffect(() => {
+    if (!open || !editRequestId) return;
+    let cancelled = false;
+    (async () => {
+      setEditLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('deposit_requests')
+          .select('*')
+          .eq('id', editRequestId)
+          .maybeSingle();
+        if (error) throw error;
+        if (!data) {
+          toast.error('Deposit request not found');
+          onOpenChange(false);
+          return;
+        }
+        if (data.status !== 'pending') {
+          toast.error('This deposit is already under review and can no longer be edited');
+          onOpenChange(false);
+          return;
+        }
+        if (cancelled) return;
+
+        // Channel + provider — derive from stored `provider` enum
+        const prov = String(data.provider || '');
+        if (prov === 'mtn' || prov === 'airtel') {
+          setChannel('momo');
+          setMomoProvider(prov);
+        } else if (prov === 'bank_transfer') {
+          setChannel('bank');
+        } else if (prov === 'cash_deposit') {
+          setChannel('cash');
+        } else if (prov === 'agent_cash') {
+          setChannel('agent_cash');
+        }
+
+        setAmount(String(data.amount ?? ''));
+
+        // Reference: bank/momo go in transactionId, cash/agent_cash in receiptNumber (RCT-prefixed)
+        const ref = String(data.transaction_id || '');
+        if (prov === 'cash_deposit' || prov === 'agent_cash') {
+          setReceiptNumber(ref.replace(/^RCT/i, ''));
+        } else {
+          setTransactionId(ref);
+        }
+
+        // Date / time
+        if (data.transaction_date) {
+          const d = new Date(data.transaction_date);
+          setTransactionDate(d.toISOString().split('T')[0]);
+          setTransactionTime(d.toTimeString().slice(0, 5));
+        }
+
+        // Purpose
+        const purpose = (data.deposit_purpose ?? data.purpose_audit?.chosen_purpose ?? '') as DepositPurpose | '';
+        if (purpose) {
+          setDepositPurpose(purpose);
+          const label = DEPOSIT_PURPOSES.find((p) => p.id === purpose)?.label;
+          if (label && purpose !== 'other') setReason(label);
+          setShowPurposeGrid(false);
+          setStep('form');
+        }
+
+        // Decode allocations tail off notes; restore reason text from the
+        // human-readable head if present (strip leading "Purpose: …" tag).
+        const { cleanNote, allocations: decoded } = decodeAllocationsFromNote(data.notes);
+        if (decoded && decoded.length) {
+          setTenantAllocations(decoded);
+        }
+        if (cleanNote) {
+          // notes look like "Purpose: X | <reason> | Agent: Y | Bank slip: Z"
+          const parts = cleanNote.split('|').map((s) => s.trim()).filter(Boolean);
+          const reasonPart = parts.find(
+            (p) => !/^purpose:/i.test(p) && !/^agent:/i.test(p) && !/^bank slip:/i.test(p),
+          );
+          if (reasonPart && (purpose === 'other' || !purpose)) {
+            setReason(reasonPart);
+          }
+          const agentPart = parts.find((p) => /^agent:/i.test(p));
+          if (agentPart) setAgentName(agentPart.replace(/^agent:\s*/i, ''));
+        }
+      } catch (err: any) {
+        console.error('[DepositFlow] edit hydrate failed', err);
+        toast.error('Could not load deposit for editing', { description: err?.message });
+        onOpenChange(false);
+      } finally {
+        if (!cancelled) setEditLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editRequestId]);
+
   const validateTid = (value: string, provider?: 'mtn' | 'airtel') => {
     const upper = value.trim().toUpperCase();
     const prov = provider ?? momoProvider;
