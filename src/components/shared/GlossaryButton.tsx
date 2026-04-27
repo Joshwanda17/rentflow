@@ -1,227 +1,39 @@
 import { useState } from 'react';
-import { BookOpen, Search, X } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { BookOpen, Search, X, Plus, Pencil, Trash2, EyeOff, Eye, Save, Loader2 } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
 
 export interface GlossaryTerm {
+  id: string;
   term: string;
-  category: 'Money' | 'Agent Ops' | 'Tenant' | 'Landlord' | 'Roles' | 'Process';
+  category: string;
   short: string;
-  example?: string;
-  also?: string[];
+  example: string | null;
+  also: string[];
+  sort_order: number;
+  is_active: boolean;
 }
 
-/**
- * Single source of truth for Welile vocabulary used by ops, agents and execs.
- * Keep entries SHORT and in plain English — this is what the team reads
- * during a stand-up, not technical docs.
- */
-export const GLOSSARY: GlossaryTerm[] = [
-  // --- Money ---
-  {
-    term: 'Float',
-    category: 'Money',
-    short:
-      "An agent's permission to collect cash. Like airtime on a SIM — once it's used up, they can't collect more until it's refilled.",
-    example: 'Agent has UGX 5,000,000 float → they can collect up to that much before depositing.',
-    also: ['Float Limit', 'Refill', 'Cash on Hand'],
-  },
-  {
-    term: 'Float Limit',
-    category: 'Money',
-    short:
-      'The maximum amount of cash an agent is trusted to hold at one time. Set by Agent Ops.',
-  },
-  {
-    term: 'Cash on Hand',
-    category: 'Money',
-    short:
-      'The physical cash an agent is currently holding from collections that has not yet been deposited back to Welile.',
-  },
-  {
-    term: 'Cash Collected',
-    category: 'Money',
-    short:
-      'Money the agent has physically received from a tenant. The moment this is recorded, the float drops by the same amount.',
-    example: 'Tenant pays UGX 200,000 → float drops by 200,000, cash on hand goes up by 200,000.',
-  },
-  {
-    term: 'Deposit / Refill',
-    category: 'Money',
-    short:
-      'When the agent returns cash to Welile (via merchant code, bank, or branch). Once Finance confirms it, their float is topped back up.',
-    also: ['Float'],
-  },
-  {
-    term: 'Withdrawable Balance',
-    category: 'Money',
-    short:
-      'Money in a wallet the user can actually take out — earned commissions, refunds, or returned investments.',
-  },
-  {
-    term: 'Advance Balance',
-    category: 'Money',
-    short:
-      'Money lent to an agent against future earnings. Repaid automatically as commissions come in.',
-  },
-  {
-    term: 'Wallet (3 Buckets)',
-    category: 'Money',
-    short:
-      'Every wallet has three pockets: Withdrawable (cash out), Float (collect on behalf of Welile), and Advance (loaned). They never mix.',
-  },
-  {
-    term: 'Commission',
-    category: 'Money',
-    short:
-      'The percentage an agent earns on a successful collection or investment. Lands in the Withdrawable bucket.',
-  },
-  {
-    term: 'Payout / Disbursement',
-    category: 'Money',
-    short:
-      'Money moving OUT of Welile to a landlord or partner — usually via Mobile Money or via an agent delivering cash in person.',
-  },
-
-  // --- Process ---
-  {
-    term: 'Rent Request',
-    category: 'Process',
-    short:
-      "A tenant's application to have Welile pay their landlord upfront so the tenant can repay in installments.",
-  },
-  {
-    term: 'Rent Plan',
-    category: 'Process',
-    short:
-      'The repayment schedule for a funded rent request — daily/weekly/monthly installments back to Welile.',
-  },
-  {
-    term: 'Proxy Payout',
-    category: 'Process',
-    short:
-      'When an agent physically delivers cash to a landlord on Welile\'s behalf instead of a Mobile Money transfer.',
-  },
-  {
-    term: 'Reconciliation',
-    category: 'Process',
-    short:
-      "End-of-day check: does what the agent says they collected match what's actually in their float and deposit slips?",
-  },
-  {
-    term: 'OTP Verification',
-    category: 'Process',
-    short:
-      'A one-time SMS code used to confirm a sensitive action (e.g., landlord confirming they received cash).',
-  },
-
-  // --- Roles ---
-  {
-    term: 'Agent',
-    category: 'Roles',
-    short:
-      'A field representative who registers tenants/landlords, collects rent in cash, and delivers payouts.',
-  },
-  {
-    term: 'Sub-Agent',
-    category: 'Roles',
-    short:
-      'An agent recruited and managed by another agent. Earns their own commissions; the parent agent earns 1% override.',
-  },
-  {
-    term: 'Proxy Agent',
-    category: 'Roles',
-    short:
-      'An agent assigned to act on behalf of a partner (typically a non-smartphone user) for deposits and withdrawals.',
-  },
-  {
-    term: 'Supporter / Funder',
-    category: 'Roles',
-    short:
-      'A person who deposits money into Welile to fund tenant rent and earns monthly returns.',
-  },
-  {
-    term: 'Partner',
-    category: 'Roles',
-    short:
-      'A funder who works through an agent (often without their own smartphone). The agent manages their wallet on their behalf.',
-  },
-
-  // --- Tenant / Landlord ---
-  {
-    term: 'Tenant',
-    category: 'Tenant',
-    short:
-      'The renter. Welile pays their rent upfront; they repay in installments.',
-  },
-  {
-    term: 'Tenant Wallet',
-    category: 'Tenant',
-    short:
-      "The tenant's account inside Welile. Auto-deductions for rent installments come from here first.",
-  },
-  {
-    term: 'Auto-Deduction',
-    category: 'Tenant',
-    short:
-      "When rent is due, the system pulls from the tenant's wallet first; if short, it falls back to the agent's wallet; if both are short, it's recorded as debt.",
-  },
-  {
-    term: 'Landlord',
-    category: 'Landlord',
-    short:
-      'The property owner who receives rent from Welile (Mobile Money or agent cash drop).',
-  },
-  {
-    term: 'House Listing',
-    category: 'Landlord',
-    short:
-      "A vacant property posted to Welile's marketplace. Agents earn UGX 5,000 per verified listing.",
-  },
-
-  // --- Agent Ops ---
-  {
-    term: 'Tracking ID',
-    category: 'Agent Ops',
-    short:
-      'A unique receipt reference (e.g., WLE-2026-00123) generated for every payment, so tenant, agent and Finance can trace it.',
-  },
-  {
-    term: 'Pending Sync',
-    category: 'Agent Ops',
-    short:
-      "Payments recorded offline that haven't reached the server yet. They upload automatically once the agent has signal.",
-  },
-  {
-    term: 'Streak',
-    category: 'Agent Ops',
-    short:
-      'Consecutive days an agent has collected at least one payment. Longer streaks earn badges and bonus multipliers.',
-  },
-  {
-    term: 'Trust Score',
-    category: 'Agent Ops',
-    short:
-      "Welile's internal credit rating for a tenant or partner, based on payment history, supporters, and verified signals.",
-  },
-  {
-    term: 'Escalation',
-    category: 'Agent Ops',
-    short:
-      'A flagged issue from the field (missing tenant, refused payout, dispute) that needs Agent Ops to resolve.',
-  },
-];
-
-const CATEGORY_ORDER: GlossaryTerm['category'][] = [
+const CATEGORY_ORDER = [
   'Money',
   'Process',
   'Agent Ops',
   'Tenant',
   'Landlord',
   'Roles',
-];
+] as const;
+
+const CATEGORIES: string[] = [...CATEGORY_ORDER];
 
 interface GlossaryButtonProps {
   variant?: 'header' | 'inline' | 'menu';
