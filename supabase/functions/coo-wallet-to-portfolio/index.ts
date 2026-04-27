@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { buildPartnershipTopupRequest, dispatchTransactionalEmail } from "../_shared/partnership-emails.ts";
 import { checkTreasuryGuard } from "../_shared/treasuryGuard.ts";
+import { withRetry } from "../_shared/rpcRetry.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -144,6 +145,14 @@ Deno.serve(async (req) => {
     }
 
     const txGroupId = crypto.randomUUID();
+    const opStartedAt = Date.now();
+    const isLargeAmount = topupAmount >= 5_000_000;
+    if (isLargeAmount) {
+      console.log(
+        `[coo-wallet-to-portfolio] LARGE top-up start portfolio=${portfolio_id} ` +
+        `amount=${topupAmount} method=${method} wallet_owner=${walletOwnerId} tx=${txGroupId}`,
+      );
+    }
 
     // ── 1. Create wallet transaction (visible in tx history) ──
     const { error: txErr } = await supabase.from("wallet_transactions").insert({
@@ -158,8 +167,15 @@ Deno.serve(async (req) => {
       return jsonRes({ error: "Failed to record wallet transaction" }, 500);
     }
 
-    // ── 2. Deduct from wallet immediately via ledger (FATAL on failure) ──
-    const { error: ledgerErr } = await supabase.rpc("create_ledger_transaction", {
+    // ── 2. Deduct from wallet immediately via ledger (retried on transient failures) ──
+    // Large top-ups (10M+) occasionally hit transient pooler/connection
+    // errors and surface as "Edge Function returned non-2xx". The retry
+    // helper only retries genuinely transient errors — validation /
+    // constraint failures fail immediately so we don't burn time.
+    const ledgerRes = await withRetry<unknown>(
+      "wallet_to_portfolio_ledger",
+      `${portfolio_id}/${txGroupId}`,
+      () => supabase.rpc("create_ledger_transaction", {
       entries: [
         {
           user_id: walletOwnerId,
@@ -182,10 +198,16 @@ Deno.serve(async (req) => {
           linked_party: walletOwnerId,
         },
       ],
-    });
+      }),
+    );
+    const ledgerErr = ledgerRes.error as { message?: string } | null;
 
     if (ledgerErr) {
-      console.error("[coo-wallet-to-portfolio] LEDGER FAILURE — aborting:", ledgerErr);
+      console.error(
+        `[coo-wallet-to-portfolio] LEDGER FAILURE — aborting (portfolio=${portfolio_id}, ` +
+        `attempts=${ledgerRes.attempts}, total_ms=${ledgerRes.ms}):`,
+        ledgerErr,
+      );
       return jsonRes({ error: `Wallet deduction failed: ${ledgerErr.message}. Top-up cancelled.` }, 500);
     }
 
@@ -276,6 +298,12 @@ Deno.serve(async (req) => {
     }
 
     console.log(`[coo-wallet-to-portfolio] COO ${user.id} instant ${method} top-up ${topupAmount} for portfolio ${portfolio_id} (wallet owner: ${walletOwnerId})`);
+    if (isLargeAmount) {
+      console.log(
+        `[coo-wallet-to-portfolio] LARGE top-up done portfolio=${portfolio_id} amount=${topupAmount} ` +
+        `total_ms=${Date.now() - opStartedAt}`,
+      );
+    }
 
     // Partnership Top-Up email — target = partner (not the COO actor)
     try {
