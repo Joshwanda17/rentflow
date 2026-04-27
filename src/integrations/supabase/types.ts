@@ -13544,6 +13544,10 @@ export type Database = {
         Args: { p_field_collection_id: string; p_reason: string }
         Returns: Json
       }
+      reject_house_listing: {
+        Args: { p_listing_id: string; p_reason: string }
+        Returns: Json
+      }
       release_stale_cashout_claims: {
         Args: never
         Returns: {
