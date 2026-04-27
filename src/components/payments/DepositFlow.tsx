@@ -844,7 +844,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 </p>
               </div>
             </div>
-            <div className="grid gap-3">
+            <div className="grid gap-2.5">
               {DEPOSIT_PURPOSES
                 .filter((p) => !allowedPurposes || allowedPurposes.includes(p.id))
                 .map((p) => (
@@ -860,23 +860,14 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                       setPurposeEntryPoint('gate');
                       setStep('channel');
                     }}
-                    className="flex items-start gap-3 p-4 rounded-xl border-2 border-border text-left transition-all hover:border-primary hover:bg-primary/5 hover:shadow-md active:scale-[0.98] touch-manipulation"
+                    className="flex items-center gap-3 p-4 min-h-[76px] rounded-2xl border-2 border-border text-left transition-all hover:border-primary hover:bg-primary/5 active:scale-[0.98] touch-manipulation"
                   >
-                    <span className="text-2xl shrink-0">{p.emoji}</span>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-sm">{p.label}</p>
-                      <p className="text-[11px] text-muted-foreground">{p.desc}</p>
-                      {p.id === 'operational_float' && (
-                        <p className="text-[10px] text-primary font-medium mt-1">
-                          → Restricted to landlord disbursements. Not withdrawable.
-                        </p>
-                      )}
-                      {p.id === 'personal_deposit' && (
-                        <p className="text-[10px] text-emerald-600 font-medium mt-1">
-                          → Lands in your withdrawable wallet. You can cash out to MoMo.
-                        </p>
-                      )}
+                    <span className="text-3xl shrink-0">{p.emoji}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-base leading-tight">{p.label}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{p.desc}</p>
                     </div>
+                    <span aria-hidden className="text-muted-foreground text-lg">›</span>
                   </button>
                 ))}
             </div>
