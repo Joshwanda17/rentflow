@@ -161,6 +161,16 @@ export default function OperationalFloatTenantAllocator({
 
   const selectedIds = useMemo(() => new Set(allocations.map((a) => a.tenant_id)), [allocations]);
 
+  /** Quick lookup so each allocation row can find its source tenant
+   *  metadata (rent value + last-updated timestamp) for the provenance
+   *  tooltip. Allocations restored from `notes` won't be in `tenants`,
+   *  so the tooltip degrades gracefully. */
+  const tenantById = useMemo(() => {
+    const m = new Map<string, TenantOption>();
+    for (const t of tenants) m.set(t.id, t);
+    return m;
+  }, [tenants]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const pool = tenants.filter((t) => !selectedIds.has(t.id));
