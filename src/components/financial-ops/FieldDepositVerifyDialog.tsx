@@ -257,6 +257,9 @@ export function FieldDepositVerifyDialog({ batch, open, onClose, onResolved }: P
                 <XCircle className="h-4 w-4 text-destructive" />
                 Reject this batch
               </Label>
+              <p className="text-[11px] text-muted-foreground">
+                Only a reason is required — you do <span className="font-semibold">not</span> need to enter the proof reference to reject.
+              </p>
               <Textarea
                 placeholder="Reason (e.g. proof not found in MTN portal, amount mismatch)"
                 value={reason}
