@@ -1243,7 +1243,13 @@ export function TidVerification() {
         throw new Error('Rejection did not complete — deposit remains pending for retry.');
       }
 
+      // Reject can be triggered from the matched-results card OR from a row
+      // in the pending pick-list. Fall back to the pending row so the audit
+      // log still captures who/what we rejected.
       const match = matches.find(m => m.id === rejectingId);
+      const pendingRow = !match ? pending.find(p => p.id === rejectingId) : null;
+      const depositorName = match?.userName || pendingRow?.depositorName;
+      const depositorAmount = match?.amount ?? pendingRow?.amount;
       await supabase.from('audit_logs').insert({
         user_id: user.id,
         action_type: 'tid_verified_reject',
@@ -1251,16 +1257,17 @@ export function TidVerification() {
         record_id: rejectingId,
         metadata: {
           transaction_id: match?.transaction_id,
-          amount: match?.amount,
-          depositor_name: match?.userName,
+          amount: depositorAmount,
+          depositor_name: depositorName,
           rejection_reason: rejectionReason.trim(),
           operator_entered_tid: tid.trim(),
           operator_entered_amount: operatorAmount,
+          source: match ? 'matched_card' : 'pending_list',
         },
       });
 
       setRejectedIds(prev => new Set(prev).add(rejectingId));
-      toast.success(`Rejected deposit for ${match?.userName || 'user'}`);
+      toast.success(`Rejected deposit for ${depositorName || 'user'}`);
 
       queryClient.invalidateQueries({ queryKey: ['approval-queue-deposits'] });
       queryClient.invalidateQueries({ queryKey: ['financial-ops-pulse'] });
