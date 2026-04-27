@@ -78,6 +78,7 @@ import { LandlordRecoveryLedger } from '@/components/agent/LandlordRecoveryLedge
 import { FloatPayoutStatusTracker } from '@/components/agent/FloatPayoutStatusTracker';
 import { FloatTransactionHistory } from '@/components/agent/FloatTransactionHistory';
 import { VerificationOpportunitiesButton } from '@/components/agent/VerificationOpportunitiesButton';
+import { AgentNotificationBell } from '@/components/agent/AgentNotificationBell';
 import { CreditVerificationButton } from '@/components/agent/CreditVerificationButton';
 import { AgentMyRentRequestsSheet } from '@/components/agent/AgentMyRentRequestsSheet';
 import { AgentTenantsSheet } from '@/components/agent/AgentTenantsSheet';
@@ -350,6 +351,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             <p className="text-xs text-muted-foreground mt-0.5">Welile Agent{profile?.territory ? ` · ${profile.territory}` : ''}</p>
           </div>
           <AiIdButton variant="compact" />
+          <AgentNotificationBell userId={user.id} />
         </div>
 
         {/* Wallet Hero Card — always visible */}
