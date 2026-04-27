@@ -1342,19 +1342,19 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
                               {!isDuplicate && !hasInput && (
                                 <span className="text-muted-foreground">{hint.help}</span>
                               )}
-                              {hasInput && isTooShort && (
+                              {!isDuplicate && hasInput && isTooShort && (
                                 <span className="text-muted-foreground inline-flex items-center gap-1">
                                   <AlertTriangle className="h-3 w-3 text-warning" />
                                   Too short — most {channelLabel(b.channel)} references are 8+ chars.
                                 </span>
                               )}
-                              {hasInput && !isTooShort && isValidShape && (
+                              {!isDuplicate && hasInput && !isTooShort && isValidShape && (
                                 <span className="text-success inline-flex items-center gap-1 font-medium">
                                   <CheckCircle2 className="h-3 w-3" />
                                   Looks like a valid {channelLabel(b.channel)} reference.
                                 </span>
                               )}
-                              {hasInput && !isTooShort && !isValidShape && (
+                              {!isDuplicate && hasInput && !isTooShort && !isValidShape && (
                                 <span className="text-warning inline-flex items-center gap-1">
                                   <AlertTriangle className="h-3 w-3" />
                                   Format unusual — expected like{' '}
