@@ -3,6 +3,7 @@ import StepperModal, { Step } from './StepperModal';
 import ConfirmSummaryCard from './ConfirmSummaryCard';
 import ProcessingScreen from './ProcessingScreen';
 import ReceiptCard from './ReceiptCard';
+import WithdrawalStatusTracker from './WithdrawalStatusTracker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,11 +12,32 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { formatCurrency, SUPPORTED_CURRENCIES } from '@/lib/paymentMethods';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Wallet, TrendingUp, Lock, Phone, Building2, Banknote } from 'lucide-react';
+import { Wallet, TrendingUp, Lock, Phone, Building2, Banknote, BadgeCheck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { UGANDA_BANKS, PAYOUT_METHODS } from '@/lib/ugandaBanks';
+import { useSavedPayoutMethods } from '@/hooks/useSavedPayoutMethods';
+
+/**
+ * Maps a Ugandan mobile-money number to its provider based on the operator
+ * prefix. Returns null when the prefix is unknown so we don't override the
+ * user's manual choice on incomplete input.
+ * - MTN: 077, 078, 076, 039
+ * - Airtel: 070, 074, 075
+ */
+function detectMomoProvider(raw: string): 'MTN' | 'Airtel' | null {
+  const digits = raw.replace(/\D/g, '');
+  // Normalise +2567xxxx → 07xxxx
+  const normalised = digits.startsWith('256') ? `0${digits.slice(3)}` : digits;
+  if (normalised.length < 3) return null;
+  const prefix = normalised.slice(0, 3);
+  if (['077', '078', '076', '039'].includes(prefix)) return 'MTN';
+  if (['070', '074', '075'].includes(prefix)) return 'Airtel';
+  return null;
+}
+
+const MIN_WITHDRAWAL = 1000;
 
 interface WithdrawFlowProps {
   open: boolean;
@@ -48,6 +70,13 @@ export default function WithdrawFlow({
   const [currency, setCurrency] = useState('UGX');
   const [pin, setPin] = useState('');
 
+  // Saved payout destinations — persisted across withdrawals so users
+  // don't re-type MoMo / bank details every time.
+  const savedMethods = useSavedPayoutMethods();
+  const [selectedSavedId, setSelectedSavedId] = useState<string | null>(null);
+  const [saveAsNew, setSaveAsNew] = useState(true);
+  const [savedNickname, setSavedNickname] = useState('');
+
   // Payout mode state
   const [payoutMode, setPayoutMode] = useState<'mobile_money' | 'bank_transfer' | 'cash'>('mobile_money');
   
@@ -64,10 +93,11 @@ export default function WithdrawFlow({
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   // Withdrawal receipts start as `pending` because Financial Ops must
-  // approve and disburse before the request is truly successful. Only
-  // `failed` is set client-side; `success` is reserved for future flows
-  // that confirm disbursement (e.g., realtime status updates).
+  // approve and disburse before the request is truly successful.
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'success' | 'failed'>('pending');
+  // Real DB UUID of the new withdrawal_requests row. Drives the live
+  // status tracker subscription on the success step.
+  const [createdRequestId, setCreatedRequestId] = useState<string | null>(null);
   const [withdrawalRef, setWithdrawalRef] = useState('');
 
   // Withdrawable = withdrawable_balance + advance_balance (advance is recoverable
@@ -183,16 +213,41 @@ export default function WithdrawFlow({
         ? `REQ-${String(insertedRow.id).replace(/-/g, '').slice(0, 12).toUpperCase()}`
         : '';
       setWithdrawalRef(requestId);
-      // IMPORTANT: A withdrawal is NOT successful until Financial Ops approves
-      // the request and disbursement is recorded. Until then, present the
-      // request as PENDING — never as success — so users don't believe funds
-      // have been sent. The disbursement-confirmation email is therefore sent
-      // by the approval pipeline, not from here.
+      setCreatedRequestId(insertedRow?.id ?? null);
+      // IMPORTANT: a withdrawal is NOT successful until Financial Ops
+      // approves and disburses. Keep status as `pending` and let the
+      // realtime tracker flip it to success when the DB row updates.
       setPaymentStatus('pending');
       toast.success(
         'Withdrawal request submitted. Funds will be released once Financial Ops approves.',
       );
       onSuccess?.();
+
+      // Persist destination so the user doesn't re-type next time. Skip
+      // for cash pickup (no destination details to save) and skip when
+      // they reused an existing saved method (just bump last_used_at).
+      try {
+        if (selectedSavedId) {
+          savedMethods.touch.mutate(selectedSavedId);
+        } else if (saveAsNew && payoutMode !== 'cash') {
+          await savedMethods.create.mutateAsync({
+            payout_mode: payoutMode,
+            nickname: savedNickname.trim() || null,
+            momo_provider: payoutMode === 'mobile_money' ? momoProvider : null,
+            momo_number: payoutMode === 'mobile_money' ? momoNumber.trim() : null,
+            momo_name: payoutMode === 'mobile_money' ? momoName.trim() : null,
+            bank_name: payoutMode === 'bank_transfer' ? bankName : null,
+            bank_account_name: payoutMode === 'bank_transfer' ? bankAccountName.trim() : null,
+            bank_account_number: payoutMode === 'bank_transfer' ? bankAccountNumber.trim() : null,
+            is_default: false,
+          });
+        }
+      } catch (saveErr) {
+        console.warn('[WithdrawFlow] Could not save payout method (non-blocking):', saveErr);
+      }
+
+      // Disbursement confirmation email is sent by the approval pipeline,
+      // NOT here — funds aren't actually out yet.
     } catch (error: any) {
       console.error('Withdrawal failed:', error);
       setPaymentStatus('failed');
@@ -316,12 +371,19 @@ export default function WithdrawFlow({
                 value={amount}
                 onChange={(e) => setAmount(Math.min(Number(e.target.value), maxAmount))}
                 max={maxAmount}
-                min={1000}
+                min={MIN_WITHDRAWAL}
                 className="text-2xl h-14 font-bold text-center"
               />
               <p className="text-xs text-muted-foreground text-center">
-                Max: {formatCurrency(maxAmount, currency)}
+                Withdraw between {formatCurrency(MIN_WITHDRAWAL, currency)} and{' '}
+                {formatCurrency(maxAmount, currency)}
               </p>
+              {/* Zero-fee assurance — Welile wallet has no withdrawal fees,
+                  so users see the full amount on the other side. */}
+              <div className="flex items-center justify-center gap-2 text-xs font-semibold text-emerald-600 bg-emerald-500/5 border border-emerald-500/20 rounded-lg py-2">
+                <BadgeCheck className="h-4 w-4" />
+                Zero fees · You receive the full {formatCurrency(amount || 0, currency)}
+              </div>
             </div>
 
             <div className="grid grid-cols-4 gap-2">
@@ -429,10 +491,25 @@ export default function WithdrawFlow({
                       type="tel"
                       placeholder="e.g. 0770123456"
                       value={momoNumber}
-                      onChange={(e) => setMomoNumber(e.target.value)}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setMomoNumber(v);
+                        // Auto-correct provider from operator prefix —
+                        // prevents the #1 disbursement failure (wrong network).
+                        const detected = detectMomoProvider(v);
+                        if (detected && detected !== momoProvider) {
+                          setMomoProvider(detected);
+                          toast.info(`Detected ${detected} number — provider switched.`);
+                        }
+                      }}
                       className="h-12 text-base pl-10"
                     />
                   </div>
+                  {momoNumber && !detectMomoProvider(momoNumber) && momoNumber.replace(/\D/g, '').length >= 3 && (
+                    <p className="text-[10px] text-amber-600">
+                      Unrecognised prefix — double-check the number matches the provider above.
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -570,21 +647,38 @@ export default function WithdrawFlow({
         if (isProcessing) {
           return <ProcessingScreen onComplete={handleProcessingComplete} />;
         }
+        // Submission failed before a row was created — fall back to the
+        // legacy receipt so the user can see the failure + retry.
+        if (!createdRequestId || paymentStatus === 'failed') {
+          return (
+            <ReceiptCard
+              status={paymentStatus === 'pending' ? 'pending' : paymentStatus}
+              amount={amount}
+              currency={currency}
+              fees={0}
+              recipient={getPayoutSummary()}
+              reference={withdrawalRef || 'PENDING'}
+              method={payoutMode === 'mobile_money' ? 'Mobile Money' : payoutMode === 'bank_transfer' ? 'Bank Transfer' : 'Cash Pickup'}
+              date={new Date()}
+              onDownload={() => {}}
+              onShare={() => {}}
+              onTryAgain={() => setCurrentStep(2)}
+              onChangeMethod={() => setCurrentStep(2)}
+              onContactSupport={() => {}}
+              onClose={handleClose}
+            />
+          );
+        }
+        // Live status tracker — subscribes to withdrawal_requests and
+        // updates Submitted → Ops review → Disbursed in realtime, with a
+        // self-cancel button while still pending.
         return (
-          <ReceiptCard
-            status={paymentStatus}
+          <WithdrawalStatusTracker
+            requestId={createdRequestId}
             amount={amount}
             currency={currency}
-            fees={0}
-            recipient={getPayoutSummary()}
+            recipientLabel={getPayoutSummary()}
             reference={withdrawalRef || 'PENDING'}
-            method={payoutMode === 'mobile_money' ? 'Mobile Money' : payoutMode === 'bank_transfer' ? 'Bank Transfer' : 'Cash Pickup'}
-            date={new Date()}
-            onDownload={() => {}}
-            onShare={() => {}}
-            onTryAgain={() => setCurrentStep(2)}
-            onChangeMethod={() => setCurrentStep(2)}
-            onContactSupport={() => {}}
             onClose={handleClose}
           />
         );

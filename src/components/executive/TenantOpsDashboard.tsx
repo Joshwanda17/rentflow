@@ -61,18 +61,14 @@ export function TenantOpsDashboard() {
   const handlePrintReport = async () => {
     setPrintingPdf(true);
     try {
-      // Weekly window: only include rent requests created in the last 7 days
-      // so the printed report is a true week-in-review snapshot rather than
-      // a full lifetime dump.
-      const weekAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      // Fetch rent requests with agent_id
       const { data: requests } = await supabase
         .from('rent_requests')
         .select('tenant_id, agent_id, rent_amount, total_repayment, amount_repaid, duration_days, number_of_payments, status, created_at')
-        .in('status', ['funded', 'disbursed', 'repaying', 'fully_repaid', 'defaulted'])
-        .gte('created_at', weekAgoIso);
+        .in('status', ['funded', 'disbursed', 'repaying', 'fully_repaid', 'defaulted']);
 
       if (!requests || requests.length === 0) {
-        toast.error('No tenant rent data found for the past week');
+        toast.error('No tenant rent data found');
         return;
       }
 
@@ -114,10 +110,10 @@ export function TenantOpsDashboard() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Tenant_Rent_Weekly_Report_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+      a.download = `Tenant_Rent_Report_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success('Weekly report downloaded');
+      toast.success('Report downloaded');
     } catch (err: any) {
       toast.error(err.message || 'Failed to generate report');
     } finally {
@@ -489,7 +485,7 @@ export function TenantOpsDashboard() {
                 disabled={printingPdf}
               >
                 {printingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
-                Print Weekly Report
+                Print Report
               </Button>
             </div>
 
