@@ -887,6 +887,18 @@ export function TidVerification() {
       clearTimeout(timer);
       undoTimersRef.current.delete(id);
     }
+    const cd = countdownTimersRef.current.get(id);
+    if (cd) {
+      clearInterval(cd);
+      countdownTimersRef.current.delete(id);
+    }
+    pendingMatchesRef.current.delete(id);
+    setUndoCountdown((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Map(prev);
+      next.delete(id);
+      return next;
+    });
     setPendingUndoIds(prev => {
       if (!prev.has(id)) return prev;
       const next = new Set(prev);
@@ -899,16 +911,54 @@ export function TidVerification() {
   // as "approving (undoable)" immediately for instant feedback, but the
   // backend `approve-deposit` call only runs if the operator doesn't
   // click Undo before the timer elapses.
-  const UNDO_DELAY_MS = 5000;
+  // On phones (where this dialog gets backgrounded most often) we
+  // shorten the window so commits land faster and there's less chance
+  // of the operator wandering off mid-undo.
+  const isMobileViewport =
+    typeof window !== 'undefined' && window.innerWidth < 640;
+  const UNDO_DELAY_MS = isMobileViewport ? 3000 : 5000;
   const handleAutoApprove = useCallback((match: MatchResult) => {
     // If a previous undo for this row is still queued, ignore the
     // duplicate click — the timer is already running.
     if (undoTimersRef.current.has(match.id)) return;
 
     setPendingUndoIds(prev => new Set(prev).add(match.id));
+    pendingMatchesRef.current.set(match.id, match);
+    // Start a 1-second-tick countdown for the per-row UI.
+    const totalSeconds = Math.ceil(UNDO_DELAY_MS / 1000);
+    setUndoCountdown((prev) => {
+      const next = new Map(prev);
+      next.set(match.id, totalSeconds);
+      return next;
+    });
+    const interval = setInterval(() => {
+      setUndoCountdown((prev) => {
+        const cur = prev.get(match.id);
+        if (cur === undefined) return prev;
+        const next = new Map(prev);
+        if (cur <= 1) {
+          next.delete(match.id);
+        } else {
+          next.set(match.id, cur - 1);
+        }
+        return next;
+      });
+    }, 1000);
+    countdownTimersRef.current.set(match.id, interval);
 
     const timer = setTimeout(() => {
       undoTimersRef.current.delete(match.id);
+      const cd = countdownTimersRef.current.get(match.id);
+      if (cd) {
+        clearInterval(cd);
+        countdownTimersRef.current.delete(match.id);
+      }
+      setUndoCountdown((prev) => {
+        if (!prev.has(match.id)) return prev;
+        const next = new Map(prev);
+        next.delete(match.id);
+        return next;
+      });
       setPendingUndoIds(prev => {
         if (!prev.has(match.id)) return prev;
         const next = new Set(prev);
@@ -920,7 +970,7 @@ export function TidVerification() {
     undoTimersRef.current.set(match.id, timer);
 
     toast(`Approving ${formatUGX(match.amount)} — ${match.userName}`, {
-      description: 'Will commit in 5 seconds.',
+      description: `Will commit in ${totalSeconds} seconds. Tap Undo to cancel.`,
       duration: UNDO_DELAY_MS,
       action: {
         label: 'Undo',
@@ -930,7 +980,7 @@ export function TidVerification() {
         },
       },
     });
-  }, [commitApprove, cancelPendingApprove]);
+  }, [commitApprove, cancelPendingApprove, UNDO_DELAY_MS]);
 
   const handleAutoApproveAll = useCallback(() => {
     const exact = matches.filter(
