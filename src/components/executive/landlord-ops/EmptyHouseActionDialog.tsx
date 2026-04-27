@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2, XCircle } from 'lucide-react';
+import { Trash2, XCircle, AlertCircle } from 'lucide-react';
 
 interface EmptyHouseActionDialogProps {
   open: boolean;
@@ -28,6 +28,7 @@ export function EmptyHouseActionDialog({
   const { toast } = useToast();
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const isDelete = actionType === 'delete';
   const isReject = actionType === 'reject';
@@ -38,6 +39,7 @@ export function EmptyHouseActionDialog({
   const handleSubmit = async () => {
     if (!valid) return;
     setLoading(true);
+    setErrorMessage(null);
     try {
       if (isDelete) {
         const { error } = await supabase.from('house_listings').delete().eq('id', listingId);
@@ -70,17 +72,24 @@ export function EmptyHouseActionDialog({
 
       toast({ title: `${label}ed`, description: `${listingTitle} has been ${label.toLowerCase()}ed.` });
       setReason('');
+      setErrorMessage(null);
       onOpenChange(false);
       onComplete();
     } catch (err: any) {
-      toast({ title: `${label} Failed`, description: err.message, variant: 'destructive' });
+      // Keep the dialog open and surface the error inline so mobile
+      // operators don't miss a transient toast. Also log the full error
+      // object so support can diagnose RLS / permission / RPC issues.
+      const msg = err?.message || `Failed to ${label.toLowerCase()} listing`;
+      setErrorMessage(msg);
+      toast({ title: `${label} Failed`, description: msg, variant: 'destructive' });
+      console.error(`[EmptyHouseActionDialog] ${label} failed for listing ${listingId}:`, err);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) setErrorMessage(null); onOpenChange(o); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -98,7 +107,7 @@ export function EmptyHouseActionDialog({
             </label>
             <Textarea
               value={reason}
-              onChange={(e) => setReason(e.target.value)}
+              onChange={(e) => { setReason(e.target.value); if (errorMessage) setErrorMessage(null); }}
               placeholder={`Why is this listing being ${label.toLowerCase()}ed?`}
               className="min-h-[80px]"
             />
@@ -106,6 +115,15 @@ export function EmptyHouseActionDialog({
               <p className="text-[10px] text-destructive mt-1">{minChars - reason.trim().length} more characters needed</p>
             )}
           </div>
+          {errorMessage && (
+            <div className="flex gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-2.5 text-xs text-destructive">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <p className="font-semibold">{label} failed</p>
+                <p className="text-destructive/90">{errorMessage}</p>
+              </div>
+            </div>
+          )}
           <div className="flex gap-2 justify-end">
             <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancel
@@ -116,7 +134,7 @@ export function EmptyHouseActionDialog({
               onClick={handleSubmit}
               disabled={!valid || loading}
             >
-              {loading ? 'Processing...' : `${label} Listing`}
+              {loading ? 'Processing...' : errorMessage ? `Retry ${label}` : `${label} Listing`}
             </Button>
           </div>
         </div>

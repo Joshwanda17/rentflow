@@ -1,58 +1,69 @@
-## Why the Confirm button fails silently
+# Fix: Reject button silently failing under Landlord Ops → Verification
 
-I traced the click in `src/components/agent/AgentTenantCollectDialog.tsx`:
+## Root cause
 
-- `handleAllocate` (line 64) starts with `console.log('[AgentTenantCollectDialog] Confirm clicked', …)`.
-- The browser console for this session has **zero such logs** and the session replay shows pointer movement near the Confirm button but **no click event ever fires**.
-- The handler is never reached. The RPC `agent_allocate_tenant_payment` is never called. There is nothing to log on the backend either, which is why it looks "silent".
+The Reject button calls the database function `reject_house_listing(p_listing_id, p_reason)`, which **only allows these roles** to execute:
 
-### Root cause
+- `super_admin`
+- `ceo`
+- `cto`
+- `manager`
 
-The file already documents this exact bug at lines 446–448:
+But the **Landlord Ops dashboard** itself is gated by `staff_permissions.permitted_dashboard = 'landlord-ops'`, which is granted to many staff who do **not** hold any of those four roles (e.g. Grace Paul Ochieng, Grace Paul, LOLEM FIRICILA, Mukhaye Lydia — all have landlord-ops access but no `manager`/`super_admin`/`ceo`/`cto`).
 
-> *"Confirmation Dialog — sibling of parent so its overlay is not blocked by the parent's portal (was causing silent click failures on iOS PWA)."*
+For those operators, clicking Reject:
+1. Opens the reason dialog
+2. Submits the RPC
+3. RPC throws `"Not authorized to reject listings"`
+4. Toast briefly flashes "Reject Failed" (easy to miss on mobile) — listing stays unchanged
 
-A previous fix moved the Confirm dialog out to be a sibling, but it left the **parent "Pay for…" Dialog still open** at the same time. Result on iOS PWA / Safari WebView:
+This is the same "asymmetric gating" pattern as the Verify button (`credit-listing-bonus` edge function), except Verify uses an edge function with service-role privileges + permission check, while Reject uses a hardcoded role check in the RPC.
 
-```text
-Layer stack while Confirm is shown:
-  ┌─────────────────────────────────┐
-  │ Confirm Payment dialog (top)    │  ← user taps here
-  ├─────────────────────────────────┤
-  │ Confirm dialog overlay           │
-  ├─────────────────────────────────┤
-  │ Parent "Pay for…" dialog overlay │  ← steals the touchend
-  ├─────────────────────────────────┤
-  │ Parent "Pay for…" dialog content │
-  └─────────────────────────────────┘
+## The fix
+
+Update `reject_house_listing` to accept **either** the four privileged roles **or** any staff with the `landlord-ops` dashboard permission — matching how the dashboard itself decides who can be there.
+
+```sql
+-- New authorization clause (replaces the existing OR chain)
+IF NOT (
+  public.has_role(v_caller, 'super_admin'::app_role)
+  OR public.has_role(v_caller, 'ceo'::app_role)
+  OR public.has_role(v_caller, 'cto'::app_role)
+  OR public.has_role(v_caller, 'manager'::app_role)
+  OR EXISTS (
+    SELECT 1 FROM public.staff_permissions
+    WHERE user_id = v_caller
+      AND permitted_dashboard = 'landlord-ops'
+  )
+) THEN
+  RAISE EXCEPTION 'Not authorized to reject listings';
+END IF;
 ```
 
-Two Radix overlays with `pointer-events: auto` and overlapping focus traps. On iOS Safari/PWA the lower overlay intermittently swallows the `click` (the `touchstart` hits the top dialog, but `touchend` is re-targeted to the underlying overlay). The screenshot shows exactly this: the parent sheet is still visible, greyed out, behind the Confirm dialog.
+This mirrors the dashboard's own gating, so anyone who can see the Reject button can actually use it. Audit-trail attribution is unaffected (still records `v_caller`).
 
-### The fix
+## Secondary improvement: louder error surfacing
 
-Collapse the two-dialog pattern into **one dialog with two steps** (form → confirm), so there is only ever a single overlay on screen.
+The current dialog catches the RPC error and shows a single toast. Mobile operators have repeatedly missed it (matches the pattern from the deposit silent-failure incident). Update `EmptyHouseActionDialog.handleSubmit` so:
 
-Steps:
+- The error message stays visible inline in the dialog (not just a toast)
+- The dialog does NOT close on failure — operator sees what happened
+- Console logs the full error object for support diagnostics
 
-1. **Remove the second `<Dialog>` block** (lines 446–505).
-2. Inside the existing parent `<DialogContent>`, render either the form view or the confirmation view based on `confirming` state — same component, same overlay, just swap the inner JSX.
-3. Keep `handleAllocate`, `setConfirming`, `loading`, and the celebration dialog exactly as they are.
-4. Keep the existing `console.log` in `handleAllocate` so any regression is caught immediately.
-5. Make the "Edit" button in confirm view call `setConfirming(false)` to return to the form view (already correct).
-6. The celebration dialog (`CommissionCelebration`) stays as a sibling — it only appears *after* the parent closes, so it is not affected.
+## Files changed
 
-This eliminates the stacked-overlay race entirely and is also a cleaner UX: one sheet, two steps, smooth transition.
+1. **Database migration** — replace `public.reject_house_listing` with the broadened authorization check (single `CREATE OR REPLACE FUNCTION` statement, same signature, same return shape).
+2. **`src/components/executive/landlord-ops/EmptyHouseActionDialog.tsx`** — keep dialog open on error, show inline error banner, log full error to console.
 
-### Files touched
+## Out of scope
 
-- `src/components/agent/AgentTenantCollectDialog.tsx` — restructure JSX (no logic changes, no API/RPC changes).
+- No changes to `verify_house_listing` / `credit-listing-bonus` (Verify already works).
+- No changes to the dashboard's existing `staff_permissions` gating.
+- The 4 unverified listings shown in the screenshot are unaffected by data — only the action handler needs the fix.
 
-### Verification after the fix
+## Verification after deploy
 
-- Tap Review → confirm view appears in the **same sheet**.
-- Tap Confirm → console shows `[AgentTenantCollectDialog] Confirm clicked …`.
-- RPC `agent_allocate_tenant_payment` fires; toast appears; commission celebration shows.
-- Works on iOS PWA, Android Chrome, and desktop.
-
-No database, RPC, or edge function changes are needed — the backend was never the problem; the click simply wasn't reaching it.
+1. Log in as a staff with only `landlord-ops` permission (no `manager` role).
+2. Open Landlord Ops → Verification Queue.
+3. Click Reject on any unverified listing → enter reason ≥10 chars → confirm.
+4. Listing disappears from the queue, agent receives a `🚫 Listing Rejected` notification, audit log row created with `action_type='listing_rejected'`.
