@@ -853,8 +853,18 @@ Deno.serve(async (req) => {
 
           results.push({ id: depositRequest.id, status: "rejected", amount: depositRequest.amount, user_id: depositRequest.user_id });
         }
+        if (isLargeDeposit) {
+          console.log(
+            `[approve-deposit] LARGE deposit done id=${depositRequest.id} ` +
+            `amount=${depositRequest.amount} action=${action} total_ms=${Date.now() - depositStartedAt}`,
+          );
+        }
       } catch (innerErr) {
-        console.error(`[approve-deposit] Error processing ${depositRequest.id}:`, innerErr);
+        console.error(
+          `[approve-deposit] Error processing ${depositRequest.id} ` +
+          `(amount=${depositRequest.amount}, total_ms=${Date.now() - depositStartedAt}):`,
+          innerErr,
+        );
         const alreadyCredited = action === 'approve'
           ? await supabaseAdmin
               .from('general_ledger')
