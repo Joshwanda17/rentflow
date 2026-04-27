@@ -192,7 +192,7 @@ export default function WithdrawFlow({
   const canProceed = () => {
     switch (currentStep) {
       case 0: return true;
-      case 1: return amount > 0 && amount <= maxAmount;
+      case 1: return amount >= MIN_WITHDRAWAL && amount <= maxAmount;
       case 2: return !!payoutMode;
       case 3: {
         if (payoutMode === 'mobile_money') return momoNumber.trim().length >= 9 && momoName.trim().length >= 2;
@@ -402,15 +402,33 @@ export default function WithdrawFlow({
                 id="amount"
                 type="number"
                 value={amount}
-                onChange={(e) => setAmount(Math.min(Number(e.target.value), maxAmount))}
+                onChange={(e) => {
+                  // Accept the raw user value (no silent clamp) so the inline
+                  // error below can explain WHY the Continue button is disabled.
+                  const v = Number(e.target.value);
+                  setAmount(Number.isFinite(v) ? v : 0);
+                }}
                 max={maxAmount}
                 min={MIN_WITHDRAWAL}
                 className="text-2xl h-14 font-bold text-center"
+                aria-invalid={amount > 0 && (amount < MIN_WITHDRAWAL || amount > maxAmount)}
               />
               <p className="text-xs text-muted-foreground text-center">
                 Withdraw between {formatCurrency(MIN_WITHDRAWAL, currency)} and{' '}
                 {formatCurrency(maxAmount, currency)}
               </p>
+              {/* Inline validation — fires the moment the user crosses a
+                  boundary so they don't tap Continue and get a silent no-op. */}
+              {amount > 0 && amount < MIN_WITHDRAWAL && (
+                <p className="text-xs text-destructive text-center font-medium">
+                  Minimum withdrawal is {formatCurrency(MIN_WITHDRAWAL, currency)}
+                </p>
+              )}
+              {amount > maxAmount && (
+                <p className="text-xs text-destructive text-center font-medium">
+                  Exceeds available balance ({formatCurrency(maxAmount, currency)})
+                </p>
+              )}
               {/* Zero-fee assurance — Welile wallet has no withdrawal fees,
                   so users see the full amount on the other side. */}
               <div className="flex items-center justify-center gap-2 text-xs font-semibold text-emerald-600 bg-emerald-500/5 border border-emerald-500/20 rounded-lg py-2">

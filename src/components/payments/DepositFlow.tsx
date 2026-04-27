@@ -77,6 +77,11 @@ const BANK_DETAILS = {
 
 const QUICK_AMOUNTS = [50000, 100000, 250000, 500000];
 
+/** Deposit limits in UGX (raw, never formatted). Mirrored in the UI hint
+ *  under the amount input so users see exactly what's enforced. */
+const MIN_DEPOSIT = 500;
+const MAX_DEPOSIT = 10_000_000;
+
 export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowedPurposes, lockPurpose, requirePurposeChoice }: DepositFlowProps) {
   const navigate = useNavigate();
   const [step, setStep] = useState<'purpose' | 'channel' | 'form' | 'submitting' | 'success'>(
@@ -220,7 +225,19 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   };
 
   const validateForm = () => {
-    if (!amount || parseFloat(amount) <= 0) { toast.error('Enter a valid amount'); return false; }
+    const amt = parseFloat(amount);
+    if (!amount || !Number.isFinite(amt) || amt <= 0) {
+      toast.error('Enter a valid amount');
+      return false;
+    }
+    if (amt < MIN_DEPOSIT) {
+      toast.error(`Minimum deposit is ${formatCurrency(MIN_DEPOSIT)}`);
+      return false;
+    }
+    if (amt > MAX_DEPOSIT) {
+      toast.error(`Maximum deposit is ${formatCurrency(MAX_DEPOSIT)}`);
+      return false;
+    }
     if (channel === 'momo' && !transactionId.trim()) { toast.error('Enter the transaction ID'); return false; }
     if (channel === 'bank' && !transactionId.trim()) { toast.error('Enter the bank reference number'); return false; }
     if (channel === 'agent_cash' && !receiptNumber.trim()) { toast.error('Enter the receipt number'); return false; }
@@ -643,7 +660,35 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             {/* ─── Amount ─── */}
             <div className="space-y-2">
               <Label className="text-xs">Amount (UGX)</Label>
-              <Input type="number" placeholder="Enter amount" value={amount} onChange={(e) => setAmount(e.target.value)} min="500" className="text-lg font-semibold h-11" />
+              <Input
+                type="number"
+                placeholder="Enter amount"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                min={MIN_DEPOSIT}
+                max={MAX_DEPOSIT}
+                aria-invalid={
+                  !!amount &&
+                  Number.isFinite(parseFloat(amount)) &&
+                  (parseFloat(amount) < MIN_DEPOSIT || parseFloat(amount) > MAX_DEPOSIT)
+                }
+                className="text-lg font-semibold h-11"
+              />
+              {/* Permanent limit hint + live boundary error so the user sees
+                  the rule and the violation in the same spot. */}
+              <p className="text-[10px] text-muted-foreground">
+                Deposit between {formatCurrency(MIN_DEPOSIT)} and {formatCurrency(MAX_DEPOSIT)}
+              </p>
+              {!!amount && Number.isFinite(parseFloat(amount)) && parseFloat(amount) > 0 && parseFloat(amount) < MIN_DEPOSIT && (
+                <p className="text-[10px] text-destructive font-medium">
+                  Minimum deposit is {formatCurrency(MIN_DEPOSIT)}
+                </p>
+              )}
+              {!!amount && Number.isFinite(parseFloat(amount)) && parseFloat(amount) > MAX_DEPOSIT && (
+                <p className="text-[10px] text-destructive font-medium">
+                  Maximum deposit is {formatCurrency(MAX_DEPOSIT)}
+                </p>
+              )}
               <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-1.5">
                 {QUICK_AMOUNTS.map((amt) => (
                   <Button key={amt} type="button" variant={amount === String(amt) ? 'default' : 'outline'} size="sm" className="text-xs h-7 w-full sm:w-auto" onClick={() => setAmount(String(amt))}>
