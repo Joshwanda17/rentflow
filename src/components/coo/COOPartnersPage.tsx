@@ -528,7 +528,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     const walletMap = new Map((wallets as any[]).map(w => [w.user_id, w.balance || 0]));
 
     const supporterIdSet = new Set(ids);
-    const partnerAgg = new Map<string, { funded: number; deals: number; roiPercentage: number; payoutDay: number; roiMode: string; lastActivity: string; nextRoiDate: string | null }>();
+    const partnerAgg = new Map<string, { funded: number; deals: number; roiPercentage: number; payoutDay: number; roiMode: string; lastActivity: string; nextRoiDate: string | null; payoutDates: string[] }>();
 
     dedupedPortfolios.forEach(p => {
       const ownerId = p.investor_id && supporterIdSet.has(p.investor_id)
@@ -538,7 +538,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
           : null;
       if (!ownerId) return;
 
-      const existing = partnerAgg.get(ownerId) || { funded: 0, deals: 0, roiPercentage: 0, payoutDay: 0, roiMode: 'monthly_payout', lastActivity: '', nextRoiDate: null as string | null };
+      const existing = partnerAgg.get(ownerId) || { funded: 0, deals: 0, roiPercentage: 0, payoutDay: 0, roiMode: 'monthly_payout', lastActivity: '', nextRoiDate: null as string | null, payoutDates: [] as string[] };
       existing.funded += (p.investment_amount || 0);
       existing.deals += 1;
       if (existing.deals === 1 || !existing.roiPercentage) {
@@ -550,6 +550,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       if (!existing.nextRoiDate || effectiveDate < existing.nextRoiDate) {
         existing.nextRoiDate = effectiveDate;
       }
+      // Track ALL portfolio next-payout dates so the date-range filter can
+      // include partners with ANY portfolio paying in the selected window.
+      existing.payoutDates.push(effectiveDate);
       if (!existing.lastActivity || p.created_at > existing.lastActivity) {
         existing.lastActivity = p.created_at;
       }
@@ -557,7 +560,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     });
 
     const tableRows: PartnerRow[] = ids.map(id => {
-      const agg = partnerAgg.get(id) || { funded: 0, deals: 0, roiPercentage: 15, payoutDay: 15, roiMode: 'monthly_payout', lastActivity: '', nextRoiDate: null };
+      const agg = partnerAgg.get(id) || { funded: 0, deals: 0, roiPercentage: 15, payoutDay: 15, roiMode: 'monthly_payout', lastActivity: '', nextRoiDate: null, payoutDates: [] as string[] };
       const profile = profileMap.get(id);
       const isSuspended = !!profile?.frozen_at;
       return {
@@ -576,6 +579,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         joinedAt: profile?.created_at || '',
         lastActivity: agg.lastActivity || '',
         nextRoiDate: agg.nextRoiDate,
+        payoutDates: agg.payoutDates,
       };
     });
 
