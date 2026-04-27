@@ -63,7 +63,11 @@ export default function WithdrawFlow({
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
-  const [paymentStatus, setPaymentStatus] = useState<'success' | 'failed'>('success');
+  // Withdrawal receipts start as `pending` because Financial Ops must
+  // approve and disburse before the request is truly successful. Only
+  // `failed` is set client-side; `success` is reserved for future flows
+  // that confirm disbursement (e.g., realtime status updates).
+  const [paymentStatus, setPaymentStatus] = useState<'pending' | 'success' | 'failed'>('pending');
   const [withdrawalRef, setWithdrawalRef] = useState('');
 
   // Withdrawable = withdrawable_balance + advance_balance (advance is recoverable
@@ -179,50 +183,16 @@ export default function WithdrawFlow({
         ? `REQ-${String(insertedRow.id).replace(/-/g, '').slice(0, 12).toUpperCase()}`
         : '';
       setWithdrawalRef(requestId);
-      setPaymentStatus('success');
-      toast.success('Withdrawal request submitted! Please wait for manager approval before funds are released.');
+      // IMPORTANT: A withdrawal is NOT successful until Financial Ops approves
+      // the request and disbursement is recorded. Until then, present the
+      // request as PENDING — never as success — so users don't believe funds
+      // have been sent. The disbursement-confirmation email is therefore sent
+      // by the approval pipeline, not from here.
+      setPaymentStatus('pending');
+      toast.success(
+        'Withdrawal request submitted. Funds will be released once Financial Ops approves.',
+      );
       onSuccess?.();
-
-      // Fire-and-forget: if this user is a funder/partner, send disbursement confirmation email
-      try {
-        const sb: any = supabase;
-        const profileRes: any = await sb.from('profiles').select('email, full_name').eq('id', user.id).maybeSingle();
-        const portfolioRes: any = await sb.from('investor_portfolios').select('portfolio_code').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle();
-        const roleRes: any = await sb.from('user_roles').select('role').eq('user_id', user.id).eq('role', 'supporter').maybeSingle();
-
-        const email = profileRes.data?.email;
-        const isFunder = !!roleRes.data || !!portfolioRes.data;
-
-        if (email && isFunder) {
-          const payoutMethodLabel =
-            payoutMode === 'mobile_money' ? `${momoProvider} Mobile Money (${momoNumber.trim()})` :
-            payoutMode === 'bank_transfer' ? `${bankName} - ${bankAccountNumber.trim()}` :
-            'Cash Pickup at Office';
-
-          await supabase.functions.invoke('send-transactional-email', {
-            body: {
-              templateName: 'returns-disbursement-confirmation',
-              recipientEmail: email,
-              idempotencyKey: `partner-withdraw-${user.id}-${insertedRow?.id ?? requestId}`,
-              templateData: {
-                partner_name: profileRes.data?.full_name || 'Partner',
-                request_id: requestId,
-                portfolio_code: portfolioRes.data?.portfolio_code || '',
-                amount,
-                currency: 'UGX',
-                date: new Date().toISOString(),
-                payout_method: payoutMethodLabel,
-                company_name: 'Welile',
-                logo_url: 'https://welilereceipts.com/welile-logo.png',
-                is_managed_by_agent: false,
-                agent_name: '',
-              },
-            },
-          });
-        }
-      } catch (emailErr) {
-        console.warn('[WithdrawFlow] Disbursement email enqueue failed (non-blocking):', emailErr);
-      }
     } catch (error: any) {
       console.error('Withdrawal failed:', error);
       setPaymentStatus('failed');
