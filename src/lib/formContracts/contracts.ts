@@ -59,7 +59,7 @@ export const LC1_CONTRACT: FormContract = {
 export const DEPOSIT_REQUEST_CONTRACT: FormContract = {
   user_id: { type: 'uuid', required: true, label: 'User ID' },
   amount: { type: 'numeric', required: true, label: 'Amount', min: 1000, max: 50000000 },
-  provider: { type: 'text', required: false, label: 'Provider', allowedValues: ['mtn', 'airtel'] },
+  provider: { type: 'text', required: false, label: 'Provider', allowedValues: ['mtn', 'airtel', 'bank'] },
   transaction_id: { type: 'text', required: false, label: 'Transaction ID', maxLength: 100 },
   transaction_date: { type: 'timestamp', required: false, label: 'Transaction Date' },
   agent_id: { type: 'uuid', required: false, label: 'Agent ID' },
