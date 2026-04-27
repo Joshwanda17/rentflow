@@ -995,6 +995,16 @@ type BulkResult = {
  *  via a different mobile money / bank transaction). */
 type RefMode = 'shared' | 'per_batch';
 
+/**
+ * Receipt photo input mode (independent from `RefMode`):
+ * - 'shared'   = one optional photo attached to every selected batch.
+ * - 'per_batch' = each selected batch can have its own optional photo.
+ *
+ * Per-batch photos are useful when each deposit produced a distinct slip
+ * (e.g., separate bank teller receipts per merchant code transfer).
+ */
+type PhotoMode = 'shared' | 'per_batch';
+
 /* ---------------------------------------------------------------------- */
 /* Bulk results summary panel                                              */
 /* ---------------------------------------------------------------------- */
