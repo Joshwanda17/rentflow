@@ -268,6 +268,25 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     if (!depositPurpose) { toast.error('Select the deposit purpose'); return false; }
     if (depositPurpose === 'other' && !reason.trim()) { toast.error('Enter the reason for this deposit'); return false; }
 
+    // Operational Float deposits MUST carry a tenant breakdown so Financial
+    // Ops can reconcile the bulk drop. Skip when no allocations were made
+    // (legacy / no tenants linked yet) — the agent can still submit, but if
+    // they DID start a breakdown it has to balance.
+    if (depositPurpose === 'operational_float' && tenantAllocations.length > 0) {
+      const sum = tenantAllocations.reduce((s, a) => s + (a.amount || 0), 0);
+      const total = parseFloat(amount);
+      if (tenantAllocations.some((a) => !a.amount || a.amount <= 0)) {
+        toast.error('Each tenant in the breakdown needs an amount greater than 0');
+        return false;
+      }
+      if (Math.abs(sum - total) > 1) {
+        toast.error(
+          `Tenant breakdown (UGX ${sum.toLocaleString()}) must equal deposit total (UGX ${total.toLocaleString()})`,
+        );
+        return false;
+      }
+    }
+
     const txDate = new Date(`${transactionDate}T${transactionTime}`);
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -316,12 +335,20 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
 
       const providerValue = channel === 'momo' ? momoProvider : channel === 'bank' ? 'bank_transfer' : channel === 'cash' ? 'cash_deposit' : 'agent_cash';
       const purposeLabel = DEPOSIT_PURPOSES.find(p => p.id === depositPurpose)?.label || depositPurpose;
-      const notes = [
+      const baseNotes = [
         `Purpose: ${purposeLabel}`,
         reason.trim() ? reason.trim() : '',
         channel === 'agent_cash' ? `Agent: ${agentName.trim()}` : '',
         bankSlipUrl ? `Bank slip: ${bankSlipUrl}` : '',
       ].filter(Boolean).join(' | ');
+
+      // For Operational Float drops, append the per-tenant breakdown to
+      // notes as a structured tail. Financial Ops parses this and shows a
+      // tenant-by-tenant table at approval time.
+      const notes =
+        depositPurpose === 'operational_float' && tenantAllocations.length > 0
+          ? encodeAllocationsNote(baseNotes, tenantAllocations)
+          : baseNotes;
 
       const { error: depositError } = await supabase
         .from('deposit_requests')
@@ -379,6 +406,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     setDepositPurpose(requirePurposeChoice ? '' : (defaultPurpose ?? ''));
     setShowPurposeGrid(!lockPurpose);
     setBankSlipFile(null);
+    setTenantAllocations([]);
     onOpenChange(false);
   };
 
