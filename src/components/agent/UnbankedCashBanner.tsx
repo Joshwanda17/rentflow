@@ -416,6 +416,47 @@ function getStatusBadge(status: BatchStatus): {
 /* Inline awaiting-batch row with quick-proof entry                        */
 /* ---------------------------------------------------------------------- */
 
+/**
+ * Per-channel reference format guidance. `pattern` is a SOFT validator —
+ * it only drives the inline warning chip and does NOT block submission,
+ * since real-world telco/bank reference formats drift over time.
+ */
+const CHANNEL_REF_HINT: Record<
+  DepositChannel,
+  { label: string; placeholder: string; example: string; pattern: RegExp; help: string }
+> = {
+  mtn: {
+    label: 'MTN MoMo Transaction ID',
+    placeholder: 'e.g. 12345678901 or MP240115.1530.A12345',
+    example: '12345678901',
+    // MTN: 10–14 digit txn ID, or alphanumeric MP-style reference
+    pattern: /^([0-9]{10,14}|MP[0-9]{6}\.[0-9]{4}\.[A-Z0-9]{5,8})$/i,
+    help: '10–14 digit Transaction ID from the MTN SMS, or full MP reference.',
+  },
+  airtel: {
+    label: 'Airtel Money Transaction ID',
+    placeholder: 'e.g. CI240115.1530.A12345 or 1234567890',
+    example: 'CI240115.1530.A12345',
+    pattern: /^([0-9]{10,14}|[A-Z]{2}[0-9]{6}\.[0-9]{4}\.[A-Z0-9]{5,8})$/i,
+    help: '10–14 digit ID from the Airtel SMS, or full CI reference.',
+  },
+  bank: {
+    label: 'Bank deposit slip / reference',
+    placeholder: 'e.g. EQB-9988-7766 or slip number',
+    example: 'EQB-9988-7766',
+    // Bank: alphanumeric + dashes/slashes, 6–24 chars
+    pattern: /^[A-Z0-9][A-Z0-9\-/]{4,22}[A-Z0-9]$/i,
+    help: 'Slip / reference printed on the bank deposit receipt (letters, digits, dashes).',
+  },
+  cash_merchant: {
+    label: 'Cash agent receipt number',
+    placeholder: 'e.g. RCPT-2024-00123',
+    example: 'RCPT-2024-00123',
+    pattern: /^[A-Z0-9][A-Z0-9\-/]{3,22}[A-Z0-9]$/i,
+    help: 'Receipt number printed on the cash agent slip.',
+  },
+};
+
 interface AwaitingBatchRowProps {
   batch: AwaitingBatchWithItems;
   /** Open the full wizard (fallback for users who want all options). */
