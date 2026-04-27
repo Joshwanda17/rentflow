@@ -70,43 +70,20 @@ function FloatTransfersTab() {
       if (!amount || Number(amount) <= 0) throw new Error('Enter valid amount');
       if (!bankRef.trim()) throw new Error('Bank reference (TID) is mandatory');
 
-      const { error } = await supabase.from('agent_float_funding').insert({
-        agent_id: selectedAgent,
-        amount: Number(amount),
-        funded_by: user!.id,
-        notes: notes || null,
-        bank_reference: bankRef.trim(),
-        bank_name: bankName || 'Equity Bank Uganda',
-      } as any);
-      if (error) throw error;
-
-      await supabase.from('general_ledger').insert([
-        {
-          user_id: selectedAgent,
-          direction: 'cash_in',
+      // Backend-only flow — edge function inserts the funding row, writes a
+      // balanced ledger pair (allowlisted category), and posts the audit log.
+      // Wallet UI refreshes via the realtime `wallets` subscription.
+      const { data, error } = await supabase.functions.invoke('record-bank-float-transfer', {
+        body: {
+          agent_id: selectedAgent,
           amount: Number(amount),
-          category: 'agent_float_transfer',
-          description: `Float funded via ${bankName}. Ref: ${bankRef.trim()}`,
-          ledger_scope: 'bridge',
-          source_table: 'agent_float_funding',
+          bank_reference: bankRef.trim(),
+          bank_name: bankName || 'Equity Bank Uganda',
+          notes: notes || null,
         },
-        {
-          user_id: user!.id,
-          direction: 'cash_out',
-          amount: Number(amount),
-          category: 'agent_float_transfer',
-          description: `Float sent to agent via ${bankName}. Ref: ${bankRef.trim()}`,
-          ledger_scope: 'bridge',
-          source_table: 'agent_float_funding',
-        },
-      ]);
-
-      await supabase.from('audit_logs').insert({
-        user_id: user!.id,
-        action_type: 'agent_float_funded',
-        table_name: 'agent_float_funding',
-        metadata: { agent_id: selectedAgent, amount: Number(amount), bank_reference: bankRef.trim(), bank_name: bankName },
       });
+      if (error) throw new Error(error.message || 'Float transfer failed');
+      if (data?.error) throw new Error(data.error);
     },
     onSuccess: () => {
       toast.success('Float sent to agent successfully');
