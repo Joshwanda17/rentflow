@@ -1288,6 +1288,7 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
                         const hasInput = trimmed.length > 0;
                         const isValidShape = hasInput && hint.pattern.test(trimmed);
                         const isTooShort = hasInput && trimmed.length < 4;
+                        const isDuplicate = dupBatchIds.has(b.id);
                         return (
                           <div className="px-3 pb-2 -mt-1 space-y-1">
                             <div className="flex items-center justify-between gap-2">
@@ -1316,21 +1317,29 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
                               placeholder={hint.placeholder}
                               className={cn(
                                 'w-full h-9 px-3 rounded-md border bg-background text-xs font-mono focus:outline-none focus:ring-2 focus:ring-primary transition-colors',
-                                hasInput && isValidShape && 'border-success/60',
-                                hasInput && !isValidShape && !isTooShort && 'border-warning/60',
-                                !hasInput && 'border-border',
+                                isDuplicate && 'border-destructive/70 ring-1 ring-destructive/30',
+                                !isDuplicate && hasInput && isValidShape && 'border-success/60',
+                                !isDuplicate && hasInput && !isValidShape && !isTooShort && 'border-warning/60',
+                                !isDuplicate && !hasInput && 'border-border',
                               )}
                               disabled={submitting}
                               inputMode="text"
                               autoComplete="off"
                               spellCheck={false}
                               aria-describedby={`bulk-ref-hint-${b.id}`}
+                              aria-invalid={isDuplicate || undefined}
                             />
                             <div
                               id={`bulk-ref-hint-${b.id}`}
                               className="text-[10px] leading-snug"
                             >
-                              {!hasInput && (
+                              {isDuplicate && (
+                                <span className="text-destructive inline-flex items-center gap-1 font-semibold">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  Same reference used on another selected batch — each deposit needs its own.
+                                </span>
+                              )}
+                              {!isDuplicate && !hasInput && (
                                 <span className="text-muted-foreground">{hint.help}</span>
                               )}
                               {hasInput && isTooShort && (
