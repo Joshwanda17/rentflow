@@ -1,62 +1,52 @@
-# Best way to prevent duplicate withdrawals
+# Add Reject Action to Landlord Ops Verification Queue
 
-## What's already in place (audited)
+## What you'll get
 
-1. **Client idempotency key** in `WithdrawRequestDialog.tsx` — `client_request_id` UUID reused across retries; DB has a unique partial index `(user_id, client_request_id)`.
-2. **In-session recipient guard** — `sessionStorage` map blocks/warns when the same user re-submits to the same recipient within 10 minutes.
-3. **DB trigger `prevent_duplicate_pending_withdrawal`** (deployed today) — blocks a second `pending` row with the same recipient + amount in the last 10 min, raising `DUPLICATE_PENDING_WITHDRAWAL` (SQLSTATE `23505`).
-4. **Operator-side grouping** in `FinOpsWithdrawalVerification` — duplicates are stacked with a "Reject N older duplicates" bulk action.
+In **Executive Hub → Landlord Ops → Verification Queue**, every listing card currently shows a single purple **"Verify → CFO"** button. We'll add a second button next to it: **"Reject"**, which opens a dialog asking the operator for a comment (minimum 10 characters). On submit:
 
-## What's still leaking (evidence from the DB)
+1. The listing's `status` flips to `rejected` (it disappears from the verification queue).
+2. The action is logged to `audit_logs` with the comment.
+3. The **agent who created the listing** receives a notification on their dashboard explaining which listing was rejected and why.
 
-A query on `withdrawal_requests` shows recent runs of identical rows ~1.8 s apart from the same user → same MoMo number → same amount, all with `client_request_id = NULL`. That `NULL` proves they were **not** submitted via `WithdrawRequestDialog`. They came through other code paths that have none of the guards above:
+The agent will see the notification in a new **bell icon** in their Agent Dashboard header, with a red unread-count badge. Clicking the bell opens a dropdown list of recent notifications (rejections, registration prompts, etc.) and lets them mark items as read.
 
-| File | client_request_id | Re-entrant lock | Recipient session guard | Friendly DUPLICATE handling |
-|---|---|---|---|---|
-| `src/components/wallet/WithdrawRequestDialog.tsx` | ✅ | ✅ | ✅ | ✅ |
-| `src/components/agent/AgentProxyWithdrawalDialog.tsx` | ✅ | ✅ | ❌ | ❌ |
-| `src/components/payments/WithdrawFlow.tsx` | ❌ | ❌ | ❌ | ❌ |
-| `src/components/supporter/InvestmentWithdrawButton.tsx` | (to verify) | (to verify) | ❌ | ❌ |
+## Steps
 
-So the trigger is the only thing protecting these paths today, and even when it fires the user sees a raw Postgres error instead of a clean message — which encourages them to tap again.
+1. **Database migration** — create a `SECURITY DEFINER` RPC `reject_house_listing(listing_id, reason)` that:
+   - Verifies the caller has `super_admin`, `ceo`, `cto`, or `manager` role (Landlord Ops staff).
+   - Updates `house_listings.status = 'rejected'`.
+   - Inserts an `audit_logs` row (`action_type = 'listing_rejected'`).
+   - Inserts a `notifications` row for the listing's `agent_id` (bypasses the `block_all_notification_inserts` trigger via SECURITY DEFINER, matching the pattern used by `notify_agent_landlord_registration`).
+   - Notification title: `🚫 Listing Rejected`, type: `warning`, metadata includes `listing_id`, `listing_title`, `reason`, `rejected_by`.
 
-## Plan — five changes, ordered by impact
+2. **Wire the existing `EmptyHouseActionDialog`** to call the new RPC instead of a direct table update when `actionType === 'reject'`. This keeps delete/delist behavior unchanged but ensures rejection always fires the notification atomically.
 
-### 1. Harden `WithdrawFlow.tsx` (highest impact)
-- Add `isSubmittingRef` re-entrant lock around `processWithdrawal`.
-- Generate and send `client_request_id` on the insert (same UUID across retries).
-- Catch `error.code === '23505'`: if message contains `DUPLICATE_PENDING_WITHDRAWAL`, show the friendly "You already have a pending withdrawal of UGX X to this recipient — wait for operations to approve or reject it" toast and route the user to their pending list instead of throwing.
-- Disable the Confirm/Pay button while `loading` and for 1.5 s after a successful submission to absorb double-taps from low-end devices.
+3. **Add the Reject button to the Verification Queue card** in `src/components/executive/LandlordOpsDashboard.tsx` (around line 1219). Layout becomes a 2-column grid:
+   - Left: outline destructive **"Reject"** button → opens `EmptyHouseActionDialog` with `type: 'reject'`.
+   - Right: existing **"Verify → Auto-Pay UGX 5K"** button.
 
-### 2. Harden `AgentProxyWithdrawalDialog.tsx`
-- Same `DUPLICATE_PENDING_WITHDRAWAL` friendly-error handling on the catch path.
-- Add per-partner session guard: key on `proxy:<funderId>:<amount>` so an agent can't fire the same partner withdrawal twice within 10 minutes.
+4. **Build an Agent Notification Bell** (`src/components/agent/AgentNotificationBell.tsx`):
+   - Bell icon with unread-count badge in the Agent Dashboard top bar.
+   - Dropdown (Popover) listing the most recent 20 notifications with title, message, time-ago, and a colored dot for unread.
+   - Click a notification → marks it read; "Mark all read" button at the top.
+   - Realtime subscription to `notifications` table filtered by `user_id = current agent` so new rejections appear instantly.
 
-### 3. Audit and patch `InvestmentWithdrawButton.tsx`
-- Read it; if it inserts directly into `withdrawal_requests`, apply the same three guards (re-entrant lock + `client_request_id` + friendly 23505 handling).
+5. **Mount the bell** in `src/components/dashboards/AgentDashboard.tsx` header area.
 
-### 4. Tighten the DB trigger
-Two small but important changes to `prevent_duplicate_pending_withdrawal`:
+## Technical details
 
-- **Cover proxy-partner withdrawals**: also block when `proxy_partner_id` matches and `payout_method` is null (this is the agent-proxy pattern — it currently slips through every branch of the trigger).
-- **Block on later operator stages too**: the trigger currently only checks `status = 'pending'`. Add `manager_approved` to the comparison so a user can't queue a duplicate while operations is mid-approval on the original.
-
-### 5. One-time cleanup of the historical spam
-A migration that, for each `(user_id, payout_method, recipient, amount)` group with multiple `pending` rows older than 1 hour, keeps the **oldest** and marks the rest `rejected` with reason "System cleanup: duplicate of older pending request" and writes `audit_logs` rows so the trail is preserved. This clears the screenshot backlog (the 5× UGX 30,000 to `09165223393`, 5× UGX 22,500, etc.) without any human approving phantom payouts.
-
-## Why this is the right shape
-
-- **Defence in depth**: client lock (instant) → session guard (no network) → idempotency key (network retry) → DB trigger (cross-tab, cleared storage, multiple devices) → operator grouping (last-mile catch).
-- **Single source of truth for the rule**: the trigger is the canonical guard; every client path just translates its error into a friendly message. New withdrawal entry points added later get protection automatically.
-- **No false positives**: 10-minute window + recipient-aware comparison means legitimate "I really do want to send another UGX 30,000 to my supplier in an hour" still works.
-- **Cleans up the mess we already have**, so Financial Ops stops seeing the duplicate stack you screenshotted.
-
-## Files touched
-- `src/components/payments/WithdrawFlow.tsx`
-- `src/components/agent/AgentProxyWithdrawalDialog.tsx`
-- `src/components/supporter/InvestmentWithdrawButton.tsx` (after read)
-- New migration: tighten trigger + cleanup historical duplicates
+- **Files created**:
+  - `supabase/migrations/<timestamp>_reject_house_listing_rpc.sql` — new RPC + grant `EXECUTE` to `authenticated`.
+  - `src/components/agent/AgentNotificationBell.tsx`.
+- **Files edited**:
+  - `src/components/executive/landlord-ops/EmptyHouseActionDialog.tsx` — use RPC for the reject path; keep delete/delist as today.
+  - `src/components/executive/LandlordOpsDashboard.tsx` — add Reject button in the Verification Queue (`view === 'verify'` block).
+  - `src/components/dashboards/AgentDashboard.tsx` — mount `<AgentNotificationBell />` in header.
+- **Realtime**: enable `supabase_realtime` publication for the `notifications` table if not already; apply only if missing (idempotent migration check).
+- **No edits** to `src/integrations/supabase/{client,types}.ts` — types regenerate automatically after migration.
 
 ## Out of scope
-- Changing the 10-minute window (configurable later if Ops asks).
-- Rate-limiting submissions per minute (the recipient+amount key is more precise and less annoying).
+
+- Re-listing / un-rejecting a listing (operator can already use the existing edit/delist flow).
+- SMS/WhatsApp notification to the agent (only in-app notification per request; can be added later).
+- Notification bells for non-agent roles (this plan only targets the agent who listed).
