@@ -1087,6 +1087,15 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
     if (submitting) return;
     const err = validateBeforeSubmit();
     if (err) { toast.error(err); return; }
+    // Soft-block on duplicate per-batch references — let the agent confirm
+    // if they really want to proceed (rare but possible: e.g., one big bank
+    // transfer covering multiple batches that they're STILL splitting).
+    if (mode === 'per_batch' && hasDuplicates) {
+      const ok = window.confirm(
+        `${dupBatchIds.size} batches share the same reference. Finance usually matches one reference to one deposit. Submit anyway?`,
+      );
+      if (!ok) return;
+    }
     setSubmitting(true);
     try {
       // Upload the photo ONCE; reuse the same public URL for every batch.
