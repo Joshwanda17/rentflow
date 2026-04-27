@@ -327,10 +327,17 @@ export default function WithdrawFlow({
 
       // Disbursement confirmation email is sent by the approval pipeline,
       // NOT here — funds aren't actually out yet.
+      // Submission committed — release the idempotency key so the next
+      // intentional withdrawal gets a fresh one.
+      clientRequestIdRef.current = null;
     } catch (error: any) {
       console.error('Withdrawal failed:', error);
       setPaymentStatus('failed');
       toast.error(error.message || 'Withdrawal failed');
+      // Keep clientRequestIdRef so a manual retry from the user collapses
+      // into the same row server-side via the unique index.
+    } finally {
+      isSubmittingRef.current = false;
     }
   };
 
