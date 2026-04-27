@@ -165,6 +165,11 @@ export function TidVerification() {
   const [tid, setTid] = useState('');
   const [operatorAmount, setOperatorAmount] = useState('');
   const [provider, setProvider] = useState('mtn');
+  // Pick-list provider filter — independent of the verify form's `provider`.
+  // Defaults to 'all' so operators see EVERY pending deposit and don't miss
+  // anything tagged to a different channel. Operators can still narrow to a
+  // single provider via the Provider chip row.
+  const [pendingProviderFilter, setPendingProviderFilter] = useState<string>('all');
   const [resultState, setResultState] = useState<ResultState>('idle');
   const [matches, setMatches] = useState<MatchResult[]>([]);
   const [approving, setApproving] = useState<string | null>(null);
@@ -293,11 +298,14 @@ export function TidVerification() {
     async (append: boolean, currentCount: number) => {
       const from = append ? currentCount : 0;
       const to = from + PENDING_PAGE_SIZE - 1;
-      const { data, error } = await supabase
+      let query = supabase
         .from('deposit_requests')
         .select('id, user_id, amount, provider, created_at')
-        .eq('status', 'pending')
-        .eq('provider', provider)
+        .eq('status', 'pending');
+      if (pendingProviderFilter !== 'all') {
+        query = query.eq('provider', pendingProviderFilter);
+      }
+      const { data, error } = await query
         .order('created_at', { ascending: false })
         .range(from, to);
       if (error) throw error;
@@ -333,7 +341,7 @@ export function TidVerification() {
       });
       setPendingHasMore(rows.length === PENDING_PAGE_SIZE);
     },
-    [provider],
+    [pendingProviderFilter],
   );
 
   // Extracted so we can refresh the pick-list after verify/reject without
@@ -401,7 +409,7 @@ export function TidVerification() {
   // being pending is immediately removed from local state.
   useEffect(() => {
     const channel = supabase
-      .channel(`finops-pending-deposits-${provider}`)
+      .channel(`finops-pending-deposits-${pendingProviderFilter}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'deposit_requests' },
@@ -410,10 +418,12 @@ export function TidVerification() {
           const old = (payload.old ?? {}) as { id?: string };
           const id = next.id || old.id;
           if (!id) return;
-          if (payload.eventType === 'DELETE' || next.status !== 'pending' || next.provider !== provider) {
+          const matchesProvider =
+            pendingProviderFilter === 'all' || next.provider === pendingProviderFilter;
+          if (payload.eventType === 'DELETE' || next.status !== 'pending' || !matchesProvider) {
             setPending((prev) => prev.filter((p) => p.id !== id));
             if (pickedId === id) setPickedId(null);
-          } else if (next.status === 'pending' && next.provider === provider) {
+          } else if (next.status === 'pending' && matchesProvider) {
             loadPending();
           }
         },
@@ -1364,7 +1374,7 @@ export function TidVerification() {
           <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 border-b border-border/60">
             <div className="flex items-center gap-2 min-w-0">
               <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                Pending {provider.replace('_', ' ')} deposits
+                Pending {pendingProviderFilter === 'all' ? 'all' : pendingProviderFilter.replace('_', ' ')} deposits
                 {pending.length > 0 && (
                   <span className="ml-1 text-muted-foreground/80">
                     ({pendingSearch.trim() ? `${pendingFiltered.length}/${pending.length}` : pending.length})
@@ -1438,9 +1448,10 @@ export function TidVerification() {
               <div className="space-y-1.5">
                 <FilterChipRow
                   label="Provider"
-                  value={provider}
-                  onChange={(v) => setProvider(v)}
+                  value={pendingProviderFilter}
+                  onChange={(v) => setPendingProviderFilter(v)}
                   options={[
+                    { value: 'all', label: 'All' },
                     { value: 'mtn', label: 'MTN' },
                     { value: 'airtel', label: 'Airtel' },
                     { value: 'bank_transfer', label: 'Bank' },
