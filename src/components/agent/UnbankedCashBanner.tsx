@@ -1842,10 +1842,42 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
             )}
 
             <div className="space-y-1">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
-                Receipt photo (optional · shared)
-              </label>
-              {file ? (
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Receipt photo (optional · {photoMode === 'shared' ? 'shared' : 'per batch'})
+                </label>
+                {/* Photo-mode toggle. Tiny segmented control mirroring the
+                    one used for references at the top of the dialog. */}
+                <div className="inline-flex rounded-md border border-border bg-muted/40 p-0.5 text-[10px] font-bold uppercase tracking-wider shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => !submitting && setPhotoMode('shared')}
+                    disabled={submitting}
+                    className={cn(
+                      'h-6 px-2 rounded transition-colors',
+                      photoMode === 'shared'
+                        ? 'bg-background shadow-sm text-foreground'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    Shared
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => !submitting && setPhotoMode('per_batch')}
+                    disabled={submitting}
+                    className={cn(
+                      'h-6 px-2 rounded transition-colors',
+                      photoMode === 'per_batch'
+                        ? 'bg-background shadow-sm text-foreground'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    Per batch
+                  </button>
+                </div>
+              </div>
+              {photoMode === 'shared' ? (file ? (
                 <div className="flex items-center gap-3 rounded-lg border border-border bg-background p-2">
                   {previewUrl && (
                     <a
@@ -1896,6 +1928,18 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
                     disabled={submitting}
                   />
                 </label>
+              )) : (
+                /* Per-batch photo mode: summary card + a hint pointing the
+                   agent up to each row's inline upload control. We don't
+                   re-render uploaders here because each batch card already
+                   has its own (added below the per-batch reference field). */
+                <div className="rounded-lg border border-dashed border-border bg-muted/20 px-3 py-2 text-[11px] text-muted-foreground leading-snug">
+                  Attach a receipt directly under each selected batch above.{' '}
+                  <span className="font-semibold text-foreground">
+                    {Object.keys(perBatchFile).length}
+                  </span>{' '}
+                  / {selected.size} attached so far.
+                </div>
               )}
             </div>
           </div>
