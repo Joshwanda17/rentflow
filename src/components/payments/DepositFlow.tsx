@@ -225,7 +225,19 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   };
 
   const validateForm = () => {
-    if (!amount || parseFloat(amount) <= 0) { toast.error('Enter a valid amount'); return false; }
+    const amt = parseFloat(amount);
+    if (!amount || !Number.isFinite(amt) || amt <= 0) {
+      toast.error('Enter a valid amount');
+      return false;
+    }
+    if (amt < MIN_DEPOSIT) {
+      toast.error(`Minimum deposit is ${formatCurrency(MIN_DEPOSIT)}`);
+      return false;
+    }
+    if (amt > MAX_DEPOSIT) {
+      toast.error(`Maximum deposit is ${formatCurrency(MAX_DEPOSIT)}`);
+      return false;
+    }
     if (channel === 'momo' && !transactionId.trim()) { toast.error('Enter the transaction ID'); return false; }
     if (channel === 'bank' && !transactionId.trim()) { toast.error('Enter the bank reference number'); return false; }
     if (channel === 'agent_cash' && !receiptNumber.trim()) { toast.error('Enter the receipt number'); return false; }
