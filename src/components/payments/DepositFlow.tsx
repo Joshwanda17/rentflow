@@ -255,6 +255,40 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   }, [open, defaultPurpose, lockPurpose, requirePurposeChoice]);
 
   /**
+   * Handoff hydration from the dashboard "Collect from receipt/reference"
+   * entry. The dashboard already ran the matcher, so we land on the
+   * Operational Float form with everything pre-applied — amount, per-tenant
+   * allocations, channel/provider, and the pasted reference.
+   *
+   * Runs only on dialog open transitions to avoid clobbering edits the
+   * agent makes after landing on the form.
+   */
+  useEffect(() => {
+    if (!open || !prefillFromMatch || editRequestId) return;
+    const m = prefillFromMatch;
+    setDepositPurpose('operational_float');
+    setReason('Operational Float');
+    setShowPurposeGrid(false);
+    setStep('form');
+    setPurposeChosenAt(new Date().toISOString());
+    setPurposeEntryPoint('default');
+    if (m.amount > 0) setAmount(String(m.amount));
+    if (m.allocations?.length) setTenantAllocations(m.allocations);
+    if (m.providerHint === 'mtn' || m.providerHint === 'airtel') {
+      setChannel('momo');
+      setMomoProvider(m.providerHint);
+      if (m.reference) setTransactionId(m.reference);
+    } else if (m.providerHint === 'bank') {
+      setChannel('bank');
+      if (m.reference) setTransactionId(m.reference);
+    } else if (m.reference) {
+      // Unknown provider — still attach the ref to the TID field as a
+      // safe default so the agent doesn't have to re-type it.
+      setTransactionId(m.reference);
+    }
+  }, [open, prefillFromMatch, editRequestId]);
+
+  /**
    * Edit-mode hydration. When the dialog opens with an `editRequestId`,
    * load the existing pending row, decode the allocations tail off the
    * notes column, and prefill every field so the agent can adjust amounts
