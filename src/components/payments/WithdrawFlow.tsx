@@ -486,8 +486,96 @@ export default function WithdrawFlow({
 
       // ═══ PAYOUT DETAILS ═══
       case 3:
+        // Filter saved methods to those compatible with the chosen payout
+        // mode. Cash has no destination details to save, so the picker is
+        // hidden in that case.
+        const compatibleSaved = (savedMethods.data ?? []).filter(
+          (m) => m.payout_mode === payoutMode,
+        );
         return (
           <div className="space-y-5">
+            {payoutMode !== 'cash' && compatibleSaved.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">Saved {payoutMode === 'mobile_money' ? 'mobile money' : 'bank'} destinations</Label>
+                  {selectedSavedId && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={clearSavedSelection}
+                    >
+                      Use new
+                    </Button>
+                  )}
+                </div>
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {compatibleSaved.map((m) => {
+                    const isActive = selectedSavedId === m.id;
+                    const title =
+                      m.nickname?.trim() ||
+                      (m.payout_mode === 'mobile_money'
+                        ? `${m.momo_provider ?? ''} · ${m.momo_name ?? ''}`.trim()
+                        : `${m.bank_name ?? ''} · ${m.bank_account_name ?? ''}`.trim());
+                    const subtitle =
+                      m.payout_mode === 'mobile_money'
+                        ? m.momo_number ?? ''
+                        : m.bank_account_number ?? '';
+                    return (
+                      <Card
+                        key={m.id}
+                        className={`p-3 cursor-pointer transition-all ${
+                          isActive
+                            ? 'ring-2 ring-primary border-primary bg-primary/5'
+                            : 'hover:border-primary/50'
+                        }`}
+                        onClick={() => applySavedMethod(m)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center text-base">
+                            {m.payout_mode === 'mobile_money' ? '📱' : '🏦'}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-semibold text-sm truncate">{title || 'Saved method'}</p>
+                              {m.is_default && (
+                                <Star className="h-3 w-3 text-amber-500 fill-amber-500 shrink-0" />
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
+                          </div>
+                          <button
+                            type="button"
+                            aria-label="Delete saved method"
+                            className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm('Remove this saved destination?')) {
+                                if (selectedSavedId === m.id) clearSavedSelection();
+                                savedMethods.remove.mutate(m.id);
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+                <div className="relative py-1">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-border/60" />
+                  </div>
+                  <div className="relative flex justify-center text-[10px] uppercase tracking-wider">
+                    <span className="bg-background px-2 text-muted-foreground">
+                      or enter new details
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {payoutMode === 'mobile_money' && (
               <>
                 <div className="text-center mb-2">
@@ -526,6 +614,7 @@ export default function WithdrawFlow({
                       value={momoNumber}
                       onChange={(e) => {
                         const v = e.target.value;
+                        clearSavedSelection();
                         setMomoNumber(v);
                         // Auto-correct provider from operator prefix —
                         // prevents the #1 disbursement failure (wrong network).
@@ -552,7 +641,7 @@ export default function WithdrawFlow({
                     type="text"
                     placeholder="e.g. JOHN DOE"
                     value={momoName}
-                    onChange={(e) => setMomoName(e.target.value)}
+                    onChange={(e) => { clearSavedSelection(); setMomoName(e.target.value); }}
                     className="h-12 text-base"
                   />
                 </div>
@@ -570,7 +659,7 @@ export default function WithdrawFlow({
 
                 <div className="space-y-2">
                   <Label>Bank Name</Label>
-                  <Select value={bankName} onValueChange={setBankName}>
+                  <Select value={bankName} onValueChange={(v) => { clearSavedSelection(); setBankName(v); }}>
                     <SelectTrigger className="h-12">
                       <SelectValue placeholder="Select your bank..." />
                     </SelectTrigger>
@@ -590,7 +679,7 @@ export default function WithdrawFlow({
                       type="text"
                       placeholder="e.g. JOHN DOE"
                       value={bankAccountName}
-                      onChange={(e) => setBankAccountName(e.target.value)}
+                      onChange={(e) => { clearSavedSelection(); setBankAccountName(e.target.value); }}
                       className="h-12 text-base pl-10"
                     />
                   </div>
@@ -604,12 +693,39 @@ export default function WithdrawFlow({
                       type="text"
                       placeholder="e.g. 9030012345678"
                       value={bankAccountNumber}
-                      onChange={(e) => setBankAccountNumber(e.target.value)}
+                      onChange={(e) => { clearSavedSelection(); setBankAccountNumber(e.target.value); }}
                       className="h-12 text-base pl-10"
                     />
                   </div>
                 </div>
               </>
+            )}
+
+            {payoutMode !== 'cash' && !selectedSavedId && (
+              <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-3">
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <Checkbox
+                    checked={saveAsNew}
+                    onCheckedChange={(v) => setSaveAsNew(v === true)}
+                    className="mt-0.5"
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Save this destination for next time</p>
+                    <p className="text-xs text-muted-foreground">
+                      Skip re-typing on your next withdrawal.
+                    </p>
+                  </div>
+                </label>
+                {saveAsNew && (
+                  <Input
+                    type="text"
+                    placeholder="Nickname (optional, e.g. My MTN, Stanbic salary)"
+                    value={savedNickname}
+                    onChange={(e) => setSavedNickname(e.target.value)}
+                    className="h-10 text-sm"
+                  />
+                )}
+              </div>
             )}
 
             {payoutMode === 'cash' && (
