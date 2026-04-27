@@ -206,7 +206,25 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         extraTenants = extraData || [];
       }
 
-      const tenantList = [...referredTenants, ...extraTenants];
+      // Strict allowlist: only tenants explicitly tied to this agent via
+      // referrer_id, referrals table, or rent_requests.agent_id. Admin RLS
+      // policies (manager/cfo/super_admin) would otherwise bleed every
+      // platform profile into this view for staff who also hold those roles.
+      const allowedIds = new Set<string>([
+        ...referredTenants.map(t => t.id),
+        ...extraTenantIds,
+      ]);
+      const mergedById = new Map<string, Tenant>();
+      for (const t of [...referredTenants, ...extraTenants]) {
+        if (allowedIds.has(t.id)) mergedById.set(t.id, t);
+      }
+      const tenantList = Array.from(mergedById.values());
+      if (tenantList.length > allowedIds.size) {
+        console.warn('[AgentTenantsSheet] tenant list exceeded allowlist size', {
+          listSize: tenantList.length,
+          allowedSize: allowedIds.size,
+        });
+      }
       setTenants(tenantList);
 
       if (tenantList.length > 0) {
@@ -713,7 +731,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                       {/* Name + phone + progress */}
                       <div className="flex-1 min-w-0">
                         <p
-                          className="font-semibold text-base truncate text-primary underline underline-offset-2 cursor-pointer"
+                          className="font-semibold text-base break-words text-primary underline underline-offset-2 cursor-pointer"
                           onClick={(e) => { e.stopPropagation(); setProfileTenantId(tenant.id); }}
                         >
                           {tenant.full_name && tenant.full_name.trim() ? (
@@ -819,7 +837,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                       </div>
 
                       {/* Amount / status */}
-                      <div className="shrink-0 text-right">
+                      <div className="shrink-0 text-right max-w-[110px] flex flex-col items-end">
                          {hasDebt ? (
                           <span className="text-lg font-bold text-destructive font-mono">
                             {formatUGX(balance)}

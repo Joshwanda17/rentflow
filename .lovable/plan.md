@@ -1,69 +1,47 @@
-# Fix: Reject button silently failing under Landlord Ops → Verification
+## Fix My Tenants — names not rendering & list shows wrong tenants
 
-## Root cause
+Two issues on the agent **My Tenants** sheet (`src/components/agent/AgentTenantsSheet.tsx`):
 
-The Reject button calls the database function `reject_house_listing(p_listing_id, p_reason)`, which **only allows these roles** to execute:
+### 1. Names invisible (layout bug)
 
-- `super_admin`
-- `ceo`
-- `cto`
-- `manager`
+The avatar correctly shows the first letter (`N`, `A`), proving `tenant.full_name` reaches the row. But the name `<p>` collapses to zero visible text because:
 
-But the **Landlord Ops dashboard** itself is gated by `staff_permissions.permitted_dashboard = 'landlord-ops'`, which is granted to many staff who do **not** hold any of those four roles (e.g. Grace Paul Ochieng, Grace Paul, LOLEM FIRICILA, Mukhaye Lydia — all have landlord-ops access but no `manager`/`super_admin`/`ceo`/`cto`).
+- It uses `truncate` (which clips overflow) inside a flex row.
+- The right-hand column (amount + **Field Collect** button) has no `shrink-0` on its outer container, so on narrow phones it expands and squeezes the name slot to ~0 width → `truncate` clips the entire name.
 
-For those operators, clicking Reject:
-1. Opens the reason dialog
-2. Submits the RPC
-3. RPC throws `"Not authorized to reject listings"`
-4. Toast briefly flashes "Reject Failed" (easy to miss on mobile) — listing stays unchanged
+**Fix (line ~714–822):**
+- Add `shrink-0` to the right-side amount/button column wrapper (line 822 already has `shrink-0`, but the **Field Collect button** widens it on every render — wrap the column in a fixed/max-width and set `whitespace-nowrap` only where intended).
+- Replace `truncate` on the name `<p>` (line 716) with `break-words` and keep `min-w-0` on the parent (line 714, already present). Long names wrap to a 2nd line instead of vanishing.
+- Verify the row still looks clean on iPhone SE width (375px).
 
-This is the same "asymmetric gating" pattern as the Verify button (`credit-listing-bonus` edge function), except Verify uses an edge function with service-role privileges + permission check, while Reject uses a hardcoded role check in the RPC.
+### 2. Joshua sees 104 tenants (scope leak via admin RLS)
 
-## The fix
+Joshua Wanda has roles `agent + manager + cfo + super_admin`. The `fetchTenants` queries (lines 172–207) rely on RLS to filter rows, but admin RLS policies grant him every profile, so the `.in('id', uniqueIds)` call returns far more than intended whenever superuser policies overlap.
 
-Update `reject_house_listing` to accept **either** the four privileged roles **or** any staff with the `landlord-ops` dashboard permission — matching how the dashboard itself decides who can be there.
+In practice the bigger source of bloat is that `extraTenantIds` is built from referrals + `rent_requests.tenant_id` where `agent_id = user.id`, and the resulting `.in()` profile fetch is unfiltered by the agent relationship — any RLS-visible row passes through.
 
-```sql
--- New authorization clause (replaces the existing OR chain)
-IF NOT (
-  public.has_role(v_caller, 'super_admin'::app_role)
-  OR public.has_role(v_caller, 'ceo'::app_role)
-  OR public.has_role(v_caller, 'cto'::app_role)
-  OR public.has_role(v_caller, 'manager'::app_role)
-  OR EXISTS (
-    SELECT 1 FROM public.staff_permissions
-    WHERE user_id = v_caller
-      AND permitted_dashboard = 'landlord-ops'
-  )
-) THEN
-  RAISE EXCEPTION 'Not authorized to reject listings';
-END IF;
-```
+**Fix:**
+- Keep the source-of-truth join client-side: only render tenants whose IDs come from one of three explicit agent-owned sources:
+  1. `profiles.referrer_id = user.id`
+  2. `referrals.referrer_id = user.id`
+  3. `rent_requests.agent_id = user.id`
+- After fetching extra profiles by ID, filter the merged `tenantList` to `referredIds ∪ extraTenantIds` (it already is in code, but make this explicit and guard against duplicates by ID).
+- Add a console warning when the merged list size exceeds the union size — surfaces future RLS leaks early.
 
-This mirrors the dashboard's own gating, so anyone who can see the Reject button can actually use it. Audit-trail attribution is unaffected (still records `v_caller`).
+This makes the page show only Joshua's actual ~2 tenants regardless of his admin roles.
 
-## Secondary improvement: louder error surfacing
+### Files touched
 
-The current dialog catches the RPC error and shows a single toast. Mobile operators have repeatedly missed it (matches the pattern from the deposit silent-failure incident). Update `EmptyHouseActionDialog.handleSubmit` so:
+- `src/components/agent/AgentTenantsSheet.tsx` — layout fix (name `<p>` + right column) and tighter scoping in `fetchTenants`.
 
-- The error message stays visible inline in the dialog (not just a toast)
-- The dialog does NOT close on failure — operator sees what happened
-- Console logs the full error object for support diagnostics
+### Out of scope
 
-## Files changed
+- No DB / RLS changes. Admin roles still see all tenants elsewhere; this is a UI-scope fix specific to the agent **My Tenants** page.
+- No changes to Field Collect, risk chips, or the expanded details panel.
 
-1. **Database migration** — replace `public.reject_house_listing` with the broadened authorization check (single `CREATE OR REPLACE FUNCTION` statement, same signature, same return shape).
-2. **`src/components/executive/landlord-ops/EmptyHouseActionDialog.tsx`** — keep dialog open on error, show inline error banner, log full error to console.
+### QA checklist
 
-## Out of scope
-
-- No changes to `verify_house_listing` / `credit-listing-bonus` (Verify already works).
-- No changes to the dashboard's existing `staff_permissions` gating.
-- The 4 unverified listings shown in the screenshot are unaffected by data — only the action handler needs the fix.
-
-## Verification after deploy
-
-1. Log in as a staff with only `landlord-ops` permission (no `manager` role).
-2. Open Landlord Ops → Verification Queue.
-3. Click Reject on any unverified listing → enter reason ≥10 chars → confirm.
-4. Listing disappears from the queue, agent receives a `🚫 Listing Rejected` notification, audit log row created with `action_type='listing_rejected'`.
+- Joshua sees only his real referrals/assignments (expected: ~2 rows).
+- Both tenants render full names (`Namukisha Esther`, `Akandinda Wilson`) above their phone numbers.
+- Long names wrap instead of disappearing on 375px width.
+- Field Collect button still tappable; amount column still right-aligned.
