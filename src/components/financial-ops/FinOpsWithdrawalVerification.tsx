@@ -188,6 +188,93 @@ export function FinOpsWithdrawalVerification() {
     return null;
   };
 
+  // ─── Duplicate-cluster detection ────────────────────────────────────
+  // Groups identical pending requests (same user → same recipient → same
+  // amount) so ops can reject N-1 duplicates in one click instead of
+  // clicking through five identical cards. Keeps the *newest* row in
+  // each cluster as the live one.
+  const duplicateKeyFor = (req: WithdrawalRequest): string | null => {
+    const method = req.payout_method || 'mobile_money';
+    if (method === 'mobile_money' && req.mobile_money_number) {
+      const phone = String(req.mobile_money_number).replace(/\D/g, '');
+      return `${req.user_id}|momo|${req.mobile_money_provider || ''}|${phone}|${req.amount}`;
+    }
+    if (method === 'bank_transfer' && req.bank_account_number) {
+      return `${req.user_id}|bank|${req.bank_name || ''}|${req.bank_account_number}|${req.amount}`;
+    }
+    if (method === 'cash') {
+      return `${req.user_id}|cash|${req.agent_location || ''}|${req.amount}`;
+    }
+    return null;
+  };
+
+  const duplicateClusters = (() => {
+    const clusters = new Map<string, WithdrawalRequest[]>();
+    for (const req of pendingRequests) {
+      const k = duplicateKeyFor(req);
+      if (!k) continue;
+      const list = clusters.get(k) ?? [];
+      list.push(req);
+      clusters.set(k, list);
+    }
+    const result = new Map<string, WithdrawalRequest[]>();
+    clusters.forEach((rows, k) => {
+      if (rows.length < 2) return;
+      rows.sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
+      result.set(k, rows);
+    });
+    return result;
+  })();
+
+  const handleBulkRejectDuplicates = async (cluster: WithdrawalRequest[]) => {
+    if (!user || cluster.length < 2) return;
+    const [newest, ...older] = cluster;
+    const ids = older.map((r) => r.id);
+    const ok = window.confirm(
+      `Reject ${ids.length} older duplicate${ids.length === 1 ? '' : 's'} of this request?\n\n` +
+        `Newest will stay (created ${new Date(newest.created_at).toLocaleTimeString()}). ` +
+        `The other ${ids.length} identical submission${ids.length === 1 ? '' : 's'} will be rejected with reason "Duplicate of newer pending request".`,
+    );
+    if (!ok) return;
+    setProcessing(ids[0]);
+    try {
+      const { data, error: rejectErr } = await supabase.functions.invoke('reject-withdrawal', {
+        body: {
+          withdrawal_ids: ids,
+          reason: 'Duplicate of newer pending request — auto-rejected by Financial Ops to keep the queue clean.',
+          withdrawal_type: 'wallet',
+        },
+      });
+      if (rejectErr) {
+        const msg = await extractEdgeFunctionError({ data, error: rejectErr }, 'Bulk reject failed');
+        throw new Error(msg);
+      }
+      const rejectedIds = new Set<string>(
+        (data?.results || [])
+          .filter((r: any) => r.status === 'rejected')
+          .map((r: any) => r.id as string),
+      );
+      if (rejectedIds.size === 0) {
+        toast.error('No duplicates were rejected.');
+        return;
+      }
+      setPendingRequests((prev) => prev.filter((r) => !rejectedIds.has(r.id)));
+      setRejectedRequests((prev) => [
+        ...older
+          .filter((r) => rejectedIds.has(r.id))
+          .map((r) => ({ ...r, status: 'rejected' as const })),
+        ...prev,
+      ]);
+      toast.success(
+        `Rejected ${rejectedIds.size} duplicate${rejectedIds.size === 1 ? '' : 's'} — newest kept for review.`,
+      );
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to reject duplicates');
+    } finally {
+      setProcessing(null);
+    }
+  };
+
   const getAgeBadge = (createdAt: string) => {
     const days = Math.floor((Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24));
     if (days >= 30) return <Badge variant="destructive" size="sm">{Math.floor(days / 30)}mo old</Badge>;
