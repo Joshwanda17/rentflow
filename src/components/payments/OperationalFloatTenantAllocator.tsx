@@ -91,7 +91,7 @@ export default function OperationalFloatTenantAllocator({
         const [referredRes, referralRes, rentReqRes] = await Promise.all([
           supabase
             .from('profiles')
-            .select('id, full_name, phone, monthly_rent')
+            .select('id, full_name, phone, monthly_rent, updated_at')
             .eq('referrer_id', agentId)
             .order('created_at', { ascending: false })
             .limit(200),
@@ -107,7 +107,13 @@ export default function OperationalFloatTenantAllocator({
             .limit(200),
         ]);
 
-        const direct = (referredRes.data || []) as TenantOption[];
+        const direct = ((referredRes.data || []) as any[]).map((t) => ({
+          id: t.id,
+          full_name: t.full_name,
+          phone: t.phone,
+          monthly_rent: t.monthly_rent,
+          monthly_rent_updated_at: t.updated_at,
+        })) as TenantOption[];
         const directIds = new Set(direct.map((t) => t.id));
 
         const extraIds = [
@@ -120,9 +126,15 @@ export default function OperationalFloatTenantAllocator({
           const unique = [...new Set(extraIds)];
           const { data } = await supabase
             .from('profiles')
-            .select('id, full_name, phone, monthly_rent')
+            .select('id, full_name, phone, monthly_rent, updated_at')
             .in('id', unique);
-          extras = (data || []) as TenantOption[];
+          extras = ((data || []) as any[]).map((t) => ({
+            id: t.id,
+            full_name: t.full_name,
+            phone: t.phone,
+            monthly_rent: t.monthly_rent,
+            monthly_rent_updated_at: t.updated_at,
+          })) as TenantOption[];
         }
 
         if (!cancelled) setTenants([...direct, ...extras]);
