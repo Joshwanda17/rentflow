@@ -372,12 +372,19 @@ export default function WithdrawFlow({
                 value={amount}
                 onChange={(e) => setAmount(Math.min(Number(e.target.value), maxAmount))}
                 max={maxAmount}
-                min={1000}
+                min={MIN_WITHDRAWAL}
                 className="text-2xl h-14 font-bold text-center"
               />
               <p className="text-xs text-muted-foreground text-center">
-                Max: {formatCurrency(maxAmount, currency)}
+                Withdraw between {formatCurrency(MIN_WITHDRAWAL, currency)} and{' '}
+                {formatCurrency(maxAmount, currency)}
               </p>
+              {/* Zero-fee assurance — Welile wallet has no withdrawal fees,
+                  so users see the full amount on the other side. */}
+              <div className="flex items-center justify-center gap-2 text-xs font-semibold text-emerald-600 bg-emerald-500/5 border border-emerald-500/20 rounded-lg py-2">
+                <BadgeCheck className="h-4 w-4" />
+                Zero fees · You receive the full {formatCurrency(amount || 0, currency)}
+              </div>
             </div>
 
             <div className="grid grid-cols-4 gap-2">
