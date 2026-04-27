@@ -204,10 +204,39 @@ Deno.serve(async (req) => {
     for (const depositRequest of depositRequests) {
       const depositStartedAt = Date.now();
       const isLargeDeposit = Number(depositRequest.amount) >= 10_000_000;
+      // ── Purpose → ledger-category mapping (single source of truth) ──
+      // The ledger category drives wallet routing via wallet_route_for_category:
+      //   - 'agent_float_deposit' → wallets.float_balance
+      //   - 'wallet_deposit'      → wallets.withdrawable_balance
+      // The UI collects deposit_purpose; the edge function (here) chooses
+      // the category. Wallet buckets are NEVER computed in the UI or written
+      // directly — the routing trigger + apply_wallet_movement own that.
+      const rawPurpose = (depositRequest.deposit_purpose || '').toString().trim().toLowerCase();
+      const isFloatDeposit = rawPurpose === 'operational_float';
+      const depositCategory: 'agent_float_deposit' | 'wallet_deposit' =
+        isFloatDeposit ? 'agent_float_deposit' : 'wallet_deposit';
+      const depositBucket: 'float' | 'withdrawable' =
+        isFloatDeposit ? 'float' : 'withdrawable';
+      if (!rawPurpose) {
+        // Missing purpose → safe default to personal (withdrawable). Logged
+        // so ops can spot any UI regression that stops sending purpose.
+        console.warn(
+          `[approve-deposit] deposit_purpose missing for ${depositRequest.id}; ` +
+          `defaulting to wallet_deposit (withdrawable). user=${depositRequest.user_id}`,
+        );
+      } else if (!['operational_float', 'personal_deposit'].includes(rawPurpose)) {
+        // Unknown purpose (e.g. legacy 'partnership_deposit', 'other') →
+        // keep historical behavior of crediting withdrawable, but log.
+        console.warn(
+          `[approve-deposit] Unrecognized deposit_purpose='${rawPurpose}' for ${depositRequest.id}; ` +
+          `falling back to wallet_deposit (withdrawable).`,
+        );
+      }
       if (isLargeDeposit) {
         console.log(
           `[approve-deposit] LARGE deposit start id=${depositRequest.id} ` +
-          `amount=${depositRequest.amount} user=${depositRequest.user_id} action=${action}`,
+          `amount=${depositRequest.amount} user=${depositRequest.user_id} action=${action} ` +
+          `purpose=${rawPurpose || 'none'} category=${depositCategory}`,
         );
       }
       try {
@@ -228,7 +257,7 @@ Deno.serve(async (req) => {
                 .select('id', { count: 'exact', head: true })
                 .eq('source_table', 'deposit_requests')
                 .eq('source_id', depositRequest.id)
-                .eq('category', 'wallet_deposit')
+                .in('category', ['wallet_deposit', 'agent_float_deposit'])
                 .eq('direction', 'cash_in')
                 .eq('ledger_scope', 'wallet');
 
@@ -293,23 +322,27 @@ Deno.serve(async (req) => {
                 user_id: depositRequest.user_id,
                 amount: depositRequest.amount,
                 direction: 'cash_in',
-                category: 'wallet_deposit',
+                category: depositCategory,
                 ledger_scope: 'wallet',
                 source_table: 'deposit_requests',
                 source_id: depositRequest.id,
                 reference_id: depositRequest.transaction_id || depositRequest.id,
-                description: `Wallet deposit via ${depositRequest.provider || 'mobile money'}`,
+                description: isFloatDeposit
+                  ? `Operational float deposit via ${depositRequest.provider || 'mobile money'}`
+                  : `Wallet deposit via ${depositRequest.provider || 'mobile money'}`,
                 currency: 'UGX',
                 transaction_date: new Date().toISOString(),
               },
               {
                 direction: 'cash_out',
                 amount: depositRequest.amount,
-                category: 'wallet_deposit',
+                category: depositCategory,
                 ledger_scope: 'platform',
                 source_table: 'deposit_requests',
                 source_id: depositRequest.id,
-                description: 'Platform liability: deposit credited to user wallet',
+                description: isFloatDeposit
+                  ? 'Platform: float deposit credited to agent float bucket'
+                  : 'Platform liability: deposit credited to user wallet',
                 currency: 'UGX',
                 transaction_date: new Date().toISOString(),
               },
@@ -440,14 +473,22 @@ Deno.serve(async (req) => {
           let rentRequestId: string | null = null;
           let newOutstanding = 0;
 
+          // Float deposits are operational money the agent collected from
+          // tenants in the field. They must NEVER be auto-applied to the
+          // depositing agent's own rent / debt / prepay — that money does
+          // not belong to the agent personally. Skip the entire auto-apply
+          // pipeline below for float deposits.
+          if (!isFloatDeposit) {
+
           // Re-read wallet after ledger credit to know available balance
           const { data: walletAfterCredit } = await supabaseAdmin
             .from("wallets")
-            .select("balance")
+            .select("withdrawable_balance")
             .eq("user_id", depositRequest.user_id)
             .single();
 
-          let availableBalance = walletAfterCredit?.balance || 0;
+          // Auto-apply only ever spends withdrawable money — never float.
+          let availableBalance = Number(walletAfterCredit?.withdrawable_balance || 0);
 
           const { data: activeRentRequest } = await supabaseAdmin
             .from("rent_requests")
@@ -777,6 +818,7 @@ Deno.serve(async (req) => {
               }
             }
           }
+          } // end if (!isFloatDeposit) — float deposits skip auto-apply
 
           // ── Notification ──
           const repaymentNote = repaymentApplied > 0
@@ -790,17 +832,23 @@ Deno.serve(async (req) => {
             : "";
 
           let notifTitle = "Deposit Approved! 💰";
-          if (debtCleared > 0 || daysPrepaid > 0) notifTitle = "Deposit Approved & Auto-Applied! 💰";
+          if (isFloatDeposit) notifTitle = "Float Deposit Approved! 🏘️";
+          else if (debtCleared > 0 || daysPrepaid > 0) notifTitle = "Deposit Approved & Auto-Applied! 💰";
           else if (repaymentApplied > 0) notifTitle = "Deposit Approved & Rent Deducted! 💰";
 
           await supabaseAdmin.from("notifications").insert({
             user_id: depositRequest.user_id,
             title: notifTitle,
-            message: `Your deposit of UGX ${depositRequest.amount.toLocaleString()} approved by ${processorName}.${repaymentNote}${debtNote}${prepaidNote}`,
+            message: isFloatDeposit
+              ? `Your operational float deposit of UGX ${depositRequest.amount.toLocaleString()} was approved by ${processorName} and credited to your Float bucket.`
+              : `Your deposit of UGX ${depositRequest.amount.toLocaleString()} approved by ${processorName}.${repaymentNote}${debtNote}${prepaidNote}`,
             type: "success",
             metadata: {
               deposit_request_id: depositRequest.id,
               amount: depositRequest.amount,
+              deposit_purpose: rawPurpose || null,
+              ledger_category: depositCategory,
+              wallet_bucket: depositBucket,
               repayment_applied: repaymentApplied,
               debt_cleared: debtCleared,
               days_prepaid: daysPrepaid,
@@ -871,7 +919,7 @@ Deno.serve(async (req) => {
               .select('id', { count: 'exact', head: true })
               .eq('source_table', 'deposit_requests')
               .eq('source_id', depositRequest.id)
-              .eq('category', 'wallet_deposit')
+              .in('category', ['wallet_deposit', 'agent_float_deposit'])
               .eq('direction', 'cash_in')
               .eq('ledger_scope', 'wallet')
           : { count: 0 };
