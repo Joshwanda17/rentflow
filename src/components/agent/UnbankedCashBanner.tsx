@@ -1593,7 +1593,9 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
               results={results}
               batches={batches}
               photoAttached={results.some((r) => r.photoAttached)}
-              photoPreviewUrl={previewUrl}
+              // Only pass the preview URL when a shared photo was actually
+              // used — per_batch mode has no single representative thumbnail.
+              photoPreviewUrl={photoMode === 'shared' ? previewUrl : null}
               onRetryFailures={() => {
                 // Re-arm the dialog with only the failed batches selected so
                 // the agent can fix references and resubmit. We keep their
