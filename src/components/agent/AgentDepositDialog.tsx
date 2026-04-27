@@ -10,6 +10,7 @@ import { toast as sonnerToast } from 'sonner';
 import { useProfile } from '@/hooks/useProfile';
 import { Loader2, ArrowDownCircle, Smartphone, AlertCircle, Calendar, Clock, Info, Banknote, Send } from 'lucide-react';
 import { QuickRegisterTenantDialog } from './QuickRegisterTenantDialog';
+import { GlossaryTip } from '@/components/shared/GlossaryTip';
 
 interface AgentDepositDialogProps {
   open: boolean;
@@ -369,6 +370,15 @@ function DepositForm({
         {isCustomerPaid ? 'Customer Paid Directly — TID verification only' : 'Cash Collected — deducted from your wallet'}
         <button type="button" onClick={onBack} className="ml-auto text-xs underline opacity-70 hover:opacity-100">Change</button>
       </div>
+
+      <GlossaryTip
+        terms={isCustomerPaid
+          ? ['Cash Collected', 'Tracking ID', 'Auto-Deduction']
+          : ['Cash Collected', 'Float', 'Deposit / Refill']}
+        intro={isCustomerPaid
+          ? "The customer paid via Mobile Money — you're just verifying the Transaction ID."
+          : 'You collected cash. Recording it deducts from your float and credits the customer.'}
+      />
 
       <div className="space-y-2">
         <Label htmlFor="phone">Customer Phone Number</Label>
