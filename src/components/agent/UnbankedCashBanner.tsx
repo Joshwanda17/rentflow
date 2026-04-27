@@ -1152,7 +1152,7 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
             failCount++;
             runResults.push({
               batchId: id,
-              channel: meta?.channel ?? 'cash',
+              channel: meta?.channel ?? 'cash_merchant',
               declaredTotal: Number(meta?.declared_total ?? 0),
               status: 'skipped',
               refUsed: null,
@@ -1168,7 +1168,7 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
           okCount++;
           runResults.push({
             batchId: id,
-            channel: meta?.channel ?? 'cash',
+            channel: meta?.channel ?? 'cash_merchant',
             declaredTotal: Number(meta?.declared_total ?? 0),
             status: 'done',
             refUsed: finalRef,
@@ -1179,7 +1179,7 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
           failCount++;
           runResults.push({
             batchId: id,
-            channel: meta?.channel ?? 'cash',
+            channel: meta?.channel ?? 'cash_merchant',
             declaredTotal: Number(meta?.declared_total ?? 0),
             status: 'error',
             refUsed: refForBatch(id) || null,
