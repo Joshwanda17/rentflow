@@ -748,13 +748,59 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Phone className="h-5 w-5 text-primary" />
-            {isEditMode ? 'Edit Deposit Request' : 'Deposit to Wallet'}
-          </DialogTitle>
+      {/*
+        Mobile-first dialog shell.
+        On phones: full screen (no rounded corners, no margins) so everything
+        the user reads/taps is at thumb-friendly distance and the keyboard
+        doesn't squash the form. On tablet/desktop: classic centered card.
+        The body becomes a scroll region between a sticky header (title +
+        step + back) and a sticky footer (the primary action) — never
+        chase a button hidden below the fold.
+      */}
+      <DialogContent className="p-0 gap-0 sm:max-w-md w-screen h-svh sm:h-auto sm:max-h-[90vh] sm:rounded-2xl rounded-none overflow-hidden flex flex-col">
+        {/* Sticky header */}
+        <DialogHeader className="px-4 py-3 border-b bg-background sticky top-0 z-10 space-y-0">
+          <div className="flex items-center gap-3">
+            {/* Step-aware back: only shown when there's somewhere to go back to. */}
+            {step === 'form' && (
+              <button
+                type="button"
+                onClick={() => setStep('channel')}
+                aria-label="Back"
+                className="-ml-1 h-9 w-9 rounded-full flex items-center justify-center hover:bg-muted active:scale-95 transition"
+              >
+                <span className="text-lg leading-none">‹</span>
+              </button>
+            )}
+            {step === 'channel' && requirePurposeChoice && depositPurpose && (
+              <button
+                type="button"
+                onClick={() => setStep('purpose')}
+                aria-label="Back"
+                className="-ml-1 h-9 w-9 rounded-full flex items-center justify-center hover:bg-muted active:scale-95 transition"
+              >
+                <span className="text-lg leading-none">‹</span>
+              </button>
+            )}
+            <div className="min-w-0 flex-1">
+              <DialogTitle className="text-base font-semibold leading-tight">
+                {isEditMode ? 'Edit deposit' : 'Deposit to wallet'}
+              </DialogTitle>
+              {/* Tiny step caption — plain language, no jargon. */}
+              {!editLoading && step !== 'submitting' && step !== 'success' && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {step === 'purpose'
+                    ? 'Step 1 of 3 · What is this for?'
+                    : step === 'channel'
+                      ? `Step ${requirePurposeChoice ? '2' : '1'} of ${requirePurposeChoice ? '3' : '2'} · How are you paying?`
+                      : `Step ${requirePurposeChoice ? '3' : '2'} of ${requirePurposeChoice ? '3' : '2'} · Enter details`}
+                </p>
+              )}
+            </div>
+          </div>
         </DialogHeader>
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto px-4 py-4">
 
         {editLoading ? (
           <div className="py-12 text-center space-y-3">
@@ -876,12 +922,14 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           </div>
         ) : (
           /* ─── Form ─── */
-          <div className="space-y-4 w-full max-w-full">
-            {/* Back to channel */}
-            <button onClick={() => setStep('channel')} className="text-xs text-primary font-medium flex items-center gap-1 flex-wrap break-words">
-              <span>←</span>
-              <span className="break-words">Change deposit method ({getProviderLabel()})</span>
-            </button>
+          <div className="space-y-4 w-full max-w-full pb-2">
+            {/* Selected method chip — quieter than a back link, since the
+                sticky header already handles back navigation. */}
+            <div className="flex items-center gap-2 text-xs">
+              <span className="px-2 py-1 rounded-full bg-muted text-muted-foreground font-medium">
+                {getProviderLabel()}
+              </span>
+            </div>
 
             {/* ─── MoMo Instructions (Tab-Based) ─── */}
             {channel === 'momo' && (
