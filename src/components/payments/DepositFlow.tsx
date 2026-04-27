@@ -129,6 +129,14 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
    */
   const [tenantAllocations, setTenantAllocations] = useState<TenantAllocation[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  /**
+   * Edit-mode snapshot of the per-tenant breakdown as it was when the
+   * dialog opened. Used purely for the in-form "Original vs Updated"
+   * diff panel so the agent can eyeball every change before saving.
+   * Reset to [] for fresh deposits and on close.
+   */
+  const [originalAllocations, setOriginalAllocations] = useState<TenantAllocation[]>([]);
+  const [originalAmount, setOriginalAmount] = useState<number | null>(null);
   // Audit: capture the exact moment the user picked the purpose + which UI surface asked them.
   const [purposeChosenAt, setPurposeChosenAt] = useState<string | null>(null);
   const [purposeEntryPoint, setPurposeEntryPoint] = useState<'gate' | 'default' | 'in_form'>(
@@ -317,7 +325,11 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         const { cleanNote, allocations: decoded } = decodeAllocationsFromNote(data.notes);
         if (decoded && decoded.length) {
           setTenantAllocations(decoded);
+          // Snapshot — must be a deep copy so later edits don't mutate
+          // the "original" reference and quietly hide the diff.
+          setOriginalAllocations(decoded.map((a) => ({ ...a })));
         }
+        setOriginalAmount(Number(data.amount ?? 0));
         if (cleanNote) {
           // notes look like "Purpose: X | <reason> | Agent: Y | Bank slip: Z"
           const parts = cleanNote.split('|').map((s) => s.trim()).filter(Boolean);
