@@ -611,6 +611,7 @@ export function LandlordOpsDashboard() {
   const smartphoneLandlords = landlordsList.filter(l => l.has_smartphone);
 
   const handleVerifyListing = async (listing: ListingWithLandlord) => {
+    console.log('[Verify] click', listing.id, listing.title);
     if (!user) return;
     // INSTANT UX: hide the card immediately, show a toast right now, run the
     // edge function in the background. If it fails, restore the card and
