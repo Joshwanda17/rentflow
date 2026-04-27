@@ -1270,6 +1270,28 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
         </div>}
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+          {hasRun ? (
+            /* ─────── Post-submission summary ─────── */
+            <BulkResultsSummary
+              results={results}
+              batches={batches}
+              photoAttached={results.some((r) => r.photoAttached)}
+              photoPreviewUrl={previewUrl}
+              onRetryFailures={() => {
+                // Re-arm the dialog with only the failed batches selected so
+                // the agent can fix references and resubmit. We keep their
+                // existing per-batch refs intact (refs that worked stay).
+                const failedIds = results
+                  .filter((r) => r.status !== 'done')
+                  .map((r) => r.batchId);
+                if (failedIds.length === 0) return;
+                setSelected(new Set(failedIds));
+                setRowState({});
+                setResults([]);
+                setHasRun(false);
+              }}
+            />
+          ) : (<>
           {/* Selection list */}
           <div className="px-4 pt-3">
             <div className="flex items-center justify-between mb-2">
@@ -1436,6 +1458,7 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
               })}
             </ul>
           </div>
+          </>)}
 
           {/* Shared inputs section */}
           <div className="px-4 py-3 mt-2 border-t border-border space-y-3">
