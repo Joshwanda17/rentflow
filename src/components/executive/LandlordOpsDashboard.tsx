@@ -611,6 +611,7 @@ export function LandlordOpsDashboard() {
   const smartphoneLandlords = landlordsList.filter(l => l.has_smartphone);
 
   const handleVerifyListing = async (listing: ListingWithLandlord) => {
+    console.log('[Verify] click', listing.id, listing.title);
     if (!user) return;
     // INSTANT UX: hide the card immediately, show a toast right now, run the
     // edge function in the background. If it fails, restore the card and
@@ -692,6 +693,25 @@ export function LandlordOpsDashboard() {
   );
 
   const refetchAll = () => { refetch(); refetchLandlords(); refetchLC1(); };
+
+  // Shared dialogs renderer — must be present in every sub-view that uses
+  // setActionDialog / setPreviewImages / setAssignPerson / etc. Otherwise
+  // those buttons set state but no dialog is mounted and "nothing happens"
+  // until the user navigates back to a view that does mount LandlordDialogs.
+  const renderDialogs = () => (
+    <LandlordDialogs
+      editLandlord={editLandlord} setEditLandlord={setEditLandlord}
+      editLC1={editLC1} setEditLC1={setEditLC1}
+      assignPerson={assignPerson} setAssignPerson={setAssignPerson}
+      deleteLandlord={deleteLandlord} setDeleteLandlord={setDeleteLandlord}
+      deleteReason={deleteReason} setDeleteReason={setDeleteReason}
+      deleting={deleting} setDeleting={setDeleting}
+      previewImages={previewImages} setPreviewImages={setPreviewImages}
+      adjustListing={adjustListing} setAdjustListing={setAdjustListing}
+      actionDialog={actionDialog} setActionDialog={setActionDialog}
+      user={user} refetchAll={refetchAll} queryClient={queryClient}
+    />
+  );
 
   // ─── LANDLORDS VIEW ───
   if (view === 'landlords') {
@@ -873,6 +893,7 @@ export function LandlordOpsDashboard() {
       ? locationGroups.filter(g => g.region.toLowerCase().includes(search.toLowerCase()) || g.district?.toLowerCase().includes(search.toLowerCase()))
       : locationGroups;
     return (
+      <>
       <div className="space-y-3">
         <BackButton />
         <h2 className="text-lg font-bold flex items-center gap-2"><MapPin className="h-5 w-5 text-purple-600" /> Locations ({locationGroups.length})</h2>
@@ -905,6 +926,8 @@ export function LandlordOpsDashboard() {
           {filtered.length === 0 && <p className="text-center text-muted-foreground py-8">No locations found</p>}
         </div>
       </div>
+      {renderDialogs()}
+      </>
     );
   }
 
@@ -989,6 +1012,7 @@ export function LandlordOpsDashboard() {
       ? cityGroups.filter(g => g.city.toLowerCase().includes(search.toLowerCase()))
       : cityGroups;
     return (
+      <>
       <div className="space-y-3">
         <BackButton />
         <h2 className="text-lg font-bold flex items-center gap-2"><Globe className="h-5 w-5 text-teal-600" /> Cities We Operate In ({cityGroups.length})</h2>
@@ -1029,6 +1053,8 @@ export function LandlordOpsDashboard() {
           {filtered.length === 0 && <p className="text-center text-muted-foreground py-8">No cities found</p>}
         </div>
       </div>
+      {renderDialogs()}
+      </>
     );
   }
 
@@ -1043,6 +1069,7 @@ export function LandlordOpsDashboard() {
         )
       : noLandlordList;
     return (
+      <>
       <div className="space-y-3">
         <BackButton />
         <h2 className="text-lg font-bold flex items-center gap-2"><UserX className="h-5 w-5 text-orange-600" /> No Landlord Listed ({noLandlordList.length})</h2>
@@ -1135,12 +1162,15 @@ export function LandlordOpsDashboard() {
           )}
         </div>
       </div>
+      {renderDialogs()}
+      </>
     );
   }
 
   // ─── EMPTY HOUSES VIEW ───
   if (view === 'empty') {
     return (
+      <>
       <div className="space-y-3">
         <BackButton />
         <h2 className="text-lg font-bold flex items-center gap-2"><DoorOpen className="h-5 w-5 text-destructive" /> Empty Houses ({emptyLandlords.length})</h2>
@@ -1179,12 +1209,15 @@ export function LandlordOpsDashboard() {
           )}
         </div>
       </div>
+      {renderDialogs()}
+      </>
     );
   }
 
   // ─── OCCUPIED HOUSES VIEW ───
   if (view === 'occupied') {
     return (
+      <>
       <div className="space-y-3">
         <BackButton />
         <h2 className="text-lg font-bold flex items-center gap-2"><UserCheck className="h-5 w-5 text-green-600" /> Occupied Houses ({occupiedLandlords.length})</h2>
@@ -1218,12 +1251,15 @@ export function LandlordOpsDashboard() {
           })}
         </div>
       </div>
+      {renderDialogs()}
+      </>
     );
   }
 
   // ─── VERIFICATION VIEW ───
   if (view === 'verify') {
     return (
+      <>
       <div className="space-y-3">
         <BackButton />
         <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> Verification Queue ({unverifiedListings.length})</h2>
@@ -1271,43 +1307,55 @@ export function LandlordOpsDashboard() {
           )}
         </div>
       </div>
+      {renderDialogs()}
+      </>
     );
   }
 
   // ─── PIPELINE VIEW ───
   if (view === 'pipeline') {
     return (
+      <>
       <div className="space-y-4">
         <BackButton />
         <RentPipelineQueue stage="agent_verified" />
         <DealPipeline />
       </div>
+      {renderDialogs()}
+      </>
     );
   }
 
   // ─── CHAIN VIEW ───
   if (view === 'chain') {
     return (
+      <>
       <div className="space-y-4">
         <BackButton />
         <ChainHealthTab />
       </div>
+      {renderDialogs()}
+      </>
     );
   }
 
   // ─── MATCHING VIEW ───
   if (view === 'matching') {
     return (
+      <>
       <div className="space-y-4">
         <BackButton />
         <TenantMatchingQueue onViewingCreated={() => refetch()} />
       </div>
+      {renderDialogs()}
+      </>
     );
   }
 
   // ─── AGENTS VIEW ───
   if (view === 'agents') {
     return (
+      <>
       <div className="space-y-3">
         <BackButton />
         <h2 className="text-lg font-bold flex items-center gap-2"><Users className="h-5 w-5 text-indigo-600" /> Listing Agents ({agentSummary.length})</h2>
@@ -1342,12 +1390,15 @@ export function LandlordOpsDashboard() {
           })}
         </div>
       </div>
+      {renderDialogs()}
+      </>
     );
   }
 
   // ─── ANALYTICS VIEW ───
   if (view === 'analytics') {
     return (
+      <>
       <div className="space-y-4">
         <BackButton />
         <h2 className="text-lg font-bold">Analytics</h2>
@@ -1359,12 +1410,15 @@ export function LandlordOpsDashboard() {
         </div>
         <VacancyAnalytics listings={rows as any} />
       </div>
+      {renderDialogs()}
+      </>
     );
   }
 
   // ─── ADVANCE REQUESTS VIEW ───
   if (view === 'advance-requests') {
     return (
+      <>
       <div className="space-y-6">
         <BackButton />
         <h2 className="text-lg font-bold">Agent Advance Requests</h2>
@@ -1372,26 +1426,34 @@ export function LandlordOpsDashboard() {
         <BusinessAdvanceQueue stage="landlord_ops" />
         <RentHistoryVerificationQueue dept="landlord_ops" />
       </div>
+      {renderDialogs()}
+      </>
     );
   }
 
   // ─── LANDLORDS PAID VIEW ───
   if (view === 'landlords-paid') {
     return (
+      <>
       <div className="space-y-4">
         <BackButton />
         <LandlordsPaidView />
       </div>
+      {renderDialogs()}
+      </>
     );
   }
 
   // ─── LANDLORDS & TENANTS VIEW ───
   if (view === 'landlords-tenants') {
     return (
+      <>
       <div className="space-y-4">
         <BackButton />
         <LandlordsWithTenantsView />
       </div>
+      {renderDialogs()}
+      </>
     );
   }
 
