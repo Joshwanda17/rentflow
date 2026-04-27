@@ -96,6 +96,9 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   );
   const [showPurposeGrid, setShowPurposeGrid] = useState<boolean>(!lockPurpose);
   const [bankSlipFile, setBankSlipFile] = useState<File | null>(null);
+  // Object URL for the local slip preview thumbnail. Revoked on cleanup
+  // so we don't leak blob memory across multiple re-uploads.
+  const [bankSlipPreview, setBankSlipPreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tidError, setTidError] = useState('');
   // Audit: capture the exact moment the user picked the purpose + which UI surface asked them.
@@ -103,6 +106,60 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   const [purposeEntryPoint, setPurposeEntryPoint] = useState<'gate' | 'default' | 'in_form'>(
     requirePurposeChoice ? 'gate' : (defaultPurpose ? 'default' : 'in_form')
   );
+
+  /**
+   * Generate / clean up a preview blob URL whenever the slip file changes.
+   * PDFs don't render in <img>, so we just keep the filename badge for those.
+   */
+  useEffect(() => {
+    if (!bankSlipFile || !bankSlipFile.type.startsWith('image/')) {
+      setBankSlipPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(bankSlipFile);
+    setBankSlipPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [bankSlipFile]);
+
+  /**
+   * Read the clipboard, extract the first valid TID from the pasted text,
+   * and apply it to the input. Falls back gracefully on browsers that
+   * deny clipboard-read (Safari without user gesture, etc).
+   */
+  const handlePasteTid = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text) {
+        toast.error('Clipboard is empty');
+        return;
+      }
+      const tid = extractTidFromText(text);
+      if (!tid) {
+        // Still let the user try the raw text — they may have copied
+        // exactly the TID without surrounding SMS context.
+        const trimmed = text.trim().split(/\s+/)[0].toUpperCase();
+        setTransactionId(trimmed);
+        if (channel === 'momo') validateTid(trimmed);
+        toast.warning('No standard TID detected — pasted raw text instead');
+        return;
+      }
+      setTransactionId(tid);
+      if (channel === 'momo') validateTid(tid);
+      toast.success(`Pasted ${tid}`);
+    } catch {
+      toast.error('Could not read clipboard. Paste manually instead.');
+    }
+  };
+
+  /** Copy a single value to the clipboard with a confirmation toast. */
+  const copyValue = async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(`Copied ${label}`);
+    } catch {
+      toast.error('Failed to copy');
+    }
+  };
 
   // Re-apply default when dialog re-opens
   useEffect(() => {
