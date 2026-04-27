@@ -164,6 +164,10 @@ Deno.serve(async (req) => {
     }
 
     // ── 1. Create wallet transaction (visible in partner/agent tx history) ──
+    // Idempotency guard: a partial unique index on (sender, recipient, amount,
+    // description, 5-min bucket) blocks duplicates with code 23505. When the
+    // user retries after a transient/perceived error, we return a clean 409
+    // instead of writing a second wallet deduction.
     const { error: txErr } = await supabase.from("wallet_transactions").insert({
       sender_id: walletOwnerId,
       recipient_id: walletOwnerId, // self — internal portfolio transfer
@@ -172,6 +176,19 @@ Deno.serve(async (req) => {
     });
 
     if (txErr) {
+      // Postgres unique violation → another identical top-up was just recorded.
+      if ((txErr as any).code === "23505") {
+        console.warn(
+          `[manager-portfolio-topup] DUPLICATE BLOCKED — wallet=${walletOwnerId} portfolio=${portfolio_id} amount=${topupAmount}`,
+        );
+        return jsonRes({
+          error:
+            `This top-up was already recorded moments ago. ` +
+            `Refresh the portfolio to see the updated balance. ` +
+            `(Duplicate submission blocked.)`,
+          duplicate: true,
+        }, 409);
+      }
       console.error("[manager-portfolio-topup] wallet_transactions insert error:", txErr);
       return jsonRes({ error: "Failed to record wallet transaction" }, 500);
     }
