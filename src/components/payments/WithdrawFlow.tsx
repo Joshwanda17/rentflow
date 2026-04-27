@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { formatCurrency, SUPPORTED_CURRENCIES } from '@/lib/paymentMethods';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Wallet, TrendingUp, Lock, Phone, Building2, Banknote, BadgeCheck, Bookmark } from 'lucide-react';
+import { Wallet, TrendingUp, Lock, Phone, Building2, Banknote, BadgeCheck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
