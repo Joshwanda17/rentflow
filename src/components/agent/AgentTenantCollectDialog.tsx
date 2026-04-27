@@ -159,12 +159,16 @@ export function AgentTenantCollectDialog({
 
   return (
     <>
-    <Dialog open={open} onOpenChange={(o) => { if (!o && !loading && !confirming) handleClose(); }}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o && !loading) handleClose(); }}>
       <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <Banknote className="h-5 w-5 text-success" />
-            Pay for {tenant.full_name}
+            {confirming ? (
+              <><AlertCircle className="h-5 w-5 text-warning" /> Confirm Payment</>
+            ) : (
+              <>Pay for {tenant.full_name}</>
+            )}
           </DialogTitle>
         </DialogHeader>
 

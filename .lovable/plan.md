@@ -1,52 +1,58 @@
-# Add Reject Action to Landlord Ops Verification Queue
+## Why the Confirm button fails silently
 
-## What you'll get
+I traced the click in `src/components/agent/AgentTenantCollectDialog.tsx`:
 
-In **Executive Hub → Landlord Ops → Verification Queue**, every listing card currently shows a single purple **"Verify → CFO"** button. We'll add a second button next to it: **"Reject"**, which opens a dialog asking the operator for a comment (minimum 10 characters). On submit:
+- `handleAllocate` (line 64) starts with `console.log('[AgentTenantCollectDialog] Confirm clicked', …)`.
+- The browser console for this session has **zero such logs** and the session replay shows pointer movement near the Confirm button but **no click event ever fires**.
+- The handler is never reached. The RPC `agent_allocate_tenant_payment` is never called. There is nothing to log on the backend either, which is why it looks "silent".
 
-1. The listing's `status` flips to `rejected` (it disappears from the verification queue).
-2. The action is logged to `audit_logs` with the comment.
-3. The **agent who created the listing** receives a notification on their dashboard explaining which listing was rejected and why.
+### Root cause
 
-The agent will see the notification in a new **bell icon** in their Agent Dashboard header, with a red unread-count badge. Clicking the bell opens a dropdown list of recent notifications (rejections, registration prompts, etc.) and lets them mark items as read.
+The file already documents this exact bug at lines 446–448:
 
-## Steps
+> *"Confirmation Dialog — sibling of parent so its overlay is not blocked by the parent's portal (was causing silent click failures on iOS PWA)."*
 
-1. **Database migration** — create a `SECURITY DEFINER` RPC `reject_house_listing(listing_id, reason)` that:
-   - Verifies the caller has `super_admin`, `ceo`, `cto`, or `manager` role (Landlord Ops staff).
-   - Updates `house_listings.status = 'rejected'`.
-   - Inserts an `audit_logs` row (`action_type = 'listing_rejected'`).
-   - Inserts a `notifications` row for the listing's `agent_id` (bypasses the `block_all_notification_inserts` trigger via SECURITY DEFINER, matching the pattern used by `notify_agent_landlord_registration`).
-   - Notification title: `🚫 Listing Rejected`, type: `warning`, metadata includes `listing_id`, `listing_title`, `reason`, `rejected_by`.
+A previous fix moved the Confirm dialog out to be a sibling, but it left the **parent "Pay for…" Dialog still open** at the same time. Result on iOS PWA / Safari WebView:
 
-2. **Wire the existing `EmptyHouseActionDialog`** to call the new RPC instead of a direct table update when `actionType === 'reject'`. This keeps delete/delist behavior unchanged but ensures rejection always fires the notification atomically.
+```text
+Layer stack while Confirm is shown:
+  ┌─────────────────────────────────┐
+  │ Confirm Payment dialog (top)    │  ← user taps here
+  ├─────────────────────────────────┤
+  │ Confirm dialog overlay           │
+  ├─────────────────────────────────┤
+  │ Parent "Pay for…" dialog overlay │  ← steals the touchend
+  ├─────────────────────────────────┤
+  │ Parent "Pay for…" dialog content │
+  └─────────────────────────────────┘
+```
 
-3. **Add the Reject button to the Verification Queue card** in `src/components/executive/LandlordOpsDashboard.tsx` (around line 1219). Layout becomes a 2-column grid:
-   - Left: outline destructive **"Reject"** button → opens `EmptyHouseActionDialog` with `type: 'reject'`.
-   - Right: existing **"Verify → Auto-Pay UGX 5K"** button.
+Two Radix overlays with `pointer-events: auto` and overlapping focus traps. On iOS Safari/PWA the lower overlay intermittently swallows the `click` (the `touchstart` hits the top dialog, but `touchend` is re-targeted to the underlying overlay). The screenshot shows exactly this: the parent sheet is still visible, greyed out, behind the Confirm dialog.
 
-4. **Build an Agent Notification Bell** (`src/components/agent/AgentNotificationBell.tsx`):
-   - Bell icon with unread-count badge in the Agent Dashboard top bar.
-   - Dropdown (Popover) listing the most recent 20 notifications with title, message, time-ago, and a colored dot for unread.
-   - Click a notification → marks it read; "Mark all read" button at the top.
-   - Realtime subscription to `notifications` table filtered by `user_id = current agent` so new rejections appear instantly.
+### The fix
 
-5. **Mount the bell** in `src/components/dashboards/AgentDashboard.tsx` header area.
+Collapse the two-dialog pattern into **one dialog with two steps** (form → confirm), so there is only ever a single overlay on screen.
 
-## Technical details
+Steps:
 
-- **Files created**:
-  - `supabase/migrations/<timestamp>_reject_house_listing_rpc.sql` — new RPC + grant `EXECUTE` to `authenticated`.
-  - `src/components/agent/AgentNotificationBell.tsx`.
-- **Files edited**:
-  - `src/components/executive/landlord-ops/EmptyHouseActionDialog.tsx` — use RPC for the reject path; keep delete/delist as today.
-  - `src/components/executive/LandlordOpsDashboard.tsx` — add Reject button in the Verification Queue (`view === 'verify'` block).
-  - `src/components/dashboards/AgentDashboard.tsx` — mount `<AgentNotificationBell />` in header.
-- **Realtime**: enable `supabase_realtime` publication for the `notifications` table if not already; apply only if missing (idempotent migration check).
-- **No edits** to `src/integrations/supabase/{client,types}.ts` — types regenerate automatically after migration.
+1. **Remove the second `<Dialog>` block** (lines 446–505).
+2. Inside the existing parent `<DialogContent>`, render either the form view or the confirmation view based on `confirming` state — same component, same overlay, just swap the inner JSX.
+3. Keep `handleAllocate`, `setConfirming`, `loading`, and the celebration dialog exactly as they are.
+4. Keep the existing `console.log` in `handleAllocate` so any regression is caught immediately.
+5. Make the "Edit" button in confirm view call `setConfirming(false)` to return to the form view (already correct).
+6. The celebration dialog (`CommissionCelebration`) stays as a sibling — it only appears *after* the parent closes, so it is not affected.
 
-## Out of scope
+This eliminates the stacked-overlay race entirely and is also a cleaner UX: one sheet, two steps, smooth transition.
 
-- Re-listing / un-rejecting a listing (operator can already use the existing edit/delist flow).
-- SMS/WhatsApp notification to the agent (only in-app notification per request; can be added later).
-- Notification bells for non-agent roles (this plan only targets the agent who listed).
+### Files touched
+
+- `src/components/agent/AgentTenantCollectDialog.tsx` — restructure JSX (no logic changes, no API/RPC changes).
+
+### Verification after the fix
+
+- Tap Review → confirm view appears in the **same sheet**.
+- Tap Confirm → console shows `[AgentTenantCollectDialog] Confirm clicked …`.
+- RPC `agent_allocate_tenant_payment` fires; toast appears; commission celebration shows.
+- Works on iOS PWA, Android Chrome, and desktop.
+
+No database, RPC, or edge function changes are needed — the backend was never the problem; the click simply wasn't reaching it.
