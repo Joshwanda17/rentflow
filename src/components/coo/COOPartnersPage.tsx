@@ -2176,6 +2176,17 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                                     <ArrowRightLeft className="h-3.5 w-3.5" /> Apply Top-up
                                   </Button>
                                 )}
+                                {!readOnly && approvedTopUps[p.id]?.total > 0 && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-9 px-3 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5 font-semibold min-h-[44px]"
+                                    onClick={() => { setCancelDialogPortfolioId(p.id); setCancelReason(''); }}
+                                    title="Cancel pending top-up and refund partner wallet"
+                                  >
+                                    <Ban className="h-3.5 w-3.5" /> Cancel Top-up ({formatUGX(approvedTopUps[p.id].total)})
+                                  </Button>
+                                )}
                                 {!readOnly && p.status === 'active' && (
                                   <Button
                                     variant="ghost"
