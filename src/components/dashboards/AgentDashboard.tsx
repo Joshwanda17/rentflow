@@ -90,6 +90,7 @@ import { FileWarning } from 'lucide-react';
 import { FieldCollectDailyTotals } from '@/components/agent/FieldCollectDailyTotals';
 import { FieldCollectCard } from '@/components/agent/FieldCollectCard';
 import { FieldDepositQueueCard } from '@/components/agent/FieldDepositQueueCard';
+import { UnbankedCashBanner } from '@/components/agent/UnbankedCashBanner';
 
 import { AgentTopUpTenantDialog } from '@/components/agent/AgentTopUpTenantDialog';
 import { AgentInvestForPartnerDialog } from '@/components/agent/AgentInvestForPartnerDialog';
@@ -398,6 +399,14 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* === HOME TAB === Most-used actions, at-a-glance */}
         {activeTab === 'home' && (
           <div className="space-y-4 animate-in fade-in duration-200">
+            {/*
+             * Persistent "unbanked cash" banner. Shows whenever the agent has
+             * recorded field cash but has not yet attached a transaction ID,
+             * bank reference, or merchant receipt. Stays visible (cannot be
+             * dismissed) until proof is submitted.
+             */}
+            <UnbankedCashBanner />
+
             {/*
              * Minimalist home: 4 priority tiles → today's totals → urgent alerts only.
              * Everything else (advances, lending, sub-agents, partners, etc.)
