@@ -919,13 +919,15 @@ Deno.serve(async (req) => {
     }
 
 
+    const failedCount = results.filter(r => r.status === 'error').length;
+
     return new Response(
       JSON.stringify({
-        success: true,
+        success: failedCount === 0,
         message: `${results.filter(r => r.status !== 'error').length} deposit(s) ${action}d`,
         results,
       }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: failedCount === 0 ? 200 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
