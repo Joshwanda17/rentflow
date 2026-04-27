@@ -4,7 +4,7 @@ import {
   Banknote, AlertTriangle, ChevronRight, ShieldAlert,
   ChevronDown, Clock, FileText, User as UserIcon,
   Camera, Loader2, CheckCircle2, X, Upload, Pencil, Check,
-  Layers, CircleDashed,
+  Layers,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import {
