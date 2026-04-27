@@ -492,10 +492,25 @@ export default function WithdrawFlow({
                       type="tel"
                       placeholder="e.g. 0770123456"
                       value={momoNumber}
-                      onChange={(e) => setMomoNumber(e.target.value)}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setMomoNumber(v);
+                        // Auto-correct provider from operator prefix —
+                        // prevents the #1 disbursement failure (wrong network).
+                        const detected = detectMomoProvider(v);
+                        if (detected && detected !== momoProvider) {
+                          setMomoProvider(detected);
+                          toast.info(`Detected ${detected} number — provider switched.`);
+                        }
+                      }}
                       className="h-12 text-base pl-10"
                     />
                   </div>
+                  {momoNumber && !detectMomoProvider(momoNumber) && momoNumber.replace(/\D/g, '').length >= 3 && (
+                    <p className="text-[10px] text-amber-600">
+                      Unrecognised prefix — double-check the number matches the provider above.
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
