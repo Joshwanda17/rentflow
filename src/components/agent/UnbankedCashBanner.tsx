@@ -366,6 +366,52 @@ function formatDateTime(iso: string): string {
   });
 }
 
+/* Status pill metadata used by AwaitingBatchRow */
+function getStatusBadge(status: BatchStatus): {
+  label: string;
+  cls: string;
+  textCls: string;
+  Icon: typeof CheckCircle2;
+} {
+  switch (status) {
+    case 'awaiting_proof':
+      return {
+        label: 'Awaiting proof',
+        cls: 'bg-destructive/15 text-destructive border-destructive/30',
+        textCls: 'text-destructive',
+        Icon: AlertTriangle,
+      };
+    case 'pending_finops_verification':
+      return {
+        label: 'Proof pending review',
+        cls: 'bg-warning/15 text-warning border-warning/30',
+        textCls: 'text-warning',
+        Icon: Clock,
+      };
+    case 'verified':
+      return {
+        label: 'Verified',
+        cls: 'bg-success/15 text-success border-success/30',
+        textCls: 'text-success',
+        Icon: CheckCircle2,
+      };
+    case 'rejected':
+      return {
+        label: 'Rejected',
+        cls: 'bg-destructive/20 text-destructive border-destructive/40',
+        textCls: 'text-destructive',
+        Icon: X,
+      };
+    default:
+      return {
+        label: status,
+        cls: 'bg-muted text-muted-foreground border-border',
+        textCls: 'text-muted-foreground',
+        Icon: FileText,
+      };
+  }
+}
+
 /* ---------------------------------------------------------------------- */
 /* Inline awaiting-batch row with quick-proof entry                        */
 /* ---------------------------------------------------------------------- */
