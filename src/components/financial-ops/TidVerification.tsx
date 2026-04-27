@@ -370,6 +370,41 @@ export function TidVerification() {
     loadPending();
   }, [loadPending]);
 
+  // Keep the visible queue honest even when an approval completes from an
+  // undo flush, another tab, or another operator session: any row that stops
+  // being pending is immediately removed from local state.
+  useEffect(() => {
+    const channel = supabase
+      .channel(`finops-pending-deposits-${provider}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'deposit_requests' },
+        (payload) => {
+          const next = (payload.new ?? {}) as { id?: string; status?: string; provider?: string };
+          const old = (payload.old ?? {}) as { id?: string };
+          const id = next.id || old.id;
+          if (!id) return;
+          if (payload.eventType === 'DELETE' || next.status !== 'pending' || next.provider !== provider) {
+            setPending((prev) => prev.filter((p) => p.id !== id));
+            if (pickedId === id) setPickedId(null);
+          } else if (next.status === 'pending' && next.provider === provider) {
+            loadPending();
+          }
+        },
+      )
+      .subscribe();
+
+    const refreshOnFocus = () => loadPending();
+    window.addEventListener('focus', refreshOnFocus);
+    document.addEventListener('visibilitychange', refreshOnFocus);
+
+    return () => {
+      window.removeEventListener('focus', refreshOnFocus);
+      document.removeEventListener('visibilitychange', refreshOnFocus);
+      supabase.removeChannel(channel);
+    };
+  }, [loadPending, pickedId, provider]);
+
   // Global "/" hotkey to focus the pending search input — same shortcut
   // pattern as GitHub/Slack, so operators can start filtering instantly
   // without reaching for the mouse. Skipped when the user is already
