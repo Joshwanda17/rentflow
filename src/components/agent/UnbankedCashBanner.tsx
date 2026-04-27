@@ -1382,7 +1382,11 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
   const validateBeforeSubmit = (): string | null => {
     if (selected.size === 0) return 'Pick at least one batch';
     if (mode === 'shared') {
-      if (sharedRef.trim().length < 4 && !file) {
+      // The shared receipt photo only counts when we're actually using
+      // shared photo mode — a per-batch photo can't be the fallback for
+      // a missing shared reference because it doesn't apply to all rows.
+      const hasSharedPhoto = photoMode === 'shared' && !!file;
+      if (sharedRef.trim().length < 4 && !hasSharedPhoto) {
         return 'Enter a shared reference or attach a receipt photo';
       }
     } else {
