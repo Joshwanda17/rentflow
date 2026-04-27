@@ -279,6 +279,9 @@ export function TidVerification() {
   // Synchronous reentrancy guard for the "Load more" button — see
   // loadMorePending below for rationale.
   const loadMoreInFlightRef = useRef(false);
+  // Sentinel element observed by IntersectionObserver to drive infinite
+  // scrolling for the pending pick-list.
+  const pendingSentinelRef = useRef<HTMLDivElement | null>(null);
 
   // Page size for the pending pick-list. Kept small so the panel stays
   // scannable; operators can press "Load more" to fetch the next batch.
@@ -365,6 +368,29 @@ export function TidVerification() {
       loadMoreInFlightRef.current = false;
     }
   }, [fetchPendingPage, pending.length]);
+
+  // Infinite scroll: observe the sentinel beneath the list and call
+  // loadMorePending whenever it enters the viewport. The hook re-binds
+  // when has-more / search / loading state changes so we stop observing
+  // the moment paging is exhausted or a search filter is active.
+  useEffect(() => {
+    const node = pendingSentinelRef.current;
+    if (!node) return;
+    if (!pendingHasMore) return;
+    if (pendingSearch.trim()) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting && !pendingLoadingMore && !loadMoreInFlightRef.current) {
+            void loadMorePending();
+          }
+        }
+      },
+      { root: null, rootMargin: '200px 0px', threshold: 0 },
+    );
+    io.observe(node);
+    return () => io.disconnect();
+  }, [pendingHasMore, pendingLoadingMore, pendingSearch, loadMorePending, pending.length]);
 
   useEffect(() => {
     loadPending();
@@ -1520,6 +1546,23 @@ export function TidVerification() {
                   );
                 })}
               </ul>
+              {/* Infinite scroll sentinel + soft loading indicator. */}
+              {pendingHasMore && !pendingSearch.trim() && (
+                <div
+                  ref={pendingSentinelRef}
+                  className="flex items-center justify-center py-2 text-[11px] text-muted-foreground"
+                  aria-hidden="true"
+                >
+                  {pendingLoadingMore ? (
+                    <span className="flex items-center gap-1.5">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Loading more…
+                    </span>
+                  ) : (
+                    <span>Scroll for more</span>
+                  )}
+                </div>
+              )}
               {pendingHasMore && (() => {
                 // Pagination is keyset-based on the unfiltered list; once a
                 // search filter is active, "Load more" can't meaningfully
