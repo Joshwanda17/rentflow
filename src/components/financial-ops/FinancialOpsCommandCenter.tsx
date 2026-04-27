@@ -15,6 +15,7 @@ import { WalletOverviewCard } from './WalletOverviewCard';
 import { OfflineSubmissionsQueue } from './OfflineSubmissionsQueue';
 import { VerifyDepositsHub } from './VerifyDepositsHub';
 import { MismatchMetricsPanel } from './MismatchMetricsPanel';
+import { ReconciliationReviewScreen } from './ReconciliationReviewScreen';
 
 
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
@@ -22,7 +23,7 @@ import { AgentRequisitionForm } from './AgentRequisitionForm';
 import { 
   ShieldCheck, Banknote, ArrowLeft, ChevronDown,
   ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, MinusCircle, FileText,
-  WifiOff, MoreHorizontal, AlertTriangle
+  WifiOff, MoreHorizontal, AlertTriangle, ScanLine
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 
@@ -31,7 +32,7 @@ type Tool =
   | null
   | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit'
   | 'withdrawals' | 'opportunities' | 'deductions' | 'requisitions'
-  | 'mismatch_metrics';
+  | 'mismatch_metrics' | 'recon_review';
 
 /**
  * Items hidden behind the "More" button. Per CFO mandate the dashboard
@@ -50,6 +51,7 @@ const moreActions: MoreAction[] = [
   { kind: 'tool', id: 'queue', label: 'Approval Queue', desc: 'Pending approvals', icon: ClipboardList },
   { kind: 'tool', id: 'search', label: 'Transaction Search', desc: 'Find any transaction', icon: Search },
   { kind: 'tool', id: 'recon', label: 'Reconciliation', desc: 'Wallet-ledger drift', icon: Scale },
+  { kind: 'tool', id: 'recon_review', label: 'Reconciliation Review', desc: 'Match receipts/refs — see what failed and why', icon: ScanLine },
   { kind: 'tool', id: 'audit', label: 'Audit Trail', desc: 'Action history', icon: Shield },
   { kind: 'tool', id: 'opportunities', label: 'Capital Opportunities', desc: 'Investment summaries', icon: TrendingUp },
   { kind: 'tool', id: 'requisitions', label: 'Fund Requisitions', desc: 'Agent fund requests', icon: FileText },
@@ -115,6 +117,11 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         {activeTool === 'queue' && <ApprovalQueue />}
         {activeTool === 'search' && <TransactionSearch />}
         {activeTool === 'recon' && <ReconciliationDashboard />}
+        {activeTool === 'recon_review' && (
+          <ReconciliationReviewScreen
+            onCreateNewAllocation={() => setView('deposits')}
+          />
+        )}
         {activeTool === 'ledgers' && <LedgerHub />}
         {activeTool === 'audit' && <AuditFeed />}
         {activeTool === 'withdrawals' && (
