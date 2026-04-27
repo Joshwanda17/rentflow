@@ -21,6 +21,7 @@ import {
   ScanLine,
   ListChecks,
   AlertTriangle,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   decodeAllocationsFromNote,
@@ -408,6 +409,7 @@ function MatchedRow({ row }: { row: ReconRow }) {
   const isOpFloat = row.depositPurpose === 'operational_float';
   const tenants = row.allocations ?? [];
   const allocTotal = tenants.reduce((s, a) => s + Number(a.amount || 0), 0);
+  const isApproved = row.depositStatus === 'approved';
   return (
     <div className="space-y-2">
       <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -420,6 +422,12 @@ function MatchedRow({ row }: { row: ReconRow }) {
             <p className="text-xs text-muted-foreground mt-0.5">
               {row.userName} · {row.createdAt ? format(new Date(row.createdAt), 'MMM d, HH:mm') : '—'}
             </p>
+            {isApproved && (
+              <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-1 flex items-center gap-1">
+                <ShieldCheck className="h-3 w-3" />
+                Already reconciled — cannot be matched again
+              </p>
+            )}
           </div>
         </div>
         <div className="text-right">

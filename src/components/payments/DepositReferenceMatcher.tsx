@@ -169,6 +169,36 @@ export default function DepositReferenceMatcher({
    * the agent already entered.
    */
   const tryDepositMatch = async (ref: string): Promise<MatchResult | null> => {
+    // ── Safeguard: refuse to re-use a reference that's already reconciled
+    //    anywhere on the platform (any agent, any status). Checks both the
+    //    transaction_id column and the notes payload (covers receipt-pasted
+    //    matches). The DB trigger blocks this too on write, but catching it
+    //    here gives the agent an immediate, friendly warning instead of a
+    //    failed save deeper in the flow.
+    const refUpper = ref.trim().toUpperCase();
+    const { data: dupRows } = await supabase
+      .from('deposit_requests')
+      .select('id, status, user_id, agent_id, transaction_id, notes, created_at')
+      .or(`transaction_id.ilike.%${ref}%,notes.ilike.%${ref}%`)
+      .order('created_at', { ascending: false })
+      .limit(5);
+    const dup = (dupRows ?? []).find((r: any) => {
+      const tidMatch =
+        r.transaction_id &&
+        (r.transaction_id || '').trim().toUpperCase() === refUpper;
+      const noteMatch =
+        r.notes && r.notes.toLowerCase().includes(ref.trim().toLowerCase());
+      return tidMatch || noteMatch;
+    });
+    if (dup) {
+      const isMine = dup.user_id === agentId || dup.agent_id === agentId;
+      toast.error(
+        `Reference ${ref} already reconciled${isMine ? '' : ' by another agent'} (${dup.status}). Each receipt can only be matched once.`,
+        { duration: 6000 },
+      );
+      return null;
+    }
+
     const since = new Date(Date.now() - MAX_DAYS * 24 * 60 * 60 * 1000).toISOString();
     const { data, error } = await supabase
       .from('deposit_requests')
