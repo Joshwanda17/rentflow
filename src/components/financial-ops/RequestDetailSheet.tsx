@@ -13,6 +13,7 @@ import {
   Calendar, MapPin, MessageSquare, ExternalLink, Copy, CheckCircle2
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { decodeAllocationsFromNote } from '@/components/payments/OperationalFloatTenantAllocator';
 
 interface RequestDetailSheetProps {
   open: boolean;
@@ -117,6 +118,11 @@ export function RequestDetailSheet({ open, onOpenChange, userId, requestType, re
   const getRequestSummary = () => {
     if (!requestData) return null;
     if (requestType === 'deposits') {
+      // Operational Float deposits may carry a structured per-tenant
+      // breakdown encoded into the notes field. Strip that tail from the
+      // displayed Notes line so reviewers see human prose, and surface the
+      // structured rows below in their own card.
+      const { cleanNote } = decodeAllocationsFromNote(requestData.notes);
       return {
         label: 'Deposit Request',
         fields: [
@@ -124,7 +130,7 @@ export function RequestDetailSheet({ open, onOpenChange, userId, requestType, re
           { key: 'Provider', value: requestData.provider?.toUpperCase() || '—' },
           { key: 'Transaction ID (hint)', value: requestData.transaction_id ? `••••${requestData.transaction_id.slice(-2)}` : '—' },
           { key: 'Date', value: requestData.transaction_date ? format(new Date(requestData.transaction_date), 'MMM d, yyyy HH:mm') : '—' },
-          { key: 'Notes', value: requestData.notes || '—' },
+          { key: 'Notes', value: cleanNote || '—' },
           { key: 'Submitted', value: requestData.created_at ? formatDistanceToNow(new Date(requestData.created_at), { addSuffix: true }) : '—' },
         ],
       };
@@ -184,6 +190,16 @@ export function RequestDetailSheet({ open, onOpenChange, userId, requestType, re
   };
 
   const summary = getRequestSummary();
+  // Pre-parse the per-tenant breakdown (op-float drops only) so we can
+  // render it as its own reconciliation card below the deposit summary.
+  const allocationParse = requestType === 'deposits'
+    ? decodeAllocationsFromNote(requestData?.notes)
+    : { cleanNote: '', allocations: null };
+  const tenantAllocations = allocationParse.allocations;
+  const allocatedSum = (tenantAllocations || []).reduce((s, a) => s + (a.amount || 0), 0);
+  const allocationsBalanced = tenantAllocations
+    ? Math.abs((requestData?.amount || 0) - allocatedSum) < 1
+    : false;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
