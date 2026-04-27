@@ -1348,19 +1348,28 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
    */
   const missingRefIds = useMemo(() => {
     if (mode !== 'per_batch') return new Set<string>();
-    if (file) return new Set<string>(); // a shared photo covers any missing ref
+    // A shared photo covers EVERY missing ref at once.
+    if (photoMode === 'shared' && file) return new Set<string>();
     const out = new Set<string>();
     for (const id of selected) {
       const r = (perBatchRef[id] ?? '').trim();
-      if (r.length < 4) out.add(id);
+      if (r.length >= 4) continue;
+      // In per-batch photo mode, a row's own photo also satisfies the rule.
+      if (photoMode === 'per_batch' && perBatchFile[id]) continue;
+      out.add(id);
     }
     return out;
-  }, [mode, selected, perBatchRef, file]);
+  }, [mode, selected, perBatchRef, file, photoMode, perBatchFile]);
 
   /** Submission is hard-blocked while ANY required reference is missing. */
   const hasMissingRefs = missingRefIds.size > 0;
   const sharedModeBlocked =
-    mode === 'shared' && selected.size > 0 && sharedRef.trim().length < 4 && !file;
+    mode === 'shared' &&
+    selected.size > 0 &&
+    sharedRef.trim().length < 4 &&
+    // A shared-mode submission needs either the shared ref OR *some* photo
+    // that we can attach to all batches — that's only the shared photo.
+    !(photoMode === 'shared' && file);
   const submitBlocked = selected.size === 0 || hasMissingRefs || sharedModeBlocked;
 
   /** Resolve the reference for a batch given the current mode. */
