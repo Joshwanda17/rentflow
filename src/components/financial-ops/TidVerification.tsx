@@ -492,13 +492,36 @@ export function TidVerification() {
    *  input intentionally stays empty — the operator types it from their
    *  bank/MoMo statement to confirm the match. */
   const pickPending = (p: PendingDeposit) => {
+    const prevProvider = provider;
     setPickedId(p.id);
     setOperatorAmount(String(p.amount));
     setPickedProvider(p.provider ?? null);
     // Always restore the Provider dropdown to match the picked row's
     // original channel — including when re-clicking the same already-picked
     // row after the operator changed the dropdown away from it.
-    if (p.provider) setProvider(p.provider);
+    if (p.provider) {
+      setProvider(p.provider);
+      // If the picked deposit was submitted on a different channel than the
+      // tab the operator was browsing, surface a toast so the auto-switch
+      // is explicit (and reversible) rather than silent.
+      if (p.provider !== prevProvider) {
+        const labelOf = (k: string) =>
+          k === 'mtn' ? 'MTN'
+          : k === 'airtel' ? 'Airtel'
+          : k === 'bank_transfer' ? 'Bank'
+          : k === 'agent_cash' ? 'Agent Cash'
+          : k.replace('_', ' ').toUpperCase();
+        toast.info(
+          `Switched to ${labelOf(p.provider)} — this deposit was submitted on that channel.`,
+          {
+            action: {
+              label: `Back to ${labelOf(prevProvider)}`,
+              onClick: () => setProvider(prevProvider),
+            },
+          },
+        );
+      }
+    }
   };
 
 
