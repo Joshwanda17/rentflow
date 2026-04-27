@@ -450,12 +450,17 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       const txDateTime = new Date(`${transactionDate}T${transactionTime}`);
       const normalizedRef = getReferenceId();
 
-      // Duplicate check
+      // Duplicate check — skip when editing the same row, otherwise the
+      // edited request would always collide with itself on its own TID.
       const { data: existing } = await supabase
         .from('deposit_requests')
         .select('id')
         .filter('transaction_id', 'eq', normalizedRef);
-      if (existing && existing.length > 0) {
+      if (
+        existing &&
+        existing.length > 0 &&
+        !(isEditMode && existing.length === 1 && existing[0].id === editRequestId)
+      ) {
         toast.error('This reference has already been used');
         setStep('form');
         setIsSubmitting(false);
@@ -493,29 +498,59 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           ? encodeAllocationsNote(baseNotes, tenantAllocations)
           : baseNotes;
 
-      const { error: depositError } = await supabase
-        .from('deposit_requests')
-        .insert({
-          user_id: user.id,
-          amount: parseFloat(amount),
-          status: 'pending',
-          provider: providerValue,
-          transaction_id: normalizedRef,
-          transaction_date: txDateTime.toISOString(),
-          notes,
-          deposit_purpose: depositPurpose,
-          purpose_audit: {
-            chosen_purpose: depositPurpose,
-            chosen_at: purposeChosenAt ?? new Date().toISOString(),
-            chosen_by: user.id,
-            entry_point: purposeEntryPoint,
-            required_choice: !!requirePurposeChoice,
-          },
-        } as any);
+      if (isEditMode && editRequestId) {
+        // UPDATE — restricted by RLS to the owner's own pending row.
+        // Status is intentionally NOT touched; the row stays 'pending' so
+        // Financial Ops still owns the next move. We do, however, stamp
+        // an `edited_at`-style breadcrumb into purpose_audit so reviewers
+        // can see the row was reopened by the agent.
+        const { error: updError } = await supabase
+          .from('deposit_requests')
+          .update({
+            amount: parseFloat(amount),
+            provider: providerValue,
+            transaction_id: normalizedRef,
+            transaction_date: txDateTime.toISOString(),
+            notes,
+            deposit_purpose: depositPurpose,
+            purpose_audit: {
+              chosen_purpose: depositPurpose,
+              chosen_at: purposeChosenAt ?? new Date().toISOString(),
+              chosen_by: user.id,
+              entry_point: purposeEntryPoint,
+              required_choice: !!requirePurposeChoice,
+              last_edited_at: new Date().toISOString(),
+            },
+          } as any)
+          .eq('id', editRequestId)
+          .eq('status', 'pending'); // hard guard: never overwrite a reviewed row
+        if (updError) throw updError;
+        toast.success('Deposit updated — Financial Ops will see your changes');
+      } else {
+        const { error: depositError } = await supabase
+          .from('deposit_requests')
+          .insert({
+            user_id: user.id,
+            amount: parseFloat(amount),
+            status: 'pending',
+            provider: providerValue,
+            transaction_id: normalizedRef,
+            transaction_date: txDateTime.toISOString(),
+            notes,
+            deposit_purpose: depositPurpose,
+            purpose_audit: {
+              chosen_purpose: depositPurpose,
+              chosen_at: purposeChosenAt ?? new Date().toISOString(),
+              chosen_by: user.id,
+              entry_point: purposeEntryPoint,
+              required_choice: !!requirePurposeChoice,
+            },
+          } as any);
 
-      if (depositError) throw depositError;
+        if (depositError) throw depositError;
 
-      toast.success('Deposit submitted for verification');
+        toast.success('Deposit submitted for verification');
+      }
       setStep('success');
     } catch (error: any) {
       console.error('Deposit error:', error);
