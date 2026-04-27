@@ -435,6 +435,19 @@ function AwaitingBatchRow({ batch, onOpenWizard, onProofSubmitted }: AwaitingBat
   );
   const [savingAmount, setSavingAmount] = useState(false);
 
+  /* Thumbnail preview URL for the selected receipt photo. Created via
+   * URL.createObjectURL and revoked on change/unmount to avoid memory leaks. */
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!file) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
   const batchAge = Math.floor(
     (Date.now() - new Date(batch.created_at).getTime()) / 3_600_000,
   );
@@ -714,19 +727,41 @@ function AwaitingBatchRow({ batch, onOpenWizard, onProofSubmitted }: AwaitingBat
                 Receipt photo (optional)
               </label>
               {file ? (
-                <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2">
-                  <span className="text-xs truncate flex items-center gap-1.5 min-w-0">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" />
-                    <span className="truncate">{file.name}</span>
-                    <span className="text-muted-foreground text-[10px] shrink-0">
-                      {(file.size / 1024).toFixed(0)} KB
-                    </span>
-                  </span>
+                <div className="flex items-center gap-3 rounded-lg border border-border bg-background p-2">
+                  {previewUrl ? (
+                    <a
+                      href={previewUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="relative h-14 w-14 shrink-0 rounded-md overflow-hidden border border-border bg-muted block"
+                      title="Tap to view full size"
+                    >
+                      <img
+                        src={previewUrl}
+                        alt={`Receipt preview for ${file.name}`}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    </a>
+                  ) : (
+                    <div className="h-14 w-14 shrink-0 rounded-md bg-muted flex items-center justify-center">
+                      <Camera className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" />
+                      <span className="truncate font-medium">{file.name}</span>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                      {(file.size / 1024).toFixed(0)} KB · tap thumbnail to preview
+                    </div>
+                  </div>
                   <button
                     type="button"
                     onClick={() => setFile(null)}
                     disabled={submitting}
-                    className="h-6 w-6 rounded-md hover:bg-accent flex items-center justify-center shrink-0"
+                    className="h-7 w-7 rounded-md hover:bg-accent flex items-center justify-center shrink-0"
                     aria-label="Remove receipt"
                   >
                     <X className="h-3.5 w-3.5" />
