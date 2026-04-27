@@ -226,6 +226,25 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
   const meetsMinBalance = availableBalance >= 500;
   const isFormValid = meetsMinBalance && amount >= 500 && amount <= availableBalance && isPayoutValid() && reason.trim().length >= 10 && workingHoursStatus.isOpen;
 
+  // Live look-up of the current recipient against the in-session map.
+  // Drives the inline notice on the form so the user is warned BEFORE
+  // they hit Submit. Recomputes whenever the recipient inputs change.
+  const recentRecipientMatch = (() => {
+    if (!user || !payoutMode) return null;
+    const info = buildRecipientKey({
+      payoutMode,
+      momoNumber,
+      bankName,
+      bankAccountNumber,
+    });
+    if (!info) return null;
+    const recent = readRecentRecipients(user.id);
+    const hit = recent[info.key];
+    if (!hit) return null;
+    if (Date.now() - hit.submittedAt >= RECENT_WINDOW_MS) return null;
+    return { ...hit, recipientLabel: info.label };
+  })();
+
   const handleSubmit = async () => {
     if (!user) { toast.error('Please log in first'); return; }
     // Re-entrant guard: prevent double-tap / rapid double submission
