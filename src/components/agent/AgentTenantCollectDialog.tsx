@@ -62,7 +62,20 @@ export function AgentTenantCollectDialog({
   }, [open, maxAllowable]);
 
   const handleAllocate = async () => {
-    if (!user || !isValid || !tenant) return;
+    // Defensive logging — previously this handler appeared to "fail
+    // silently" because the click never reached it (nested Dialog
+    // portal blocked pointer events on some iOS PWA versions). The
+    // confirmation Dialog is now a sibling of the parent so each gets
+    // its own overlay layer. Logs stay so any regression is visible.
+    console.log('[AgentTenantCollectDialog] Confirm clicked', {
+      hasUser: !!user, isValid, hasTenant: !!tenant, amount,
+    });
+    if (!user || !isValid || !tenant) {
+      console.warn('[AgentTenantCollectDialog] Confirm aborted — guard failed', {
+        hasUser: !!user, isValid, hasTenant: !!tenant, amount, maxAllowable, floatBalance,
+      });
+      return;
+    }
     setLoading(true);
     try {
       const { data, error } = await supabase.rpc('agent_allocate_tenant_payment', {
@@ -145,6 +158,7 @@ export function AgentTenantCollectDialog({
   if (!tenant) return null;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={(o) => { if (!o && !loading && !confirming) handleClose(); }}>
       <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -427,8 +441,11 @@ export function AgentTenantCollectDialog({
           </div>
         )}
       </DialogContent>
+    </Dialog>
 
-      {/* ───── Confirmation Sub-Dialog (nested, properly portaled) ───── */}
+    {/* ───── Confirmation Dialog — sibling of parent so its overlay is not
+        blocked by the parent's portal (was causing silent click failures
+        on iOS PWA). ───── */}
       <Dialog open={confirming} onOpenChange={(o) => { if (!loading) setConfirming(o); }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
@@ -497,6 +514,6 @@ export function AgentTenantCollectDialog({
           tenantName={tenant.full_name}
         />
       )}
-    </Dialog>
+    </>
   );
 }
