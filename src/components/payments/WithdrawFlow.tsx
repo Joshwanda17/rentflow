@@ -63,7 +63,11 @@ export default function WithdrawFlow({
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
-  const [paymentStatus, setPaymentStatus] = useState<'success' | 'failed'>('success');
+  // Withdrawal receipts start as `pending` because Financial Ops must
+  // approve and disburse before the request is truly successful. Only
+  // `failed` is set client-side; `success` is reserved for future flows
+  // that confirm disbursement (e.g., realtime status updates).
+  const [paymentStatus, setPaymentStatus] = useState<'pending' | 'success' | 'failed'>('pending');
   const [withdrawalRef, setWithdrawalRef] = useState('');
 
   // Withdrawable = withdrawable_balance + advance_balance (advance is recoverable
