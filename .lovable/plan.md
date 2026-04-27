@@ -1,85 +1,32 @@
-# Auto-Freeze Phantom Wallet Surplus
+# Why the 200,000 deposit isn't showing
 
-## Goal
+The deposit **does** exist — it just lives in a queue that the UI doesn't currently expose.
 
-Whenever `wallets.balance` exceeds the ledger truth (sum of credits − debits in `general_ledger`), the database itself locks the unbacked surplus into `wallets.locked_balance` and writes an audit record. No edge function, no cron, no human action required — the trigger fires inline on every wallet write.
+Verified in the database:
 
-Plus a one-shot reconciliation that locks the existing **UGX 36,500,000** phantom drift on LUKODDA JOSEPH (and any other current offenders) the instant the migration runs.
+| Receipt | Amount | Provider | Status | Submitted |
+|---|---|---|---|---|
+| RCT1505 | 200,000 | `agent_cash` | pending | 27 Apr 11:22 |
+| RCT1506 | 260,000 | `agent_cash` | pending | 27 Apr 12:00 |
+| RCT1207 | 260,000 | `agent_cash` | pending | 27 Apr 12:37 |
+| RCT1205 | 200,000 | `agent_cash` | pending | 27 Apr 12:37 |
 
-## How it works
+The "Verify a user deposit" panel filters strictly by `provider` (the dropdown — MTN / Airtel / Bank). All four of SSENKAAL PIUS's deposits were submitted via the **Agent Cash** channel, so the MTN queue (and Airtel/Bank queues) will always show "0 pending" for them. There's currently no Agent Cash option in the provider switcher, so the rows are effectively orphaned in the UI.
 
-```text
-wallet UPDATE/INSERT
-        │
-        ▼
-trigger: auto_freeze_phantom_surplus  (BEFORE row write)
-        │
-        ├── compute ledger_total = SUM(cash_in) − SUM(cash_out) for user_id
-        ├── compute spendable    = NEW.balance − NEW.locked_balance
-        │
-        ├── IF spendable > ledger_total:
-        │       surplus = spendable − ledger_total
-        │       NEW.locked_balance := NEW.locked_balance + surplus
-        │       INSERT INTO phantom_freeze_audit (...)
-        │
-        └── (sync_authorized bypass already handled by existing
-             enforce_wallet_ledger_only trigger — no conflict)
-```
+# The fix
 
-## Components
+Extend the Financial Ops verify panel to include an **Agent Cash** queue alongside MTN / Airtel / Bank.
 
-### 1. New audit table: `phantom_freeze_audit`
+## Changes
 
-Records every automatic freeze for the CFO Reconciliation Center.
+1. **`src/components/financial-ops/TidVerification.tsx`**
+   - Add `agent_cash` as a selectable provider in the provider dropdown (label: "Agent Cash").
+   - Update the queue header label so it reads "PENDING AGENT CASH DEPOSITS" when that provider is active.
+   - Relax the TID format pre-check (line ~756) so the `MP` prefix requirement only applies when provider is `mtn` — agent_cash receipts use the `RCT####` / `WEL-####` format already shown in the placeholder.
+   - Keep all existing behavior (realtime subscription, picker, mismatch logging) — they're already provider-parameterized and will work for `agent_cash` automatically.
 
-| column | purpose |
-|---|---|
-| `id` | uuid PK |
-| `user_id` | whose wallet was frozen |
-| `wallet_id` | wallet row affected |
-| `surplus_locked` | numeric — amount auto-locked |
-| `wallet_balance_before` | numeric snapshot |
-| `ledger_total_at_freeze` | numeric snapshot |
-| `previous_locked_balance` | numeric snapshot |
-| `new_locked_balance` | numeric snapshot |
-| `trigger_reason` | text — e.g. `auto_phantom_freeze` / `initial_reconciliation` |
-| `frozen_at` | timestamptz default now() |
+2. **No database migration needed.** The rows already exist with the correct provider tag; we're just surfacing them.
 
-RLS: only CFO + service role can SELECT.
+## Result
 
-### 2. Trigger function: `public.auto_freeze_phantom_surplus()`
-
-- `BEFORE INSERT OR UPDATE OF balance, locked_balance ON public.wallets`
-- Skips when `current_setting('wallet.sync_authorized', true) = 'true'` and the write originates from `apply_wallet_movement` (so legitimate ledger-driven writes never self-trigger a freeze loop).
-- Reads `general_ledger` total for the user (single aggregate query, indexed on `user_id`).
-- If `spendable > ledger_total`, mutates `NEW.locked_balance` in place and writes the audit row.
-- Idempotent: re-running on an already-locked wallet is a no-op.
-
-### 3. One-shot reconciliation block (runs inside the migration)
-
-```text
-FOR each wallet WHERE (balance − locked_balance) > ledger_total:
-    lock the surplus
-    insert phantom_freeze_audit row with reason = 'initial_reconciliation'
-```
-
-Expected immediate effect:
-- **LUKODDA JOSEPH** — locks UGX 36,500,000.
-- Any other phantom-drift wallet surfaced by `phantom_wallet_drift` is locked the same way.
-
-### 4. CFO surface (no UI change required now)
-
-The existing CFO Reconciliation Center already reads `phantom_wallet_drift`. It will additionally see `phantom_freeze_audit` rows via the existing realtime channel — no frontend work needed in this step. (A dedicated "Phantom Freeze History" panel can come later if you want it.)
-
-## Guarantees
-
-- ✅ Money can never become spendable beyond what the ledger proves the user owns.
-- ✅ Works for every write path: edge functions, RPCs, manual SQL, future code — the DB enforces it.
-- ✅ Reversal is CFO-only via the existing `release-locked-funds` flow with full audit trail.
-- ✅ No effect on bucket-misallocation cases (e.g. Carolyne) — her `balance` matches her ledger; she has zero surplus, so nothing is frozen. Her float→withdrawable unwind remains a separate fix.
-- ✅ Compatible with `enforce_wallet_ledger_only` — runs `BEFORE` it and only adjusts `locked_balance`, which is permitted.
-
-## Out of scope (separate follow-ups)
-
-- Float → Withdrawable release tool for Carolyne and other proxy agents.
-- "Short drift" reconciliation (wallet < ledger) — these users are owed money, not phantom; needs a different remediation path.
+After the change, opening the verify panel and selecting **Agent Cash** will show all 4 pending rows for SSENKAAL PIUS (200K + 260K + 260K + 200K = 920K). Carolyne / Financial Ops can then approve them normally through the existing flow.
