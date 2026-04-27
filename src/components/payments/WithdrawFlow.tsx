@@ -17,7 +17,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { UGANDA_BANKS, PAYOUT_METHODS } from '@/lib/ugandaBanks';
-import { useSavedPayoutMethods } from '@/hooks/useSavedPayoutMethods';
+import { useSavedPayoutMethods, type SavedPayoutMethod } from '@/hooks/useSavedPayoutMethods';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Trash2, Plus } from 'lucide-react';
 
 /**
  * Maps a Ugandan mobile-money number to its provider based on the operator
