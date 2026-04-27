@@ -457,7 +457,7 @@ export function AgentPerformanceReport() {
         const gap = expectedWeekly - a.collected;
         return {
           rank: 0,
-          agent_name: profilesMap[id] || id.slice(0, 8),
+          agent_name: profilesMap[id] || `Agent ${id.slice(0, 6)}`,
           tenants_paid: tenantsPaid,
           tenants_total: tenantsTotal,
           pct_paid: pctPaid,
