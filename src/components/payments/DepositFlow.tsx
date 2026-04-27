@@ -5,9 +5,29 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, CheckCircle2, Phone, Calendar, Clock, Hash, AlertCircle, History, Building2, Banknote, Upload, Receipt, Copy, ShieldAlert } from 'lucide-react';
+import { Loader2, CheckCircle2, Phone, Calendar, Clock, Hash, AlertCircle, History, Building2, Banknote, Upload, Receipt, Copy, ShieldAlert, ClipboardPaste, Camera, X, ImageIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+
+/**
+ * Extract a Mobile Money / bank reference from arbitrary SMS text.
+ * Looks for the first matching token by priority:
+ *   1. MTN MoMo "MP" + 8-14 digits
+ *   2. Airtel "TID" + 6-15 digits
+ *   3. Generic bank "FT" + 8-14 chars
+ * Returns the uppercased token or null if nothing recognisable was found.
+ */
+function extractTidFromText(raw: string): string | null {
+  if (!raw) return null;
+  const s = raw.toUpperCase().replace(/\s+/g, ' ');
+  const mtn = s.match(/\bMP\d{6,16}\b/);
+  if (mtn) return mtn[0];
+  const airtel = s.match(/\bTID\d{4,18}\b/);
+  if (airtel) return airtel[0];
+  const bank = s.match(/\bFT[A-Z0-9]{6,18}\b/);
+  if (bank) return bank[0];
+  return null;
+}
 
 type DepositChannel = 'momo' | 'bank' | 'agent_cash' | 'cash';
 type DepositPurpose = 'operational_float' | 'personal_deposit' | 'partnership_deposit' | 'personal_rent_repayment' | 'other';
@@ -76,6 +96,9 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   );
   const [showPurposeGrid, setShowPurposeGrid] = useState<boolean>(!lockPurpose);
   const [bankSlipFile, setBankSlipFile] = useState<File | null>(null);
+  // Object URL for the local slip preview thumbnail. Revoked on cleanup
+  // so we don't leak blob memory across multiple re-uploads.
+  const [bankSlipPreview, setBankSlipPreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tidError, setTidError] = useState('');
   // Audit: capture the exact moment the user picked the purpose + which UI surface asked them.
@@ -83,6 +106,60 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   const [purposeEntryPoint, setPurposeEntryPoint] = useState<'gate' | 'default' | 'in_form'>(
     requirePurposeChoice ? 'gate' : (defaultPurpose ? 'default' : 'in_form')
   );
+
+  /**
+   * Generate / clean up a preview blob URL whenever the slip file changes.
+   * PDFs don't render in <img>, so we just keep the filename badge for those.
+   */
+  useEffect(() => {
+    if (!bankSlipFile || !bankSlipFile.type.startsWith('image/')) {
+      setBankSlipPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(bankSlipFile);
+    setBankSlipPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [bankSlipFile]);
+
+  /**
+   * Read the clipboard, extract the first valid TID from the pasted text,
+   * and apply it to the input. Falls back gracefully on browsers that
+   * deny clipboard-read (Safari without user gesture, etc).
+   */
+  const handlePasteTid = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text) {
+        toast.error('Clipboard is empty');
+        return;
+      }
+      const tid = extractTidFromText(text);
+      if (!tid) {
+        // Still let the user try the raw text — they may have copied
+        // exactly the TID without surrounding SMS context.
+        const trimmed = text.trim().split(/\s+/)[0].toUpperCase();
+        setTransactionId(trimmed);
+        if (channel === 'momo') validateTid(trimmed);
+        toast.warning('No standard TID detected — pasted raw text instead');
+        return;
+      }
+      setTransactionId(tid);
+      if (channel === 'momo') validateTid(tid);
+      toast.success(`Pasted ${tid}`);
+    } catch {
+      toast.error('Could not read clipboard. Paste manually instead.');
+    }
+  };
+
+  /** Copy a single value to the clipboard with a confirmation toast. */
+  const copyValue = async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(`Copied ${label}`);
+    } catch {
+      toast.error('Failed to copy');
+    }
+  };
 
   // Re-apply default when dialog re-opens
   useEffect(() => {
@@ -522,7 +599,17 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   ].map(([label, value]) => (
                     <div key={label} className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-0.5 sm:gap-2">
                       <span className="text-muted-foreground shrink-0">{label}</span>
-                      <span className="font-mono font-semibold sm:text-right break-all">{value}</span>
+                      <div className="flex items-center gap-1.5 min-w-0 sm:justify-end">
+                        <span className="font-mono font-semibold sm:text-right break-all">{value}</span>
+                        <button
+                          type="button"
+                          aria-label={`Copy ${label}`}
+                          onClick={() => copyValue(String(value), label)}
+                          className="p-1 rounded hover:bg-blue-500/10 text-muted-foreground hover:text-blue-600 transition-colors shrink-0"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -569,28 +656,50 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             {/* ─── Reference / TID / Receipt ─── */}
             {channel !== 'agent_cash' && channel !== 'cash' ? (
               <div className="space-y-1.5">
-                <Label className="text-xs flex items-center gap-1.5">
-                  <Hash className="h-3.5 w-3.5" />
-                  {channel === 'bank' ? 'Bank Reference Number' : 'Transaction ID'} <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  type="text"
-                  inputMode="text"
-                  placeholder={
-                    channel === 'bank'
-                      ? 'e.g. FT24123456789'
-                      : momoProvider === 'mtn'
-                        ? 'e.g. MP39665905645'
-                        : 'e.g. TID144205097399'
-                  }
-                  value={transactionId}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setTransactionId(val);
-                    if (channel === 'momo') validateTid(val);
-                  }}
-                  className={`font-mono text-sm ${channel === 'momo' && tidError ? 'border-destructive focus:ring-destructive' : channel === 'momo' && transactionId.trim() && !tidError ? 'border-emerald-500 focus:ring-emerald-500' : ''}`}
-                />
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-xs flex items-center gap-1.5">
+                    <Hash className="h-3.5 w-3.5" />
+                    {channel === 'bank' ? 'Bank Reference Number' : 'Transaction ID'} <span className="text-destructive">*</span>
+                  </Label>
+                  <button
+                    type="button"
+                    onClick={handlePasteTid}
+                    className="text-[10px] font-semibold text-primary inline-flex items-center gap-1 hover:underline underline-offset-2"
+                  >
+                    <ClipboardPaste className="h-3 w-3" />
+                    Paste from SMS
+                  </button>
+                </div>
+                <div className="relative">
+                  <Input
+                    type="text"
+                    inputMode="text"
+                    placeholder={
+                      channel === 'bank'
+                        ? 'e.g. FT24123456789'
+                        : momoProvider === 'mtn'
+                          ? 'e.g. MP39665905645'
+                          : 'e.g. TID144205097399'
+                    }
+                    value={transactionId}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setTransactionId(val);
+                      if (channel === 'momo') validateTid(val);
+                    }}
+                    className={`font-mono text-sm pr-9 ${channel === 'momo' && tidError ? 'border-destructive focus:ring-destructive' : channel === 'momo' && transactionId.trim() && !tidError ? 'border-emerald-500 focus:ring-emerald-500' : ''}`}
+                  />
+                  {transactionId.trim() && (
+                    <button
+                      type="button"
+                      aria-label="Copy transaction ID"
+                      onClick={() => copyValue(transactionId.trim().toUpperCase(), 'TID')}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
                 {channel === 'momo' && tidError && (
                   <p className="text-[10px] text-destructive flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" /> {tidError}
@@ -604,7 +713,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 <p className="text-[10px] text-muted-foreground">
                   {channel === 'bank'
                     ? 'Find this on your bank receipt or transfer confirmation'
-                    : 'Enter the exact TID from your payment confirmation SMS'}
+                    : 'Enter the exact TID from your payment confirmation SMS — or tap "Paste from SMS" above'}
                 </p>
               </div>
             ) : (
@@ -641,14 +750,70 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             {/* ─── Bank slip upload (optional) ─── */}
             {channel === 'bank' && (
               <div className="space-y-1.5">
-                <Label className="text-xs flex items-center gap-1.5"><Upload className="h-3.5 w-3.5" /> Bank Deposit Slip (optional)</Label>
-                <Input
-                  type="file"
-                  accept="image/*,.pdf"
-                  onChange={(e) => setBankSlipFile(e.target.files?.[0] || null)}
-                  className="h-10 text-xs"
-                />
-                {bankSlipFile && <p className="text-[10px] text-emerald-600">📎 {bankSlipFile.name}</p>}
+                <Label className="text-xs flex items-center gap-1.5">
+                  <Upload className="h-3.5 w-3.5" /> Bank Deposit Slip (optional)
+                </Label>
+
+                {!bankSlipFile ? (
+                  // Two side-by-side actions: open the camera (mobile) or
+                  // pick from gallery / files. Camera capture is a no-op on
+                  // desktop and falls back to the file picker.
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="flex flex-col items-center justify-center gap-1 h-20 rounded-lg border-2 border-dashed border-border hover:border-primary/60 hover:bg-primary/5 cursor-pointer transition-colors">
+                      <Camera className="h-5 w-5 text-muted-foreground" />
+                      <span className="text-[10px] font-medium text-muted-foreground">Take photo</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={(e) => setBankSlipFile(e.target.files?.[0] || null)}
+                      />
+                    </label>
+                    <label className="flex flex-col items-center justify-center gap-1 h-20 rounded-lg border-2 border-dashed border-border hover:border-primary/60 hover:bg-primary/5 cursor-pointer transition-colors">
+                      <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                      <span className="text-[10px] font-medium text-muted-foreground">Pick from gallery</span>
+                      <input
+                        type="file"
+                        accept="image/*,.pdf"
+                        className="hidden"
+                        onChange={(e) => setBankSlipFile(e.target.files?.[0] || null)}
+                      />
+                    </label>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 p-2 rounded-lg border border-border bg-muted/30">
+                    {bankSlipPreview ? (
+                      <img
+                        src={bankSlipPreview}
+                        alt="Bank slip preview"
+                        className="h-16 w-16 rounded object-cover border border-border shrink-0"
+                      />
+                    ) : (
+                      <div className="h-16 w-16 rounded bg-background border border-border flex items-center justify-center shrink-0">
+                        <Upload className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-medium truncate">{bankSlipFile.name}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {(bankSlipFile.size / 1024).toFixed(0)} KB · {bankSlipFile.type || 'file'}
+                      </p>
+                      <p className="text-[10px] text-emerald-600 mt-0.5">Ready to attach</p>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Remove slip"
+                      onClick={() => setBankSlipFile(null)}
+                      className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+                <p className="text-[10px] text-muted-foreground">
+                  Helps Financial Ops verify your deposit faster. Image or PDF, up to ~5 MB.
+                </p>
               </div>
             )}
 
