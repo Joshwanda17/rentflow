@@ -356,6 +356,11 @@ function AwaitingBatchRow({ batch, onOpenWizard, onProofSubmitted }: AwaitingBat
   const [reference, setReference] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [editingAmount, setEditingAmount] = useState(false);
+  const [amountDraft, setAmountDraft] = useState<string>(
+    String(Math.round(Number(batch.declared_total) || 0)),
+  );
+  const [savingAmount, setSavingAmount] = useState(false);
 
   const batchAge = Math.floor(
     (Date.now() - new Date(batch.created_at).getTime()) / 3_600_000,
@@ -370,6 +375,29 @@ function AwaitingBatchRow({ batch, onOpenWizard, onProofSubmitted }: AwaitingBat
       return;
     }
     setFile(f);
+  };
+
+  const handleSaveAmount = async () => {
+    const next = Number(amountDraft.replace(/[^\d]/g, ''));
+    if (!Number.isFinite(next) || next <= 0) {
+      toast.error('Enter a valid banked amount');
+      return;
+    }
+    if (next === Number(batch.declared_total)) {
+      setEditingAmount(false);
+      return;
+    }
+    setSavingAmount(true);
+    try {
+      await updateBatchDeclaredTotal(batch.id, next);
+      toast.success(`Updated · banked ${formatUGX(next)}`);
+      setEditingAmount(false);
+      onProofSubmitted();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update amount');
+    } finally {
+      setSavingAmount(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
