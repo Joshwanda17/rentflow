@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Loader2, Search, Plus, Trash2, Users, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Loader2, Search, Plus, Trash2, Users, AlertCircle, CheckCircle2, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 
 /**
  * One row in the breakdown: which tenant (and a denormalised label so we
@@ -47,6 +49,10 @@ interface TenantOption {
   full_name: string;
   phone: string | null;
   monthly_rent?: number | null;
+  /** When the tenant's profile (and therefore monthly_rent) was last updated.
+   *  Surfaced in the per-row provenance tooltip so the agent can tell whether
+   *  the rent figure they're seeing is fresh or stale. */
+  monthly_rent_updated_at?: string | null;
 }
 
 /**
