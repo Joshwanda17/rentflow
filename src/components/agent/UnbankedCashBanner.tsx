@@ -321,7 +321,7 @@ export function UnbankedCashBanner() {
                       type="button"
                       onClick={() => { hapticTap(); setBulkOpen(true); }}
                       className="inline-flex items-center gap-1 rounded-full bg-destructive text-destructive-foreground px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider hover:bg-destructive/90 transition-colors shrink-0"
-                      title="Submit one proof for several awaiting batches at once"
+                      title="Submit proof for several awaiting batches at once"
                     >
                       <Layers className="h-3 w-3" />
                       Bulk submit ({stillAwaiting.length})
@@ -973,18 +973,18 @@ interface BulkProofDialogProps {
 }
 
 type BulkRowState = 'pending' | 'submitting' | 'done' | 'error';
+/** 'shared' = one reference for all selected batches. 'per_batch' = each
+ *  selected batch gets its own input (typical when each batch was deposited
+ *  via a different mobile money / bank transaction). */
+type RefMode = 'shared' | 'per_batch';
 
-/**
- * Lets the agent select several awaiting batches and submit ONE shared
- * reference (and optional photo) for all of them in one pass. Submission is
- * sequential per batch so we can show per-row status and not blow up if one
- * batch is rejected by the server (e.g., status raced to pending elsewhere).
- */
 function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(batches.map((b) => b.id)),
   );
-  const [reference, setReference] = useState('');
+  const [mode, setMode] = useState<RefMode>('shared');
+  const [sharedRef, setSharedRef] = useState('');
+  const [perBatchRef, setPerBatchRef] = useState<Record<string, string>>({});
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -1020,15 +1020,37 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
     .filter((b) => selected.has(b.id))
     .reduce((s, b) => s + Number(b.declared_total || 0), 0);
 
+  /** Resolve the reference for a batch given the current mode. */
+  const refForBatch = (id: string): string => {
+    if (mode === 'shared') return sharedRef.trim();
+    return (perBatchRef[id] ?? '').trim();
+  };
+
+  /** Pre-validate inputs before any upload happens. */
+  const validateBeforeSubmit = (): string | null => {
+    if (selected.size === 0) return 'Pick at least one batch';
+    if (mode === 'shared') {
+      if (sharedRef.trim().length < 4 && !file) {
+        return 'Enter a shared reference or attach a receipt photo';
+      }
+    } else {
+      // per_batch: every selected batch needs a reference OR the shared photo
+      const missing = Array.from(selected).filter((id) => {
+        const r = (perBatchRef[id] ?? '').trim();
+        return r.length < 4 && !file;
+      });
+      if (missing.length > 0) {
+        return `Add a reference (or attach a photo) for ${missing.length} batch${missing.length === 1 ? '' : 'es'}`;
+      }
+    }
+    return null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
-    const ref = reference.trim();
-    if (selected.size === 0) { toast.error('Pick at least one batch'); return; }
-    if (ref.length < 4 && !file) {
-      toast.error('Enter a reference or attach a receipt photo');
-      return;
-    }
+    const err = validateBeforeSubmit();
+    if (err) { toast.error(err); return; }
     setSubmitting(true);
     try {
       // Upload the photo ONCE; reuse the same public URL for every batch.
@@ -1049,7 +1071,6 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
       for (const id of ids) {
         setRowState((s) => ({ ...s, [id]: { state: 'submitting' } }));
         try {
-          // Re-read status to avoid resubmitting an already-progressed batch.
           const { data: fresh, error: freshErr } = await supabase
             .from('field_deposit_batches')
             .select('status')
@@ -1057,22 +1078,17 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
             .single();
           if (freshErr) throw freshErr;
           if (fresh?.status !== 'awaiting_proof') {
-            setRowState((s) => ({
-              ...s,
-              [id]: { state: 'error', msg: `Already ${fresh?.status ?? 'changed'}` },
-            }));
+            setRowState((s) => ({ ...s, [id]: { state: 'error', msg: `Already ${fresh?.status ?? 'changed'}` } }));
             failCount++;
             continue;
           }
+          const ref = refForBatch(id);
           const finalRef = ref.length >= 4 ? ref : `RECEIPT-${id.slice(0, 8)}`;
           await submitProofForBatch(id, finalRef, imageUrl);
           setRowState((s) => ({ ...s, [id]: { state: 'done' } }));
           okCount++;
-        } catch (err) {
-          setRowState((s) => ({
-            ...s,
-            [id]: { state: 'error', msg: err instanceof Error ? err.message : 'Failed' },
-          }));
+        } catch (innerErr) {
+          setRowState((s) => ({ ...s, [id]: { state: 'error', msg: innerErr instanceof Error ? innerErr.message : 'Failed' } }));
           failCount++;
         }
       }
@@ -1084,8 +1100,8 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
       } else {
         toast.error('No batches were submitted');
       }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Bulk submit failed');
+    } catch (outerErr) {
+      toast.error(outerErr instanceof Error ? outerErr.message : 'Bulk submit failed');
     } finally {
       setSubmitting(false);
     }
@@ -1124,6 +1140,34 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
           </button>
         </div>
 
+        {/* Mode toggle */}
+        <div className="px-4 pt-3">
+          <div className="inline-flex w-full rounded-lg border border-border bg-muted/40 p-0.5 text-[11px] font-bold uppercase tracking-wider">
+            <button
+              type="button"
+              onClick={() => !submitting && setMode('shared')}
+              disabled={submitting}
+              className={cn(
+                'flex-1 h-8 rounded-md transition-colors',
+                mode === 'shared' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              One shared reference
+            </button>
+            <button
+              type="button"
+              onClick={() => !submitting && setMode('per_batch')}
+              disabled={submitting}
+              className={cn(
+                'flex-1 h-8 rounded-md transition-colors',
+                mode === 'per_batch' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              Different per batch
+            </button>
+          </div>
+        </div>
+
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
           {/* Selection list */}
           <div className="px-4 pt-3">
@@ -1132,21 +1176,11 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
                 Pick batches to clear
               </span>
               <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={selectAll}
-                  disabled={submitting}
-                  className="text-[10px] font-medium text-primary hover:underline disabled:opacity-50"
-                >
+                <button type="button" onClick={selectAll} disabled={submitting} className="text-[10px] font-medium text-primary hover:underline disabled:opacity-50">
                   All
                 </button>
                 <span className="text-muted-foreground/50 text-[10px]">·</span>
-                <button
-                  type="button"
-                  onClick={clearAll}
-                  disabled={submitting}
-                  className="text-[10px] font-medium text-muted-foreground hover:underline disabled:opacity-50"
-                >
+                <button type="button" onClick={clearAll} disabled={submitting} className="text-[10px] font-medium text-muted-foreground hover:underline disabled:opacity-50">
                   None
                 </button>
               </div>
@@ -1157,85 +1191,112 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
                 const rs = rowState[b.id];
                 return (
                   <li key={b.id}>
-                    <label
+                    <div
                       className={cn(
-                        'flex items-center gap-2.5 rounded-lg border bg-background px-3 py-2 cursor-pointer transition-colors',
-                        isPicked ? 'border-primary/60 bg-primary/5' : 'border-border hover:bg-accent/30',
-                        submitting && 'cursor-default',
+                        'rounded-lg border bg-background transition-colors',
+                        isPicked ? 'border-primary/60 bg-primary/5' : 'border-border',
                       )}
                     >
-                      <input
-                        type="checkbox"
-                        checked={isPicked}
-                        onChange={() => toggle(b.id)}
-                        disabled={submitting}
-                        className="h-4 w-4 rounded border-border text-primary focus:ring-primary shrink-0"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 text-xs">
-                          <span className="font-mono text-muted-foreground">
-                            #{b.id.slice(0, 8)}
-                          </span>
-                          <span className="text-muted-foreground/60">·</span>
-                          <span className="truncate">{channelLabel(b.channel)}</span>
-                        </div>
-                        <div className="text-[10px] text-muted-foreground mt-0.5">
-                          {b.items.length} entr{b.items.length === 1 ? 'y' : 'ies'} ·{' '}
-                          {formatDateTime(b.created_at)}
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div className="text-sm font-bold font-mono">
-                          {formatUGX(Number(b.declared_total))}
-                        </div>
-                        {rs && (
-                          <div className="text-[10px] mt-0.5 flex items-center justify-end gap-1">
-                            {rs.state === 'submitting' && (
-                              <span className="text-muted-foreground flex items-center gap-1">
-                                <Loader2 className="h-3 w-3 animate-spin" /> Sending
-                              </span>
-                            )}
-                            {rs.state === 'done' && (
-                              <span className="text-success flex items-center gap-1 font-semibold">
-                                <CheckCircle2 className="h-3 w-3" /> Sent
-                              </span>
-                            )}
-                            {rs.state === 'error' && (
-                              <span className="text-destructive flex items-center gap-1 font-semibold" title={rs.msg}>
-                                <X className="h-3 w-3" /> {rs.msg ?? 'Failed'}
-                              </span>
-                            )}
-                          </div>
+                      <label
+                        className={cn(
+                          'flex items-center gap-2.5 px-3 py-2',
+                          submitting ? 'cursor-default' : 'cursor-pointer',
                         )}
-                      </div>
-                    </label>
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isPicked}
+                          onChange={() => toggle(b.id)}
+                          disabled={submitting}
+                          className="h-4 w-4 rounded border-border text-primary focus:ring-primary shrink-0"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className="font-mono text-muted-foreground">#{b.id.slice(0, 8)}</span>
+                            <span className="text-muted-foreground/60">·</span>
+                            <span className="truncate">{channelLabel(b.channel)}</span>
+                          </div>
+                          <div className="text-[10px] text-muted-foreground mt-0.5">
+                            {b.items.length} entr{b.items.length === 1 ? 'y' : 'ies'} · {formatDateTime(b.created_at)}
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className="text-sm font-bold font-mono">{formatUGX(Number(b.declared_total))}</div>
+                          {rs && (
+                            <div className="text-[10px] mt-0.5 flex items-center justify-end gap-1">
+                              {rs.state === 'submitting' && (
+                                <span className="text-muted-foreground flex items-center gap-1">
+                                  <Loader2 className="h-3 w-3 animate-spin" /> Sending
+                                </span>
+                              )}
+                              {rs.state === 'done' && (
+                                <span className="text-success flex items-center gap-1 font-semibold">
+                                  <CheckCircle2 className="h-3 w-3" /> Sent
+                                </span>
+                              )}
+                              {rs.state === 'error' && (
+                                <span className="text-destructive flex items-center gap-1 font-semibold" title={rs.msg}>
+                                  <X className="h-3 w-3" /> {rs.msg ?? 'Failed'}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </label>
+
+                      {/* Per-batch reference field — only when picked AND per-batch mode */}
+                      {isPicked && mode === 'per_batch' && (
+                        <div className="px-3 pb-2 -mt-1">
+                          <input
+                            type="text"
+                            value={perBatchRef[b.id] ?? ''}
+                            onChange={(e) =>
+                              setPerBatchRef((p) => ({ ...p, [b.id]: e.target.value }))
+                            }
+                            placeholder={`Reference for #${b.id.slice(0, 8)}…`}
+                            className="w-full h-9 px-3 rounded-md border border-border bg-background text-xs font-mono focus:outline-none focus:ring-2 focus:ring-primary"
+                            disabled={submitting}
+                            inputMode="text"
+                            autoComplete="off"
+                            spellCheck={false}
+                          />
+                        </div>
+                      )}
+                    </div>
                   </li>
                 );
               })}
             </ul>
           </div>
 
-          {/* Shared proof inputs */}
+          {/* Shared inputs section */}
           <div className="px-4 py-3 mt-2 border-t border-border space-y-3">
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
-                Shared transaction ID / reference
-              </label>
-              <input
-                type="text"
-                value={reference}
-                onChange={(e) => setReference(e.target.value)}
-                placeholder="Used for every selected batch"
-                className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary"
-                disabled={submitting}
-                inputMode="text"
-                autoComplete="off"
-                spellCheck={false}
-              />
-              <p className="text-[10px] text-muted-foreground leading-snug">
-                Same reference is attached to every selected batch. Finance will reconcile by amount.
+            {mode === 'shared' && (
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+                  Shared transaction ID / reference
+                </label>
+                <input
+                  type="text"
+                  value={sharedRef}
+                  onChange={(e) => setSharedRef(e.target.value)}
+                  placeholder="Used for every selected batch"
+                  className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary"
+                  disabled={submitting}
+                  inputMode="text"
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+                <p className="text-[10px] text-muted-foreground leading-snug">
+                  Same reference is attached to every selected batch. Switch to <span className="font-semibold">Different per batch</span> if each deposit had its own transaction.
+                </p>
+              </div>
+            )}
+            {mode === 'per_batch' && (
+              <p className="text-[10px] text-muted-foreground leading-snug -mt-1">
+                Enter the transaction ID / reference next to each selected batch above. Leave a row blank only if you'll cover it with the shared receipt photo below.
               </p>
-            </div>
+            )}
 
             <div className="space-y-1">
               <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
@@ -1259,7 +1320,7 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
                       <span className="truncate font-medium">{file.name}</span>
                     </div>
                     <div className="text-[10px] text-muted-foreground mt-0.5">
-                      {(file.size / 1024).toFixed(0)} KB · uploaded once, attached to each batch
+                      {(file.size / 1024).toFixed(0)} KB · attached to each selected batch
                     </div>
                   </div>
                   <button
