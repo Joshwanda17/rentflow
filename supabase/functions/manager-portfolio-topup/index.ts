@@ -128,18 +128,39 @@ Deno.serve(async (req) => {
       walletOwnerLabel = `Proxy Agent (${agentName})`;
     }
 
-    // ── Check wallet balance ──
+    // ── Check wallet balance (bucket-aware) ──
+    // The 'wallet_deduction' category routes to the WITHDRAWABLE bucket.
+    // Checking aggregate `balance` is misleading because funds may be parked
+    // in `float_balance` (e.g. agents) and would trip the wallets_buckets_nonneg
+    // constraint when withdrawable goes negative.
     const { data: wallet, error: wErr } = await supabase
       .from("wallets")
-      .select("balance")
+      .select("balance, withdrawable_balance, float_balance, advance_balance")
       .eq("user_id", walletOwnerId)
       .single();
 
     if (wErr || !wallet) return jsonRes({ error: `${walletOwnerLabel} wallet not found` }, 404);
 
     const walletBalance = Number(wallet.balance);
-    if (walletBalance < topupAmount) {
-      return jsonRes({ error: `Insufficient ${walletOwnerLabel.toLowerCase()} balance. Available: UGX ${walletBalance.toLocaleString()}` }, 400);
+    const withdrawable = Number(wallet.withdrawable_balance ?? 0);
+    const floatBal = Number(wallet.float_balance ?? 0);
+    const advanceBal = Number(wallet.advance_balance ?? 0);
+
+    // wallet_deduction routes to withdrawable; advance_balance offsets first.
+    const spendable = withdrawable + advanceBal;
+    if (spendable < topupAmount) {
+      const parts: string[] = [];
+      if (withdrawable > 0) parts.push(`Withdrawable: UGX ${withdrawable.toLocaleString()}`);
+      if (floatBal > 0) parts.push(`Float (locked): UGX ${floatBal.toLocaleString()}`);
+      const breakdown = parts.length ? ` (${parts.join(" · ")})` : "";
+      return jsonRes({
+        error:
+          `Insufficient withdrawable balance in ${walletOwnerLabel.toLowerCase()}. ` +
+          `Need UGX ${topupAmount.toLocaleString()}, but only UGX ${spendable.toLocaleString()} is spendable${breakdown}. ` +
+          (floatBal > 0
+            ? `Funds in Float must be released to Withdrawable before topping up.`
+            : ``),
+      }, 400);
     }
 
     // ── 1. Create wallet transaction (visible in partner/agent tx history) ──
