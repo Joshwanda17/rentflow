@@ -995,6 +995,208 @@ type BulkResult = {
  *  via a different mobile money / bank transaction). */
 type RefMode = 'shared' | 'per_batch';
 
+/* ---------------------------------------------------------------------- */
+/* Bulk results summary panel                                              */
+/* ---------------------------------------------------------------------- */
+
+interface BulkResultsSummaryProps {
+  results: BulkResult[];
+  batches: AwaitingBatchWithItems[];
+  /** True if a shared receipt photo was uploaded for this run. */
+  photoAttached: boolean;
+  /** Local object-URL preview of the uploaded receipt (lives only as long
+   *  as the dialog session). Used so the agent can re-verify what was sent. */
+  photoPreviewUrl: string | null;
+  onRetryFailures: () => void;
+}
+
+/**
+ * Post-submission breakdown shown in place of the form once the agent
+ * finishes a bulk submit. Lists every selected batch with its outcome,
+ * the reference Finance will see, and whether the shared photo was
+ * attached — so agents can screenshot or copy details before closing.
+ */
+function BulkResultsSummary({
+  results,
+  photoAttached,
+  photoPreviewUrl,
+  onRetryFailures,
+}: BulkResultsSummaryProps) {
+  const okResults = results.filter((r) => r.status === 'done');
+  const failResults = results.filter((r) => r.status !== 'done');
+  const okTotal = okResults.reduce((s, r) => s + r.declaredTotal, 0);
+  const failTotal = failResults.reduce((s, r) => s + r.declaredTotal, 0);
+
+  return (
+    <div className="px-4 py-4 space-y-3">
+      {/* Top-line counters */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-lg border border-success/40 bg-success/10 px-3 py-2">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-success/80">
+            Submitted
+          </div>
+          <div className="text-lg font-bold text-success leading-tight">
+            {okResults.length}
+          </div>
+          <div className="text-[10px] text-success/80 font-mono mt-0.5">
+            {formatUGX(okTotal)}
+          </div>
+        </div>
+        <div
+          className={cn(
+            'rounded-lg border px-3 py-2',
+            failResults.length > 0
+              ? 'border-destructive/40 bg-destructive/10'
+              : 'border-border bg-muted/30',
+          )}
+        >
+          <div
+            className={cn(
+              'text-[10px] font-bold uppercase tracking-wider',
+              failResults.length > 0 ? 'text-destructive/80' : 'text-muted-foreground',
+            )}
+          >
+            Failed / skipped
+          </div>
+          <div
+            className={cn(
+              'text-lg font-bold leading-tight',
+              failResults.length > 0 ? 'text-destructive' : 'text-muted-foreground',
+            )}
+          >
+            {failResults.length}
+          </div>
+          <div
+            className={cn(
+              'text-[10px] font-mono mt-0.5',
+              failResults.length > 0 ? 'text-destructive/80' : 'text-muted-foreground',
+            )}
+          >
+            {formatUGX(failTotal)}
+          </div>
+        </div>
+      </div>
+
+      {/* Shared photo recap */}
+      {photoAttached && (
+        <div className="flex items-center gap-2.5 rounded-lg border border-border bg-background p-2">
+          {photoPreviewUrl && (
+            <a
+              href={photoPreviewUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="relative h-10 w-10 shrink-0 rounded-md overflow-hidden border border-border bg-muted block"
+            >
+              <img
+                src={photoPreviewUrl}
+                alt="Submitted receipt"
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            </a>
+          )}
+          <div className="text-[11px] leading-snug">
+            <span className="font-semibold">Shared receipt photo</span> attached to every
+            submitted batch.
+          </div>
+        </div>
+      )}
+
+      {/* Per-batch breakdown */}
+      <div className="space-y-1.5">
+        <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          Per-batch breakdown
+        </div>
+        <ul className="space-y-1.5">
+          {results.map((r) => {
+            const isOk = r.status === 'done';
+            const isSkipped = r.status === 'skipped';
+            return (
+              <li
+                key={r.batchId}
+                className={cn(
+                  'rounded-lg border bg-background p-2.5',
+                  isOk && 'border-success/40',
+                  !isOk && !isSkipped && 'border-destructive/40 bg-destructive/5',
+                  isSkipped && 'border-warning/40 bg-warning/5',
+                )}
+              >
+                <div className="flex items-start gap-2">
+                  <div className="shrink-0 mt-0.5">
+                    {isOk ? (
+                      <CheckCircle2 className="h-4 w-4 text-success" />
+                    ) : isSkipped ? (
+                      <AlertTriangle className="h-4 w-4 text-warning" />
+                    ) : (
+                      <X className="h-4 w-4 text-destructive" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 text-xs">
+                      <span className="font-mono text-muted-foreground">
+                        #{r.batchId.slice(0, 8)}
+                      </span>
+                      <span className="text-muted-foreground/60">·</span>
+                      <span className="truncate">{channelLabel(r.channel)}</span>
+                      <span className="text-muted-foreground/60">·</span>
+                      <span className="font-mono font-semibold">
+                        {formatUGX(r.declaredTotal)}
+                      </span>
+                    </div>
+                    {/* Reference used */}
+                    {r.refUsed ? (
+                      <div className="mt-1 text-[10px] flex items-baseline gap-1.5">
+                        <span className="text-muted-foreground shrink-0">Ref:</span>
+                        <span className="font-mono font-semibold break-all">
+                          {r.refUsed}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="mt-1 text-[10px] text-muted-foreground italic">
+                        No reference recorded
+                      </div>
+                    )}
+                    {/* Photo flag (only meaningful when one was uploaded) */}
+                    {photoAttached && (
+                      <div className="mt-0.5 text-[10px] text-muted-foreground inline-flex items-center gap-1">
+                        <Camera className="h-3 w-3" />
+                        Shared photo attached
+                      </div>
+                    )}
+                    {/* Error / skipped reason */}
+                    {!isOk && r.errorMsg && (
+                      <div
+                        className={cn(
+                          'mt-1 text-[10px] font-medium',
+                          isSkipped ? 'text-warning' : 'text-destructive',
+                        )}
+                      >
+                        {r.errorMsg}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
+      {/* Retry CTA — only relevant when at least one batch didn't go through. */}
+      {failResults.length > 0 && (
+        <button
+          type="button"
+          onClick={onRetryFailures}
+          className="w-full h-9 rounded-lg border border-border bg-background text-xs font-bold uppercase tracking-wider hover:bg-accent/40 inline-flex items-center justify-center gap-2"
+        >
+          <Upload className="h-3.5 w-3.5" />
+          Retry {failResults.length} failed
+        </button>
+      )}
+    </div>
+  );
+}
+
 function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(batches.map((b) => b.id)),
