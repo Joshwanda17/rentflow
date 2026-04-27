@@ -212,6 +212,42 @@ export default function OperationalFloatTenantAllocator({
   };
 
   /**
+   * Split the remaining UGX across all selected tenants, weighted by
+   * each tenant's suggested amount (their monthly_rent). If no tenant
+   * has a monthly_rent on file we fall back to an equal split. Rounds
+   * to whole UGX and dumps any rounding remainder onto the last row so
+   * allocatedTotal lands exactly on totalAmount (keeping the ≤1 UGX
+   * backend tolerance happy).
+   */
+  const autoAllocateRemaining = () => {
+    if (allocations.length === 0 || remaining <= 0) return;
+    const weights = allocations.map((a) => Math.max(0, Number(a.monthly_rent || 0)));
+    const weightSum = weights.reduce((acc, w) => acc + w, 0);
+    // Equal-split fallback when none of the selected tenants has a rent
+    // figure to weight against.
+    const useEqual = weightSum <= 0;
+    const shares = allocations.map((_, i) => {
+      const share = useEqual
+        ? remaining / allocations.length
+        : (remaining * weights[i]) / weightSum;
+      return Math.floor(share); // round down to whole UGX, fix drift below
+    });
+    const distributed = shares.reduce((acc, s) => acc + s, 0);
+    const drift = Math.round(remaining) - distributed;
+    if (drift !== 0) shares[shares.length - 1] += drift;
+
+    onChange(
+      allocations.map((a, i) => ({
+        ...a,
+        amount: Math.max(0, a.amount + shares[i]),
+        // New money on the row → require re-confirmation if it now
+        // breaches the per-tenant rent headroom.
+        override_headroom: false,
+      })),
+    );
+  };
+
+  /**
    * Per-row headroom check. We only flag rows where:
    *   - we actually know the tenant's monthly rent ( > 0 ), AND
    *   - the allocated amount strictly exceeds that rent.
@@ -426,15 +462,27 @@ export default function OperationalFloatTenantAllocator({
           </span>
         </div>
         {!isBalanced && allocations.length > 0 && !isOverAllocated && (
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={distributeRemaining}
-            className="h-6 w-full text-[10px] text-primary hover:text-primary"
-          >
-            Add remaining to last tenant
-          </Button>
+          <div className="grid grid-cols-2 gap-1">
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={autoAllocateRemaining}
+              className="h-6 text-[10px] text-primary hover:text-primary"
+              title="Split the remaining amount across selected tenants, weighted by their monthly rent"
+            >
+              Auto-allocate remaining
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={distributeRemaining}
+              className="h-6 text-[10px] text-muted-foreground hover:text-primary"
+            >
+              Add to last tenant
+            </Button>
+          </div>
         )}
         {headroomBreaches.length > 0 && (
           <div className="flex items-start gap-1.5 rounded-md bg-warning/10 border border-warning/30 px-2 py-1 mt-1">
