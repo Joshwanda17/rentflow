@@ -1780,6 +1780,79 @@ function BulkProofDialog({ batches, onClose, onDone }: BulkProofDialogProps) {
                           </div>
                         );
                       })()}
+                      {/* Per-batch receipt photo — only when picked AND
+                          per_batch photo mode. Lives in the same card as
+                          the per-batch reference so the agent sees both
+                          inputs together. */}
+                      {isPicked && photoMode === 'per_batch' && (() => {
+                        const f = perBatchFile[b.id];
+                        const url = perBatchPreviewUrl[b.id];
+                        return (
+                          <div className="px-3 pb-3 -mt-1 space-y-1">
+                            <span className="text-[10px] font-medium text-muted-foreground block">
+                              Receipt photo for this batch
+                            </span>
+                            {f ? (
+                              <div className="flex items-center gap-2 rounded-md border border-border bg-background p-1.5">
+                                {url && (
+                                  <a
+                                    href={url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="relative h-9 w-9 shrink-0 rounded overflow-hidden border border-border bg-muted block"
+                                  >
+                                    <img
+                                      src={url}
+                                      alt={`Receipt preview for batch ${b.id.slice(0, 8)}`}
+                                      className="h-full w-full object-cover"
+                                      loading="lazy"
+                                    />
+                                  </a>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1 text-[11px]">
+                                    <CheckCircle2 className="h-3 w-3 text-success shrink-0" />
+                                    <span className="truncate font-medium">{f.name}</span>
+                                  </div>
+                                  <div className="text-[10px] text-muted-foreground">
+                                    {(f.size / 1024).toFixed(0)} KB
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setPerBatchFileChecked(b.id, null)}
+                                  disabled={submitting}
+                                  className="h-6 w-6 rounded hover:bg-accent flex items-center justify-center shrink-0"
+                                  aria-label={`Remove receipt for batch ${b.id.slice(0, 8)}`}
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </div>
+                            ) : (
+                              <label
+                                className={cn(
+                                  'flex items-center justify-center gap-1.5 h-8 rounded-md border border-dashed border-border bg-background cursor-pointer hover:bg-accent/30 transition-colors text-[11px] font-medium text-muted-foreground',
+                                  submitting && 'opacity-50 pointer-events-none',
+                                )}
+                              >
+                                <Camera className="h-3.5 w-3.5" />
+                                Tap to add photo for this batch
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  capture="environment"
+                                  className="sr-only"
+                                  onChange={(e) => {
+                                    const f = e.target.files?.[0];
+                                    if (f) setPerBatchFileChecked(b.id, f);
+                                  }}
+                                  disabled={submitting}
+                                />
+                              </label>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </li>
                 );
