@@ -296,7 +296,8 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         }
 
         // Purpose
-        const purpose = (data.deposit_purpose ?? data.purpose_audit?.chosen_purpose ?? '') as DepositPurpose | '';
+        const audit = (data.purpose_audit ?? null) as { chosen_purpose?: string } | null;
+        const purpose = (data.deposit_purpose ?? audit?.chosen_purpose ?? '') as DepositPurpose | '';
         if (purpose) {
           setDepositPurpose(purpose);
           const label = DEPOSIT_PURPOSES.find((p) => p.id === purpose)?.label;
