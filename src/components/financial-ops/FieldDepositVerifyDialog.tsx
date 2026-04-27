@@ -105,15 +105,15 @@ export function FieldDepositVerifyDialog({ batch, open, onClose, onResolved }: P
 
   return (
     <Dialog open={open} onOpenChange={(o) => (!o && !busy ? onClose() : null)}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden flex flex-col p-0">
-        <DialogHeader>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0">
+        <DialogHeader className="px-6 pt-6 pb-3 border-b">
           <DialogTitle>Verify Field Deposit</DialogTitle>
           <DialogDescription>
             Confirm the proof matches what the agent submitted. Verification credits float, allocates rent, and pays commission.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 min-h-0 overflow-y-auto px-6">
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
           <div className="space-y-4">
             {/* Summary */}
             <div className="rounded-lg border bg-muted/30 p-3 space-y-2 text-sm">
