@@ -96,7 +96,7 @@ function writeRecentRecipient(
 }
 
 function buildRecipientKey(args: {
-  payoutMode: PayoutMode;
+  payoutMode: 'mtn' | 'airtel' | 'bank' | 'cash';
   momoNumber: string;
   bankName: string;
   bankAccountNumber: string;
