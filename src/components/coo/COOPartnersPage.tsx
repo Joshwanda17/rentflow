@@ -1227,14 +1227,20 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     if (filterWallet === 'has_balance') result = result.filter(r => (r.walletBalance || 0) > 0);
     else if (filterWallet === 'empty') result = result.filter(r => (r.walletBalance || 0) <= 0);
     if (payoutDateFrom || payoutDateTo) {
+      // Include partners that have ANY portfolio with a next-payout date
+      // inside the selected window (inclusive on both ends).
+      const fromMs = payoutDateFrom ? new Date(payoutDateFrom.getFullYear(), payoutDateFrom.getMonth(), payoutDateFrom.getDate()).getTime() : null;
+      const toMs = payoutDateTo ? new Date(payoutDateTo.getFullYear(), payoutDateTo.getMonth(), payoutDateTo.getDate(), 23, 59, 59, 999).getTime() : null;
       result = result.filter(r => {
-        const portfolioData = (r as any).nextRoiDate;
-        if (!portfolioData) return false;
-        const nextPayout = new Date(portfolioData + 'T00:00:00');
-        if (isNaN(nextPayout.getTime())) return false;
-        if (payoutDateFrom && nextPayout < payoutDateFrom) return false;
-        if (payoutDateTo && nextPayout > payoutDateTo) return false;
-        return true;
+        const dates: string[] = ((r as any).payoutDates as string[] | undefined) ?? ((r as any).nextRoiDate ? [(r as any).nextRoiDate] : []);
+        if (!dates.length) return false;
+        return dates.some(d => {
+          const t = new Date(d + 'T00:00:00').getTime();
+          if (isNaN(t)) return false;
+          if (fromMs !== null && t < fromMs) return false;
+          if (toMs !== null && t > toMs) return false;
+          return true;
+        });
       });
     }
     if (sortKey && sortDir) {
