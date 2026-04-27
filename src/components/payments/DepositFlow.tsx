@@ -389,16 +389,27 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           .maybeSingle();
         if (error) throw error;
         if (!data) {
-          toast.error('Deposit request not found');
-          onOpenChange(false);
+          // Row vanished between the matcher's lookup and our hydrate
+          // (deleted, RLS change). Try the keep-allocations fallback
+          // before closing so the agent doesn't lose their work.
+          if (!applyMatchFallback("Couldn't reopen that deposit")) {
+            toast.error('Deposit request not found');
+            onOpenChange(false);
+          }
           return;
         }
         if (data.status !== 'pending') {
-          toast.error('This deposit is already under review and can no longer be edited');
-          onOpenChange(false);
+          if (!applyMatchFallback('That deposit is already under review')) {
+            toast.error('This deposit is already under review and can no longer be edited');
+            onOpenChange(false);
+          }
           return;
         }
         if (cancelled) return;
+
+        // Hydrate succeeded — discard the fallback bookkeeping.
+        pendingMatchFallbackRef.current = null;
+        preEditSnapshotRef.current = null;
 
         // Channel + provider — derive from stored `provider` enum
         const prov = String(data.provider || '');
@@ -465,8 +476,10 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         }
       } catch (err: any) {
         console.error('[DepositFlow] edit hydrate failed', err);
-        toast.error('Could not load deposit for editing', { description: err?.message });
-        onOpenChange(false);
+        if (!applyMatchFallback("Couldn't load that deposit")) {
+          toast.error('Could not load deposit for editing', { description: err?.message });
+          onOpenChange(false);
+        }
       } finally {
         if (!cancelled) setEditLoading(false);
       }
