@@ -818,6 +818,7 @@ Deno.serve(async (req) => {
               }
             }
           }
+          } // end if (!isFloatDeposit) — float deposits skip auto-apply
 
           // ── Notification ──
           const repaymentNote = repaymentApplied > 0
