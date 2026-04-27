@@ -37,7 +37,7 @@ export function WalletCard() {
   // mirrors what wallet-deduction enforces server-side, so the user only
   // ever sees a figure they can actually move. Avoids the confusing
   // "Insufficient ledger balance" error after a withdraw attempt.
-  const { available, hasDrift, refresh: refreshAvailable } = useAvailableBalance(user?.id);
+  const { available, refresh: refreshAvailable } = useAvailableBalance(user?.id);
   const [sendOpen, setSendOpen] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
