@@ -394,6 +394,15 @@ function AwaitingBatchRow({ batch, onOpenWizard, onProofSubmitted }: AwaitingBat
   );
   const isOverdue = batchAge >= 24;
 
+  /* Status-driven UI gating */
+  const isAwaiting = batch.status === 'awaiting_proof';
+  const isPending = batch.status === 'pending_finops_verification';
+  const isVerified = batch.status === 'verified';
+  const isRejected = batch.status === 'rejected';
+  const canEditAmount = isAwaiting;
+  const canAddProof = isAwaiting;
+  const status = getStatusBadge(batch.status);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
@@ -482,13 +491,30 @@ function AwaitingBatchRow({ batch, onOpenWizard, onProofSubmitted }: AwaitingBat
               <p className="text-sm font-semibold truncate">
                 {channelLabel(batch.channel)}
               </p>
+              {/* Status pill — always visible so the agent can see proof has landed */}
+              <p className="mt-1 flex flex-wrap items-center gap-1">
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider border',
+                    status.cls,
+                  )}
+                >
+                  <status.Icon className="h-2.5 w-2.5" />
+                  {status.label}
+                </span>
+                {batch.proof_reference && (isPending || isVerified) && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-background/70 border border-border px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground max-w-[140px] truncate">
+                    {batch.proof_reference.startsWith('RECEIPT-') ? '📷 Receipt' : `Ref ${batch.proof_reference}`}
+                  </span>
+                )}
+              </p>
               <p className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
                 <Clock className="h-2.5 w-2.5" />
                 {formatDateTime(batch.created_at)}
                 {batchAge > 0 && (
                   <>
                     <span className="opacity-50">·</span>
-                    <span className={cn(isOverdue && 'text-destructive font-semibold')}>
+                    <span className={cn(isOverdue && isAwaiting && 'text-destructive font-semibold')}>
                       {batchAge}h old
                     </span>
                   </>
@@ -501,7 +527,7 @@ function AwaitingBatchRow({ batch, onOpenWizard, onProofSubmitted }: AwaitingBat
 
           {/* Editable banked amount */}
           <div className="text-right shrink-0">
-            {editingAmount ? (
+            {editingAmount && canEditAmount ? (
               <div className="flex items-center gap-1">
                 <input
                   type="text"
@@ -541,23 +567,35 @@ function AwaitingBatchRow({ batch, onOpenWizard, onProofSubmitted }: AwaitingBat
               </div>
             ) : (
               <>
-                <button
-                  type="button"
-                  onClick={() => { hapticTap(); setEditingAmount(true); }}
-                  className="inline-flex items-center gap-1 text-sm font-bold hover:text-primary transition-colors"
-                  title="Edit banked amount"
-                >
-                  {formatUGX(Number(batch.declared_total))}
-                  <Pencil className="h-3 w-3 opacity-60" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { hapticTap(); setOpen(v => !v); }}
-                  className="block text-[9px] uppercase tracking-wider text-destructive font-semibold flex items-center justify-end gap-0.5 ml-auto"
-                >
-                  {open ? 'Close' : 'Add proof'}
-                  <ChevronDown className={cn('h-3 w-3 transition-transform', open && 'rotate-180')} />
-                </button>
+                {canEditAmount ? (
+                  <button
+                    type="button"
+                    onClick={() => { hapticTap(); setEditingAmount(true); }}
+                    className="inline-flex items-center gap-1 text-sm font-bold hover:text-primary transition-colors"
+                    title="Edit banked amount"
+                  >
+                    {formatUGX(Number(batch.declared_total))}
+                    <Pencil className="h-3 w-3 opacity-60" />
+                  </button>
+                ) : (
+                  <p className="text-sm font-bold">{formatUGX(Number(batch.declared_total))}</p>
+                )}
+                {canAddProof ? (
+                  <button
+                    type="button"
+                    onClick={() => { hapticTap(); setOpen(v => !v); }}
+                    className="block text-[9px] uppercase tracking-wider text-destructive font-semibold flex items-center justify-end gap-0.5 ml-auto"
+                  >
+                    {open ? 'Close' : 'Add proof'}
+                    <ChevronDown className={cn('h-3 w-3 transition-transform', open && 'rotate-180')} />
+                  </button>
+                ) : (
+                  <p className={cn('text-[9px] uppercase tracking-wider font-semibold', status.textCls)}>
+                    {isPending && 'Awaiting Finance'}
+                    {isVerified && 'Float credited'}
+                    {isRejected && 'See Finance note'}
+                  </p>
+                )}
               </>
             )}
           </div>
@@ -583,7 +621,7 @@ function AwaitingBatchRow({ batch, onOpenWizard, onProofSubmitted }: AwaitingBat
         )}
 
         {/* Inline proof form */}
-        {open && (
+        {open && canAddProof && (
           <form onSubmit={handleSubmit} className="mt-3 ml-11 space-y-2.5">
             <div className="space-y-1">
               <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
