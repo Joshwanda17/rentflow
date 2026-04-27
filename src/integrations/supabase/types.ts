@@ -13389,6 +13389,7 @@ export type Database = {
         }[]
       }
       get_trust_coverage_stats: { Args: never; Returns: Json }
+      get_user_available_balance: { Args: { _user_id: string }; Returns: Json }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
