@@ -114,6 +114,33 @@ export default function DepositReferenceMatcher({
   const [phase, setPhase] = useState<'idle' | 'no-match' | 'collections'>('idle');
   const [collections, setCollections] = useState<CollectionRow[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [autoApplied, setAutoApplied] = useState(false);
+  const lastSearchedRef = useRef<string>('');
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const triedClipboardRef = useRef(false);
+
+  // On mount: opportunistically peek at the clipboard. Many agents paste
+  // straight from their MoMo SMS, so this saves a tap. Silent failure —
+  // if permission is denied we just leave the input empty.
+  useEffect(() => {
+    if (triedClipboardRef.current) return;
+    triedClipboardRef.current = true;
+    (async () => {
+      try {
+        if (!navigator.clipboard?.readText) return;
+        const text = await navigator.clipboard.readText();
+        if (!text || reference) return;
+        const m =
+          text.match(/\bMP\d{6,16}\b/i) ??
+          text.match(/\bTID\d{4,18}\b/i) ??
+          text.match(/\bFT[A-Z0-9]{6,18}\b/i);
+        if (m) setReference(m[0].toUpperCase());
+      } catch {
+        // Permission denied — agent will paste manually.
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handlePaste = async () => {
     try {
