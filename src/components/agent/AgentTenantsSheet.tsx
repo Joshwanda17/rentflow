@@ -707,7 +707,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-sm font-bold ${
                         hasDebt ? 'bg-destructive/10 text-destructive' : 'bg-success/10 text-success'
                       }`}>
-                        {tenant.full_name.charAt(0).toUpperCase()}
+                        {(tenant.full_name?.trim()?.charAt(0) || tenant.phone?.charAt(0) || '?').toUpperCase()}
                       </div>
 
                       {/* Name + phone + progress */}
@@ -715,7 +715,13 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                         <p
                           className="font-semibold text-base truncate text-primary underline underline-offset-2 cursor-pointer"
                           onClick={(e) => { e.stopPropagation(); setProfileTenantId(tenant.id); }}
-                        ><Highlight text={tenant.full_name} query={search} /></p>
+                        >
+                          {tenant.full_name && tenant.full_name.trim() ? (
+                            <Highlight text={tenant.full_name.trim()} query={search} />
+                          ) : (
+                            <span className="text-muted-foreground italic">Unnamed tenant</span>
+                          )}
+                        </p>
                         <p className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
                           <Phone className="h-3 w-3" />
                           <Highlight text={tenant.phone} query={search} />
