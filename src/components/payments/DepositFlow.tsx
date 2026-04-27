@@ -1240,6 +1240,21 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                     allocations={tenantAllocations}
                     onChange={setTenantAllocations}
                   />
+                  {/*
+                    Edit-mode diff panel — surfaces the original
+                    per-tenant amounts (as captured when the dialog
+                    opened) next to the in-progress edits, so the agent
+                    can eyeball every change before saving. Hidden for
+                    fresh deposits and when nothing has actually moved.
+                  */}
+                  {isEditMode && (
+                    <AllocationEditDiffPanel
+                      original={originalAllocations}
+                      updated={tenantAllocations}
+                      originalAmount={originalAmount}
+                      updatedAmount={parseFloat(amount) || 0}
+                    />
+                  )}
                   {(() => {
                     const total = parseFloat(amount) || 0;
                     const sum = tenantAllocations.reduce((s, a) => s + (a.amount || 0), 0);
