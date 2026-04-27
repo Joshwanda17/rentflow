@@ -699,7 +699,12 @@ export function TidVerification() {
       const numericPortion = trimmedTid.replace(/[^0-9]/g, '');
 
       // Step 1: Search pending deposits with matching TID (two-pass: exact + numeric fallback)
-      const [exactResult, numericResult] = await Promise.all([
+      // We also widen the search to match the same token inside `notes`
+      // so an op-float deposit that was reconciled via the agent's
+      // "Collect from receipt/reference" flow can be approved here using
+      // either the auto-matched TID or the original receipt text the
+      // agent originally pasted.
+      const [exactResult, numericResult, notesResult] = await Promise.all([
         supabase
           .from('deposit_requests')
           .select('*')
@@ -714,14 +719,30 @@ export function TidVerification() {
               .ilike('transaction_id', `%${numericPortion}%`)
               .limit(20)
           : Promise.resolve({ data: [] as any[], error: null }),
+        supabase
+          .from('deposit_requests')
+          .select('*')
+          .eq('status', 'pending')
+          .ilike('notes', `%${trimmedTid}%`)
+          .limit(20),
       ]);
 
       if (exactResult.error) throw exactResult.error;
       if (numericResult.error) throw numericResult.error;
+      if (notesResult.error) throw notesResult.error;
 
-      // Merge and deduplicate by id
+      // Merge and deduplicate by id, remembering which channel produced
+      // each row so we can show a "matched via receipt note" badge.
+      const tidIds = new Set<string>([
+        ...(exactResult.data || []).map((d: any) => d.id),
+        ...(numericResult.data || []).map((d: any) => d.id),
+      ]);
       const seen = new Set<string>();
-      const deposits = [...(exactResult.data || []), ...(numericResult.data || [])].filter(d => {
+      const deposits = [
+        ...(exactResult.data || []),
+        ...(numericResult.data || []),
+        ...(notesResult.data || []),
+      ].filter((d) => {
         if (seen.has(d.id)) return false;
         seen.add(d.id);
         return true;
@@ -739,6 +760,10 @@ export function TidVerification() {
         const results: MatchResult[] = deposits.map(d => {
           const profile = pm.get(d.user_id);
           const amountMatches = Math.abs(d.amount - parsedAmount) < 1;
+          // Decode the per-tenant allocations the agent submitted so
+          // operators can verify the breakdown before clicking Approve.
+          const isOpFloat = d.deposit_purpose === 'operational_float';
+          const decoded = isOpFloat ? decodeAllocationsFromNote(d.notes) : null;
           return {
             id: d.id, user_id: d.user_id, amount: d.amount,
             transaction_id: d.transaction_id, provider: d.provider,
@@ -746,6 +771,9 @@ export function TidVerification() {
             userName: profile?.full_name || 'Unknown',
             userPhone: profile?.phone || '',
             status: amountMatches ? 'matched' : 'amount_mismatch',
+            deposit_purpose: d.deposit_purpose ?? null,
+            allocations: decoded?.allocations ?? null,
+            matchedVia: tidIds.has(d.id) ? 'tid' : 'notes',
           };
         });
 
