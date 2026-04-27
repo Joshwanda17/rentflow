@@ -603,6 +603,8 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     setShowPurposeGrid(!lockPurpose);
     setBankSlipFile(null);
     setTenantAllocations([]);
+    setOriginalAllocations([]);
+    setOriginalAmount(null);
     setMatchedEditId(null);
     onOpenChange(false);
   };
