@@ -16,6 +16,7 @@ import {
   type UnbatchedFieldCollection,
   type BatchItemDetail,
   type BatchStatus,
+  type DepositChannel,
   channelLabel,
 } from '@/lib/fieldDepositBatches';
 import { FieldDepositWizardDialog } from '@/components/agent/FieldDepositWizardDialog';
@@ -416,6 +417,47 @@ function getStatusBadge(status: BatchStatus): {
 /* Inline awaiting-batch row with quick-proof entry                        */
 /* ---------------------------------------------------------------------- */
 
+/**
+ * Per-channel reference format guidance. `pattern` is a SOFT validator —
+ * it only drives the inline warning chip and does NOT block submission,
+ * since real-world telco/bank reference formats drift over time.
+ */
+const CHANNEL_REF_HINT: Record<
+  DepositChannel,
+  { label: string; placeholder: string; example: string; pattern: RegExp; help: string }
+> = {
+  mtn: {
+    label: 'MTN MoMo Transaction ID',
+    placeholder: 'e.g. 12345678901 or MP240115.1530.A12345',
+    example: '12345678901',
+    // MTN: 10–14 digit txn ID, or alphanumeric MP-style reference
+    pattern: /^([0-9]{10,14}|MP[0-9]{6}\.[0-9]{4}\.[A-Z0-9]{5,8})$/i,
+    help: '10–14 digit Transaction ID from the MTN SMS, or full MP reference.',
+  },
+  airtel: {
+    label: 'Airtel Money Transaction ID',
+    placeholder: 'e.g. CI240115.1530.A12345 or 1234567890',
+    example: 'CI240115.1530.A12345',
+    pattern: /^([0-9]{10,14}|[A-Z]{2}[0-9]{6}\.[0-9]{4}\.[A-Z0-9]{5,8})$/i,
+    help: '10–14 digit ID from the Airtel SMS, or full CI reference.',
+  },
+  bank: {
+    label: 'Bank deposit slip / reference',
+    placeholder: 'e.g. EQB-9988-7766 or slip number',
+    example: 'EQB-9988-7766',
+    // Bank: alphanumeric + dashes/slashes, 6–24 chars
+    pattern: /^[A-Z0-9][A-Z0-9\-/]{4,22}[A-Z0-9]$/i,
+    help: 'Slip / reference printed on the bank deposit receipt (letters, digits, dashes).',
+  },
+  cash_merchant: {
+    label: 'Cash agent receipt number',
+    placeholder: 'e.g. RCPT-2024-00123',
+    example: 'RCPT-2024-00123',
+    pattern: /^[A-Z0-9][A-Z0-9\-/]{3,22}[A-Z0-9]$/i,
+    help: 'Receipt number printed on the cash agent slip.',
+  },
+};
+
 interface AwaitingBatchRowProps {
   batch: AwaitingBatchWithItems;
   /** Open the full wizard (fallback for users who want all options). */
@@ -706,21 +748,75 @@ function AwaitingBatchRow({ batch, onOpenWizard, onProofSubmitted }: AwaitingBat
         {/* Inline proof form */}
         {open && canAddProof && (
           <form onSubmit={handleSubmit} className="mt-3 ml-11 space-y-2.5">
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
-                Transaction ID / bank reference
-              </label>
-              <input
-                type="text"
-                value={reference}
-                onChange={(e) => setReference(e.target.value)}
-                placeholder="e.g. MTN12345ABC, EQB-9988…"
-                className="w-full h-10 px-3 rounded-lg border border-border bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary"
-                disabled={submitting}
-                inputMode="text"
-                autoComplete="off"
-              />
-            </div>
+            {(() => {
+              const hint = CHANNEL_REF_HINT[batch.channel];
+              const trimmed = reference.trim();
+              const hasInput = trimmed.length > 0;
+              const isValidShape = hasInput && hint.pattern.test(trimmed);
+              const isTooShort = hasInput && trimmed.length < 4;
+              return (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      {hint.label}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => { hapticTap(); setReference(hint.example); }}
+                      disabled={submitting}
+                      className="text-[10px] font-medium text-primary hover:underline disabled:opacity-50"
+                      title="Fill the example format"
+                    >
+                      Use example
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={reference}
+                    onChange={(e) => setReference(e.target.value)}
+                    placeholder={hint.placeholder}
+                    className={cn(
+                      'w-full h-10 px-3 rounded-lg border bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary transition-colors',
+                      hasInput && isValidShape && 'border-success/60',
+                      hasInput && !isValidShape && !isTooShort && 'border-warning/60',
+                      !hasInput && 'border-border',
+                    )}
+                    disabled={submitting}
+                    inputMode="text"
+                    autoComplete="off"
+                    spellCheck={false}
+                    aria-describedby={`ref-hint-${batch.id}`}
+                  />
+                  <div
+                    id={`ref-hint-${batch.id}`}
+                    className="flex items-start gap-1.5 text-[10px] leading-snug"
+                  >
+                    {!hasInput && (
+                      <span className="text-muted-foreground">{hint.help}</span>
+                    )}
+                    {hasInput && isTooShort && (
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3 text-warning" />
+                        Too short — most {channelLabel(batch.channel)} references are 8+ chars.
+                      </span>
+                    )}
+                    {hasInput && !isTooShort && isValidShape && (
+                      <span className="text-success flex items-center gap-1 font-medium">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Looks like a valid {channelLabel(batch.channel)} reference.
+                      </span>
+                    )}
+                    {hasInput && !isTooShort && !isValidShape && (
+                      <span className="text-warning flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        Format unusual — double-check, then submit. Expected like{' '}
+                        <span className="font-mono font-semibold">{hint.example}</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="space-y-1">
               <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
