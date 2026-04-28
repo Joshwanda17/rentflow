@@ -153,6 +153,7 @@ const AngelPoolAgreement = lazy(() => import('./pages/AngelPoolAgreement'));
 const AgentCommissionBenefits = lazy(() => import('./pages/AgentCommissionBenefits'));
 const Internship = lazy(() => import('./pages/Internship'));
 const HolisticProfile = lazy(() => import('./pages/HolisticProfile'));
+const FunderOnboarding = lazy(() => import('./pages/FunderOnboarding'));
 
 // Detect iOS standalone mode for cache settings
 const isIOSStandalone = (() => {
