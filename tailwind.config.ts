@@ -160,6 +160,7 @@ export default {
         "slide-in-right": "slide-in-right 0.2s ease-out",
         "slide-up": "slide-up 0.25s ease-out",
         "shake": "shake 0.5s ease-in-out",
+        "blink": "blink 1s steps(2, start) infinite",
       },
       transitionDuration: {
         DEFAULT: '150ms',
