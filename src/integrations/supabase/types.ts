@@ -13232,6 +13232,14 @@ export type Database = {
           tenant_phone: string
         }[]
       }
+      get_funder_approval_status: {
+        Args: { _user_id: string }
+        Returns: {
+          approved_at: string
+          rejection_reason: string
+          status: string
+        }[]
+      }
       get_ledger_balance: { Args: { p_user_id: string }; Returns: number }
       get_ledger_integrity_checks: { Args: never; Returns: Json }
       get_ledger_summary: {
@@ -13429,6 +13437,7 @@ export type Database = {
         Returns: boolean
       }
       is_financial_ops_staff: { Args: { p_user: string }; Returns: boolean }
+      is_funder_approved: { Args: { _user_id: string }; Returns: boolean }
       is_parent_agent: { Args: { _agent_id: string }; Returns: boolean }
       is_proxy_for: {
         Args: { _agent_id: string; _beneficiary_id: string }
