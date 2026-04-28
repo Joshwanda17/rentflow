@@ -56,6 +56,9 @@ export function TenantOpsDashboard() {
   const [activeView, setActiveView] = useState<ActiveView>('overview');
   const queryClient = useQueryClient();
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; tenantId: string; tenantName: string }>({ open: false, tenantId: '', tenantName: '' });
+  const [selectedTenantIds, setSelectedTenantIds] = useState<string[]>([]);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<{ id: string; name: string } | null>(null);
   const [overviewFilter, setOverviewFilter] = useState<string | undefined>(undefined);
@@ -223,6 +226,33 @@ export function TenantOpsDashboard() {
       toast.error(err.message || 'Failed to delete tenant');
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedTenantIds.length === 0) return;
+    setBulkDeleting(true);
+    let success = 0;
+    let failed = 0;
+    const failures: string[] = [];
+    for (const id of selectedTenantIds) {
+      try {
+        const { error } = await supabase.functions.invoke('delete-user', { body: { user_id: id } });
+        if (error) throw error;
+        success += 1;
+      } catch (err: any) {
+        failed += 1;
+        failures.push(err?.message || id);
+      }
+    }
+    setBulkDeleting(false);
+    setBulkDeleteOpen(false);
+    setSelectedTenantIds([]);
+    queryClient.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
+    if (failed === 0) {
+      toast.success(`Deleted ${success} tenant${success === 1 ? '' : 's'}`);
+    } else {
+      toast.error(`Deleted ${success}, failed ${failed}. ${failures[0] || ''}`);
     }
   };
 
@@ -454,6 +484,20 @@ export function TenantOpsDashboard() {
             columns={columns}
             loading={isLoading}
             title="All Requests"
+            getRowId={(r: any) => String(r.tenant_id || r.id)}
+            selectedIds={selectedTenantIds}
+            onSelectionChange={setSelectedTenantIds}
+            bulkActions={(ids) => (
+              <Button
+                variant="destructive"
+                size="sm"
+                className="h-8 gap-1.5"
+                onClick={() => setBulkDeleteOpen(true)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete {ids.length}
+              </Button>
+            )}
             filters={[{
               key: 'status',
               label: 'Status',
@@ -710,6 +754,34 @@ export function TenantOpsDashboard() {
                 <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Deleting...</>
               ) : (
                 <><Trash2 className="h-4 w-4 mr-2" />Delete Tenant</>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete Confirmation */}
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={(open) => !open && !bulkDeleting && setBulkDeleteOpen(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedTenantIds.length} tenant{selectedTenantIds.length === 1 ? '' : 's'}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete <strong>{selectedTenantIds.length}</strong> selected tenant{selectedTenantIds.length === 1 ? '' : 's'} and all related records (rent requests, profile, roles). This action cannot be undone.
+              <br /><br />
+              <span className="text-destructive font-medium">Tenants with ledger history will fail individually — those records cannot be deleted to preserve audit integrity.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              disabled={bulkDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkDeleting ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Deleting…</>
+              ) : (
+                <><Trash2 className="h-4 w-4 mr-2" />Delete {selectedTenantIds.length}</>
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

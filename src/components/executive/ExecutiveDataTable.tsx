@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 // jsPDF loaded dynamically when needed
@@ -27,6 +28,14 @@ interface ExecutiveDataTableProps<T> {
   title?: string;
   loading?: boolean;
   limit?: number;
+  /** Stable id getter for selection. When provided, enables row checkboxes. */
+  getRowId?: (row: T) => string;
+  /** Currently selected row ids. */
+  selectedIds?: string[];
+  /** Called when selection changes. */
+  onSelectionChange?: (ids: string[]) => void;
+  /** Optional toolbar element rendered when at least one row is selected. */
+  bulkActions?: (selectedIds: string[]) => React.ReactNode;
 }
 
 export function ExecutiveDataTable<T extends Record<string, any>>({
@@ -36,11 +45,18 @@ export function ExecutiveDataTable<T extends Record<string, any>>({
   title,
   loading,
   limit = 15,
+  getRowId,
+  selectedIds,
+  onSelectionChange,
+  bulkActions,
 }: ExecutiveDataTableProps<T>) {
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
+
+  const selectionEnabled = !!getRowId && !!onSelectionChange;
+  const selectedSet = useMemo(() => new Set(selectedIds || []), [selectedIds]);
 
   const filtered = useMemo(() => {
     let result = [...data];
@@ -80,6 +96,32 @@ export function ExecutiveDataTable<T extends Record<string, any>>({
 
     return result.slice(0, limit);
   }, [data, search, sortKey, sortDir, activeFilters, columns, limit]);
+
+  const visibleIds = useMemo(
+    () => (selectionEnabled ? filtered.map((r) => getRowId!(r)) : []),
+    [filtered, selectionEnabled, getRowId],
+  );
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedSet.has(id));
+  const someVisibleSelected = !allVisibleSelected && visibleIds.some((id) => selectedSet.has(id));
+
+  const toggleAll = () => {
+    if (!selectionEnabled) return;
+    if (allVisibleSelected) {
+      const remaining = (selectedIds || []).filter((id) => !visibleIds.includes(id));
+      onSelectionChange!(remaining);
+    } else {
+      const merged = Array.from(new Set([...(selectedIds || []), ...visibleIds]));
+      onSelectionChange!(merged);
+    }
+  };
+
+  const toggleOne = (id: string) => {
+    if (!selectionEnabled) return;
+    const next = selectedSet.has(id)
+      ? (selectedIds || []).filter((x) => x !== id)
+      : [...(selectedIds || []), id];
+    onSelectionChange!(next);
+  };
 
   const handleSort = (key: string) => {
     if (sortKey === key) {
@@ -133,6 +175,25 @@ export function ExecutiveDataTable<T extends Record<string, any>>({
 
   return (
     <div className="space-y-3">
+      {/* Bulk action bar */}
+      {selectionEnabled && (selectedIds?.length || 0) > 0 && bulkActions && (
+        <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/20">
+          <span className="text-sm font-medium text-foreground">
+            {selectedIds!.length} selected
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8"
+              onClick={() => onSelectionChange!([])}
+            >
+              Clear
+            </Button>
+            {bulkActions(selectedIds!)}
+          </div>
+        </div>
+      )}
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
         <div className="relative flex-1 min-w-0">
@@ -177,12 +238,21 @@ export function ExecutiveDataTable<T extends Record<string, any>>({
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-muted/50 border-b border-border">
+                {selectionEnabled && (
+                  <th className="px-3 py-2.5 w-10 sticky left-0 bg-muted/50 z-10">
+                    <Checkbox
+                      checked={allVisibleSelected ? true : someVisibleSelected ? 'indeterminate' : false}
+                      onCheckedChange={toggleAll}
+                      aria-label="Select all visible rows"
+                    />
+                  </th>
+                )}
                 {columns.map((col, i) => (
                   <th
                     key={col.key}
                     className={cn(
                       'px-3 py-2.5 text-left font-semibold text-muted-foreground whitespace-nowrap',
-                      i === 0 && 'sticky left-0 bg-muted/50 z-10',
+                      i === 0 && !selectionEnabled && 'sticky left-0 bg-muted/50 z-10',
                       col.sortable !== false && 'cursor-pointer select-none hover:text-foreground',
                       col.className
                     )}
@@ -206,6 +276,7 @@ export function ExecutiveDataTable<T extends Record<string, any>>({
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="border-b border-border">
+                    {selectionEnabled && <td className="px-3 py-3 w-10" />}
                     {columns.map((col) => (
                       <td key={col.key} className="px-3 py-3">
                         <div className="h-4 w-20 bg-muted animate-pulse rounded" />
@@ -215,19 +286,38 @@ export function ExecutiveDataTable<T extends Record<string, any>>({
                 ))
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={columns.length} className="px-3 py-8 text-center text-muted-foreground">
+                  <td colSpan={columns.length + (selectionEnabled ? 1 : 0)} className="px-3 py-8 text-center text-muted-foreground">
                     No records found
                   </td>
                 </tr>
               ) : (
-                filtered.map((row, ri) => (
-                  <tr key={ri} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                filtered.map((row, ri) => {
+                  const rowId = selectionEnabled ? getRowId!(row) : '';
+                  const isSelected = selectionEnabled && selectedSet.has(rowId);
+                  return (
+                  <tr
+                    key={ri}
+                    className={cn(
+                      'border-b border-border last:border-0 hover:bg-muted/30 transition-colors',
+                      isSelected && 'bg-primary/5',
+                    )}
+                  >
+                    {selectionEnabled && (
+                      <td className="px-3 py-2.5 w-10 sticky left-0 bg-background z-10">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleOne(rowId)}
+                          aria-label="Select row"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </td>
+                    )}
                     {columns.map((col, ci) => (
                       <td
                         key={col.key}
                         className={cn(
                           'px-3 py-2.5 whitespace-nowrap',
-                          ci === 0 && 'sticky left-0 bg-background z-10 font-medium',
+                          ci === 0 && !selectionEnabled && 'sticky left-0 bg-background z-10 font-medium',
                           col.className
                         )}
                       >
@@ -235,7 +325,8 @@ export function ExecutiveDataTable<T extends Record<string, any>>({
                       </td>
                     ))}
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
