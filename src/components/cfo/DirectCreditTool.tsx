@@ -29,6 +29,7 @@ import { PayoutAutomationToggle } from './PayoutAutomationToggle';
 
 type Operation = 'credit' | 'debit';
 type FinancialImpact = 'expense' | 'revenue' | 'neutral';
+type RecipientType = 'user' | 'operational_wallet';
 
 interface SubCategory {
   id: string;
@@ -242,19 +243,11 @@ const IMPACT_CONFIG: Record<FinancialImpact, { label: string; color: string; ico
 // Map a wallet category to the wallet bucket it lands in, so the CFO knows
 // whether the user can actually withdraw the credited amount.
 type WalletBucket = 'withdrawable' | 'float' | 'advance';
-const WALLET_BUCKET_MAP: Record<string, WalletBucket> = {
-  roi_wallet_credit: 'withdrawable',
-  agent_commission_earned: 'withdrawable',
-  system_balance_correction: 'withdrawable',
-  wallet_transfer: 'withdrawable',
-  rent_disbursement: 'float',
-  marketing_expense: 'withdrawable',
-  research_development_expense: 'withdrawable',
-  general_admin_expense: 'withdrawable',
-  payroll_expense: 'withdrawable',
-  tax_expense: 'withdrawable',
-  interest_expense: 'withdrawable',
-  equipment_expense: 'withdrawable',
+
+// Wallet Routing v2: bucket is determined by recipient_type, NOT category.
+const RECIPIENT_BUCKET: Record<RecipientType, WalletBucket> = {
+  user: 'withdrawable',
+  operational_wallet: 'float',
 };
 const BUCKET_LABEL: Record<WalletBucket, { name: string; note: string; tone: string }> = {
   withdrawable: {
@@ -283,13 +276,9 @@ export function DirectCreditTool() {
   const [operation, setOperation] = useState<Operation>('credit');
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
   const [selectedSubCategoryId, setSelectedSubCategoryId] = useState('');
+  const [recipientType, setRecipientType] = useState<RecipientType | ''>('');
   const [automateEnabled, setAutomateEnabled] = useState(false);
   const [automateDay, setAutomateDay] = useState(1);
-  const [pendingNonCommissionConfirm, setPendingNonCommissionConfirm] = useState<{
-    message: string;
-    suggested_category: string;
-    chosen_category: string;
-  } | null>(null);
 
   const { data: rentQueueCount = 0 } = useQuery({
     queryKey: ['rent-disbursement-queue-count'],
