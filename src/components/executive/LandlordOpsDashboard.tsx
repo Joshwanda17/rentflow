@@ -232,6 +232,72 @@ export function LandlordOpsDashboard() {
   const [deleting, setDeleting] = useState(false);
   const [assignPerson, setAssignPerson] = useState<{ listingId: string; title: string; type: 'landlord' | 'agent' } | null>(null);
 
+  // ─── All Requests delete state (mirrors Tenant Ops UX) ───
+  const [allReqSelectedIds, setAllReqSelectedIds] = useState<string[]>([]);
+  const [allReqDeleteDialog, setAllReqDeleteDialog] = useState<{ open: boolean; requestId: string; tenantName: string }>({ open: false, requestId: '', tenantName: '' });
+  const [allReqBulkDeleteOpen, setAllReqBulkDeleteOpen] = useState(false);
+  const [allReqDeleting, setAllReqDeleting] = useState(false);
+
+  const handleDeleteOneRentRequest = async () => {
+    if (!allReqDeleteDialog.requestId) return;
+    setAllReqDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('rent_requests')
+        .delete()
+        .eq('id', allReqDeleteDialog.requestId);
+      if (error) throw error;
+      await supabase.from('audit_logs').insert({
+        user_id: user?.id,
+        action_type: 'delete_rent_request_landlord_ops',
+        table_name: 'rent_requests',
+        record_id: allReqDeleteDialog.requestId,
+        metadata: {
+          reason: 'Deleted from Landlord Ops All Requests view',
+          tenant_name: allReqDeleteDialog.tenantName,
+        },
+      });
+      sonnerToast.success(`Request for "${allReqDeleteDialog.tenantName}" deleted`);
+      setAllReqDeleteDialog({ open: false, requestId: '', tenantName: '' });
+      queryClient.invalidateQueries({ queryKey: ['exec-landlord-ops-all-requests'] });
+    } catch (e: any) {
+      sonnerToast.error(e?.message || 'Failed to delete rent request');
+    } finally {
+      setAllReqDeleting(false);
+    }
+  };
+
+  const handleBulkDeleteRentRequests = async () => {
+    if (allReqSelectedIds.length === 0) return;
+    setAllReqDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('rent_requests')
+        .delete()
+        .in('id', allReqSelectedIds);
+      if (error) throw error;
+      await supabase.from('audit_logs').insert({
+        user_id: user?.id,
+        action_type: 'delete_rent_request_landlord_ops',
+        table_name: 'rent_requests',
+        record_id: allReqSelectedIds[0],
+        metadata: {
+          reason: 'Bulk deleted from Landlord Ops All Requests view',
+          deleted_ids: allReqSelectedIds,
+          deleted_count: allReqSelectedIds.length,
+        },
+      });
+      sonnerToast.success(`${allReqSelectedIds.length} request${allReqSelectedIds.length === 1 ? '' : 's'} deleted`);
+      setAllReqSelectedIds([]);
+      setAllReqBulkDeleteOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['exec-landlord-ops-all-requests'] });
+    } catch (e: any) {
+      sonnerToast.error(e?.message || 'Failed to bulk delete rent requests');
+    } finally {
+      setAllReqDeleting(false);
+    }
+  };
+
   const handleAssignPerson = (listingId: string, title: string, type: 'landlord' | 'agent') => {
     setAssignPerson({ listingId, title, type });
   };
