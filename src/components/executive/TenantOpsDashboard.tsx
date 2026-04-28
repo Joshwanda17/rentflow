@@ -69,14 +69,20 @@ export function TenantOpsDashboard() {
   const handlePrintReport = async () => {
     setPrintingPdf(true);
     try {
-      // Date window — payments collected in this period
-      const fromIso = reportFrom ? reportFrom.toISOString() : null;
-      const toIso = (() => {
-        if (!reportTo) return null;
-        const end = new Date(reportTo);
-        end.setHours(23, 59, 59, 999);
-        return end.toISOString();
-      })();
+      // Date window — payments collected in this period.
+      // Normalize both ends to LOCAL midnight / end-of-day so the user
+      // gets exactly the calendar days they picked (no UTC drift).
+      let fromDate = reportFrom ? new Date(reportFrom) : null;
+      let toDate = reportTo ? new Date(reportTo) : null;
+      // Defensive swap if user inverted the range.
+      if (fromDate && toDate && fromDate.getTime() > toDate.getTime()) {
+        const tmp = fromDate; fromDate = toDate; toDate = tmp;
+        toast('Date range was reversed — swapped automatically.', { icon: '↔️' });
+      }
+      if (fromDate) fromDate.setHours(0, 0, 0, 0);
+      if (toDate) toDate.setHours(23, 59, 59, 999);
+      const fromIso = fromDate ? fromDate.toISOString() : null;
+      const toIso = toDate ? toDate.toISOString() : null;
 
       // 1. Pull tenant payments from the ledger (source of truth)
       let ledgerQ = supabase
@@ -105,10 +111,12 @@ export function TenantOpsDashboard() {
 
       // 3. Tenant + agent profile lookups
       const tenantIds = [...new Set(payments.map(p => p.user_id).filter(Boolean) as string[])];
-      // Also fetch rent_requests so we can fall back to the assigned agent when no agent_collection exists
-      const [tenantRes, rentReqRes] = await Promise.all([
+      // Also fetch rent_requests (assigned agent fallback) AND profiles.referrer_id
+      // (onboarding agent fallback). Outstanding now comes from the ledger so
+      // it's accurate even for tenants without a rent_request row.
+      const [tenantRes, rentReqRes, ledgerLifetimeRes] = await Promise.all([
         tenantIds.length
-          ? supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds)
+          ? supabase.from('profiles').select('id, full_name, phone, referrer_id').in('id', tenantIds)
           : Promise.resolve({ data: [] as any[] }),
         tenantIds.length
           ? supabase.from('rent_requests')
@@ -116,24 +124,64 @@ export function TenantOpsDashboard() {
               .in('tenant_id', tenantIds)
               .in('status', ['funded', 'disbursed', 'repaying', 'fully_repaid', 'defaulted'])
           : Promise.resolve({ data: [] as any[] }),
+        tenantIds.length
+          ? supabase.from('general_ledger')
+              .select('user_id, category, direction, amount')
+              .in('user_id', tenantIds)
+              .in('category', ['rent_obligation', 'tenant_repayment', 'rent_repayment'])
+          : Promise.resolve({ data: [] as any[] }),
       ]);
       const tenantMap = new Map((tenantRes.data || []).map((p: any) => [p.id, p]));
 
-      // Lifetime outstanding + assigned agent fallback per tenant
+      // Assigned-agent fallback per tenant (from rent_requests).
       const outstandingByTenant = new Map<string, number>();
       const assignedAgentByTenant = new Map<string, string>();
       for (const r of (rentReqRes.data || [])) {
-        const out = Number(r.total_repayment || 0) - Number(r.amount_repaid || 0);
-        outstandingByTenant.set(r.tenant_id, (outstandingByTenant.get(r.tenant_id) || 0) + out);
         if (r.agent_id && !assignedAgentByTenant.has(r.tenant_id)) {
           assignedAgentByTenant.set(r.tenant_id, r.agent_id);
         }
       }
 
-      // Resolve agent profiles for BOTH collection-based agents and rent-request fallbacks
+      // Lifetime outstanding straight from the ledger (source of truth).
+      // outstanding = SUM(rent_obligation cash_out) − SUM(repayments cash_in).
+      // Negative results clamp to 0 (overpayment / credit).
+      for (const tid of tenantIds) outstandingByTenant.set(tid, 0);
+      for (const r of (ledgerLifetimeRes.data || []) as any[]) {
+        if (!r.user_id) continue;
+        const amt = Number(r.amount || 0);
+        const cur = outstandingByTenant.get(r.user_id) || 0;
+        if (r.category === 'rent_obligation' && r.direction === 'cash_out') {
+          outstandingByTenant.set(r.user_id, cur + amt);
+        } else if (r.direction === 'cash_in') {
+          outstandingByTenant.set(r.user_id, cur - amt);
+        }
+      }
+      for (const [k, v] of outstandingByTenant) {
+        if (v < 0) outstandingByTenant.set(k, 0);
+      }
+
+      // Referrer-as-agent fallback: only count referrers who actually hold the agent role.
+      const referrerIds = [...new Set(
+        (tenantRes.data || [])
+          .map((p: any) => p.referrer_id)
+          .filter((id: any) => !!id)
+      )] as string[];
+      const { data: agentRoleRows } = referrerIds.length
+        ? await supabase.from('user_roles').select('user_id').in('user_id', referrerIds).eq('role', 'agent')
+        : { data: [] as any[] };
+      const agentReferrerSet = new Set((agentRoleRows || []).map((r: any) => r.user_id));
+      const referrerAgentByTenant = new Map<string, string>();
+      for (const p of (tenantRes.data || []) as any[]) {
+        if (p.referrer_id && agentReferrerSet.has(p.referrer_id)) {
+          referrerAgentByTenant.set(p.id, p.referrer_id);
+        }
+      }
+
+      // Resolve agent profiles for collection-based, rent-request and referrer fallbacks
       const allAgentIds = [...new Set([
         ...((collections || []).map(c => c.agent_id).filter(Boolean) as string[]),
         ...Array.from(assignedAgentByTenant.values()),
+        ...Array.from(referrerAgentByTenant.values()),
       ])];
       const { data: agentProfiles } = allAgentIds.length
         ? await supabase.from('profiles').select('id, full_name').in('id', allAgentIds)
@@ -154,8 +202,14 @@ export function TenantOpsDashboard() {
         const collection = p.source_id ? collectionMap.get(p.source_id) : null;
         const collectingAgentId = collection?.agent_id;
         const isAgentCollection = !!collectingAgentId;
-        // Per-row attribution: actual collector if agent collection, else assigned agent on rent request
-        const attributedAgentId = collectingAgentId || assignedAgentByTenant.get(tenantId);
+        // Per-row attribution priority:
+        // 1. Actual collecting agent (agent_collections row)
+        // 2. Assigned agent on an active rent_request
+        // 3. Onboarding agent (profiles.referrer_id, role=agent)
+        const attributedAgentId =
+          collectingAgentId
+          || assignedAgentByTenant.get(tenantId)
+          || referrerAgentByTenant.get(tenantId);
         const agentName = attributedAgentId ? (agentMap.get(attributedAgentId)?.full_name || '—') : '—';
         const amt = Number(p.amount || 0);
 
@@ -189,11 +243,11 @@ export function TenantOpsDashboard() {
           paid_direct: t.paid_direct,
           paid_via_agent: t.paid_via_agent,
           outstanding: t.outstanding,
-          agent_name: t.agent_names.size === 0 ? '—' : Array.from(t.agent_names).join(', '),
+          agent_name: t.agent_names.size === 0 ? 'Direct (no agent)' : Array.from(t.agent_names).join(', '),
         }))
         .sort((a, b) => b.amount_paid - a.amount_paid);
 
-      const blob = generateTenantOpsReportPdf(rows, { from: reportFrom, to: reportTo });
+      const blob = generateTenantOpsReportPdf(rows, { from: fromDate, to: toDate });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

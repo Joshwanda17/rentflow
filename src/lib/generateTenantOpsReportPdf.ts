@@ -53,7 +53,7 @@ export function generateTenantOpsReportPdf(
   doc.setFontSize(8.5);
   doc.setTextColor(110, 110, 120);
   doc.text(
-    'All tenant payments in this period (direct + agent-collected). "Channel" shows how the money came in.',
+    'Tenants who paid in this period — with their agent (if any) and current outstanding balance.',
     margin,
     y,
   );
@@ -134,20 +134,22 @@ export function generateTenantOpsReportPdf(
   y += cardH + 7;
 
   // ===== Table =====
-  // # | Tenant | Agent | Channel | Paid | Outstanding
+  // # | Tenant (name + phone) | Channel | Agent | Paid | Outstanding
+  // Tenant column widened (now holds two lines), agent column shrunk and
+  // moved AFTER channel — tenant remains the focus, agent is supporting info.
   const wIdx = 8;
-  const wTenant = 48;
-  const wAgent = 38;
-  const wChannel = 22;
-  const wPaid = 36;
-  const wOut = contentWidth - wIdx - wTenant - wAgent - wChannel - wPaid;
+  const wTenant = 56;
+  const wChannel = 20;
+  const wAgent = 32;
+  const wPaid = 34;
+  const wOut = contentWidth - wIdx - wTenant - wChannel - wAgent - wPaid;
   let cx = margin;
   const cols = [
     { label: '#',                    x: cx,                w: wIdx,     align: 'left'  as const },
     { label: 'Tenant Name',          x: (cx += wIdx, cx),  w: wTenant,  align: 'left'  as const },
-    { label: 'Agent',                x: (cx += wTenant, cx), w: wAgent, align: 'left'  as const },
-    { label: 'Channel',              x: (cx += wAgent, cx), w: wChannel, align: 'left' as const },
-    { label: 'Paid in Period (UGX)', x: (cx += wChannel, cx), w: wPaid, align: 'right' as const },
+    { label: 'Channel',              x: (cx += wTenant, cx), w: wChannel, align: 'left' as const },
+    { label: 'Agent',                x: (cx += wChannel, cx), w: wAgent, align: 'left' as const },
+    { label: 'Paid in Period (UGX)', x: (cx += wAgent, cx), w: wPaid, align: 'right' as const },
     { label: 'Outstanding (UGX)',    x: (cx += wPaid, cx),  w: wOut,    align: 'right' as const },
   ];
 
@@ -166,7 +168,8 @@ export function generateTenantOpsReportPdf(
 
   drawTableHeader();
 
-  const rowH = 6.8;
+  // Slightly taller row to fit tenant name + phone subline.
+  const rowH = 9.5;
   const bottomLimit = pageHeight - 22;
 
   doc.setFont('helvetica', 'normal');
@@ -192,19 +195,25 @@ export function generateTenantOpsReportPdf(
     doc.setLineWidth(0.15);
     doc.line(margin, y + rowH, margin + contentWidth, y + rowH);
 
-    const baseline = y + rowH - 2.2;
+    // Two-line tenant cell: name on top, phone underneath.
+    const nameBaseline = y + 4.2;
+    const subBaseline = y + 7.6;
+    const baseline = y + rowH - 3.2;
 
     // # 
     doc.setTextColor(80, 85, 100);
-    doc.text(`${i + 1}`, cols[0].x + 2, baseline);
+    doc.text(`${i + 1}`, cols[0].x + 2, nameBaseline);
 
-    // Tenant name
+    // Tenant name + phone subline
     doc.setTextColor(15, 23, 42);
-    doc.text((t.tenant_name || '—').slice(0, 32), cols[1].x + 2, baseline);
-
-    // Agent
-    doc.setTextColor(80, 85, 100);
-    doc.text((t.agent_name || '—').slice(0, 22), cols[2].x + 2, baseline);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text((t.tenant_name || '—').slice(0, 36), cols[1].x + 2, nameBaseline);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(135, 138, 150);
+    doc.text((t.tenant_phone || '—').slice(0, 24), cols[1].x + 2, subBaseline);
+    doc.setFontSize(9);
 
     // Channel
     const direct = t.paid_direct || 0;
@@ -213,7 +222,11 @@ export function generateTenantOpsReportPdf(
     if (channel === 'Direct') doc.setTextColor(124, 58, 237);
     else if (channel === 'Agent') doc.setTextColor(22, 163, 74);
     else doc.setTextColor(80, 85, 100);
-    doc.text(channel, cols[3].x + 2, baseline);
+    doc.text(channel, cols[2].x + 2, baseline);
+
+    // Agent (de-emphasized)
+    doc.setTextColor(110, 115, 130);
+    doc.text((t.agent_name || '—').slice(0, 18), cols[3].x + 2, baseline);
 
     // Paid
     doc.setTextColor(15, 23, 42);
@@ -252,7 +265,12 @@ export function generateTenantOpsReportPdf(
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(8);
   doc.setTextColor(120, 122, 135);
-  doc.text('Note: "Paid in Period" = tenant payments recorded in the ledger within the date range. "Outstanding" is the tenant\'s current lifetime balance across all rent plans.', margin, y);
+  doc.text(
+    'One row per tenant. "Paid in Period" = ledger payments in the date range. "Outstanding" = lifetime rent obligation minus all repayments. "Agent" shows the field agent who collected or onboarded the tenant.',
+    margin,
+    y,
+    { maxWidth: contentWidth },
+  );
 
   // Page number footer
   const pageCount = (doc as any).internal.getNumberOfPages();
