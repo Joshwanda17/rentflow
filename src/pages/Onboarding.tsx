@@ -9,6 +9,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { signUp } from '@/hooks/auth/authOperations';
 import { useAuth as useRealAuth } from '@/hooks/useAuth';
+import { buildPartnerReference } from '@/lib/partnerReference';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 const useRouteRole = () => 'FUNDER';
@@ -25,7 +26,13 @@ const registerUser = async (payload: {
   const { error } = await signUp(payload.email, payload.password, fullName, payload.phone, 'supporter');
   if (error) throw error;
   // The auth state listener in useRealAuth will pick up the session automatically.
-  return { status: 'success', data: { access_token: '', user: { email: payload.email } } };
+  // Pull the freshly-created user (id needed for the deterministic partner reference).
+  let newUser: any = { email: payload.email };
+  try {
+    const { data: u } = await supabase.auth.getUser();
+    if (u?.user) newUser = u.user;
+  } catch { /* non-fatal */ }
+  return { status: 'success', data: { access_token: '', user: newUser } };
 };
 const useCurrency = () => ({ symbol: 'USh', code: 'UGX' });
 const formatCurrencyCompact = (val: number, currency: { symbol: string }) => {
@@ -760,7 +767,7 @@ export default function FunderOnboarding() {
         const cleanLast = sanitizeInput(form.lastName).trim();
         const cleanPhone = sanitizeInput(form.phone).trim();
 
-        await registerUser({
+        const signupResult = await registerUser({
           email: cleanEmail,
           password: form.password,
           firstName: cleanFirst,
@@ -771,7 +778,8 @@ export default function FunderOnboarding() {
 
         // Fire-and-forget the partner_account_created email — don't block the
         // success modal on email delivery.
-        const partnerReference = `WLP-${new Date().getFullYear()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+        const newUserId = signupResult?.data?.user?.id ?? '';
+        const partnerReference = buildPartnerReference(newUserId, new Date());
         supabase.functions
           .invoke('send-transactional-email', {
             body: {

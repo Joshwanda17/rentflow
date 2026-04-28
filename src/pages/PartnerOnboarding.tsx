@@ -23,6 +23,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
+import { buildPartnerReference } from '@/lib/partnerReference';
 
 type Status = 'pending' | 'approved' | 'rejected';
 
@@ -304,6 +305,7 @@ export default function FunderOnboarding() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="text-xs">Partner</TableHead>
+                    <TableHead className="text-xs hidden lg:table-cell">Reference</TableHead>
                     <TableHead className="text-xs hidden sm:table-cell">Phone</TableHead>
                     <TableHead className="text-xs hidden md:table-cell">Registered By</TableHead>
                     <TableHead className="text-xs">Status</TableHead>
@@ -315,6 +317,7 @@ export default function FunderOnboarding() {
                   {filtered.map((r) => {
                     const Meta = STATUS_META[r.approval_status];
                     const Icon = Meta.icon;
+                    const partnerRef = buildPartnerReference(r.beneficiary_id, r.created_at);
                     return (
                       <TableRow
                         key={r.id}
@@ -328,6 +331,14 @@ export default function FunderOnboarding() {
                           <p className="text-[10px] text-muted-foreground sm:hidden">
                             {r.beneficiary?.phone || '—'}
                           </p>
+                          <p className="text-[10px] font-mono text-muted-foreground lg:hidden">
+                            {partnerRef}
+                          </p>
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                            {partnerRef}
+                          </span>
                         </TableCell>
                         <TableCell className="hidden sm:table-cell text-xs">
                           {r.beneficiary?.phone || '—'}
@@ -385,6 +396,9 @@ export default function FunderOnboarding() {
                   {/* Partner identity */}
                   <div className="rounded-xl bg-muted/40 p-3 space-y-1">
                     <p className="text-base font-bold">{selected.beneficiary?.full_name || 'Unknown'}</p>
+                    <p className="text-[11px] font-mono text-muted-foreground">
+                      Ref: {buildPartnerReference(selected.beneficiary_id, selected.created_at)}
+                    </p>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                       <span className="inline-flex items-center gap-1">
                         <Phone className="h-3 w-3" />
