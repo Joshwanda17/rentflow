@@ -284,8 +284,26 @@ export function useWallet() {
         )
         .subscribe();
 
+      // Anti-drift: every 60s wipe ALL wallet_* localStorage entries (across
+      // versions and users) and refetch ledger-true balances. This guarantees
+      // a stale cached number can never persist for hours on long sessions.
+      const driftInterval = window.setInterval(() => {
+        try {
+          const keys: string[] = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('wallet_')) keys.push(k);
+          }
+          keys.forEach((k) => localStorage.removeItem(k));
+        } catch {}
+        // Bust module-level cache so the refetch is forced to hit the ledger
+        walletCache = null;
+        void fetchWallet(true);
+      }, 60_000);
+
       return () => {
         supabase.removeChannel(walletChannel);
+        window.clearInterval(driftInterval);
       };
     }
   }, [user, fetchWallet, fetchTransactions]);
