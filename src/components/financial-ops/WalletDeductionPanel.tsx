@@ -51,6 +51,30 @@ export function WalletDeductionPanel() {
   const [confirmStep, setConfirmStep] = useState(false);
   const queryClient = useQueryClient();
 
+  // Ledger-true available balance for the selected user (the figure the
+  // backend actually enforces). The cached wallet number can drift above
+  // ledger net due to debt / pending obligations — gating on that causes
+  // confusing "Insufficient ledger balance" errors at submit time.
+  const { data: availableBalance } = useQuery({
+    queryKey: ['deduction-available-balance', selectedUser?.id],
+    queryFn: async () => {
+      if (!selectedUser) return null;
+      const { data, error } = await supabase.rpc('get_user_available_balance', {
+        _user_id: selectedUser.id,
+      });
+      if (error) throw error;
+      const r = (data ?? {}) as Record<string, unknown>;
+      return Number(r.available ?? 0);
+    },
+    enabled: !!selectedUser,
+  });
+
+  // Show the lesser of (cached, ledger) so the operator can never type a
+  // figure the backend will reject.
+  const trueBalance = selectedUser
+    ? Math.min(selectedUser.balance, availableBalance ?? selectedUser.balance)
+    : 0;
+
   // Search users by name/phone
   const { data: searchResults, isFetching: searching } = useQuery({
     queryKey: ['deduction-user-search', searchQuery],
@@ -316,8 +340,13 @@ export function WalletDeductionPanel() {
             </div>
             <div className="flex items-center gap-2 mt-2">
               <Wallet className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm">Balance: <strong>{formatUGX(selectedUser.balance)}</strong></span>
+              <span className="text-sm">Available: <strong>{formatUGX(trueBalance)}</strong></span>
             </div>
+            {availableBalance !== undefined && availableBalance !== null && availableBalance < selectedUser.balance && (
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Cached wallet shows {formatUGX(selectedUser.balance)}, but ledger-true available is lower (debt / pending obligations).
+              </p>
+            )}
           </div>
 
           {/* Step 2: Amount & details */}
@@ -332,9 +361,9 @@ export function WalletDeductionPanel() {
                 min={1}
                 className="mt-1"
               />
-              {numAmount > selectedUser.balance && (
+              {numAmount > trueBalance && (
                 <p className="text-xs text-destructive mt-1 flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3" /> Exceeds wallet balance
+                  <AlertTriangle className="h-3 w-3" /> Exceeds available balance
                 </p>
               )}
             </div>
@@ -370,7 +399,7 @@ export function WalletDeductionPanel() {
             {!confirmStep ? (
               <Button
                 onClick={() => setConfirmStep(true)}
-                disabled={!isValid || numAmount > selectedUser.balance}
+                disabled={!isValid || numAmount > trueBalance}
                 className="w-full gap-2"
                 variant="destructive"
               >
@@ -388,7 +417,7 @@ export function WalletDeductionPanel() {
                   <p><span className="text-muted-foreground">Amount:</span> {formatUGX(numAmount)}</p>
                   <p><span className="text-muted-foreground">Category:</span> {DEDUCTION_CATEGORIES.find(c => c.value === category)?.label}</p>
                   <p><span className="text-muted-foreground">Reason:</span> {reason}</p>
-                  <p><span className="text-muted-foreground">New Balance:</span> {formatUGX(selectedUser.balance - numAmount)}</p>
+                  <p><span className="text-muted-foreground">New Available:</span> {formatUGX(trueBalance - numAmount)}</p>
                 </div>
                 <div className="flex gap-2">
                   <Button
