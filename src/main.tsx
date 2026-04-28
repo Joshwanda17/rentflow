@@ -105,8 +105,14 @@ const loadApp = async () => {
       const path = window.location.pathname;
       const dashboardRoutes = ['/', '/dashboard'];
       if (cached && dashboardRoutes.includes(path)) {
-        // Defer until idle so it never competes with the current route's chunks
-        const preload = () => { import('./pages/Dashboard').catch(() => {}); };
+        // Defer until idle so it never competes with the current route's chunks.
+        // Routed through the queue (via dynamic import of the helper) to respect
+        // the global concurrency limit on slow networks.
+        const preload = () => {
+          import('./lib/lazyWithRetry')
+            .then(({ queuedImport }) => queuedImport(() => import('./pages/Dashboard')))
+            .catch(() => {});
+        };
         if ('requestIdleCallback' in window) {
           (window as any).requestIdleCallback(preload, { timeout: 3000 });
         } else {
