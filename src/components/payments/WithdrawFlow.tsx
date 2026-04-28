@@ -385,7 +385,7 @@ export default function WithdrawFlow({
                         : 'Ready to withdraw'}
                     </p>
                   </div>
-                  <span className="font-bold text-lg">{formatCurrency(combinedAvailable, 'UGX')}</span>
+                  <span className="font-bold text-lg">{formatCurrency(trueAvailable, 'UGX')}</span>
                 </div>
               </Card>
               
