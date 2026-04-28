@@ -782,7 +782,7 @@ export default function FunderOnboarding() {
       <Toaster position="top-center" />
 
       {/* LEFT COLUMN (HERO IMAGE) */}
-      <div className="hidden md:flex md:w-1/2 relative bg-slate-900 overflow-hidden items-center justify-center">
+      <div className="hidden lg:flex lg:w-1/2 h-screen relative bg-slate-900 overflow-hidden items-center justify-center">
         <div className="absolute inset-0 bg-black/30 z-10 mix-blend-multiply" />
         <img
           src="/agent-hero.jpeg"
@@ -797,7 +797,7 @@ export default function FunderOnboarding() {
       </div>
 
       {/* RIGHT COLUMN (WIZARD) */}
-      <div className="w-full md:w-1/2 flex flex-col h-screen overflow-hidden shadow-2xl z-20 bg-[#FAFAFA]">
+      <div className="w-full lg:w-1/2 flex flex-col h-screen overflow-hidden shadow-2xl z-20 bg-[#FAFAFA]">
         <div className="bg-white/90 backdrop-blur-sm border-b border-gray-100 shrink-0 sticky top-0 z-20">
           <div className="flex items-center justify-center pt-5 pb-2">
             <StepDots total={TOTAL} current={step} />
