@@ -232,14 +232,14 @@ export function ProxyPartnerFunds() {
         // Completed withdrawals for these partners (already delivered)
         supabase
           .from('withdrawal_requests')
-          .select('linked_party, amount, status, reason')
+          .select('linked_party, amount, status, reason, updated_at, created_at')
           .eq('user_id', user.id)
           .in('status', [...COMPLETED_PROXY_WITHDRAWAL_STATUSES])
           .not('linked_party', 'is', null),
         // Active (pending/processing) withdrawal requests
         supabase
           .from('withdrawal_requests')
-          .select('id, linked_party, status, reason')
+          .select('id, linked_party, status, reason, updated_at, created_at')
           .eq('user_id', user.id)
           .in('status', [...ACTIVE_PROXY_WITHDRAWAL_STATUSES]),
         // Terminal-unpaid: rejected / expired / cancelled (so we can explain
@@ -249,6 +249,10 @@ export function ProxyPartnerFunds() {
           .select('linked_party, status, rejection_reason, updated_at, created_at')
           .eq('user_id', user.id)
           .in('status', [...TERMINAL_UNPAID_STATUSES])
+          // Defense-in-depth: only consider terminal events from the last 30 days
+          // so really old rejections never resurface even if a later success was
+          // recorded against the same partner with a missing timestamp.
+          .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
           .order('updated_at', { ascending: false })
           .limit(500),
       ]);
@@ -263,10 +267,17 @@ export function ProxyPartnerFunds() {
       // Build active withdrawal status map + ID map
       const statusMap: Record<string, string> = {};
       const idMap: Record<string, string> = {};
+      // Track the most recent active-withdrawal timestamp per partner so we
+      // can suppress stale terminal banners that have been superseded.
+      const lastActiveAtByPartner: Record<string, string> = {};
       (activeWithdrawalRes.data || []).forEach((w: any) => {
         const portfolioKey = w.linked_party;
 
         if (w.linked_party && uniquePartnerIds.includes(w.linked_party)) {
+          const ts = w.updated_at || w.created_at;
+          if (ts && (!lastActiveAtByPartner[w.linked_party] || ts > lastActiveAtByPartner[w.linked_party])) {
+            lastActiveAtByPartner[w.linked_party] = ts;
+          }
           if (portfolioKey) {
             const existing = statusMap[portfolioKey];
             if (!existing || w.status === 'pending') {
@@ -289,6 +300,10 @@ export function ProxyPartnerFunds() {
                 statusMap[pid] = w.status;
                 idMap[pid] = w.id;
               }
+              const ts = w.updated_at || w.created_at;
+              if (ts && (!lastActiveAtByPartner[pid] || ts > lastActiveAtByPartner[pid])) {
+                lastActiveAtByPartner[pid] = ts;
+              }
               break;
             }
           }
@@ -296,6 +311,20 @@ export function ProxyPartnerFunds() {
       });
       setPartnerWithdrawalStatus(statusMap);
       setPartnerWithdrawalIds(idMap);
+
+      // Track the most recent successful (delivered) withdrawal timestamp per
+      // partner — a terminal event older than this means Caro already
+      // re-requested and got paid, so the destructive banner is outdated.
+      const lastSuccessAtByPartner: Record<string, string> = {};
+      (completedRes.data || []).forEach((w: any) => {
+        const pid = w.linked_party;
+        if (!pid || !uniquePartnerIds.includes(pid)) return;
+        const ts = w.updated_at || w.created_at;
+        if (!ts) return;
+        if (!lastSuccessAtByPartner[pid] || ts > lastSuccessAtByPartner[pid]) {
+          lastSuccessAtByPartner[pid] = ts;
+        }
+      });
 
       // Build last-terminal map: most recent rejected/expired/cancelled per partner
       const terminalMap: Record<string, LastTerminal> = {};
@@ -309,6 +338,21 @@ export function ProxyPartnerFunds() {
           at: w.updated_at || w.created_at,
         };
       });
+
+      // Suppress terminal events that have been superseded by a later
+      // successful or in-flight withdrawal — those rejections/cancellations
+      // are no longer actionable for the agent.
+      Object.keys(terminalMap).forEach((pid) => {
+        const terminalAt = terminalMap[pid].at;
+        const successAt = lastSuccessAtByPartner[pid];
+        const activeAt = lastActiveAtByPartner[pid];
+        const supersededBySuccess = successAt && successAt >= terminalAt;
+        const supersededByActive = activeAt && activeAt >= terminalAt;
+        if (supersededBySuccess || supersededByActive) {
+          delete terminalMap[pid];
+        }
+      });
+
       setLastTerminalByPartner(terminalMap);
     } catch (err) {
       console.error('Error loading proxy funds:', err);
