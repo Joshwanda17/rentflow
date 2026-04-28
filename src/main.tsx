@@ -97,11 +97,21 @@ const loadApp = async () => {
 
     createRoot(root).render(<App />);
 
-    // Preload Dashboard chunk for authenticated users
+    // Preload Dashboard chunk only when the user is actually heading there.
+    // Preloading on every route (e.g. /executive-hub) caused parallel chunk
+    // fetches that overwhelmed slow connections and tripped the error UI.
     try {
       const cached = localStorage.getItem('welile_session_cache');
-      if (cached) {
-        import('./pages/Dashboard');
+      const path = window.location.pathname;
+      const dashboardRoutes = ['/', '/dashboard'];
+      if (cached && dashboardRoutes.includes(path)) {
+        // Defer until idle so it never competes with the current route's chunks
+        const preload = () => { import('./pages/Dashboard').catch(() => {}); };
+        if ('requestIdleCallback' in window) {
+          (window as any).requestIdleCallback(preload, { timeout: 3000 });
+        } else {
+          setTimeout(preload, 1500);
+        }
       }
     } catch {}
     schedulePreviewBlankPageGuard();
