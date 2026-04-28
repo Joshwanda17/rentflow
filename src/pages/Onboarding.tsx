@@ -6,16 +6,26 @@ import {
   ArrowLeft, Check, X, Shield, Home, TrendingUp, Banknote,
   ChevronRight, BadgeCheck, Eye, EyeOff, Mail, Phone, Lock,
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { signUp } from '@/hooks/auth/authOperations';
+import { useAuth as useRealAuth } from '@/hooks/useAuth';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 const useRouteRole = () => 'FUNDER';
-const useAuth = () => ({
-  user: null as null | { id: string },
-  updateSession: (_token: string, _user: any) => {},
-});
-const registerUser = async (_payload: any): Promise<{ status: string; data: { access_token: string; user: any } }> => {
-  await new Promise(r => setTimeout(r, 1500));
-  return { status: 'success', data: { access_token: 'mock-token', user: { id: 'mock-user' } } };
+// Real Supabase signup wrapper — preserves the existing call signature used below.
+const registerUser = async (payload: {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  role: string;
+}): Promise<{ status: string; data: { access_token: string; user: any } }> => {
+  const fullName = `${payload.firstName} ${payload.lastName}`.trim();
+  const { error } = await signUp(payload.email, payload.password, fullName, payload.phone, 'supporter');
+  if (error) throw error;
+  // The auth state listener in useRealAuth will pick up the session automatically.
+  return { status: 'success', data: { access_token: '', user: { email: payload.email } } };
 };
 const useCurrency = () => ({ symbol: 'USh', code: 'UGX' });
 const formatCurrencyCompact = (val: number, currency: { symbol: string }) => {
