@@ -4,7 +4,7 @@
 import { Suspense, memo, useEffect, useState, Component, type ReactNode } from "react";
 import { HelmetProvider } from "react-helmet-async";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import ChunkErrorBoundary from "@/components/ChunkErrorBoundary";
@@ -242,6 +242,9 @@ PageLoader.displayName = 'PageLoader';
 // Stable routes wrapper — no RoutePrefetcher (DOM overhead), no JS page transitions
 // Global banner - lazy loaded
 function AppRoutes() {
+  const location = useLocation();
+  const disablePullToRefresh = location.pathname === '/funder-onboarding';
+
   const handlePullRefresh = async () => {
     try {
       // Clear all caches
@@ -262,7 +265,7 @@ function AppRoutes() {
   };
 
   return (
-    <PullToRefresh onRefresh={handlePullRefresh} className="min-h-screen">
+    <PullToRefresh onRefresh={handlePullRefresh} className="min-h-screen" disabled={disablePullToRefresh}>
       <div>
       <Suspense fallback={<PageLoader />}>
         <Routes>
