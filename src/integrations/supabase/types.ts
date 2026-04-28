@@ -12188,6 +12188,75 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_routing_v2_corrections: {
+        Row: {
+          amount_moved: number
+          corrected_at: string
+          from_bucket: string
+          id: string
+          notes: string | null
+          source_categories: string[]
+          to_bucket: string
+          user_id: string
+        }
+        Insert: {
+          amount_moved: number
+          corrected_at?: string
+          from_bucket: string
+          id?: string
+          notes?: string | null
+          source_categories?: string[]
+          to_bucket: string
+          user_id: string
+        }
+        Update: {
+          amount_moved?: number
+          corrected_at?: string
+          from_bucket?: string
+          id?: string
+          notes?: string | null
+          source_categories?: string[]
+          to_bucket?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wallet_routing_violations: {
+        Row: {
+          amount: number | null
+          category: string | null
+          context: Json
+          direction: string | null
+          id: string
+          occurred_at: string
+          reason: string
+          recipient_type: string | null
+          user_id: string | null
+        }
+        Insert: {
+          amount?: number | null
+          category?: string | null
+          context?: Json
+          direction?: string | null
+          id?: string
+          occurred_at?: string
+          reason: string
+          recipient_type?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number | null
+          category?: string | null
+          context?: Json
+          direction?: string | null
+          id?: string
+          occurred_at?: string
+          reason?: string
+          recipient_type?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       wallet_transactions: {
         Row: {
           amount: number
@@ -12788,16 +12857,31 @@ export type Database = {
         Args: { p_collection_id: string; p_reason: string }
         Returns: Json
       }
-      apply_wallet_movement: {
-        Args: {
-          p_amount: number
-          p_category: string
-          p_direction: string
-          p_user_id: string
-        }
+      apply_wallet_movement:
+        | {
+            Args: {
+              p_amount: number
+              p_category: string
+              p_direction: string
+              p_user_id: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_amount: number
+              p_category: string
+              p_direction: string
+              p_recipient_type: string
+              p_user_id: string
+            }
+            Returns: undefined
+          }
+      apply_welile_homes_monthly_interest: { Args: never; Returns: number }
+      assert_routing_compatible: {
+        Args: { p_category: string; p_recipient_type: string }
         Returns: undefined
       }
-      apply_welile_homes_monthly_interest: { Args: never; Returns: number }
       auto_dispatch_withdrawals: {
         Args: { p_batch_size?: number }
         Returns: Json
@@ -13781,6 +13865,13 @@ export type Database = {
       void_ledger_entry: {
         Args: { p_ledger_id: string; p_reason: string }
         Returns: undefined
+      }
+      wallet_route_by_recipient: {
+        Args: { p_direction: string; p_recipient_type: string }
+        Returns: {
+          bucket: string
+          sign: number
+        }[]
       }
       wallet_route_for_category:
         | {
