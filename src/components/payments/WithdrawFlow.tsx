@@ -120,16 +120,24 @@ export default function WithdrawFlow({
   const [floatBalance, setFloatBalance] = useState<number>(0);
   const [advanceBalance, setAdvanceBalance] = useState<number>(0);
   const [userRoles, setUserRoles] = useState<string[]>([]);
+  // Ledger-true `available` from get_user_available_balance — the
+  // ONLY figure we trust to gate the withdraw button. Cached
+  // wallets.balance can drift above this; we always take the lesser.
+  const [ledgerAvailable, setLedgerAvailable] = useState<number | null>(null);
 
-  // The "available" source now represents withdrawable + advance combined.
-  const combinedAvailable = availableBalance + advanceBalance;
-  const maxAmount = source === 'available' ? combinedAvailable : roiBalance;
+  // The "available" source is the LESSER of (caller-supplied wallet
+  // available, ledger-true available). Advance bucket is debt — NOT
+  // withdrawable money — so it is excluded.
+  const trueAvailable = ledgerAvailable !== null
+    ? Math.min(availableBalance, ledgerAvailable)
+    : availableBalance;
+  const maxAmount = source === 'available' ? trueAvailable : roiBalance;
 
   useEffect(() => {
     if (!open || !user) return;
     let cancelled = false;
     (async () => {
-      const [walletRes, rolesRes] = await Promise.all([
+      const [walletRes, rolesRes, availRes] = await Promise.all([
         supabase
           .from('wallets')
           .select('float_balance, advance_balance')
@@ -139,11 +147,18 @@ export default function WithdrawFlow({
           .from('user_roles')
           .select('role')
           .eq('user_id', user.id),
+        supabase.rpc('get_user_available_balance', { _user_id: user.id }),
       ]);
       if (cancelled) return;
       setFloatBalance(Number(walletRes.data?.float_balance ?? 0));
       setAdvanceBalance(Number(walletRes.data?.advance_balance ?? 0));
       setUserRoles((rolesRes.data ?? []).map((r: any) => r.role));
+      // Ledger-true available — gates the entire flow. Falls back to
+      // caller-supplied availableBalance only on RPC error.
+      const availData = (availRes.data ?? null) as Record<string, unknown> | null;
+      if (availData && typeof availData.available !== 'undefined') {
+        setLedgerAvailable(Number(availData.available));
+      }
     })();
     return () => { cancelled = true; };
   }, [open, user]);
@@ -236,6 +251,27 @@ export default function WithdrawFlow({
     isSubmittingRef.current = true;
 
     try {
+      // FINAL LEDGER GATE — re-fetch ledger truth right before submission.
+      // Cached props may be stale; the ledger is the source of truth.
+      try {
+        const { data: freshAvail } = await supabase.rpc(
+          'get_user_available_balance',
+          { _user_id: user.id },
+        );
+        const fa = (freshAvail ?? {}) as Record<string, unknown>;
+        const freshLedger = Number(fa.available ?? trueAvailable);
+        if (source === 'available' && amount > freshLedger) {
+          toast.error(
+            `Withdrawal blocked: ledger shows only UGX ${freshLedger.toLocaleString()} available (you tried UGX ${amount.toLocaleString()}). Refresh and try again.`,
+            { duration: 8000 },
+          );
+          isSubmittingRef.current = false;
+          return;
+        }
+      } catch (e) {
+        console.warn('[WithdrawFlow] ledger pre-check failed, proceeding to server gate', e);
+      }
+
       if (!clientRequestIdRef.current) {
         clientRequestIdRef.current =
           (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
@@ -377,7 +413,7 @@ export default function WithdrawFlow({
                         : 'Ready to withdraw'}
                     </p>
                   </div>
-                  <span className="font-bold text-lg">{formatCurrency(combinedAvailable, 'UGX')}</span>
+                  <span className="font-bold text-lg">{formatCurrency(trueAvailable, 'UGX')}</span>
                 </div>
               </Card>
               

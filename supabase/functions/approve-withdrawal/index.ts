@@ -187,21 +187,42 @@ Deno.serve(async (req) => {
     const walletFloat = Number((wallet as any)?.float_balance ?? 0);
     const walletAdvance = Number((wallet as any)?.advance_balance ?? 0);
 
-    // Withdrawable = withdrawable_balance + advance_balance. Float is locked
-    // operational money. For proxy payouts, float is also spendable because
-    // those funds are partner funds parked in the agent wallet.
-    const withdrawable = walletWithdrawable + walletAdvance;
-    const totalSpendable = isProxyPayout
-      ? Math.max(walletBalance, walletWithdrawable + walletAdvance + walletFloat)
+    // Withdrawable = ONLY withdrawable_balance. `advance_balance` is a
+    // user liability (debt owed back to Welile) and MUST NEVER fund a
+    // payout — counting it here is what produced unrealistic figures.
+    // Float is operational/company money. For proxy payouts the agent's
+    // float bucket is partner money parked in the wallet and may be drawn.
+    const withdrawable = walletWithdrawable;
+    const cachedSpendable = isProxyPayout
+      ? Math.max(walletWithdrawable, walletWithdrawable + walletFloat)
       : withdrawable;
+
+    // Cross-check against the LEDGER (the source of truth). The cached
+    // wallet bucket can drift above the ledger net (debt, holds, phantom
+    // drift). We take the lesser of cached vs ledger so a payout can NEVER
+    // exceed the user's true ledger position.
+    let ledgerAvailable = cachedSpendable;
+    try {
+      const { data: availRow } = await admin.rpc("get_user_available_balance", {
+        _user_id: fundingUserId,
+      });
+      const a = (availRow ?? {}) as Record<string, unknown>;
+      ledgerAvailable = Number(a.available ?? cachedSpendable);
+    } catch (e) {
+      console.warn("[approve-withdrawal] get_user_available_balance failed; using cached", (e as Error).message);
+    }
+
+    const totalSpendable = Math.min(cachedSpendable, ledgerAvailable);
     const effectiveBalance = totalSpendable;
 
     if (!wallet || totalSpendable < amount) {
       return new Response(
         JSON.stringify({
-          error: `Insufficient withdrawable balance. Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. (Wallet total UGX ${Math.round(walletBalance).toLocaleString()} — float bucket cannot fund payouts.)`,
+          error: `Insufficient withdrawable balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. Cached withdrawable UGX ${Math.round(cachedSpendable).toLocaleString()}, ledger-true UGX ${Math.round(ledgerAvailable).toLocaleString()}. Float and advance buckets cannot fund payouts.`,
           code: "INSUFFICIENT_WITHDRAWABLE",
           available: Math.round(totalSpendable),
+          ledger_available: Math.round(ledgerAvailable),
+          cached_available: Math.round(cachedSpendable),
           wallet_total: Math.round(walletBalance),
           requested: amount,
         }),
@@ -232,7 +253,7 @@ Deno.serve(async (req) => {
     const nowIso = new Date().toISOString();
 
     const withdrawablePortion = isProxyPayout
-      ? Math.min(amount, Math.max(walletWithdrawable + walletAdvance, 0))
+      ? Math.min(amount, Math.max(walletWithdrawable, 0))
       : amount;
     const floatPortion = Math.max(amount - withdrawablePortion, 0);
 
