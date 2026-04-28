@@ -740,9 +740,9 @@ export function TenantOpsDashboard() {
       <AlertDialog open={deleteDialog.open} onOpenChange={(open) => !open && setDeleteDialog({ open: false, tenantId: '', tenantName: '' })}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Tenant</AlertDialogTitle>
+            <AlertDialogTitle>Archive Tenant</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete <strong>{deleteDialog.tenantName}</strong> and all their data. This action cannot be undone.
+              This will remove <strong>{deleteDialog.tenantName}</strong> from the active tenant list and disable access, while preserving payment history and ledger records.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -753,9 +753,9 @@ export function TenantOpsDashboard() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Deleting...</>
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Archiving...</>
               ) : (
-                <><Trash2 className="h-4 w-4 mr-2" />Delete Tenant</>
+                <><Trash2 className="h-4 w-4 mr-2" />Archive Tenant</>
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -766,11 +766,9 @@ export function TenantOpsDashboard() {
       <AlertDialog open={bulkDeleteOpen} onOpenChange={(open) => !open && !bulkDeleting && setBulkDeleteOpen(false)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete {selectedTenantIds.length} tenant{selectedTenantIds.length === 1 ? '' : 's'}?</AlertDialogTitle>
+            <AlertDialogTitle>Archive {selectedTenantIds.length} tenant{selectedTenantIds.length === 1 ? '' : 's'}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete <strong>{selectedTenantIds.length}</strong> selected tenant{selectedTenantIds.length === 1 ? '' : 's'} and all related records (rent requests, profile, roles). This action cannot be undone.
-              <br /><br />
-              <span className="text-destructive font-medium">Tenants with ledger history will fail individually — those records cannot be deleted to preserve audit integrity.</span>
+              This will remove <strong>{selectedTenantIds.length}</strong> selected tenant{selectedTenantIds.length === 1 ? '' : 's'} from active tenant views and disable access, while preserving payment history and ledger records.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -781,9 +779,9 @@ export function TenantOpsDashboard() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {bulkDeleting ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Deleting…</>
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Archiving…</>
               ) : (
-                <><Trash2 className="h-4 w-4 mr-2" />Delete {selectedTenantIds.length}</>
+                <><Trash2 className="h-4 w-4 mr-2" />Archive {selectedTenantIds.length}</>
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
