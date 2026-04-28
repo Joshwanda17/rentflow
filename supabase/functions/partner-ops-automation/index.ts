@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
     // Get active portfolios with maturity dates
     const { data: portfolios, error: pErr } = await supabase
       .from('investor_portfolios')
-      .select('id, portfolio_code, account_name, investment_amount, maturity_date, investor_id, agent_id, maturity_alert_30d, maturity_alert_7d')
+      .select('id, portfolio_code, account_name, investment_amount, maturity_date, investor_id, agent_id, maturity_alert_30d, maturity_alert_7d, created_at, total_roi_earned, display_currency, duration_months')
       .eq('status', 'active')
       .not('maturity_date', 'is', null);
 
@@ -103,6 +103,82 @@ Deno.serve(async (req) => {
             type: 'info',
             metadata: { portfolio_id: p.id },
           });
+
+          // ─── Send Portfolio Maturity Confirmation email to the partner ───
+          // Resolve the partner's email + display name from profiles. Falls
+          // back to the agent if there is no investor_id (managed account).
+          try {
+            const recipientUserId = p.investor_id || p.agent_id;
+            if (recipientUserId) {
+              const { data: partnerProfile } = await supabase
+                .from('profiles')
+                .select('email, full_name')
+                .eq('id', recipientUserId)
+                .maybeSingle();
+
+              if (partnerProfile?.email) {
+                const currency = p.display_currency || 'UGX';
+                const principal = Number(p.investment_amount) || 0;
+                const returns = Number(p.total_roi_earned) || 0;
+                const total = principal + returns;
+
+                const fmtDate = (iso: string | null) => {
+                  if (!iso) return '';
+                  const d = new Date(iso);
+                  if (isNaN(d.getTime())) return '';
+                  return d.toLocaleDateString('en-GB', {
+                    day: '2-digit', month: 'long', year: 'numeric',
+                  });
+                };
+
+                const months = Number(p.duration_months) || 0;
+                const duration = months > 0
+                  ? `${months} month${months === 1 ? '' : 's'}`
+                  : '';
+
+                const portfolioIdLabel = p.portfolio_code || `PF-${String(p.id).replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+
+                const payload = {
+                  templateName: 'portfolio-maturity',
+                  recipientEmail: partnerProfile.email,
+                  // Idempotency: one maturity email per portfolio, ever.
+                  idempotencyKey: `portfolio-maturity-${p.id}`,
+                  templateData: {
+                    partner_name: partnerProfile.full_name || 'Partner',
+                    portfolio_name: p.account_name || 'Partnership Portfolio',
+                    portfolio_id: portfolioIdLabel,
+                    principal_amount: principal,
+                    returns_amount: returns,
+                    total_matured_value: total,
+                    start_date: fmtDate(p.created_at),
+                    maturity_date: fmtDate(p.maturity_date),
+                    duration,
+                    currency,
+                    company_name: 'Welile',
+                    logo_url: 'https://welilereceipts.com/welile-logo.png',
+                    unsubscribe_url: 'https://welile.com/unsubscribe',
+                    terms_url: 'https://welilereceipts.com/partners-terms',
+                    privacy_url: 'https://welilereceipts.com/privacy',
+                  },
+                };
+
+                // Fire-and-forget; do not block automation on email enqueue.
+                fetch(`${supabaseUrl}/functions/v1/send-transactional-email`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${supabaseServiceKey}`,
+                  },
+                  body: JSON.stringify(payload),
+                }).catch((e) => console.warn('[partner-ops-automation] maturity email enqueue failed:', e));
+              } else {
+                console.warn('[partner-ops-automation] no email on profile for portfolio', p.id);
+              }
+            }
+          } catch (emailErr) {
+            const msg = emailErr instanceof Error ? emailErr.message : String(emailErr);
+            console.warn(`[partner-ops-automation] maturity email error for ${p.id}: ${msg}`);
+          }
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
