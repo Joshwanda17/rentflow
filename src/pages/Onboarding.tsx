@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
-import toast, { Toaster } from 'react-hot-toast';
+import { toast, Toaster } from 'sonner';
 import {
   ArrowLeft, Check, X, Shield, Home, TrendingUp, Banknote,
   ChevronRight, BadgeCheck, Eye, EyeOff, Mail, Phone, Lock,
@@ -528,7 +528,7 @@ export default function Onboarding() {
         });
         if (response.status === 'success') {
           updateSession(response.data.access_token, response.data.user);
-          toast.success('Successfully funded your future! Welcome aboard.', { icon: '🎉', duration: 4000 });
+          toast.success('Successfully funded your future! Welcome aboard.', { duration: 4000 });
           navigate('/funder');
         }
       } catch (err: any) {
