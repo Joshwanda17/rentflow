@@ -114,7 +114,7 @@ export function PartnershipTopup({
                     </Text>
                     <Text style={{ ...outroText, margin: '25px 0 0 0' }}>
                       Should you require any further clarification or a detailed update on your partnership performance, please do not hesitate to reach out to us at{' '}
-                      <Link href="mailto:info@welile.com" style={inlineLink}>info@welile.com</Link>.
+                      <Link href="mailto:partnership@welile.com" style={inlineLink}>partnership@welile.com</Link>.
                     </Text>
                     <Text style={signatureText}>
                       Warm regards,<br />

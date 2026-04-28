@@ -184,7 +184,7 @@ export function PartnershipAgreement({
                                     <Text style={sectionLabel}>Withdrawal Terms</Text>
                                     <Text style={withdrawalText}>
                                       Should you wish to exit the partnership before the completion of the 12-month term, a 90-day written notice must be submitted to{' '}
-                                      <Link href="mailto:info@welile.com" style={inlineLink}>info@welile.com</Link>
+                                      <Link href="mailto:partnership@welile.com" style={inlineLink}>partnership@welile.com</Link>
                                       . Early withdrawal terms and conditions will be communicated upon request.
                                     </Text>
                                   </td>
@@ -243,7 +243,7 @@ export function PartnershipAgreement({
 
                     <Text style={contactText}>
                       For any questions or further clarification, please contact us directly at{' '}
-                      <Link href="mailto:info@welile.com" style={inlineLink}>info@welile.com</Link>.
+                      <Link href="mailto:partnership@welile.com" style={inlineLink}>partnership@welile.com</Link>.
                     </Text>
 
                     <Text style={signatureText}>

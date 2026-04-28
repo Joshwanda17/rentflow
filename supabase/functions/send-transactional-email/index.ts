@@ -313,7 +313,12 @@ Deno.serve(async (req) => {
     payload: {
       message_id: messageId,
       to: effectiveRecipient,
-      from: templateName.startsWith('partnership-')
+      from: (
+        templateName.startsWith('partnership-') ||
+        templateName.startsWith('partner-') ||
+        templateName === 'portfolio-renewal' ||
+        templateName === 'returns-disbursement-confirmation'
+      )
         ? `Welile Partnerships <partnership@${FROM_DOMAIN}>`
         : `Welile <info@${FROM_DOMAIN}>`,
       sender_domain: SENDER_DOMAIN,
