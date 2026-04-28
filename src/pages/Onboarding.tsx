@@ -260,7 +260,7 @@ function SupportGraph({ mode }: { mode: 'tenant' | 'pool' }) {
               value={rawInput}
               onChange={handleAmountChange}
               placeholder="1,000,000"
-              className="flex-1 min-w-0 bg-transparent text-sm font-black text-[#1C1C2E] outline-none placeholder:text-gray-300 w-full caret-[#6c11d4] animate-pulse-caret"
+              className="flex-1 min-w-0 bg-transparent text-sm font-black text-[#1C1C2E] outline-none placeholder:text-gray-300 w-full caret-[#6c11d4]"
             />
             <span
               aria-hidden="true"
