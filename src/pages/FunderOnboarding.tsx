@@ -672,7 +672,7 @@ function FunderOnboardingInner() {
   };
 
   return (
-    <div className="h-screen w-screen overflow-hidden flex font-sans bg-[#FAFAFA] -mx-8 -my-8 lg:mx-0 lg:my-0">
+    <div className="h-screen w-screen overflow-hidden flex font-sans bg-[#FAFAFA]">
       {/* LEFT — HERO */}
       <div className="hidden lg:flex lg:w-1/2 relative bg-slate-900 overflow-hidden items-center justify-center">
         <div className="absolute inset-0 bg-black/30 z-10 mix-blend-multiply" />
