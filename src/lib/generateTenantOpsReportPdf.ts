@@ -149,7 +149,7 @@ export function generateTenantOpsReportPdf(
     { label: 'Tenant Name',          x: (cx += wIdx, cx),  w: wTenant,  align: 'left'  as const },
     { label: 'Channel',              x: (cx += wTenant, cx), w: wChannel, align: 'left' as const },
     { label: 'Agent',                x: (cx += wChannel, cx), w: wAgent, align: 'left' as const },
-    { label: 'Paid in Period (UGX)', x: (cx += wChannel, cx), w: wPaid, align: 'right' as const },
+    { label: 'Paid in Period (UGX)', x: (cx += wAgent, cx), w: wPaid, align: 'right' as const },
     { label: 'Outstanding (UGX)',    x: (cx += wPaid, cx),  w: wOut,    align: 'right' as const },
   ];
 
