@@ -322,7 +322,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       />
 
       <div className="flex-1 overflow-y-auto">
-        <main className="px-4 pt-5 pb-2 space-y-5 max-w-lg mx-auto">
+        <main className="px-4 pt-5 pb-24 space-y-5 max-w-lg mx-auto">
         {/* Offline Notice */}
         {!isOnline && (
           <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-warning/10 border border-warning/20">
@@ -397,8 +397,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           <WalletHeroSkeleton />
         )}
 
-        {/* Tab Navigation */}
-        <AgentHubTabs active={activeTab} onChange={setActiveTab} />
+        {/* Tab Navigation — sticky so it stays under the header and never collides with the fixed bottom role switcher */}
+        <div className="sticky top-0 z-20 -mx-4 px-4 py-2 bg-background/95 backdrop-blur-sm">
+          <AgentHubTabs active={activeTab} onChange={setActiveTab} />
+        </div>
 
         {/* === HOME TAB === Most-used actions, at-a-glance */}
         {activeTab === 'home' && (
