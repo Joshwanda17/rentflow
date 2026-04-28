@@ -53,7 +53,7 @@ export function PortfolioRenewal({
   const year = new Date().getFullYear()
   const formattedAmount = formatAmount(amount, currency)
   const formattedRate = formatRate(return_rate)
-  const shortId = portfolio_id ? portfolio_id.slice(0, 8).toUpperCase() : ''
+  const displayId = portfolio_id || ''
 
   return (
     <Html>
@@ -107,7 +107,7 @@ export function PortfolioRenewal({
                           <td style={detailHeader}>
                             <Text style={detailEyebrow}>Portfolio Detail</Text>
                             <Text style={detailTitle}>
-                              {portfolio_name} {shortId && <span style={{ color: '#a855f7', fontSize: '15px' }}>(#{shortId})</span>}
+                              {portfolio_name} {displayId && <span style={{ color: '#a855f7', fontSize: '15px' }}>(#{displayId})</span>}
                             </Text>
                           </td>
                         </tr>
@@ -170,7 +170,7 @@ export function PortfolioRenewal({
                 <tr>
                   <td className="padding-mobile" style={{ padding: '0 40px 40px 40px' }}>
                     <Text style={outroText}>
-                      If you require further details regarding this renewal, please feel free to reply directly to this email with your portfolio reference {shortId && <span>(#{shortId})</span>}.
+                      If you require further details regarding this renewal, please feel free to reply directly to this email with your portfolio reference {displayId && <span>(#{displayId})</span>}.
                     </Text>
                     <Text style={signatureText}>
                       Warm regards,<br />

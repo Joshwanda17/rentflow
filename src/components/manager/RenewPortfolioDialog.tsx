@@ -183,7 +183,7 @@ export function RenewPortfolioDialog({ open, onOpenChange, portfolio, onSuccess 
                 templateData: {
                   partner_name: partnerProfile?.full_name || 'Partner',
                   portfolio_name: portfolio.account_name || portfolio.portfolio_code,
-                  portfolio_id: portfolio.id,
+                  portfolio_id: portfolio.portfolio_code,
                   amount: newAmount,
                   return_rate: `${newRoi}%`,
                   renewal_date: fmtDate(startDate),
