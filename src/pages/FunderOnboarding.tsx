@@ -591,6 +591,12 @@ function FunderOnboardingInner() {
       window.localStorage.setItem(STORAGE_KEY, String(step));
     } catch {}
   }, [step]);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingTextIdx, setLoadingTextIdx] = useState(0);
   const loadingTexts = ['Creating Account...', 'Securing Wallet...', 'Getting you started...', 'Just a moment...'];
