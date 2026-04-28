@@ -789,7 +789,7 @@ export default function FunderOnboarding() {
                 partner_name: `${cleanFirst} ${cleanLast}`.trim() || 'Partner',
                 partner_email: cleanEmail,
                 partner_reference: partnerReference,
-                agreement_download_url: `${window.location.origin}/partners-terms`,
+                agreement_download_url: `${window.location.origin}/legal/welile-partnership-agreement.pdf`,
                 company_name: 'WELILE TECHNOLOGIES LTD',
               },
             },

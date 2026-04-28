@@ -25,7 +25,7 @@ export function PartnerAccountCreated({
   partner_name = 'Partner',
   partner_email = '',
   partner_reference = '',
-  agreement_download_url = 'https://welilereceipts.com/partners-terms',
+  agreement_download_url = 'https://welilereceipts.com/legal/welile-partnership-agreement.pdf',
   company_name = 'WELILE TECHNOLOGIES LTD',
   logo_url = 'https://welilereceipts.com/welile-logo.png',
   unsubscribe_url = 'https://welile.com/unsubscribe',
@@ -78,7 +78,7 @@ export function PartnerAccountCreated({
                   <td align="left" className="padding-mobile" style={{ padding: '0 40px 25px 40px' }}>
                     <Text style={greeting}>Dear {partner_name},</Text>
                     <Text style={introText}>
-                      Your partner account has been successfully created with <b>{company_name}.</b>
+                      Your partnership account has been successfully created with <b>{company_name}.</b>
                     </Text>
                     <Text style={{ ...introText, marginTop: '15px' }}>
                       To complete your onboarding, please download and fill in the partnership agreement, then submit it together with a valid copy of your National ID for verification.
