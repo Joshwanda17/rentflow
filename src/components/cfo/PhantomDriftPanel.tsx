@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, RefreshCw, AlertTriangle, ShieldCheck, Eye } from 'lucide-react';
+import { Loader2, RefreshCw, AlertTriangle, ShieldCheck, Eye, Wand2 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -105,6 +105,35 @@ export function PhantomDriftPanel() {
       qc.invalidateQueries({ queryKey: ['phantom-drift'] });
     },
     onError: (e: Error) => toast.error(e.message),
+  });
+
+  // CFO-only: write the cached wallet bucket back to ledger truth via the
+  // sole-writer path. Posts a balanced system_balance_correction pair, runs
+  // apply_wallet_movement, marks the drift row resolved, and writes audit_logs.
+  const resolveToLedger = useMutation({
+    mutationFn: async ({ id, gap }: { id: string; gap: number }) => {
+      const reason =
+        gap > 0
+          ? `Phantom drift write-down to ledger truth (${formatUGX(Math.abs(gap))})`
+          : `Phantom drift write-up to ledger truth (${formatUGX(Math.abs(gap))})`;
+      const { data, error } = await supabase.functions.invoke(
+        'resolve-phantom-drift',
+        { body: { drift_id: id, reason } },
+      );
+      if (error) throw error;
+      if (data && typeof data === 'object' && 'error' in data && data.error) {
+        throw new Error(String(data.error));
+      }
+      return data as { direction: string; amount_applied: number };
+    },
+    onSuccess: (res) => {
+      toast.success(
+        `Wallet ${res.direction === 'debit' ? 'written down' : 'written up'} by ${formatUGX(res.amount_applied)} — drift resolved`,
+      );
+      qc.invalidateQueries({ queryKey: ['phantom-drift'] });
+      qc.invalidateQueries({ queryKey: ['wallet'] });
+    },
+    onError: (e: Error) => toast.error(`Resolve failed: ${e.message}`),
   });
 
   const summary = useMemo(() => {
@@ -224,8 +253,32 @@ export function PhantomDriftPanel() {
                                   <Eye className="h-3 w-3 mr-1" />Investigate
                                 </Button>
                               )}
+                              <Button
+                                size="sm"
+                                variant="default"
+                                className="h-7 px-2 text-[10px]"
+                                disabled={resolveToLedger.isPending}
+                                onClick={() => {
+                                  const gap = Number(r.drift_amount);
+                                  const verb = gap > 0 ? 'write DOWN' : 'write UP';
+                                  if (
+                                    window.confirm(
+                                      `This will ${verb} ${r.profile?.full_name ?? 'this user'}'s wallet cache by ${formatUGX(Math.abs(gap))} via system_balance_correction.\n\nA balanced ledger pair will be posted and the drift row marked resolved.\n\nProceed?`,
+                                    )
+                                  ) {
+                                    resolveToLedger.mutate({ id: r.id, gap });
+                                  }
+                                }}
+                              >
+                                {resolveToLedger.isPending && resolveToLedger.variables?.id === r.id ? (
+                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                ) : (
+                                  <Wand2 className="h-3 w-3 mr-1" />
+                                )}
+                                Resolve to ledger
+                              </Button>
                               <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => updateStatus.mutate({ id: r.id, status: 'resolved' })}>
-                                Resolve
+                                Mark resolved
                               </Button>
                               <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] text-muted-foreground" onClick={() => updateStatus.mutate({ id: r.id, status: 'false_positive' })}>
                                 False+
