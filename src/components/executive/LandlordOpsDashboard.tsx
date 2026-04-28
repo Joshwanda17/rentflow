@@ -12,6 +12,7 @@ import {
   Phone, MessageCircle, Image, MapPinned, DoorOpen, TrendingDown, Users,
   Building2, UserCheck, Smartphone, Handshake, GitBranch, Link2,
   ArrowLeft, ChevronRight, Search, X, Globe, UserX, UserPlus,
+  Table2, Printer, CalendarIcon, Loader2,
 } from 'lucide-react';
 import { ChainHealthTab } from './landlord-ops/ChainHealthTab';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +23,13 @@ import { useToast } from '@/hooks/use-toast';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import { toast as sonnerToast } from 'sonner';
+import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
+import { generateLandlordOpsReportPdf } from '@/lib/generateLandlordOpsReportPdf';
 import { RentAdjustmentDialog } from './RentAdjustmentDialog';
 import { VacancyAnalytics } from './VacancyAnalytics';
 import { TenantMatchingQueue } from './landlord-ops/TenantMatchingQueue';
