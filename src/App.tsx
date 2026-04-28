@@ -144,6 +144,7 @@ const PipelineLandlordsDetail = lazy(() => import('./pages/coo/PipelineLandlords
 const RentCoverageDetail = lazy(() => import('./pages/coo/RentCoverageDetail'));
 const WelileAIPage = lazy(() => import('./components/ai-chat/WelileAIChatButton').then(m => ({ default: m.WelileAIPage })));
 const Terms = lazy(() => import('./pages/Terms'));
+const PartnersTerms = lazy(() => import('./pages/PartnersTerms'));
 const Privacy = lazy(() => import('./pages/Privacy'));
 const ShareLocation = lazy(() => import('./pages/ShareLocation'));
 const InvestorPortfolioPublic = lazy(() => import('./pages/InvestorPortfolioPublic'));
@@ -382,7 +383,7 @@ function AppRoutes() {
           <Route path="/ai" element={<WelileAIPage />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
-          <Route path="/partners-terms" element={<Terms />} />
+          <Route path="/partners-terms" element={<PartnersTerms />} />
           <Route path="/privacy-policy" element={<Privacy />} />
           <Route path="/share-location" element={<ShareLocation />} />
           <Route path="/investor/portfolio/:token" element={<InvestorPortfolioPublic />} />
