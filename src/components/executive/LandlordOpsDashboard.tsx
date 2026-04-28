@@ -1582,6 +1582,19 @@ export function LandlordOpsDashboard() {
           loading={allRequestsLoading}
           title="All Requests"
           getRowId={(r: any) => String(r.id)}
+          selectedIds={allReqSelectedIds}
+          onSelectionChange={setAllReqSelectedIds}
+          bulkActions={(ids) => (
+            <Button
+              variant="destructive"
+              size="sm"
+              className="h-8 gap-1.5"
+              onClick={() => setAllReqBulkDeleteOpen(true)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete {ids.length}
+            </Button>
+          )}
           filters={[{
             key: 'status',
             label: 'Status',
@@ -1600,6 +1613,54 @@ export function LandlordOpsDashboard() {
         />
       </div>
       {renderDialogs()}
+      {/* Single-row delete dialog */}
+      <AlertDialog
+        open={allReqDeleteDialog.open}
+        onOpenChange={(open) => !open && !allReqDeleting && setAllReqDeleteDialog({ open: false, requestId: '', tenantName: '' })}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Rent Request</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the rent request for <strong>{allReqDeleteDialog.tenantName}</strong>. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={allReqDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={allReqDeleting}
+              onClick={(e) => { e.preventDefault(); handleDeleteOneRentRequest(); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {allReqDeleting ? 'Deleting…' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {/* Bulk delete dialog */}
+      <AlertDialog
+        open={allReqBulkDeleteOpen}
+        onOpenChange={(open) => !open && !allReqDeleting && setAllReqBulkDeleteOpen(false)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {allReqSelectedIds.length} request{allReqSelectedIds.length === 1 ? '' : 's'}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the selected rent requests. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={allReqDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={allReqDeleting}
+              onClick={(e) => { e.preventDefault(); handleBulkDeleteRentRequests(); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {allReqDeleting ? 'Deleting…' : `Delete ${allReqSelectedIds.length}`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       </>
     );
   }
