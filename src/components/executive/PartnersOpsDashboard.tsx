@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Shield, Banknote, TrendingUp, Calendar, Wallet, PiggyBank, Pencil, PlusCircle, Plus, RefreshCw, CalendarClock, DollarSign, Receipt, ArrowLeft, FileText } from 'lucide-react';
+import { Shield, Banknote, TrendingUp, Calendar, Wallet, PiggyBank, Pencil, PlusCircle, Plus, RefreshCw, CalendarClock, DollarSign, Receipt, ArrowLeft, FileText, UserPlus } from 'lucide-react';
 import { format, addMonths } from 'date-fns';
 
 import { ROIPaymentHistory } from './ROIPaymentHistory';
@@ -183,6 +183,14 @@ export function PartnersOpsDashboard() {
             <RefreshCw className="h-4 w-4" />
           </Button>
           <ShareSupporterRecruit />
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-xs"
+            onClick={() => navigate('/funder-onboarding')}
+          >
+            <UserPlus className="h-3.5 w-3.5" /> Onboarding
+          </Button>
           <Button size="sm" className="gap-1.5 text-xs" onClick={() => { setCreateForUser(null); setCreateOpen(true); }}>
             <PlusCircle className="h-3.5 w-3.5" /> Create
           </Button>

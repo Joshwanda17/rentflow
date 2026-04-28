@@ -23,9 +23,10 @@ import { MissedDaysTracker } from '@/components/executive/MissedDaysTracker';
 import { PendingPortfolioTopUps } from '@/components/cfo/PendingPortfolioTopUps';
 import { PartnerFinancialActivity } from '@/components/executive/PartnerFinancialActivity';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useNavigate } from 'react-router-dom';
 import {
   Activity, ClipboardList, Users, Wallet, BarChart3,
-  FileText, AlertTriangle, Banknote, Handshake, UserCheck,
+  FileText, AlertTriangle, Banknote, Handshake, UserCheck, UserPlus,
   TrendingUp, ArrowLeft, ChevronRight, Receipt, Home
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -36,6 +37,7 @@ interface QuickNavItem {
   icon: typeof Activity;
   color: string;
   description: string;
+  route?: string;
 }
 
 const quickNavItems: QuickNavItem[] = [
@@ -48,6 +50,7 @@ const quickNavItems: QuickNavItem[] = [
   { id: 'agent-activity', label: 'Agent Activity', icon: Activity, color: 'bg-purple-500/10 text-purple-600 border-purple-500/20', description: 'Live tracking' },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, color: 'bg-teal-500/10 text-teal-600 border-teal-500/20', description: 'Payment modes' },
   { id: 'partners', label: 'Partners', icon: Handshake, color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20', description: 'Manage partners' },
+  { id: 'partner-onboarding', label: 'Partner Onboarding', icon: UserPlus, color: 'bg-fuchsia-500/10 text-fuchsia-600 border-fuchsia-500/20', description: 'Approve / reject', route: '/funder-onboarding' },
   { id: 'reports', label: 'Reports', icon: FileText, color: 'bg-sky-500/10 text-sky-600 border-sky-500/20', description: 'Financial reports' },
   { id: 'alerts', label: 'Alerts', icon: AlertTriangle, color: 'bg-orange-500/10 text-orange-600 border-orange-500/20', description: 'Risk & flags' },
   { id: 'partner-topups', label: 'Partner Top-ups', icon: TrendingUp, color: 'bg-green-500/10 text-green-600 border-green-500/20', description: 'Pending top-ups' },
@@ -59,6 +62,7 @@ const quickNavItems: QuickNavItem[] = [
 export default function COODashboardPage() {
   const [activeTab, setActiveTab] = usePersistedActiveTab('coo');
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
 
   const handleNavTo = (tab: string) => {
     setActiveTab(tab);
@@ -253,7 +257,7 @@ export default function COODashboardPage() {
                 {quickNavItems.map((item) => (
                   <button
                     key={item.id}
-                    onClick={() => handleNavTo(item.id)}
+                    onClick={() => item.route ? navigate(item.route) : handleNavTo(item.id)}
                     className={cn(
                       'flex flex-col items-start gap-1.5 p-3.5 rounded-xl border transition-all text-left',
                       'hover:shadow-md active:scale-[0.97] active:shadow-none',
