@@ -217,12 +217,14 @@ export function ProxyPartnerFunds() {
         setProfiles({});
         setCompletedWithdrawals([]);
         setPartnerWithdrawalStatus({});
+        setLastTerminalByPartner({});
         setLoading(false);
         return;
       }
 
-      // Step 4: Fetch profiles, completed withdrawals, active withdrawals in parallel
-      const [profileRes, completedRes, activeWithdrawalRes] = await Promise.all([
+      // Step 4: Fetch profiles, completed withdrawals, active withdrawals, and
+      // terminal-unpaid history in parallel
+      const [profileRes, completedRes, activeWithdrawalRes, terminalRes] = await Promise.all([
         supabase
           .from('profiles')
           .select('id, full_name, phone')
@@ -240,6 +242,15 @@ export function ProxyPartnerFunds() {
           .select('id, linked_party, status, reason')
           .eq('user_id', user.id)
           .in('status', [...ACTIVE_PROXY_WITHDRAWAL_STATUSES]),
+        // Terminal-unpaid: rejected / expired / cancelled (so we can explain
+        // why a balance is still sitting on the card)
+        supabase
+          .from('withdrawal_requests')
+          .select('linked_party, status, rejection_reason, updated_at, created_at')
+          .eq('user_id', user.id)
+          .in('status', [...TERMINAL_UNPAID_STATUSES])
+          .order('updated_at', { ascending: false })
+          .limit(500),
       ]);
 
       const profileMap: Record<string, { full_name: string; phone: string }> = {};
@@ -285,6 +296,20 @@ export function ProxyPartnerFunds() {
       });
       setPartnerWithdrawalStatus(statusMap);
       setPartnerWithdrawalIds(idMap);
+
+      // Build last-terminal map: most recent rejected/expired/cancelled per partner
+      const terminalMap: Record<string, LastTerminal> = {};
+      (terminalRes.data || []).forEach((w: any) => {
+        const pid = w.linked_party;
+        if (!pid || !uniquePartnerIds.includes(pid)) return;
+        if (terminalMap[pid]) return; // already have the most recent (ordered desc)
+        terminalMap[pid] = {
+          status: w.status,
+          reason: w.rejection_reason || null,
+          at: w.updated_at || w.created_at,
+        };
+      });
+      setLastTerminalByPartner(terminalMap);
     } catch (err) {
       console.error('Error loading proxy funds:', err);
     } finally {
