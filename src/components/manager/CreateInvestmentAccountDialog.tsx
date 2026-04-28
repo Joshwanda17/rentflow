@@ -330,9 +330,9 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, p
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleCreate} disabled={saving || !selectedUser || !form.investment_amount || !/^\d{4}$/.test(form.portfolio_pin)}>
+          <Button onClick={handleCreate} disabled={saving || !selectedUser || !form.investment_amount || !/^\d{4}$/.test(form.portfolio_pin) || !isApproved}>
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
-            Create Portfolio
+            {!selectedUser || isApproved ? 'Create Portfolio' : (<><Lock className="h-3.5 w-3.5 mr-1.5" /> Partner Not Approved</>)}
           </Button>
         </DialogFooter>
       </DialogContent>
