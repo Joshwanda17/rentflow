@@ -21,6 +21,9 @@ import { toast } from 'sonner';
 import { FundRentDialog } from './FundRentDialog';
 import { InvestmentWithdrawButton } from './InvestmentWithdrawButton';
 import { InvestmentSelectionSheet, type PoolType } from '@/components/angel-pool/InvestmentSelectionSheet';
+import { FunderApprovalBanner } from './FunderApprovalGate';
+import { useAuth } from '@/hooks/useAuth';
+import { useFunderApprovalStatus } from '@/hooks/useFunderApprovalStatus';
 
 type ViewState = 'default' | 'investing' | 'committed';
 
@@ -204,6 +207,8 @@ export function FunderCapitalOpportunities() {
   const [activeTab, setActiveTab] = useState<PoolType>('tenant');
   const [angelAmount, setAngelAmount] = useState(0);
   const [showFundDialog, setShowFundDialog] = useState(false);
+  const { user } = useAuth();
+  const { isApproved, status: approvalStatus } = useFunderApprovalStatus(user?.id);
 
   // Once data loads, decide initial state
   useEffect(() => {
