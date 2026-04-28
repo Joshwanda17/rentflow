@@ -75,11 +75,10 @@ Deno.serve(async (req) => {
 
       const { error: softDeleteError } = await supabaseAdmin.auth.admin.deleteUser(user_id, true);
       if (softDeleteError) {
-        console.error('Error soft-deleting auth user:', softDeleteError);
-        return new Response(JSON.stringify({ error: 'Tenant archived, but login disable failed: ' + softDeleteError.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        console.warn('Tenant archived, but auth soft-delete failed:', softDeleteError);
       }
 
-      return new Response(JSON.stringify({ success: true, archived: true, message: 'Tenant archived and payment history preserved' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ success: true, archived: true, auth_soft_deleted: !softDeleteError, message: 'Tenant archived and payment history preserved' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     // PRE-STEP: remove records that have non-nullable FK refs or need explicit cleanup.
