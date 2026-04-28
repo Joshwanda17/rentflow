@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Forbidden: Manager role required' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const { user_id } = await req.json();
+    const { user_id, preserve_history } = await req.json();
     if (!user_id) {
       return new Response(JSON.stringify({ error: 'user_id is required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
@@ -48,6 +48,37 @@ Deno.serve(async (req) => {
     // Prevent self-deletion
     if (user_id === caller.id) {
       return new Response(JSON.stringify({ error: 'Cannot delete your own account' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    if (preserve_history === true) {
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('full_name, tenant_status')
+        .eq('id', user_id)
+        .maybeSingle();
+
+      const archivedName = (profile?.full_name || '').startsWith('[ARCHIVED]')
+        ? profile?.full_name
+        : `[ARCHIVED] ${profile?.full_name || 'Deleted Tenant'}`;
+
+      const archiveResults = await Promise.all([
+        supabaseAdmin.from('profiles').update({ full_name: archivedName, tenant_status: 'inactive' }).eq('id', user_id),
+        supabaseAdmin.from('user_roles').delete().eq('user_id', user_id),
+        supabaseAdmin.from('push_subscriptions').delete().eq('user_id', user_id),
+      ]);
+
+      const archiveError = archiveResults.find((result) => result.error)?.error;
+      if (archiveError) {
+        console.error('Archive cleanup failed:', archiveError);
+        return new Response(JSON.stringify({ error: 'Failed to archive tenant: ' + archiveError.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const { error: softDeleteError } = await supabaseAdmin.auth.admin.deleteUser(user_id, true);
+      if (softDeleteError) {
+        console.warn('Tenant archived, but auth soft-delete failed:', softDeleteError);
+      }
+
+      return new Response(JSON.stringify({ success: true, archived: true, auth_soft_deleted: !softDeleteError, message: 'Tenant archived and payment history preserved' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     // PRE-STEP: remove records that have non-nullable FK refs or need explicit cleanup.
@@ -113,7 +144,7 @@ Deno.serve(async (req) => {
 
 
     return new Response(JSON.stringify({ success: true, message: 'User deleted successfully' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Delete user error:', error);
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }

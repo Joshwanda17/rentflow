@@ -216,10 +216,10 @@ export function TenantOpsDashboard() {
     setDeleting(true);
     try {
       const { error } = await supabase.functions.invoke('delete-user', {
-        body: { user_id: deleteDialog.tenantId },
+        body: { user_id: deleteDialog.tenantId, preserve_history: true },
       });
       if (error) throw error;
-      toast.success(`Tenant "${deleteDialog.tenantName}" has been deleted`);
+      toast.success(`Tenant "${deleteDialog.tenantName}" has been archived; payment history is preserved`);
       setDeleteDialog({ open: false, tenantId: '', tenantName: '' });
       queryClient.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
     } catch (err: any) {
@@ -237,7 +237,7 @@ export function TenantOpsDashboard() {
     const failures: string[] = [];
     for (const id of selectedTenantIds) {
       try {
-        const { error } = await supabase.functions.invoke('delete-user', { body: { user_id: id } });
+        const { error } = await supabase.functions.invoke('delete-user', { body: { user_id: id, preserve_history: true } });
         if (error) throw error;
         success += 1;
       } catch (err: any) {
@@ -250,9 +250,9 @@ export function TenantOpsDashboard() {
     setSelectedTenantIds([]);
     queryClient.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
     if (failed === 0) {
-      toast.success(`Deleted ${success} tenant${success === 1 ? '' : 's'}`);
+      toast.success(`Archived ${success} tenant${success === 1 ? '' : 's'}; payment history is preserved`);
     } else {
-      toast.error(`Deleted ${success}, failed ${failed}. ${failures[0] || ''}`);
+      toast.error(`Archived ${success}, failed ${failed}. ${failures[0] || ''}`);
     }
   };
 
@@ -270,7 +270,7 @@ export function TenantOpsDashboard() {
 
       const [profilesRes, landlordsRes, agentsRes] = await Promise.all([
         tenantIds.length > 0
-          ? supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds.slice(0, 100))
+          ? supabase.from('profiles').select('id, full_name, phone, tenant_status').in('id', tenantIds.slice(0, 100))
           : { data: [] },
         landlordIds.length > 0
           ? supabase.from('landlords').select('id, name, phone').in('id', landlordIds.slice(0, 100))
@@ -284,14 +284,16 @@ export function TenantOpsDashboard() {
       const landlordMap = new Map((landlordsRes.data || []).map(l => [l.id, l]));
       const agentMap = new Map((agentsRes.data || []).map((a: any) => [a.id, a]));
 
-      return items.map(r => ({
-        ...r,
-        tenant_name: profileMap.get(r.tenant_id)?.full_name || '—',
-        tenant_phone: profileMap.get(r.tenant_id)?.phone || '—',
-        landlord_name: landlordMap.get(r.landlord_id)?.name || '—',
-        landlord_phone: landlordMap.get(r.landlord_id)?.phone || '—',
-        agent_name: r.agent_id ? (agentMap.get(r.agent_id)?.full_name || '—') : 'Unassigned',
-      }));
+      return items
+        .filter(r => profileMap.get(r.tenant_id)?.tenant_status !== 'inactive')
+        .map(r => ({
+          ...r,
+          tenant_name: profileMap.get(r.tenant_id)?.full_name || '—',
+          tenant_phone: profileMap.get(r.tenant_id)?.phone || '—',
+          landlord_name: landlordMap.get(r.landlord_id)?.name || '—',
+          landlord_phone: landlordMap.get(r.landlord_id)?.phone || '—',
+          agent_name: r.agent_id ? (agentMap.get(r.agent_id)?.full_name || '—') : 'Unassigned',
+        }));
     },
     staleTime: 600000,
   });
@@ -738,9 +740,9 @@ export function TenantOpsDashboard() {
       <AlertDialog open={deleteDialog.open} onOpenChange={(open) => !open && setDeleteDialog({ open: false, tenantId: '', tenantName: '' })}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Tenant</AlertDialogTitle>
+            <AlertDialogTitle>Archive Tenant</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete <strong>{deleteDialog.tenantName}</strong> and all their data. This action cannot be undone.
+              This will remove <strong>{deleteDialog.tenantName}</strong> from the active tenant list and disable access, while preserving payment history and ledger records.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -751,9 +753,9 @@ export function TenantOpsDashboard() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Deleting...</>
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Archiving...</>
               ) : (
-                <><Trash2 className="h-4 w-4 mr-2" />Delete Tenant</>
+                <><Trash2 className="h-4 w-4 mr-2" />Archive Tenant</>
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -764,11 +766,9 @@ export function TenantOpsDashboard() {
       <AlertDialog open={bulkDeleteOpen} onOpenChange={(open) => !open && !bulkDeleting && setBulkDeleteOpen(false)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete {selectedTenantIds.length} tenant{selectedTenantIds.length === 1 ? '' : 's'}?</AlertDialogTitle>
+            <AlertDialogTitle>Archive {selectedTenantIds.length} tenant{selectedTenantIds.length === 1 ? '' : 's'}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete <strong>{selectedTenantIds.length}</strong> selected tenant{selectedTenantIds.length === 1 ? '' : 's'} and all related records (rent requests, profile, roles). This action cannot be undone.
-              <br /><br />
-              <span className="text-destructive font-medium">Tenants with ledger history will fail individually — those records cannot be deleted to preserve audit integrity.</span>
+              This will remove <strong>{selectedTenantIds.length}</strong> selected tenant{selectedTenantIds.length === 1 ? '' : 's'} from active tenant views and disable access, while preserving payment history and ledger records.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -779,9 +779,9 @@ export function TenantOpsDashboard() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {bulkDeleting ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Deleting…</>
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Archiving…</>
               ) : (
-                <><Trash2 className="h-4 w-4 mr-2" />Delete {selectedTenantIds.length}</>
+                <><Trash2 className="h-4 w-4 mr-2" />Archive {selectedTenantIds.length}</>
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
