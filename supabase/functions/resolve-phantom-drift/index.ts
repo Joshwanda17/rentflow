@@ -141,7 +141,11 @@ Deno.serve(async (req) => {
       {
         entries: [userLeg, platformLeg],
         idempotency_key: idempotency,
-        skip_balance_check: false,
+        // Drift resolution corrects an existing wallet-vs-ledger mismatch.
+        // For "wrote down" cases the user's ledger net is intentionally low
+        // (that IS the drift). The solvency guard would otherwise block the
+        // very correction it was designed to enable. CFO-gated + audited.
+        skip_balance_check: true,
       },
     );
     if (ledgerErr) {
