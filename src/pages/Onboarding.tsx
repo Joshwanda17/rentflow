@@ -778,7 +778,7 @@ export default function FunderOnboarding() {
   };
 
   return (
-    <div className="min-h-screen flex font-sans bg-[#FAFAFA]">
+    <div className="h-screen w-screen overflow-hidden flex font-sans bg-[#FAFAFA]">
       <Toaster position="top-center" />
 
       {/* LEFT COLUMN (HERO IMAGE) */}
