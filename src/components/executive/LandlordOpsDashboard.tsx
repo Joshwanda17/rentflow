@@ -1486,6 +1486,40 @@ export function LandlordOpsDashboard() {
     );
   }
 
+  // ─── ALL REQUESTS VIEW (landlord lens) ───
+  if (view === 'all-requests') {
+    return (
+      <>
+      <div className="space-y-4">
+        <BackButton />
+        <ExecutiveDataTable
+          data={allRequestsRows || []}
+          columns={allRequestsColumns}
+          loading={allRequestsLoading}
+          title="All Requests"
+          getRowId={(r: any) => String(r.id)}
+          filters={[{
+            key: 'status',
+            label: 'Status',
+            options: [
+              { value: 'pending', label: 'Pending' },
+              { value: 'tenant_ops_approved', label: 'Tenant Ops Approved' },
+              { value: 'agent_verified', label: 'Agent Verified' },
+              { value: 'landlord_ops_approved', label: 'Landlord Ops Approved' },
+              { value: 'coo_approved', label: 'COO Approved' },
+              { value: 'funded', label: 'Funded' },
+              { value: 'repaying', label: 'Repaying' },
+              { value: 'fully_repaid', label: 'Fully Repaid' },
+              { value: 'defaulted', label: 'Defaulted' },
+            ],
+          }]}
+        />
+      </div>
+      {renderDialogs()}
+      </>
+    );
+  }
+
   // ─── PIPELINE VIEW ───
   if (view === 'pipeline') {
     return (
