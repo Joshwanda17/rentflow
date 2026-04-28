@@ -120,10 +120,18 @@ export default function WithdrawFlow({
   const [floatBalance, setFloatBalance] = useState<number>(0);
   const [advanceBalance, setAdvanceBalance] = useState<number>(0);
   const [userRoles, setUserRoles] = useState<string[]>([]);
+  // Ledger-true `available` from get_user_available_balance — the
+  // ONLY figure we trust to gate the withdraw button. Cached
+  // wallets.balance can drift above this; we always take the lesser.
+  const [ledgerAvailable, setLedgerAvailable] = useState<number | null>(null);
 
-  // The "available" source now represents withdrawable + advance combined.
-  const combinedAvailable = availableBalance + advanceBalance;
-  const maxAmount = source === 'available' ? combinedAvailable : roiBalance;
+  // The "available" source is the LESSER of (caller-supplied wallet
+  // available, ledger-true available). Advance bucket is debt — NOT
+  // withdrawable money — so it is excluded.
+  const trueAvailable = ledgerAvailable !== null
+    ? Math.min(availableBalance, ledgerAvailable)
+    : availableBalance;
+  const maxAmount = source === 'available' ? trueAvailable : roiBalance;
 
   useEffect(() => {
     if (!open || !user) return;
