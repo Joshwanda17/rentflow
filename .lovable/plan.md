@@ -1,75 +1,38 @@
-## What's actually in the database (not what the UI suggests)
+# Fix: Confirm Payment button not responsive on iOS/Android
 
-I audited every withdrawal request tied to Carol's proxy partners (`ae194750-4827-47e8-839e-5e772565138b`). There are **zero** withdrawal_requests in `pending`, `requested`, `manager_approved`, `cfo_approved`, or `processing` status.
+## Root Cause
 
-Status breakdown for Carol's partners:
+The `Confirm` button in the **AgentTenantCollectDialog** sits low in the modal — visually right where the global `BottomRoleSwitcher` is fixed to the bottom of the viewport.
 
-| Status | Count | Total UGX |
-|---|---|---|
-| approved | 93 | 118,652,862 |
-| completed | 13 | 19,772,845 |
-| rejected | **34** | **52,995,800** |
-| expired | **7** | **6,595,000** |
-| cancelled | **1** | **7,520,000** |
-| re_approved_for_recovery | 1 | 30,000 |
-| **pending / processing** | **0** | **0** |
+- `BottomRoleSwitcher` (src/components/BottomRoleSwitcher.tsx, line 79): `fixed bottom-0 left-0 right-0 z-50`
+- Radix Dialog overlay + content: also `z-50` by default
 
-So nothing is stuck in the approval pipeline. What looks like "many pendings" is actually the **"To Withdraw"** column on each partner card showing outstanding balances that come from two sources:
+Result: on mobile, the bottom role-switcher nav is rendered **after** the dialog in the DOM (it lives at the app shell level), so at the same z-index it wins the stacking contest and sits **on top of** the Confirm/Edit buttons. Taps on Confirm hit the role switcher's transparent nav area instead. That's why nothing happens and no `[AgentTenantCollectDialog] Confirm clicked` log fires (we already verified no such log exists).
 
-1. **Rejected / expired / cancelled requests** — 42 requests totalling ~67M UGX where the partner asked, FinOps declined or it timed out, and the ROI returned to the partner's available balance. Heaviest hitters:
-   - Grace Paul Ochieng: 5 rejected (40.1M) + 5 expired (6.5M)
-   - ATUHAIRE CAROLYNE: 6 rejected (11M) + 1 cancelled (7.5M)
-   - LOLEM FIRICILA: 16 rejected (381k) + 2 expired (100k)
-   - Lukodda Joseph, MUKISA PEACE, BANKO DAVID — smaller amounts
-2. **Newly accrued ROI** that never had a withdrawal request raised against it.
+The button code itself is fine — `touchAction: 'manipulation'` and the handler are correct. The problem is purely a z-index / overlay collision specific to mobile viewports where the dialog reaches the bottom of the screen.
 
-Both are correctly *withdrawable*, not pending — but the UI offers no way for Carol to tell the difference, which is why every card looks like an unresolved pending item.
+## Fix
 
-## Plan — make the Proxy Partner Funds card honest
+Two small, targeted changes:
 
-### 1. Replace the misleading "Pending" badge with explicit context
+### 1. Raise the dialog above the bottom nav
+In `src/components/agent/AgentTenantCollectDialog.tsx`:
+- Add `z-[60]` to the `DialogContent` so it sits above `BottomRoleSwitcher` (`z-50`).
+- Add bottom padding/margin to the content (`mb-20` or `pb-20`) so the action buttons are pushed up clear of the ~56px role-switcher footprint, even when the modal is full height on small phones.
 
-`src/components/agent/ProxyPartnerFunds.tsx` currently shows a `Pending` badge only when an active withdrawal_requests row exists. Add three new derived signals per partner card so Carol can see *why* a balance is sitting there:
+### 2. Make the Confirm button bullet-proof on touch
+Already has `touchAction: 'manipulation'`. Additionally:
+- Add `type="button"` explicitly (defensive — avoids any accidental form submit interception).
+- Wrap the click handler so it also fires on `onPointerUp` as a fallback for iOS PWA edge cases (only if step 1 alone doesn't fully resolve — but step 1 is the actual fix).
 
-- `Awaiting request` (neutral) — partner has `available > 0` and **no** active/historical request in the last 7 days. These are fresh ROI accruals.
-- `Last attempt rejected` (destructive) — most recent withdrawal_requests row is `rejected`. Show the rejection reason inline (already in DB).
-- `Last attempt expired` (warning) — most recent row is `expired`. Show the expiry date.
+## Files to change
 
-These replace the silent `null` that today makes Carol assume the balance is "pending."
+- `src/components/agent/AgentTenantCollectDialog.tsx`
+  - DialogContent: add `z-[60]` and bottom spacing so buttons clear the role switcher.
+  - Confirm/Edit buttons: add `type="button"` for safety.
 
-### 2. Fetch the last terminal request per partner
+## Why this works
 
-Extend the existing `Promise.all` block (around line 211) to also load the **most recent** `rejected | expired | cancelled` withdrawal_requests row per `linked_party` from Carol's partners. Store it in a new `lastTerminalByPartner` map keyed the same way as `partnerWithdrawalStatus`.
+Once the dialog content is at `z-[60]` (one layer above the `z-50` BottomRoleSwitcher), taps on the Confirm button reach the button instead of the nav underneath it. The extra bottom padding guarantees the tappable area is never visually obscured by the role switcher, even on the smallest iPhone SE / older Android viewports.
 
-### 3. New "Why is this here?" expandable row
-
-Below the 3-stat grid (Returns Due / Delivered / To Withdraw), add a small collapsible line:
-
-- If `lastTerminalByPartner[key]` exists → "Last withdrawal {rejected|expired} on {date}. Reason: {rejection_reason || 'auto-expired after timeout'}. Funds returned to wallet — re-request below."
-- Else if `available > 0` and no record at all → "ROI accrued and ready. No withdrawal has been requested yet."
-
-### 4. Filter / sort controls at the top of the list
-
-Add a small toolbar above the card list with three pills:
-- **All** (default)
-- **Re-request needed** (rejected/expired)
-- **New ROI** (no prior request)
-
-Counts shown in the pill labels so Carol immediately sees "Re-request needed (8) · New ROI (12)" rather than scrolling.
-
-### 5. Optional follow-up — surface in the dashboard tile
-
-The "Proxy Partner Funds" entry on `/dashboard/agent` currently shows just a total. Add a sub-line: "X partners need re-request · Y new ROI ready" so the urgency is visible before drilling in.
-
-## Technical notes
-
-- No schema changes. All data already exists in `withdrawal_requests` (status, rejection_reason, updated_at).
-- Real-time channel already subscribed on line 95 — no changes needed there.
-- Keep the existing `getStatusBadge` for active in-flight requests; we are only adding badges for the *absence* of an active request.
-- Status priority for the badge: active > rejected/expired > new ROI.
-
-## What this does NOT change
-
-- No money is moved or re-credited; nothing in the ledger is touched.
-- The 34 rejected and 7 expired requests stay as historical records.
-- Carol can immediately raise fresh withdrawal requests for any partner — the balances were always available, the UI just didn't say so.
+No backend, RPC, or business-logic changes — purely a CSS stacking fix.

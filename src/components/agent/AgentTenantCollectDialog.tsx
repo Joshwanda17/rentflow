@@ -160,7 +160,7 @@ export function AgentTenantCollectDialog({
   return (
     <>
     <Dialog open={open} onOpenChange={(o) => { if (!o && !loading) handleClose(); }}>
-      <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-sm max-h-[85vh] overflow-y-auto z-[60] mb-20 sm:mb-0">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             {confirming ? (
@@ -247,6 +247,7 @@ export function AgentTenantCollectDialog({
 
             <div className="flex gap-2">
               <Button
+                type="button"
                 variant="outline"
                 className="flex-1 h-12"
                 onClick={() => setConfirming(false)}
@@ -256,6 +257,7 @@ export function AgentTenantCollectDialog({
                 Edit
               </Button>
               <Button
+                type="button"
                 className="flex-1 h-12 font-bold"
                 onClick={handleAllocate}
                 disabled={loading}
