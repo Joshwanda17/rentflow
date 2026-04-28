@@ -123,6 +123,31 @@ const loadApp = async () => {
     schedulePreviewBlankPageGuard();
   } catch (err) {
     console.error('[Main] App load failed:', err);
+    // Stale-deploy recovery: most app-load failures are stale chunk hashes
+    // after a redeploy (Vite rotates ?v=… query strings). Clear caches and
+    // hard-reload once before falling back to the error UI.
+    const msg = String((err as any)?.message || err || '').toLowerCase();
+    const isChunkError =
+      msg.includes('dynamically imported') ||
+      msg.includes('failed to fetch') ||
+      msg.includes('loading chunk') ||
+      msg.includes('import timeout') ||
+      msg.includes('module script failed');
+    const reloadKey = '__welile_chunk_reload_at';
+    const lastReload = Number(sessionStorage.getItem(reloadKey) || '0');
+    const recentlyReloaded = Date.now() - lastReload < 30_000;
+    if (isChunkError && !recentlyReloaded) {
+      try {
+        sessionStorage.setItem(reloadKey, String(Date.now()));
+        if ('caches' in window) {
+          await caches.keys().then((keys) =>
+            Promise.all(keys.map((k) => caches.delete(k)))
+          ).catch(() => {});
+        }
+      } catch {}
+      location.reload();
+      return;
+    }
     showErrorUI();
   }
 };
@@ -140,16 +165,28 @@ function showErrorUI() {
   logo.style.borderRadius = '12px';
 
   const heading = document.createElement('h2');
-  heading.textContent = 'Connection Error';
+  heading.textContent = 'Update Available';
   heading.style.cssText = 'font-size:18px;font-weight:600;color:#1f2937;margin:0';
 
   const msg = document.createElement('p');
-  msg.textContent = 'Check your internet connection and try again.';
+  msg.textContent = 'A newer version of Welile is ready. Tap below to load it.';
   msg.style.cssText = 'font-size:14px;color:#6b7280;margin:0;max-width:280px';
 
   const btn = document.createElement('button');
-  btn.textContent = 'Tap to Retry';
-  btn.onclick = () => location.reload();
+  btn.textContent = 'Reload App';
+  btn.onclick = async () => {
+    try {
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+      }
+    } catch {}
+    location.reload();
+  };
   btn.style.cssText = 'padding:12px 24px;background:#7c3aed;color:white;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;min-height:44px';
 
   container.append(logo, heading, msg, btn);
