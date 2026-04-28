@@ -94,7 +94,7 @@ function ChoiceCard({
       type="button"
       onClick={onClick}
       whileTap={{ scale: 0.985 }}
-      className={`w-full text-left p-4 rounded-2xl border-2 transition-all duration-200 relative overflow-hidden ${
+      className={`w-full text-left p-4 rounded-2xl border-2 transition-all duration-200 relative ${
         selected ? 'border-[#6c11d4] bg-[#F3F0FF]' : 'border-gray-100 bg-white hover:border-purple-200'
       }`}
     >
