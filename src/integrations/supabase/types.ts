@@ -8613,6 +8613,7 @@ export type Database = {
           residence_lng: number | null
           residence_updated_at: string | null
           seller_application_status: string | null
+          signup_source: string | null
           sub_county: string | null
           tenant_status: string
           territory: string | null
@@ -8660,6 +8661,7 @@ export type Database = {
           residence_lng?: number | null
           residence_updated_at?: string | null
           seller_application_status?: string | null
+          signup_source?: string | null
           sub_county?: string | null
           tenant_status?: string
           territory?: string | null
@@ -8707,6 +8709,7 @@ export type Database = {
           residence_lng?: number | null
           residence_updated_at?: string | null
           seller_application_status?: string | null
+          signup_source?: string | null
           sub_county?: string | null
           tenant_status?: string
           territory?: string | null
