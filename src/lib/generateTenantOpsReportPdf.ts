@@ -8,6 +8,8 @@ export interface TenantRentRow {
   rent_plans?: number;
   rent_given: number;
   amount_paid: number;
+  paid_direct?: number;
+  paid_via_agent?: number;
   outstanding: number;
   agent_name?: string;
 }
@@ -51,7 +53,7 @@ export function generateTenantOpsReportPdf(
   doc.setFontSize(8.5);
   doc.setTextColor(110, 110, 120);
   doc.text(
-    'Tenants who paid in this period — amount collected within the window and current lifetime balance.',
+    'All tenant payments in this period (direct + agent-collected). "Channel" shows how the money came in.',
     margin,
     y,
   );
@@ -81,6 +83,8 @@ export function generateTenantOpsReportPdf(
   const totalPaid = tenants.reduce((s, t) => s + (t.amount_paid || 0), 0);
   const totalOutstanding = tenants.reduce((s, t) => s + (t.outstanding || 0), 0);
   const totalPayments = tenants.reduce((s, t) => s + (t.rent_plans || 0), 0);
+  const totalDirect = tenants.reduce((s, t) => s + (t.paid_direct || 0), 0);
+  const totalViaAgent = tenants.reduce((s, t) => s + (t.paid_via_agent || 0), 0);
 
   const cardGap = 3;
   const cardW = (contentWidth - cardGap * 3) / 4;
@@ -123,25 +127,28 @@ export function generateTenantOpsReportPdf(
   };
 
   drawCard(margin,                           'TENANTS WHO PAID',    num(totalTenants),     { fill: [37, 99, 235],  glyph: 'P' }, [15, 23, 42]);
-  drawCard(margin + (cardW + cardGap),       'PAYMENTS RECEIVED',   num(totalPayments),    { fill: [124, 58, 237], glyph: '#' }, [124, 58, 237]);
-  drawCard(margin + (cardW + cardGap) * 2,   'COLLECTED IN PERIOD', ugx(totalPaid),        { fill: [22, 163, 74],  glyph: '$' }, [22, 163, 74]);
+  drawCard(margin + (cardW + cardGap),       'DIRECT PAYMENTS',     ugx(totalDirect),      { fill: [124, 58, 237], glyph: 'D' }, [124, 58, 237]);
+  drawCard(margin + (cardW + cardGap) * 2,   'AGENT-COLLECTED',     ugx(totalViaAgent),    { fill: [22, 163, 74],  glyph: 'A' }, [22, 163, 74]);
   drawCard(margin + (cardW + cardGap) * 3,   'OUTSTANDING (LIFETIME)', ugx(totalOutstanding), { fill: [220, 38, 38], glyph: '!' }, [220, 38, 38]);
 
   y += cardH + 7;
 
   // ===== Table =====
-  // Column widths: # | Tenant | Agent | Paid | Outstanding
-  const wIdx = 10;
-  const wTenant = 56;
-  const wAgent = 46;
-  const wPaid = 38;
-  const wOut = contentWidth - wIdx - wTenant - wAgent - wPaid;
+  // # | Tenant | Agent | Channel | Paid | Outstanding
+  const wIdx = 8;
+  const wTenant = 48;
+  const wAgent = 38;
+  const wChannel = 22;
+  const wPaid = 36;
+  const wOut = contentWidth - wIdx - wTenant - wAgent - wChannel - wPaid;
+  let cx = margin;
   const cols = [
-    { label: '#',                       x: margin,                                              w: wIdx,    align: 'left' as const },
-    { label: 'Tenant Name',             x: margin + wIdx,                                       w: wTenant, align: 'left' as const },
-    { label: 'Agent',                   x: margin + wIdx + wTenant,                             w: wAgent,  align: 'left' as const },
-    { label: 'Paid in Period (UGX)',    x: margin + wIdx + wTenant + wAgent,                    w: wPaid,   align: 'right' as const },
-    { label: 'Outstanding (UGX)',       x: margin + wIdx + wTenant + wAgent + wPaid,            w: wOut,    align: 'right' as const },
+    { label: '#',                    x: cx,                w: wIdx,     align: 'left'  as const },
+    { label: 'Tenant Name',          x: (cx += wIdx, cx),  w: wTenant,  align: 'left'  as const },
+    { label: 'Agent',                x: (cx += wTenant, cx), w: wAgent, align: 'left'  as const },
+    { label: 'Channel',              x: (cx += wAgent, cx), w: wChannel, align: 'left' as const },
+    { label: 'Paid in Period (UGX)', x: (cx += wChannel, cx), w: wPaid, align: 'right' as const },
+    { label: 'Outstanding (UGX)',    x: (cx += wPaid, cx),  w: wOut,    align: 'right' as const },
   ];
 
   const drawTableHeader = () => {
@@ -197,11 +204,20 @@ export function generateTenantOpsReportPdf(
 
     // Agent
     doc.setTextColor(80, 85, 100);
-    doc.text((t.agent_name || '—').slice(0, 26), cols[2].x + 2, baseline);
+    doc.text((t.agent_name || '—').slice(0, 22), cols[2].x + 2, baseline);
+
+    // Channel
+    const direct = t.paid_direct || 0;
+    const viaAgent = t.paid_via_agent || 0;
+    const channel = direct > 0 && viaAgent > 0 ? 'Mixed' : viaAgent > 0 ? 'Agent' : 'Direct';
+    if (channel === 'Direct') doc.setTextColor(124, 58, 237);
+    else if (channel === 'Agent') doc.setTextColor(22, 163, 74);
+    else doc.setTextColor(80, 85, 100);
+    doc.text(channel, cols[3].x + 2, baseline);
 
     // Paid
     doc.setTextColor(15, 23, 42);
-    doc.text(num(t.amount_paid || 0), cols[3].x + cols[3].w - 2, baseline, { align: 'right' });
+    doc.text(num(t.amount_paid || 0), cols[4].x + cols[4].w - 2, baseline, { align: 'right' });
 
     // Outstanding (red if positive, green if zero/negative)
     if ((t.outstanding || 0) > 0) {
@@ -209,7 +225,7 @@ export function generateTenantOpsReportPdf(
     } else {
       doc.setTextColor(22, 163, 74);
     }
-    doc.text(num(t.outstanding || 0), cols[4].x + cols[4].w - 2, baseline, { align: 'right' });
+    doc.text(num(t.outstanding || 0), cols[5].x + cols[5].w - 2, baseline, { align: 'right' });
 
     y += rowH;
   });
@@ -225,10 +241,10 @@ export function generateTenantOpsReportPdf(
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9.5);
   doc.setTextColor(15, 23, 42);
-  doc.text('TOTAL', cols[2].x + cols[2].w - 2, y + rowH - 1.6, { align: 'right' });
-  doc.text(num(totalPaid), cols[3].x + cols[3].w - 2, y + rowH - 1.6, { align: 'right' });
+  doc.text('TOTAL', cols[3].x + cols[3].w - 2, y + rowH - 1.6, { align: 'right' });
+  doc.text(num(totalPaid), cols[4].x + cols[4].w - 2, y + rowH - 1.6, { align: 'right' });
   doc.setTextColor(220, 38, 38);
-  doc.text(num(totalOutstanding), cols[4].x + cols[4].w - 2, y + rowH - 1.6, { align: 'right' });
+  doc.text(num(totalOutstanding), cols[5].x + cols[5].w - 2, y + rowH - 1.6, { align: 'right' });
   y += rowH + 5;
 
   // Footer note

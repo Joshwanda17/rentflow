@@ -102,36 +102,46 @@ export function TenantOpsDashboard() {
 
       // 3. Tenant + agent profile lookups
       const tenantIds = [...new Set(payments.map(p => p.user_id).filter(Boolean) as string[])];
-      const agentIds = [...new Set((collections || []).map(c => c.agent_id).filter(Boolean) as string[])];
-      const [tenantRes, agentRes, rentReqRes] = await Promise.all([
+      // Also fetch rent_requests so we can fall back to the assigned agent when no agent_collection exists
+      const [tenantRes, rentReqRes] = await Promise.all([
         tenantIds.length
           ? supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds)
           : Promise.resolve({ data: [] as any[] }),
-        agentIds.length
-          ? supabase.from('profiles').select('id, full_name').in('id', agentIds)
-          : Promise.resolve({ data: [] as any[] }),
-        // Lifetime outstanding for these tenants (independent of date window)
         tenantIds.length
           ? supabase.from('rent_requests')
-              .select('tenant_id, total_repayment, amount_repaid, status')
+              .select('tenant_id, agent_id, total_repayment, amount_repaid, status')
               .in('tenant_id', tenantIds)
               .in('status', ['funded', 'disbursed', 'repaying', 'fully_repaid', 'defaulted'])
           : Promise.resolve({ data: [] as any[] }),
       ]);
       const tenantMap = new Map((tenantRes.data || []).map((p: any) => [p.id, p]));
-      const agentMap = new Map((agentRes.data || []).map((p: any) => [p.id, p]));
 
-      // Lifetime outstanding per tenant
+      // Lifetime outstanding + assigned agent fallback per tenant
       const outstandingByTenant = new Map<string, number>();
+      const assignedAgentByTenant = new Map<string, string>();
       for (const r of (rentReqRes.data || [])) {
         const out = Number(r.total_repayment || 0) - Number(r.amount_repaid || 0);
         outstandingByTenant.set(r.tenant_id, (outstandingByTenant.get(r.tenant_id) || 0) + out);
+        if (r.agent_id && !assignedAgentByTenant.has(r.tenant_id)) {
+          assignedAgentByTenant.set(r.tenant_id, r.agent_id);
+        }
       }
+
+      // Resolve agent profiles for BOTH collection-based agents and rent-request fallbacks
+      const allAgentIds = [...new Set([
+        ...((collections || []).map(c => c.agent_id).filter(Boolean) as string[]),
+        ...Array.from(assignedAgentByTenant.values()),
+      ])];
+      const { data: agentProfiles } = allAgentIds.length
+        ? await supabase.from('profiles').select('id, full_name').in('id', allAgentIds)
+        : { data: [] as any[] };
+      const agentMap = new Map((agentProfiles || []).map((p: any) => [p.id, p]));
 
       // 4. Aggregate one row per tenant — paid IN RANGE
       const byTenant = new Map<string, {
         tenant_name: string; tenant_phone: string;
         amount_paid: number; outstanding: number;
+        paid_direct: number; paid_via_agent: number;
         agent_names: Set<string>;
         payment_count: number;
       }>();
@@ -139,8 +149,12 @@ export function TenantOpsDashboard() {
         const tenantId = p.user_id as string | null;
         if (!tenantId) continue;
         const collection = p.source_id ? collectionMap.get(p.source_id) : null;
-        const agentId = collection?.agent_id;
-        const agentName = agentId ? (agentMap.get(agentId)?.full_name || '—') : '—';
+        const collectingAgentId = collection?.agent_id;
+        const isAgentCollection = !!collectingAgentId;
+        // Per-row attribution: actual collector if agent collection, else assigned agent on rent request
+        const attributedAgentId = collectingAgentId || assignedAgentByTenant.get(tenantId);
+        const agentName = attributedAgentId ? (agentMap.get(attributedAgentId)?.full_name || '—') : '—';
+        const amt = Number(p.amount || 0);
 
         let row = byTenant.get(tenantId);
         if (!row) {
@@ -149,12 +163,15 @@ export function TenantOpsDashboard() {
             tenant_phone: tenantMap.get(tenantId)?.phone || '—',
             amount_paid: 0,
             outstanding: outstandingByTenant.get(tenantId) || 0,
+            paid_direct: 0,
+            paid_via_agent: 0,
             agent_names: new Set<string>(),
             payment_count: 0,
           };
           byTenant.set(tenantId, row);
         }
-        row.amount_paid += Number(p.amount || 0);
+        row.amount_paid += amt;
+        if (isAgentCollection) row.paid_via_agent += amt; else row.paid_direct += amt;
         row.payment_count += 1;
         if (agentName && agentName !== '—') row.agent_names.add(agentName);
       }
@@ -166,6 +183,8 @@ export function TenantOpsDashboard() {
           rent_plans: t.payment_count,
           rent_given: 0,
           amount_paid: t.amount_paid,
+          paid_direct: t.paid_direct,
+          paid_via_agent: t.paid_via_agent,
           outstanding: t.outstanding,
           agent_name: t.agent_names.size === 0 ? '—' : Array.from(t.agent_names).join(', '),
         }))
