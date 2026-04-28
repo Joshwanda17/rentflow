@@ -216,10 +216,10 @@ export function TenantOpsDashboard() {
     setDeleting(true);
     try {
       const { error } = await supabase.functions.invoke('delete-user', {
-        body: { user_id: deleteDialog.tenantId },
+        body: { user_id: deleteDialog.tenantId, preserve_history: true },
       });
       if (error) throw error;
-      toast.success(`Tenant "${deleteDialog.tenantName}" has been deleted`);
+      toast.success(`Tenant "${deleteDialog.tenantName}" has been archived; payment history is preserved`);
       setDeleteDialog({ open: false, tenantId: '', tenantName: '' });
       queryClient.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
     } catch (err: any) {
@@ -237,7 +237,7 @@ export function TenantOpsDashboard() {
     const failures: string[] = [];
     for (const id of selectedTenantIds) {
       try {
-        const { error } = await supabase.functions.invoke('delete-user', { body: { user_id: id } });
+        const { error } = await supabase.functions.invoke('delete-user', { body: { user_id: id, preserve_history: true } });
         if (error) throw error;
         success += 1;
       } catch (err: any) {
@@ -250,9 +250,9 @@ export function TenantOpsDashboard() {
     setSelectedTenantIds([]);
     queryClient.invalidateQueries({ queryKey: ['exec-tenant-ops'] });
     if (failed === 0) {
-      toast.success(`Deleted ${success} tenant${success === 1 ? '' : 's'}`);
+      toast.success(`Archived ${success} tenant${success === 1 ? '' : 's'}; payment history is preserved`);
     } else {
-      toast.error(`Deleted ${success}, failed ${failed}. ${failures[0] || ''}`);
+      toast.error(`Archived ${success}, failed ${failed}. ${failures[0] || ''}`);
     }
   };
 
