@@ -396,6 +396,9 @@ export default function FunderOnboarding() {
                   {/* Partner identity */}
                   <div className="rounded-xl bg-muted/40 p-3 space-y-1">
                     <p className="text-base font-bold">{selected.beneficiary?.full_name || 'Unknown'}</p>
+                    <p className="text-[11px] font-mono text-muted-foreground">
+                      Ref: {buildPartnerReference(selected.beneficiary_id, selected.created_at)}
+                    </p>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                       <span className="inline-flex items-center gap-1">
                         <Phone className="h-3 w-3" />
