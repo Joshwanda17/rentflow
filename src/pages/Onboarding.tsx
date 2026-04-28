@@ -767,7 +767,7 @@ export default function FunderOnboarding() {
         const cleanLast = sanitizeInput(form.lastName).trim();
         const cleanPhone = sanitizeInput(form.phone).trim();
 
-        await registerUser({
+        const signupResult = await registerUser({
           email: cleanEmail,
           password: form.password,
           firstName: cleanFirst,
@@ -778,7 +778,8 @@ export default function FunderOnboarding() {
 
         // Fire-and-forget the partner_account_created email — don't block the
         // success modal on email delivery.
-        const partnerReference = `WLP-${new Date().getFullYear()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+        const newUserId = signupResult?.data?.user?.id ?? '';
+        const partnerReference = buildPartnerReference(newUserId, new Date());
         supabase.functions
           .invoke('send-transactional-email', {
             body: {
