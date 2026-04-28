@@ -129,7 +129,7 @@ export function PartnerCompound({
                     </Text>
                     <Text style={{ ...outroText, margin: '25px 0 0 0' }}>
                       Should you require any further clarification or a detailed update on your partnership performance, please feel free to reach out to us at{' '}
-                      <Link href="mailto:info@welile.com" style={inlineLink}>info@welile.com</Link>.
+                      <Link href="mailto:partnership@welile.com" style={inlineLink}>partnership@welile.com</Link>.
                     </Text>
                     <Text style={{ ...outroText, margin: '25px 0 0 0' }}>
                       Thank you once again for choosing {company_name} Technologies Limited.
