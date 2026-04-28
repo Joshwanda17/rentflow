@@ -716,7 +716,7 @@ const STEP_LABELS = ['Welcome', 'Support', 'Create Account'];
 export default function FunderOnboarding() {
   const navigate = useNavigate();
   const definedRole = useRouteRole();
-  const { user } = useRealAuth();
+  const { user, loading: authLoading } = useRealAuth();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -753,6 +753,22 @@ export default function FunderOnboarding() {
   }, [user, navigate, showSuccess, isSubmitting]);
 
   const valid = isValid(step, form);
+
+  // Guard: while auth is initialising, OR an authenticated user is being
+  // redirected away, render a lightweight loader instead of the fixed
+  // inset-0 wizard chrome. Without this, mobile browsers can show a brief
+  // blank screen between auth resolution and the navigate() call, which
+  // some users perceive as the page being "broken".
+  if (authLoading || (user && !showSuccess && !isSubmitting)) {
+    return (
+      <div className="fixed inset-0 flex flex-col items-center justify-center bg-[#FAFAFA] gap-3">
+        <div className="w-6 h-6 border-2 border-[#6c11d4] border-t-transparent rounded-full animate-spin" />
+        <p className="text-[12px] font-bold text-gray-500 tracking-wide uppercase">
+          {user ? 'Redirecting…' : 'Loading…'}
+        </p>
+      </div>
+    );
+  }
 
   const handleNext = async () => {
     if (step < TOTAL) {
