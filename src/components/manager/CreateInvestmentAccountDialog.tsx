@@ -10,6 +10,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { Search, User, Loader2, PlusCircle, Sparkles } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { UGANDA_BANKS } from '@/lib/ugandaBanks';
+import { useFunderApprovalStatus } from '@/hooks/useFunderApprovalStatus';
+import { Shield, Lock } from 'lucide-react';
 
 interface CreateInvestmentAccountDialogProps {
   open: boolean;
@@ -33,6 +35,8 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, p
   const [users, setUsers] = useState<UserResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserResult | null>(null);
+  const { status: approvalStatus, isApproved, isLoading: approvalLoading } =
+    useFunderApprovalStatus(selectedUser?.id);
 
   const [form, setForm] = useState({
     account_name: '',
@@ -91,6 +95,14 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, p
 
   const handleCreate = async () => {
     if (!selectedUser || !form.investment_amount) return;
+    if (!isApproved) {
+      toast({
+        title: 'Partner not approved',
+        description: 'This funder must be approved in Partner Onboarding before a portfolio can be created.',
+        variant: 'destructive',
+      });
+      return;
+    }
     const amt = parseFloat(form.investment_amount);
     if (isNaN(amt) || amt < 50000) {
       toast({ title: 'Investment must be at least UGX 50,000', variant: 'destructive' });
