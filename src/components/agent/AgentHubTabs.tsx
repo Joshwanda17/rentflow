@@ -19,8 +19,14 @@ const tabs: { id: AgentHubTab; icon: typeof Home; label: string }[] = [
 
 export function AgentHubTabs({ active, onChange }: AgentHubTabsProps) {
   return (
-    <div className="sticky top-0 z-20 -mx-4 px-4 pt-2 pb-2 bg-background/95 backdrop-blur-md border-b border-border/40">
-      <div className="grid grid-cols-5 gap-1 p-1 rounded-2xl bg-muted/60">
+    <nav
+      className="fixed left-0 right-0 z-40 px-3 pt-2 bg-background/95 backdrop-blur-md border-t border-border/40"
+      style={{
+        bottom: 'calc(56px + env(safe-area-inset-bottom, 0px))',
+        paddingBottom: '8px',
+      }}
+    >
+      <div className="grid grid-cols-5 gap-1 p-1 rounded-2xl bg-muted/60 max-w-lg mx-auto">
         {tabs.map((t) => {
           const isActive = active === t.id;
           return (
@@ -41,6 +47,6 @@ export function AgentHubTabs({ active, onChange }: AgentHubTabsProps) {
           );
         })}
       </div>
-    </div>
+    </nav>
   );
 }
