@@ -3,6 +3,12 @@
 @tailwind utilities;
 
 /* Sonner toaster — prevent phantom right gutter on mobile */
+/* Hide the sonner notifications section entirely when no toasts are active.
+   It re-appears automatically when a toast is rendered inside it. */
+section[aria-label*="Notifications" i]:empty {
+  display: none !important;
+}
+
 @media (max-width: 640px) {
   [data-sonner-toaster] {
     display: contents !important;
