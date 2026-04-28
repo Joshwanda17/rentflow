@@ -37,7 +37,8 @@ let walletCache: { data: Wallet | null; userId: string; timestamp: number } | nu
 const WALLET_CACHE_TTL = 5_000; // 5 seconds
 // Bump this whenever the wallet shape or invalidation logic changes — old
 // localStorage entries from previous releases will be discarded on next load.
-const WALLET_LS_VERSION = 'v2';
+// v3: balances are now ledger-true (overlay from get_user_available_balance).
+const WALLET_LS_VERSION = 'v3';
 const lsKey = (uid?: string) => `wallet_${WALLET_LS_VERSION}_${uid}`;
 
 export function useWallet() {
@@ -52,8 +53,11 @@ export function useWallet() {
     try {
       const raw = localStorage.getItem(lsKey(user?.id));
       if (raw) return JSON.parse(raw) as Wallet;
-      // Clean up any stale pre-v2 cache so it can never be served again
-      try { localStorage.removeItem(`wallet_${user?.id}`); } catch {}
+      // Clean up any stale pre-v3 cache so it can never be served again
+      try {
+        localStorage.removeItem(`wallet_${user?.id}`);
+        localStorage.removeItem(`wallet_v2_${user?.id}`);
+      } catch {}
     } catch {}
     return null;
   });
@@ -122,12 +126,28 @@ export function useWallet() {
         try { localStorage.setItem(lsKey(user.id), JSON.stringify(newWallet)); } catch {}
         await cacheWallet(newWallet);
       } else {
-        setWallet(data);
+        // Overlay with ledger-true `available` balance so the user can never
+        // see a stale cached number that exceeds their actual ledger position.
+        let displayed: Wallet = data;
+        try {
+          const { data: avail, error: availErr } = await supabase.rpc(
+            'get_user_available_balance',
+            { _user_id: user.id },
+          );
+          if (!availErr && avail) {
+            const o = avail as Record<string, unknown>;
+            const ledgerTrue = Number(o.available ?? data.balance);
+            displayed = { ...data, balance: Math.min(Number(data.balance), ledgerTrue) };
+          }
+        } catch (e) {
+          console.warn('[useWallet] available-balance overlay failed; using cached', e);
+        }
+        setWallet(displayed);
         setIsOfflineData(false);
         setLastSyncedAt(new Date());
-        walletCache = { data, userId: user.id, timestamp: Date.now() };
-        try { localStorage.setItem(lsKey(user.id), JSON.stringify(data)); } catch {}
-        await cacheWallet(data);
+        walletCache = { data: displayed, userId: user.id, timestamp: Date.now() };
+        try { localStorage.setItem(lsKey(user.id), JSON.stringify(displayed)); } catch {}
+        await cacheWallet(displayed);
       }
     } catch (e) {
       console.warn('[useWallet] Failed to fetch wallet:', e);
@@ -256,16 +276,10 @@ export function useWallet() {
         .on(
           'postgres_changes',
           { event: 'UPDATE', schema: 'public', table: 'wallets', filter: `user_id=eq.${user.id}` },
-          (payload) => {
-          if (payload.new) {
-              const updated = payload.new as Wallet;
-              setWallet(updated);
-              setIsOfflineData(false);
-              setLastSyncedAt(new Date());
-              walletCache = { data: updated, userId: user.id, timestamp: Date.now() };
-              try { localStorage.setItem(lsKey(user.id), JSON.stringify(updated)); } catch {}
-              cacheWallet(updated);
-            }
+          () => {
+            // Don't trust the realtime payload's cached `balance` directly —
+            // re-derive against the ledger so the UI always matches backend truth.
+            void fetchWallet(true);
           }
         )
         .subscribe();
