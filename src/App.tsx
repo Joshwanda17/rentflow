@@ -1,7 +1,7 @@
 // Realtime: enabled
 
 
-import { lazy, Suspense, memo, useEffect, useState, Component, type ReactNode } from "react";
+import { Suspense, memo, useEffect, useState, Component, type ReactNode } from "react";
 import { HelmetProvider } from "react-helmet-async";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -10,6 +10,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import ChunkErrorBoundary from "@/components/ChunkErrorBoundary";
 import { PullToRefresh } from "@/components/PullToRefresh";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
+// Route every page chunk through the concurrency-limited queue so slow
+// networks never see more than N parallel chunk requests at once.
+const lazy = lazyWithRetry;
 
 // Critical providers — loaded eagerly for instant auth/routing
 import { AuthProvider } from "@/hooks/useAuth";
