@@ -187,7 +187,7 @@ export function PartnersOpsDashboard() {
             variant="outline"
             size="sm"
             className="gap-1.5 text-xs"
-            onClick={() => navigate('/funder-onboarding')}
+            onClick={() => navigate('/partner-onboarding')}
           >
             <UserPlus className="h-3.5 w-3.5" /> Onboarding
           </Button>
