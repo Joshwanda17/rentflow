@@ -60,6 +60,7 @@ const Marketplace = lazy(() => import("./pages/Marketplace"));
 const Categories = lazy(() => import("./pages/Categories"));
 const SellerProfile = lazy(() => import("./pages/SellerProfile"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const Onboarding = lazy(() => import("./pages/Onboarding"));
 const MyReceipts = lazy(() => import('./pages/MyReceipts'));
 const VendorPortal = lazy(() => import('./pages/VendorPortal'));
 const MyLoans = lazy(() => import('./pages/MyLoans'));
@@ -261,6 +262,7 @@ function AppRoutes() {
           <Route path="/welcome" element={<Landing />} />
            <Route path="/internship" element={<Internship />} />
            <Route path="/auth" element={<Auth />} />
+          <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/unsubscribe" element={<Unsubscribe />} />
           <Route path="/r/:code" element={<ResolveShortLink />} />
           <Route path="/profile/:aiId" element={<HolisticProfile />} />
