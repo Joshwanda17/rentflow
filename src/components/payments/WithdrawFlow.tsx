@@ -137,7 +137,7 @@ export default function WithdrawFlow({
     if (!open || !user) return;
     let cancelled = false;
     (async () => {
-      const [walletRes, rolesRes] = await Promise.all([
+      const [walletRes, rolesRes, availRes] = await Promise.all([
         supabase
           .from('wallets')
           .select('float_balance, advance_balance')
@@ -147,11 +147,18 @@ export default function WithdrawFlow({
           .from('user_roles')
           .select('role')
           .eq('user_id', user.id),
+        supabase.rpc('get_user_available_balance', { _user_id: user.id }),
       ]);
       if (cancelled) return;
       setFloatBalance(Number(walletRes.data?.float_balance ?? 0));
       setAdvanceBalance(Number(walletRes.data?.advance_balance ?? 0));
       setUserRoles((rolesRes.data ?? []).map((r: any) => r.role));
+      // Ledger-true available — gates the entire flow. Falls back to
+      // caller-supplied availableBalance only on RPC error.
+      const availData = (availRes.data ?? null) as Record<string, unknown> | null;
+      if (availData && typeof availData.available !== 'undefined') {
+        setLedgerAvailable(Number(availData.available));
+      }
     })();
     return () => { cancelled = true; };
   }, [open, user]);
