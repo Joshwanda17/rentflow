@@ -327,6 +327,8 @@ Deno.serve(async (req) => {
         category_label: category_label || walletCat,
         sub_category: sub_category || null,
         reference_id: refId,
+        recipient_type,
+        routing_version: 'v2',
       },
     });
 
