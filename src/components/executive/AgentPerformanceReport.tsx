@@ -415,6 +415,43 @@ export function AgentPerformanceReport() {
       // Make sure every agent with a portfolio is in the agg
       Object.keys(dailyPortfolioByAgent).forEach(id => ensure(id));
 
+      // Resolve display names for EVERY agent that ended up in `agg` — this
+      // includes ids added by the active-portfolio pass above, which were not
+      // in the original `agentIds` set. Without this, those rows render as
+      // "Agent xxxxxx" placeholders.
+      const allAgentIdsForNames = Array.from(new Set([
+        ...agentIds,
+        ...Object.keys(agg),
+      ])).filter(Boolean);
+      if (allAgentIdsForNames.length) {
+        const BATCH = 200;
+        for (let i = 0; i < allAgentIdsForNames.length; i += BATCH) {
+          const slice = allAgentIdsForNames.slice(i, i + BATCH);
+          const { data: profs, error: rpcErr } = await supabase
+            .rpc('get_agent_display_names', { _ids: slice });
+          if (rpcErr) {
+            console.warn('[AgentPerformanceReport] name RPC failed, falling back:', rpcErr);
+            const { data: fallback } = await supabase
+              .from('profiles')
+              .select('id, full_name, phone')
+              .in('id', slice);
+            (fallback || []).forEach((p: any) => {
+              profilesMap[p.id] = p.full_name?.trim() || p.phone || `Agent ${p.id.slice(0, 6)}`;
+            });
+          } else {
+            (profs || []).forEach((p: any) => {
+              profilesMap[p.id] = (p.full_name && p.full_name.trim())
+                || p.phone
+                || `Agent ${p.id.slice(0, 6)}`;
+            });
+          }
+        }
+        // Final safety net for any id still unresolved.
+        allAgentIdsForNames.forEach(id => {
+          if (!profilesMap[id]) profilesMap[id] = `Agent ${id.slice(0, 6)}`;
+        });
+      }
+
       const rows: AgentPerfRow[] = Object.entries(agg).map(([id, a]) => {
         // Use ledger commission if present, else 5% of collected as display fallback
         const commission = a.commissionEarnings > 0 ? a.commissionEarnings : a.collected * 0.10;
