@@ -337,7 +337,7 @@ function Step1({ form, setForm }: { form: FormState; setForm: React.Dispatch<Rea
     },
     {
       icon: Banknote,
-      title: '15% Monthly, Every 30 Days',
+      title: '15% Monthly Pay Outs',
       body: 'You earn 15% of your active contribution each month, credited to your wallet automatically on a strict 30-day cycle.',
       highlight: true,
     },
