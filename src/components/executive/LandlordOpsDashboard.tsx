@@ -441,8 +441,8 @@ export function LandlordOpsDashboard() {
 
   const allRequestsColumns: Column<any>[] = [
     { key: 'created_at', label: 'Date', render: (v) => v ? format(new Date(v as string), 'dd MMM yy') : '—' },
-    { key: 'landlord_name', label: 'Landlord' },
-    { key: 'landlord_phone', label: 'L. Phone' },
+    { key: 'tenant_name', label: 'Tenant' },
+    { key: 'tenant_phone', label: 'Phone' },
     { key: 'status', label: 'Status', render: (v) => {
       const colors: Record<string, string> = {
         pending: 'bg-amber-100 text-amber-700',
@@ -460,10 +460,24 @@ export function LandlordOpsDashboard() {
     }},
     { key: 'rent_amount', label: 'Amount', render: (v) => Number(v || 0).toLocaleString() },
     { key: 'amount_repaid', label: 'Repaid', render: (v) => Number(v || 0).toLocaleString() },
-    { key: 'tenant_name', label: 'Tenant' },
-    { key: 'tenant_phone', label: 'T. Phone' },
-    { key: 'agent_name', label: 'Agent', render: (v) => (
+    { key: 'agent_name', label: 'Current Agent', render: (v) => (
       <span className={`text-xs ${v === 'Unassigned' ? 'text-muted-foreground italic' : 'font-medium'}`}>{String(v ?? '—')}</span>
+    )},
+    { key: 'landlord_name', label: 'Landlord' },
+    { key: 'landlord_phone', label: 'L. Phone' },
+    { key: 'id', label: 'Action', render: (_v, row) => (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-8 px-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+        onClick={(e) => {
+          e.stopPropagation();
+          setAllReqDeleteDialog({ open: true, requestId: String(row.id), tenantName: row.tenant_name || 'Unknown' });
+        }}
+      >
+        <Trash2 className="h-3.5 w-3.5 mr-1" />
+        Delete
+      </Button>
     )},
   ];
 
