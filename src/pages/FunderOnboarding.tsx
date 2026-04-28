@@ -591,6 +591,12 @@ function FunderOnboardingInner() {
       window.localStorage.setItem(STORAGE_KEY, String(step));
     } catch {}
   }, [step]);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingTextIdx, setLoadingTextIdx] = useState(0);
   const loadingTexts = ['Creating Account...', 'Securing Wallet...', 'Getting you started...', 'Just a moment...'];
@@ -666,7 +672,7 @@ function FunderOnboardingInner() {
   };
 
   return (
-    <div className="min-h-screen flex font-sans bg-[#FAFAFA]">
+    <div className="h-screen overflow-hidden flex font-sans bg-[#FAFAFA]">
       {/* LEFT — HERO */}
       <div className="hidden lg:flex lg:w-1/2 relative bg-slate-900 overflow-hidden items-center justify-center">
         <div className="absolute inset-0 bg-black/30 z-10 mix-blend-multiply" />
