@@ -66,89 +66,110 @@ export function TenantOpsDashboard() {
   const handlePrintReport = async () => {
     setPrintingPdf(true);
     try {
-      // Fetch rent requests with agent_id, optionally filtered by date range
-      let query = supabase
-        .from('rent_requests')
-        .select('tenant_id, agent_id, rent_amount, total_repayment, amount_repaid, duration_days, number_of_payments, status, created_at')
-        .in('status', ['funded', 'disbursed', 'repaying', 'fully_repaid', 'defaulted']);
-      if (reportFrom) query = query.gte('created_at', reportFrom.toISOString());
-      if (reportTo) {
-        const endOfDay = new Date(reportTo);
-        endOfDay.setHours(23, 59, 59, 999);
-        query = query.lte('created_at', endOfDay.toISOString());
-      }
-      const { data: requests } = await query;
+      // Date window — payments collected in this period
+      const fromIso = reportFrom ? reportFrom.toISOString() : null;
+      const toIso = (() => {
+        if (!reportTo) return null;
+        const end = new Date(reportTo);
+        end.setHours(23, 59, 59, 999);
+        return end.toISOString();
+      })();
 
-      if (!requests || requests.length === 0) {
-        toast.error('No tenant rent data found for the selected period');
+      // 1. Pull tenant payments from the ledger (source of truth)
+      let ledgerQ = supabase
+        .from('general_ledger')
+        .select('user_id, amount, source_id, source_table, transaction_date')
+        .in('category', ['tenant_repayment', 'rent_repayment'])
+        .eq('direction', 'cash_in');
+      if (fromIso) ledgerQ = ledgerQ.gte('transaction_date', fromIso);
+      if (toIso) ledgerQ = ledgerQ.lte('transaction_date', toIso);
+      const { data: payments, error: payErr } = await ledgerQ;
+      if (payErr) throw payErr;
+
+      if (!payments || payments.length === 0) {
+        toast.error('No tenant payments found for the selected period');
         return;
       }
 
-      const tenantIds = [...new Set(requests.map(r => r.tenant_id).filter(Boolean))];
-      const agentIds = [...new Set(requests.map(r => r.agent_id).filter(Boolean))];
+      // 2. Resolve responsible agent via agent_collections (source_table='agent_collections')
+      const collectionIds = [...new Set(
+        payments.filter(p => p.source_table === 'agent_collections' && p.source_id).map(p => p.source_id as string)
+      )];
+      const { data: collections } = collectionIds.length
+        ? await supabase.from('agent_collections').select('id, agent_id, tenant_id').in('id', collectionIds)
+        : { data: [] as any[] };
+      const collectionMap = new Map((collections || []).map(c => [c.id, c]));
 
-      const [tenantRes, agentRes] = await Promise.all([
-        tenantIds.length > 0
+      // 3. Tenant + agent profile lookups
+      const tenantIds = [...new Set(payments.map(p => p.user_id).filter(Boolean) as string[])];
+      const agentIds = [...new Set((collections || []).map(c => c.agent_id).filter(Boolean) as string[])];
+      const [tenantRes, agentRes, rentReqRes] = await Promise.all([
+        tenantIds.length
           ? supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds)
-          : { data: [] },
-        agentIds.length > 0
+          : Promise.resolve({ data: [] as any[] }),
+        agentIds.length
           ? supabase.from('profiles').select('id, full_name').in('id', agentIds)
-          : { data: [] },
+          : Promise.resolve({ data: [] as any[] }),
+        // Lifetime outstanding for these tenants (independent of date window)
+        tenantIds.length
+          ? supabase.from('rent_requests')
+              .select('tenant_id, total_repayment, amount_repaid, status')
+              .in('tenant_id', tenantIds)
+              .in('status', ['funded', 'disbursed', 'repaying', 'fully_repaid', 'defaulted'])
+          : Promise.resolve({ data: [] as any[] }),
       ]);
+      const tenantMap = new Map((tenantRes.data || []).map((p: any) => [p.id, p]));
+      const agentMap = new Map((agentRes.data || []).map((p: any) => [p.id, p]));
 
-      const tenantMap = new Map((tenantRes.data || []).map(p => [p.id, p]));
-      const agentMap = new Map((agentRes.data || []).map(p => [p.id, p]));
+      // Lifetime outstanding per tenant
+      const outstandingByTenant = new Map<string, number>();
+      for (const r of (rentReqRes.data || [])) {
+        const out = Number(r.total_repayment || 0) - Number(r.amount_repaid || 0);
+        outstandingByTenant.set(r.tenant_id, (outstandingByTenant.get(r.tenant_id) || 0) + out);
+      }
 
-      // Aggregate one row per tenant
+      // 4. Aggregate one row per tenant — paid IN RANGE
       const byTenant = new Map<string, {
-        tenant_name: string; tenant_phone: string; first_start_date: string;
-        rent_plans: number; rent_given: number; amount_paid: number; outstanding: number;
+        tenant_name: string; tenant_phone: string;
+        amount_paid: number; outstanding: number;
         agent_names: Set<string>;
+        payment_count: number;
       }>();
-      for (const r of requests) {
-        if (!r.tenant_id) continue;
-        const existing = byTenant.get(r.tenant_id);
-        const rentGiven = Number(r.rent_amount || 0);
-        const paid = Number(r.amount_repaid || 0);
-        const outstanding = Number(r.total_repayment || 0) - paid;
-        const agentName = r.agent_id ? (agentMap.get(r.agent_id)?.full_name || '—') : '—';
-        if (existing) {
-          existing.rent_plans += 1;
-          existing.rent_given += rentGiven;
-          existing.amount_paid += paid;
-          existing.outstanding += outstanding;
-          if (r.created_at && (!existing.first_start_date || r.created_at < existing.first_start_date)) {
-            existing.first_start_date = r.created_at;
-          }
-          if (agentName && agentName !== '—') existing.agent_names.add(agentName);
-        } else {
-          const set = new Set<string>();
-          if (agentName && agentName !== '—') set.add(agentName);
-          byTenant.set(r.tenant_id, {
-            tenant_name: tenantMap.get(r.tenant_id)?.full_name || '—',
-            tenant_phone: tenantMap.get(r.tenant_id)?.phone || '—',
-            first_start_date: r.created_at || '',
-            rent_plans: 1,
-            rent_given: rentGiven,
-            amount_paid: paid,
-            outstanding,
-            agent_names: set,
-          });
+      for (const p of payments) {
+        const tenantId = p.user_id as string | null;
+        if (!tenantId) continue;
+        const collection = p.source_id ? collectionMap.get(p.source_id) : null;
+        const agentId = collection?.agent_id;
+        const agentName = agentId ? (agentMap.get(agentId)?.full_name || '—') : '—';
+
+        let row = byTenant.get(tenantId);
+        if (!row) {
+          row = {
+            tenant_name: tenantMap.get(tenantId)?.full_name || '—',
+            tenant_phone: tenantMap.get(tenantId)?.phone || '—',
+            amount_paid: 0,
+            outstanding: outstandingByTenant.get(tenantId) || 0,
+            agent_names: new Set<string>(),
+            payment_count: 0,
+          };
+          byTenant.set(tenantId, row);
         }
+        row.amount_paid += Number(p.amount || 0);
+        row.payment_count += 1;
+        if (agentName && agentName !== '—') row.agent_names.add(agentName);
       }
 
       const rows = Array.from(byTenant.values())
         .map(t => ({
           tenant_name: t.tenant_name,
           tenant_phone: t.tenant_phone,
-          first_start_date: t.first_start_date,
-          rent_plans: t.rent_plans,
-          rent_given: t.rent_given,
+          rent_plans: t.payment_count,
+          rent_given: 0,
           amount_paid: t.amount_paid,
           outstanding: t.outstanding,
           agent_name: t.agent_names.size === 0 ? '—' : Array.from(t.agent_names).join(', '),
         }))
-        .sort((a, b) => b.outstanding - a.outstanding);
+        .sort((a, b) => b.amount_paid - a.amount_paid);
 
       const blob = generateTenantOpsReportPdf(rows, { from: reportFrom, to: reportTo });
       const url = URL.createObjectURL(blob);
