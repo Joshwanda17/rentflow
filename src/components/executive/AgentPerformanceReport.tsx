@@ -343,37 +343,10 @@ export function AgentPerformanceReport() {
         ...rentReqsInRange.map(r => r.agent_id as string),
       ].filter(Boolean)));
 
-      let profilesMap: Record<string, string> = {};
-      if (agentIds.length) {
-        // Resolve display names via SECURITY DEFINER RPC so staff dashboards
-        // show every agent's name regardless of per-row profile RLS coverage.
-        const BATCH = 200;
-        for (let i = 0; i < agentIds.length; i += BATCH) {
-          const slice = agentIds.slice(i, i + BATCH);
-          const { data: profs, error: rpcErr } = await supabase
-            .rpc('get_agent_display_names', { _ids: slice });
-          if (rpcErr) {
-            console.warn('[AgentPerformanceReport] name RPC failed, falling back:', rpcErr);
-            const { data: fallback } = await supabase
-              .from('profiles')
-              .select('id, full_name, phone')
-              .in('id', slice);
-            (fallback || []).forEach((p: any) => {
-              profilesMap[p.id] = p.full_name?.trim() || p.phone || `Agent ${p.id.slice(0, 6)}`;
-            });
-          } else {
-            (profs || []).forEach((p: any) => {
-              profilesMap[p.id] = (p.full_name && p.full_name.trim())
-                || p.phone
-                || `Agent ${p.id.slice(0, 6)}`;
-            });
-          }
-        }
-        // Final safety net for any id we still couldn't resolve.
-        agentIds.forEach(id => {
-          if (!profilesMap[id]) profilesMap[id] = `Agent ${id.slice(0, 6)}`;
-        });
-      }
+      const profilesMap: Record<string, string> = {};
+      // NOTE: name resolution is performed AFTER the active-portfolio pass below
+      // so it includes agents added via dailyPortfolioByAgent (active rent
+      // requests outside the selected date window). See block after agg build.
 
       // Aggregate per agent
       type Agg = {
