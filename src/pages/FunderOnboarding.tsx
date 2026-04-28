@@ -576,18 +576,13 @@ function FunderOnboardingInner() {
   const definedRole = useRouteRole();
   const { user } = useAuth();
   const STORAGE_KEY = 'funder-onboarding-step';
-  const [step, setStep] = useState(() => {
-    if (typeof window === 'undefined') return 1;
-    const saved = window.localStorage.getItem(STORAGE_KEY);
-    const parsed = saved ? parseInt(saved, 10) : NaN;
-    return Number.isFinite(parsed) && parsed >= 1 && parsed <= 3 ? parsed : 1;
-  });
-
+  // Always start at the welcome step. We intentionally do NOT restore a
+  // previous step from localStorage — landing on "Create account" skips
+  // the welcome/intro context. Clear any stale value from older builds.
+  const [step, setStep] = useState(1);
   useEffect(() => {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, String(step));
-    } catch {}
-  }, [step]);
+    try { window.localStorage.removeItem(STORAGE_KEY); } catch {}
+  }, []);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
