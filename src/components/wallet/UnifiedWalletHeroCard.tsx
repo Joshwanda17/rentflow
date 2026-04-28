@@ -111,17 +111,17 @@ export function UnifiedWalletHeroCard({
                 <p className="text-[9px] text-primary-foreground/40 mt-1 font-medium">Tenant collections · Pay Rent</p>
               </div>
 
-              {/* Commission section */}
+              {/* Withdrawable section */}
               <div className="bg-primary-foreground/10 backdrop-blur-sm rounded-xl p-3">
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <Coins className="h-3 w-3 text-emerald-400/70" />
-                  <p className="text-[9px] uppercase tracking-[0.15em] font-semibold text-emerald-300/70">Commission</p>
+                  <p className="text-[9px] uppercase tracking-[0.15em] font-semibold text-emerald-300/70">Withdrawable</p>
                 </div>
                 <p className="text-lg font-black tracking-tight leading-none text-primary-foreground">
                   {formatAmount(commissionBalance ?? 0)}
                 </p>
                 <p className="text-[9px] text-emerald-300/50 mt-1 font-medium">
-                  Withdrawable: {formatAmount(commissionBalance ?? 0)}
+                  Available to withdraw
                 </p>
               </div>
             </div>
