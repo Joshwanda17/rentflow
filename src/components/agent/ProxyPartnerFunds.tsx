@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Users, ArrowUpRight, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { Loader2, Users, ArrowUpRight, Clock, CheckCircle2, XCircle, AlertCircle, Info, Hourglass } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useWallet } from '@/hooks/useWallet';
@@ -63,6 +63,18 @@ const COMPLETED_PROXY_WITHDRAWAL_STATUSES = [
   'fin_ops_approved',
 ] as const;
 
+// Terminal statuses that did NOT result in a payout. The ROI is therefore still
+// available; the partner simply needs the agent to re-request a payout.
+const TERMINAL_UNPAID_STATUSES = ['rejected', 'expired', 'cancelled'] as const;
+
+type FilterMode = 'all' | 'reattempt' | 'fresh';
+
+interface LastTerminal {
+  status: string;
+  reason: string | null;
+  at: string; // ISO date
+}
+
 export function ProxyPartnerFunds() {
   const { user } = useAuth();
   const { wallet } = useWallet();
@@ -78,6 +90,8 @@ export function ProxyPartnerFunds() {
   const [selectedPartnerId, setSelectedPartnerId] = useState<string>('');
   const [partnerWithdrawalStatus, setPartnerWithdrawalStatus] = useState<Record<string, string>>({});
   const [partnerWithdrawalIds, setPartnerWithdrawalIds] = useState<Record<string, string>>({});
+  const [lastTerminalByPartner, setLastTerminalByPartner] = useState<Record<string, LastTerminal>>({});
+  const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<{ key: string; withdrawalId: string; partnerName: string; partnerId: string } | null>(null);
@@ -203,12 +217,14 @@ export function ProxyPartnerFunds() {
         setProfiles({});
         setCompletedWithdrawals([]);
         setPartnerWithdrawalStatus({});
+        setLastTerminalByPartner({});
         setLoading(false);
         return;
       }
 
-      // Step 4: Fetch profiles, completed withdrawals, active withdrawals in parallel
-      const [profileRes, completedRes, activeWithdrawalRes] = await Promise.all([
+      // Step 4: Fetch profiles, completed withdrawals, active withdrawals, and
+      // terminal-unpaid history in parallel
+      const [profileRes, completedRes, activeWithdrawalRes, terminalRes] = await Promise.all([
         supabase
           .from('profiles')
           .select('id, full_name, phone')
@@ -226,6 +242,15 @@ export function ProxyPartnerFunds() {
           .select('id, linked_party, status, reason')
           .eq('user_id', user.id)
           .in('status', [...ACTIVE_PROXY_WITHDRAWAL_STATUSES]),
+        // Terminal-unpaid: rejected / expired / cancelled (so we can explain
+        // why a balance is still sitting on the card)
+        supabase
+          .from('withdrawal_requests')
+          .select('linked_party, status, rejection_reason, updated_at, created_at')
+          .eq('user_id', user.id)
+          .in('status', [...TERMINAL_UNPAID_STATUSES])
+          .order('updated_at', { ascending: false })
+          .limit(500),
       ]);
 
       const profileMap: Record<string, { full_name: string; phone: string }> = {};
@@ -271,6 +296,20 @@ export function ProxyPartnerFunds() {
       });
       setPartnerWithdrawalStatus(statusMap);
       setPartnerWithdrawalIds(idMap);
+
+      // Build last-terminal map: most recent rejected/expired/cancelled per partner
+      const terminalMap: Record<string, LastTerminal> = {};
+      (terminalRes.data || []).forEach((w: any) => {
+        const pid = w.linked_party;
+        if (!pid || !uniquePartnerIds.includes(pid)) return;
+        if (terminalMap[pid]) return; // already have the most recent (ordered desc)
+        terminalMap[pid] = {
+          status: w.status,
+          reason: w.rejection_reason || null,
+          at: w.updated_at || w.created_at,
+        };
+      });
+      setLastTerminalByPartner(terminalMap);
     } catch (err) {
       console.error('Error loading proxy funds:', err);
     } finally {
@@ -503,19 +542,76 @@ export function ProxyPartnerFunds() {
     );
   }
 
+  // Classify each partner card so the agent can see WHY a balance is sitting here.
+  // Priority: active in-flight > last terminal (reject/expire/cancel) > fresh (no prior request).
+  const classify = (partner: PartnerBalance):
+    | { kind: 'active' }
+    | { kind: 'reattempt'; terminal: LastTerminal }
+    | { kind: 'fresh' } => {
+    const key = getStatusKey(partner);
+    if (partnerWithdrawalStatus[key]) return { kind: 'active' };
+    const t = lastTerminalByPartner[partner.partnerId];
+    if (t) return { kind: 'reattempt', terminal: t };
+    return { kind: 'fresh' };
+  };
+
+  const reattemptCount = partnerBalances.filter((p) => classify(p).kind === 'reattempt').length;
+  const freshCount = partnerBalances.filter((p) => classify(p).kind === 'fresh').length;
+
+  const visibleBalances = partnerBalances.filter((p) => {
+    if (filterMode === 'all') return true;
+    const c = classify(p);
+    if (filterMode === 'reattempt') return c.kind === 'reattempt';
+    if (filterMode === 'fresh') return c.kind === 'fresh';
+    return true;
+  });
+
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground px-1">
-        CFO-approved returns ready for delivery to your proxy partners.
+        CFO-approved returns ready for delivery to your proxy partners. Nothing here is stuck —
+        balances shown are <span className="font-medium text-foreground">withdrawable now</span>.
       </p>
 
-      {partnerBalances.map((partner) => {
+      <div className="flex flex-wrap gap-1.5 px-1">
+        <Button
+          size="sm"
+          variant={filterMode === 'all' ? 'default' : 'outline'}
+          className="h-7 text-xs gap-1"
+          onClick={() => setFilterMode('all')}
+        >
+          All ({partnerBalances.length})
+        </Button>
+        <Button
+          size="sm"
+          variant={filterMode === 'reattempt' ? 'default' : 'outline'}
+          className="h-7 text-xs gap-1"
+          onClick={() => setFilterMode('reattempt')}
+          disabled={reattemptCount === 0}
+        >
+          <AlertCircle className="h-3 w-3" />
+          Re-request needed ({reattemptCount})
+        </Button>
+        <Button
+          size="sm"
+          variant={filterMode === 'fresh' ? 'default' : 'outline'}
+          className="h-7 text-xs gap-1"
+          onClick={() => setFilterMode('fresh')}
+          disabled={freshCount === 0}
+        >
+          <Hourglass className="h-3 w-3" />
+          New ROI ({freshCount})
+        </Button>
+      </div>
+
+      {visibleBalances.map((partner) => {
         const statusKey = getStatusKey(partner);
         const hasPending = !!partnerWithdrawalStatus[statusKey];
         const statusBadge = getStatusBadge(partner);
         const cardKey = `${partner.partnerId}-${partner.portfolioId || 'none'}`;
         const currentStatus = partnerWithdrawalStatus[statusKey];
         const canCancel = currentStatus ? ACTIVE_PROXY_WITHDRAWAL_STATUSES.includes(currentStatus as typeof ACTIVE_PROXY_WITHDRAWAL_STATUSES[number]) : false;
+        const classification = classify(partner);
 
         return (
           <Card key={cardKey} className="border-border/50 shadow-sm">
@@ -537,6 +633,22 @@ export function ProxyPartnerFunds() {
                 </div>
                 <div className="flex items-center gap-1.5">
                   {statusBadge}
+                  {!statusBadge && classification.kind === 'reattempt' && (
+                    <Badge variant="destructive" size="sm" className="gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {classification.terminal.status === 'rejected'
+                        ? 'Last attempt rejected'
+                        : classification.terminal.status === 'expired'
+                        ? 'Last attempt expired'
+                        : 'Last attempt cancelled'}
+                    </Badge>
+                  )}
+                  {!statusBadge && classification.kind === 'fresh' && (
+                    <Badge variant="outline" size="sm" className="gap-1 border-primary/40 text-primary">
+                      <Hourglass className="h-3 w-3" />
+                      Awaiting request
+                    </Badge>
+                  )}
                   <Badge variant="outline" className="text-xs gap-1">
                     <Users className="h-3 w-3" />
                     Proxy
@@ -558,6 +670,30 @@ export function ProxyPartnerFunds() {
                   <p className="text-xs font-bold text-primary tabular-nums">{formatAmount(partner.available)}</p>
                 </div>
               </div>
+
+              {!statusBadge && classification.kind === 'reattempt' && (
+                <div className="flex items-start gap-1.5 rounded-md bg-destructive/5 border border-destructive/20 px-2 py-1.5">
+                  <Info className="h-3 w-3 text-destructive shrink-0 mt-0.5" />
+                  <p className="text-[11px] leading-snug text-destructive">
+                    Last withdrawal {classification.terminal.status} on{' '}
+                    {new Date(classification.terminal.at).toLocaleDateString()}.
+                    {classification.terminal.reason ? (
+                      <> Reason: <span className="font-medium">{classification.terminal.reason}</span>.</>
+                    ) : (
+                      <> No reason recorded.</>
+                    )}{' '}
+                    Funds returned — re-request below.
+                  </p>
+                </div>
+              )}
+              {!statusBadge && classification.kind === 'fresh' && (
+                <div className="flex items-start gap-1.5 rounded-md bg-primary/5 border border-primary/20 px-2 py-1.5">
+                  <Info className="h-3 w-3 text-primary shrink-0 mt-0.5" />
+                  <p className="text-[11px] leading-snug text-primary">
+                    Returns accrued and ready. No withdrawal has been requested yet.
+                  </p>
+                </div>
+              )}
 
               {hasPending && canCancel ? (
                 <div className="flex gap-2">
