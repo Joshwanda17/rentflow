@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Users, ArrowUpRight, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { Loader2, Users, ArrowUpRight, Clock, CheckCircle2, XCircle, AlertCircle, Info, Hourglass } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useWallet } from '@/hooks/useWallet';
@@ -63,6 +63,18 @@ const COMPLETED_PROXY_WITHDRAWAL_STATUSES = [
   'fin_ops_approved',
 ] as const;
 
+// Terminal statuses that did NOT result in a payout. The ROI is therefore still
+// available; the partner simply needs the agent to re-request a payout.
+const TERMINAL_UNPAID_STATUSES = ['rejected', 'expired', 'cancelled'] as const;
+
+type FilterMode = 'all' | 'reattempt' | 'fresh';
+
+interface LastTerminal {
+  status: string;
+  reason: string | null;
+  at: string; // ISO date
+}
+
 export function ProxyPartnerFunds() {
   const { user } = useAuth();
   const { wallet } = useWallet();
@@ -78,6 +90,8 @@ export function ProxyPartnerFunds() {
   const [selectedPartnerId, setSelectedPartnerId] = useState<string>('');
   const [partnerWithdrawalStatus, setPartnerWithdrawalStatus] = useState<Record<string, string>>({});
   const [partnerWithdrawalIds, setPartnerWithdrawalIds] = useState<Record<string, string>>({});
+  const [lastTerminalByPartner, setLastTerminalByPartner] = useState<Record<string, LastTerminal>>({});
+  const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<{ key: string; withdrawalId: string; partnerName: string; partnerId: string } | null>(null);
