@@ -253,8 +253,32 @@ export function PhantomDriftPanel() {
                                   <Eye className="h-3 w-3 mr-1" />Investigate
                                 </Button>
                               )}
+                              <Button
+                                size="sm"
+                                variant="default"
+                                className="h-7 px-2 text-[10px]"
+                                disabled={resolveToLedger.isPending}
+                                onClick={() => {
+                                  const gap = Number(r.drift_amount);
+                                  const verb = gap > 0 ? 'write DOWN' : 'write UP';
+                                  if (
+                                    window.confirm(
+                                      `This will ${verb} ${r.profile?.full_name ?? 'this user'}'s wallet cache by ${formatUGX(Math.abs(gap))} via system_balance_correction.\n\nA balanced ledger pair will be posted and the drift row marked resolved.\n\nProceed?`,
+                                    )
+                                  ) {
+                                    resolveToLedger.mutate({ id: r.id, gap });
+                                  }
+                                }}
+                              >
+                                {resolveToLedger.isPending && resolveToLedger.variables?.id === r.id ? (
+                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                ) : (
+                                  <Wand2 className="h-3 w-3 mr-1" />
+                                )}
+                                Resolve to ledger
+                              </Button>
                               <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px]" onClick={() => updateStatus.mutate({ id: r.id, status: 'resolved' })}>
-                                Resolve
+                                Mark resolved
                               </Button>
                               <Button size="sm" variant="ghost" className="h-7 px-2 text-[10px] text-muted-foreground" onClick={() => updateStatus.mutate({ id: r.id, status: 'false_positive' })}>
                                 False+
