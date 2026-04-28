@@ -12,6 +12,10 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { FundRentDialog } from './FundRentDialog';
 import { InvestmentWithdrawButton } from './InvestmentWithdrawButton';
+import { FunderApprovalBanner } from './FunderApprovalGate';
+import { useAuth } from '@/hooks/useAuth';
+import { useFunderApprovalStatus } from '@/hooks/useFunderApprovalStatus';
+import { Lock } from 'lucide-react';
 
 // ─── Animated counter ───
 function AnimatedCounter({ value, className = '' }: {value: number;className?: string;}) {
@@ -42,6 +46,8 @@ export function FundingPoolCard({ fundedAmount }: FundingPoolCardProps) {
   const { summary, loading } = useOpportunitySummary();
   const { formatAmount } = useCurrency();
   const [showFundDialog, setShowFundDialog] = useState(false);
+  const { user } = useAuth();
+  const { isApproved, status } = useFunderApprovalStatus(user?.id);
 
   // ─── Payout cycle (day of current month) ───
   const now = new Date();
