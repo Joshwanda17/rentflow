@@ -131,6 +131,7 @@ interface PartnerDetail {
     id: string;
     full_name: string;
     phone: string;
+    email: string | null;
     created_at: string;
     frozen_at: string | null;
     frozen_reason: string | null;
