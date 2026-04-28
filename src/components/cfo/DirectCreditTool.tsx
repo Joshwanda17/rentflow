@@ -11,16 +11,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Send, ArrowUpRight, ArrowDownLeft, TrendingUp, TrendingDown, Minus, Info, ChevronDown } from 'lucide-react';
 import { UserSearchPicker } from './UserSearchPicker';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 import { RentDisbursementQueue } from './RentDisbursementQueue';
 import { BusinessAdvanceDisbursementQueue } from './BusinessAdvanceDisbursementQueue';
@@ -29,6 +19,7 @@ import { PayoutAutomationToggle } from './PayoutAutomationToggle';
 
 type Operation = 'credit' | 'debit';
 type FinancialImpact = 'expense' | 'revenue' | 'neutral';
+type RecipientType = 'user' | 'operational_wallet';
 
 interface SubCategory {
   id: string;
@@ -242,19 +233,11 @@ const IMPACT_CONFIG: Record<FinancialImpact, { label: string; color: string; ico
 // Map a wallet category to the wallet bucket it lands in, so the CFO knows
 // whether the user can actually withdraw the credited amount.
 type WalletBucket = 'withdrawable' | 'float' | 'advance';
-const WALLET_BUCKET_MAP: Record<string, WalletBucket> = {
-  roi_wallet_credit: 'withdrawable',
-  agent_commission_earned: 'withdrawable',
-  system_balance_correction: 'withdrawable',
-  wallet_transfer: 'withdrawable',
-  rent_disbursement: 'float',
-  marketing_expense: 'withdrawable',
-  research_development_expense: 'withdrawable',
-  general_admin_expense: 'withdrawable',
-  payroll_expense: 'withdrawable',
-  tax_expense: 'withdrawable',
-  interest_expense: 'withdrawable',
-  equipment_expense: 'withdrawable',
+
+// Wallet Routing v2: bucket is determined by recipient_type, NOT category.
+const RECIPIENT_BUCKET: Record<RecipientType, WalletBucket> = {
+  user: 'withdrawable',
+  operational_wallet: 'float',
 };
 const BUCKET_LABEL: Record<WalletBucket, { name: string; note: string; tone: string }> = {
   withdrawable: {
@@ -283,13 +266,9 @@ export function DirectCreditTool() {
   const [operation, setOperation] = useState<Operation>('credit');
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
   const [selectedSubCategoryId, setSelectedSubCategoryId] = useState('');
+  const [recipientType, setRecipientType] = useState<RecipientType | ''>('');
   const [automateEnabled, setAutomateEnabled] = useState(false);
   const [automateDay, setAutomateDay] = useState(1);
-  const [pendingNonCommissionConfirm, setPendingNonCommissionConfirm] = useState<{
-    message: string;
-    suggested_category: string;
-    chosen_category: string;
-  } | null>(null);
 
   const { data: rentQueueCount = 0 } = useQuery({
     queryKey: ['rent-disbursement-queue-count'],
@@ -367,13 +346,14 @@ export function DirectCreditTool() {
   };
 
   const mutation = useMutation({
-    mutationFn: async (opts: { confirmNonCommission?: boolean } = {}) => {
+    mutationFn: async () => {
       const amt = parseFloat(amount);
       if (!amt || amt <= 0) throw new Error('Invalid amount');
       if (!reason || reason.length < 10) throw new Error('Reason must be at least 10 characters');
       if (!selectedUser) throw new Error('Select a user');
       if (!selectedCategory) throw new Error('Select a payout category');
       if (hasSubCategories && !selectedSubCategoryId) throw new Error('Select a subcategory');
+      if (!recipientType) throw new Error('Select a Recipient type (User or Operational Wallet)');
 
       const categoryLabel = selectedSubCategory
         ? `${selectedCategory.label} → ${selectedSubCategory.label}`
@@ -390,50 +370,10 @@ export function DirectCreditTool() {
           financial_impact: selectedCategory.impact,
           category_label: categoryLabel,
           sub_category: selectedSubCategoryId || null,
-          confirm_non_commission: opts.confirmNonCommission === true,
+          recipient_type: recipientType,
         },
       });
       if (error) {
-        // Try to detect the 409 confirmation gate before falling through to generic handling.
-        // The body shape can vary across Supabase SDK versions: Response object, parsed object,
-        // string body, or stringified JSON inside error.message. Try them all.
-        let gateBody: any = null;
-        try {
-          const ctx = (error as any)?.context;
-          if (ctx) {
-            // Already-parsed object
-            if (ctx.code) {
-              gateBody = ctx;
-            } else if (typeof ctx.json === 'function') {
-              try {
-                const cloned = typeof ctx.clone === 'function' ? ctx.clone() : ctx;
-                gateBody = await cloned.json();
-              } catch { /* body already consumed or not a Response */ }
-            }
-            if (!gateBody && ctx.body) {
-              gateBody = typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
-            }
-          }
-          // Last resort: parse JSON out of error.message (e.g. "Edge function returned 409: Error, {...}")
-          if (!gateBody && typeof (error as any)?.message === 'string') {
-            const m = (error as any).message.match(/\{[\s\S]*\}$/);
-            if (m) {
-              try { gateBody = JSON.parse(m[0]); } catch { /* ignore */ }
-            }
-          }
-        } catch { /* ignore detection errors */ }
-        if (gateBody?.code === 'CONFIRM_NON_COMMISSION_AGENT_CREDIT') {
-          setPendingNonCommissionConfirm({
-            message: gateBody.message,
-            suggested_category: gateBody.suggested_category,
-            chosen_category: gateBody.chosen_category,
-          });
-          // Resolve the mutation cleanly — the AlertDialog will re-trigger
-          // it with confirm_non_commission=true. Throwing here causes an
-          // unhandled rejection that the global error logger flags as a
-          // blank-screen runtime error.
-          return { __pendingConfirm: true } as any;
-        }
         const msg = await extractFromErrorObject(error, 'Something went wrong');
         if (msg.includes('Unauthorized')) throw new Error('You do not have permission. Please log in again.');
         if (msg.includes('Insufficient permissions')) throw new Error('Your role does not have CFO privileges.');
@@ -441,6 +381,8 @@ export function DirectCreditTool() {
         if (msg.includes('Invalid amount')) throw new Error('Please enter a valid amount between 1 and 50,000,000 UGX.');
         if (msg.includes('Reason must be')) throw new Error('Please provide a detailed reason (at least 10 characters).');
         if (msg.includes('Insufficient ledger balance')) throw new Error(msg);
+        if (msg.includes('INVALID_ROUTING')) throw new Error(msg.replace(/^.*INVALID_ROUTING:\s*/, 'Routing rejected: '));
+        if (msg.includes('RECIPIENT_TYPE_REQUIRED')) throw new Error('Choose a Recipient type — User (Withdrawable) or Operational Wallet (Float).');
         if (msg.includes('Ledger error')) throw new Error(msg);
         throw new Error(msg);
       }
@@ -470,7 +412,6 @@ export function DirectCreditTool() {
       return data;
     },
     onSuccess: (data) => {
-      if ((data as any)?.__pendingConfirm) return; // waiting for confirmation dialog
       toast({ title: operation === 'credit' ? '✅ Credit applied' : '✅ Debit applied', description: data?.message });
       qc.invalidateQueries({ queryKey: ['expense-transfers'] });
       qc.invalidateQueries({ queryKey: ['channel-balances'] });
@@ -481,6 +422,7 @@ export function DirectCreditTool() {
       setReason('');
       setSelectedCategoryId('');
       setSelectedSubCategoryId('');
+      setRecipientType('');
       setAutomateEnabled(false);
     },
     onError: (e: any) => {
@@ -644,6 +586,55 @@ export function DirectCreditTool() {
               onSelect={setSelectedUser}
             />
 
+            {/* ── Wallet Routing v2: Recipient Type (REQUIRED) ── */}
+            {selectedUser && (
+              <div>
+                <Label className="flex items-center gap-1.5 mb-1.5">
+                  Recipient Type
+                  <span className="text-destructive">*</span>
+                </Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRecipientType('user')}
+                    className={`text-left rounded-lg border p-3 transition ${
+                      recipientType === 'user'
+                        ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200'
+                        : 'border-border hover:border-emerald-300 hover:bg-emerald-50/40'
+                    }`}
+                  >
+                    <div className="text-sm font-semibold text-emerald-700">User Wallet</div>
+                    <div className="text-[11px] text-emerald-700/80 mt-0.5">
+                      Money belongs to the recipient. Lands in <strong>Withdrawable</strong> — they can cash out immediately.
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-1">
+                      Use for: payroll, agent commissions, ROI, refunds, personal payouts.
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRecipientType('operational_wallet')}
+                    className={`text-left rounded-lg border p-3 transition ${
+                      recipientType === 'operational_wallet'
+                        ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-200'
+                        : 'border-border hover:border-amber-300 hover:bg-amber-50/40'
+                    }`}
+                  >
+                    <div className="text-sm font-semibold text-amber-700">Operational Wallet</div>
+                    <div className="text-[11px] text-amber-700/80 mt-0.5">
+                      Company-controlled funds. Lands in <strong>Float</strong> — <em>NOT</em> withdrawable by the recipient.
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-1">
+                      Use for: rent disbursement, agent float top-up, treasury movements.
+                    </div>
+                  </button>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1.5">
+                  Withdrawability is determined by who receives the money — not by the category.
+                </p>
+              </div>
+            )}
+
             <div>
               <Label>Amount (UGX)</Label>
               <Input type="number" placeholder="50000" value={amount} onChange={e => setAmount(e.target.value)} />
@@ -685,7 +676,7 @@ export function DirectCreditTool() {
             )}
 
             {/* Summary before submit */}
-            {selectedCategory && amt > 0 && selectedUser && (
+            {selectedCategory && amt > 0 && selectedUser && recipientType && (
               <div className="rounded-lg bg-muted/30 border p-3 text-xs space-y-1">
                 <p className="font-bold text-sm flex items-center gap-1.5">
                   <Info className="h-3.5 w-3.5" />
@@ -717,7 +708,7 @@ export function DirectCreditTool() {
                   )}
                 </div>
                 {isCredit && (() => {
-                  const bucket = WALLET_BUCKET_MAP[selectedCategory.walletCategory] ?? 'withdrawable';
+                  const bucket = RECIPIENT_BUCKET[recipientType as RecipientType];
                   const meta = BUCKET_LABEL[bucket];
                   return (
                     <div className={`mt-2 rounded-md border p-2 text-[11px] ${meta.tone}`}>
@@ -725,6 +716,9 @@ export function DirectCreditTool() {
                         💼 Lands in: {meta.name} bucket
                       </div>
                       <div className="opacity-80 mt-0.5">{meta.note}</div>
+                      <div className="opacity-70 mt-1 italic">
+                        Only Available Balance can be withdrawn.
+                      </div>
                     </div>
                   );
                 })()}
@@ -733,8 +727,8 @@ export function DirectCreditTool() {
 
             <Button
               className={`w-full ${isCredit ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-destructive hover:bg-destructive/90'}`}
-              onClick={() => mutation.mutate({})}
-              disabled={mutation.isPending || !selectedUser || !amount || reason.length < 10 || !selectedCategoryId}
+              onClick={() => mutation.mutate()}
+              disabled={mutation.isPending || !selectedUser || !amount || reason.length < 10 || !selectedCategoryId || !recipientType}
             >
               {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
               {isCredit ? 'Credit' : 'Debit'} UGX {amt.toLocaleString()} {isCredit ? 'to' : 'from'} {selectedUser?.full_name || '...'}
@@ -742,36 +736,6 @@ export function DirectCreditTool() {
           </>
         )}
       </CardContent>
-
-      <AlertDialog
-        open={!!pendingNonCommissionConfirm}
-        onOpenChange={(open) => { if (!open) setPendingNonCommissionConfirm(null); }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>⚠️ Crediting an agent under a non-commission category</AlertDialogTitle>
-            <AlertDialogDescription>
-              {pendingNonCommissionConfirm?.message}
-              <br /><br />
-              <span className="text-muted-foreground text-xs">
-                Suggested: use <strong>{pendingNonCommissionConfirm?.suggested_category}</strong> if this is meant to be a commission payout.
-                Otherwise (e.g. admin reimbursement), confirm to proceed with <strong>{pendingNonCommissionConfirm?.chosen_category}</strong>.
-              </span>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPendingNonCommissionConfirm(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                setPendingNonCommissionConfirm(null);
-                mutation.mutate({ confirmNonCommission: true });
-              }}
-            >
-              Confirm — credit anyway
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </Card>
   );
 }
