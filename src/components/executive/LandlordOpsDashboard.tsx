@@ -12,6 +12,7 @@ import {
   Phone, MessageCircle, Image, MapPinned, DoorOpen, TrendingDown, Users,
   Building2, UserCheck, Smartphone, Handshake, GitBranch, Link2,
   ArrowLeft, ChevronRight, Search, X, Globe, UserX, UserPlus,
+  Table2, Printer, CalendarIcon, Loader2,
 } from 'lucide-react';
 import { ChainHealthTab } from './landlord-ops/ChainHealthTab';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +23,13 @@ import { useToast } from '@/hooks/use-toast';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import { toast as sonnerToast } from 'sonner';
+import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
+import { generateLandlordOpsReportPdf } from '@/lib/generateLandlordOpsReportPdf';
 import { RentAdjustmentDialog } from './RentAdjustmentDialog';
 import { VacancyAnalytics } from './VacancyAnalytics';
 import { TenantMatchingQueue } from './landlord-ops/TenantMatchingQueue';
@@ -176,13 +184,14 @@ function ImagePreviewDialog({ images, open, onClose, title }: { images: string[]
   );
 }
 
-type View = 'home' | 'landlords' | 'locations' | 'lc1' | 'empty' | 'occupied' | 'verify' | 'pipeline' | 'chain' | 'matching' | 'agents' | 'analytics' | 'cities' | 'no-landlord' | 'advance-requests' | 'landlords-paid' | 'landlords-tenants';
+type View = 'home' | 'landlords' | 'locations' | 'lc1' | 'empty' | 'occupied' | 'verify' | 'pipeline' | 'chain' | 'matching' | 'agents' | 'analytics' | 'cities' | 'no-landlord' | 'advance-requests' | 'landlords-paid' | 'landlords-tenants' | 'all-requests';
 
 // ─── Navigation Items ───
 const navItems: { id: View; label: string; icon: typeof Building2; color: string; description: string; priority?: boolean }[] = [
   { id: 'landlords', label: 'All Landlords', icon: Building2, color: 'bg-sky-500/10 text-sky-600 border-sky-500/30', description: 'Directory with contacts & properties', priority: true },
   { id: 'landlords-tenants', label: 'Landlords & Tenants', icon: Users, color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/30', description: 'All landlords with their tenants & paid/pending status', priority: true },
   { id: 'landlords-paid', label: 'Landlords Paid', icon: Banknote, color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30', description: 'Disbursements from tenant rent', priority: true },
+  { id: 'all-requests', label: 'All Requests', icon: Table2, color: 'bg-slate-500/10 text-slate-600 border-slate-500/30', description: 'Full table of every rent request (landlord lens)', priority: true },
   { id: 'locations', label: 'Locations', icon: MapPin, color: 'bg-purple-500/10 text-purple-600 border-purple-500/30', description: 'Regions, districts & house counts', priority: true },
   { id: 'lc1', label: 'LC1 Chairpersons', icon: ShieldCheck, color: 'bg-amber-500/10 text-amber-600 border-amber-500/30', description: 'LC1 contacts per village', priority: true },
   { id: 'cities', label: 'Cities We Operate In', icon: Globe, color: 'bg-teal-500/10 text-teal-600 border-teal-500/30', description: 'All cities with tenants & properties', priority: true },
@@ -222,6 +231,171 @@ export function LandlordOpsDashboard() {
   const handleAssignPerson = (listingId: string, title: string, type: 'landlord' | 'agent') => {
     setAssignPerson({ listingId, title, type });
   };
+
+  // ─── Print Report (Landlord Payouts) state ───
+  const [reportFrom, setReportFrom] = useState<Date | undefined>(undefined);
+  const [reportTo, setReportTo] = useState<Date | undefined>(undefined);
+  const [printingPdf, setPrintingPdf] = useState(false);
+
+  const handlePrintReport = async () => {
+    setPrintingPdf(true);
+    try {
+      const fromIso = reportFrom ? reportFrom.toISOString() : null;
+      const toIso = (() => {
+        if (!reportTo) return null;
+        const end = new Date(reportTo);
+        end.setHours(23, 59, 59, 999);
+        return end.toISOString();
+      })();
+
+      // 1) Pull landlord payouts from the ledger (source of truth)
+      let payQ = supabase
+        .from('general_ledger')
+        .select('user_id, amount, transaction_date, category, direction')
+        .in('category', ['landlord_payout', 'rent_disbursement'])
+        .eq('direction', 'cash_out');
+      if (fromIso) payQ = payQ.gte('transaction_date', fromIso);
+      if (toIso) payQ = payQ.lte('transaction_date', toIso);
+      const { data: payouts, error: payErr } = await payQ;
+      if (payErr) throw payErr;
+
+      if (!payouts || payouts.length === 0) {
+        sonnerToast.error('No landlord payouts found for the selected period');
+        return;
+      }
+
+      const landlordIds = [...new Set(payouts.map(p => p.user_id).filter(Boolean) as string[])];
+      const [llRes, rrRes] = await Promise.all([
+        landlordIds.length
+          ? supabase.from('landlords').select('id, name, phone').in('id', landlordIds)
+          : Promise.resolve({ data: [] as any[] }),
+        landlordIds.length
+          ? supabase.from('rent_requests')
+              .select('landlord_id, rent_amount, amount_repaid, status')
+              .in('landlord_id', landlordIds)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+      const llMap = new Map(((llRes as any).data || []).map((l: any) => [l.id, l]));
+
+      // Properties + outstanding owed per landlord (active plans only)
+      const propsByLandlord = new Map<string, number>();
+      const outstandingByLandlord = new Map<string, number>();
+      for (const r of (((rrRes as any).data) || []) as any[]) {
+        propsByLandlord.set(r.landlord_id, (propsByLandlord.get(r.landlord_id) || 0) + 1);
+        if (['funded', 'disbursed', 'repaying'].includes(r.status)) {
+          const out = Number(r.rent_amount || 0) - Number(r.amount_repaid || 0);
+          outstandingByLandlord.set(r.landlord_id, (outstandingByLandlord.get(r.landlord_id) || 0) + Math.max(0, out));
+        }
+      }
+
+      const byLandlord = new Map<string, { name: string; phone: string; paid: number; lastDate: string | null; }>();
+      for (const p of payouts) {
+        const id = p.user_id as string | null;
+        if (!id) continue;
+        const ll = llMap.get(id) as any;
+        const row = byLandlord.get(id) || {
+          name: (ll?.name) || '—',
+          phone: (ll?.phone) || '—',
+          paid: 0,
+          lastDate: null as string | null,
+        };
+        row.paid += Number(p.amount || 0);
+        if (p.transaction_date && (!row.lastDate || new Date(p.transaction_date) > new Date(row.lastDate))) {
+          row.lastDate = p.transaction_date as string;
+        }
+        byLandlord.set(id, row);
+      }
+
+      const rows = Array.from(byLandlord.entries())
+        .map(([id, l]) => ({
+          landlord_name: l.name,
+          landlord_phone: l.phone,
+          properties: propsByLandlord.get(id) || 0,
+          amount_paid_out: l.paid,
+          outstanding_to_landlord: outstandingByLandlord.get(id) || 0,
+          last_payout_date: l.lastDate,
+        }))
+        .sort((a, b) => b.amount_paid_out - a.amount_paid_out);
+
+      const blob = generateLandlordOpsReportPdf(rows, { from: reportFrom, to: reportTo });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const suffix = reportFrom || reportTo
+        ? `${reportFrom ? format(reportFrom, 'yyyy-MM-dd') : 'start'}-to-${reportTo ? format(reportTo, 'yyyy-MM-dd') : 'today'}`
+        : format(new Date(), 'yyyy-MM-dd');
+      a.download = `welile-landlord-payouts-${suffix}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      sonnerToast.success('Landlord Payouts Report downloaded');
+    } catch (err: any) {
+      sonnerToast.error(err?.message || 'Failed to generate report');
+    } finally {
+      setPrintingPdf(false);
+    }
+  };
+
+  // ─── All Requests (landlord lens) data ───
+  const { data: allRequestsRows, isLoading: allRequestsLoading } = useQuery({
+    queryKey: ['exec-landlord-ops-all-requests'],
+    queryFn: async () => {
+      const { data } = await supabase.from('rent_requests')
+        .select('id, status, rent_amount, amount_repaid, created_at, tenant_id, landlord_id, agent_id')
+        .order('created_at', { ascending: false }).limit(200);
+      const items = data || [];
+      const tenantIds = [...new Set(items.map(r => r.tenant_id).filter(Boolean))];
+      const landlordIds = [...new Set(items.map(r => r.landlord_id).filter(Boolean))];
+      const agentIds = [...new Set(items.map(r => r.agent_id).filter(Boolean))];
+      const [tenantsRes, landlordsRes, agentsRes] = await Promise.all([
+        tenantIds.length ? supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds.slice(0, 100)) : { data: [] },
+        landlordIds.length ? supabase.from('landlords').select('id, name, phone').in('id', landlordIds.slice(0, 100)) : { data: [] },
+        agentIds.length ? supabase.from('profiles').select('id, full_name').in('id', agentIds.slice(0, 100)) : { data: [] },
+      ]);
+      const tMap = new Map(((tenantsRes as any).data || []).map((p: any) => [p.id, p]));
+      const lMap = new Map(((landlordsRes as any).data || []).map((l: any) => [l.id, l]));
+      const aMap = new Map(((agentsRes as any).data || []).map((a: any) => [a.id, a]));
+      return items.map(r => ({
+        ...r,
+        tenant_name: (tMap.get(r.tenant_id) as any)?.full_name || '—',
+        tenant_phone: (tMap.get(r.tenant_id) as any)?.phone || '—',
+        landlord_name: (lMap.get(r.landlord_id) as any)?.name || '—',
+        landlord_phone: (lMap.get(r.landlord_id) as any)?.phone || '—',
+        agent_name: r.agent_id ? ((aMap.get(r.agent_id) as any)?.full_name || '—') : 'Unassigned',
+      }));
+    },
+    enabled: view === 'all-requests' || view === 'home',
+    staleTime: 600000,
+  });
+
+  const allRequestsColumns: Column<any>[] = [
+    { key: 'created_at', label: 'Date', render: (v) => v ? format(new Date(v as string), 'dd MMM yy') : '—' },
+    { key: 'landlord_name', label: 'Landlord' },
+    { key: 'landlord_phone', label: 'L. Phone' },
+    { key: 'status', label: 'Status', render: (v) => {
+      const colors: Record<string, string> = {
+        pending: 'bg-amber-100 text-amber-700',
+        tenant_ops_approved: 'bg-blue-100 text-blue-700',
+        agent_verified: 'bg-purple-100 text-purple-700',
+        landlord_ops_approved: 'bg-indigo-100 text-indigo-700',
+        coo_approved: 'bg-emerald-100 text-emerald-700',
+        funded: 'bg-green-100 text-green-700',
+        disbursed: 'bg-teal-100 text-teal-700',
+        repaying: 'bg-purple-100 text-purple-700',
+        fully_repaid: 'bg-emerald-100 text-emerald-700',
+        defaulted: 'bg-destructive/10 text-destructive',
+      };
+      return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${colors[String(v)] || 'bg-muted'}`}>{String(v).replace(/_/g, ' ')}</span>;
+    }},
+    { key: 'rent_amount', label: 'Amount', render: (v) => Number(v || 0).toLocaleString() },
+    { key: 'amount_repaid', label: 'Repaid', render: (v) => Number(v || 0).toLocaleString() },
+    { key: 'tenant_name', label: 'Tenant' },
+    { key: 'tenant_phone', label: 'T. Phone' },
+    { key: 'agent_name', label: 'Agent', render: (v) => (
+      <span className={`text-xs ${v === 'Unassigned' ? 'text-muted-foreground italic' : 'font-medium'}`}>{String(v ?? '—')}</span>
+    )},
+  ];
 
   // ─── House Listings Query ───
   const { data: listings, isLoading, refetch } = useQuery({
@@ -1312,6 +1486,40 @@ export function LandlordOpsDashboard() {
     );
   }
 
+  // ─── ALL REQUESTS VIEW (landlord lens) ───
+  if (view === 'all-requests') {
+    return (
+      <>
+      <div className="space-y-4">
+        <BackButton />
+        <ExecutiveDataTable
+          data={allRequestsRows || []}
+          columns={allRequestsColumns}
+          loading={allRequestsLoading}
+          title="All Requests"
+          getRowId={(r: any) => String(r.id)}
+          filters={[{
+            key: 'status',
+            label: 'Status',
+            options: [
+              { value: 'pending', label: 'Pending' },
+              { value: 'tenant_ops_approved', label: 'Tenant Ops Approved' },
+              { value: 'agent_verified', label: 'Agent Verified' },
+              { value: 'landlord_ops_approved', label: 'Landlord Ops Approved' },
+              { value: 'coo_approved', label: 'COO Approved' },
+              { value: 'funded', label: 'Funded' },
+              { value: 'repaying', label: 'Repaying' },
+              { value: 'fully_repaid', label: 'Fully Repaid' },
+              { value: 'defaulted', label: 'Defaulted' },
+            ],
+          }]}
+        />
+      </div>
+      {renderDialogs()}
+      </>
+    );
+  }
+
   // ─── PIPELINE VIEW ───
   if (view === 'pipeline') {
     return (
@@ -1506,6 +1714,40 @@ export function LandlordOpsDashboard() {
 
       {/* Navigation Cards */}
       <div className="space-y-2">
+        {/* Print Landlord Payouts Report */}
+        <div className="flex flex-wrap justify-end items-center gap-2 pb-1">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className={cn("gap-1.5 font-normal", !reportFrom && "text-muted-foreground")}>
+                <CalendarIcon className="h-3.5 w-3.5" />
+                {reportFrom ? format(reportFrom, 'dd MMM yyyy') : 'From'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={reportFrom} onSelect={setReportFrom} initialFocus className={cn("p-3 pointer-events-auto")} />
+            </PopoverContent>
+          </Popover>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className={cn("gap-1.5 font-normal", !reportTo && "text-muted-foreground")}>
+                <CalendarIcon className="h-3.5 w-3.5" />
+                {reportTo ? format(reportTo, 'dd MMM yyyy') : 'To'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={reportTo} onSelect={setReportTo} initialFocus className={cn("p-3 pointer-events-auto")} />
+            </PopoverContent>
+          </Popover>
+          {(reportFrom || reportTo) && (
+            <Button variant="ghost" size="sm" onClick={() => { setReportFrom(undefined); setReportTo(undefined); }}>
+              Clear
+            </Button>
+          )}
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={handlePrintReport} disabled={printingPdf}>
+            {printingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+            Print Report
+          </Button>
+        </div>
         {/* Priority items first */}
         {navItems.filter(n => n.priority).map(item => (
           <NavCard key={item.id} item={item} onClick={() => setView(item.id)} badge={
