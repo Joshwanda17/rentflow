@@ -184,13 +184,14 @@ function ImagePreviewDialog({ images, open, onClose, title }: { images: string[]
   );
 }
 
-type View = 'home' | 'landlords' | 'locations' | 'lc1' | 'empty' | 'occupied' | 'verify' | 'pipeline' | 'chain' | 'matching' | 'agents' | 'analytics' | 'cities' | 'no-landlord' | 'advance-requests' | 'landlords-paid' | 'landlords-tenants';
+type View = 'home' | 'landlords' | 'locations' | 'lc1' | 'empty' | 'occupied' | 'verify' | 'pipeline' | 'chain' | 'matching' | 'agents' | 'analytics' | 'cities' | 'no-landlord' | 'advance-requests' | 'landlords-paid' | 'landlords-tenants' | 'all-requests';
 
 // ─── Navigation Items ───
 const navItems: { id: View; label: string; icon: typeof Building2; color: string; description: string; priority?: boolean }[] = [
   { id: 'landlords', label: 'All Landlords', icon: Building2, color: 'bg-sky-500/10 text-sky-600 border-sky-500/30', description: 'Directory with contacts & properties', priority: true },
   { id: 'landlords-tenants', label: 'Landlords & Tenants', icon: Users, color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/30', description: 'All landlords with their tenants & paid/pending status', priority: true },
   { id: 'landlords-paid', label: 'Landlords Paid', icon: Banknote, color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30', description: 'Disbursements from tenant rent', priority: true },
+  { id: 'all-requests', label: 'All Requests', icon: Table2, color: 'bg-slate-500/10 text-slate-600 border-slate-500/30', description: 'Full table of every rent request (landlord lens)', priority: true },
   { id: 'locations', label: 'Locations', icon: MapPin, color: 'bg-purple-500/10 text-purple-600 border-purple-500/30', description: 'Regions, districts & house counts', priority: true },
   { id: 'lc1', label: 'LC1 Chairpersons', icon: ShieldCheck, color: 'bg-amber-500/10 text-amber-600 border-amber-500/30', description: 'LC1 contacts per village', priority: true },
   { id: 'cities', label: 'Cities We Operate In', icon: Globe, color: 'bg-teal-500/10 text-teal-600 border-teal-500/30', description: 'All cities with tenants & properties', priority: true },
