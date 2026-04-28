@@ -1,16 +1,17 @@
-import { memo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { cn } from '@/lib/utils';
-import { Home, Users, Wallet, Building2, ShieldCheck, Lock } from 'lucide-react';
-import { hapticTap } from '@/lib/haptics';
-import { AppRole } from '@/hooks/useAuth';
-import { useAuth } from '@/hooks/useAuth';
-import { roleDashboardRoutes } from '@/components/layout/executiveSidebarConfig';
-import { roleToSlug } from '@/lib/roleRoutes';
-import { useDeployedCapital } from '@/hooks/useDeployedCapital';
-import { useRoleAccessRequests } from '@/hooks/useRoleAccessRequests';
-import { areAllRolesUnlocked } from '@/hooks/useAppPreferences';
-import ApplyForRoleDialog from '@/components/ApplyForRoleDialog';
+import { memo, useState, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
+import { cn } from "@/lib/utils";
+import { Home, Users, Wallet, Building2, ShieldCheck, Lock } from "lucide-react";
+import { hapticTap } from "@/lib/haptics";
+import { AppRole } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuth";
+import { roleDashboardRoutes } from "@/components/layout/executiveSidebarConfig";
+import { roleToSlug } from "@/lib/roleRoutes";
+import { useDeployedCapital } from "@/hooks/useDeployedCapital";
+import { useRoleAccessRequests } from "@/hooks/useRoleAccessRequests";
+import { areAllRolesUnlocked } from "@/hooks/useAppPreferences";
+import ApplyForRoleDialog from "@/components/ApplyForRoleDialog";
 
 interface BottomRoleSwitcherProps {
   currentRole: AppRole;
@@ -18,14 +19,25 @@ interface BottomRoleSwitcherProps {
 }
 
 const PUBLIC_ROLES: { role: AppRole; label: string; icon: typeof Home }[] = [
-  { role: 'tenant', label: 'Tenant', icon: Home },
-  { role: 'agent', label: 'Agent', icon: Users },
-  { role: 'supporter', label: 'Funder', icon: Wallet },
-  { role: 'landlord', label: 'Owner', icon: Building2 },
+  { role: "tenant", label: "Tenant", icon: Home },
+  { role: "agent", label: "Agent", icon: Users },
+  { role: "supporter", label: "Funder", icon: Wallet },
+  { role: "landlord", label: "Owner", icon: Building2 },
 ];
 
-const GATED_ROLES: AppRole[] = ['tenant', 'agent', 'landlord'];
-const STAFF_ROLES: AppRole[] = ['manager', 'super_admin', 'employee', 'operations', 'ceo', 'coo', 'cfo', 'cto', 'cmo', 'crm'];
+const GATED_ROLES: AppRole[] = ["tenant", "agent", "landlord"];
+const STAFF_ROLES: AppRole[] = [
+  "manager",
+  "super_admin",
+  "employee",
+  "operations",
+  "ceo",
+  "coo",
+  "cfo",
+  "cto",
+  "cmo",
+  "crm",
+];
 
 const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRoleChange }: BottomRoleSwitcherProps) {
   const navigate = useNavigate();
@@ -36,8 +48,8 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
   const [applyDialogOpen, setApplyDialogOpen] = useState(false);
   const [applyRole, setApplyRole] = useState<AppRole | null>(null);
 
-  const hasStaffRole = roles.some(r => STAFF_ROLES.includes(r));
-  const staffRole = roles.find(r => STAFF_ROLES.includes(r));
+  const hasStaffRole = roles.some((r) => STAFF_ROLES.includes(r));
+  const staffRole = roles.find((r) => STAFF_ROLES.includes(r));
 
   const isRoleGated = (role: AppRole): boolean => {
     // Strict ownership: a role is gated unless the user actually holds it.
@@ -66,20 +78,20 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
   const handleStaffNav = () => {
     hapticTap();
     if (staffRole) {
-      const route = roleDashboardRoutes[staffRole] || '/admin/dashboard';
+      const route = roleDashboardRoutes[staffRole] || "/admin/dashboard";
       navigate(route);
     }
   };
 
-  const showStaffTab = hasStaffRole && !['tenant', 'agent', 'landlord', 'supporter'].includes(currentRole);
+  const showStaffTab = hasStaffRole && !["tenant", "agent", "landlord", "supporter"].includes(currentRole);
   const cols = showStaffTab ? 5 : 4;
 
-  return (
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const navContent = (
     <>
-      <nav
-        className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t border-border/40"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
-      >
+      <nav className="fixed bottom-0 left-0 right-0 z-[100] bg-background/95 backdrop-blur-sm border-t border-border/40 pb-[env(safe-area-inset-bottom,0px)]">
         <div className={cn("grid max-w-lg mx-auto", cols === 5 ? "grid-cols-5" : "grid-cols-4")}>
           {PUBLIC_ROLES.map(({ role, label, icon: Icon }) => {
             const isActive = role === currentRole;
@@ -90,18 +102,20 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
                 key={role}
                 onClick={() => handleSwitch(role)}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-0.5 py-1 min-h-[44px] transition-colors touch-manipulation active:scale-95 relative",
+                  "flex flex-col items-center justify-center gap-0.5 py-1.5 min-h-[44px] transition-colors touch-manipulation active:scale-95 relative",
                   isActive
                     ? "text-primary"
                     : gated
                       ? "text-muted-foreground/40"
-                      : "text-muted-foreground hover:text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <div className={cn(
-                  "flex items-center justify-center w-6 h-6 rounded-lg transition-colors relative",
-                  isActive && "bg-primary/10"
-                )}>
+                <div
+                  className={cn(
+                    "flex items-center justify-center w-7 h-7 rounded-xl transition-colors relative",
+                    isActive && "bg-primary/10",
+                  )}
+                >
                   <Icon className={cn("h-4.5 w-4.5", isActive && "text-primary")} />
                   {gated && (
                     <div className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-warning/20 flex items-center justify-center">
@@ -109,22 +123,24 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
                     </div>
                   )}
                 </div>
-                <span className={cn(
-                  "text-[10px] font-semibold tracking-wide",
-                  isActive && "text-primary",
-                  pending && "text-warning"
-                )}>
-                  {pending ? 'Pending' : label}
+                <span
+                  className={cn(
+                    "text-[10px] font-semibold tracking-wide",
+                    isActive && "text-primary",
+                    pending && "text-warning",
+                  )}
+                >
+                  {pending ? "Pending" : label}
                 </span>
               </button>
             );
           })}
-          {hasStaffRole && !['tenant', 'agent', 'landlord', 'supporter'].includes(currentRole) && (
+          {hasStaffRole && !["tenant", "agent", "landlord", "supporter"].includes(currentRole) && (
             <button
               onClick={handleStaffNav}
-              className="flex flex-col items-center justify-center gap-0.5 py-1 min-h-[44px] transition-colors touch-manipulation active:scale-95 text-muted-foreground hover:text-foreground"
+              className="flex flex-col items-center justify-center gap-0.5 py-1.5 min-h-[44px] transition-colors touch-manipulation active:scale-95 text-muted-foreground hover:text-foreground"
             >
-              <div className="flex items-center justify-center w-6 h-6 rounded-lg transition-colors">
+              <div className="flex items-center justify-center w-7 h-7 rounded-xl transition-colors">
                 <ShieldCheck className="h-4.5 w-4.5" />
               </div>
               <span className="text-[10px] font-semibold tracking-wide">Staff</span>
@@ -142,6 +158,9 @@ const BottomRoleSwitcher = memo(function BottomRoleSwitcher({ currentRole, onRol
       />
     </>
   );
+
+  if (!mounted) return null;
+  return createPortal(navContent, document.body);
 });
 
 export default BottomRoleSwitcher;
