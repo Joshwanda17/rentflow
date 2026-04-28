@@ -597,28 +597,6 @@ function FunderOnboardingInner() {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = prev; };
   }, []);
-
-  // Neutralize global #root padding/max-width so the onboarding fills the viewport edge-to-edge
-  useEffect(() => {
-    const root = document.getElementById('root');
-    if (!root) return;
-    const prev = {
-      padding: root.style.padding,
-      maxWidth: root.style.maxWidth,
-      margin: root.style.margin,
-      textAlign: root.style.textAlign,
-    };
-    root.style.padding = '0';
-    root.style.maxWidth = '100%';
-    root.style.margin = '0';
-    root.style.textAlign = 'left';
-    return () => {
-      root.style.padding = prev.padding;
-      root.style.maxWidth = prev.maxWidth;
-      root.style.margin = prev.margin;
-      root.style.textAlign = prev.textAlign;
-    };
-  }, []);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingTextIdx, setLoadingTextIdx] = useState(0);
   const loadingTexts = ['Creating Account...', 'Securing Wallet...', 'Getting you started...', 'Just a moment...'];
