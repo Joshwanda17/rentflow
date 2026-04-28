@@ -8,9 +8,10 @@ import {
 } from 'lucide-react';
 import agentHero from '@/assets/agent-hero.jpg';
 import welileLogo from '@/assets/welile-colored.png';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 // ─── Mocks for missing internal modules ─────────────────────────────────────
-const useAuth = () => ({ updateSession: (_t?: string, _u?: any) => {}, user: null as any });
 const useRouteRole = () => 'FUNDER';
 type Currency = { symbol: string; code: string };
 const useCurrency = (): Currency => ({ symbol: 'USh', code: 'UGX' });
@@ -20,10 +21,6 @@ function formatCurrencyCompact(value: number, currency: Currency) {
   if (abs >= 1_000_000) return `${currency.symbol} ${(value / 1_000_000).toFixed(1)}M`;
   if (abs >= 1_000) return `${currency.symbol} ${(value / 1_000).toFixed(1)}K`;
   return `${currency.symbol} ${Math.round(value).toLocaleString()}`;
-}
-async function registerUser(_payload: any): Promise<{ status: string; data: { access_token: string; user: any } }> {
-  await new Promise((r) => setTimeout(r, 1500));
-  return { status: 'success', data: { access_token: 'mock-token', user: { id: 'mock-user' } } };
 }
 
 // ─── Types ─────────────────────────────────────────────────────────────────
