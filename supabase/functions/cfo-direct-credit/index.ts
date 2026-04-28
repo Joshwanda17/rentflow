@@ -68,8 +68,22 @@ Deno.serve(async (req) => {
       'marketing_expense', 'payroll_expense', 'general_admin_expense',
       'research_development_expense', 'tax_expense', 'interest_expense', 'equipment_expense',
     ];
-    const walletCat = ALLOWED_CATEGORIES.includes(wallet_category) ? wallet_category : 'system_balance_correction';
+    const walletCatRaw = ALLOWED_CATEGORIES.includes(wallet_category) ? wallet_category : 'system_balance_correction';
     const platformCat = ALLOWED_CATEGORIES.includes(platform_category) ? platform_category : 'system_balance_correction';
+
+    // Expense categories (payroll, marketing, tax, etc.) describe the PLATFORM
+    // leg only — they are cash_out from the company. On the recipient's WALLET
+    // leg (cash_in) those categories are not routable by wallet_route_for_category
+    // and the ledger raises UNSUPPORTED_LEDGER_CATEGORY. Translate to a generic
+    // wallet-impact credit category for the wallet leg; the platform leg keeps
+    // the real expense category for accounting/reporting.
+    const EXPENSE_CATEGORIES = new Set([
+      'marketing_expense', 'payroll_expense', 'general_admin_expense',
+      'research_development_expense', 'tax_expense', 'interest_expense', 'equipment_expense',
+    ]);
+    const walletCat = (operation !== 'debit' && EXPENSE_CATEGORIES.has(walletCatRaw))
+      ? 'system_balance_correction'
+      : walletCatRaw;
     const impact = ['revenue', 'expense', 'neutral'].includes(financial_impact) ? financial_impact : 'neutral';
 
     // ── Guardrail: warn CFO when crediting an AGENT under a non-commission category
