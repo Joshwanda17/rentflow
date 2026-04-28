@@ -1714,6 +1714,40 @@ export function LandlordOpsDashboard() {
 
       {/* Navigation Cards */}
       <div className="space-y-2">
+        {/* Print Landlord Payouts Report */}
+        <div className="flex flex-wrap justify-end items-center gap-2 pb-1">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className={cn("gap-1.5 font-normal", !reportFrom && "text-muted-foreground")}>
+                <CalendarIcon className="h-3.5 w-3.5" />
+                {reportFrom ? format(reportFrom, 'dd MMM yyyy') : 'From'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={reportFrom} onSelect={setReportFrom} initialFocus className={cn("p-3 pointer-events-auto")} />
+            </PopoverContent>
+          </Popover>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className={cn("gap-1.5 font-normal", !reportTo && "text-muted-foreground")}>
+                <CalendarIcon className="h-3.5 w-3.5" />
+                {reportTo ? format(reportTo, 'dd MMM yyyy') : 'To'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={reportTo} onSelect={setReportTo} initialFocus className={cn("p-3 pointer-events-auto")} />
+            </PopoverContent>
+          </Popover>
+          {(reportFrom || reportTo) && (
+            <Button variant="ghost" size="sm" onClick={() => { setReportFrom(undefined); setReportTo(undefined); }}>
+              Clear
+            </Button>
+          )}
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={handlePrintReport} disabled={printingPdf}>
+            {printingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+            Print Report
+          </Button>
+        </div>
         {/* Priority items first */}
         {navItems.filter(n => n.priority).map(item => (
           <NavCard key={item.id} item={item} onClick={() => setView(item.id)} badge={
