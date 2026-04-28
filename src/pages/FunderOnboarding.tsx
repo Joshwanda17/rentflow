@@ -634,6 +634,13 @@ function FunderOnboardingInner() {
       setIsSubmitting(true);
       setApiError('');
       try {
+        // Hard guard: Terms of Service & Privacy Policy consent is mandatory.
+        if (!form.agreedToTerms) {
+          setApiError('You must agree to the Terms of Service and Privacy Policy to create an account.');
+          toast.error('Please accept the Terms of Service and Privacy Policy to continue.');
+          setIsSubmitting(false);
+          return;
+        }
         const sanitizeInput = (val: string) => val.replace(/[<>]/g, '');
         const cleanEmail = sanitizeInput(form.email).trim().toLowerCase();
         const cleanFirst = sanitizeInput(form.firstName).trim();
