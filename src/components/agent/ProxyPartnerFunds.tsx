@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Users, ArrowUpRight, Clock, CheckCircle2, XCircle, AlertCircle, Info, Hourglass } from 'lucide-react';
+import { Loader2, Users, ArrowUpRight, Clock, CheckCircle2, XCircle, AlertCircle, Info, Hourglass, Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useWallet } from '@/hooks/useWallet';
@@ -601,6 +601,16 @@ export function ProxyPartnerFunds() {
         >
           <Hourglass className="h-3 w-3" />
           New ROI ({freshCount})
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 text-xs gap-1 ml-auto"
+          onClick={() => downloadCsv(visibleBalances)}
+          disabled={visibleBalances.length === 0}
+        >
+          <Download className="h-3 w-3" />
+          Download
         </Button>
       </div>
 
