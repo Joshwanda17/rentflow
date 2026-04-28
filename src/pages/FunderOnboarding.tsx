@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, BrowserRouter, useInRouterContext } from 'react-router-dom';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
-import { toast, Toaster } from 'sonner';
+import { toast } from 'sonner';
 import {
   ArrowLeft, Check, X, Shield, Home, TrendingUp, Banknote,
   ChevronRight, BadgeCheck, Eye, EyeOff, Mail, Phone, Lock,
@@ -766,7 +766,6 @@ function FunderOnboardingInner() {
         </div>
       </div>
 
-      <Toaster position="top-center" />
     </div>
   );
 }
