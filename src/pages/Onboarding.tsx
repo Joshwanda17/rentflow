@@ -851,7 +851,7 @@ export default function FunderOnboarding() {
           className="absolute inset-0 w-full h-full object-cover z-0"
         />
         <div className="relative z-20 p-12 flex flex-col items-center justify-center h-full text-center text-white">
-          <img src="/welile-colored.png" alt="Welile Logo" className="h-12 w-auto mb-8 brightness-0 invert drop-shadow-md" />
+          <img src="/welile-colored.png" alt="Welile Logo" className="h-20 w-auto mb-8 brightness-0 invert drop-shadow-md" />
           <h2 className="text-4xl lg:text-5xl font-black mb-4 tracking-tight drop-shadow-xl leading-tight">Fund The Future<br />Of Housing</h2>
           <p className="text-lg text-white/90 font-medium max-w-md drop-shadow-md">Empower verified tenants and grow your active capital with steady, managed returns.</p>
         </div>
