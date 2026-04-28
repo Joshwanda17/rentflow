@@ -558,6 +558,34 @@ export function ProxyPartnerFunds() {
   const reattemptCount = partnerBalances.filter((p) => classify(p).kind === 'reattempt').length;
   const freshCount = partnerBalances.filter((p) => classify(p).kind === 'fresh').length;
 
+  const downloadCsv = (rows: PartnerBalance[]) => {
+    const headers = ['Partner Name', 'Phone', 'Account Name', 'Portfolio Code', 'Returns Due', 'Delivered', 'To Withdraw'];
+    const escape = (v: any) => {
+      const s = v == null ? '' : String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [headers.join(',')];
+    rows.forEach((p) => {
+      lines.push([
+        p.partnerName,
+        p.partnerPhone,
+        p.accountName || '',
+        p.portfolioCode || '',
+        p.totalReturns,
+        p.totalWithdrawn,
+        p.available,
+      ].map(escape).join(','));
+    });
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `proxy-partner-funds-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Downloaded ${rows.length} partner${rows.length === 1 ? '' : 's'}`);
+  };
+
   const visibleBalances = partnerBalances.filter((p) => {
     if (filterMode === 'all') return true;
     const c = classify(p);
