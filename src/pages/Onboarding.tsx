@@ -22,10 +22,15 @@ const registerUser = async (payload: {
   role: string;
 }): Promise<{ status: string; data: { access_token: string; user: any } }> => {
   const fullName = `${payload.firstName} ${payload.lastName}`.trim();
-  const { data, error } = await signUp(payload.email, payload.password, fullName, payload.phone, 'supporter');
+  const { error } = await signUp(payload.email, payload.password, fullName, payload.phone, 'supporter');
   if (error) throw error;
   // The auth state listener in useRealAuth will pick up the session automatically.
-  const newUser = (data as any)?.user ?? { email: payload.email };
+  // Pull the freshly-created user (id needed for the deterministic partner reference).
+  let newUser: any = { email: payload.email };
+  try {
+    const { data: u } = await supabase.auth.getUser();
+    if (u?.user) newUser = u.user;
+  } catch { /* non-fatal */ }
   return { status: 'success', data: { access_token: '', user: newUser } };
 };
 const useCurrency = () => ({ symbol: 'USh', code: 'UGX' });
