@@ -192,6 +192,22 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, p
             </div>
           )}
 
+          {selectedUser && !approvalLoading && !isApproved && (
+            <div className="rounded-lg border border-warning/30 bg-warning/5 p-2.5 flex items-start gap-2">
+              <Shield className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+              <div className="text-xs">
+                <p className="font-bold text-warning">
+                  {approvalStatus === 'rejected' ? 'Partner rejected' : 'Partner not yet approved'}
+                </p>
+                <p className="text-muted-foreground mt-0.5 leading-relaxed">
+                  {approvalStatus === 'rejected'
+                    ? 'This funder was rejected in Partner Onboarding. Re-approve them before creating a portfolio.'
+                    : 'This funder is awaiting Partner Ops verification. Approve them in Partner Onboarding before creating a portfolio.'}
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-1.5">
             <Label className="text-xs">Account Name <span className="text-muted-foreground">(optional)</span></Label>
             <Input value={form.account_name} onChange={e => set('account_name', e.target.value)} placeholder="e.g. Premium Fund" className="h-9" />
