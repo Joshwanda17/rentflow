@@ -270,7 +270,7 @@ export function TenantOpsDashboard() {
 
       const [profilesRes, landlordsRes, agentsRes] = await Promise.all([
         tenantIds.length > 0
-          ? supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds.slice(0, 100))
+          ? supabase.from('profiles').select('id, full_name, phone, tenant_status').in('id', tenantIds.slice(0, 100))
           : { data: [] },
         landlordIds.length > 0
           ? supabase.from('landlords').select('id, name, phone').in('id', landlordIds.slice(0, 100))
@@ -284,14 +284,16 @@ export function TenantOpsDashboard() {
       const landlordMap = new Map((landlordsRes.data || []).map(l => [l.id, l]));
       const agentMap = new Map((agentsRes.data || []).map((a: any) => [a.id, a]));
 
-      return items.map(r => ({
-        ...r,
-        tenant_name: profileMap.get(r.tenant_id)?.full_name || '—',
-        tenant_phone: profileMap.get(r.tenant_id)?.phone || '—',
-        landlord_name: landlordMap.get(r.landlord_id)?.name || '—',
-        landlord_phone: landlordMap.get(r.landlord_id)?.phone || '—',
-        agent_name: r.agent_id ? (agentMap.get(r.agent_id)?.full_name || '—') : 'Unassigned',
-      }));
+      return items
+        .filter(r => profileMap.get(r.tenant_id)?.tenant_status !== 'inactive')
+        .map(r => ({
+          ...r,
+          tenant_name: profileMap.get(r.tenant_id)?.full_name || '—',
+          tenant_phone: profileMap.get(r.tenant_id)?.phone || '—',
+          landlord_name: landlordMap.get(r.landlord_id)?.name || '—',
+          landlord_phone: landlordMap.get(r.landlord_id)?.phone || '—',
+          agent_name: r.agent_id ? (agentMap.get(r.agent_id)?.full_name || '—') : 'Unassigned',
+        }));
     },
     staleTime: 600000,
   });
