@@ -118,8 +118,12 @@ function ChoiceCard({
         </div>
       </div>
       {selected && (
-        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-2 -right-2 z-20">
-          <BadgeCheck size={20} className="drop-shadow-md" style={{ color: '#6c11d4' }} strokeWidth={1.75} fill="white" />
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          className="absolute -top-2 -right-2 z-20 w-5 h-5 rounded-full bg-white border-2 border-[#6c11d4] flex items-center justify-center shadow-md"
+        >
+          <Check size={11} className="text-[#6c11d4]" strokeWidth={3} />
         </motion.div>
       )}
     </motion.button>
