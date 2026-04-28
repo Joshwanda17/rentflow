@@ -22,10 +22,11 @@ const registerUser = async (payload: {
   role: string;
 }): Promise<{ status: string; data: { access_token: string; user: any } }> => {
   const fullName = `${payload.firstName} ${payload.lastName}`.trim();
-  const { error } = await signUp(payload.email, payload.password, fullName, payload.phone, 'supporter');
+  const { data, error } = await signUp(payload.email, payload.password, fullName, payload.phone, 'supporter');
   if (error) throw error;
   // The auth state listener in useRealAuth will pick up the session automatically.
-  return { status: 'success', data: { access_token: '', user: { email: payload.email } } };
+  const newUser = (data as any)?.user ?? { email: payload.email };
+  return { status: 'success', data: { access_token: '', user: newUser } };
 };
 const useCurrency = () => ({ symbol: 'USh', code: 'UGX' });
 const formatCurrencyCompact = (val: number, currency: { symbol: string }) => {
