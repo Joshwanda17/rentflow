@@ -13051,6 +13051,10 @@ export type Database = {
           new_withdrawable: number
         }[]
       }
+      enforce_recipient_routing: {
+        Args: { p_amount: number; p_recipient_type: string; p_user_id: string }
+        Returns: Json
+      }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
