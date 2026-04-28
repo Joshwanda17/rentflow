@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -51,6 +51,37 @@ export function WalletDeductionPanel() {
   const [confirmStep, setConfirmStep] = useState(false);
   const queryClient = useQueryClient();
 
+  // Wipe any cached results from prior versions of these queries so no
+  // operator sees stale `wallets.balance` snapshots after deploy.
+  useEffect(() => {
+    queryClient.removeQueries({ queryKey: ['deduction-user-search'] });
+    queryClient.removeQueries({ queryKey: ['deduction-balance-search'] });
+  }, [queryClient]);
+
+  // Overlay ledger-true `available` balances onto a list of candidate users.
+  // Falls back to 0 (NOT the cached value) on RPC failure so we never show
+  // a misleading stale figure.
+  const overlayLedgerBalances = async (
+    rows: Array<{ id: string; full_name: string; phone: string }>,
+  ): Promise<UserResult[]> => {
+    if (rows.length === 0) return [];
+    const results = await Promise.all(
+      rows.map(async (r) => {
+        try {
+          const { data, error } = await supabase.rpc('get_user_available_balance', {
+            _user_id: r.id,
+          });
+          if (error) throw error;
+          const o = (data ?? {}) as Record<string, unknown>;
+          return { ...r, balance: Number(o.available ?? 0) };
+        } catch {
+          return { ...r, balance: 0 };
+        }
+      }),
+    );
+    return results;
+  };
+
   // Ledger-true available balance for the selected user (the figure the
   // backend actually enforces). The cached wallet number can drift above
   // ledger net due to debt / pending obligations — gating on that causes
@@ -77,7 +108,9 @@ export function WalletDeductionPanel() {
 
   // Search users by name/phone
   const { data: searchResults, isFetching: searching } = useQuery({
-    queryKey: ['deduction-user-search', searchQuery],
+    queryKey: ['deduction-user-search', 'v2-ledger', searchQuery],
+    staleTime: 0,
+    gcTime: 0,
     queryFn: async () => {
       if (searchQuery.length < 3) return [];
       const { data } = await supabase
@@ -88,27 +121,23 @@ export function WalletDeductionPanel() {
 
       if (!data || data.length === 0) return [];
 
-      const userIds = data.map(u => u.id);
-      const { data: wallets } = await supabase
-        .from('wallets')
-        .select('user_id, balance')
-        .in('user_id', userIds);
-
-      const walletMap = new Map((wallets || []).map(w => [w.user_id, w.balance]));
-
-      return data.map(u => ({
-        id: u.id,
-        full_name: u.full_name || 'Unnamed',
-        phone: u.phone || '',
-        balance: walletMap.get(u.id) || 0,
-      }));
+      // Use ledger-true balances — never the cached wallets.balance column.
+      return overlayLedgerBalances(
+        data.map((u) => ({
+          id: u.id,
+          full_name: u.full_name || 'Unnamed',
+          phone: u.phone || '',
+        })),
+      );
     },
     enabled: searchMode === 'name' && searchQuery.length >= 3,
   });
 
   // Search by balance range via RPC
   const { data: balanceResults, isFetching: balanceSearching } = useQuery({
-    queryKey: ['deduction-balance-search', minBalance, maxBalance, balanceSearchTriggered],
+    queryKey: ['deduction-balance-search', 'v2-ledger', minBalance, maxBalance, balanceSearchTriggered],
+    staleTime: 0,
+    gcTime: 0,
     queryFn: async () => {
       const min = parseFloat(minBalance) || 0;
       const max = parseFloat(maxBalance) || 999999999999;
@@ -118,12 +147,16 @@ export function WalletDeductionPanel() {
         p_limit: 100,
       });
       if (error) throw error;
-      return (data || []).map((r: any) => ({
-        id: r.user_id,
-        full_name: r.full_name || 'Unnamed',
-        phone: r.phone || '',
-        balance: Number(r.balance || 0),
-      }));
+      // Use the cached balance only as the candidate filter; replace with
+      // ledger-true `available` for display so stale cache figures never
+      // reach the operator.
+      return overlayLedgerBalances(
+        (data || []).map((r: any) => ({
+          id: r.user_id,
+          full_name: r.full_name || 'Unnamed',
+          phone: r.phone || '',
+        })),
+      );
     },
     enabled: searchMode === 'balance' && balanceSearchTriggered,
   });
@@ -163,6 +196,7 @@ export function WalletDeductionPanel() {
       resetForm();
       queryClient.invalidateQueries({ queryKey: ['deduction-user-search'] });
       queryClient.invalidateQueries({ queryKey: ['deduction-balance-search'] });
+      queryClient.invalidateQueries({ queryKey: ['deduction-available-balance'] });
     },
     onError: (err: Error) => {
       toast.error(err.message);
@@ -201,7 +235,7 @@ export function WalletDeductionPanel() {
             <p className="text-xs text-muted-foreground">{u.phone}</p>
           </div>
           <div className="text-right shrink-0">
-            <p className="text-xs text-muted-foreground">Balance</p>
+            <p className="text-xs text-muted-foreground">Available (ledger)</p>
             <p className="text-sm font-semibold">{formatUGX(u.balance)}</p>
           </div>
         </button>
