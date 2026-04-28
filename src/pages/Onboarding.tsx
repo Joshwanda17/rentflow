@@ -935,6 +935,54 @@ export default function FunderOnboarding() {
           </div>
         </div>
       </div>
+
+      {/* Success Modal — shown for 3s after account creation, then auto-redirects. */}
+      <AnimatePresence>
+        {showSuccess && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm px-6"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: 'spring', damping: 22, stiffness: 240 }}
+              className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl p-8 text-center"
+              role="dialog"
+              aria-live="polite"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.1, type: 'spring', damping: 14, stiffness: 220 }}
+                className="mx-auto w-20 h-20 rounded-full bg-emerald-50 flex items-center justify-center mb-5"
+              >
+                <div className="w-16 h-16 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                  <Check size={36} strokeWidth={3.5} className="text-white" />
+                </div>
+              </motion.div>
+
+              <h2 className="text-xl font-black text-gray-900 mb-2 tracking-tight">
+                Account created successfully
+              </h2>
+              <p className="text-[14px] text-gray-600 leading-relaxed mb-5">
+                Please check your email to activate your account.
+              </p>
+
+              <div className="flex items-center justify-center gap-2 text-[12px] font-bold text-gray-400 tracking-wider uppercase">
+                <svg className="animate-spin h-3.5 w-3.5 text-[#6c11d4]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                  <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                </svg>
+                Redirecting to your dashboard…
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
