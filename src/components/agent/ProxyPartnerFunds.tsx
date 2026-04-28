@@ -633,6 +633,22 @@ export function ProxyPartnerFunds() {
                 </div>
                 <div className="flex items-center gap-1.5">
                   {statusBadge}
+                  {!statusBadge && classification.kind === 'reattempt' && (
+                    <Badge variant="destructive" size="sm" className="gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {classification.terminal.status === 'rejected'
+                        ? 'Last attempt rejected'
+                        : classification.terminal.status === 'expired'
+                        ? 'Last attempt expired'
+                        : 'Last attempt cancelled'}
+                    </Badge>
+                  )}
+                  {!statusBadge && classification.kind === 'fresh' && (
+                    <Badge variant="outline" size="sm" className="gap-1 border-primary/40 text-primary">
+                      <Hourglass className="h-3 w-3" />
+                      Awaiting request
+                    </Badge>
+                  )}
                   <Badge variant="outline" className="text-xs gap-1">
                     <Users className="h-3 w-3" />
                     Proxy
@@ -654,6 +670,30 @@ export function ProxyPartnerFunds() {
                   <p className="text-xs font-bold text-primary tabular-nums">{formatAmount(partner.available)}</p>
                 </div>
               </div>
+
+              {!statusBadge && classification.kind === 'reattempt' && (
+                <div className="flex items-start gap-1.5 rounded-md bg-destructive/5 border border-destructive/20 px-2 py-1.5">
+                  <Info className="h-3 w-3 text-destructive shrink-0 mt-0.5" />
+                  <p className="text-[11px] leading-snug text-destructive">
+                    Last withdrawal {classification.terminal.status} on{' '}
+                    {new Date(classification.terminal.at).toLocaleDateString()}.
+                    {classification.terminal.reason ? (
+                      <> Reason: <span className="font-medium">{classification.terminal.reason}</span>.</>
+                    ) : (
+                      <> No reason recorded.</>
+                    )}{' '}
+                    Funds returned — re-request below.
+                  </p>
+                </div>
+              )}
+              {!statusBadge && classification.kind === 'fresh' && (
+                <div className="flex items-start gap-1.5 rounded-md bg-primary/5 border border-primary/20 px-2 py-1.5">
+                  <Info className="h-3 w-3 text-primary shrink-0 mt-0.5" />
+                  <p className="text-[11px] leading-snug text-primary">
+                    Returns accrued and ready. No withdrawal has been requested yet.
+                  </p>
+                </div>
+              )}
 
               {hasPending && canCancel ? (
                 <div className="flex gap-2">
