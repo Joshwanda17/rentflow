@@ -82,7 +82,10 @@ export function PullToRefresh({
       <div
         className="transition-transform duration-200"
         style={{
-          transform: `translateY(${pullDistance}px)`,
+          // Do not apply translateY(0px): even a no-op transform creates a
+          // containing block that breaks fixed-position public pages such as
+          // /funder-onboarding, making them render as a blank zero-height area.
+          transform: pullDistance > 0 ? `translateY(${pullDistance}px)` : undefined,
         }}
       >
         {children}
