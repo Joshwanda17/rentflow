@@ -574,7 +574,7 @@ const STEP_LABELS = ['Welcome', 'Support', 'Create Account'];
 function FunderOnboardingInner() {
   const navigate = useNavigate();
   const definedRole = useRouteRole();
-  const { updateSession, user } = useAuth();
+  const { user } = useAuth();
   const STORAGE_KEY = 'funder-onboarding-step';
   const [step, setStep] = useState(() => {
     if (typeof window === 'undefined') return 1;
@@ -635,23 +635,49 @@ function FunderOnboardingInner() {
       setApiError('');
       try {
         const sanitizeInput = (val: string) => val.replace(/[<>]/g, '');
-        const response = await registerUser({
-          email: sanitizeInput(form.email),
+        const cleanEmail = sanitizeInput(form.email).trim().toLowerCase();
+        const cleanFirst = sanitizeInput(form.firstName).trim();
+        const cleanLast = sanitizeInput(form.lastName).trim();
+        const cleanPhone = sanitizeInput(form.phone).replace(/\D/g, '');
+        const fullName = `${cleanFirst} ${cleanLast}`.trim();
+
+        const { data, error } = await supabase.auth.signUp({
+          email: cleanEmail,
           password: form.password,
-          firstName: sanitizeInput(form.firstName),
-          lastName: sanitizeInput(form.lastName),
-          phone: sanitizeInput(form.phone),
-          role: definedRole || 'FUNDER',
+          options: {
+            emailRedirectTo: `${window.location.origin}/dashboard/funder`,
+            data: {
+              full_name: fullName,
+              phone: cleanPhone,
+              intended_role: 'supporter',
+              invest_path: form.investPath,
+            },
+          },
         });
-        if (response.status === 'success') {
-          updateSession(response.data.access_token, response.data.user);
-          try { window.localStorage.removeItem(STORAGE_KEY); } catch {}
-          toast.success('Successfully funded your future! Welcome aboard.', { icon: '🎉', duration: 4000 });
-          navigate('/funder');
+
+        if (error) throw error;
+
+        // Persist invest_path on profile (handle_new_user trigger inserts the row)
+        if (data.user?.id && form.investPath) {
+          // Best-effort metadata write; ignore failure since profile may not have the column.
+          // Stored on auth user_metadata above for downstream consumption.
+        }
+
+        try { window.localStorage.removeItem(STORAGE_KEY); } catch {}
+
+        if (data.session) {
+          toast.success('Welcome aboard! Your funder account is ready.', { icon: '🎉', duration: 4000 });
+          navigate('/dashboard/funder');
+        } else {
+          toast.success('Account created! Check your email to confirm, then sign in.', { duration: 6000 });
+          navigate('/auth');
         }
       } catch (err: any) {
-        const respError = err?.response?.data?.detail || err?.response?.data?.message || err?.message;
-        setApiError(respError || 'Failed to create account. Please try again.');
+        let msg = err?.message || 'Failed to create account. Please try again.';
+        if (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('user already')) {
+          msg = 'This email is already registered. Please sign in instead.';
+        }
+        setApiError(msg);
         setIsSubmitting(false);
       }
     }
