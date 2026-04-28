@@ -3,14 +3,14 @@ import { lovable } from '@/integrations/lovable';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import type { AppRole } from './types';
 
-export async function signUp(email: string, password: string, fullName: string, phone: string, role: AppRole) {
+export async function signUp(email: string, password: string, fullName: string, phone: string, role: AppRole, signupSource?: string) {
   const redirectUrl = `${window.location.origin}/`;
   const { error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       emailRedirectTo: redirectUrl,
-      data: { full_name: fullName, phone, role },
+      data: { full_name: fullName, phone, role, signup_source: signupSource || null },
     },
   });
   return { error: error as Error | null };
