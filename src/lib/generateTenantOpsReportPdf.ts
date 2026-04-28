@@ -1,27 +1,29 @@
 import jsPDF from 'jspdf';
 import { format } from 'date-fns';
 
-interface TenantRentRow {
+export interface TenantRentRow {
   tenant_name: string;
   tenant_phone: string;
-  start_date: string;
+  first_start_date: string;
+  rent_plans: number;
   rent_given: number;
   amount_paid: number;
   outstanding: number;
   agent_name: string;
-  duration_days: number;
-  payments_made: number;
 }
 
-export function generateTenantOpsReportPdf(tenants: TenantRentRow[]): Blob {
+export function generateTenantOpsReportPdf(
+  tenants: TenantRentRow[],
+  range?: { from?: Date | null; to?: Date | null },
+): Blob {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 10;
   const contentWidth = pageWidth - margin * 2;
   let y = 14;
 
-  const ugx = (n: number) => `UGX ${n.toLocaleString()}`;
-  const fmtDate = (d: string) => {
+  const ugx = (n: number) => `UGX ${Math.round(n).toLocaleString()}`;
+  const fmtDate = (d: string | Date) => {
     try { return format(new Date(d), 'dd MMM yyyy'); } catch { return '—'; }
   };
 
@@ -37,6 +39,17 @@ export function generateTenantOpsReportPdf(tenants: TenantRentRow[]): Blob {
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   doc.text('Tenant Rent Report', margin, y);
+  y += 5;
+
+  // Date range line
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'italic');
+  doc.setTextColor(100, 100, 100);
+  const rangeLabel = range && (range.from || range.to)
+    ? `Period: ${range.from ? fmtDate(range.from) : 'Start'} → ${range.to ? fmtDate(range.to) : 'Today'}`
+    : 'Period: All time';
+  doc.text(rangeLabel, margin, y);
+  doc.setTextColor(0, 0, 0);
   y += 6;
 
   // Summary
@@ -46,31 +59,30 @@ export function generateTenantOpsReportPdf(tenants: TenantRentRow[]): Blob {
 
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Total Tenants: ${tenants.length}`, margin, y);
-  doc.text(`Rent Given: ${ugx(totalGiven)}`, margin + 55, y);
-  doc.text(`Total Repaid: ${ugx(totalPaid)}`, margin + 120, y);
+  doc.text(`Tenants: ${tenants.length}`, margin, y);
+  doc.text(`Rent Given: ${ugx(totalGiven)}`, margin + 45, y);
+  doc.text(`Total Paid: ${ugx(totalPaid)}`, margin + 115, y);
   doc.text(`Outstanding: ${ugx(totalOutstanding)}`, margin + 185, y);
   y += 7;
 
-  // Table columns
+  // Columns — one row per tenant
   const cols = [
-    { label: '#', x: margin, w: 7 },
-    { label: 'Tenant Name', x: margin + 7, w: 36 },
-    { label: 'Start Date', x: margin + 43, w: 24 },
-    { label: 'Phone', x: margin + 67, w: 26 },
-    { label: 'Rent Given', x: margin + 93, w: 26 },
-    { label: 'Amount Paid', x: margin + 119, w: 26 },
-    { label: 'Outstanding', x: margin + 145, w: 26 },
-    { label: 'Agent', x: margin + 171, w: 36 },
-    { label: 'Days', x: margin + 207, w: 14 },
-    { label: 'Payments', x: margin + 221, w: 18 },
+    { label: '#',           x: margin,        w: 8 },
+    { label: 'Tenant Name', x: margin + 8,    w: 50 },
+    { label: 'Phone',       x: margin + 58,   w: 30 },
+    { label: 'First Start', x: margin + 88,   w: 26 },
+    { label: 'Plans',       x: margin + 114,  w: 14 },
+    { label: 'Rent Given',  x: margin + 128,  w: 30 },
+    { label: 'Amount Paid', x: margin + 158,  w: 30 },
+    { label: 'Outstanding', x: margin + 188,  w: 30 },
+    { label: 'Agent',       x: margin + 218,  w: 41 },
   ];
 
   const drawHeader = () => {
     doc.setFillColor(30, 30, 60);
     doc.rect(margin, y - 4, contentWidth, 6, 'F');
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(7);
+    doc.setFontSize(7.5);
     doc.setFont('helvetica', 'bold');
     cols.forEach(c => doc.text(c.label, c.x + 1, y));
     doc.setTextColor(0, 0, 0);
@@ -85,38 +97,27 @@ export function generateTenantOpsReportPdf(tenants: TenantRentRow[]): Blob {
       y = 14;
       drawHeader();
     }
-
     if (i % 2 === 0) {
       doc.setFillColor(245, 245, 250);
       doc.rect(margin, y - 3.5, contentWidth, 5, 'F');
     }
-
-    doc.setFontSize(7);
+    doc.setFontSize(7.5);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(0, 0, 0);
     doc.text(`${i + 1}`, cols[0].x + 1, y);
-    doc.text(t.tenant_name.slice(0, 22), cols[1].x + 1, y);
-    doc.text(fmtDate(t.start_date), cols[2].x + 1, y);
-    doc.text(t.tenant_phone || '—', cols[3].x + 1, y);
-    doc.text(ugx(t.rent_given), cols[4].x + 1, y);
-
+    doc.text(t.tenant_name.slice(0, 30), cols[1].x + 1, y);
+    doc.text(t.tenant_phone || '—', cols[2].x + 1, y);
+    doc.text(t.first_start_date ? fmtDate(t.first_start_date) : '—', cols[3].x + 1, y);
+    doc.text(`${t.rent_plans}`, cols[4].x + 1, y);
+    doc.text(ugx(t.rent_given), cols[5].x + 1, y);
     doc.setTextColor(0, 130, 50);
-    doc.text(ugx(t.amount_paid), cols[5].x + 1, y);
-
-    if (t.outstanding > 0) {
-      doc.setTextColor(200, 30, 30);
-    } else {
-      doc.setTextColor(0, 130, 50);
-    }
+    doc.text(ugx(t.amount_paid), cols[6].x + 1, y);
     doc.setFont('helvetica', 'bold');
-    doc.text(ugx(t.outstanding), cols[6].x + 1, y);
-
-    doc.setTextColor(0, 0, 0);
+    doc.setTextColor(t.outstanding > 0 ? 200 : 0, t.outstanding > 0 ? 30 : 130, t.outstanding > 0 ? 30 : 50);
+    doc.text(ugx(t.outstanding), cols[7].x + 1, y);
     doc.setFont('helvetica', 'normal');
-    doc.text(t.agent_name.slice(0, 22), cols[7].x + 1, y);
-    doc.text(`${t.duration_days}`, cols[8].x + 1, y);
-    doc.text(`${t.payments_made}`, cols[9].x + 1, y);
-
+    doc.setTextColor(0, 0, 0);
+    doc.text(t.agent_name.slice(0, 24), cols[8].x + 1, y);
     y += 5;
   });
 
@@ -129,9 +130,9 @@ export function generateTenantOpsReportPdf(tenants: TenantRentRow[]): Blob {
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.text('TOTALS', cols[1].x + 1, y);
-  doc.text(ugx(totalGiven), cols[4].x + 1, y);
-  doc.text(ugx(totalPaid), cols[5].x + 1, y);
-  doc.text(ugx(totalOutstanding), cols[6].x + 1, y);
+  doc.text(ugx(totalGiven), cols[5].x + 1, y);
+  doc.text(ugx(totalPaid), cols[6].x + 1, y);
+  doc.text(ugx(totalOutstanding), cols[7].x + 1, y);
   doc.setTextColor(0, 0, 0);
 
   // Footer
