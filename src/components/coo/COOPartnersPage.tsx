@@ -772,7 +772,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     setDetailPartner(null);
     try {
       const [profileRes, walletRes, portfolioRes, ledgerRes] = await Promise.all([
-        supabase.from('profiles').select('id, full_name, phone, created_at, frozen_at, frozen_reason').eq('id', partnerId).single(),
+        supabase.from('profiles').select('id, full_name, phone, email, created_at, frozen_at, frozen_reason').eq('id', partnerId).single(),
         supabase.from('wallets').select('balance').eq('user_id', partnerId).single(),
         supabase.from('investor_portfolios')
           .select('id, portfolio_code, account_name, investment_amount, roi_percentage, payout_day, roi_mode, status, created_at, maturity_date, total_roi_earned, duration_months, next_roi_date, investor_id, agent_id')
