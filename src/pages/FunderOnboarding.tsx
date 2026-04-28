@@ -642,6 +642,7 @@ function FunderOnboardingInner() {
         });
         if (response.status === 'success') {
           updateSession(response.data.access_token, response.data.user);
+          try { window.localStorage.removeItem(STORAGE_KEY); } catch {}
           toast.success('Successfully funded your future! Welcome aboard.', { icon: '🎉', duration: 4000 });
           navigate('/funder');
         }
