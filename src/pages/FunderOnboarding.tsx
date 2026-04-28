@@ -1,808 +1,523 @@
-import { useState, useRef, useEffect } from 'react';
-import { useNavigate, BrowserRouter, useInRouterContext } from 'react-router-dom';
-import { motion, AnimatePresence, useInView } from 'framer-motion';
-import { toast } from 'sonner';
-import {
-  ArrowLeft, Check, X, Shield, Home, TrendingUp, Banknote,
-  ChevronRight, BadgeCheck, Eye, EyeOff, Mail, Phone, Lock,
-} from 'lucide-react';
-import agentHero from '@/assets/agent-hero.jpg';
-import welileLogo from '@/assets/welile-colored.png';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { roleToSlug } from '@/lib/roleRoutes';
+import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
+import {
+  Loader2, UserCheck, UserX, Phone, Clock, Shield, AlertTriangle, Search,
+  CheckCircle2, XCircle, Users, Calendar,
+} from 'lucide-react';
+import COODetailLayout, { KPICard } from '@/components/coo/COODetailLayout';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 
-// ─── Mocks for missing internal modules ─────────────────────────────────────
-const useRouteRole = () => 'FUNDER';
-type Currency = { symbol: string; code: string };
-const useCurrency = (): Currency => ({ symbol: 'USh', code: 'UGX' });
-function formatCurrencyCompact(value: number, currency: Currency) {
-  const abs = Math.abs(value);
-  if (abs >= 1_000_000_000) return `${currency.symbol} ${(value / 1_000_000_000).toFixed(1)}B`;
-  if (abs >= 1_000_000) return `${currency.symbol} ${(value / 1_000_000).toFixed(1)}M`;
-  if (abs >= 1_000) return `${currency.symbol} ${(value / 1_000).toFixed(1)}K`;
-  return `${currency.symbol} ${Math.round(value).toLocaleString()}`;
+type Status = 'pending' | 'approved' | 'rejected';
+
+interface PartnerOnboardingRow {
+  id: string;
+  agent_id: string;
+  beneficiary_id: string;
+  beneficiary_role: string;
+  reason: string | null;
+  rejection_reason: string | null;
+  approval_status: Status;
+  approved_at: string | null;
+  approved_by: string | null;
+  created_at: string;
+  agent: { full_name: string | null; phone: string | null } | null;
+  beneficiary: { full_name: string | null; phone: string | null; email: string | null } | null;
+  reviewer: { full_name: string | null } | null;
 }
 
-// ─── Types ─────────────────────────────────────────────────────────────────
-type InvestPath = 'tenant' | 'pool' | null;
-interface FormState {
-  understoodRole: boolean;
-  investPath: InvestPath;
-  firstName: string;
-  lastName: string;
-  email: string;
-  password: string;
-  confirmPassword: string;
-  phone: string;
-  agreedToTerms: boolean;
-}
+type FilterStatus = 'all' | Status;
 
-// ─── Password strength ─────────────────────────────────────────────────────
-function getStrength(pw: string): { score: number; label: string; color: string } {
-  let score = 0;
-  if (pw.length >= 8) score++;
-  if (/[A-Z]/.test(pw)) score++;
-  if (/[0-9]/.test(pw)) score++;
-  if (/[^A-Za-z0-9]/.test(pw)) score++;
-  const map = [
-    { label: 'Too short', color: '#EF4444' },
-    { label: 'Weak', color: '#F97316' },
-    { label: 'Fair', color: '#EAB308' },
-    { label: 'Good', color: '#22C55E' },
-    { label: 'Strong', color: '#6c11d4' },
-  ];
-  return { score, ...map[score] };
-}
-
-// ─── Animation variants ───────────────────────────────────────────────────
-const slideVariants = {
-  enter: { x: 40, opacity: 0 },
-  center: { x: 0, opacity: 1, transition: { duration: 0.35, ease: 'easeOut' as const } },
-  exit: { x: -40, opacity: 0, transition: { duration: 0.22, ease: 'easeIn' as const } },
+const STATUS_META: Record<Status, { label: string; cls: string; icon: typeof Clock }> = {
+  pending: { label: 'Pending', cls: 'bg-warning/15 text-warning border-warning/30', icon: Clock },
+  approved: { label: 'Approved', cls: 'bg-success/15 text-success border-success/30', icon: CheckCircle2 },
+  rejected: { label: 'Rejected', cls: 'bg-destructive/15 text-destructive border-destructive/30', icon: XCircle },
 };
-const stagger = { hidden: {}, show: { transition: { staggerChildren: 0.08, delayChildren: 0.1 } } };
-const fadeUp = { hidden: { opacity: 0, y: 18 }, show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' as const } } };
 
-// ─── StepDots ─────────────────────────────────────────────────────────────
-function StepDots({ total, current }: { total: number; current: number }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      {Array.from({ length: total }).map((_, i) => (
-        <motion.div
-          key={i}
-          animate={{ width: i + 1 === current ? 24 : 6, backgroundColor: i + 1 <= current ? '#6c11d4' : '#DDD6FE' }}
-          transition={{ duration: 0.3 }}
-          className="h-1.5 rounded-full"
-        />
-      ))}
-    </div>
-  );
-}
-
-// ─── ChoiceCard ───────────────────────────────────────────────────────────
-function ChoiceCard({
-  selected, onClick, icon: Icon, title, body, badge,
-}: {
-  selected: boolean; onClick: () => void; icon: React.ElementType;
-  title: string; body: string; badge: string;
-}) {
-  return (
-    <motion.button
-      type="button"
-      onClick={onClick}
-      whileTap={{ scale: 0.985 }}
-      className={`w-full text-left p-4 rounded-2xl border-2 transition-all duration-200 relative ${
-        selected ? 'border-[#6c11d4] bg-[#F3F0FF]' : 'border-gray-100 bg-white hover:border-purple-200'
-      }`}
-    >
-      {selected && (
-        <motion.div layoutId="card-glow" className="absolute inset-0 bg-gradient-to-br from-purple-100/40 to-transparent pointer-events-none" />
-      )}
-      <div className="flex items-start gap-3 relative z-10">
-        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-          selected ? 'bg-[#6c11d4] text-white' : 'bg-purple-50 text-[#6c11d4]'
-        }`}>
-          <Icon size={18} strokeWidth={1.75} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2 mb-0.5">
-            <h4 className="font-bold text-gray-900 text-[13px]">{title}</h4>
-            <span className={`text-[9px] font-black px-2 py-0.5 rounded-full shrink-0 ${
-              selected ? 'bg-[#6c11d4] text-white' : 'bg-purple-100 text-[#6c11d4]'
-            }`}>{badge}</span>
-          </div>
-          <p className="text-[11px] text-gray-500 leading-relaxed">{body}</p>
-        </div>
-      </div>
-      {selected && (
-        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-1 -right-1 z-20">
-          <BadgeCheck size={18} className="drop-shadow-md" style={{ color: '#6c11d4' }} strokeWidth={1.75} fill="white" />
-        </motion.div>
-      )}
-    </motion.button>
-  );
-}
-
-// ─── CountUp ──────────────────────────────────────────────────────────────
-function CountUp({ to, suffix = '', duration = 1400 }: { to: number; suffix?: string; duration?: number }) {
-  const [count, setCount] = useState(0);
-  const ref = useRef<HTMLParagraphElement>(null);
-  const inView = useInView(ref, { once: true, margin: '-40px' });
-  useEffect(() => {
-    if (!inView) return;
-    const start = performance.now();
-    let raf = 0;
-    const step = (now: number) => {
-      const progress = Math.min((now - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setCount(Math.round(eased * to));
-      if (progress < 1) raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  }, [inView, to, duration]);
-  return (
-    <p ref={ref} className="text-base font-black text-gray-900 leading-none">
-      {count.toLocaleString()}{suffix}
-    </p>
-  );
-}
-
-// ─── Support Graph ────────────────────────────────────────────────────────
-const MONTHS = 12;
-const PRINCIPAL = 1_000_000;
-function buildPoints(mode: 'tenant' | 'pool', principal: number): number[] {
-  const pts: number[] = [];
-  let bal = principal;
-  for (let m = 0; m <= MONTHS; m++) {
-    pts.push(bal);
-    if (mode === 'tenant') bal += principal * 0.15;
-    else bal = bal * 1.15;
-  }
-  return pts;
-}
-
-function SupportGraph({ mode }: { mode: 'tenant' | 'pool' }) {
-  const [hovered, setHovered] = useState<number | null>(null);
-  const [rawInput, setRawInput] = useState('1,000,000');
-  const currency = useCurrency();
-  const principal = Math.max(10_000, Number(rawInput.replace(/,/g, '')) || PRINCIPAL);
-
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const digits = e.target.value.replace(/[^0-9]/g, '');
-    const formatted = digits ? Number(digits).toLocaleString() : '';
-    setRawInput(formatted);
-  };
-
-  const W = 320, H = 140, PAD = { top: 12, right: 12, bottom: 28, left: 8 };
-  const innerW = W - PAD.left - PAD.right;
-  const innerH = H - PAD.top - PAD.bottom;
-  const points = buildPoints(mode, principal);
-  const maxVal = points[MONTHS];
-  const minVal = principal;
-  const range = maxVal - minVal || 1;
-  const xOf = (i: number) => PAD.left + (i / MONTHS) * innerW;
-  const yOf = (v: number) => PAD.top + innerH - ((v - minVal) / range) * innerH;
-  const pathD = points.map((v, i) => `${i === 0 ? 'M' : 'L'}${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}`).join(' ');
-  const areaD = pathD + ` L${xOf(MONTHS).toFixed(1)},${(PAD.top + innerH).toFixed(1)} L${PAD.left.toFixed(1)},${(PAD.top + innerH).toFixed(1)} Z`;
-  const color = mode === 'pool' ? '#6c11d4' : '#7B2AC5';
-  const labelStep = mode === 'pool' ? 3 : 2;
-  const pathId = `graph-${mode}`;
-
-  return (
-    <motion.div
-      key={mode}
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 8 }}
-      transition={{ duration: 0.35, ease: 'easeOut' }}
-      className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm"
-    >
-      <div className="flex items-start justify-between mb-3 gap-3">
-        <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-            {mode === 'tenant' ? 'Monthly rewards · 12 months' : 'Compounding growth · 12 months'}
-          </p>
-          <div className="flex items-center gap-1.5 mt-1.5 bg-purple-50 border border-purple-100 rounded-xl px-3 py-1.5">
-            <span className="text-[11px] font-bold text-[#6c11d4] shrink-0">{currency.symbol}</span>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={rawInput}
-              onChange={handleAmountChange}
-              placeholder="1,000,000"
-              className="flex-1 min-w-0 bg-transparent text-sm font-black text-[#1C1C2E] outline-none placeholder:text-gray-300 w-full"
-            />
-          </div>
-        </div>
-        <motion.span
-          key={mode + '-badge'}
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="text-[11px] font-black px-2.5 py-1 rounded-full bg-purple-100 text-[#6c11d4] shrink-0 mt-4"
-        >
-          {mode === 'tenant' ? '+15% / mo' : 'Compounds'}
-        </motion.span>
-      </div>
-
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ touchAction: 'none' }} onMouseLeave={() => setHovered(null)}>
-        <defs>
-          <linearGradient id={`area-${mode}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity="0.18" />
-            <stop offset="100%" stopColor={color} stopOpacity="0" />
-          </linearGradient>
-          <clipPath id={pathId}>
-            <motion.rect x={PAD.left} y={0} height={H} initial={{ width: 0 }} animate={{ width: innerW }} transition={{ duration: 1.1, ease: 'easeOut', delay: 0.1 }} />
-          </clipPath>
-        </defs>
-        <path d={areaD} fill={`url(#area-${mode})`} clipPath={`url(#${pathId})`} />
-        <path d={pathD} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" clipPath={`url(#${pathId})`} />
-        {points.map((_, i) => {
-          if (i % labelStep !== 0 || i === 0) return null;
-          return <text key={i} x={xOf(i)} y={H - 6} textAnchor="middle" fontSize="8" fill="#9CA3AF">M{i}</text>;
-        })}
-        {points.map((v, i) => (
-          <g key={i}>
-            <rect x={xOf(i) - 12} y={0} width={24} height={H - PAD.bottom} fill="transparent" onMouseEnter={() => setHovered(i)} style={{ cursor: 'crosshair' }} />
-            {hovered === i && (
-              <g>
-                <line x1={xOf(i)} y1={PAD.top} x2={xOf(i)} y2={PAD.top + innerH} stroke={color} strokeWidth="1" strokeDasharray="3 3" opacity="0.5" />
-                <circle cx={xOf(i)} cy={yOf(v)} r={4} fill={color} />
-                <circle cx={xOf(i)} cy={yOf(v)} r={7} fill={color} opacity="0.15" />
-                <g transform={`translate(${Math.min(xOf(i) + 6, W - 82)},${Math.max(yOf(v) - 28, PAD.top)})`}>
-                  <rect width="78" height="22" rx="6" fill={color} />
-                  <text x="39" y="14" textAnchor="middle" fontSize="9" fill="white" fontWeight="700">{formatCurrencyCompact(v, currency)}</text>
-                </g>
-              </g>
-            )}
-          </g>
-        ))}
-      </svg>
-
-      <div className="flex justify-between items-center pt-2 border-t border-gray-50 mt-1">
-        <div>
-          <p className="text-[10px] text-gray-400">After 12 months</p>
-          <p className="text-[10px] text-gray-400 mt-0.5">
-            {mode === 'tenant'
-              ? `+${formatCurrencyCompact(principal * 0.15, currency)} / mo reward`
-              : `${((points[MONTHS] / principal - 1) * 100).toFixed(0)}% total growth`}
-          </p>
-        </div>
-        <motion.p key={points[MONTHS]} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-base font-black text-[#6c11d4]">
-          {formatCurrencyCompact(points[MONTHS], currency)}
-        </motion.p>
-      </div>
-    </motion.div>
-  );
-}
-
-// ─── Step 1 ───────────────────────────────────────────────────────────────
-function Step1({ form, setForm }: { form: FormState; setForm: React.Dispatch<React.SetStateAction<FormState>> }) {
-  const cards = [
-    { icon: Home, title: 'You Fund the Rent', body: 'Your capital enters the Rent Management Pool. Welile deploys it to pay landlords on behalf of verified tenants.', highlight: false },
-    { icon: Banknote, title: '15% Monthly, Every 30 Days', body: 'You earn 15% of your active contribution each month, credited to your wallet automatically on a strict 30-day cycle.', highlight: true },
-    { icon: Shield, title: 'Fully Managed by Welile', body: 'We verify tenants, manage collections, and handle all repayments. You see anonymised Virtual Houses, never personal details.', highlight: false },
-  ];
-  return (
-    <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-7">
-      <motion.div variants={fadeUp} className="pt-2">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 rounded-xl bg-[#6c11d4]/10 flex items-center justify-center">
-            <Shield size={16} className="text-[#6c11d4]" strokeWidth={1.75} />
-          </div>
-          <span className="text-xs font-bold text-[#6c11d4] tracking-wide uppercase">Welile Housing Partner</span>
-        </div>
-        <h2 className="text-2xl font-black text-gray-900 tracking-tight leading-[1.15]">
-          Put Your Money<br />
-          <span className="text-[#6c11d4]">to Work for Families.</span>
-        </h2>
-        <p className="text-xs text-gray-500 mt-2 leading-relaxed">
-          You contribute capital. Welile pays rent for verified tenants, manages collections, and credits your wallet every 30 days. You don't manage anything.
-        </p>
-      </motion.div>
-
-      <motion.div variants={fadeUp} className="space-y-3">
-        {cards.map(({ icon: Icon, title, body, highlight }) => (
-          <div key={title} className={`relative flex items-start gap-3 rounded-xl p-3 border transition-all ${
-            highlight ? 'bg-[#F3F0FF] border-[#6c11d4]/25 shadow-sm shadow-purple-100' : 'bg-white border-gray-100 shadow-sm'
-          }`}>
-            {highlight && (
-              <BadgeCheck size={18} className="absolute -top-1 -right-1 drop-shadow-md" style={{ color: '#6c11d4' }} strokeWidth={1.75} fill="white" />
-            )}
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-              highlight ? 'bg-[#6c11d4] text-white' : 'bg-purple-50 text-[#6c11d4]'
-            }`}>
-              <Icon size={14} strokeWidth={1.75} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className={`text-[13px] font-bold ${highlight ? 'text-[#6c11d4]' : 'text-gray-800'}`}>{title}</p>
-              <p className="text-[11px] text-gray-500 leading-relaxed">{body}</p>
-            </div>
-          </div>
-        ))}
-      </motion.div>
-
-      <motion.div variants={fadeUp} className="grid grid-cols-3 gap-3">
-        {[
-          { icon: Home, to: 1200, suffix: '+', label: 'Homes Supported' },
-          { icon: Banknote, to: 15, suffix: '%', label: 'Average ROI' },
-          { icon: Shield, to: 30, suffix: 'd', label: 'Payout Cycle' },
-        ].map(({ icon: Icon, to, suffix, label }) => (
-          <div key={label} className="flex flex-col items-center gap-1.5 bg-white border border-gray-100 rounded-2xl py-3 px-2 shadow-sm">
-            <div className="w-7 h-7 rounded-xl bg-purple-50 flex items-center justify-center text-[#6c11d4]">
-              <Icon size={14} strokeWidth={1.75} />
-            </div>
-            <CountUp to={to} suffix={suffix} />
-            <p className="text-[10px] text-gray-400 font-medium text-center leading-tight">{label}</p>
-          </div>
-        ))}
-      </motion.div>
-
-      <motion.label variants={fadeUp} className="flex items-start gap-3 bg-gray-50 border border-gray-100 rounded-xl p-4 cursor-pointer">
-        <div
-          className={`w-5 h-5 rounded border-2 shrink-0 mt-0.5 flex items-center justify-center transition-colors ${
-            form.understoodRole ? 'bg-[#6c11d4] border-[#6c11d4]' : 'border-gray-300'
-          }`}
-          onClick={() => setForm(p => ({ ...p, understoodRole: !p.understoodRole }))}
-        >
-          {form.understoodRole && <Check size={11} className="text-white" strokeWidth={3} />}
-        </div>
-        <p className="text-[12.5px] text-gray-500 leading-snug">
-          I understand I am a capital facilitator, not a lender. Welile manages tenant relationships, collections, and monthly payouts.
-        </p>
-      </motion.label>
-    </motion.div>
-  );
-}
-
-// ─── Step 2 ───────────────────────────────────────────────────────────────
-function Step2({ form, setForm }: { form: FormState; setForm: React.Dispatch<React.SetStateAction<FormState>> }) {
-  return (
-    <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-6">
-      <motion.div variants={fadeUp}>
-        <h2 className="text-[22px] font-black text-gray-900 tracking-tight leading-tight">
-          How Would You Like<br />to Contribute?
-        </h2>
-        <p className="text-xs text-gray-400 mt-1.5">Choose your contribution style — you can always adjust later.</p>
-      </motion.div>
-      <motion.div variants={fadeUp} className="space-y-3">
-        <ChoiceCard
-          selected={form.investPath === 'tenant'}
-          onClick={() => setForm(p => ({ ...p, investPath: 'tenant' }))}
-          icon={Home}
-          title="Support a Tenant"
-          body="Your contribution is matched to a specific rent need. A real family gets housed, and you earn a monthly participation reward on what you put in."
-          badge="15% Monthly"
-        />
-        <ChoiceCard
-          selected={form.investPath === 'pool'}
-          onClick={() => setForm(p => ({ ...p, investPath: 'pool' }))}
-          icon={TrendingUp}
-          title="Grow Your Contribution"
-          body="Add to the housing pool. Your monthly rewards build on themselves — each cycle your base grows and so does the next reward."
-          badge="Compounding"
-        />
-      </motion.div>
-      <AnimatePresence mode="wait">
-        {form.investPath && <SupportGraph key={form.investPath} mode={form.investPath} />}
-      </AnimatePresence>
-    </motion.div>
-  );
-}
-
-// ─── Step 3 ───────────────────────────────────────────────────────────────
-function Step3({ form, setForm }: { form: FormState; setForm: React.Dispatch<React.SetStateAction<FormState>> }) {
-  const [showPw, setShowPw] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const strength = form.password.length > 0 ? getStrength(form.password) : null;
-  const passwordsMatch = form.password === form.confirmPassword;
-
-  return (
-    <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-5">
-      <motion.div variants={fadeUp} className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1C1433] via-[#261B4A] to-[#1C1433] px-4 py-3">
-        <div className="absolute inset-0 opacity-[0.06] pointer-events-none" style={{
-          backgroundImage: 'linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)',
-          backgroundSize: '24px 24px',
-        }} />
-        <div className="relative z-10 flex items-center justify-between">
-          <div>
-            <p className="text-[9px] font-black text-purple-400 uppercase tracking-[0.1em] mb-0.5">Secure Registration</p>
-            <h2 className="text-lg font-black text-white tracking-tight leading-snug">Create Your<br />Funder Account</h2>
-          </div>
-          <div className="flex flex-col items-center gap-1">
-            <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center">
-              <Shield size={20} className="text-purple-300" strokeWidth={1.75} />
-            </div>
-            <span className="text-[9px] text-purple-400 font-bold">256-BIT</span>
-          </div>
-        </div>
-        <div className="relative z-10 flex items-center gap-2 mt-3">
-          {[
-            { icon: Lock, label: 'Encrypted' },
-            { icon: Shield, label: 'KYC Ready' },
-            { icon: BadgeCheck, label: 'Regulated' },
-          ].map(({ icon: Icon, label }) => (
-            <div key={label} className="flex items-center gap-1 bg-white/10 border border-white/15 rounded-lg px-2 py-1">
-              <Icon size={10} className="text-purple-300" strokeWidth={2} />
-              <span className="text-[9px] font-bold text-purple-200">{label}</span>
-            </div>
-          ))}
-        </div>
-      </motion.div>
-
-      <motion.div variants={fadeUp} className="bg-white border border-gray-100 rounded-2xl p-4 space-y-3">
-        <div className="flex gap-3">
-          <div className="space-y-1 flex-1 min-w-0">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">First Name</label>
-            <input type="text" placeholder="First Name" value={form.firstName}
-              onChange={e => setForm(p => ({ ...p, firstName: e.target.value }))}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder:text-gray-300 outline-none focus:bg-white focus:border-[#6c11d4] transition-all" />
-          </div>
-          <div className="space-y-1 flex-1 min-w-0">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Last Name</label>
-            <input type="text" placeholder="Last Name" value={form.lastName}
-              onChange={e => setForm(p => ({ ...p, lastName: e.target.value }))}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder:text-gray-300 outline-none focus:bg-white focus:border-[#6c11d4] transition-all" />
-          </div>
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Email</label>
-          <div className="relative">
-            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><Mail size={15} strokeWidth={1.75} /></div>
-            <input type="email" placeholder="you@example.com" value={form.email}
-              onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-4 py-3 text-sm text-gray-900 placeholder:text-gray-300 outline-none focus:bg-white focus:border-[#6c11d4] focus:ring-2 focus:ring-[#6c11d4]/10 transition-all" />
-          </div>
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Phone</label>
-          <div className="relative">
-            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><Phone size={15} strokeWidth={1.75} /></div>
-            <input type="tel" placeholder="+256 700 000 000" value={form.phone}
-              onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-4 py-3 text-sm text-gray-900 placeholder:text-gray-300 outline-none focus:bg-white focus:border-[#6c11d4] focus:ring-2 focus:ring-[#6c11d4]/10 transition-all" />
-          </div>
-        </div>
-
-        <div className="h-px bg-gray-100" />
-
-        <div className="space-y-1">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Password</label>
-          <div className="relative">
-            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><Lock size={15} strokeWidth={1.75} /></div>
-            <input type={showPw ? 'text' : 'password'} placeholder="Min. 8 characters" value={form.password}
-              onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-9 pr-11 py-3 text-sm text-gray-900 placeholder:text-gray-300 outline-none focus:bg-white focus:border-[#6c11d4] focus:ring-2 focus:ring-[#6c11d4]/10 transition-all" />
-            <button type="button" onClick={() => setShowPw(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-0.5">
-              {showPw ? <EyeOff size={15} strokeWidth={1.75} /> : <Eye size={15} strokeWidth={1.75} />}
-            </button>
-          </div>
-          <AnimatePresence>
-            {strength && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden px-1">
-                <div className="flex gap-1 mt-1.5 mb-1">
-                  {[0, 1, 2, 3].map(i => (
-                    <motion.div key={i} className="flex-1 h-[3px] rounded-full"
-                      animate={{ backgroundColor: i < strength.score ? strength.color : '#E5E7EB' }}
-                      transition={{ duration: 0.3 }} />
-                  ))}
-                </div>
-                <p className="text-[10px] font-bold" style={{ color: strength.color }}>
-                  {strength.label}
-                  {strength.score < 4 && <span className="text-gray-400 font-normal"> — use uppercase, numbers &amp; symbols</span>}
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-1">Confirm Password</label>
-          <div className="relative">
-            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"><Lock size={15} strokeWidth={1.75} /></div>
-            <input type={showConfirm ? 'text' : 'password'} placeholder="Re-enter password" value={form.confirmPassword}
-              onChange={e => setForm(p => ({ ...p, confirmPassword: e.target.value }))}
-              className={`w-full bg-gray-50 border rounded-xl pl-9 pr-11 py-3 text-sm text-gray-900 placeholder:text-gray-300 outline-none focus:bg-white transition-all focus:ring-2 ${
-                form.confirmPassword.length > 0
-                  ? passwordsMatch
-                    ? 'border-emerald-400 focus:border-emerald-400 focus:ring-emerald-100'
-                    : 'border-red-400 focus:border-red-400 focus:ring-red-100'
-                  : 'border-gray-200 focus:border-[#6c11d4] focus:ring-[#6c11d4]/10'
-              }`} />
-            <button type="button" onClick={() => setShowConfirm(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors p-0.5">
-              {showConfirm ? <EyeOff size={15} strokeWidth={1.75} /> : <Eye size={15} strokeWidth={1.75} />}
-            </button>
-            {form.confirmPassword.length > 0 && (
-              <div className={`absolute right-9 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full flex items-center justify-center ${
-                passwordsMatch ? 'bg-emerald-500' : 'bg-red-400'
-              }`}>
-                {passwordsMatch
-                  ? <Check size={9} className="text-white" strokeWidth={3} />
-                  : <X size={9} className="text-white" strokeWidth={3} />}
-              </div>
-            )}
-          </div>
-          <AnimatePresence>
-            {form.confirmPassword.length > 0 && !passwordsMatch && (
-              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-[10px] text-red-500 font-semibold mt-0.5 pl-1">
-                Passwords don't match
-              </motion.p>
-            )}
-          </AnimatePresence>
-        </div>
-      </motion.div>
-
-      <motion.div variants={fadeUp}>
-        <label className="flex items-start gap-3 cursor-pointer bg-gray-50 border border-gray-100 rounded-xl p-3">
-          <div
-            className={`w-5 h-5 rounded-md border-2 shrink-0 mt-0.5 flex items-center justify-center transition-all ${
-              form.agreedToTerms ? 'bg-[#6c11d4] border-[#6c11d4] scale-100' : 'border-gray-300'
-            }`}
-            onClick={() => setForm(p => ({ ...p, agreedToTerms: !p.agreedToTerms }))}
-          >
-            {form.agreedToTerms && <Check size={11} className="text-white" strokeWidth={3} />}
-          </div>
-          <p className="text-[12px] text-gray-500 leading-snug">
-            I agree to Welile's <a href="/partners-terms" target="_blank" rel="noopener noreferrer" className="text-[#6c11d4] font-semibold hover:underline">Terms of Service</a> and <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-[#6c11d4] font-semibold hover:underline">Privacy Policy</a>. <span className="text-gray-400">Your data is encrypted and never Exchanged.</span>
-          </p>
-        </label>
-      </motion.div>
-    </motion.div>
-  );
-}
-
-// ─── Step validity ────────────────────────────────────────────────────────
-function isValid(step: number, form: FormState): boolean {
-  if (step === 1) return form.understoodRole;
-  if (step === 2) return form.investPath !== null;
-  if (step === 3) {
-    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
-    const nameOk = form.firstName.length >= 2 && form.lastName.length >= 2;
-    const pwOk = form.password.length >= 8;
-    const matchOk = form.password === form.confirmPassword;
-    const phoneOk = form.phone.trim().length >= 7;
-    return emailOk && nameOk && pwOk && matchOk && phoneOk && form.agreedToTerms;
-  }
-  return false;
-}
-
-const STEP_LABELS = ['Welcome', 'Support', 'Create Account'];
-
-// ─── Inner component (uses useNavigate) ───────────────────────────────────
-function FunderOnboardingInner() {
+export default function FunderOnboarding() {
+  const { user, roles, loading, role } = useAuth();
   const navigate = useNavigate();
-  const definedRole = useRouteRole();
-  const { user } = useAuth();
-  const STORAGE_KEY = 'funder-onboarding-step';
-  // Always start at the welcome step. We intentionally do NOT restore a
-  // previous step from localStorage — landing on "Create account" skips
-  // the welcome/intro context. Clear any stale value from older builds.
-  const [step, setStep] = useState(1);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const [filter, setFilter] = useState<FilterStatus>('all');
+  const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState<PartnerOnboardingRow | null>(null);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+
+  // Gate: managers (COO/Partner Ops are also routed through manager role guard elsewhere)
   useEffect(() => {
-    try { window.localStorage.removeItem(STORAGE_KEY); } catch {}
-  }, []);
+    if (loading) return;
+    if (!user || !roles.includes('manager')) {
+      navigate(roleToSlug(role));
+    }
+  }, [user, loading, roles, role, navigate]);
 
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
-  }, []);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [loadingTextIdx, setLoadingTextIdx] = useState(0);
-  const loadingTexts = ['Creating Account...', 'Securing Wallet...', 'Getting you started...', 'Just a moment...'];
+  const { data: rows, isLoading } = useQuery({
+    queryKey: ['funder-onboarding-list'],
+    enabled: !!user && roles.includes('manager'),
+    queryFn: async (): Promise<PartnerOnboardingRow[]> => {
+      const { data, error } = await supabase
+        .from('proxy_agent_assignments')
+        .select('id, agent_id, beneficiary_id, beneficiary_role, reason, rejection_reason, approval_status, approved_at, approved_by, created_at')
+        .eq('beneficiary_role', 'supporter')
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      const base = data || [];
+      if (base.length === 0) return [];
 
-  useEffect(() => {
-    if (!isSubmitting) return;
-    const interval = setInterval(() => {
-      setLoadingTextIdx(p => (p + 1) % loadingTexts.length);
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [isSubmitting]);
+      const ids = Array.from(new Set(
+        base.flatMap(r => [r.agent_id, r.beneficiary_id, r.approved_by]).filter(Boolean) as string[]
+      ));
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone, email')
+        .in('id', ids);
+      const pmap = new Map((profiles || []).map(p => [p.id, p]));
 
-  const [apiError, setApiError] = useState('');
-  const TOTAL = 3;
-
-  const [form, setForm] = useState<FormState>({
-    understoodRole: false,
-    investPath: null,
-    firstName: '',
-    lastName: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    phone: '',
-    agreedToTerms: false,
+      return base.map(r => ({
+        ...r,
+        approval_status: (r.approval_status as Status) || 'pending',
+        agent: r.agent_id ? (pmap.get(r.agent_id) ? { full_name: pmap.get(r.agent_id)!.full_name, phone: pmap.get(r.agent_id)!.phone } : null) : null,
+        beneficiary: r.beneficiary_id
+          ? (pmap.get(r.beneficiary_id)
+              ? {
+                  full_name: pmap.get(r.beneficiary_id)!.full_name,
+                  phone: pmap.get(r.beneficiary_id)!.phone,
+                  email: (pmap.get(r.beneficiary_id) as any)?.email ?? null,
+                }
+              : null)
+          : null,
+        reviewer: r.approved_by && pmap.get(r.approved_by)
+          ? { full_name: pmap.get(r.approved_by)!.full_name }
+          : null,
+      }));
+    },
+    staleTime: 30_000,
   });
 
-  useEffect(() => {
-    if (user) navigate('/dashboard/funder');
-  }, [user, navigate]);
+  const counts = useMemo(() => {
+    const c = { all: 0, pending: 0, approved: 0, rejected: 0 };
+    (rows || []).forEach(r => {
+      c.all += 1;
+      c[r.approval_status] = (c[r.approval_status] || 0) + 1;
+    });
+    return c;
+  }, [rows]);
 
-  const valid = isValid(step, form);
-
-  const handleNext = async () => {
-    if (step < TOTAL) {
-      setStep(s => s + 1);
-    } else {
-      setIsSubmitting(true);
-      setApiError('');
-      try {
-        // Hard guard: Terms of Service & Privacy Policy consent is mandatory.
-        if (!form.agreedToTerms) {
-          setApiError('You must agree to the Terms of Service and Privacy Policy to create an account.');
-          toast.error('Please accept the Terms of Service and Privacy Policy to continue.');
-          setIsSubmitting(false);
-          return;
-        }
-        const sanitizeInput = (val: string) => val.replace(/[<>]/g, '');
-        const cleanEmail = sanitizeInput(form.email).trim().toLowerCase();
-        const cleanFirst = sanitizeInput(form.firstName).trim();
-        const cleanLast = sanitizeInput(form.lastName).trim();
-        const cleanPhone = sanitizeInput(form.phone).replace(/\D/g, '');
-        const fullName = `${cleanFirst} ${cleanLast}`.trim();
-
-        const { data, error } = await supabase.auth.signUp({
-          email: cleanEmail,
-          password: form.password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/dashboard/funder`,
-            data: {
-              full_name: fullName,
-              phone: cleanPhone,
-              intended_role: 'supporter',
-              invest_path: form.investPath,
-            },
-          },
-        });
-
-        if (error) throw error;
-
-        // Persist invest_path on profile (handle_new_user trigger inserts the row)
-        if (data.user?.id && form.investPath) {
-          // Best-effort metadata write; ignore failure since profile may not have the column.
-          // Stored on auth user_metadata above for downstream consumption.
-        }
-
-        try { window.localStorage.removeItem(STORAGE_KEY); } catch {}
-
-        if (data.session) {
-          toast.success('Welcome aboard! Your funder account is ready.', { icon: '🎉', duration: 4000 });
-          navigate('/dashboard/funder');
-        } else {
-          toast.success('Account created! Check your email to confirm, then sign in.', { duration: 6000 });
-          navigate('/auth');
-        }
-      } catch (err: any) {
-        let msg = err?.message || 'Failed to create account. Please try again.';
-        if (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('user already')) {
-          msg = 'This email is already registered. Please sign in instead.';
-        }
-        setApiError(msg);
-        setIsSubmitting(false);
-      }
+  const filtered = useMemo(() => {
+    let out = rows || [];
+    if (filter !== 'all') out = out.filter(r => r.approval_status === filter);
+    const q = search.trim().toLowerCase();
+    if (q) {
+      out = out.filter(r => {
+        const pieces = [
+          r.beneficiary?.full_name,
+          r.beneficiary?.phone,
+          r.beneficiary?.email,
+          r.agent?.full_name,
+          r.agent?.phone,
+          r.reason,
+        ].filter(Boolean).join(' ').toLowerCase();
+        return pieces.includes(q);
+      });
     }
-  };
+    return out;
+  }, [rows, filter, search]);
 
-  const handleBack = () => {
-    if (step > 1) setStep(s => s - 1);
-    else navigate('/auth');
-  };
+  const approveMutation = useMutation({
+    mutationFn: async (row: PartnerOnboardingRow) => {
+      // Always re-fetch fresh — never trust cache for high-stakes transitions
+      const { data: fresh, error: fetchError } = await supabase
+        .from('proxy_agent_assignments')
+        .select('approval_status')
+        .eq('id', row.id)
+        .maybeSingle();
+      if (fetchError) throw fetchError;
+      if (!fresh) throw new Error('Record not found');
+      if (fresh.approval_status === 'approved') throw new Error('Partner is already approved.');
+      if (fresh.approval_status === 'rejected') throw new Error('Partner was previously rejected.');
 
-  const stepComponents: Record<number, React.ReactNode> = {
-    1: <Step1 form={form} setForm={setForm} />,
-    2: <Step2 form={form} setForm={setForm} />,
-    3: <Step3 form={form} setForm={setForm} />,
-  };
+      const { error } = await supabase
+        .from('proxy_agent_assignments')
+        .update({
+          approval_status: 'approved',
+          is_active: true,
+          approved_by: user?.id,
+          approved_at: new Date().toISOString(),
+        })
+        .eq('id', row.id)
+        .eq('approval_status', 'pending');
+      if (error) throw error;
+
+      await supabase.from('audit_logs').insert({
+        user_id: user?.id,
+        action_type: 'approve_partner_onboarding',
+        table_name: 'proxy_agent_assignments',
+        record_id: row.id,
+        reason: 'Partner approved from onboarding queue',
+        metadata: {
+          partner_name: row.beneficiary?.full_name,
+          partner_phone: row.beneficiary?.phone,
+          agent_name: row.agent?.full_name,
+        },
+      });
+    },
+    onSuccess: () => {
+      toast({ title: 'Partner approved', description: 'They are now an active funder.' });
+      setSelected(null);
+      queryClient.invalidateQueries({ queryKey: ['funder-onboarding-list'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-funder-approvals'] });
+    },
+    onError: (e: any) => {
+      toast({ title: 'Approval failed', description: e.message, variant: 'destructive' });
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: async ({ row, reason }: { row: PartnerOnboardingRow; reason: string }) => {
+      const { error } = await supabase
+        .from('proxy_agent_assignments')
+        .update({
+          approval_status: 'rejected',
+          is_active: false,
+          approved_by: user?.id,
+          approved_at: new Date().toISOString(),
+          rejection_reason: reason,
+        })
+        .eq('id', row.id);
+      if (error) throw error;
+
+      await supabase.from('audit_logs').insert({
+        user_id: user?.id,
+        action_type: 'reject_partner_onboarding',
+        table_name: 'proxy_agent_assignments',
+        record_id: row.id,
+        reason,
+        metadata: {
+          partner_name: row.beneficiary?.full_name,
+          partner_phone: row.beneficiary?.phone,
+          agent_name: row.agent?.full_name,
+        },
+      });
+    },
+    onSuccess: () => {
+      toast({ title: 'Partner rejected', description: 'The registration was declined.' });
+      setRejectOpen(false);
+      setRejectReason('');
+      setSelected(null);
+      queryClient.invalidateQueries({ queryKey: ['funder-onboarding-list'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-funder-approvals'] });
+    },
+    onError: (e: any) => {
+      toast({ title: 'Rejection failed', description: e.message, variant: 'destructive' });
+    },
+  });
+
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const headerStatus: 'green' | 'yellow' | 'red' = counts.pending > 5 ? 'red' : counts.pending > 0 ? 'yellow' : 'green';
 
   return (
-    <div className="h-screen w-full overflow-hidden flex font-sans bg-[#FAFAFA]">
-      {/* LEFT — HERO */}
-      <div className="hidden lg:flex lg:w-1/2 relative bg-slate-900 overflow-hidden items-center justify-center">
-        <div className="absolute inset-0 bg-black/30 z-10 mix-blend-multiply" />
-        <img src={agentHero} alt="Funder Onboarding Background" className="absolute inset-0 w-full h-full object-cover z-0" />
-        <div className="relative z-20 p-12 flex flex-col items-center justify-center h-full text-center text-white">
-          <img src={welileLogo} alt="Welile Logo" className="h-12 w-auto mb-8 brightness-0 invert drop-shadow-md" />
-          <h2 className="text-4xl lg:text-5xl font-black mb-4 tracking-tight drop-shadow-xl leading-tight">Fund The Future<br />Of Housing</h2>
-          <p className="text-lg text-white/90 font-medium max-w-md drop-shadow-md">Empower verified tenants and grow your active capital with steady, managed returns.</p>
-        </div>
+    <COODetailLayout
+      title="Partner Onboarding"
+      subtitle="Funder Approval Queue"
+      status={headerStatus}
+    >
+      {/* KPIs */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <KPICard label="Approved" value={counts.approved} status="green" />
+        <KPICard label="Rejected" value={counts.rejected} status={counts.rejected > 0 ? 'red' : 'green'} />
+        <KPICard label="Pending" value={counts.pending} status={counts.pending > 0 ? 'yellow' : 'green'} />
+        <KPICard label="All" value={counts.all} status="green" sub="Total registrations" />
       </div>
 
-      {/* RIGHT — WIZARD */}
-      <div className="w-full lg:w-1/2 flex flex-col h-screen overflow-hidden lg:shadow-2xl z-20 bg-[#FAFAFA]">
-        <div className="bg-white/90 backdrop-blur-sm border-b border-gray-100 shrink-0 sticky top-0 z-20">
-          <div className="flex items-center justify-center pt-5 pb-2">
-            <StepDots total={TOTAL} current={step} />
-          </div>
-          <div className="px-6 lg:px-[18px] pb-3 flex items-center justify-between">
-            <button onClick={handleBack} className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition">
-              <ArrowLeft size={16} />
-            </button>
-            <p className="text-[11px] font-black text-gray-800 tracking-widest uppercase">{STEP_LABELS[step - 1]}</p>
-            <div className="w-8" />
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-6 py-8 lg:px-[18px]">
-          <AnimatePresence mode="wait">
-            <motion.div key={step} variants={slideVariants} initial="enter" animate="center" exit="exit" className="max-w-md mx-auto w-full">
-              {stepComponents[step]}
-            </motion.div>
-          </AnimatePresence>
-        </div>
-
-        <div className="px-6 pb-5 pt-3 bg-white border-t border-gray-100 shrink-0 lg:px-[18px]">
-          <div className="max-w-md mx-auto w-full">
-            {step === TOTAL && apiError && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-xl flex items-start gap-2 animate-in fade-in slide-in-from-top-1">
-                <X size={16} strokeWidth={3} className="text-red-500 mt-0.5 shrink-0" />
-                <p className="text-[13px] text-red-600 font-semibold leading-relaxed">{apiError}</p>
-              </div>
-            )}
-            <motion.button
-              onClick={valid && !isSubmitting ? handleNext : undefined}
-              disabled={!valid || isSubmitting}
-              whileTap={valid && !isSubmitting ? { scale: 0.98 } : {}}
-              animate={{ opacity: valid ? 1 : 0.55 }}
-              transition={{ duration: 0.2 }}
-              className={`w-full py-3 rounded-xl font-bold text-[14px] flex items-center justify-center gap-2 transition-all duration-200 ${
-                !valid
-                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  : step === TOTAL
-                    ? isSubmitting
-                      ? 'bg-emerald-400 text-white cursor-not-allowed'
-                      : 'bg-[#6c11d4] text-white shadow-sm hover:opacity-90'
-                    : 'bg-[#6c11d4] text-white shadow-sm hover:bg-[#7B2AC5]'
-              }`}
-            >
-              {!valid ? (
-                <>
-                  <Lock size={16} strokeWidth={2} />
-                  {step === 1 && 'Confirm above to continue'}
-                  {step === 2 && 'Choose a contribution style'}
-                  {step === 3 && 'Fill in all fields to continue'}
-                </>
-              ) : step === TOTAL ? (
-                isSubmitting ? (
-                  <div className="flex items-center gap-2 overflow-hidden h-6 w-full justify-center">
-                    <svg className="animate-spin h-[18px] w-[18px] text-white shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-                      <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-                    </svg>
-                    <AnimatePresence mode="wait">
-                      <motion.span key={loadingTextIdx} initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -20, opacity: 0 }} transition={{ duration: 0.3 }} className="whitespace-nowrap">
-                        {loadingTexts[loadingTextIdx]}
-                      </motion.span>
-                    </AnimatePresence>
-                  </div>
-                ) : (
-                  <>Create Account <Check size={18} strokeWidth={2.5} /></>
-                )
-              ) : (
-                <>Continue <ChevronRight size={18} strokeWidth={2.5} /></>
+      {/* Filter + search */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="flex gap-1 overflow-x-auto -mx-1 px-1">
+          {(['all', 'pending', 'approved', 'rejected'] as FilterStatus[]).map(s => (
+            <button
+              key={s}
+              onClick={() => setFilter(s)}
+              className={cn(
+                'px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap border transition-colors',
+                filter === s
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-background text-muted-foreground border-border hover:bg-muted'
               )}
-            </motion.button>
-
-            <p className="text-center text-[10px] font-bold text-gray-400 tracking-wider uppercase mt-2">
-              Step {step} / {TOTAL}
-            </p>
-          </div>
+            >
+              {s === 'all' ? 'All' : STATUS_META[s].label}
+              <span className="ml-1.5 opacity-80">({counts[s]})</span>
+            </button>
+          ))}
+        </div>
+        <div className="relative sm:ml-auto sm:w-64">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Search by name, phone, agent…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-8 h-9 text-sm"
+          />
         </div>
       </div>
 
-    </div>
+      {/* Table */}
+      <Card>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-4 space-y-2">
+              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full rounded-md" />)}
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="p-10 text-center">
+              <Users className="h-8 w-8 mx-auto text-muted-foreground/60" />
+              <p className="text-sm text-muted-foreground mt-2">No partner registrations found.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs">Partner</TableHead>
+                    <TableHead className="text-xs hidden sm:table-cell">Phone</TableHead>
+                    <TableHead className="text-xs hidden md:table-cell">Registered By</TableHead>
+                    <TableHead className="text-xs">Status</TableHead>
+                    <TableHead className="text-xs hidden md:table-cell">Date</TableHead>
+                    <TableHead className="text-xs text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((r) => {
+                    const Meta = STATUS_META[r.approval_status];
+                    const Icon = Meta.icon;
+                    return (
+                      <TableRow
+                        key={r.id}
+                        className="cursor-pointer"
+                        onClick={() => setSelected(r)}
+                      >
+                        <TableCell className="py-2.5">
+                          <p className="text-sm font-semibold truncate max-w-[160px]">
+                            {r.beneficiary?.full_name || '—'}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground sm:hidden">
+                            {r.beneficiary?.phone || '—'}
+                          </p>
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell text-xs">
+                          {r.beneficiary?.phone || '—'}
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell text-xs">
+                          {r.agent?.full_name || '—'}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={cn('text-[10px] gap-1', Meta.cls)}>
+                            <Icon className="h-2.5 w-2.5" /> {Meta.label}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell text-xs text-muted-foreground">
+                          {format(new Date(r.created_at), 'dd MMM yyyy')}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={(e) => { e.stopPropagation(); setSelected(r); }}
+                          >
+                            View
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Detail Modal */}
+      <Dialog open={!!selected && !rejectOpen} onOpenChange={(o) => { if (!o) setSelected(null); }}>
+        <DialogContent className="max-w-lg">
+          {selected && (() => {
+            const Meta = STATUS_META[selected.approval_status];
+            const Icon = Meta.icon;
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-primary" />
+                    Partner Details
+                  </DialogTitle>
+                  <DialogDescription className="text-xs">
+                    Review the registration before approving or rejecting.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-3">
+                  {/* Partner identity */}
+                  <div className="rounded-xl bg-muted/40 p-3 space-y-1">
+                    <p className="text-base font-bold">{selected.beneficiary?.full_name || 'Unknown'}</p>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      <span className="inline-flex items-center gap-1">
+                        <Phone className="h-3 w-3" />
+                        {selected.beneficiary?.phone || '—'}
+                      </span>
+                      {selected.beneficiary?.email && (
+                        <span className="truncate">{selected.beneficiary.email}</span>
+                      )}
+                    </div>
+                    <div className="pt-1">
+                      <Badge variant="outline" className={cn('text-[10px] gap-1', Meta.cls)}>
+                        <Icon className="h-2.5 w-2.5" /> {Meta.label}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* Agent + meta */}
+                  <div className="grid grid-cols-1 gap-2 text-xs">
+                    <Row label="Registered by">
+                      {selected.agent?.full_name || 'Unknown agent'}
+                      {selected.agent?.phone && (
+                        <span className="ml-1 text-muted-foreground">({selected.agent.phone})</span>
+                      )}
+                    </Row>
+                    <Row label="Reason">{selected.reason || '—'}</Row>
+                    <Row label="Submitted">
+                      <span className="inline-flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {format(new Date(selected.created_at), 'dd MMM yyyy, HH:mm')}
+                      </span>
+                    </Row>
+                    {selected.approval_status !== 'pending' && (
+                      <>
+                        <Row label="Reviewed by">
+                          {selected.reviewer?.full_name || '—'}
+                          {selected.approved_at && (
+                            <span className="ml-1 text-muted-foreground">
+                              ({format(new Date(selected.approved_at), 'dd MMM yyyy, HH:mm')})
+                            </span>
+                          )}
+                        </Row>
+                        {selected.approval_status === 'rejected' && (
+                          <Row label="Rejection reason">
+                            <span className="text-destructive">{selected.rejection_reason || '—'}</span>
+                          </Row>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <DialogFooter className="gap-2">
+                  {selected.approval_status === 'pending' ? (
+                    <>
+                      <Button
+                        variant="outline"
+                        className="flex-1 gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10"
+                        onClick={() => { setRejectReason(''); setRejectOpen(true); }}
+                        disabled={approveMutation.isPending || rejectMutation.isPending}
+                      >
+                        <UserX className="h-3.5 w-3.5" />
+                        Reject
+                      </Button>
+                      <Button
+                        className="flex-1 gap-1.5 bg-success hover:bg-success/90 text-white"
+                        onClick={() => approveMutation.mutate(selected)}
+                        disabled={approveMutation.isPending || rejectMutation.isPending}
+                      >
+                        {approveMutation.isPending
+                          ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          : <UserCheck className="h-3.5 w-3.5" />}
+                        Approve
+                      </Button>
+                    </>
+                  ) : (
+                    <Button variant="outline" className="ml-auto" onClick={() => setSelected(null)}>
+                      Close
+                    </Button>
+                  )}
+                </DialogFooter>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject reason modal */}
+      <Dialog open={rejectOpen} onOpenChange={(o) => { if (!o) { setRejectOpen(false); setRejectReason(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Reject Partner Registration
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Provide a reason (min 10 characters). This will be recorded in the audit log.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Input
+              placeholder="Reason for rejection"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              maxLength={200}
+              autoFocus
+            />
+            <p className="text-[10px] text-muted-foreground">{rejectReason.length}/200</p>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" size="sm" onClick={() => { setRejectOpen(false); setRejectReason(''); }}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              disabled={rejectReason.trim().length < 10 || rejectMutation.isPending}
+              onClick={() => selected && rejectMutation.mutate({ row: selected, reason: rejectReason.trim() })}
+            >
+              {rejectMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />}
+              Confirm Reject
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </COODetailLayout>
   );
 }
 
-// Public wrapper — ensures a Router exists (App already provides BrowserRouter,
-// but this guards against direct mounting in isolation).
-export default function FunderOnboarding() {
-  const inRouter = useInRouterContext();
-  if (inRouter) return <FunderOnboardingInner />;
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <BrowserRouter>
-      <FunderOnboardingInner />
-    </BrowserRouter>
+    <div className="flex items-start justify-between gap-3 py-1.5 border-b border-border/40 last:border-0">
+      <span className="text-muted-foreground shrink-0">{label}</span>
+      <span className="text-right font-medium break-words">{children}</span>
+    </div>
   );
 }
