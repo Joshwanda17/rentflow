@@ -22,6 +22,9 @@ import { AgentAllocationReport } from './AgentAllocationReport';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -31,7 +34,7 @@ import { toast } from 'sonner';
 import {
   FileCheck, Clock, AlertTriangle, CheckCircle2, Banknote,
   ArrowRight, Activity, ClipboardList, CalendarCheck, CalendarX2,
-  ArrowLeft, History, Table2, Link2, HandCoins, Users, Trash2, Loader2, FileSearch, Printer, Network, Shield
+  ArrowLeft, History, Table2, Link2, HandCoins, Users, Trash2, Loader2, FileSearch, Printer, Network, Shield, CalendarIcon
 } from 'lucide-react';
 import { generateTenantOpsReportPdf } from '@/lib/generateTenantOpsReportPdf';
 import { format } from 'date-fns';
@@ -57,60 +60,104 @@ export function TenantOpsDashboard() {
   const [selectedTenant, setSelectedTenant] = useState<{ id: string; name: string } | null>(null);
   const [overviewFilter, setOverviewFilter] = useState<string | undefined>(undefined);
   const [printingPdf, setPrintingPdf] = useState(false);
+  const [reportFrom, setReportFrom] = useState<Date | undefined>(undefined);
+  const [reportTo, setReportTo] = useState<Date | undefined>(undefined);
 
   const handlePrintReport = async () => {
     setPrintingPdf(true);
     try {
-      // Fetch rent requests with agent_id
-      const { data: requests } = await supabase
+      // Fetch rent requests with agent_id, optionally filtered by date range
+      let query = supabase
         .from('rent_requests')
         .select('tenant_id, agent_id, rent_amount, total_repayment, amount_repaid, duration_days, number_of_payments, status, created_at')
         .in('status', ['funded', 'disbursed', 'repaying', 'fully_repaid', 'defaulted']);
+      if (reportFrom) query = query.gte('created_at', reportFrom.toISOString());
+      if (reportTo) {
+        const endOfDay = new Date(reportTo);
+        endOfDay.setHours(23, 59, 59, 999);
+        query = query.lte('created_at', endOfDay.toISOString());
+      }
+      const { data: requests } = await query;
 
       if (!requests || requests.length === 0) {
-        toast.error('No tenant rent data found');
+        toast.error('No tenant rent data found for the selected period');
         return;
       }
 
       const tenantIds = [...new Set(requests.map(r => r.tenant_id).filter(Boolean))];
       const agentIds = [...new Set(requests.map(r => r.agent_id).filter(Boolean))];
 
-      const [tenantRes, agentRes, chargeRes] = await Promise.all([
+      const [tenantRes, agentRes] = await Promise.all([
         tenantIds.length > 0
           ? supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds)
           : { data: [] },
         agentIds.length > 0
           ? supabase.from('profiles').select('id, full_name').in('id', agentIds)
           : { data: [] },
-        tenantIds.length > 0
-          ? supabase.from('subscription_charge_logs').select('tenant_id').in('tenant_id', tenantIds)
-          : { data: [] },
       ]);
 
       const tenantMap = new Map((tenantRes.data || []).map(p => [p.id, p]));
       const agentMap = new Map((agentRes.data || []).map(p => [p.id, p]));
-      const paymentCounts = new Map<string, number>();
-      (chargeRes.data || []).forEach((c: any) => {
-        paymentCounts.set(c.tenant_id, (paymentCounts.get(c.tenant_id) || 0) + 1);
-      });
 
-      const rows = requests.map(r => ({
-        tenant_name: tenantMap.get(r.tenant_id)?.full_name || '—',
-        tenant_phone: tenantMap.get(r.tenant_id)?.phone || '—',
-        start_date: r.created_at || '',
-        rent_given: Number(r.rent_amount || 0),
-        amount_paid: Number(r.amount_repaid || 0),
-        outstanding: Number(r.total_repayment || 0) - Number(r.amount_repaid || 0),
-        agent_name: agentMap.get(r.agent_id)?.full_name || '—',
-        duration_days: r.duration_days || 0,
-        payments_made: paymentCounts.get(r.tenant_id) || r.number_of_payments || 0,
-      }));
+      // Aggregate one row per tenant
+      const byTenant = new Map<string, {
+        tenant_name: string; tenant_phone: string; first_start_date: string;
+        rent_plans: number; rent_given: number; amount_paid: number; outstanding: number;
+        agent_names: Set<string>;
+      }>();
+      for (const r of requests) {
+        if (!r.tenant_id) continue;
+        const existing = byTenant.get(r.tenant_id);
+        const rentGiven = Number(r.rent_amount || 0);
+        const paid = Number(r.amount_repaid || 0);
+        const outstanding = Number(r.total_repayment || 0) - paid;
+        const agentName = r.agent_id ? (agentMap.get(r.agent_id)?.full_name || '—') : '—';
+        if (existing) {
+          existing.rent_plans += 1;
+          existing.rent_given += rentGiven;
+          existing.amount_paid += paid;
+          existing.outstanding += outstanding;
+          if (r.created_at && (!existing.first_start_date || r.created_at < existing.first_start_date)) {
+            existing.first_start_date = r.created_at;
+          }
+          if (agentName && agentName !== '—') existing.agent_names.add(agentName);
+        } else {
+          const set = new Set<string>();
+          if (agentName && agentName !== '—') set.add(agentName);
+          byTenant.set(r.tenant_id, {
+            tenant_name: tenantMap.get(r.tenant_id)?.full_name || '—',
+            tenant_phone: tenantMap.get(r.tenant_id)?.phone || '—',
+            first_start_date: r.created_at || '',
+            rent_plans: 1,
+            rent_given: rentGiven,
+            amount_paid: paid,
+            outstanding,
+            agent_names: set,
+          });
+        }
+      }
 
-      const blob = generateTenantOpsReportPdf(rows);
+      const rows = Array.from(byTenant.values())
+        .map(t => ({
+          tenant_name: t.tenant_name,
+          tenant_phone: t.tenant_phone,
+          first_start_date: t.first_start_date,
+          rent_plans: t.rent_plans,
+          rent_given: t.rent_given,
+          amount_paid: t.amount_paid,
+          outstanding: t.outstanding,
+          agent_name: t.agent_names.size === 0 ? '—' : Array.from(t.agent_names).join(', '),
+        }))
+        .sort((a, b) => b.outstanding - a.outstanding);
+
+      const blob = generateTenantOpsReportPdf(rows, { from: reportFrom, to: reportTo });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Tenant_Rent_Report_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+      const suffix = reportFrom || reportTo
+        ? `${reportFrom ? format(reportFrom, 'yyyyMMdd') : 'start'}_${reportTo ? format(reportTo, 'yyyyMMdd') : format(new Date(), 'yyyyMMdd')}`
+        : format(new Date(), 'yyyy-MM-dd');
+      a.download = `Tenant_Rent_Report_${suffix}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
       toast.success('Report downloaded');
