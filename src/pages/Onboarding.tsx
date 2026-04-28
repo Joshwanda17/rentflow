@@ -709,9 +709,10 @@ const STEP_LABELS = ['Welcome', 'Support', 'Create Account'];
 export default function FunderOnboarding() {
   const navigate = useNavigate();
   const definedRole = useRouteRole();
-  const { updateSession, user } = useAuth();
+  const { user } = useRealAuth();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [loadingTextIdx, setLoadingTextIdx] = useState(0);
   const loadingTexts = ["Creating Account...", "Securing Wallet...", "Getting you started...", "Just a moment..."];
 
@@ -740,8 +741,9 @@ export default function FunderOnboarding() {
   });
 
   useEffect(() => {
-    if (user) navigate('/funder');
-  }, [user, navigate]);
+    // Don't auto-redirect while showing the success modal — its own timer handles it.
+    if (user && !showSuccess && !isSubmitting) navigate('/dashboard/funder');
+  }, [user, navigate, showSuccess, isSubmitting]);
 
   const valid = isValid(step, form);
 
@@ -753,20 +755,45 @@ export default function FunderOnboarding() {
       setApiError('');
       try {
         const sanitizeInput = (val: string) => val.replace(/[<>]/g, '');
-        const response = await registerUser({
-          email: sanitizeInput(form.email),
+        const cleanEmail = sanitizeInput(form.email).trim().toLowerCase();
+        const cleanFirst = sanitizeInput(form.firstName).trim();
+        const cleanLast = sanitizeInput(form.lastName).trim();
+        const cleanPhone = sanitizeInput(form.phone).trim();
+
+        await registerUser({
+          email: cleanEmail,
           password: form.password,
-          firstName: sanitizeInput(form.firstName),
-          lastName: sanitizeInput(form.lastName),
-          phone: sanitizeInput(form.phone),
-          role: definedRole || 'FUNDER'
+          firstName: cleanFirst,
+          lastName: cleanLast,
+          phone: cleanPhone,
+          role: definedRole || 'FUNDER',
         });
 
-        if (response.status === 'success') {
-          updateSession(response.data.access_token, response.data.user);
-          toast.success('Successfully funded your future! Welcome aboard.', { duration: 4000 });
-          navigate('/funder');
-        }
+        // Fire-and-forget the partner_account_created email — don't block the
+        // success modal on email delivery.
+        const partnerReference = `WLP-${new Date().getFullYear()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+        supabase.functions
+          .invoke('send-transactional-email', {
+            body: {
+              templateName: 'partner-account-created',
+              recipientEmail: cleanEmail,
+              templateData: {
+                partner_name: `${cleanFirst} ${cleanLast}`.trim() || 'Partner',
+                partner_email: cleanEmail,
+                partner_reference: partnerReference,
+                agreement_download_url: `${window.location.origin}/partners-terms`,
+                company_name: 'WELILE TECHNOLOGIES LTD',
+              },
+            },
+          })
+          .catch((e) => console.warn('partner-account-created email failed (non-blocking):', e));
+
+        // Flip into the success modal and auto-redirect after 3 seconds.
+        setIsSubmitting(false);
+        setShowSuccess(true);
+        setTimeout(() => {
+          navigate('/dashboard/funder');
+        }, 3000);
       } catch (err: any) {
         console.error('Signup failed:', err);
         const respError = err.response?.data?.detail || err.response?.data?.message || err.message;
