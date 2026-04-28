@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, RefreshCw, AlertTriangle, ShieldCheck, Eye } from 'lucide-react';
+import { Loader2, RefreshCw, AlertTriangle, ShieldCheck, Eye, Wand2 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
