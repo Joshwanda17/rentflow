@@ -23,6 +23,10 @@ import { useToast } from '@/hooks/use-toast';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
@@ -228,6 +232,72 @@ export function LandlordOpsDashboard() {
   const [deleting, setDeleting] = useState(false);
   const [assignPerson, setAssignPerson] = useState<{ listingId: string; title: string; type: 'landlord' | 'agent' } | null>(null);
 
+  // ─── All Requests delete state (mirrors Tenant Ops UX) ───
+  const [allReqSelectedIds, setAllReqSelectedIds] = useState<string[]>([]);
+  const [allReqDeleteDialog, setAllReqDeleteDialog] = useState<{ open: boolean; requestId: string; tenantName: string }>({ open: false, requestId: '', tenantName: '' });
+  const [allReqBulkDeleteOpen, setAllReqBulkDeleteOpen] = useState(false);
+  const [allReqDeleting, setAllReqDeleting] = useState(false);
+
+  const handleDeleteOneRentRequest = async () => {
+    if (!allReqDeleteDialog.requestId) return;
+    setAllReqDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('rent_requests')
+        .delete()
+        .eq('id', allReqDeleteDialog.requestId);
+      if (error) throw error;
+      await supabase.from('audit_logs').insert({
+        user_id: user?.id,
+        action_type: 'delete_rent_request_landlord_ops',
+        table_name: 'rent_requests',
+        record_id: allReqDeleteDialog.requestId,
+        metadata: {
+          reason: 'Deleted from Landlord Ops All Requests view',
+          tenant_name: allReqDeleteDialog.tenantName,
+        },
+      });
+      sonnerToast.success(`Request for "${allReqDeleteDialog.tenantName}" deleted`);
+      setAllReqDeleteDialog({ open: false, requestId: '', tenantName: '' });
+      queryClient.invalidateQueries({ queryKey: ['exec-landlord-ops-all-requests'] });
+    } catch (e: any) {
+      sonnerToast.error(e?.message || 'Failed to delete rent request');
+    } finally {
+      setAllReqDeleting(false);
+    }
+  };
+
+  const handleBulkDeleteRentRequests = async () => {
+    if (allReqSelectedIds.length === 0) return;
+    setAllReqDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('rent_requests')
+        .delete()
+        .in('id', allReqSelectedIds);
+      if (error) throw error;
+      await supabase.from('audit_logs').insert({
+        user_id: user?.id,
+        action_type: 'delete_rent_request_landlord_ops',
+        table_name: 'rent_requests',
+        record_id: allReqSelectedIds[0],
+        metadata: {
+          reason: 'Bulk deleted from Landlord Ops All Requests view',
+          deleted_ids: allReqSelectedIds,
+          deleted_count: allReqSelectedIds.length,
+        },
+      });
+      sonnerToast.success(`${allReqSelectedIds.length} request${allReqSelectedIds.length === 1 ? '' : 's'} deleted`);
+      setAllReqSelectedIds([]);
+      setAllReqBulkDeleteOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['exec-landlord-ops-all-requests'] });
+    } catch (e: any) {
+      sonnerToast.error(e?.message || 'Failed to bulk delete rent requests');
+    } finally {
+      setAllReqDeleting(false);
+    }
+  };
+
   const handleAssignPerson = (listingId: string, title: string, type: 'landlord' | 'agent') => {
     setAssignPerson({ listingId, title, type });
   };
@@ -371,8 +441,8 @@ export function LandlordOpsDashboard() {
 
   const allRequestsColumns: Column<any>[] = [
     { key: 'created_at', label: 'Date', render: (v) => v ? format(new Date(v as string), 'dd MMM yy') : '—' },
-    { key: 'landlord_name', label: 'Landlord' },
-    { key: 'landlord_phone', label: 'L. Phone' },
+    { key: 'tenant_name', label: 'Tenant' },
+    { key: 'tenant_phone', label: 'Phone' },
     { key: 'status', label: 'Status', render: (v) => {
       const colors: Record<string, string> = {
         pending: 'bg-amber-100 text-amber-700',
@@ -390,10 +460,24 @@ export function LandlordOpsDashboard() {
     }},
     { key: 'rent_amount', label: 'Amount', render: (v) => Number(v || 0).toLocaleString() },
     { key: 'amount_repaid', label: 'Repaid', render: (v) => Number(v || 0).toLocaleString() },
-    { key: 'tenant_name', label: 'Tenant' },
-    { key: 'tenant_phone', label: 'T. Phone' },
-    { key: 'agent_name', label: 'Agent', render: (v) => (
+    { key: 'agent_name', label: 'Current Agent', render: (v) => (
       <span className={`text-xs ${v === 'Unassigned' ? 'text-muted-foreground italic' : 'font-medium'}`}>{String(v ?? '—')}</span>
+    )},
+    { key: 'landlord_name', label: 'Landlord' },
+    { key: 'landlord_phone', label: 'L. Phone' },
+    { key: 'id', label: 'Action', render: (_v, row) => (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-8 px-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+        onClick={(e) => {
+          e.stopPropagation();
+          setAllReqDeleteDialog({ open: true, requestId: String(row.id), tenantName: row.tenant_name || 'Unknown' });
+        }}
+      >
+        <Trash2 className="h-3.5 w-3.5 mr-1" />
+        Delete
+      </Button>
     )},
   ];
 
@@ -1498,6 +1582,19 @@ export function LandlordOpsDashboard() {
           loading={allRequestsLoading}
           title="All Requests"
           getRowId={(r: any) => String(r.id)}
+          selectedIds={allReqSelectedIds}
+          onSelectionChange={setAllReqSelectedIds}
+          bulkActions={(ids) => (
+            <Button
+              variant="destructive"
+              size="sm"
+              className="h-8 gap-1.5"
+              onClick={() => setAllReqBulkDeleteOpen(true)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete {ids.length}
+            </Button>
+          )}
           filters={[{
             key: 'status',
             label: 'Status',
@@ -1516,6 +1613,54 @@ export function LandlordOpsDashboard() {
         />
       </div>
       {renderDialogs()}
+      {/* Single-row delete dialog */}
+      <AlertDialog
+        open={allReqDeleteDialog.open}
+        onOpenChange={(open) => !open && !allReqDeleting && setAllReqDeleteDialog({ open: false, requestId: '', tenantName: '' })}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Rent Request</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the rent request for <strong>{allReqDeleteDialog.tenantName}</strong>. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={allReqDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={allReqDeleting}
+              onClick={(e) => { e.preventDefault(); handleDeleteOneRentRequest(); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {allReqDeleting ? 'Deleting…' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {/* Bulk delete dialog */}
+      <AlertDialog
+        open={allReqBulkDeleteOpen}
+        onOpenChange={(open) => !open && !allReqDeleting && setAllReqBulkDeleteOpen(false)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {allReqSelectedIds.length} request{allReqSelectedIds.length === 1 ? '' : 's'}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the selected rent requests. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={allReqDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={allReqDeleting}
+              onClick={(e) => { e.preventDefault(); handleBulkDeleteRentRequests(); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {allReqDeleting ? 'Deleting…' : `Delete ${allReqSelectedIds.length}`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       </>
     );
   }
