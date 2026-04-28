@@ -356,13 +356,14 @@ export function DirectCreditTool() {
   };
 
   const mutation = useMutation({
-    mutationFn: async (opts: { confirmNonCommission?: boolean } = {}) => {
+    mutationFn: async () => {
       const amt = parseFloat(amount);
       if (!amt || amt <= 0) throw new Error('Invalid amount');
       if (!reason || reason.length < 10) throw new Error('Reason must be at least 10 characters');
       if (!selectedUser) throw new Error('Select a user');
       if (!selectedCategory) throw new Error('Select a payout category');
       if (hasSubCategories && !selectedSubCategoryId) throw new Error('Select a subcategory');
+      if (!recipientType) throw new Error('Select a Recipient type (User or Operational Wallet)');
 
       const categoryLabel = selectedSubCategory
         ? `${selectedCategory.label} → ${selectedSubCategory.label}`
@@ -379,50 +380,10 @@ export function DirectCreditTool() {
           financial_impact: selectedCategory.impact,
           category_label: categoryLabel,
           sub_category: selectedSubCategoryId || null,
-          confirm_non_commission: opts.confirmNonCommission === true,
+          recipient_type: recipientType,
         },
       });
       if (error) {
-        // Try to detect the 409 confirmation gate before falling through to generic handling.
-        // The body shape can vary across Supabase SDK versions: Response object, parsed object,
-        // string body, or stringified JSON inside error.message. Try them all.
-        let gateBody: any = null;
-        try {
-          const ctx = (error as any)?.context;
-          if (ctx) {
-            // Already-parsed object
-            if (ctx.code) {
-              gateBody = ctx;
-            } else if (typeof ctx.json === 'function') {
-              try {
-                const cloned = typeof ctx.clone === 'function' ? ctx.clone() : ctx;
-                gateBody = await cloned.json();
-              } catch { /* body already consumed or not a Response */ }
-            }
-            if (!gateBody && ctx.body) {
-              gateBody = typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
-            }
-          }
-          // Last resort: parse JSON out of error.message (e.g. "Edge function returned 409: Error, {...}")
-          if (!gateBody && typeof (error as any)?.message === 'string') {
-            const m = (error as any).message.match(/\{[\s\S]*\}$/);
-            if (m) {
-              try { gateBody = JSON.parse(m[0]); } catch { /* ignore */ }
-            }
-          }
-        } catch { /* ignore detection errors */ }
-        if (gateBody?.code === 'CONFIRM_NON_COMMISSION_AGENT_CREDIT') {
-          setPendingNonCommissionConfirm({
-            message: gateBody.message,
-            suggested_category: gateBody.suggested_category,
-            chosen_category: gateBody.chosen_category,
-          });
-          // Resolve the mutation cleanly — the AlertDialog will re-trigger
-          // it with confirm_non_commission=true. Throwing here causes an
-          // unhandled rejection that the global error logger flags as a
-          // blank-screen runtime error.
-          return { __pendingConfirm: true } as any;
-        }
         const msg = await extractFromErrorObject(error, 'Something went wrong');
         if (msg.includes('Unauthorized')) throw new Error('You do not have permission. Please log in again.');
         if (msg.includes('Insufficient permissions')) throw new Error('Your role does not have CFO privileges.');
@@ -430,6 +391,8 @@ export function DirectCreditTool() {
         if (msg.includes('Invalid amount')) throw new Error('Please enter a valid amount between 1 and 50,000,000 UGX.');
         if (msg.includes('Reason must be')) throw new Error('Please provide a detailed reason (at least 10 characters).');
         if (msg.includes('Insufficient ledger balance')) throw new Error(msg);
+        if (msg.includes('INVALID_ROUTING')) throw new Error(msg.replace(/^.*INVALID_ROUTING:\s*/, 'Routing rejected: '));
+        if (msg.includes('RECIPIENT_TYPE_REQUIRED')) throw new Error('Choose a Recipient type — User (Withdrawable) or Operational Wallet (Float).');
         if (msg.includes('Ledger error')) throw new Error(msg);
         throw new Error(msg);
       }
@@ -459,7 +422,6 @@ export function DirectCreditTool() {
       return data;
     },
     onSuccess: (data) => {
-      if ((data as any)?.__pendingConfirm) return; // waiting for confirmation dialog
       toast({ title: operation === 'credit' ? '✅ Credit applied' : '✅ Debit applied', description: data?.message });
       qc.invalidateQueries({ queryKey: ['expense-transfers'] });
       qc.invalidateQueries({ queryKey: ['channel-balances'] });
@@ -470,6 +432,7 @@ export function DirectCreditTool() {
       setReason('');
       setSelectedCategoryId('');
       setSelectedSubCategoryId('');
+      setRecipientType('');
       setAutomateEnabled(false);
     },
     onError: (e: any) => {
