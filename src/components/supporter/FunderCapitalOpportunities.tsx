@@ -21,6 +21,9 @@ import { toast } from 'sonner';
 import { FundRentDialog } from './FundRentDialog';
 import { InvestmentWithdrawButton } from './InvestmentWithdrawButton';
 import { InvestmentSelectionSheet, type PoolType } from '@/components/angel-pool/InvestmentSelectionSheet';
+import { FunderApprovalBanner } from './FunderApprovalGate';
+import { useAuth } from '@/hooks/useAuth';
+import { useFunderApprovalStatus } from '@/hooks/useFunderApprovalStatus';
 
 type ViewState = 'default' | 'investing' | 'committed';
 
@@ -204,6 +207,8 @@ export function FunderCapitalOpportunities() {
   const [activeTab, setActiveTab] = useState<PoolType>('tenant');
   const [angelAmount, setAngelAmount] = useState(0);
   const [showFundDialog, setShowFundDialog] = useState(false);
+  const { user } = useAuth();
+  const { isApproved, status: approvalStatus } = useFunderApprovalStatus(user?.id);
 
   // Once data loads, decide initial state
   useEffect(() => {
@@ -351,11 +356,13 @@ export function FunderCapitalOpportunities() {
 
                 {/* CTAs */}
                 <Button
-                  onClick={() => { hapticTap(); setShowFundDialog(true); }}
+                  onClick={() => { hapticTap(); if (isApproved) setShowFundDialog(true); }}
+                  disabled={!isApproved}
                   className="w-full h-12 rounded-2xl text-sm font-bold shadow-md gap-2 uppercase tracking-wide"
                 >
-                  Support Tenant <ChevronRight className="h-4 w-4" />
+                  {isApproved ? (<>Support Tenant <ChevronRight className="h-4 w-4" /></>) : (<><Lock className="h-4 w-4" /> {approvalStatus === 'rejected' ? 'Verification Required' : 'Awaiting Verification'}</>)}
                 </Button>
+                <FunderApprovalBanner />
                 <InvestmentWithdrawButton />
 
                 {/* Footer */}
@@ -461,12 +468,14 @@ export function FunderCapitalOpportunities() {
                 <p className="text-[10px] text-muted-foreground mt-0.5">Earn monthly returns from tenant repayments</p>
               </div>
               <Button
-                onClick={() => { hapticTap(); setShowFundDialog(true); }}
+                onClick={() => { hapticTap(); if (isApproved) setShowFundDialog(true); }}
+                disabled={!isApproved}
                 variant="success"
                 className="w-full h-12 rounded-2xl text-sm font-bold shadow-md gap-2"
               >
-                <Home className="h-4 w-4" /> Support Tenant
+                {isApproved ? (<><Home className="h-4 w-4" /> Support Tenant</>) : (<><Lock className="h-4 w-4" /> {approvalStatus === 'rejected' ? 'Verification Required' : 'Awaiting Verification'}</>)}
               </Button>
+              <FunderApprovalBanner />
             </TabsContent>
 
             <TabsContent value="angel" className="mt-3 space-y-3">

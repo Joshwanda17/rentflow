@@ -12,6 +12,10 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { FundRentDialog } from './FundRentDialog';
 import { InvestmentWithdrawButton } from './InvestmentWithdrawButton';
+import { FunderApprovalBanner } from './FunderApprovalGate';
+import { useAuth } from '@/hooks/useAuth';
+import { useFunderApprovalStatus } from '@/hooks/useFunderApprovalStatus';
+import { Lock } from 'lucide-react';
 
 // ─── Animated counter ───
 function AnimatedCounter({ value, className = '' }: {value: number;className?: string;}) {
@@ -42,6 +46,8 @@ export function FundingPoolCard({ fundedAmount }: FundingPoolCardProps) {
   const { summary, loading } = useOpportunitySummary();
   const { formatAmount } = useCurrency();
   const [showFundDialog, setShowFundDialog] = useState(false);
+  const { user } = useAuth();
+  const { isApproved, status } = useFunderApprovalStatus(user?.id);
 
   // ─── Payout cycle (day of current month) ───
   const now = new Date();
@@ -252,13 +258,16 @@ export function FundingPoolCard({ fundedAmount }: FundingPoolCardProps) {
 
         {/* ═══ CTA ═══ */}
         <div className="px-5 pt-2 pb-4 space-y-3">
+          <FunderApprovalBanner />
           <Button
-            onClick={() => setShowFundDialog(true)}
-            disabled={liquidityStatus === 'warning'}
+            onClick={() => isApproved && setShowFundDialog(true)}
+            disabled={liquidityStatus === 'warning' || !isApproved}
             className="w-full gap-2 rounded-xl font-bold h-12 text-sm bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 shadow-lg shadow-purple-500/25 text-white">
-            
-            Support Tenant
-            <ChevronRight className="h-4 w-4" />
+            {isApproved ? (
+              <>Support Tenant <ChevronRight className="h-4 w-4" /></>
+            ) : (
+              <><Lock className="h-4 w-4" /> {status === 'rejected' ? 'Verification Required' : 'Awaiting Verification'}</>
+            )}
           </Button>
 
           <InvestmentWithdrawButton />

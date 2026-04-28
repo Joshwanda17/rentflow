@@ -10,6 +10,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { Search, User, Loader2, PlusCircle, Sparkles } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { UGANDA_BANKS } from '@/lib/ugandaBanks';
+import { useFunderApprovalStatus } from '@/hooks/useFunderApprovalStatus';
+import { Shield, Lock } from 'lucide-react';
 
 interface CreateInvestmentAccountDialogProps {
   open: boolean;
@@ -33,6 +35,8 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, p
   const [users, setUsers] = useState<UserResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserResult | null>(null);
+  const { status: approvalStatus, isApproved, isLoading: approvalLoading } =
+    useFunderApprovalStatus(selectedUser?.id);
 
   const [form, setForm] = useState({
     account_name: '',
@@ -91,6 +95,14 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, p
 
   const handleCreate = async () => {
     if (!selectedUser || !form.investment_amount) return;
+    if (!isApproved) {
+      toast({
+        title: 'Partner not approved',
+        description: 'This funder must be approved in Partner Onboarding before a portfolio can be created.',
+        variant: 'destructive',
+      });
+      return;
+    }
     const amt = parseFloat(form.investment_amount);
     if (isNaN(amt) || amt < 50000) {
       toast({ title: 'Investment must be at least UGX 50,000', variant: 'destructive' });
@@ -177,6 +189,22 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, p
               {!prefillInvestorId && (
                 <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setSelectedUser(null)}>Change</Button>
               )}
+            </div>
+          )}
+
+          {selectedUser && !approvalLoading && !isApproved && (
+            <div className="rounded-lg border border-warning/30 bg-warning/5 p-2.5 flex items-start gap-2">
+              <Shield className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+              <div className="text-xs">
+                <p className="font-bold text-warning">
+                  {approvalStatus === 'rejected' ? 'Partner rejected' : 'Partner not yet approved'}
+                </p>
+                <p className="text-muted-foreground mt-0.5 leading-relaxed">
+                  {approvalStatus === 'rejected'
+                    ? 'This funder was rejected in Partner Onboarding. Re-approve them before creating a portfolio.'
+                    : 'This funder is awaiting Partner Ops verification. Approve them in Partner Onboarding before creating a portfolio.'}
+                </p>
+              </div>
             </div>
           )}
 
@@ -302,9 +330,9 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, p
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleCreate} disabled={saving || !selectedUser || !form.investment_amount || !/^\d{4}$/.test(form.portfolio_pin)}>
+          <Button onClick={handleCreate} disabled={saving || !selectedUser || !form.investment_amount || !/^\d{4}$/.test(form.portfolio_pin) || !isApproved}>
             {saving && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
-            Create Portfolio
+            {!selectedUser || isApproved ? 'Create Portfolio' : (<><Lock className="h-3.5 w-3.5 mr-1.5" /> Partner Not Approved</>)}
           </Button>
         </DialogFooter>
       </DialogContent>
