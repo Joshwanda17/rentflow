@@ -44,14 +44,14 @@ export function generateTenantOpsReportPdf(
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(22);
   doc.setTextColor(15, 23, 42);
-  doc.text('Tenant Summary Report', margin, y);
+  doc.text('Tenant Payments Report', margin, y);
 
   y += 5;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
   doc.setTextColor(110, 110, 120);
   doc.text(
-    'One row per tenant showing total payments and outstanding balance across all their contracts.',
+    'Tenants who paid in this period — amount collected within the window and current lifetime balance.',
     margin,
     y,
   );
@@ -78,9 +78,9 @@ export function generateTenantOpsReportPdf(
 
   // ===== KPI Cards =====
   const totalTenants = tenants.length;
-  const totalGiven = tenants.reduce((s, t) => s + (t.rent_given || 0), 0);
   const totalPaid = tenants.reduce((s, t) => s + (t.amount_paid || 0), 0);
   const totalOutstanding = tenants.reduce((s, t) => s + (t.outstanding || 0), 0);
+  const totalPayments = tenants.reduce((s, t) => s + (t.rent_plans || 0), 0);
 
   const cardGap = 3;
   const cardW = (contentWidth - cardGap * 3) / 4;
@@ -122,19 +122,26 @@ export function generateTenantOpsReportPdf(
     doc.text(value, x + 9.5, y + 13);
   };
 
-  drawCard(margin,                           'TOTAL TENANTS',    num(totalTenants),     { fill: [37, 99, 235],  glyph: 'P' }, [15, 23, 42]);
-  drawCard(margin + (cardW + cardGap),       'TOTAL RENT GIVEN', ugx(totalGiven),       { fill: [22, 163, 74],  glyph: '$' }, [22, 163, 74]);
-  drawCard(margin + (cardW + cardGap) * 2,   'TOTAL PAID',       ugx(totalPaid),        { fill: [37, 99, 235],  glyph: 'W' }, [37, 99, 235]);
-  drawCard(margin + (cardW + cardGap) * 3,   'TOTAL OUTSTANDING',ugx(totalOutstanding), { fill: [220, 38, 38],  glyph: '!' }, [220, 38, 38]);
+  drawCard(margin,                           'TENANTS WHO PAID',    num(totalTenants),     { fill: [37, 99, 235],  glyph: 'P' }, [15, 23, 42]);
+  drawCard(margin + (cardW + cardGap),       'PAYMENTS RECEIVED',   num(totalPayments),    { fill: [124, 58, 237], glyph: '#' }, [124, 58, 237]);
+  drawCard(margin + (cardW + cardGap) * 2,   'COLLECTED IN PERIOD', ugx(totalPaid),        { fill: [22, 163, 74],  glyph: '$' }, [22, 163, 74]);
+  drawCard(margin + (cardW + cardGap) * 3,   'OUTSTANDING (LIFETIME)', ugx(totalOutstanding), { fill: [220, 38, 38], glyph: '!' }, [220, 38, 38]);
 
   y += cardH + 7;
 
   // ===== Table =====
+  // Column widths: # | Tenant | Agent | Paid | Outstanding
+  const wIdx = 10;
+  const wTenant = 56;
+  const wAgent = 46;
+  const wPaid = 38;
+  const wOut = contentWidth - wIdx - wTenant - wAgent - wPaid;
   const cols = [
-    { label: '#',                      x: margin,                       w: 12,  align: 'left' as const },
-    { label: 'Tenant Name',            x: margin + 12,                  w: 78,  align: 'left' as const },
-    { label: 'Total Paid (UGX)',       x: margin + 12 + 78,             w: 48,  align: 'right' as const },
-    { label: 'Outstanding Balance (UGX)', x: margin + 12 + 78 + 48,     w: contentWidth - 12 - 78 - 48, align: 'right' as const },
+    { label: '#',                       x: margin,                                              w: wIdx,    align: 'left' as const },
+    { label: 'Tenant Name',             x: margin + wIdx,                                       w: wTenant, align: 'left' as const },
+    { label: 'Agent',                   x: margin + wIdx + wTenant,                             w: wAgent,  align: 'left' as const },
+    { label: 'Paid in Period (UGX)',    x: margin + wIdx + wTenant + wAgent,                    w: wPaid,   align: 'right' as const },
+    { label: 'Outstanding (UGX)',       x: margin + wIdx + wTenant + wAgent + wPaid,            w: wOut,    align: 'right' as const },
   ];
 
   const drawTableHeader = () => {
@@ -186,11 +193,15 @@ export function generateTenantOpsReportPdf(
 
     // Tenant name
     doc.setTextColor(15, 23, 42);
-    doc.text((t.tenant_name || '—').slice(0, 48), cols[1].x + 2, baseline);
+    doc.text((t.tenant_name || '—').slice(0, 32), cols[1].x + 2, baseline);
+
+    // Agent
+    doc.setTextColor(80, 85, 100);
+    doc.text((t.agent_name || '—').slice(0, 26), cols[2].x + 2, baseline);
 
     // Paid
     doc.setTextColor(15, 23, 42);
-    doc.text(num(t.amount_paid || 0), cols[2].x + cols[2].w - 2, baseline, { align: 'right' });
+    doc.text(num(t.amount_paid || 0), cols[3].x + cols[3].w - 2, baseline, { align: 'right' });
 
     // Outstanding (red if positive, green if zero/negative)
     if ((t.outstanding || 0) > 0) {
@@ -198,7 +209,7 @@ export function generateTenantOpsReportPdf(
     } else {
       doc.setTextColor(22, 163, 74);
     }
-    doc.text(num(t.outstanding || 0), cols[3].x + cols[3].w - 2, baseline, { align: 'right' });
+    doc.text(num(t.outstanding || 0), cols[4].x + cols[4].w - 2, baseline, { align: 'right' });
 
     y += rowH;
   });
@@ -214,10 +225,10 @@ export function generateTenantOpsReportPdf(
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9.5);
   doc.setTextColor(15, 23, 42);
-  doc.text('TOTAL', cols[1].x + cols[1].w - 2, y + rowH - 1.6, { align: 'right' });
-  doc.text(num(totalPaid), cols[2].x + cols[2].w - 2, y + rowH - 1.6, { align: 'right' });
+  doc.text('TOTAL', cols[2].x + cols[2].w - 2, y + rowH - 1.6, { align: 'right' });
+  doc.text(num(totalPaid), cols[3].x + cols[3].w - 2, y + rowH - 1.6, { align: 'right' });
   doc.setTextColor(220, 38, 38);
-  doc.text(num(totalOutstanding), cols[3].x + cols[3].w - 2, y + rowH - 1.6, { align: 'right' });
+  doc.text(num(totalOutstanding), cols[4].x + cols[4].w - 2, y + rowH - 1.6, { align: 'right' });
   y += rowH + 5;
 
   // Footer note
@@ -225,7 +236,7 @@ export function generateTenantOpsReportPdf(
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(8);
   doc.setTextColor(120, 122, 135);
-  doc.text('Note: Outstanding Balance = Total Rent Given - Total Paid', margin, y);
+  doc.text('Note: "Paid in Period" = tenant payments recorded in the ledger within the date range. "Outstanding" is the tenant\'s current lifetime balance across all rent plans.', margin, y);
 
   // Page number footer
   const pageCount = (doc as any).internal.getNumberOfPages();
