@@ -225,7 +225,7 @@ export function generateTenantOpsReportPdf(
   doc.setFont('helvetica', 'italic');
   doc.setFontSize(8);
   doc.setTextColor(120, 122, 135);
-  doc.text('Note: Outstanding Balance = Total Rent Given − Total Paid', margin, y);
+  doc.text('Note: Outstanding Balance = Total Rent Given - Total Paid', margin, y);
 
   // Page number footer
   const pageCount = (doc as any).internal.getNumberOfPages();
