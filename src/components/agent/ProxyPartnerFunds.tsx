@@ -542,19 +542,76 @@ export function ProxyPartnerFunds() {
     );
   }
 
+  // Classify each partner card so the agent can see WHY a balance is sitting here.
+  // Priority: active in-flight > last terminal (reject/expire/cancel) > fresh (no prior request).
+  const classify = (partner: PartnerBalance):
+    | { kind: 'active' }
+    | { kind: 'reattempt'; terminal: LastTerminal }
+    | { kind: 'fresh' } => {
+    const key = getStatusKey(partner);
+    if (partnerWithdrawalStatus[key]) return { kind: 'active' };
+    const t = lastTerminalByPartner[partner.partnerId];
+    if (t) return { kind: 'reattempt', terminal: t };
+    return { kind: 'fresh' };
+  };
+
+  const reattemptCount = partnerBalances.filter((p) => classify(p).kind === 'reattempt').length;
+  const freshCount = partnerBalances.filter((p) => classify(p).kind === 'fresh').length;
+
+  const visibleBalances = partnerBalances.filter((p) => {
+    if (filterMode === 'all') return true;
+    const c = classify(p);
+    if (filterMode === 'reattempt') return c.kind === 'reattempt';
+    if (filterMode === 'fresh') return c.kind === 'fresh';
+    return true;
+  });
+
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground px-1">
-        CFO-approved returns ready for delivery to your proxy partners.
+        CFO-approved returns ready for delivery to your proxy partners. Nothing here is stuck —
+        balances shown are <span className="font-medium text-foreground">withdrawable now</span>.
       </p>
 
-      {partnerBalances.map((partner) => {
+      <div className="flex flex-wrap gap-1.5 px-1">
+        <Button
+          size="sm"
+          variant={filterMode === 'all' ? 'default' : 'outline'}
+          className="h-7 text-xs gap-1"
+          onClick={() => setFilterMode('all')}
+        >
+          All ({partnerBalances.length})
+        </Button>
+        <Button
+          size="sm"
+          variant={filterMode === 'reattempt' ? 'default' : 'outline'}
+          className="h-7 text-xs gap-1"
+          onClick={() => setFilterMode('reattempt')}
+          disabled={reattemptCount === 0}
+        >
+          <AlertCircle className="h-3 w-3" />
+          Re-request needed ({reattemptCount})
+        </Button>
+        <Button
+          size="sm"
+          variant={filterMode === 'fresh' ? 'default' : 'outline'}
+          className="h-7 text-xs gap-1"
+          onClick={() => setFilterMode('fresh')}
+          disabled={freshCount === 0}
+        >
+          <Hourglass className="h-3 w-3" />
+          New ROI ({freshCount})
+        </Button>
+      </div>
+
+      {visibleBalances.map((partner) => {
         const statusKey = getStatusKey(partner);
         const hasPending = !!partnerWithdrawalStatus[statusKey];
         const statusBadge = getStatusBadge(partner);
         const cardKey = `${partner.partnerId}-${partner.portfolioId || 'none'}`;
         const currentStatus = partnerWithdrawalStatus[statusKey];
         const canCancel = currentStatus ? ACTIVE_PROXY_WITHDRAWAL_STATUSES.includes(currentStatus as typeof ACTIVE_PROXY_WITHDRAWAL_STATUSES[number]) : false;
+        const classification = classify(partner);
 
         return (
           <Card key={cardKey} className="border-border/50 shadow-sm">
