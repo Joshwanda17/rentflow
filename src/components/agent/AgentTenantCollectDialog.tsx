@@ -160,7 +160,7 @@ export function AgentTenantCollectDialog({
   return (
     <>
     <Dialog open={open} onOpenChange={(o) => { if (!o && !loading) handleClose(); }}>
-      <DialogContent className="max-w-sm max-h-[85vh] overflow-y-auto z-[60] mb-20 sm:mb-0">
+      <DialogContent className="max-w-sm max-h-[85vh] overflow-y-auto z-[60]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             {confirming ? (
