@@ -173,8 +173,8 @@ export default function FunderOnboarding() {
         action_type: 'approve_partner_onboarding',
         table_name: 'proxy_agent_assignments',
         record_id: row.id,
-        reason: 'Partner approved from onboarding queue',
         metadata: {
+          reason: 'Partner approved from onboarding queue',
           partner_name: row.beneficiary?.full_name,
           partner_phone: row.beneficiary?.phone,
           agent_name: row.agent?.full_name,
@@ -211,8 +211,8 @@ export default function FunderOnboarding() {
         action_type: 'reject_partner_onboarding',
         table_name: 'proxy_agent_assignments',
         record_id: row.id,
-        reason,
         metadata: {
+          reason,
           partner_name: row.beneficiary?.full_name,
           partner_phone: row.beneficiary?.phone,
           agent_name: row.agent?.full_name,
