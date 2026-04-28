@@ -622,7 +622,7 @@ function FunderOnboardingInner() {
   });
 
   useEffect(() => {
-    if (user) navigate('/funder');
+    if (user) navigate('/dashboard/funder');
   }, [user, navigate]);
 
   const valid = isValid(step, form);
@@ -692,7 +692,7 @@ function FunderOnboardingInner() {
 
   const handleBack = () => {
     if (step > 1) setStep(s => s - 1);
-    else navigate('/funder/login');
+    else navigate('/auth');
   };
 
   const stepComponents: Record<number, React.ReactNode> = {
