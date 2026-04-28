@@ -6,16 +6,26 @@ import {
   ArrowLeft, Check, X, Shield, Home, TrendingUp, Banknote,
   ChevronRight, BadgeCheck, Eye, EyeOff, Mail, Phone, Lock,
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { signUp } from '@/hooks/auth/authOperations';
+import { useAuth as useRealAuth } from '@/hooks/useAuth';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 const useRouteRole = () => 'FUNDER';
-const useAuth = () => ({
-  user: null as null | { id: string },
-  updateSession: (_token: string, _user: any) => {},
-});
-const registerUser = async (_payload: any): Promise<{ status: string; data: { access_token: string; user: any } }> => {
-  await new Promise(r => setTimeout(r, 1500));
-  return { status: 'success', data: { access_token: 'mock-token', user: { id: 'mock-user' } } };
+// Real Supabase signup wrapper — preserves the existing call signature used below.
+const registerUser = async (payload: {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  role: string;
+}): Promise<{ status: string; data: { access_token: string; user: any } }> => {
+  const fullName = `${payload.firstName} ${payload.lastName}`.trim();
+  const { error } = await signUp(payload.email, payload.password, fullName, payload.phone, 'supporter');
+  if (error) throw error;
+  // The auth state listener in useRealAuth will pick up the session automatically.
+  return { status: 'success', data: { access_token: '', user: { email: payload.email } } };
 };
 const useCurrency = () => ({ symbol: 'USh', code: 'UGX' });
 const formatCurrencyCompact = (val: number, currency: { symbol: string }) => {
@@ -699,9 +709,10 @@ const STEP_LABELS = ['Welcome', 'Support', 'Create Account'];
 export default function FunderOnboarding() {
   const navigate = useNavigate();
   const definedRole = useRouteRole();
-  const { updateSession, user } = useAuth();
+  const { user } = useRealAuth();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [loadingTextIdx, setLoadingTextIdx] = useState(0);
   const loadingTexts = ["Creating Account...", "Securing Wallet...", "Getting you started...", "Just a moment..."];
 
@@ -730,8 +741,9 @@ export default function FunderOnboarding() {
   });
 
   useEffect(() => {
-    if (user) navigate('/funder');
-  }, [user, navigate]);
+    // Don't auto-redirect while showing the success modal — its own timer handles it.
+    if (user && !showSuccess && !isSubmitting) navigate('/dashboard/funder');
+  }, [user, navigate, showSuccess, isSubmitting]);
 
   const valid = isValid(step, form);
 
@@ -743,20 +755,45 @@ export default function FunderOnboarding() {
       setApiError('');
       try {
         const sanitizeInput = (val: string) => val.replace(/[<>]/g, '');
-        const response = await registerUser({
-          email: sanitizeInput(form.email),
+        const cleanEmail = sanitizeInput(form.email).trim().toLowerCase();
+        const cleanFirst = sanitizeInput(form.firstName).trim();
+        const cleanLast = sanitizeInput(form.lastName).trim();
+        const cleanPhone = sanitizeInput(form.phone).trim();
+
+        await registerUser({
+          email: cleanEmail,
           password: form.password,
-          firstName: sanitizeInput(form.firstName),
-          lastName: sanitizeInput(form.lastName),
-          phone: sanitizeInput(form.phone),
-          role: definedRole || 'FUNDER'
+          firstName: cleanFirst,
+          lastName: cleanLast,
+          phone: cleanPhone,
+          role: definedRole || 'FUNDER',
         });
 
-        if (response.status === 'success') {
-          updateSession(response.data.access_token, response.data.user);
-          toast.success('Successfully funded your future! Welcome aboard.', { duration: 4000 });
-          navigate('/funder');
-        }
+        // Fire-and-forget the partner_account_created email — don't block the
+        // success modal on email delivery.
+        const partnerReference = `WLP-${new Date().getFullYear()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+        supabase.functions
+          .invoke('send-transactional-email', {
+            body: {
+              templateName: 'partner-account-created',
+              recipientEmail: cleanEmail,
+              templateData: {
+                partner_name: `${cleanFirst} ${cleanLast}`.trim() || 'Partner',
+                partner_email: cleanEmail,
+                partner_reference: partnerReference,
+                agreement_download_url: `${window.location.origin}/partners-terms`,
+                company_name: 'WELILE TECHNOLOGIES LTD',
+              },
+            },
+          })
+          .catch((e) => console.warn('partner-account-created email failed (non-blocking):', e));
+
+        // Flip into the success modal and auto-redirect after 3 seconds.
+        setIsSubmitting(false);
+        setShowSuccess(true);
+        setTimeout(() => {
+          navigate('/dashboard/funder');
+        }, 3000);
       } catch (err: any) {
         console.error('Signup failed:', err);
         const respError = err.response?.data?.detail || err.response?.data?.message || err.message;
@@ -898,6 +935,54 @@ export default function FunderOnboarding() {
           </div>
         </div>
       </div>
+
+      {/* Success Modal — shown for 3s after account creation, then auto-redirects. */}
+      <AnimatePresence>
+        {showSuccess && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm px-6"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: 'spring', damping: 22, stiffness: 240 }}
+              className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl p-8 text-center"
+              role="dialog"
+              aria-live="polite"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.1, type: 'spring', damping: 14, stiffness: 220 }}
+                className="mx-auto w-20 h-20 rounded-full bg-emerald-50 flex items-center justify-center mb-5"
+              >
+                <div className="w-16 h-16 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                  <Check size={36} strokeWidth={3.5} className="text-white" />
+                </div>
+              </motion.div>
+
+              <h2 className="text-xl font-black text-gray-900 mb-2 tracking-tight">
+                Account created successfully
+              </h2>
+              <p className="text-[14px] text-gray-600 leading-relaxed mb-5">
+                Please check your email to activate your account.
+              </p>
+
+              <div className="flex items-center justify-center gap-2 text-[12px] font-bold text-gray-400 tracking-wider uppercase">
+                <svg className="animate-spin h-3.5 w-3.5 text-[#6c11d4]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                  <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                </svg>
+                Redirecting to your dashboard…
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
