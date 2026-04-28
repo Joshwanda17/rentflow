@@ -428,9 +428,11 @@ export function DirectCreditTool() {
             suggested_category: gateBody.suggested_category,
             chosen_category: gateBody.chosen_category,
           });
-          const e = new Error('__CONFIRM_NON_COMMISSION__');
-          (e as any).__silent = true;
-          throw e;
+          // Resolve the mutation cleanly — the AlertDialog will re-trigger
+          // it with confirm_non_commission=true. Throwing here causes an
+          // unhandled rejection that the global error logger flags as a
+          // blank-screen runtime error.
+          return { __pendingConfirm: true } as any;
         }
         const msg = await extractFromErrorObject(error, 'Something went wrong');
         if (msg.includes('Unauthorized')) throw new Error('You do not have permission. Please log in again.');
@@ -468,6 +470,7 @@ export function DirectCreditTool() {
       return data;
     },
     onSuccess: (data) => {
+      if ((data as any)?.__pendingConfirm) return; // waiting for confirmation dialog
       toast({ title: operation === 'credit' ? '✅ Credit applied' : '✅ Debit applied', description: data?.message });
       qc.invalidateQueries({ queryKey: ['expense-transfers'] });
       qc.invalidateQueries({ queryKey: ['channel-balances'] });
