@@ -586,6 +586,55 @@ export function DirectCreditTool() {
               onSelect={setSelectedUser}
             />
 
+            {/* ── Wallet Routing v2: Recipient Type (REQUIRED) ── */}
+            {selectedUser && (
+              <div>
+                <Label className="flex items-center gap-1.5 mb-1.5">
+                  Recipient Type
+                  <span className="text-destructive">*</span>
+                </Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRecipientType('user')}
+                    className={`text-left rounded-lg border p-3 transition ${
+                      recipientType === 'user'
+                        ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200'
+                        : 'border-border hover:border-emerald-300 hover:bg-emerald-50/40'
+                    }`}
+                  >
+                    <div className="text-sm font-semibold text-emerald-700">User Wallet</div>
+                    <div className="text-[11px] text-emerald-700/80 mt-0.5">
+                      Money belongs to the recipient. Lands in <strong>Withdrawable</strong> — they can cash out immediately.
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-1">
+                      Use for: payroll, agent commissions, ROI, refunds, personal payouts.
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRecipientType('operational_wallet')}
+                    className={`text-left rounded-lg border p-3 transition ${
+                      recipientType === 'operational_wallet'
+                        ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-200'
+                        : 'border-border hover:border-amber-300 hover:bg-amber-50/40'
+                    }`}
+                  >
+                    <div className="text-sm font-semibold text-amber-700">Operational Wallet</div>
+                    <div className="text-[11px] text-amber-700/80 mt-0.5">
+                      Company-controlled funds. Lands in <strong>Float</strong> — <em>NOT</em> withdrawable by the recipient.
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-1">
+                      Use for: rent disbursement, agent float top-up, treasury movements.
+                    </div>
+                  </button>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1.5">
+                  Withdrawability is determined by who receives the money — not by the category.
+                </p>
+              </div>
+            )}
+
             <div>
               <Label>Amount (UGX)</Label>
               <Input type="number" placeholder="50000" value={amount} onChange={e => setAmount(e.target.value)} />
@@ -627,7 +676,7 @@ export function DirectCreditTool() {
             )}
 
             {/* Summary before submit */}
-            {selectedCategory && amt > 0 && selectedUser && (
+            {selectedCategory && amt > 0 && selectedUser && recipientType && (
               <div className="rounded-lg bg-muted/30 border p-3 text-xs space-y-1">
                 <p className="font-bold text-sm flex items-center gap-1.5">
                   <Info className="h-3.5 w-3.5" />
@@ -659,7 +708,7 @@ export function DirectCreditTool() {
                   )}
                 </div>
                 {isCredit && (() => {
-                  const bucket = WALLET_BUCKET_MAP[selectedCategory.walletCategory] ?? 'withdrawable';
+                  const bucket = RECIPIENT_BUCKET[recipientType as RecipientType];
                   const meta = BUCKET_LABEL[bucket];
                   return (
                     <div className={`mt-2 rounded-md border p-2 text-[11px] ${meta.tone}`}>
@@ -667,6 +716,9 @@ export function DirectCreditTool() {
                         💼 Lands in: {meta.name} bucket
                       </div>
                       <div className="opacity-80 mt-0.5">{meta.note}</div>
+                      <div className="opacity-70 mt-1 italic">
+                        Only Available Balance can be withdrawn.
+                      </div>
                     </div>
                   );
                 })()}
@@ -675,8 +727,8 @@ export function DirectCreditTool() {
 
             <Button
               className={`w-full ${isCredit ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-destructive hover:bg-destructive/90'}`}
-              onClick={() => mutation.mutate({})}
-              disabled={mutation.isPending || !selectedUser || !amount || reason.length < 10 || !selectedCategoryId}
+              onClick={() => mutation.mutate()}
+              disabled={mutation.isPending || !selectedUser || !amount || reason.length < 10 || !selectedCategoryId || !recipientType}
             >
               {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
               {isCredit ? 'Credit' : 'Debit'} UGX {amt.toLocaleString()} {isCredit ? 'to' : 'from'} {selectedUser?.full_name || '...'}
@@ -684,36 +736,6 @@ export function DirectCreditTool() {
           </>
         )}
       </CardContent>
-
-      <AlertDialog
-        open={!!pendingNonCommissionConfirm}
-        onOpenChange={(open) => { if (!open) setPendingNonCommissionConfirm(null); }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>⚠️ Crediting an agent under a non-commission category</AlertDialogTitle>
-            <AlertDialogDescription>
-              {pendingNonCommissionConfirm?.message}
-              <br /><br />
-              <span className="text-muted-foreground text-xs">
-                Suggested: use <strong>{pendingNonCommissionConfirm?.suggested_category}</strong> if this is meant to be a commission payout.
-                Otherwise (e.g. admin reimbursement), confirm to proceed with <strong>{pendingNonCommissionConfirm?.chosen_category}</strong>.
-              </span>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setPendingNonCommissionConfirm(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                setPendingNonCommissionConfirm(null);
-                mutation.mutate({ confirmNonCommission: true });
-              }}
-            >
-              Confirm — credit anyway
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </Card>
   );
 }
