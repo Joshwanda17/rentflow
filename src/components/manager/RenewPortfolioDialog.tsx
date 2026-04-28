@@ -32,6 +32,7 @@ export interface RenewablePortfolio {
   maturity_date?: string | null;
   duration_months?: number;
   payout_day?: number | null;
+  investor_id?: string | null;
 }
 
 interface RenewPortfolioDialogProps {
@@ -157,6 +158,52 @@ export function RenewPortfolioDialog({ open, onOpenChange, portfolio, onSuccess 
       });
 
       toast({ title: 'Portfolio renewed successfully' });
+
+      // Fire-and-forget renewal confirmation email to the partner
+      try {
+        if (portfolio.investor_id) {
+          const { data: partnerProfile } = await supabase
+            .from('profiles')
+            .select('email, full_name')
+            .eq('id', portfolio.investor_id)
+            .maybeSingle();
+          const recipientEmail = partnerProfile?.email || null;
+          const isRealEmail =
+            !!recipientEmail &&
+            !recipientEmail.endsWith('@welile.user') &&
+            !recipientEmail.endsWith('@noapp.welile.user');
+          if (isRealEmail) {
+            const fmtDate = (d: Date) =>
+              d.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+            await supabase.functions.invoke('send-transactional-email', {
+              body: {
+                templateName: 'portfolio-renewal',
+                recipientEmail,
+                idempotencyKey: `portfolio-renewal-${portfolio.id}-${startDate.getTime()}`,
+                templateData: {
+                  partner_name: partnerProfile?.full_name || 'Partner',
+                  portfolio_name: portfolio.account_name || portfolio.portfolio_code,
+                  portfolio_id: portfolio.id,
+                  amount: newAmount,
+                  return_rate: `${newRoi}%`,
+                  renewal_date: fmtDate(startDate),
+                  maturity_date: fmtDate(maturity),
+                  duration: `${newDuration} months`,
+                  currency: 'UGX',
+                  company_name: 'Welile',
+                  logo_url: 'https://welilereceipts.com/welile-logo.png',
+                  unsubscribe_url: 'https://welile.com/unsubscribe',
+                  terms_url: 'https://welilereceipts.com/partners-terms',
+                  privacy_url: 'https://welilereceipts.com/privacy',
+                },
+              },
+            });
+          }
+        }
+      } catch (emailErr) {
+        console.warn('[portfolio-renewal] email dispatch failed (non-blocking):', emailErr);
+      }
+
       onOpenChange(false);
       onSuccess();
     } catch (err: any) {

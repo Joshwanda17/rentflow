@@ -4,6 +4,7 @@ import { template as partnerWalletDepositTemplate } from './partner-wallet-depos
 import { template as partnershipAgreementTemplate } from './partnership-agreement.tsx'
 import { template as partnershipTopupTemplate } from './partnership-topup.tsx'
 import { template as partnerCompoundTemplate } from './partner-compound.tsx'
+import { template as portfolioRenewalTemplate } from './portfolio-renewal.tsx'
 import type { TemplateEntry } from './types.ts'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
@@ -13,4 +14,5 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'partnership-agreement': partnershipAgreementTemplate,
   'partnership-topup': partnershipTopupTemplate,
   'partner-compound': partnerCompoundTemplate,
+  'portfolio-renewal': portfolioRenewalTemplate,
 }
