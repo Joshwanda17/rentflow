@@ -401,7 +401,7 @@ function Step1({ form, setForm }: { form: FormState; setForm: React.Dispatch<Rea
 
       <motion.div variants={fadeUp} className="grid grid-cols-3 gap-3">
         {[
-          { icon: Home,     to: 1200, suffix: '+', label: 'Homes Supported' },
+          { icon: Home,     to: 3000, suffix: '+', label: 'Homes Supported' },
           { icon: Banknote, to: 15,   suffix: '%', label: 'Average ROI'     },
           { icon: Shield,   to: 30,   suffix: 'd', label: 'Payout Cycle'    },
         ].map(({ icon: Icon, to, suffix, label }) => (
