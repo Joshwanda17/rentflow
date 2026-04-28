@@ -548,7 +548,7 @@ function Step3({ form, setForm }: { form: FormState; setForm: React.Dispatch<Rea
             {form.agreedToTerms && <Check size={11} className="text-white" strokeWidth={3} />}
           </div>
           <p className="text-[12px] text-gray-500 leading-snug">
-            I agree to Welile's <span className="text-[#6c11d4] font-semibold">Terms of Service</span> and <span className="text-[#6c11d4] font-semibold">Privacy Policy</span>. <span className="text-gray-400">Your data is encrypted and never Exchanged.</span>
+            I agree to Welile's <a href="/partners-terms" target="_blank" rel="noopener noreferrer" className="text-[#6c11d4] font-semibold hover:underline">Terms of Service</a> and <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-[#6c11d4] font-semibold hover:underline">Privacy Policy</a>. <span className="text-gray-400">Your data is encrypted and never Exchanged.</span>
           </p>
         </label>
       </motion.div>
