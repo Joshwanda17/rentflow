@@ -1811,6 +1811,10 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
                     </div>
                     <div className="flex items-center gap-4 mt-1.5 text-xs text-muted-foreground flex-wrap">
                       <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{detailPartner.profile.phone || '—'}</span>
+                      <span className="inline-flex items-center gap-1 min-w-0">
+                        <Mail className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{detailPartner.profile.email || '—'}</span>
+                      </span>
                       <span className="inline-flex items-center gap-1"><CalendarIcon className="h-3 w-3" />Joined {formatDate(detailPartner.profile.created_at)}</span>
                     </div>
                     {detailPartner.profile.frozen_at && (
