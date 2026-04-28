@@ -121,9 +121,9 @@ function ChoiceCard({
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          className="absolute -top-2 -right-2 z-20 w-5 h-5 rounded-full bg-white border-2 border-[#6c11d4] flex items-center justify-center shadow-md"
+          className="absolute -top-1.5 -right-1.5 z-20 w-[18px] h-[18px] rounded-full bg-white border border-[#6c11d4] flex items-center justify-center shadow-sm"
         >
-          <Check size={11} className="text-[#6c11d4]" strokeWidth={3} />
+          <Check size={10} className="text-[#6c11d4]" strokeWidth={2.5} />
         </motion.div>
       )}
     </motion.button>
