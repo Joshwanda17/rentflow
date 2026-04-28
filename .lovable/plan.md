@@ -1,38 +1,37 @@
-# Fix: Confirm Payment button not responsive on iOS/Android
+# Fix Agent Dashboard — Bottom Nav "Moving" Illusion
 
-## Root Cause
+## What's actually happening
 
-The `Confirm` button in the **AgentTenantCollectDialog** sits low in the modal — visually right where the global `BottomRoleSwitcher` is fixed to the bottom of the viewport.
+The `BottomRoleSwitcher` (Tenant / Agent / Funder / Owner) is **already fixed** at `bottom-0` and never moves. The bar that appears to "move up on scroll" in screenshot 2 is a **different** component: `AgentHubTabs` (Home / Money / Tenants / Grow / Sub Agents), which is rendered inline inside the scrollable `<main>` content. As the user scrolls down, that tab row scrolls upward and ends up sitting directly on top of the fixed role switcher, creating the illusion of a single bar that "moved".
 
-- `BottomRoleSwitcher` (src/components/BottomRoleSwitcher.tsx, line 79): `fixed bottom-0 left-0 right-0 z-50`
-- Radix Dialog overlay + content: also `z-50` by default
-
-Result: on mobile, the bottom role-switcher nav is rendered **after** the dialog in the DOM (it lives at the app shell level), so at the same z-index it wins the stacking contest and sits **on top of** the Confirm/Edit buttons. Taps on Confirm hit the role switcher's transparent nav area instead. That's why nothing happens and no `[AgentTenantCollectDialog] Confirm clicked` log fires (we already verified no such log exists).
-
-The button code itself is fine — `touchAction: 'manipulation'` and the handler are correct. The problem is purely a z-index / overlay collision specific to mobile viewports where the dialog reaches the bottom of the screen.
+A second, related bug: `<main>` currently has `pb-2` (8px), but the fixed role switcher is ~60px tall. The last items in the dashboard (the "Field Coll…" pill, "Refresh totals", etc.) get **hidden behind** the role switcher when scrolled to the bottom — clearly visible in screenshot 2.
 
 ## Fix
 
-Two small, targeted changes:
+**File: `src/components/dashboards/AgentDashboard.tsx`**
 
-### 1. Raise the dialog above the bottom nav
-In `src/components/agent/AgentTenantCollectDialog.tsx`:
-- Add `z-[60]` to the `DialogContent` so it sits above `BottomRoleSwitcher` (`z-50`).
-- Add bottom padding/margin to the content (`mb-20` or `pb-20`) so the action buttons are pushed up clear of the ~56px role-switcher footprint, even when the modal is full height on small phones.
+1. **Restore safe bottom padding on `<main>`** so scrolled content clears the fixed `BottomRoleSwitcher`:
+   - Change `pb-2` → `pb-24` (96px) on the `<main>` element at line 325.
+   - This guarantees the last card / button is fully visible above the fixed nav at the end of scroll.
 
-### 2. Make the Confirm button bullet-proof on touch
-Already has `touchAction: 'manipulation'`. Additionally:
-- Add `type="button"` explicitly (defensive — avoids any accidental form submit interception).
-- Wrap the click handler so it also fires on `onPointerUp` as a fallback for iOS PWA edge cases (only if step 1 alone doesn't fully resolve — but step 1 is the actual fix).
+2. **Make `AgentHubTabs` sticky to the top of the scroll area** (recommended), so it stays in view as a section nav and never collides with the bottom role switcher:
+   - Wrap the `AgentHubTabs` instance inside a `sticky top-0 z-20 bg-background` container.
+   - This keeps the Home/Money/Tenants/Grow/Sub Agents tabs anchored under the header rather than floating into the bottom nav.
 
-## Files to change
+   *(Alternative if sticky tabs are undesirable: keep them inline but add a clear visual divider + extra `mb-4` so they read as part of the content, not as a bottom nav.)*
 
-- `src/components/agent/AgentTenantCollectDialog.tsx`
-  - DialogContent: add `z-[60]` and bottom spacing so buttons clear the role switcher.
-  - Confirm/Edit buttons: add `type="button"` for safety.
+3. **No change needed to `BottomRoleSwitcher.tsx`** — it is already correctly `fixed bottom-0` with safe-area inset padding. Confirmed working as designed.
 
-## Why this works
+## Verification checklist (post-implementation)
 
-Once the dialog content is at `z-[60]` (one layer above the `z-50` BottomRoleSwitcher), taps on the Confirm button reach the button instead of the nav underneath it. The extra bottom padding guarantees the tappable area is never visually obscured by the role switcher, even on the smallest iPhone SE / older Android viewports.
+- [ ] At the top of `/dashboard/agent` the role switcher sits at the bottom of the viewport.
+- [ ] Scrolling down: the role switcher stays glued to the bottom and does NOT move.
+- [ ] The `AgentHubTabs` row no longer collides with the role switcher at scroll end.
+- [ ] The last content row ("Refresh totals" / "Field Collect" pill) is fully visible — not clipped behind the bottom nav — when scrolled to the bottom.
+- [ ] No new horizontal scrollbars or layout shifts on 390×844 viewport.
 
-No backend, RPC, or business-logic changes — purely a CSS stacking fix.
+## Technical notes
+
+- Root container is `h-[100dvh] flex flex-col overflow-hidden` with a `flex-1 overflow-y-auto` scroll region — so `pb-*` on `<main>` is the correct lever for bottom clearance (not margin on the parent).
+- `pb-24` accounts for: ~56px nav height + ~env(safe-area-inset-bottom) + ~8px breathing room.
+- Sticky tabs work because the immediate scroll ancestor is `<div class="flex-1 overflow-y-auto">`, which is a valid containing block for `position: sticky`.
