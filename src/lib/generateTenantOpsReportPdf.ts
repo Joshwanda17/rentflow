@@ -3,146 +3,244 @@ import { format } from 'date-fns';
 
 export interface TenantRentRow {
   tenant_name: string;
-  tenant_phone: string;
-  first_start_date: string;
-  rent_plans: number;
+  tenant_phone?: string;
+  first_start_date?: string;
+  rent_plans?: number;
   rent_given: number;
   amount_paid: number;
   outstanding: number;
-  agent_name: string;
+  agent_name?: string;
 }
 
 export function generateTenantOpsReportPdf(
   tenants: TenantRentRow[],
   range?: { from?: Date | null; to?: Date | null },
 ): Blob {
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 10;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();   // 210
+  const pageHeight = doc.internal.pageSize.getHeight(); // 297
+  const margin = 12;
   const contentWidth = pageWidth - margin * 2;
-  let y = 14;
+  let y = 16;
 
   const ugx = (n: number) => `UGX ${Math.round(n).toLocaleString()}`;
+  const num = (n: number) => Math.round(n).toLocaleString();
   const fmtDate = (d: string | Date) => {
     try { return format(new Date(d), 'dd MMM yyyy'); } catch { return '—'; }
   };
 
-  // Header
-  doc.setFontSize(16);
+  // ===== Header =====
   doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(20, 40, 120);
   doc.text('WELILE', margin, y);
-  doc.setFontSize(8);
+
   doc.setFont('helvetica', 'normal');
-  doc.text(format(new Date(), 'dd MMM yyyy, hh:mm a'), pageWidth - margin, y, { align: 'right' });
-  y += 7;
-
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Tenant Rent Report', margin, y);
-  y += 5;
-
-  // Date range line
   doc.setFontSize(8);
-  doc.setFont('helvetica', 'italic');
   doc.setTextColor(100, 100, 100);
-  const rangeLabel = range && (range.from || range.to)
-    ? `Period: ${range.from ? fmtDate(range.from) : 'Start'} → ${range.to ? fmtDate(range.to) : 'Today'}`
-    : 'Period: All time';
-  doc.text(rangeLabel, margin, y);
-  doc.setTextColor(0, 0, 0);
+  doc.text(format(new Date(), 'dd MMM yyyy, hh:mm a'), pageWidth - margin, y, { align: 'right' });
+
+  y += 9;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(22);
+  doc.setTextColor(15, 23, 42);
+  doc.text('Tenant Summary Report', margin, y);
+
+  y += 5;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(110, 110, 120);
+  doc.text(
+    'One row per tenant showing total payments and outstanding balance across all their contracts.',
+    margin,
+    y,
+  );
+
+  // Period line
+  if (range && (range.from || range.to)) {
+    y += 4.5;
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(8);
+    doc.setTextColor(110, 110, 120);
+    doc.text(
+      `Period: ${range.from ? fmtDate(range.from) : 'Start'} → ${range.to ? fmtDate(range.to) : 'Today'}`,
+      margin,
+      y,
+    );
+  }
+
+  y += 4;
+  // Divider
+  doc.setDrawColor(225, 227, 232);
+  doc.setLineWidth(0.3);
+  doc.line(margin, y, pageWidth - margin, y);
   y += 6;
 
-  // Summary
-  const totalGiven = tenants.reduce((s, t) => s + t.rent_given, 0);
-  const totalPaid = tenants.reduce((s, t) => s + t.amount_paid, 0);
-  const totalOutstanding = tenants.reduce((s, t) => s + t.outstanding, 0);
+  // ===== KPI Cards =====
+  const totalTenants = tenants.length;
+  const totalGiven = tenants.reduce((s, t) => s + (t.rent_given || 0), 0);
+  const totalPaid = tenants.reduce((s, t) => s + (t.amount_paid || 0), 0);
+  const totalOutstanding = tenants.reduce((s, t) => s + (t.outstanding || 0), 0);
 
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Tenants: ${tenants.length}`, margin, y);
-  doc.text(`Rent Given: ${ugx(totalGiven)}`, margin + 45, y);
-  doc.text(`Total Paid: ${ugx(totalPaid)}`, margin + 115, y);
-  doc.text(`Outstanding: ${ugx(totalOutstanding)}`, margin + 185, y);
-  y += 7;
+  const cardGap = 3;
+  const cardW = (contentWidth - cardGap * 3) / 4;
+  const cardH = 18;
 
-  // Columns — one row per tenant
-  const cols = [
-    { label: '#',           x: margin,        w: 8 },
-    { label: 'Tenant Name', x: margin + 8,    w: 50 },
-    { label: 'Phone',       x: margin + 58,   w: 30 },
-    { label: 'First Start', x: margin + 88,   w: 26 },
-    { label: 'Plans',       x: margin + 114,  w: 14 },
-    { label: 'Rent Given',  x: margin + 128,  w: 30 },
-    { label: 'Amount Paid', x: margin + 158,  w: 30 },
-    { label: 'Outstanding', x: margin + 188,  w: 30 },
-    { label: 'Agent',       x: margin + 218,  w: 41 },
-  ];
+  const drawCard = (
+    x: number,
+    label: string,
+    value: string,
+    icon: { fill: [number, number, number]; glyph: string },
+    valueColor: [number, number, number],
+  ) => {
+    // Card background
+    doc.setFillColor(248, 249, 252);
+    doc.setDrawColor(225, 227, 232);
+    doc.setLineWidth(0.2);
+    (doc as any).roundedRect(x, y, cardW, cardH, 2, 2, 'FD');
 
-  const drawHeader = () => {
-    doc.setFillColor(30, 30, 60);
-    doc.rect(margin, y - 4, contentWidth, 6, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(7.5);
+    // Icon circle
+    const ix = x + 4.5;
+    const iy = y + cardH / 2;
+    doc.setFillColor(...icon.fill);
+    doc.circle(ix, iy, 3.2, 'F');
     doc.setFont('helvetica', 'bold');
-    cols.forEach(c => doc.text(c.label, c.x + 1, y));
-    doc.setTextColor(0, 0, 0);
-    y += 5;
+    doc.setFontSize(8);
+    doc.setTextColor(255, 255, 255);
+    doc.text(icon.glyph, ix, iy + 1.1, { align: 'center' });
+
+    // Label
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(6.5);
+    doc.setTextColor(120, 122, 135);
+    doc.text(label, x + 9.5, y + 6);
+
+    // Value
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(...valueColor);
+    doc.text(value, x + 9.5, y + 13);
   };
 
-  drawHeader();
+  drawCard(margin,                           'TOTAL TENANTS',    num(totalTenants),     { fill: [37, 99, 235],  glyph: 'P' }, [15, 23, 42]);
+  drawCard(margin + (cardW + cardGap),       'TOTAL RENT GIVEN', ugx(totalGiven),       { fill: [22, 163, 74],  glyph: '$' }, [22, 163, 74]);
+  drawCard(margin + (cardW + cardGap) * 2,   'TOTAL PAID',       ugx(totalPaid),        { fill: [37, 99, 235],  glyph: 'W' }, [37, 99, 235]);
+  drawCard(margin + (cardW + cardGap) * 3,   'TOTAL OUTSTANDING',ugx(totalOutstanding), { fill: [220, 38, 38],  glyph: '!' }, [220, 38, 38]);
+
+  y += cardH + 7;
+
+  // ===== Table =====
+  const cols = [
+    { label: '#',                      x: margin,                       w: 12,  align: 'left' as const },
+    { label: 'Tenant Name',            x: margin + 12,                  w: 78,  align: 'left' as const },
+    { label: 'Total Paid (UGX)',       x: margin + 12 + 78,             w: 48,  align: 'right' as const },
+    { label: 'Outstanding Balance (UGX)', x: margin + 12 + 78 + 48,     w: contentWidth - 12 - 78 - 48, align: 'right' as const },
+  ];
+
+  const drawTableHeader = () => {
+    doc.setFillColor(20, 33, 72);
+    doc.rect(margin, y, contentWidth, 8, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(255, 255, 255);
+    cols.forEach(c => {
+      const tx = c.align === 'right' ? c.x + c.w - 2 : c.x + 2;
+      doc.text(c.label, tx, y + 5.3, { align: c.align });
+    });
+    y += 8;
+  };
+
+  drawTableHeader();
+
+  const rowH = 6.8;
+  const bottomLimit = pageHeight - 22;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
 
   tenants.forEach((t, i) => {
-    if (y > 190) {
+    if (y + rowH > bottomLimit) {
       doc.addPage();
-      y = 14;
-      drawHeader();
+      y = 16;
+      drawTableHeader();
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
     }
-    if (i % 2 === 0) {
-      doc.setFillColor(245, 245, 250);
-      doc.rect(margin, y - 3.5, contentWidth, 5, 'F');
+
+    // Zebra
+    if (i % 2 === 1) {
+      doc.setFillColor(248, 249, 252);
+      doc.rect(margin, y, contentWidth, rowH, 'F');
     }
-    doc.setFontSize(7.5);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(0, 0, 0);
-    doc.text(`${i + 1}`, cols[0].x + 1, y);
-    doc.text(t.tenant_name.slice(0, 30), cols[1].x + 1, y);
-    doc.text(t.tenant_phone || '—', cols[2].x + 1, y);
-    doc.text(t.first_start_date ? fmtDate(t.first_start_date) : '—', cols[3].x + 1, y);
-    doc.text(`${t.rent_plans}`, cols[4].x + 1, y);
-    doc.text(ugx(t.rent_given), cols[5].x + 1, y);
-    doc.setTextColor(0, 130, 50);
-    doc.text(ugx(t.amount_paid), cols[6].x + 1, y);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(t.outstanding > 0 ? 200 : 0, t.outstanding > 0 ? 30 : 130, t.outstanding > 0 ? 30 : 50);
-    doc.text(ugx(t.outstanding), cols[7].x + 1, y);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(0, 0, 0);
-    doc.text(t.agent_name.slice(0, 24), cols[8].x + 1, y);
-    y += 5;
+
+    // Bottom border
+    doc.setDrawColor(232, 234, 240);
+    doc.setLineWidth(0.15);
+    doc.line(margin, y + rowH, margin + contentWidth, y + rowH);
+
+    const baseline = y + rowH - 2.2;
+
+    // # 
+    doc.setTextColor(80, 85, 100);
+    doc.text(`${i + 1}`, cols[0].x + 2, baseline);
+
+    // Tenant name
+    doc.setTextColor(15, 23, 42);
+    doc.text((t.tenant_name || '—').slice(0, 48), cols[1].x + 2, baseline);
+
+    // Paid
+    doc.setTextColor(15, 23, 42);
+    doc.text(num(t.amount_paid || 0), cols[2].x + cols[2].w - 2, baseline, { align: 'right' });
+
+    // Outstanding (red if positive, green if zero/negative)
+    if ((t.outstanding || 0) > 0) {
+      doc.setTextColor(220, 38, 38);
+    } else {
+      doc.setTextColor(22, 163, 74);
+    }
+    doc.text(num(t.outstanding || 0), cols[3].x + cols[3].w - 2, baseline, { align: 'right' });
+
+    y += rowH;
   });
 
   // Totals row
-  y += 3;
-  if (y > 190) { doc.addPage(); y = 14; }
-  doc.setFillColor(30, 30, 60);
-  doc.rect(margin, y - 4, contentWidth, 7, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(8);
+  if (y + rowH + 2 > bottomLimit) {
+    doc.addPage();
+    y = 16;
+    drawTableHeader();
+  }
+  doc.setFillColor(243, 244, 248);
+  doc.rect(margin, y, contentWidth, rowH + 1, 'F');
   doc.setFont('helvetica', 'bold');
-  doc.text('TOTALS', cols[1].x + 1, y);
-  doc.text(ugx(totalGiven), cols[5].x + 1, y);
-  doc.text(ugx(totalPaid), cols[6].x + 1, y);
-  doc.text(ugx(totalOutstanding), cols[7].x + 1, y);
-  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(9.5);
+  doc.setTextColor(15, 23, 42);
+  doc.text('TOTAL', cols[1].x + cols[1].w - 2, y + rowH - 1.6, { align: 'right' });
+  doc.text(num(totalPaid), cols[2].x + cols[2].w - 2, y + rowH - 1.6, { align: 'right' });
+  doc.setTextColor(220, 38, 38);
+  doc.text(num(totalOutstanding), cols[3].x + cols[3].w - 2, y + rowH - 1.6, { align: 'right' });
+  y += rowH + 5;
 
-  // Footer
-  y += 12;
-  if (y > 195) { doc.addPage(); y = 14; }
-  doc.setFontSize(7);
+  // Footer note
+  if (y + 8 > bottomLimit) { doc.addPage(); y = 16; }
   doc.setFont('helvetica', 'italic');
-  doc.setTextColor(120, 120, 120);
-  doc.text('Generated by Welile Technologies Ltd. This is an automated report.', margin, y);
-  doc.text(`Report date: ${format(new Date(), 'PPpp')}`, margin, y + 4);
+  doc.setFontSize(8);
+  doc.setTextColor(120, 122, 135);
+  doc.text('Note: Outstanding Balance = Total Rent Given − Total Paid', margin, y);
+
+  // Page number footer
+  const pageCount = (doc as any).internal.getNumberOfPages();
+  for (let p = 1; p <= pageCount; p++) {
+    doc.setPage(p);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(150, 150, 158);
+    doc.text(
+      `Generated by Welile Technologies Ltd. • ${format(new Date(), 'PPpp')}`,
+      margin,
+      pageHeight - 8,
+    );
+    doc.text(`Page ${p} of ${pageCount}`, pageWidth - margin, pageHeight - 8, { align: 'right' });
+  }
 
   return doc.output('blob');
 }
