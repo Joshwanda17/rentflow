@@ -321,8 +321,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         menuItems={menuItems}
       />
 
-      <div className="flex-1 overflow-y-auto pb-14 md:pb-2">
-        <main className="px-4 py-5 space-y-5 max-w-lg mx-auto">
+      <div className="flex-1 overflow-y-auto">
+        <main className="px-4 pt-5 pb-2 space-y-5 max-w-lg mx-auto">
         {/* Offline Notice */}
         {!isOnline && (
           <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-warning/10 border border-warning/20">
