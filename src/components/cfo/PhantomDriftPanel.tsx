@@ -107,6 +107,35 @@ export function PhantomDriftPanel() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // CFO-only: write the cached wallet bucket back to ledger truth via the
+  // sole-writer path. Posts a balanced system_balance_correction pair, runs
+  // apply_wallet_movement, marks the drift row resolved, and writes audit_logs.
+  const resolveToLedger = useMutation({
+    mutationFn: async ({ id, gap }: { id: string; gap: number }) => {
+      const reason =
+        gap > 0
+          ? `Phantom drift write-down to ledger truth (${formatUGX(Math.abs(gap))})`
+          : `Phantom drift write-up to ledger truth (${formatUGX(Math.abs(gap))})`;
+      const { data, error } = await supabase.functions.invoke(
+        'resolve-phantom-drift',
+        { body: { drift_id: id, reason } },
+      );
+      if (error) throw error;
+      if (data && typeof data === 'object' && 'error' in data && data.error) {
+        throw new Error(String(data.error));
+      }
+      return data as { direction: string; amount_applied: number };
+    },
+    onSuccess: (res) => {
+      toast.success(
+        `Wallet ${res.direction === 'debit' ? 'written down' : 'written up'} by ${formatUGX(res.amount_applied)} — drift resolved`,
+      );
+      qc.invalidateQueries({ queryKey: ['phantom-drift'] });
+      qc.invalidateQueries({ queryKey: ['wallet'] });
+    },
+    onError: (e: Error) => toast.error(`Resolve failed: ${e.message}`),
+  });
+
   const summary = useMemo(() => {
     const rows = data ?? [];
     const open = rows.filter((r) => r.status === 'open');
