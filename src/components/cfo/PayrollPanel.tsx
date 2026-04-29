@@ -327,12 +327,49 @@ export function PayrollPanel() {
           <div className="space-y-3">
             <div>
               <Label>Employee Phone</Label>
-              <Input placeholder="0771234567" value={empPhone} onChange={e => setEmpPhone(e.target.value)} />
+              <Input
+                placeholder="0771234567"
+                value={empPhone}
+                onChange={e => setEmpPhone(e.target.value)}
+                onBlur={lookupEmployee}
+              />
+              {empName && <p className="text-[10px] text-muted-foreground mt-1">✓ {empName}</p>}
             </div>
             <div>
               <Label>Amount (UGX)</Label>
               <Input type="number" placeholder="500000" value={itemAmount} onChange={e => setItemAmount(e.target.value)} />
             </div>
+            {empAdvance != null && empAdvance > 0 && itemCategory !== 'advance' && (() => {
+              const gross = parseFloat(itemAmount) || 0;
+              const batchPct = Number(selectedBatch?.default_recovery_percent ?? 30);
+              const pct = recoveryPct === '' ? batchPct : Math.max(0, Math.min(100, parseFloat(recoveryPct) || 0));
+              const rec = Math.min(empAdvance, Math.floor((gross * pct) / 100));
+              const take = Math.max(0, gross - rec);
+              return (
+                <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-amber-800 text-xs font-semibold">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    Outstanding advance: UGX {empAdvance.toLocaleString()}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-[10px]">Recovery %</Label>
+                    <Input
+                      type="number" min={0} max={100}
+                      placeholder={String(batchPct)}
+                      value={recoveryPct}
+                      onChange={e => setRecoveryPct(e.target.value)}
+                      className="h-7 w-20 text-xs"
+                    />
+                    <span className="text-[10px] text-muted-foreground">of gross</span>
+                  </div>
+                  {gross > 0 && (
+                    <div className="text-[10px] text-amber-800 leading-tight">
+                      System will deduct <strong>UGX {rec.toLocaleString()}</strong> ({pct}%) toward the advance and pay take-home <strong>UGX {take.toLocaleString()}</strong>.
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
             <div>
               <Label>Category</Label>
               <Select value={itemCategory} onValueChange={setItemCategory}>
