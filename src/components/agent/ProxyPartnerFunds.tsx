@@ -29,6 +29,12 @@ interface PartnerBalance {
   totalReturns: number;
   totalWithdrawn: number;
   available: number;
+  /**
+   * Amount the agent has already pulled into a pending/processing withdrawal
+   * for this partner. When > 0 the card is treated as "in flight" — hidden
+   * from the default All view but reachable via the In flight filter pill.
+   */
+  inFlightAmount: number;
 }
 
 interface PwoEntry {
