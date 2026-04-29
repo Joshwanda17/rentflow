@@ -1,62 +1,62 @@
-## Diagnosis
+## What's actually happening
 
-The screenshot ("Welile Tenant", UGX 1,000,000 rent wallet) belongs to **JOSHUA WANDA** (`cb798acb…`), who submitted a UGX 1,000,000 withdrawal at 13:38 today and got it **manager-approved** at 13:39 (status `manager_approved`). His wallet still shows the full UGX 1,000,000.
+The wallet card is correct. The cache is wrong.
 
-Verified in DB:
-- `withdrawal_requests` row exists, status = `manager_approved`, `fin_ops_approved_at IS NULL`.
-- **Zero ledger entries** linked to this withdrawal — no pending hold, no debit.
-- Other recent FinOps-approved withdrawals (Namatovu 20K, Mukhaye 30K, Wakato 15K, etc.) DO have proper `wallet_withdrawal` ledger debits and their wallets reconcile correctly. So the FinOps-approval flow works.
+For SSENKAALI PIUS (`0b109aad-212a-4fd0-ab03-3d7aee9cf397`):
 
-**Root cause**: the withdrawal lifecycle only debits the wallet at the final `fin_ops_approved` step. Between "user requests" → "manager approves" → "FinOps approves" the funds are NOT held, so the wallet card keeps showing the full balance and the user assumes the system is broken.
+- `wallets.withdrawable_balance` (cache) = **UGX 800,000**
+- `get_user_available_balance` (strict ledger truth) = **UGX 650,000** ← what the card shows
+- `wallets.balance` = 800,000 (also stale)
 
-The `approve-withdrawal` edge function is already designed to find and release pre-existing `withdrawal_pending` ledger holds (lines 156–183 of `supabase/functions/approve-withdrawal/index.ts`) — but **nothing in the codebase ever creates those holds**. The release path is dead code.
+Per the **Wallet Withdrawable Strict Rule**, the card MUST show the lesser of cached and ledger-net. So the headline showing 650K is correct behavior.
 
-## Fix
+### Why the ledger says 650K (post-anchor window)
 
-### 1. Create the missing pending-hold writer
-Add a balanced ledger pair the moment a withdrawal request is **created** (and again if a previously rejected one is re-submitted to manager_approved). This shows up immediately on the wallet card via the existing `get_user_available_balance` RPC, which already subtracts pending holds.
+A `wallet_fresh_start_anchors` row exists for this user at `2026-04-28 21:00 UTC`. All ledger entries since then on the wallet scope:
 
-Two options for where to write the hold:
-- **Preferred**: extend the existing `request-withdrawal` edge function (or wherever `withdrawal_requests` is INSERTed) to call `create_ledger_transaction` with category `withdrawal_pending`, scope `wallet`, direction `cash_out`, balanced by a `withdrawal_pending` `cash_in` on `platform`. This keeps double-entry symmetry and satisfies the strict ledger guard.
-- **Backup**: if multiple client paths insert withdrawals, add a Postgres `AFTER INSERT` trigger on `withdrawal_requests` that calls the same RPC.
-
-Implementation will use the **edge function** path (existing pattern, no migration risk to triggers/RLS).
-
-### 2. Make `withdrawal_pending` an allowlisted ledger category
-Add `withdrawal_pending` to the locked-flow allowlist in `supabase/functions/_shared/` (and the Postgres allowlist if one exists) so `create_ledger_transaction` doesn't silently reject it in strict mode. Map it as: wallet `cash_out` → `liability` movement; platform `cash_in` → `liability` movement (offsetting). No revenue impact.
-
-### 3. Reconcile the affected open withdrawal NOW
-For `72db97da-7f04-4199-8521-1f10476c6f0c` (Joshua Wanda, 1M, manager_approved): backfill a `withdrawal_pending` hold so his wallet card immediately drops by 1,000,000 and the next FinOps approval cleanly releases it (the existing release loop in `approve-withdrawal` already handles this). Do the same for any other `manager_approved`/`pending`/`requested` rows currently missing a hold:
-
-```sql
-SELECT wr.id, wr.user_id, wr.amount, wr.status
-FROM withdrawal_requests wr
-WHERE wr.status IN ('pending','requested','manager_approved')
-  AND NOT EXISTS (
-    SELECT 1 FROM general_ledger gl
-    WHERE gl.source_table='withdrawal_requests'
-      AND gl.source_id=wr.id AND gl.category='withdrawal_pending'
-  );
+```
++800,000  system_balance_correction   Payroll: Salary for April   (12:19)
+-800,000  wallet_deduction            CFO Wallet Retraction        (12:34)
++800,000  system_balance_correction   Payroll: Salary for April    (12:39)  (re-credited)
+-150,000  wallet_deduction            CFO Debit — Overpayment Recovery (13:28)
+─────────
+ 650,000  net
 ```
 
-Backfill hold rows for each via a one-shot script using `create_ledger_transaction`.
+The **150,000 CFO "Overpayment Recovery"** debit at 13:28 today is the missing 150K. The card is honestly reflecting it; the cached 800K never got decremented because that wallet_deduction posted to the ledger but the wallet bucket sync didn't run (a known phantom-drift case — `apply_wallet_movement` is the sole writer, and the CFO debit path appears to have skipped it).
 
-### 4. Cancel/reject path
-`cancel-proxy-withdrawal` and `reject-withdrawal` must also delete the matching `withdrawal_pending` ledger rows and re-reconcile the wallet — same pattern already used inside `approve-withdrawal`. Audit those two functions and add the release block.
+## Plan
 
-### 5. Wallet-card copy
-Add a small "Pending withdrawal: UGX X" line under the available balance when `pending_holds > 0` so users see WHY the balance is lower than what they earned. Source: same `get_user_available_balance` RPC already exposes the breakdown via `useAvailableBalance` hook (it returns `walletCached`, `ledgerNet`; we'll surface a derived `pendingHold = walletCached − available` indicator).
+### 1. Sync the cache to truth (one-shot data fix)
 
-## Files to change
+Run a one-time wallet bucket correction for this user so cache matches ledger:
 
-- `supabase/functions/request-withdrawal/index.ts` (or equivalent submit endpoint) — create hold on insert.
-- `supabase/functions/reject-withdrawal/index.ts` — release hold on reject.
-- `supabase/functions/cancel-proxy-withdrawal/index.ts` — release hold on cancel.
-- `supabase/functions/_shared/ledgerCategories.ts` (or the allowlist file) — add `withdrawal_pending`.
-- `src/components/wallet/*` (rent wallet card / hero card) — show "Pending withdrawal" sub-line.
-- One-shot SQL/edge call to backfill the missing hold for Joshua Wanda's 1M and any other open requests.
+```sql
+UPDATE public.wallets
+SET withdrawable_balance = 650000,
+    balance              = 650000
+WHERE user_id = '0b109aad-212a-4fd0-ab03-3d7aee9cf397';
+```
 
-## Out of scope
+Do this through the standard `apply_wallet_movement` path (not a raw UPDATE) so it respects the wallet write-lockdown trigger. If a direct correction is required, set the `wallet.sync_authorized=true` session flag for that single statement.
 
-- No wallet bucket math change. The strict-withdrawable rule and the 3-bucket model stay exactly as documented in [Wallet Withdrawable Strict Rule](mem://architecture/wallet-baseline-anchor) and [Wallet 3-Bucket Model](mem://business-model/wallet-three-bucket-model).
-- No change to FinOps approval logic — it already releases holds correctly; we're just finally feeding it real holds.
+### 2. Investigate the CFO debit path that bypassed the bucket writer
+
+The `wallet_deduction` ledger entry at 13:28 (description: `CFO Debit [🔁 Overpayment Recovery]: OVERPAYMENT`) posted to `general_ledger` but did not call `apply_wallet_movement`. This is a **phantom drift** — the same class of bug that triggered the strict-headline rule.
+
+Audit the edge function / RPC behind "CFO Overpayment Recovery" and ensure every ledger leg it posts is paired with `apply_wallet_movement` so the cached buckets stay in sync. Add the user to `phantom_wallet_drift` review if not already flagged.
+
+### 3. Confirm with the user
+
+After the cache fix:
+- The Partner Wallet card will show **UGX 650,000** (still 650K — because that IS the truth)
+- The stale "800K" expectation goes away because the cache no longer disagrees
+
+If the user believes the **150K overpayment recovery itself was wrong**, that's a separate CFO reversal — they need to reverse that debit (post a +150K correction) to legitimately get back to 800K. We won't do that automatically.
+
+## Technical details
+
+- Strict RPC: `get_user_available_balance` — already correct, no change needed
+- Card source: `useAvailableBalance` → strict RPC — correct, no change
+- Memory: matches `mem://architecture/wallet-baseline-anchor` and `mem://constraints/wallet-sole-writer`
+- Root cause to fix: the CFO Overpayment Recovery handler must call `apply_wallet_movement` after posting the ledger leg
