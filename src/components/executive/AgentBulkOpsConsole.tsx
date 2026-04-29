@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import {
   ChevronLeft, Filter, FileUp, Layers, AlertTriangle, ShieldAlert, CheckCircle2, RefreshCw, Loader2, XCircle,
 } from 'lucide-react';
-import { ChevronDown, ChevronRight, Clock, AlertCircle, Search, User, History as HistoryIcon, Skull } from 'lucide-react';
+import { ChevronDown, ChevronRight, Clock, AlertCircle, Search, User, History as HistoryIcon, Skull, Eye } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 
 /**
@@ -184,21 +184,37 @@ export function AgentBulkOpsConsole({ onBack }: { onBack?: () => void }) {
   );
 
   return (
-    <div className="space-y-4 pb-20">
-      <div className="flex items-center gap-2">
+    <div className="space-y-4 pb-32 sm:pb-20 px-2 sm:px-0">
+      {/* ============================ Header ============================ */}
+      <div className="flex items-start gap-2">
         {onBack && (
-          <Button variant="ghost" size="sm" onClick={onBack}>
-            <ChevronLeft className="h-4 w-4 mr-1" /> Back
+          <Button variant="ghost" size="sm" onClick={onBack} className="shrink-0">
+            <ChevronLeft className="h-4 w-4 sm:mr-1" />
+            <span className="hidden sm:inline">Back</span>
           </Button>
         )}
-        <Layers className="h-5 w-5 text-primary" />
-        <div>
-          <h2 className="text-lg font-bold">Bulk Ops Console</h2>
-          <p className="text-xs text-muted-foreground">
-            Enable or disable functions across thousands of agents at once. Runs in the background — close this page anytime.
+        <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+          <Layers className="h-5 w-5 text-primary" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-base sm:text-lg font-bold leading-tight">Agent Functions</h2>
+          <p className="text-xs text-muted-foreground leading-snug">
+            Turn agent abilities on or off — for one agent or many at once. It runs in the background, you can close this page anytime.
           </p>
         </div>
       </div>
+
+      {/* ============================ Step guide ============================ */}
+      <Card className="p-3 bg-muted/30 border-dashed">
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5 font-semibold">
+          How it works
+        </p>
+        <ol className="text-xs space-y-1 list-decimal list-inside text-foreground/90">
+          <li><strong>Pick the agents</strong> — by filter, by list, or just one.</li>
+          <li><strong>Pick what to turn on or off</strong> — like “Collect rent” or “Cash-out”.</li>
+          <li><strong>Write a short reason</strong> and tap the big button at the bottom.</li>
+        </ol>
+      </Card>
 
       <div className="flex flex-col lg:flex-row gap-4 items-start">
         <div className="flex-1 min-w-0 space-y-4 w-full">
@@ -208,24 +224,32 @@ export function AgentBulkOpsConsole({ onBack }: { onBack?: () => void }) {
       <DeadLetterPanel />
 
       {/* Step 1 – build the agent set */}
-      <Card className="p-4">
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-          1 · Build the target set
+      <Card className="p-3 sm:p-4">
+        <p className="text-sm font-bold mb-1">Step 1 · Pick the agents</p>
+        <p className="text-xs text-muted-foreground mb-3">
+          Choose how to find them. Tap a tab below.
         </p>
-        <Tabs defaultValue="segment">
-          <TabsList>
-            <TabsTrigger value="segment"><Filter className="h-3 w-3 mr-1" /> Segment</TabsTrigger>
-            <TabsTrigger value="csv"><FileUp className="h-3 w-3 mr-1" /> CSV / paste list</TabsTrigger>
-            <TabsTrigger value="single"><Search className="h-3 w-3 mr-1" /> Single agent</TabsTrigger>
+        <Tabs defaultValue="single">
+          {/* On phones: 3 equal-width pill tabs that wrap nicely */}
+          <TabsList className="grid grid-cols-3 w-full h-auto p-1 gap-1">
+            <TabsTrigger value="single" className="flex-col sm:flex-row gap-1 py-2 text-[11px] sm:text-xs">
+              <Search className="h-4 w-4 sm:h-3 sm:w-3" /> One agent
+            </TabsTrigger>
+            <TabsTrigger value="segment" className="flex-col sm:flex-row gap-1 py-2 text-[11px] sm:text-xs">
+              <Filter className="h-4 w-4 sm:h-3 sm:w-3" /> By filter
+            </TabsTrigger>
+            <TabsTrigger value="csv" className="flex-col sm:flex-row gap-1 py-2 text-[11px] sm:text-xs">
+              <FileUp className="h-4 w-4 sm:h-3 sm:w-3" /> A list
+            </TabsTrigger>
           </TabsList>
+          <TabsContent value="single" className="mt-3">
+            <SingleAgentForm onResolved={setResolved} />
+          </TabsContent>
           <TabsContent value="segment" className="mt-3">
             <SegmentForm onResolved={setResolved} />
           </TabsContent>
           <TabsContent value="csv" className="mt-3">
             <CsvForm onResolved={setResolved} />
-          </TabsContent>
-          <TabsContent value="single" className="mt-3">
-            <SingleAgentForm onResolved={setResolved} />
           </TabsContent>
         </Tabs>
       </Card>
@@ -308,97 +332,223 @@ export function AgentBulkOpsConsole({ onBack }: { onBack?: () => void }) {
       )}
 
       {/* Step 2 – functions + action */}
-      <Card className="p-4">
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-          2 · Pick function(s) and action
+      <Card className="p-3 sm:p-4">
+        <div className="flex items-start justify-between gap-2 mb-1">
+          <p className="text-sm font-bold">Step 2 · Pick what to change</p>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={() => setSelectedCaps(new Set(ALL_CAPABILITIES.map(c => c.key)))}
+              className="text-[10px] underline text-muted-foreground hover:text-foreground"
+            >
+              Pick all
+            </button>
+            <span className="text-muted-foreground/50 text-[10px]">·</span>
+            <button
+              type="button"
+              onClick={() => setSelectedCaps(new Set())}
+              className="text-[10px] underline text-muted-foreground hover:text-foreground"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+
+        {/* Big enable/disable toggle so it's the FIRST thing the eye picks up */}
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <button
+            type="button"
+            onClick={() => setAction('enable')}
+            className={`p-3 rounded-xl border-2 text-center transition active:scale-95 ${
+              action === 'enable'
+                ? 'border-emerald-500 bg-emerald-50 text-emerald-900 shadow-sm'
+                : 'border-border bg-background text-muted-foreground hover:border-emerald-300'
+            }`}
+          >
+            <CheckCircle2 className="h-5 w-5 mx-auto mb-1" />
+            <p className="text-sm font-bold">Turn ON</p>
+            <p className="text-[10px]">give the function</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setAction('disable')}
+            className={`p-3 rounded-xl border-2 text-center transition active:scale-95 ${
+              action === 'disable'
+                ? 'border-destructive bg-destructive/10 text-destructive shadow-sm'
+                : 'border-border bg-background text-muted-foreground hover:border-destructive/40'
+            }`}
+          >
+            <XCircle className="h-5 w-5 mx-auto mb-1" />
+            <p className="text-sm font-bold">Turn OFF</p>
+            <p className="text-[10px]">remove the function</p>
+          </button>
+        </div>
+
+        <p className="text-[11px] text-muted-foreground mb-2">
+          Tap each function you want to <strong>{action === 'enable' ? 'turn ON' : 'turn OFF'}</strong>.
+          Red = sensitive (cash, rent, proxy).
         </p>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
-          {ALL_CAPABILITIES.map(c => (
-            <label key={c.key} className="flex items-center justify-between gap-2 p-2 rounded border cursor-pointer">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold">{c.label}</p>
-                <p className="text-[10px] text-muted-foreground font-mono">{c.key}</p>
-              </div>
-              <Badge variant={c.risk === 'high' ? 'destructive' : c.risk === 'med' ? 'default' : 'secondary'} className="text-[9px]">
-                {c.risk}
-              </Badge>
-              <Switch
-                checked={selectedCaps.has(c.key)}
-                onCheckedChange={() => toggleCap(c.key)}
-              />
-            </label>
-          ))}
+          {ALL_CAPABILITIES.map(c => {
+            const checked = selectedCaps.has(c.key);
+            return (
+              <label
+                key={c.key}
+                className={`flex items-center justify-between gap-2 p-3 rounded-lg border-2 cursor-pointer transition active:scale-[0.99] ${
+                  checked
+                    ? action === 'enable'
+                      ? 'border-emerald-500 bg-emerald-50/60'
+                      : 'border-destructive bg-destructive/5'
+                    : c.risk === 'high'
+                      ? 'border-destructive/30 bg-destructive/5'
+                      : 'border-border bg-background'
+                }`}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold leading-tight">{c.label}</p>
+                  <p className="text-[10px] text-muted-foreground hidden sm:block font-mono truncate">
+                    {c.key}
+                  </p>
+                </div>
+                {c.risk === 'high' && (
+                  <Badge variant="destructive" className="text-[9px] shrink-0">sensitive</Badge>
+                )}
+                <Switch
+                  checked={checked}
+                  onCheckedChange={() => toggleCap(c.key)}
+                />
+              </label>
+            );
+          })}
         </div>
-        <div className="flex items-center gap-3">
-          <label className="text-sm">Action:</label>
-          <Select value={action} onValueChange={(v) => setAction(v as 'enable'|'disable')}>
-            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="enable">Enable</SelectItem>
-              <SelectItem value="disable">Disable</SelectItem>
-            </SelectContent>
-          </Select>
-          {highRiskPicked && (
-            <span className="flex items-center text-xs text-destructive gap-1">
-              <ShieldAlert className="h-3 w-3" /> High-risk function selected
-            </span>
-          )}
-        </div>
+
+        {highRiskPicked && (
+          <div className="flex items-start gap-2 p-2 rounded-lg bg-destructive/10 border border-destructive/30">
+            <ShieldAlert className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+            <p className="text-xs text-destructive">
+              You picked a <strong>sensitive</strong> function. Double-check the agent list before you confirm.
+            </p>
+          </div>
+        )}
       </Card>
 
       {/* Step 3 – reason + confirm */}
-      <Card id="bulk-ops-confirm-card" className="p-4">
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-          3 · Reason &amp; confirm
+      <Card id="bulk-ops-confirm-card" className="p-3 sm:p-4">
+        <p className="text-sm font-bold mb-1">Step 3 · Say why &amp; confirm</p>
+        <p className="text-xs text-muted-foreground mb-2">
+          Write a short reason (at least 10 letters). This is kept for the audit trail.
         </p>
         <Textarea
           value={reason}
           onChange={e => setReason(e.target.value)}
           rows={2}
-          placeholder="e.g. Region-wide suspension pending KYC sweep on 2026-04-29"
+          placeholder="Example: Pausing rent collection while we review missing receipts"
+          className="text-base sm:text-sm"
         />
+        <div className="flex items-center justify-between mt-1">
+          <span className={`text-[10px] ${reason.trim().length >= 10 ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+            {reason.trim().length >= 10
+              ? '✓ Reason looks good'
+              : `${Math.max(0, 10 - reason.trim().length)} more letter${10 - reason.trim().length === 1 ? '' : 's'} needed`}
+          </span>
+        </div>
+
         {resolved && resolved.count > 1000 && (
-          <div className="mt-3">
-            <label className="text-xs flex items-center gap-1 text-destructive font-semibold">
-              <AlertTriangle className="h-3 w-3" /> Large batch — type {resolved.count} to confirm
+          <div className="mt-3 p-2 rounded-lg border-2 border-destructive/40 bg-destructive/5">
+            <label className="text-xs flex items-center gap-1 text-destructive font-bold">
+              <AlertTriangle className="h-3 w-3" /> Big change — type the number {resolved.count.toLocaleString()} to confirm
             </label>
             <Input
               value={confirmCount}
               onChange={e => setConfirmCount(e.target.value)}
               placeholder={String(resolved.count)}
-              className="mt-1"
+              className="mt-1 text-base sm:text-sm"
+              inputMode="numeric"
             />
           </div>
         )}
+
         <Button
-          className="w-full mt-3"
-          disabled={apply.isPending || !resolved || selectedCaps.size === 0}
+          size="lg"
+          className={`w-full mt-3 h-12 text-sm sm:text-base font-bold ${
+            action === 'enable' ? '' : 'bg-destructive hover:bg-destructive/90'
+          }`}
+          disabled={apply.isPending || !resolved || selectedCaps.size === 0 || reason.trim().length < 10}
           onClick={() => apply.mutate()}
         >
           {apply.isPending
-            ? 'Applying…'
-            : `${action === 'enable' ? 'Enable' : 'Disable'} ${selectedCaps.size} function${selectedCaps.size === 1 ? '' : 's'} on ${resolved?.count.toLocaleString() ?? 0} agents`}
+            ? 'Saving…'
+            : !resolved
+              ? 'Pick agents in Step 1'
+              : selectedCaps.size === 0
+                ? 'Pick at least one function in Step 2'
+                : reason.trim().length < 10
+                  ? 'Write a reason in Step 3'
+                  : `${action === 'enable' ? 'Turn ON' : 'Turn OFF'} ${selectedCaps.size} function${selectedCaps.size === 1 ? '' : 's'} for ${resolved.count.toLocaleString()} agent${resolved.count === 1 ? '' : 's'}`}
         </Button>
+        <p className="text-[10px] text-muted-foreground text-center mt-2">
+          Runs in the background. You can close this page after you tap.
+        </p>
       </Card>
         </div>
 
-        {/* Right rail — agent snapshot when a single agent is staged */}
+        {/* Right rail — agent snapshot when a single agent is staged.
+            On phones we collapse it behind a "Show details" toggle so the
+            main 3-step flow stays uncluttered. */}
         {resolved && resolved.count === 1 && (
-          <aside className="w-full lg:w-80 lg:sticky lg:top-4 shrink-0">
-            <div className="space-y-3">
-              <AgentSnapshotPanel
-                agentId={resolved.agentIds[0]}
-                fallbackName={resolved.sample[0]?.full_name ?? null}
-                fallbackPhone={resolved.sample[0]?.phone ?? null}
-                pendingCaps={Array.from(selectedCaps)}
-                pendingAction={action}
-              />
-              <AgentHistoryPanel agentId={resolved.agentIds[0]} />
-            </div>
-          </aside>
+          <SingleAgentDetailsRail
+            agentId={resolved.agentIds[0]}
+            fallbackName={resolved.sample[0]?.full_name ?? null}
+            fallbackPhone={resolved.sample[0]?.phone ?? null}
+            pendingCaps={Array.from(selectedCaps)}
+            pendingAction={action}
+          />
         )}
       </div>
     </div>
+  );
+}
+
+/* =====================================================================
+ * SingleAgentDetailsRail — wraps the agent snapshot + history. On
+ * desktop it sits as a sticky right-side panel; on phones it collapses
+ * behind a tap-to-open toggle so the 3-step flow stays focused.
+ * =====================================================================*/
+function SingleAgentDetailsRail({
+  agentId, fallbackName, fallbackPhone, pendingCaps, pendingAction,
+}: {
+  agentId: string;
+  fallbackName: string | null;
+  fallbackPhone: string | null;
+  pendingCaps: string[];
+  pendingAction: 'enable' | 'disable';
+}) {
+  const [openOnMobile, setOpenOnMobile] = useState(false);
+  return (
+    <aside className="w-full lg:w-80 lg:sticky lg:top-4 shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpenOnMobile(v => !v)}
+        className="lg:hidden w-full mb-2 flex items-center justify-between gap-2 p-3 rounded-lg border bg-card"
+      >
+        <span className="flex items-center gap-2 text-sm font-semibold">
+          <Eye className="h-4 w-4 text-primary" />
+          {openOnMobile ? 'Hide agent details' : 'Show agent details'}
+        </span>
+        {openOnMobile ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+      </button>
+      <div className={`${openOnMobile ? 'block' : 'hidden'} lg:block space-y-3`}>
+        <AgentSnapshotPanel
+          agentId={agentId}
+          fallbackName={fallbackName}
+          fallbackPhone={fallbackPhone}
+          pendingCaps={pendingCaps}
+          pendingAction={pendingAction}
+        />
+        <AgentHistoryPanel agentId={agentId} />
+      </div>
+    </aside>
   );
 }
 
@@ -444,7 +594,11 @@ function SegmentForm({ onResolved }: { onResolved: (r: ResolvedSet) => void }) {
   });
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+    <div className="space-y-2">
+      <p className="text-xs text-muted-foreground">
+        Set any filters you want, then tap <strong>Find agents</strong>. Leave fields blank to skip them.
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
       <Select value={tier} onValueChange={(v) => setTier(v as Tier | 'all')}>
         <SelectTrigger><SelectValue placeholder="Tier" /></SelectTrigger>
         <SelectContent>
@@ -452,9 +606,9 @@ function SegmentForm({ onResolved }: { onResolved: (r: ResolvedSet) => void }) {
           {TIERS.map(t => <SelectItem key={t} value={t}>{t.replace('_',' ')}</SelectItem>)}
         </SelectContent>
       </Select>
-      <Input placeholder="Region (exact)" value={region} onChange={e => setRegion(e.target.value)} />
-      <Input placeholder="District (exact)" value={district} onChange={e => setDistrict(e.target.value)} />
-      <Input placeholder="Territory (exact)" value={territory} onChange={e => setTerritory(e.target.value)} />
+      <Input placeholder="Region (e.g. Central)" value={region} onChange={e => setRegion(e.target.value)} className="text-base sm:text-sm" />
+      <Input placeholder="District" value={district} onChange={e => setDistrict(e.target.value)} className="text-base sm:text-sm" />
+      <Input placeholder="Territory" value={territory} onChange={e => setTerritory(e.target.value)} className="text-base sm:text-sm" />
       <Select value={frozen} onValueChange={(v) => setFrozen(v as any)}>
         <SelectTrigger><SelectValue /></SelectTrigger>
         <SelectContent>
@@ -464,27 +618,31 @@ function SegmentForm({ onResolved }: { onResolved: (r: ResolvedSet) => void }) {
         </SelectContent>
       </Select>
       <Input
-        placeholder="Inactive ≥ N days"
+        placeholder="Inactive for at least N days"
         type="number"
+        inputMode="numeric"
         value={inactiveDays}
         onChange={e => setInactiveDays(e.target.value)}
+        className="text-base sm:text-sm"
       />
       <Select value={hasCap || 'none'} onValueChange={(v) => setHasCap(v === 'none' ? '' : v)}>
-        <SelectTrigger><SelectValue placeholder="Has function (optional)" /></SelectTrigger>
+        <SelectTrigger><SelectValue placeholder="Already has function…" /></SelectTrigger>
         <SelectContent>
-          <SelectItem value="none">— Has function —</SelectItem>
+          <SelectItem value="none">— Already has function —</SelectItem>
           {ALL_CAPABILITIES.map(c => <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>)}
         </SelectContent>
       </Select>
       <Select value={missingCap || 'none'} onValueChange={(v) => setMissingCap(v === 'none' ? '' : v)}>
-        <SelectTrigger><SelectValue placeholder="Missing function (optional)" /></SelectTrigger>
+        <SelectTrigger><SelectValue placeholder="Missing function…" /></SelectTrigger>
         <SelectContent>
           <SelectItem value="none">— Missing function —</SelectItem>
           {ALL_CAPABILITIES.map(c => <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>)}
         </SelectContent>
       </Select>
-      <Button onClick={() => resolve.mutate()} disabled={resolve.isPending} className="md:col-span-3">
-        {resolve.isPending ? 'Resolving…' : 'Resolve segment'}
+      </div>
+      <Button onClick={() => resolve.mutate()} disabled={resolve.isPending} className="w-full h-11">
+        <Search className="h-4 w-4 mr-2" />
+        {resolve.isPending ? 'Searching…' : 'Find agents'}
       </Button>
     </div>
   );
@@ -541,27 +699,29 @@ function CsvForm({ onResolved }: { onResolved: (r: ResolvedSet) => void }) {
   return (
     <div className="space-y-2">
       <p className="text-xs text-muted-foreground">
-        Paste one identifier per line or upload a CSV. Accepts agent IDs (UUID), phone numbers, or emails.
+        Paste agent <strong>phone numbers</strong>, <strong>emails</strong>, or <strong>IDs</strong> — one per line. Or upload a CSV/TXT file.
       </p>
       <Textarea
         rows={6}
-        placeholder={'+256700123456\n+256700123457\nagent@example.com\n9c2d…'}
+        placeholder={'+256700123456\n+256700123457\nagent@example.com'}
         value={text}
         onChange={e => setText(e.target.value)}
+        className="text-base sm:text-sm font-mono"
       />
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
         <Input
           type="file"
           accept=".csv,.txt"
           onChange={e => { const f = e.target.files?.[0]; if (f) onFile(f); }}
-          className="max-w-xs"
+          className="sm:max-w-xs text-xs"
         />
         <span className="text-xs text-muted-foreground">
-          {parseItems(text).length.toLocaleString()} identifier{parseItems(text).length === 1 ? '' : 's'}
+          {parseItems(text).length.toLocaleString()} item{parseItems(text).length === 1 ? '' : 's'} ready
         </span>
         <div className="flex-1" />
-        <Button onClick={() => resolve.mutate()} disabled={resolve.isPending}>
-          {resolve.isPending ? 'Resolving…' : 'Resolve list'}
+        <Button onClick={() => resolve.mutate()} disabled={resolve.isPending} className="w-full sm:w-auto h-11 sm:h-10">
+          <Search className="h-4 w-4 mr-2" />
+          {resolve.isPending ? 'Checking…' : 'Find these agents'}
         </Button>
       </div>
     </div>
