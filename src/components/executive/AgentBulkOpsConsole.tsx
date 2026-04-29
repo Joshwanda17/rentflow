@@ -557,6 +557,20 @@ interface JobRow {
 }
 
 function RecentJobsPanel({ highlightJobId }: { highlightJobId: string | null }) {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggle = (id: string) => setExpanded(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+
+  // Auto-expand the highlighted (just-enqueued) job
+  useEffect(() => {
+    if (highlightJobId) {
+      setExpanded(prev => prev.has(highlightJobId) ? prev : new Set(prev).add(highlightJobId));
+    }
+  }, [highlightJobId]);
+
   const { data: jobs = [], refetch } = useQuery<JobRow[]>({
     queryKey: ['agent-capability-ops-jobs'],
     queryFn: async () => {
@@ -602,12 +616,21 @@ function RecentJobsPanel({ highlightJobId }: { highlightJobId: string | null }) 
         {jobs.map(j => {
           const pct = j.total_batches === 0 ? 0 : Math.round((j.batches_done / j.total_batches) * 100);
           const isActive = j.status === 'queued' || j.status === 'running';
+          const isOpen = expanded.has(j.id);
           return (
             <div
               key={j.id}
               className={`p-2 rounded border ${j.id === highlightJobId ? 'border-primary bg-primary/5' : ''}`}
             >
               <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => toggle(j.id)}
+                  className="flex items-center text-muted-foreground hover:text-foreground"
+                  aria-label={isOpen ? 'Collapse details' : 'Expand details'}
+                >
+                  {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                </button>
                 {j.status === 'running' && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
                 {j.status === 'done' && <CheckCircle2 className="h-3 w-3 text-emerald-600" />}
                 {j.status === 'failed' && <XCircle className="h-3 w-3 text-destructive" />}
@@ -634,10 +657,195 @@ function RecentJobsPanel({ highlightJobId }: { highlightJobId: string | null }) 
                   <span className="text-destructive"> · {j.last_error.slice(0, 80)}</span>
                 )}
               </p>
+              {isOpen && <BatchTimeline jobId={j.id} jobActive={isActive} />}
             </div>
           );
         })}
       </div>
     </Card>
+  );
+}
+
+/* ===================================================================
+ * BatchTimeline — live per-batch status + error breakdown
+ * ===================================================================*/
+interface BatchRow {
+  id: number;
+  batch_index: number;
+  capability: string;
+  agent_count: number;
+  affected: number;
+  attempt_count: number;
+  max_attempts: number;
+  status: string;
+  claimed_at: string | null;
+  finished_at: string | null;
+  next_attempt_at: string | null;
+  dead_lettered_at: string | null;
+  last_error: string | null;
+  error: string | null;
+}
+
+function BatchTimeline({ jobId, jobActive }: { jobId: string; jobActive: boolean }) {
+  const { data: batches = [], refetch, isLoading } = useQuery<BatchRow[]>({
+    queryKey: ['agent-capability-ops-job-batches', jobId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('agent_capability_ops_job_batches')
+        .select('id,batch_index,capability,agent_count,affected,attempt_count,max_attempts,status,claimed_at,finished_at,next_attempt_at,dead_lettered_at,last_error,error')
+        .eq('job_id', jobId)
+        .order('batch_index', { ascending: true })
+        .limit(500);
+      if (error) throw error;
+      return (data ?? []) as BatchRow[];
+    },
+    refetchInterval: jobActive ? 2_000 : false,
+  });
+
+  // Realtime subscription for this job's batches
+  useEffect(() => {
+    const ch = supabase
+      .channel(`agent-cap-ops-batches-${jobId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'agent_capability_ops_job_batches', filter: `job_id=eq.${jobId}` },
+        () => refetch(),
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [jobId, refetch]);
+
+  // Aggregate error breakdown — group by normalized message
+  const errorGroups = useMemo(() => {
+    const map = new Map<string, { count: number; sample: BatchRow }>();
+    for (const b of batches) {
+      const msg = (b.last_error || b.error || '').trim();
+      if (!msg) continue;
+      const key = msg.slice(0, 120);
+      const cur = map.get(key);
+      if (cur) cur.count += 1;
+      else map.set(key, { count: 1, sample: b });
+    }
+    return Array.from(map.entries())
+      .map(([msg, v]) => ({ msg, count: v.count, sample: v.sample }))
+      .sort((a, b) => b.count - a.count);
+  }, [batches]);
+
+  const counts = useMemo(() => {
+    const c = { pending: 0, running: 0, done: 0, failed: 0, dead_letter: 0, retry: 0 };
+    for (const b of batches) {
+      if (b.status === 'pending') c.pending++;
+      else if (b.status === 'running' || b.status === 'claimed') c.running++;
+      else if (b.status === 'done' || b.status === 'completed') c.done++;
+      else if (b.status === 'dead_letter' || b.status === 'dead-lettered' || b.dead_lettered_at) c.dead_letter++;
+      else if (b.status === 'failed') c.failed++;
+      if (b.next_attempt_at && (b.status === 'pending' || b.status === 'failed') && b.attempt_count > 0) c.retry++;
+    }
+    return c;
+  }, [batches]);
+
+  if (isLoading) {
+    return (
+      <div className="mt-2 pl-5 text-[10px] text-muted-foreground flex items-center gap-2">
+        <Loader2 className="h-3 w-3 animate-spin" /> Loading batch timeline…
+      </div>
+    );
+  }
+
+  if (batches.length === 0) {
+    return (
+      <div className="mt-2 pl-5 text-[10px] text-muted-foreground">No batches yet.</div>
+    );
+  }
+
+  return (
+    <div className="mt-2 pl-5 border-l-2 border-muted ml-1 space-y-2">
+      {/* Counters */}
+      <div className="flex flex-wrap gap-1.5 text-[10px]">
+        <Badge variant="outline" className="font-mono">pending {counts.pending}</Badge>
+        <Badge variant="outline" className="font-mono text-primary border-primary/40">running {counts.running}</Badge>
+        <Badge variant="outline" className="font-mono text-emerald-700 border-emerald-300">done {counts.done}</Badge>
+        {counts.retry > 0 && (
+          <Badge variant="outline" className="font-mono text-amber-700 border-amber-300">retry queued {counts.retry}</Badge>
+        )}
+        {counts.failed > 0 && (
+          <Badge variant="outline" className="font-mono text-destructive border-destructive/40">failed {counts.failed}</Badge>
+        )}
+        {counts.dead_letter > 0 && (
+          <Badge variant="destructive" className="font-mono">dead-letter {counts.dead_letter}</Badge>
+        )}
+      </div>
+
+      {/* Error breakdown */}
+      {errorGroups.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+            <AlertCircle className="h-3 w-3 text-destructive" /> Error breakdown
+          </p>
+          {errorGroups.slice(0, 5).map((g) => (
+            <div key={g.msg} className="text-[10px] p-1.5 rounded bg-destructive/5 border border-destructive/20">
+              <div className="flex items-center gap-2">
+                <Badge variant="destructive" className="text-[9px]">×{g.count}</Badge>
+                <span className="text-muted-foreground">batch #{g.sample.batch_index} · {g.sample.capability} · attempt {g.sample.attempt_count}/{g.sample.max_attempts}</span>
+              </div>
+              <p className="mt-0.5 text-destructive font-mono break-all" title={g.msg}>{g.msg}</p>
+            </div>
+          ))}
+          {errorGroups.length > 5 && (
+            <p className="text-[10px] text-muted-foreground">+{errorGroups.length - 5} more distinct errors</p>
+          )}
+        </div>
+      )}
+
+      {/* Per-batch timeline */}
+      <div>
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
+          <Clock className="h-3 w-3" /> Batches ({batches.length})
+        </p>
+        <div className="max-h-64 overflow-y-auto space-y-0.5 pr-1">
+          {batches.map(b => {
+            const isDead = b.status === 'dead_letter' || b.status === 'dead-lettered' || !!b.dead_lettered_at;
+            const isDone = b.status === 'done' || b.status === 'completed';
+            const isRunning = b.status === 'running' || b.status === 'claimed';
+            const isFailed = b.status === 'failed' && !isDead;
+            const dotClass =
+              isDead ? 'bg-destructive' :
+              isDone ? 'bg-emerald-500' :
+              isRunning ? 'bg-primary animate-pulse' :
+              isFailed ? 'bg-amber-500' :
+              'bg-muted-foreground/40';
+            const ts = b.finished_at || b.claimed_at;
+            return (
+              <div key={b.id} className="flex items-start gap-2 text-[10px] py-0.5">
+                <span className={`mt-1 h-2 w-2 rounded-full shrink-0 ${dotClass}`} />
+                <span className="font-mono text-muted-foreground w-10 shrink-0">#{b.batch_index}</span>
+                <span className="w-32 truncate shrink-0" title={b.capability}>{b.capability}</span>
+                <span className="tabular-nums w-20 shrink-0">{b.affected}/{b.agent_count}</span>
+                <span className="capitalize w-16 shrink-0">{(b.status || '').replace(/_/g, ' ')}</span>
+                {b.attempt_count > 0 && (
+                  <span className="text-muted-foreground shrink-0">try {b.attempt_count}/{b.max_attempts}</span>
+                )}
+                {b.next_attempt_at && !isDone && !isDead && (
+                  <span className="text-amber-700 shrink-0" title={b.next_attempt_at}>
+                    retry {new Date(b.next_attempt_at).toLocaleTimeString()}
+                  </span>
+                )}
+                <span className="flex-1" />
+                {ts && (
+                  <span className="text-muted-foreground tabular-nums shrink-0" title={ts}>
+                    {new Date(ts).toLocaleTimeString()}
+                  </span>
+                )}
+                {(b.last_error || b.error) && (
+                  <span className="text-destructive truncate max-w-[40%]" title={b.last_error || b.error || ''}>
+                    {(b.last_error || b.error || '').slice(0, 60)}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
 }
