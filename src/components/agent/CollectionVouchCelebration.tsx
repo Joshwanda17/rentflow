@@ -73,8 +73,10 @@ export function CollectionVouchCelebration({
           // Notify any mounted vouch/trust UI to refresh with the precise delta.
           try {
             const { emitVouchUpdated } = await import('@/lib/vouchEvents');
+            const { generateWelileAiId } = await import('@/lib/welileAiId');
             emitVouchUpdated({
               agentId,
+              aiId: generateWelileAiId(agentId),
               collectionId,
               deltaUgx: Number((data as VouchHistoryRow).delta_ugx ?? 0),
             });
