@@ -1,50 +1,46 @@
-## What's actually happening
+## Goal
 
-Operator picks **Muwanguzi Fred** from the pending list. The recap card then shows:
+Zero out Atuhaire Carolyne's (`ae194750-4827-47e8-839e-5e772565138b`) displayed agent wallet balance — currently UGX 20,649,484 — by posting a balanced, audit-trailed ledger correction. No system-wide rules change. All 40M+ other users unaffected.
 
-- Depositor: Muwanguzi Fred ✅ (from the picked row)
-- Amount: UGX 10,000 ✅ (from the picked row)
-- Original provider: AIRTEL ✅ (from the picked row)
-- TID: **TID146037804148** ❌ (this is what the operator **typed** into the input — *not* the picked row's actual transaction_id)
+## Why this is the right fix
 
-The actual deposit Fred submitted is in the database with TID **TID146038124944** (a typo — the operator transposed "78" vs "81").
+- Cached `wallets.withdrawable_balance` = 69,594,484 (already known phantom).
+- Production-only ledger net = 20,649,484 — that is what `get_user_available_balance` correctly returns per the WITHDRAWABLE STRICT RULE.
+- The strict RPC is doing exactly what it was designed to do; the problem is **historical phantom credits inside her production ledger** (legacy ROI/transfer rows that do not represent real agent earnings).
+- Fix: one targeted reconciling ledger transaction. Wallets are recomputed by `apply_wallet_movement` triggered by the ledger insert, so the hero card will refresh to UGX 0 automatically.
 
-When she clicks **Verify & Match**, `handleVerify` ignores the picked row entirely and searches `deposit_requests` for `transaction_id ILIKE '%146037804148%'`, returning zero rows → "No Matching Deposit Found".
+## What gets posted
 
-So the recap card is **misleading**: it surfaces the typed TID right next to the picked depositor's real name and amount, making it look like everything will line up. The operator has every reason to believe the click should succeed.
+A single double-entry ledger transaction via `create_ledger_transaction`:
 
-## Fix (3 changes, one pass)
+```text
+Wallet leg   : user_id=ae19…  scope=wallet     direction=cash_out  category=system_balance_correction  amount=20,649,484
+Platform leg : user_id=NULL   scope=platform   direction=cash_in   category=system_balance_correction  amount=20,649,484
+classification: 'admin_correction'
+recipient_type: 'user'
+description   : "CFO reconciliation — zero phantom withdrawable for ATUHAIRE CAROLYNE per directive 2026-04-29"
+```
 
-### 1. The recap shows the picked row's REAL TID, not the typed one
+This is identical in shape to the established `system_balance_correction` pattern already in use (e.g. payroll-growth ledger postings).
 
-When a depositor is picked, the "About to verify" recap pulls `transaction_id` from `pending.find(p.id === pickedId)` and renders it. If the operator has also typed a TID:
+## Audit + observability
 
-- match → show the TID once with a green check
-- mismatch → show both ("Picked: TID146038124944" vs "You typed: TID146037804148") in red, with a "Use picked" button that overwrites the input
+- `audit_logs` row: `action_type=wallet_reconciliation`, `table_name=wallets`, `record_id=<wallet id>`, `reason="CFO_zero_phantom_2026-04-29"` (10+ chars per audit governance rule).
+- `system_events` row: `event_type=wallet.reconciled`, payload includes before/after withdrawable, ledger net, and operator id.
+- After insert, verify with: `SELECT public.get_user_available_balance('ae194750-4827-47e8-839e-5e772565138b');` — must return 0.
 
-This kills the illusion of agreement before the click ever happens.
+## Implementation steps
 
-### 2. Picked row is the source of truth for Verify & Match
+1. **Migration (data-only)**: SQL block that calls `create_ledger_transaction(...)` with the entries above, then writes the `audit_logs` and `system_events` rows. Wrapped in a transaction; idempotency guard checks for an existing audit row with the same reason so re-running the migration is a no-op.
+2. **No frontend changes** — `useAgentBalances` already reads `get_user_available_balance` via `computeLedgerAvailable`, so the hero card will display UGX 0 on next refetch (≤30s, or instant on realtime invalidation).
+3. **Verify** in DB after migration runs: cached `withdrawable_balance` should drop to 0 (via `apply_wallet_movement` trigger), strict RPC returns 0, and `wallet_strict_drift_view` shows no residual drift for this user.
 
-Refactor `handleVerify` so that **when `pickedId` is set**, the verify path skips the typed-TID search entirely and goes straight to that row by id, then runs the existing amount-match/profile-resolve/show-as-MatchResult logic. The typed TID is only used as the search key when no row is picked.
+## Out of scope
 
-This makes the picked-from-list flow click-and-approve, exactly as the operator expects.
+- Not touching the `get_user_available_balance` RPC.
+- Not changing `useAgentBalances`, hero card, or WithdrawFlow.
+- Not auditing other agents in this pass (can be a follow-up using `wallet_strict_drift_view`).
 
-### 3. The typed-TID search stays for the no-pick case
+## Risk
 
-Keep the existing `transaction_id` ILIKE / numeric / notes triple-search untouched as the fallback when the operator pastes a TID without picking from the list. No regressions for the original flow.
-
-## Files
-
-- **Edited**: `src/components/financial-ops/TidVerification.tsx`
-  - Replace the TID line in the recap (~line 1822) with picked-row TID + mismatch indicator + "Use picked" action.
-  - Update `handleVerify` (~line 782) to take a fast-path when `pickedId` is set: fetch that one row and build the same `MatchResult` shape.
-  - Drop the `tid` requirement when a row is picked (operator doesn't have to retype a TID that's already on the row).
-
-No DB changes. No edge function changes. The downstream `commitApprove` already operates on `match.id` so it's unaffected.
-
-## Verification
-
-- Pick a row, leave TID blank, enter the amount, click Verify & Match → match found, approve works.
-- Pick a row, type a *wrong* TID → recap card shows the conflict in red BEFORE clicking, with the picked TID as the source of truth.
-- Don't pick a row, type any TID → existing fallback search runs unchanged.
+Low. The correction is one balanced ledger entry under `admin_correction` classification, which is the documented partition for exactly this case. Reversible by posting the inverse entry if needed.
