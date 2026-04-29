@@ -12,6 +12,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { CollectionVouchCelebration } from './CollectionVouchCelebration';
 import { useNavigate } from 'react-router-dom';
 import { generateWelileAiId } from '@/lib/welileAiId';
+import { emitVouchUpdated } from '@/lib/vouchEvents';
 
 interface RecordAgentCollectionDialogProps {
   open: boolean;
@@ -69,6 +70,12 @@ export function RecordAgentCollectionDialog({ open, onOpenChange, onSuccess }: R
     // Show vouch celebration first; the existing summary follows on Continue.
     setShowCelebration(true);
     toast({ title: 'Payment recorded!' });
+    // Optimistic broadcast — the celebration will fire a second event with
+    // the precise delta once the audit row is read. Listeners debounce.
+    emitVouchUpdated({
+      agentId: profile.id,
+      collectionId: res.collection_id,
+    });
     onSuccess?.();
   };
 
