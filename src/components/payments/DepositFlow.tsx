@@ -1469,7 +1469,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             </div>
 
             {/* ─── Deposit Purpose ─── */}
-            <div className="space-y-2">
+            <div id="deposit-purpose" className="space-y-2 scroll-mt-4">
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <Label className="text-xs flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" /> Deposit Purpose *</Label>
                 {lockPurpose && depositPurpose && (
