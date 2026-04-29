@@ -16,6 +16,7 @@ import COOPartnersPage from '@/components/coo/COOPartnersPage';
 import { StaffPerformancePanel } from '@/components/executive/StaffPerformancePanel';
 import HRInternshipApplications from '@/components/hr/HRInternshipApplications';
 import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
+import { RejectedRequestsQueue } from '@/components/executive/RejectedRequestsQueue';
 import { FinancialOpsCommandCenter } from '@/components/financial-ops/FinancialOpsCommandCenter';
 import { ShareSupporterRecruit } from '@/components/shared/ShareSupporterRecruit';
 import { COOAgentHub } from '@/components/coo/COOAgentHub';
@@ -100,6 +101,7 @@ export default function COODashboardPage() {
             {renderSectionHeader('Rent Approvals', ClipboardList)}
             <p className="text-sm text-muted-foreground -mt-2">Review rent requests approved by Landlord Ops. Your sign-off forwards to CFO for payout.</p>
             <RentPipelineQueue stage="landlord_ops_approved" />
+            <RejectedRequestsQueue stageFilter="landlord_ops_approved" title="Rejected at COO" />
           </div>
         );
       case 'tenants':
@@ -241,6 +243,7 @@ export default function COODashboardPage() {
           <div className="space-y-5">
             {/* Priority: Rent Approval Queue */}
             <RentPipelineQueue stage="landlord_ops_approved" />
+            <RejectedRequestsQueue stageFilter="landlord_ops_approved" title="Rejected at COO" />
 
             {/* Financial Metrics */}
             <FinancialMetricsCards />

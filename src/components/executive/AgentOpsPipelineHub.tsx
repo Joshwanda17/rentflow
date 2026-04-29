@@ -6,10 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Users, FileText, Home, Phone, MapPin, Search, Calendar } from 'lucide-react';
+import { Users, FileText, Home, Phone, MapPin, Search, Calendar, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { RentPipelineQueue } from './RentPipelineQueue';
 import { PromissoryNotesQueue } from './PromissoryNotesQueue';
+import { RejectedRequestsQueue } from './RejectedRequestsQueue';
 
 function LandlordsPipeline() {
   const [search, setSearch] = useState('');
@@ -189,6 +190,7 @@ export function AgentOpsPipelineHub() {
     { value: 'tenants', label: 'Tenants', icon: Users, count: counts?.tenants },
     { value: 'notes', label: 'Promissory Notes', icon: FileText, count: counts?.notes },
     { value: 'landlords', label: 'Landlords', icon: Home, count: counts?.landlords },
+    { value: 'rejected', label: 'Rejected', icon: XCircle, count: undefined as number | undefined },
   ];
 
   return (
@@ -210,6 +212,9 @@ export function AgentOpsPipelineHub() {
       <TabsContent value="tenants"><RentPipelineQueue stage="tenant_ops_approved" /></TabsContent>
       <TabsContent value="notes"><PromissoryNotesQueue /></TabsContent>
       <TabsContent value="landlords"><LandlordsPipeline /></TabsContent>
+      <TabsContent value="rejected">
+        <RejectedRequestsQueue stageFilter="tenant_ops_approved" title="Rejected at Agent Ops" />
+      </TabsContent>
     </Tabs>
   );
 }

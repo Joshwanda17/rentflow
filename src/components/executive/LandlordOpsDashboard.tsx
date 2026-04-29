@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { RentPipelineQueue } from './RentPipelineQueue';
+import { RejectedRequestsQueue } from './RejectedRequestsQueue';
 import { AdvanceRequestsQueue } from '@/components/ops/AdvanceRequestsQueue';
 import { BusinessAdvanceQueue } from '@/components/ops/BusinessAdvanceQueue';
 import { RentHistoryVerificationQueue } from '@/components/ops/RentHistoryVerificationQueue';
@@ -1672,6 +1673,7 @@ export function LandlordOpsDashboard() {
       <div className="space-y-4">
         <BackButton />
         <RentPipelineQueue stage="agent_verified" />
+        <RejectedRequestsQueue stageFilter="agent_verified" title="Rejected at Landlord Ops" />
         <DealPipeline />
       </div>
       {renderDialogs()}
@@ -1815,6 +1817,7 @@ export function LandlordOpsDashboard() {
     <div className="space-y-4">
       {/* Priority actions */}
       <RentPipelineQueue stage="agent_verified" />
+      <RejectedRequestsQueue stageFilter="agent_verified" title="Rejected at Landlord Ops" />
       <LandlordOpsPayoutReview reviewRole="landlord_ops" />
 
       {/* KPIs - compact grid */}
