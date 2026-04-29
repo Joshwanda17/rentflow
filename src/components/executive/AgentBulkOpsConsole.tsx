@@ -584,6 +584,8 @@ function AgentSnapshotPanel({
   pendingCaps: string[];
   pendingAction: 'enable' | 'disable';
 }) {
+  // Auto-refresh: off by default. User picks an interval; we feed it to React Query.
+  const [autoMs, setAutoMs] = useState<number>(0); // 0 = off
   const q = useQuery({
     queryKey: ['agent-snapshot', agentId],
     queryFn: async () => {
@@ -610,7 +612,9 @@ function AgentSnapshotPanel({
         } | null) ?? null,
       };
     },
-    staleTime: 15_000,
+    staleTime: autoMs > 0 ? autoMs : 15_000,
+    refetchInterval: autoMs > 0 ? autoMs : false,
+    refetchIntervalInBackground: false,
   });
   const data = q.data;
   const isLoading = q.isLoading;
@@ -666,8 +670,32 @@ function AgentSnapshotPanel({
           <p className="text-[10px] text-muted-foreground font-mono truncate">{agentId}</p>
         </div>
         <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => refetch()} title="Refresh">
-          <RefreshCw className="h-3 w-3" />
+          <RefreshCw className={`h-3 w-3 ${autoMs > 0 && q.isFetching ? 'animate-spin' : ''}`} />
         </Button>
+      </div>
+
+      {/* Auto-refresh control */}
+      <div className="mt-2 flex items-center justify-between gap-2 px-1.5 py-1 rounded border border-border bg-muted/30">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <RefreshCw className={`h-3 w-3 shrink-0 ${autoMs > 0 ? 'text-primary' : 'text-muted-foreground'} ${autoMs > 0 && q.isFetching ? 'animate-spin' : ''}`} />
+          <span className="text-[10px] text-muted-foreground truncate">
+            {autoMs > 0 ? `Auto-refresh every ${autoMs / 1000}s` : 'Auto-refresh off'}
+          </span>
+        </div>
+        <div className="flex items-center gap-0.5 shrink-0">
+          {[0, 5, 10, 30].map(s => (
+            <Button
+              key={s}
+              size="sm"
+              variant={autoMs === s * 1000 ? 'default' : 'ghost'}
+              className="h-5 px-1.5 text-[9px]"
+              onClick={() => setAutoMs(s * 1000)}
+              title={s === 0 ? 'Disable auto-refresh' : `Refresh every ${s} seconds`}
+            >
+              {s === 0 ? 'Off' : `${s}s`}
+            </Button>
+          ))}
+        </div>
       </div>
 
       {/* Status row */}
