@@ -71,22 +71,44 @@ Deno.serve(async (req) => {
     const requesterId = userData.user.id
 
     const body = await req.json().catch(() => ({}))
-    const card = body?.card
+    const cardIn = body?.card
     const amountRaw = Number(body?.amount ?? 0)
     const pin = body?.pin ? String(body.pin) : null
     const reason = body?.reason ? String(body.reason).slice(0, 500) : null
 
-    if (!card || typeof card !== 'object') {
+    if (!cardIn || typeof cardIn !== 'object') {
       return new Response(JSON.stringify({ error: 'Invalid card payload' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
-    const { card_id, user_id, pinless_limit, issued_at, hmac_signature } = card as Record<string, any>
-    if (!card_id || !user_id || !issued_at || !hmac_signature || typeof pinless_limit !== 'number') {
-      return new Response(JSON.stringify({ error: 'Card payload incomplete' }), {
+    const card_id = cardIn.card_id
+    const hmac_signature = cardIn.hmac_signature
+    if (!card_id || !hmac_signature) {
+      return new Response(JSON.stringify({ error: 'Card payload incomplete (missing card_id or signature)' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
+
+    // Hydrate missing fields from nfc_cards table when card is in compact form
+    let user_id = cardIn.user_id as string | undefined
+    let pinless_limit = typeof cardIn.pinless_limit === 'number' ? cardIn.pinless_limit : undefined
+    let issued_at = cardIn.issued_at as string | undefined
+
+    const { data: cardLookup, error: lookupErr } = await (adminClient.from('nfc_cards') as any)
+      .select('id, user_id, status, pin_hash, pinless_limit, issued_at, created_at')
+      .eq('card_id', card_id)
+      .maybeSingle()
+
+    if (lookupErr || !cardLookup) {
+      return new Response(JSON.stringify({ error: 'Card not registered' }), {
+        status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (!user_id) user_id = cardLookup.user_id
+    if (typeof pinless_limit !== 'number') pinless_limit = Number(cardLookup.pinless_limit ?? 0)
+    if (!issued_at) issued_at = cardLookup.issued_at ?? cardLookup.created_at
+
     if (!Number.isFinite(amountRaw) || amountRaw <= 0) {
       return new Response(JSON.stringify({ error: 'Invalid amount' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -105,17 +127,8 @@ Deno.serve(async (req) => {
       })
     }
 
-    // 2) Lookup card record & status
-    const { data: cardRow, error: cardErr } = await (adminClient.from('nfc_cards') as any)
-      .select('id, user_id, status, pin_hash, pinless_limit')
-      .eq('card_id', card_id)
-      .maybeSingle()
-
-    if (cardErr || !cardRow) {
-      return new Response(JSON.stringify({ error: 'Card not registered' }), {
-        status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
+    // 2) Card record & status (already loaded above as cardLookup)
+    const cardRow = cardLookup
     if (cardRow.status !== 'active') {
       return new Response(JSON.stringify({ error: 'Card is blocked or revoked' }), {
         status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -149,18 +162,35 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 4) Create money request charged to card owner
+    // 4) Pre-flight balance check on the cardholder's wallet
+    let cardholderAvailable: number | null = null
+    try {
+      const { data: balData } = await (adminClient.rpc as any)('get_user_available_balance', { p_user_id: cardRow.user_id })
+      cardholderAvailable = Number(balData ?? 0)
+    } catch (e) {
+      console.warn('get_user_available_balance failed', e)
+    }
+    if (cardholderAvailable !== null && amount > cardholderAvailable) {
+      return new Response(JSON.stringify({
+        error: 'INSUFFICIENT_BALANCE',
+        message: 'Card has insufficient balance',
+        available: cardholderAvailable,
+        requested: amount,
+      }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
+    // 5) Create money request charged to card owner
     const { data: requesterProfile } = await (adminClient.from('profiles') as any)
       .select('full_name')
       .eq('id', requesterId)
       .maybeSingle()
 
-    const { error: insertErr } = await (adminClient.from('money_requests') as any).insert({
+    const { data: requestRow, error: insertErr } = await (adminClient.from('money_requests') as any).insert({
       requester_id: requesterId,
       recipient_id: cardRow.user_id,
       amount,
       description: reason || `Card payment via Welile (${card_id.slice(0, 8)})`,
-    })
+    }).select('id').maybeSingle()
 
     if (insertErr) {
       console.error('money_requests insert error', insertErr)
@@ -169,11 +199,19 @@ Deno.serve(async (req) => {
       })
     }
 
+    const { data: cardOwnerProfile } = await (adminClient.from('profiles') as any)
+      .select('full_name')
+      .eq('id', cardRow.user_id)
+      .maybeSingle()
+
     return new Response(
       JSON.stringify({
         success: true,
         amount,
         recipient_id: cardRow.user_id,
+        recipient_name: cardOwnerProfile?.full_name ?? null,
+        request_id: requestRow?.id ?? null,
+        available: cardholderAvailable,
         requester_name: requesterProfile?.full_name ?? null,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

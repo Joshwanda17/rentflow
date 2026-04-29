@@ -1,53 +1,67 @@
-## Goal
+## Problem
 
-Make the four highlighted dropdown filters in the **Partner Management Table** (`All Wallets`, `Status (Filter)`, `Compounding/ROI Mode`, `Contact (Phone)`) actually work across the entire dataset — not just the currently visible page.
+The NFC card was written with a **truncated payload** (only 4 fields):
+```json
+{ "version": 1, "issuer": "Welile", "card_id": "6804fb0d…", "hmac_signature": "6bc9…" }
+```
 
-## Current behavior (the bug)
+But the verifier (`supabase/functions/verify-nfc-card/index.ts`) requires 7 fields — it needs `user_id`, `pinless_limit`, and `issued_at` to recompute the HMAC. So even if the phone reads the card, verification fails. The reason it appears to "keep scanning" is the NDEF reader fires `onreading`, JSON.parse succeeds with the partial object, the call to `verify-nfc-card` returns `{error: "Card payload incomplete"}` (400) — but on some Android devices the reader event also silently fails when the record `recordType` is `"unknown"` (raw bytes) instead of `"text"`/`"mime"`, so it never even calls `processCard`.
 
-- The partners table loads **50 rows per page** from the server (server-side pagination, scoped only to the search box).
-- The four Select filters and sorting run **client-side over `rows`** — meaning over only the 50 rows on screen.
-- Result: picking `Compounding`, `Has Phone`, `Has Balance`, or `Suspended` often shows "No matching partners found" (or only a handful) even when many matches exist on other pages. The pager also collapses to "1/1", hiding the rest of the data.
-- The Payout Range filter already has the correct fix (it pre-fetches all matching IDs across pages into `allRowsForPayoutFilter`). The other four filters do not.
+Both issues need fixing.
 
-## Fix
+## Fix Plan
 
-Extend the existing "fetch all matching IDs across pages" pattern to also activate whenever **any** local filter (status, ROI mode, contact, wallet) is engaged — not just the payout date range.
+### 1. Make the NFC card payload self-sufficient (server-side hydration)
 
-### Technical changes (single file: `src/components/coo/COOPartnersPage.tsx`)
+Update `supabase/functions/verify-nfc-card/index.ts` so it accepts the **compact card form** (just `card_id` + `hmac_signature` + `version` + `issuer`) and hydrates the missing fields from the `nfc_cards` table before recomputing the HMAC. This matches what the printable JSON/PDF actually contains and what users will write to physical cards.
 
-1. **Rename + repurpose** `allRowsForPayoutFilter` → `allRowsForLocalFilter` (and its loading flag) so it represents "all rows across pages, scoped to current search" whenever ANY local filter is active.
+- If `user_id` / `pinless_limit` / `issued_at` are missing on the incoming `card`, look up `nfc_cards` by `card_id`, pull `user_id`, `pinless_limit`, `issued_at`, then recompute `expectedSig = HMAC(card_id|user_id|pinless_limit|issued_at)` and compare with `hmac_signature`.
+- Keep the existing full-payload path as a fallback (backward compat).
+- Tighten the "Card payload incomplete" error so only truly invalid payloads (no `card_id` or no `hmac_signature`) get rejected.
 
-2. **Update the prefetch `useEffect`** (currently keyed on `payoutDateFrom/payoutDateTo`) to trigger on **any** of:
-   - `filterStatus !== 'all'`
-   - `filterRoiMode !== 'all'`
-   - `filterContact !== 'all'`
-   - `filterWallet !== 'all'`
-   - `payoutDateFrom || payoutDateTo`
-   
-   When none are active, clear `allRowsForLocalFilter` and fall back to the paged `rows`.
+### 2. Make the client-side NDEF reader more tolerant
 
-3. **`processed` memo**: source from `allRowsForLocalFilter ?? rows` whenever any local filter is active (already partially done for payout). Apply all filters against that source.
+In `src/components/wallet/RequestMoneyDialog.tsx` `startNfcTap()`:
+- Iterate **all** records (not break on first), and accept `recordType === 'text'`, `'mime'`, **and** `'unknown'` (decode raw bytes as UTF-8 then try JSON.parse).
+- Also try to JSON.parse the URL record body as a fallback.
+- Add a 30s waiting timeout that flips to `failed` with a clear "No card detected" message instead of spinning forever.
+- Log the read attempt + the parsed payload to console (debug aid for the user's current card).
 
-4. **Pager**: `hasLocalFilter` already collapses `totalPages` to 1 — keep that behavior so the user sees the complete filtered set on a single virtual page (consistent with how Payout Range works today).
+### 3. New transaction-result popup component
 
-5. **Loading + empty states**:
-   - While `loadingAllRowsForLocalFilter` is true, show skeleton rows (reuse the existing `isSearching` skeleton path).
-   - Empty state copy: distinguish "No partners match the selected filters" (already present) from "Loading filtered partners…".
+Create `src/components/wallet/NfcTransactionResultDialog.tsx` — a small, polished dialog with three variants:
 
-6. **Result counter** (`{processed.length} of {rows.length} (filtered)`): when filtering across all pages, compare against `totalCount` instead of `rows.length` so the counter reads e.g. "37 of 1,240 (filtered)" rather than "37 of 50".
+- **Success** — green check ring, "Payment Successful", amount in big UGX, recipient name (returned from edge function), reference id, "Done" button.
+- **Insufficient Balance** — amber/red wallet icon, "Insufficient Balance on Card", shows requested amount and (when the edge function returns it) the cardholder's available balance, "Try Smaller Amount" + "Close" buttons.
+- **Failed** — destructive icon, friendly mapped messages for: `Card signature invalid`, `Card is blocked or revoked`, `Card not registered`, `Cannot charge your own card`, `Incorrect PIN`, `NFC not supported`, generic fallback. "Try Again" + "Close".
 
-7. **No changes** to: search debounce, server pagination, column memoization, CSV export logic (already correct — it re-fetches all matching partners and re-applies filters).
+Mount this dialog from `RequestMoneyDialog` and trigger it in place of the current inline `success`/`failed` blocks for a clearer UX (the inline states stay as quick visual feedback inside the tap card, but the popup is the authoritative confirmation).
 
-### Files affected
+### 4. Edge function returns balance context on insufficient funds
 
-- `src/components/coo/COOPartnersPage.tsx` (only)
+In `verify-nfc-card`, after the cardholder is identified, call `get_user_available_balance(p_user_id := card.user_id)`. If `amount > availableBalance`, respond with HTTP 402 and:
+```json
+{ "error": "INSUFFICIENT_BALANCE", "available": <number>, "requested": <number> }
+```
+Then the popup can show "Card has UGX X available; you tried to charge UGX Y."
+
+(Note: the actual debit still happens later when the cardholder approves the `money_requests` row — but a pre-flight balance check at tap time is the correct UX so the merchant doesn't think the tap "worked" and then have it silently fail.)
+
+### 5. Memory update
+
+Add a short memory note `mem://features/wallet/nfc-card-payment` describing:
+- Compact card payload format (4 fields) is canonical; verifier hydrates from `nfc_cards`.
+- Tap creates a `money_requests` row for the cardholder to approve (no auto-debit).
+- Pre-flight balance check uses `get_user_available_balance`.
+
+## Files to change
+
+- `supabase/functions/verify-nfc-card/index.ts` — hydrate missing fields, pre-flight balance check, structured `INSUFFICIENT_BALANCE` response.
+- `src/components/wallet/RequestMoneyDialog.tsx` — tolerant NDEF reader, 30s timeout, wire popup.
+- `src/components/wallet/NfcTransactionResultDialog.tsx` — **new** popup with 3 states.
+- `mem://features/wallet/nfc-card-payment` — **new** memory + index.md update.
 
 ## Out of scope
 
-- The `Payout Range`, `Import`, `Update Dates`, `Export CSV` buttons — already working.
-- Search box behavior — already optimized in the previous turn.
-- Any backend/RPC changes — purely client-side wiring.
-
-## Expected result
-
-Picking `Compounding`, `Suspended`, `Has Phone / No Phone`, or `Has Balance / Empty` (alone or combined with Payout Range and Search) returns the **complete** matching set across all pages, with an accurate counter and no false "No matching partners found".
+- Re-issuing the user's card (their existing card stays valid once the verifier hydrates from DB).
+- Changing the actual money-movement model (still goes through `money_requests` approval).
