@@ -14,6 +14,7 @@ import { formatCurrency, SUPPORTED_CURRENCIES } from '@/lib/paymentMethods';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Wallet, TrendingUp, Lock, Phone, Building2, Banknote, BadgeCheck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { computeLedgerAvailable } from '@/lib/computeLedgerAvailable';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { UGANDA_BANKS, PAYOUT_METHODS } from '@/lib/ugandaBanks';
@@ -137,7 +138,7 @@ export default function WithdrawFlow({
     if (!open || !user) return;
     let cancelled = false;
     (async () => {
-      const [walletRes, rolesRes, availRes] = await Promise.all([
+      const [walletRes, rolesRes, ledger] = await Promise.all([
         supabase
           .from('wallets')
           .select('float_balance, advance_balance')
@@ -147,18 +148,17 @@ export default function WithdrawFlow({
           .from('user_roles')
           .select('role')
           .eq('user_id', user.id),
-        supabase.rpc('get_user_available_balance', { _user_id: user.id }),
+        // Inline ledger compute — get_user_available_balance RPC is unreliable
+        // (historically returned 0 because of a direction-value mismatch).
+        // We compute the same numbers client-side so the WITHDRAW max always
+        // matches what the server-side gate will actually allow.
+        computeLedgerAvailable(user.id).catch(() => null),
       ]);
       if (cancelled) return;
       setFloatBalance(Number(walletRes.data?.float_balance ?? 0));
       setAdvanceBalance(Number(walletRes.data?.advance_balance ?? 0));
       setUserRoles((rolesRes.data ?? []).map((r: any) => r.role));
-      // Ledger-true available — gates the entire flow. Falls back to
-      // caller-supplied availableBalance only on RPC error.
-      const availData = (availRes.data ?? null) as Record<string, unknown> | null;
-      if (availData && typeof availData.available !== 'undefined') {
-        setLedgerAvailable(Number(availData.available));
-      }
+      if (ledger) setLedgerAvailable(ledger.available);
     })();
     return () => { cancelled = true; };
   }, [open, user]);
