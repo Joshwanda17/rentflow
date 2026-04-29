@@ -18,6 +18,7 @@ import { GeneralLedger } from '@/components/manager/GeneralLedger';
 import { FinancialOverview } from '@/components/manager/FinancialOverview';
 import CFOReconciliationPanel from '@/components/cfo/CFOReconciliationPanel';
 import PhantomDriftPanel from '@/components/cfo/PhantomDriftPanel';
+import WalletReconciliationAuditPanel from '@/components/cfo/WalletReconciliationAuditPanel';
 import WithdrawableDriftAlertsPanel from '@/components/cfo/WithdrawableDriftAlertsPanel';
 
 import { CFOPartnerPayoutProcessing } from '@/components/cfo/CFOPartnerPayoutProcessing';
