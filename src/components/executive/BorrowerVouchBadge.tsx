@@ -3,6 +3,7 @@ import { ShieldCheck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
+import { onVouchUpdated } from '@/lib/vouchEvents';
 
 interface Props {
   aiId: string;
@@ -24,6 +25,16 @@ interface VouchSnapshot {
  */
 export function BorrowerVouchBadge({ aiId, className }: Props) {
   const [snap, setSnap] = useState<VouchSnapshot | null>(null);
+  const [refreshTick, setRefreshTick] = useState(0);
+
+  // Live-refresh when the underlying agent records a collection.
+  useEffect(() => {
+    return onVouchUpdated((d) => {
+      if (!d.aiId || d.aiId.toUpperCase() === aiId?.toUpperCase()) {
+        setRefreshTick((n) => n + 1);
+      }
+    });
+  }, [aiId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,7 +57,7 @@ export function BorrowerVouchBadge({ aiId, className }: Props) {
     })();
 
     return () => { cancelled = true; };
-  }, [aiId]);
+  }, [aiId, refreshTick]);
 
   if (!snap || snap.borrowing_limit_ugx <= 0) return null;
 
