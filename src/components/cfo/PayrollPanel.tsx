@@ -24,6 +24,9 @@ export function PayrollPanel() {
   const [itemAmount, setItemAmount] = useState('');
   const [itemCategory, setItemCategory] = useState('salary');
   const [itemDesc, setItemDesc] = useState('');
+  const [empAdvance, setEmpAdvance] = useState<number | null>(null);
+  const [empName, setEmpName] = useState<string>('');
+  const [recoveryPct, setRecoveryPct] = useState<string>('');
   const currentMonth = format(new Date(), 'yyyy-MM');
 
   const { data: batches = [], isLoading } = useQuery({
@@ -52,6 +55,20 @@ export function PayrollPanel() {
       return data || [];
     },
   });
+
+  // Look up employee + outstanding advance when phone resolves
+  const lookupEmployee = async () => {
+    const cleaned = empPhone.replace(/\D/g, '');
+    if (cleaned.length < 9) { setEmpAdvance(null); setEmpName(''); return; }
+    const last9 = cleaned.slice(-9);
+    const { data: profiles } = await supabase
+      .from('profiles').select('id, full_name').ilike('phone', `%${last9}`).limit(1);
+    if (!profiles?.length) { setEmpAdvance(null); setEmpName(''); return; }
+    setEmpName(profiles[0].full_name || '');
+    const { data: w } = await supabase
+      .from('wallets').select('advance_balance').eq('user_id', profiles[0].id).maybeSingle();
+    setEmpAdvance(Math.max(0, Number(w?.advance_balance ?? 0)));
+  };
 
   const createBatchMutation = useMutation({
     mutationFn: async () => {
@@ -86,12 +103,15 @@ export function PayrollPanel() {
       const amt = parseFloat(itemAmount);
       if (!amt || amt <= 0) throw new Error('Invalid amount');
 
+      const pctVal = recoveryPct === '' ? null : Math.max(0, Math.min(100, parseFloat(recoveryPct)));
+
       const { error } = await supabase.from('payroll_items').insert({
         batch_id: selectedBatch.id,
         employee_id: profiles[0].id,
         amount: amt,
         category: itemCategory,
         description: itemDesc || `${itemCategory} for ${format(new Date(), 'MMMM yyyy')}`,
+        recovery_percent: pctVal,
       });
       if (error) throw error;
 
@@ -108,9 +128,21 @@ export function PayrollPanel() {
       setEmpPhone('');
       setItemAmount('');
       setItemDesc('');
+      setEmpAdvance(null);
+      setEmpName('');
+      setRecoveryPct('');
       setShowAddItem(false);
     },
     onError: (e: any) => toast({ title: 'Error', description: e.message, variant: 'destructive' }),
+  });
+
+  const updateBatchPctMutation = useMutation({
+    mutationFn: async ({ batchId, pct }: { batchId: string; pct: number }) => {
+      const { error } = await supabase.from('payroll_batches')
+        .update({ default_recovery_percent: pct }).eq('id', batchId);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['payroll-batches'] }),
   });
 
   const processMutation = useMutation({
