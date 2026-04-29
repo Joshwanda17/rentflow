@@ -248,6 +248,7 @@ export default function CFODashboard() {
           {/* Reconciliation Tab */}
           <TabsContent value="reconciliation" className="space-y-6">
             <CFOReconciliationPanel />
+            <WalletReconciliationAuditPanel />
           </TabsContent>
 
           {/* Ledger Tab */}
