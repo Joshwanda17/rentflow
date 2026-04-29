@@ -1,34 +1,42 @@
-# Connect "Total Money in All Wallets" → Wallet Deductions
+## Why
 
-The hero card "TOTAL MONEY IN ALL WALLETS" on the Financial Ops home is currently passive (just numbers + auto-refresh toggle). The user wants it to act as a doorway into the **Wallet Deductions** tool (currently buried behind the "More" sheet). Tapping the hero opens the same Wallet Deductions screen shown in the second screenshot.
+Right now the Wallet Deductions list shows a single "Available (ledger)" figure that is actually `wallets.balance` = **withdrawable + float**. Float is company money we owe back to the user (rent supporters' parked funds, agent float, etc.) and must never be visually merged with their own withdrawable cash.
+
+Confirmed from DB on the current 229 wallets:
+- 217 wallets carry withdrawable balances (UGX 144,122,644 total)
+- 22 wallets carry float (UGX 1,262,426 total — company liability)
+- Example: LOLEM FIRICILA shows UGX 2,199,539 but only UGX 1,597,133 is hers; UGX 602,406 is float we owe her
 
 ## What changes
 
-- The big purple hero card becomes clickable. Tapping anywhere on its main body (title + total + wallet/active counts) opens Wallet Deductions.
-- The two inner stat tiles ("Awaiting verification" / "Awaiting payout") and the auto-refresh `Live` switch keep their existing behavior — clicks on those do NOT trigger navigation (event isolation).
-- A small visual affordance is added to the hero so operators see it's interactive: a subtle hover lift, a `MinusCircle` chevron-style hint chip in the header reading "Tap to deduct", and a `cursor-pointer` + focus ring for keyboard users.
+### 1. RPC `search_wallets_by_balance` returns the breakdown
+Migrate the function to also return `withdrawable_balance` and `float_balance` (keeps the same `balance` total for back-compat). Filter range still uses `wallets.balance` so the count keeps matching the hero "229 with balance" pill.
 
-## Behavior
+### 2. Wallet Deductions list (`WalletDeductionPanel.tsx`)
+Each row now shows two stacked figures on the right:
 
-- Click / Enter / Space on the hero → calls a new `onOpenDeductions` callback.
-- `FinancialOpsCommandCenter` passes a callback that does `setActiveTool('deductions')`, which already routes to the existing `WalletDeductionPanel` view (the screen in image 2 — no changes needed there).
-- The two nested stat tiles wrap their `onClick`s with `e.stopPropagation()` so they remain independently clickable in the future without firing the parent.
-- The Live/Paused `<label>` already swallows clicks via the `<Switch>`, but we'll add `e.stopPropagation()` on the label to be safe.
+```text
+Withdrawable     UGX 1,597,133
+Float (owed)     UGX 602,406      ← amber pill, only when > 0
+```
+
+- Rows with zero withdrawable but float > 0 get a small "Float only — company liability" tag so an operator never deducts from money we owe.
+- The list summary header changes from one total to two:
+  `217 with withdrawable · UGX 144.1M  ·  22 carry float · UGX 1.26M`
+
+### 3. Selected-user card
+Replace the single "Available: UShX" line with a two-row breakdown:
+- Withdrawable (deductible) — bold
+- Float (company owes user) — muted amber, with helper text "Not deductible from this tool"
+
+The amount-vs-available validation already gates on `trueBalance` (ledger withdrawable), so deduction safety is unchanged — this is purely making the display honest.
+
+### 4. Direct-table fallback
+Update the fallback `wallets` query to also select `withdrawable_balance, float_balance` so the same breakdown renders whether RPC or fallback path runs.
 
 ## Files
+- `supabase/migrations/<new>.sql` — extend `search_wallets_by_balance` return signature
+- `src/components/financial-ops/WalletDeductionPanel.tsx` — `UserResult` type, list row, summary, selected-user card, fallback query
 
-- `src/components/financial-ops/WalletOverviewCard.tsx`
-  - Add optional prop `onOpenDeductions?: () => void`.
-  - Wrap the outer `<div>` as a `<button type="button">` (or keep `<div role="button" tabIndex={0}>` to preserve the existing layout) with `onClick`, `onKeyDown` (Enter/Space), `cursor-pointer`, hover state (`hover:border-primary/60 hover:shadow-md transition-all`), and a focus ring.
-  - Add a small "Tap to deduct" hint pill on the right side of the header (next to the Live toggle) using `MinusCircle` icon, muted styling.
-  - Add `stopPropagation` on the auto-refresh label.
-
-- `src/components/financial-ops/FinancialOpsCommandCenter.tsx`
-  - Pass `onOpenDeductions={() => openTool('deductions')}` to `<WalletOverviewCard />`.
-
-## Technical notes
-
-- No DB / RPC changes. Wallet Deductions tool is already wired (`activeTool === 'deductions'` renders `<WalletDeductionPanel />`).
-- Keep the card backwards-compatible: if `onOpenDeductions` is undefined, the card renders as a plain non-interactive panel (same as today). This avoids breaking any other surface that might mount `WalletOverviewCard`.
-- Accessibility: `role="button"`, `aria-label="Open Wallet Deductions"`, visible focus ring, `tabIndex={0}`.
-- Keep the existing auto-refresh toggle, totals, and the two inner tiles untouched visually — only add the hover/hint affordance and the wrapping click handler.
+## Out of scope
+No change to the `wallet-deduction` edge function or to ledger logic. No change to the hero "X with balance" count (still based on `wallets.balance`).
