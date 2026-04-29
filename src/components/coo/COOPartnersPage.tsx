@@ -1293,6 +1293,68 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     setPage(0);
   }
 
+  /* ─── Export: fetches ALL matching partners (across every page) and ─── */
+  /* ─── re-applies the active local filters before writing the CSV.    ─── */
+  const [exporting, setExporting] = useState(false);
+  async function handleExportAll() {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      // Page through all matching supporter ids using the same server-side
+      // search predicate so the export reflects the full result set, not just
+      // the rows currently rendered.
+      const allIds: string[] = [];
+      let p = 0;
+      // Hard cap to avoid runaway loops; matches the 2000-match limit upstream.
+      while (p < 200) {
+        const { ids } = await fetchPaginatedSupporterIds(p, PAGE_SIZE, debouncedSearch);
+        if (ids.length === 0) break;
+        allIds.push(...ids);
+        if (ids.length < PAGE_SIZE) break;
+        p += 1;
+      }
+      if (allIds.length === 0) {
+        toast.info('No partners to export');
+        return;
+      }
+      const fullRows = await buildRowsForIds(allIds);
+
+      // Re-apply local filters (status / roiMode / contact / wallet / payout window)
+      // so the exported CSV matches what the user is filtering for in the UI.
+      let filtered = fullRows;
+      if (filterStatus !== 'all') filtered = filtered.filter(r => r.status === filterStatus);
+      if (filterRoiMode !== 'all') filtered = filtered.filter(r => r.roiMode === filterRoiMode);
+      if (filterContact === 'has_phone') filtered = filtered.filter(r => r.phone && !r.phone.includes('@'));
+      else if (filterContact === 'no_phone') filtered = filtered.filter(r => !r.phone || r.phone.includes('@'));
+      else if (filterContact === 'has_email') filtered = filtered.filter(r => r.email && !r.email.includes('placeholder'));
+      else if (filterContact === 'no_email') filtered = filtered.filter(r => !r.email || r.email.includes('placeholder'));
+      if (filterWallet === 'has_balance') filtered = filtered.filter(r => (r.walletBalance || 0) > 0);
+      else if (filterWallet === 'empty') filtered = filtered.filter(r => (r.walletBalance || 0) <= 0);
+      if (payoutDateFrom || payoutDateTo) {
+        const fromMs = payoutDateFrom ? new Date(payoutDateFrom.getFullYear(), payoutDateFrom.getMonth(), payoutDateFrom.getDate()).getTime() : null;
+        const toMs = payoutDateTo ? new Date(payoutDateTo.getFullYear(), payoutDateTo.getMonth(), payoutDateTo.getDate(), 23, 59, 59, 999).getTime() : null;
+        filtered = filtered.filter(r => {
+          const dates: string[] = ((r as any).payoutDates as string[] | undefined) ?? ((r as any).nextRoiDate ? [(r as any).nextRoiDate] : []);
+          if (!dates.length) return false;
+          return dates.some(d => {
+            const t = new Date(d + 'T00:00:00').getTime();
+            if (isNaN(t)) return false;
+            if (fromMs !== null && t < fromMs) return false;
+            if (toMs !== null && t > toMs) return false;
+            return true;
+          });
+        });
+      }
+      exportToCSV(filtered);
+      toast.success(`Exported ${filtered.length} partner${filtered.length !== 1 ? 's' : ''}`);
+    } catch (e: any) {
+      console.error('Export failed', e);
+      toast.error(e?.message || 'Export failed');
+    } finally {
+      setExporting(false);
+    }
+  }
+
   /* ─── Invest ─── */
   async function handleInvest() {
     if (!investPartner) return;
