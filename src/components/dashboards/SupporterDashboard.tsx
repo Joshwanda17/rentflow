@@ -476,7 +476,10 @@ export default function SupporterDashboard({
                   <WidgetCardSkeleton />
                 </div>
               ) : (
-                <FunderCapitalOpportunities />
+                <>
+                  <FunderApprovalBanner className="mb-3" />
+                  <FunderCapitalOpportunities />
+                </>
               )}
             </WidgetErrorBoundary>
           </div>
