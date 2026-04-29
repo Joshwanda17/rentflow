@@ -825,7 +825,50 @@ export function ProxyPartnerFunds() {
           <Download className="h-3 w-3" />
           Download
         </Button>
+        <Button
+          size="sm"
+          variant={selectMode ? 'default' : 'outline'}
+          className="h-7 text-xs gap-1"
+          onClick={() => {
+            setSelectMode(s => !s);
+            setSelectedKeys(new Set());
+          }}
+          disabled={visibleBalances.length === 0}
+        >
+          <CheckSquare className="h-3 w-3" />
+          {selectMode ? 'Cancel select' : 'Select to clear'}
+        </Button>
       </div>
+
+      {selectMode && (
+        <div className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 text-xs">
+          <button
+            type="button"
+            className="font-medium text-primary hover:underline"
+            onClick={() => {
+              const allKeys = new Set(visibleBalances.map(p => getCardKey(p)));
+              const allSelected = visibleBalances.every(p => selectedKeys.has(getCardKey(p)));
+              setSelectedKeys(allSelected ? new Set() : allKeys);
+            }}
+          >
+            {visibleBalances.every(p => selectedKeys.has(getCardKey(p))) && selectedKeys.size > 0
+              ? 'Unselect all'
+              : `Select all visible (${visibleBalances.length})`}
+          </button>
+          <Button
+            size="sm"
+            variant="destructive"
+            className="h-7 text-xs gap-1"
+            disabled={selectedKeys.size === 0}
+            onClick={() => openClearDialog(
+              visibleBalances.filter(p => selectedKeys.has(getCardKey(p)))
+            )}
+          >
+            <Trash2 className="h-3 w-3" />
+            Clear {selectedKeys.size} selected
+          </Button>
+        </div>
+      )}
 
       {visibleBalances.map((partner) => {
         const statusKey = getStatusKey(partner);
