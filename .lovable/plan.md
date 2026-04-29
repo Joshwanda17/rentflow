@@ -1,75 +1,34 @@
-# Funder Activation Modal + Deposit Highlight
+# Connect "Total Money in All Wallets" → Wallet Deductions
 
-After a self-registered Funder is approved by Partner Onboarding, show a celebratory "Account Fully Activated" modal on dashboard load. Clicking the CTA closes the modal and gracefully highlights the Deposit button. Only shows when the Funder has zero wallet balance, with a "Remind me in 1 hour" pause option.
+The hero card "TOTAL MONEY IN ALL WALLETS" on the Financial Ops home is currently passive (just numbers + auto-refresh toggle). The user wants it to act as a doorway into the **Wallet Deductions** tool (currently buried behind the "More" sheet). Tapping the hero opens the same Wallet Deductions screen shown in the second screenshot.
+
+## What changes
+
+- The big purple hero card becomes clickable. Tapping anywhere on its main body (title + total + wallet/active counts) opens Wallet Deductions.
+- The two inner stat tiles ("Awaiting verification" / "Awaiting payout") and the auto-refresh `Live` switch keep their existing behavior — clicks on those do NOT trigger navigation (event isolation).
+- A small visual affordance is added to the hero so operators see it's interactive: a subtle hover lift, a `MinusCircle` chevron-style hint chip in the header reading "Tap to deduct", and a `cursor-pointer` + focus ring for keyboard users.
 
 ## Behavior
 
-**Show modal when ALL true:**
-- `signup_source === 'funder-onboarding'` (self-registered)
-- `funder_verified_at` is set (approved by Partner Ops / COO)
-- `wallet.balance === 0` AND `wallet.withdrawable_balance === 0` (no money in wallet — never spam funded users)
-- No active "snooze until" timestamp in localStorage, OR the snooze has expired
-- User has not permanently dismissed it (auto-dismissed once they make a deposit, since balance > 0 will then suppress it)
+- Click / Enter / Space on the hero → calls a new `onOpenDeductions` callback.
+- `FinancialOpsCommandCenter` passes a callback that does `setActiveTool('deductions')`, which already routes to the existing `WalletDeductionPanel` view (the screen in image 2 — no changes needed there).
+- The two nested stat tiles wrap their `onClick`s with `e.stopPropagation()` so they remain independently clickable in the future without firing the parent.
+- The Live/Paused `<label>` already swallows clicks via the `<Switch>`, but we'll add `e.stopPropagation()` on the label to be safe.
 
-**Triggers:** every page load / dashboard mount that satisfies the conditions above.
+## Files
 
-**Snooze:** "Remind me in 1 hour" stores `Date.now() + 3_600_000` in `localStorage` under key `funder_activation_snooze_<userId>`. Modal stays hidden until that timestamp passes.
+- `src/components/financial-ops/WalletOverviewCard.tsx`
+  - Add optional prop `onOpenDeductions?: () => void`.
+  - Wrap the outer `<div>` as a `<button type="button">` (or keep `<div role="button" tabIndex={0}>` to preserve the existing layout) with `onClick`, `onKeyDown` (Enter/Space), `cursor-pointer`, hover state (`hover:border-primary/60 hover:shadow-md transition-all`), and a focus ring.
+  - Add a small "Tap to deduct" hint pill on the right side of the header (next to the Live toggle) using `MinusCircle` icon, muted styling.
+  - Add `stopPropagation` on the auto-refresh label.
 
-**Primary CTA — "Deposit now":**
-1. Closes the modal.
-2. Smooth-scrolls the wallet hero card into view.
-3. Adds a temporary highlight (ring + soft pulse, ~2.5s) to the Deposit button inside `FunderQuickActions`.
-4. Does NOT auto-open the deposit sheet (user taps the highlighted button themselves — clearer affordance).
-
-## Modal UI
-
-```text
-┌─────────────────────────────────┐
-│            [ ✓ ]                │   ← circular check icon, primary purple
-│                                 │
-│   Your account is fully         │
-│        activated                │
-│                                 │
-│  You're all set. Add money to   │
-│  your wallet to start backing   │
-│  tenants and earning returns.   │
-│                                 │
-│  [        Deposit now        ]  │   ← primary purple button
-│  [    Remind me in 1 hour    ]  │   ← ghost button
-└─────────────────────────────────┘
-```
-
-- Check icon: filled circle, `bg-primary/10`, `CheckCircle2` from lucide in `text-primary`, ~64px.
-- Title: `text-xl font-bold`.
-- Body: `text-sm text-muted-foreground`, two short lines.
-- Buttons: full-width, stacked.
-- No close (X) — user must pick "Deposit now" or "Remind me in 1 hour" so the choice is intentional.
-
-## Files to create
-
-- `src/components/supporter/FunderActivationModal.tsx` — Dialog component. Props: `open`, `onOpenChange`, `onDepositClick`, `onSnooze`.
-
-## Files to edit
-
-- `src/components/dashboards/SupporterDashboard.tsx`
-  - Read approval state via existing `useFunderApprovalStatus(user.id)` (already exposes `isSelfRegistered` + `verifiedAt` server-side; we'll also read `signup_source` + `funder_verified_at` from the profile query already in use, or extend the hook to surface those two flags publicly — see Technical notes).
-  - Compute `shouldShowActivationModal` from approval flags + `wallet.balance === 0` + snooze check.
-  - Render `<FunderActivationModal>` and pass `onDepositClick` that:
-    - Sets a `highlightDeposit` state `true` for 2500ms.
-    - Smooth-scrolls the wallet hero card into view.
-  - Pass `highlightDeposit` down to `FunderQuickActions` via a new optional prop.
-
-- `src/components/supporter/FunderQuickActions.tsx`
-  - Add optional `highlightDeposit?: boolean` prop.
-  - When true, add `ring-2 ring-primary ring-offset-2 animate-pulse` (or a custom soft pulse class) to the Deposit `<Button>` for the duration the prop stays true.
+- `src/components/financial-ops/FinancialOpsCommandCenter.tsx`
+  - Pass `onOpenDeductions={() => openTool('deductions')}` to `<WalletOverviewCard />`.
 
 ## Technical notes
 
-- **Approval source**: `useFunderApprovalStatus` already fetches `profiles.signup_source` and `profiles.funder_verified_at`. Extend its return type to expose `isSelfRegistered: boolean` and `verifiedAt: string | null` (currently consumed only internally). No new query needed.
-- **Wallet zero check**: use the existing `wallet` from `useWallet()` already in `SupporterDashboard`. Treat both `wallet.balance` and `wallet.withdrawable_balance` (when present) as 0.
-- **Snooze key**: `funder_activation_snooze_<userId>` in `localStorage`. Read on mount and whenever the modal would otherwise open.
-- **No DB migration**: pure client-side gating. Approval source of truth (`funder_verified_at`) already exists.
-- **Highlight cleanup**: `useEffect` with `setTimeout(2500)` clearing `highlightDeposit` back to false; clear on unmount.
-- **Scroll target**: add `id="funder-wallet-hero"` to the `UnifiedWalletHeroCard` wrapper so the deposit CTA can `scrollIntoView`.
-- **Accessibility**: modal has proper `DialogTitle` + `DialogDescription`; check icon marked `aria-hidden`.
-- **Respects existing patterns**: reuses shadcn `Dialog`, `Button`, `lucide-react` icons, project primary color tokens — no new design system surface.
+- No DB / RPC changes. Wallet Deductions tool is already wired (`activeTool === 'deductions'` renders `<WalletDeductionPanel />`).
+- Keep the card backwards-compatible: if `onOpenDeductions` is undefined, the card renders as a plain non-interactive panel (same as today). This avoids breaking any other surface that might mount `WalletOverviewCard`.
+- Accessibility: `role="button"`, `aria-label="Open Wallet Deductions"`, visible focus ring, `tabIndex={0}`.
+- Keep the existing auto-refresh toggle, totals, and the two inner tiles untouched visually — only add the hover/hint affordance and the wrapping click handler.

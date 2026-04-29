@@ -177,7 +177,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         </p>
       </div>
 
-      <WalletOverviewCard />
+      <WalletOverviewCard onOpenDeductions={() => openTool('deductions')} />
       <FinancialOpsPulseStrip />
 
       {/* ═══ CORE: Wallet Management ═══

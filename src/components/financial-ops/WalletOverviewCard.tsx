@@ -1,11 +1,20 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Wallet, Users, ShieldCheck, Banknote, Pause, Play } from 'lucide-react';
+import { Wallet, Users, ShieldCheck, Banknote, Pause, Play, MinusCircle, ChevronRight } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useFinOpsAutoRefresh, setFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
 import { Switch } from '@/components/ui/switch';
 
-export function WalletOverviewCard() {
+interface WalletOverviewCardProps {
+  /**
+   * When provided, the hero body becomes a button that opens the Wallet
+   * Deductions tool. The auto-refresh toggle and inner stat tiles still
+   * stop propagation so they keep their independent behavior.
+   */
+  onOpenDeductions?: () => void;
+}
+
+export function WalletOverviewCard({ onOpenDeductions }: WalletOverviewCardProps = {}) {
   // Operators reviewing a deposit don't want the screen reshuffling under
   // their cursor. The shared toggle gates polling on this card AND on the
   // Verify Deposits hub at the same time.
@@ -56,8 +65,33 @@ export function WalletOverviewCard() {
     staleTime: 15_000,
   });
 
+  const interactive = !!onOpenDeductions;
+
+  const handleOpen = () => {
+    if (onOpenDeductions) onOpenDeductions();
+  };
+
+  const handleKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!interactive) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleOpen();
+    }
+  };
+
   return (
-    <div className="rounded-2xl border-2 border-primary/40 bg-gradient-to-br from-primary/10 via-primary/5 to-background p-5 sm:p-6">
+    <div
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      aria-label={interactive ? 'Open Wallet Deductions' : undefined}
+      onClick={interactive ? handleOpen : undefined}
+      onKeyDown={interactive ? handleKey : undefined}
+      className={`rounded-2xl border-2 border-primary/40 bg-gradient-to-br from-primary/10 via-primary/5 to-background p-5 sm:p-6 ${
+        interactive
+          ? 'cursor-pointer transition-all hover:border-primary/60 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background'
+          : ''
+      }`}
+    >
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-center gap-3 min-w-0">
           <div className="h-10 w-10 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
@@ -68,10 +102,22 @@ export function WalletOverviewCard() {
           </p>
         </div>
 
-        {/* Auto-refresh toggle — paused state surfaces clearly so operators
-            never wonder why a number is stale. */}
-        <label
-          className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground cursor-pointer select-none shrink-0"
+        <div className="flex items-center gap-2 shrink-0">
+          {interactive && (
+            <span
+              className="hidden sm:inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary"
+              aria-hidden
+            >
+              <MinusCircle className="h-3 w-3" /> Tap to deduct
+              <ChevronRight className="h-3 w-3" />
+            </span>
+          )}
+
+          {/* Auto-refresh toggle — paused state surfaces clearly so operators
+              never wonder why a number is stale. */}
+          <label
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground cursor-pointer select-none shrink-0"
           title={
             autoRefresh
               ? 'Auto-refresh is on. Pause to keep the screen stable while you review.'
@@ -92,7 +138,8 @@ export function WalletOverviewCard() {
             aria-label="Toggle auto-refresh"
             className="ml-1"
           />
-        </label>
+          </label>
+        </div>
       </div>
       <p className={`text-3xl sm:text-4xl font-black tabular-nums tracking-tight ${isLoading ? 'animate-pulse text-muted-foreground' : 'text-foreground'}`}>
         {isLoading ? '———' : formatUGX(data?.totalBalance ?? 0)}
@@ -109,7 +156,10 @@ export function WalletOverviewCard() {
 
       {/* ─── Two live key stats that mirror the two action buttons below ─── */}
       <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-primary/15">
-        <div className="rounded-xl bg-background/60 backdrop-blur-sm border border-border p-3">
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="rounded-xl bg-background/60 backdrop-blur-sm border border-border p-3"
+        >
           <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
             <ShieldCheck className="h-3 w-3" /> Awaiting verification
           </div>
@@ -118,7 +168,10 @@ export function WalletOverviewCard() {
           </p>
           <p className="text-[10px] text-muted-foreground">user + field deposits</p>
         </div>
-        <div className="rounded-xl bg-background/60 backdrop-blur-sm border border-border p-3">
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="rounded-xl bg-background/60 backdrop-blur-sm border border-border p-3"
+        >
           <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
             <Banknote className="h-3 w-3" /> Awaiting payout
           </div>
