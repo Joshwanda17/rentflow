@@ -112,6 +112,42 @@ export default function SupporterDashboard({
   const { fireSuccess, fireFirstFunding } = useConfetti();
   const [hasEverFunded, setHasEverFunded] = useState<boolean | null>(null);
 
+  // ─── Funder activation modal (self-registered + just approved + empty wallet) ───
+  const { isSelfRegistered, verifiedAt } = useFunderApprovalStatus(user.id);
+  const [showActivationModal, setShowActivationModal] = useState(false);
+  const [highlightDeposit, setHighlightDeposit] = useState(false);
+  const SNOOZE_KEY = `funder_activation_snooze_${user.id}`;
+
+  useEffect(() => {
+    if (!isSelfRegistered || !verifiedAt) return;
+    const walletEmpty =
+      (wallet?.balance ?? 0) === 0 &&
+      (((wallet as any)?.withdrawable_balance ?? 0) === 0);
+    if (!walletEmpty) return;
+    try {
+      const raw = localStorage.getItem(SNOOZE_KEY);
+      const snoozeUntil = raw ? parseInt(raw, 10) : 0;
+      if (snoozeUntil && Date.now() < snoozeUntil) return;
+    } catch {}
+    setShowActivationModal(true);
+  }, [isSelfRegistered, verifiedAt, wallet?.balance, (wallet as any)?.withdrawable_balance, SNOOZE_KEY]);
+
+  const handleActivationDeposit = () => {
+    setShowActivationModal(false);
+    try { localStorage.removeItem(SNOOZE_KEY); } catch {}
+    setTimeout(() => {
+      const el = document.getElementById('funder-wallet-hero');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setHighlightDeposit(true);
+      setTimeout(() => setHighlightDeposit(false), 2500);
+    }, 150);
+  };
+
+  const handleActivationSnooze = () => {
+    try { localStorage.setItem(SNOOZE_KEY, String(Date.now() + 60 * 60 * 1000)); } catch {}
+    setShowActivationModal(false);
+  };
+
   // Local-first: read cache synchronously in useState init
   const [virtualHouses, setVirtualHouses] = useState<VirtualHouse[]>(() => {
     try {
