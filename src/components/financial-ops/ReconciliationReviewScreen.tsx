@@ -147,7 +147,7 @@ export function ReconciliationReviewScreen({
       const { data, error } = await supabase
         .from('deposit_requests')
         .select(
-          'id, amount, transaction_id, notes, status, deposit_purpose, created_at, user_id'
+          'id, amount, transaction_id, notes, status, deposit_purpose, purpose_audit, created_at, user_id'
         )
         .or(`transaction_id.ilike.%${ref}%,notes.ilike.%${ref}%`)
         .order('created_at', { ascending: false })
