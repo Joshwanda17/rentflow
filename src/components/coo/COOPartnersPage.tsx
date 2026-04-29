@@ -1929,7 +1929,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         </div>
         {/* Pagination */}
         <div className="flex items-center justify-between px-3 py-2 border-t border-border bg-muted/30">
-          <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground tabular-nums">
+          <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground tabular-nums flex items-center gap-1.5">
+            {loadingAllRowsForPayout && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
             {hasLocalFilter
               ? `${processed.length.toLocaleString()} of ${totalCount.toLocaleString()} (filtered)`
               : processed.length === rows.length
