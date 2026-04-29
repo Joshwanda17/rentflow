@@ -267,6 +267,40 @@ export function AgentBulkOpsConsole({ onBack }: { onBack?: () => void }) {
               </pre>
             </details>
           )}
+
+          {/* Quick actions — single-agent only */}
+          {resolved.count === 1 && (
+            <div className="mt-3 pt-3 border-t border-primary/20">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Quick actions for this agent
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {QUICK_PRESETS.map(p => {
+                  const Icon = p.icon;
+                  const toneClass =
+                    p.tone === 'destructive' ? 'border-destructive/40 text-destructive hover:bg-destructive/10' :
+                    p.tone === 'warning'     ? 'border-amber-300 text-amber-700 hover:bg-amber-50' :
+                    p.tone === 'success'     ? 'border-emerald-300 text-emerald-700 hover:bg-emerald-50' :
+                                               'border-border text-foreground hover:bg-muted';
+                  return (
+                    <button
+                      key={p.key}
+                      type="button"
+                      onClick={() => applyPreset(p)}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition active:scale-95 ${toneClass}`}
+                      title={`${p.action === 'enable' ? 'Enable' : 'Disable'}: ${p.caps.join(', ')}`}
+                    >
+                      <Icon className="h-3 w-3" />
+                      {p.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1.5">
+                Presets pre-fill the function list, action, and reason — review and confirm in step 3.
+              </p>
+            </div>
+          )}
         </Card>
       )}
 
@@ -310,7 +344,7 @@ export function AgentBulkOpsConsole({ onBack }: { onBack?: () => void }) {
       </Card>
 
       {/* Step 3 – reason + confirm */}
-      <Card className="p-4">
+      <Card id="bulk-ops-confirm-card" className="p-4">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
           3 · Reason &amp; confirm
         </p>
