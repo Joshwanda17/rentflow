@@ -1879,10 +1879,25 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
               </tr>
             </thead>
             <tbody className="divide-y divide-border/30">
-              {paged.length === 0 ? (
+              {isSearching && paged.length === 0 ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={`sk-${i}`} className="animate-pulse">
+                    <td className="px-2 sm:px-3 py-3"><div className="h-3 w-4 bg-muted rounded" /></td>
+                    {columns.map(col => (
+                      <td key={col.key} className={cn('px-2 sm:px-3 py-3', col.hideOnMobile && 'hidden lg:table-cell')}>
+                        <div className="h-3 w-20 bg-muted rounded" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : paged.length === 0 ? (
                 <tr>
                   <td colSpan={columns.length + 1} className="px-4 py-12 text-center text-sm text-muted-foreground italic">
-                    {search ? 'No matching partners found' : 'No partners registered'}
+                    {hasLocalFilter
+                      ? 'No partners match the selected filters'
+                      : search
+                        ? `No matching partners found for "${search}"`
+                        : 'No partners registered'}
                   </td>
                 </tr>
               ) : (
