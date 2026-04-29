@@ -696,11 +696,13 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     setPendingApprovalCount(count || 0);
   }, []);
 
-  // Debounce search input
+  // Debounce search input — single source of truth for resetting page on search.
+  // The input's onChange purposefully does NOT touch page, so we only fire one
+  // fetch per settled search term instead of one per keystroke.
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSearch(search);
-      setPage(0);
+      setDebouncedSearch(prev => (prev === search ? prev : search));
+      setPage(prev => (prev === 0 ? prev : 0));
     }, 400);
     return () => clearTimeout(timer);
   }, [search]);
