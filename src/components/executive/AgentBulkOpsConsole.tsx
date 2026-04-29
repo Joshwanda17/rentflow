@@ -584,22 +584,22 @@ function AgentSnapshotPanel({
   const { data, isLoading, refetch, dataUpdatedAt } = useQuery({
     queryKey: ['agent-snapshot', agentId],
     queryFn: async () => {
-      const [capsRes, profileRes] = await Promise.all([
-        supabase
-          .from('agent_capabilities')
-          .select('capability,status,granted_at,revoked_at,updated_at,granted_by,revoked_by')
-          .eq('agent_id', agentId)
-          .order('updated_at', { ascending: false }),
-        supabase
-          .from('profiles')
-          .select('full_name,phone,role,is_frozen,last_active_at,updated_at')
-          .eq('user_id', agentId)
-          .maybeSingle(),
-      ]);
+      const capsRes = await supabase
+        .from('agent_capabilities')
+        .select('capability,status,granted_at,revoked_at,updated_at')
+        .eq('agent_id', agentId)
+        .order('updated_at', { ascending: false });
       if (capsRes.error) throw capsRes.error;
+
+      const profileRes = await supabase
+        .from('profiles')
+        .select('full_name,phone')
+        .eq('user_id', agentId)
+        .maybeSingle();
+
       return {
         caps: capsRes.data ?? [],
-        profile: profileRes.data ?? null,
+        profile: (profileRes.data as { full_name: string | null; phone: string | null } | null) ?? null,
       };
     },
     staleTime: 15_000,
@@ -625,7 +625,6 @@ function AgentSnapshotPanel({
   const profile = data?.profile;
   const displayName = profile?.full_name ?? fallbackName ?? agentId.slice(0, 8);
   const displayPhone = profile?.phone ?? fallbackPhone ?? '—';
-  const isFrozen = !!profile?.is_frozen;
 
   // Diff: which pending changes are no-ops vs real changes?
   const diff = useMemo(() => {
