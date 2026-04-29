@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import {
   ChevronLeft, Filter, FileUp, Layers, AlertTriangle, ShieldAlert, CheckCircle2, RefreshCw, Loader2, XCircle,
 } from 'lucide-react';
-import { ChevronDown, ChevronRight, Clock, AlertCircle, Search, User } from 'lucide-react';
+import { ChevronDown, ChevronRight, Clock, AlertCircle, Search, User, History as HistoryIcon, Skull } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 
 /**
@@ -385,13 +385,16 @@ export function AgentBulkOpsConsole({ onBack }: { onBack?: () => void }) {
         {/* Right rail — agent snapshot when a single agent is staged */}
         {resolved && resolved.count === 1 && (
           <aside className="w-full lg:w-80 lg:sticky lg:top-4 shrink-0">
-            <AgentSnapshotPanel
-              agentId={resolved.agentIds[0]}
-              fallbackName={resolved.sample[0]?.full_name ?? null}
-              fallbackPhone={resolved.sample[0]?.phone ?? null}
-              pendingCaps={Array.from(selectedCaps)}
-              pendingAction={action}
-            />
+            <div className="space-y-3">
+              <AgentSnapshotPanel
+                agentId={resolved.agentIds[0]}
+                fallbackName={resolved.sample[0]?.full_name ?? null}
+                fallbackPhone={resolved.sample[0]?.phone ?? null}
+                pendingCaps={Array.from(selectedCaps)}
+                pendingAction={action}
+              />
+              <AgentHistoryPanel agentId={resolved.agentIds[0]} />
+            </div>
           </aside>
         )}
       </div>
@@ -782,6 +785,209 @@ function AgentSnapshotPanel({
  * as a 1-agent target. Lets a manager work on a specific agent inside the
  * same Bulk Ops flow (same audit, same job pipeline).
  * =====================================================================*/
+/* =====================================================================
+ * AgentHistoryPanel — past ops jobs that targeted this agent + outcomes.
+ * Pulls from agent_capability_ops_jobs (filtered by agent_ids @> {id}),
+ * each job's batch outcomes, and any open dead-letter rows. Read-only.
+ * =====================================================================*/
+function AgentHistoryPanel({ agentId }: { agentId: string }) {
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  const q = useQuery({
+    queryKey: ['agent-ops-history', agentId],
+    queryFn: async () => {
+      const jobsRes = await supabase
+        .from('agent_capability_ops_jobs')
+        .select('id,action,capabilities,reason,status,source,total_agents,affected_total,failed_total,total_batches,batches_done,created_at,started_at,finished_at,last_error')
+        .contains('agent_ids', [agentId])
+        .order('created_at', { ascending: false })
+        .limit(25);
+      if (jobsRes.error) throw jobsRes.error;
+      const jobs = jobsRes.data ?? [];
+      const jobIds = jobs.map(j => j.id);
+
+      let dlMap: Record<string, number> = {};
+      if (jobIds.length > 0) {
+        const dlRes = await supabase
+          .from('agent_capability_ops_dead_letters')
+          .select('job_id,agent_ids,resolved_at')
+          .in('job_id', jobIds)
+          .is('resolved_at', null);
+        if (!dlRes.error) {
+          for (const row of dlRes.data ?? []) {
+            const ids = (row as { agent_ids: string[] }).agent_ids ?? [];
+            if (ids.includes(agentId)) {
+              dlMap[row.job_id] = (dlMap[row.job_id] ?? 0) + 1;
+            }
+          }
+        }
+      }
+      return { jobs, dlMap };
+    },
+    staleTime: 20_000,
+  });
+
+  const batchesQ = useQuery({
+    queryKey: ['agent-ops-history-batches', expanded],
+    enabled: !!expanded,
+    queryFn: async () => {
+      const res = await supabase
+        .from('agent_capability_ops_job_batches')
+        .select('id,batch_index,capability,status,affected,attempt_count,last_error,finished_at')
+        .eq('job_id', expanded as string)
+        .order('batch_index', { ascending: true });
+      if (res.error) throw res.error;
+      return res.data ?? [];
+    },
+    staleTime: 20_000,
+  });
+
+  const jobs = q.data?.jobs ?? [];
+  const dlMap = q.data?.dlMap ?? {};
+
+  return (
+    <Card className="p-3">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="flex items-center gap-1.5">
+          <HistoryIcon className="h-3.5 w-3.5 text-muted-foreground" />
+          <p className="text-xs font-semibold">Ops history</p>
+          <Badge variant="outline" className="text-[9px]">{jobs.length}</Badge>
+        </div>
+        <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => q.refetch()} title="Refresh">
+          <RefreshCw className="h-3 w-3" />
+        </Button>
+      </div>
+
+      {q.isLoading ? (
+        <div className="flex items-center gap-2 text-[10px] text-muted-foreground py-3">
+          <Loader2 className="h-3 w-3 animate-spin" /> Loading history…
+        </div>
+      ) : jobs.length === 0 ? (
+        <p className="text-[10px] text-muted-foreground py-3">
+          No prior bulk-ops jobs touched this agent.
+        </p>
+      ) : (
+        <div className="max-h-80 overflow-y-auto space-y-1.5">
+          {jobs.map(j => {
+            const isOpen = expanded === j.id;
+            const dl = dlMap[j.id] ?? 0;
+            const failed = (j.failed_total ?? 0) > 0 || j.status === 'failed' || dl > 0;
+            const tone =
+              j.status === 'done' && !failed ? 'text-emerald-700' :
+              j.status === 'cancelled' ? 'text-muted-foreground' :
+              failed ? 'text-destructive' :
+              j.status === 'running' ? 'text-amber-700' :
+              'text-foreground';
+            return (
+              <div key={j.id} className="border border-border rounded">
+                <button
+                  type="button"
+                  className="w-full text-left p-2 hover:bg-muted/40 transition-colors"
+                  onClick={() => setExpanded(isOpen ? null : j.id)}
+                >
+                  <div className="flex items-start gap-1.5">
+                    {isOpen
+                      ? <ChevronDown className="h-3 w-3 mt-0.5 shrink-0 text-muted-foreground" />
+                      : <ChevronRight className="h-3 w-3 mt-0.5 shrink-0 text-muted-foreground" />}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Badge
+                          variant={j.action === 'enable' ? 'default' : 'destructive'}
+                          className="text-[8px] py-0 px-1"
+                        >
+                          {j.action}
+                        </Badge>
+                        <span className="text-[10px] font-medium truncate" title={j.capabilities.join(', ')}>
+                          {j.capabilities.length === 1
+                            ? j.capabilities[0]
+                            : `${j.capabilities.length} functions`}
+                        </span>
+                        <span className={`text-[9px] uppercase tracking-wider ml-auto ${tone}`}>
+                          {j.status}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-wrap mt-1 text-[9px] text-muted-foreground">
+                        <Clock className="h-2.5 w-2.5" />
+                        <span title={j.created_at}>{new Date(j.created_at).toLocaleString()}</span>
+                        <span>·</span>
+                        <span>{j.source}</span>
+                        <span>·</span>
+                        <span>{j.total_agents.toLocaleString()} agents</span>
+                        {(j.failed_total ?? 0) > 0 && (
+                          <Badge variant="destructive" className="text-[8px] py-0 px-1 ml-1">
+                            <AlertCircle className="h-2 w-2 mr-0.5" />{j.failed_total} failed
+                          </Badge>
+                        )}
+                        {dl > 0 && (
+                          <Badge variant="destructive" className="text-[8px] py-0 px-1">
+                            <Skull className="h-2 w-2 mr-0.5" />{dl} DL
+                          </Badge>
+                        )}
+                      </div>
+                      {j.reason && (
+                        <p className="text-[9px] text-muted-foreground italic mt-1 line-clamp-2" title={j.reason}>
+                          “{j.reason}”
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </button>
+
+                {isOpen && (
+                  <div className="border-t border-border bg-muted/20 p-2 space-y-1">
+                    {j.last_error && (
+                      <p className="text-[9px] text-destructive font-mono break-all">
+                        {j.last_error}
+                      </p>
+                    )}
+                    {batchesQ.isLoading ? (
+                      <div className="flex items-center gap-2 text-[9px] text-muted-foreground">
+                        <Loader2 className="h-2.5 w-2.5 animate-spin" /> Loading batches…
+                      </div>
+                    ) : (batchesQ.data ?? []).length === 0 ? (
+                      <p className="text-[9px] text-muted-foreground">No batches recorded.</p>
+                    ) : (
+                      <div className="space-y-0.5">
+                        {(batchesQ.data ?? []).map(b => {
+                          const bTone =
+                            b.status === 'done' ? 'bg-emerald-500' :
+                            b.status === 'running' ? 'bg-amber-500' :
+                            b.status === 'failed' ? 'bg-destructive' :
+                            b.status === 'dead_letter' ? 'bg-destructive' :
+                            'bg-muted-foreground/40';
+                          return (
+                            <div key={b.id} className="flex items-center gap-1.5 text-[9px]">
+                              <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${bTone}`} />
+                              <span className="font-mono shrink-0">#{b.batch_index}</span>
+                              <span className="truncate flex-1" title={b.capability}>{b.capability}</span>
+                              <span className="text-muted-foreground tabular-nums shrink-0">
+                                {b.affected}/{b.attempt_count}a
+                              </span>
+                              {b.last_error && (
+                                <span className="text-destructive truncate max-w-[6rem]" title={b.last_error}>
+                                  err
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <p className="text-[9px] text-muted-foreground pt-1 border-t border-border">
+                      job {j.id.slice(0, 8)} · {j.batches_done}/{j.total_batches} batches · {j.affected_total} affected
+                      {j.finished_at && ` · finished ${new Date(j.finished_at).toLocaleString()}`}
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function SingleAgentForm({ onResolved }: { onResolved: (r: ResolvedSet) => void }) {
   const [query, setQuery] = useState('');
   const [matches, setMatches] = useState<Array<{ agent_id: string; full_name: string | null; phone: string | null; email?: string | null }>>([]);
