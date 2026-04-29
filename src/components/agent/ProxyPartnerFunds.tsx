@@ -75,7 +75,7 @@ const COMPLETED_PROXY_WITHDRAWAL_STATUSES = [
 // available; the partner simply needs the agent to re-request a payout.
 const TERMINAL_UNPAID_STATUSES = ['rejected', 'expired', 'cancelled'] as const;
 
-type FilterMode = 'all' | 'reattempt' | 'fresh';
+type FilterMode = 'all' | 'inflight' | 'reattempt' | 'fresh';
 
 interface LastTerminal {
   status: string;
