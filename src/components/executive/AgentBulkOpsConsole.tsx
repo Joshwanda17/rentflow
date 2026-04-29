@@ -581,7 +581,7 @@ function AgentSnapshotPanel({
   pendingCaps: string[];
   pendingAction: 'enable' | 'disable';
 }) {
-  const { data, isLoading, refetch, dataUpdatedAt } = useQuery({
+  const q = useQuery({
     queryKey: ['agent-snapshot', agentId],
     queryFn: async () => {
       const capsRes = await supabase
@@ -604,6 +604,10 @@ function AgentSnapshotPanel({
     },
     staleTime: 15_000,
   });
+  const data = q.data;
+  const isLoading = q.isLoading;
+  const refetch = q.refetch;
+  const dataUpdatedAt = q.dataUpdatedAt;
 
   const activeByKey = useMemo(() => {
     const map = new Map<string, { status: string; updated_at: string }>();
@@ -660,15 +664,12 @@ function AgentSnapshotPanel({
 
       {/* Status row */}
       <div className="flex flex-wrap gap-1 mt-2">
-        {profile?.role && (
-          <Badge variant="outline" className="text-[9px] capitalize">{String(profile.role).replace(/_/g, ' ')}</Badge>
-        )}
-        <Badge variant={isFrozen ? 'destructive' : 'secondary'} className="text-[9px]">
-          {isFrozen ? 'Frozen' : 'Active'}
+        <Badge variant="outline" className="text-[9px]">
+          {activeByKey.size} active function{activeByKey.size === 1 ? '' : 's'}
         </Badge>
-        {profile?.last_active_at && (
-          <Badge variant="outline" className="text-[9px]" title={profile.last_active_at}>
-            seen {new Date(profile.last_active_at).toLocaleDateString()}
+        {lastUpdated && (
+          <Badge variant="outline" className="text-[9px]" title={lastUpdated.toISOString()}>
+            last change {lastUpdated.toLocaleDateString()}
           </Badge>
         )}
       </div>
