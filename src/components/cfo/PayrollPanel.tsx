@@ -215,6 +215,23 @@ export function PayrollPanel() {
                     <p className="text-xs text-muted-foreground">
                       {b.total_employees} staff • UGX {Number(b.total_amount || 0).toLocaleString()}
                     </p>
+                    {b.status === 'draft' && (
+                      <div className="flex items-center gap-1.5 mt-1.5">
+                        <Label className="text-[10px] text-muted-foreground">Default advance recovery</Label>
+                        <Input
+                          type="number" min={0} max={100}
+                          defaultValue={Number(b.default_recovery_percent ?? 30)}
+                          className="h-6 w-14 text-xs"
+                          onBlur={(e) => {
+                            const pct = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
+                            if (pct !== Number(b.default_recovery_percent ?? 30)) {
+                              updateBatchPctMutation.mutate({ batchId: b.id, pct });
+                            }
+                          }}
+                        />
+                        <span className="text-[10px] text-muted-foreground">%</span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant={b.status === 'completed' ? 'default' : b.status === 'draft' ? 'secondary' : 'outline'}>
@@ -240,14 +257,55 @@ export function PayrollPanel() {
                 {/* Items for selected batch */}
                 {selectedBatch?.id === b.id && batchItems.length > 0 && (
                   <div className="mt-3 space-y-1.5 border-t pt-2">
+                    {/* Pre-process summary */}
+                    {(() => {
+                      const totals = batchItems.reduce((acc: any, it: any) => {
+                        const gross = Number(it.amount);
+                        const isPaid = it.status === 'paid';
+                        const rec = isPaid ? Number(it.recovery_amount || 0) : 0;
+                        const take = isPaid ? Number(it.take_home_amount || 0) : gross;
+                        acc.gross += gross;
+                        acc.rec += rec;
+                        acc.take += take;
+                        return acc;
+                      }, { gross: 0, rec: 0, take: 0 });
+                      return (
+                        <div className="grid grid-cols-3 gap-1 text-[10px] bg-muted/40 rounded p-1.5 mb-1">
+                          <div><div className="text-muted-foreground">Gross</div><div className="font-bold">UGX {totals.gross.toLocaleString()}</div></div>
+                          <div><div className="text-muted-foreground">Recovered</div><div className="font-bold text-amber-700">UGX {totals.rec.toLocaleString()}</div></div>
+                          <div><div className="text-muted-foreground">Cash-out</div><div className="font-bold text-emerald-700">UGX {totals.take.toLocaleString()}</div></div>
+                        </div>
+                      );
+                    })()}
                     {batchItems.map((item: any) => (
                       <div key={item.id} className="flex items-center justify-between text-xs">
                         <div>
-                          <p className="font-medium">{item.profiles?.full_name || 'Unknown'}</p>
+                          <p className="font-medium">
+                            {item.profiles?.full_name || 'Unknown'}
+                            {Number(item.advance_balance_snapshot || 0) > 0 && (
+                              <Badge variant="outline" className="ml-1.5 text-[8px] border-amber-500 text-amber-700">
+                                Advance
+                              </Badge>
+                            )}
+                          </p>
                           <p className="text-muted-foreground">{item.description}</p>
+                          {item.status === 'paid' && Number(item.recovery_amount || 0) > 0 && (
+                            <p className="text-[9px] text-amber-700">
+                              Gross UGX {Number(item.amount).toLocaleString()} − {Number(item.recovery_percent || 0)}% recovery
+                            </p>
+                          )}
                         </div>
                         <div className="text-right">
-                          <p className="font-bold">UGX {Number(item.amount).toLocaleString()}</p>
+                          {item.status === 'paid' ? (
+                            <>
+                              <p className="font-bold text-emerald-700">UGX {Number(item.take_home_amount || item.amount).toLocaleString()}</p>
+                              {Number(item.recovery_amount || 0) > 0 && (
+                                <p className="text-[9px] text-amber-700">−UGX {Number(item.recovery_amount).toLocaleString()}</p>
+                              )}
+                            </>
+                          ) : (
+                            <p className="font-bold">UGX {Number(item.amount).toLocaleString()}</p>
+                          )}
                           <Badge variant={item.status === 'paid' ? 'default' : 'outline'} className="text-[9px]">
                             {item.status}
                           </Badge>
