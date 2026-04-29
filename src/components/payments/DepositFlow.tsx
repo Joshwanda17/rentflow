@@ -1736,29 +1736,25 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             Choose method) which act as their own CTAs. */}
         {step === 'form' && !editLoading && (() => {
           const total = parseFloat(amount) || 0;
-          const sum = tenantAllocations.reduce((s, a) => s + (a.amount || 0), 0);
-          const opsAllocBlocked =
-            depositPurpose === 'operational_float' &&
-            tenantAllocations.length > 0 &&
-            (Math.abs(total - sum) > 1 || tenantAllocations.some((a) => !a.amount || a.amount <= 0));
-          // Compute the *specific* reason the button can't submit. We keep the
-          // button visually-enabled and show the reason as an inline hint +
-          // toast on tap, so users never see a "dead button" with no
-          // explanation (root cause of the "deposit button doesn't work"
-          // complaint — see FIX-43).
-          const tidMissingMsg =
-            channel === 'momo' && !isTidValid()
-              ? momoProvider === 'mtn'
-                ? "Enter your MTN MoMo TID from the SMS (starts with 'MP', e.g. MP39665905645)"
-                : "Enter your Airtel Money TID from the SMS (starts with 'TID', e.g. TID144205097399)"
-              : null;
-          const opsAllocMsg = opsAllocBlocked ? 'Fix the tenant breakdown so amounts add up to the total.' : null;
-          const blockReason = tidMissingMsg || opsAllocMsg;
+          // Single source of truth — same helper that gates handleSubmit.
+          // No more drift between the inline hint and the toast (root cause
+          // of the "Confirm deposit does nothing" complaint — FIX-46).
+          const blockReason = computeBlockReason();
           const blocked = isSubmitting || !!blockReason;
           const handleAttempt = () => {
             if (isSubmitting) return;
             if (blockReason) {
-              toast.error(blockReason);
+              console.warn('[DepositFlow] submit blocked:', blockReason);
+              toast.error(blockReason.message);
+              const el = document.getElementById(blockReason.fieldId);
+              if (el) {
+                el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                // Focusing inputs pops the mobile keyboard — exactly what we
+                // want so the agent immediately sees the offending field.
+                if (typeof (el as HTMLElement & { focus?: () => void }).focus === 'function') {
+                  setTimeout(() => (el as HTMLInputElement).focus(), 250);
+                }
+              }
               return;
             }
             handleSubmit();
@@ -1766,9 +1762,16 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           return (
             <div className="sticky bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
               {blockReason && !isSubmitting && (
-                <div className="mb-2 flex items-start gap-2 rounded-md bg-warning/10 border border-warning/30 px-2.5 py-2 text-[11px] text-foreground">
-                  <AlertCircle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
-                  <span className="leading-snug">{blockReason}</span>
+                <div className="mb-2 flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/40 px-2.5 py-2 text-[11px] text-foreground">
+                  <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
+                  <span className="leading-snug flex-1">{blockReason.message}</span>
+                  <button
+                    type="button"
+                    onClick={handleAttempt}
+                    className="text-[11px] font-semibold text-destructive underline underline-offset-2 shrink-0"
+                  >
+                    Fix
+                  </button>
                 </div>
               )}
               <Button
