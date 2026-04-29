@@ -62,23 +62,30 @@ export async function fetchPaginatedSupporterIds(
   pageSize: number,
   search?: string
 ): Promise<{ ids: string[]; totalCount: number }> {
-  // If searching, we need to find matching profile IDs first, then intersect with supporter role
+  // If searching, do a single broad profile search then intersect with supporter set in memory.
+  // This avoids N batched .in() round-trips against profiles (the previous slow path).
   if (search && search.trim().length > 0) {
-    const q = search.trim().toLowerCase();
-    // Get all supporter IDs (we need this for the intersection)
+    const raw = search.trim();
+    const q = raw.replace(/[%,]/g, ''); // sanitize PostgREST wildcards/separators
+    if (!q) return { ids: [], totalCount: 0 };
+
+    // Fetch supporter IDs once (already paginated past 1k internally) so we can
+    // intersect — supporter list is small relative to profiles.
     const allSupporterIds = await fetchAllUserIdsByRole('supporter');
     if (allSupporterIds.length === 0) return { ids: [], totalCount: 0 };
+    const supporterSet = new Set(allSupporterIds);
 
-    // Search profiles for matches among supporters
-    const matchingProfiles = await batchedQuery<{ id: string }>(
-      allSupporterIds,
-      (batch) => supabase
-        .from('profiles')
-        .select('id')
-        .in('id', batch)
-        .or(`full_name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%`)
-    );
-    const matchedIds = matchingProfiles.map(p => p.id);
+    // Single round-trip ilike across profiles (indexed in this project on
+    // lower(full_name)/lower(email)) — far cheaper than batched .in()+or().
+    const { data: matches } = await supabase
+      .from('profiles')
+      .select('id')
+      .or(`full_name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%`)
+      .limit(2000);
+
+    const matchedIds = (matches || [])
+      .map((p: any) => p.id as string)
+      .filter(id => supporterSet.has(id));
     const start = page * pageSize;
     return {
       ids: matchedIds.slice(start, start + pageSize),

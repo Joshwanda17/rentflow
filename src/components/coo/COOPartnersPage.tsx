@@ -493,20 +493,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     }
   };
 
-  /* ─── Core fetch logic: server-side paginated ─── */
-  const fetchDataCore = useCallback(async (fetchPage: number, searchTerm: string) => {
-    const { ids: supporterIds, totalCount: count } = await fetchPaginatedSupporterIds(fetchPage, PAGE_SIZE, searchTerm);
-    setTotalCount(count);
-
-    if (supporterIds.length === 0) {
-      setRows([]);
-      if (count === 0) {
-        setSummary({ totalPartners: 0, activePartners: 0, suspendedPartners: 0, totalFunded: 0, totalWalletBalance: 0, avgROI: 0, totalDeals: 0, topPartnerName: '—' });
-      }
-      return;
-    }
-
-    const ids = supporterIds;
+  /* ─── Build PartnerRow[] for an arbitrary set of supporter ids. ─── */
+  const buildRowsForIds = useCallback(async (ids: string[]): Promise<PartnerRow[]> => {
+    if (ids.length === 0) return [];
     const [profiles, wallets, portfolios] = await Promise.all([
       batchedQuery<any>(ids, (batch) => supabase.from('profiles').select('id, full_name, phone, email, created_at, frozen_at').in('id', batch)),
       batchedQuery<any>(ids, (batch) => supabase.from('wallets').select('user_id, balance').in('user_id', batch)),
@@ -561,7 +550,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       partnerAgg.set(ownerId, existing);
     });
 
-    const tableRows: PartnerRow[] = ids.map(id => {
+    return ids.map(id => {
       const agg = partnerAgg.get(id) || { funded: 0, deals: 0, roiPercentage: 15, payoutDay: 15, roiMode: 'monthly_payout', lastActivity: '', nextRoiDate: null, payoutDates: [] as string[] };
       const profile = profileMap.get(id);
       const isSuspended = !!profile?.frozen_at;
@@ -584,9 +573,24 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         payoutDates: agg.payoutDates,
       };
     });
-
-    setRows(tableRows);
   }, []);
+
+  /* ─── Core fetch logic: server-side paginated ─── */
+  const fetchDataCore = useCallback(async (fetchPage: number, searchTerm: string) => {
+    const { ids: supporterIds, totalCount: count } = await fetchPaginatedSupporterIds(fetchPage, PAGE_SIZE, searchTerm);
+    setTotalCount(count);
+
+    if (supporterIds.length === 0) {
+      setRows([]);
+      if (count === 0) {
+        setSummary({ totalPartners: 0, activePartners: 0, suspendedPartners: 0, totalFunded: 0, totalWalletBalance: 0, avgROI: 0, totalDeals: 0, topPartnerName: '—' });
+      }
+      return;
+    }
+
+    const tableRows = await buildRowsForIds(supporterIds);
+    setRows(tableRows);
+  }, [buildRowsForIds]);
 
   /* ─── Nearing payouts: loaded independently from ALL supporters ─── */
   const [nearingPayoutsLoading, setNearingPayoutsLoading] = useState(false); // eslint-disable-line -- top-level hook, after all other useState
@@ -1259,8 +1263,22 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     return result;
   }, [rows, sortKey, sortDir, filterStatus, filterRoiMode, filterContact, filterWallet, payoutDateFrom, payoutDateTo]);
 
-  // Server-side pagination: use totalCount for page count, display all rows from current page
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  // Detect any client-side filter that narrows results below the current page.
+  // Server-side pagination only knows about `search` — every other filter runs
+  // locally on the current page, so combining them with multi-page pagination
+  // produces "No matching partners found" on later pages even though the pager
+  // still shows e.g. 11/55. When local filters are active we collapse the pager
+  // to a single page over the filtered current page.
+  const hasLocalFilter =
+    filterStatus !== 'all' ||
+    filterRoiMode !== 'all' ||
+    filterContact !== 'all' ||
+    filterWallet !== 'all' ||
+    !!payoutDateFrom ||
+    !!payoutDateTo;
+  const totalPages = hasLocalFilter
+    ? 1
+    : Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const safePage = Math.min(page, totalPages - 1);
   const paged = processed;
 
@@ -1273,6 +1291,68 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       setSortDir('asc');
     }
     setPage(0);
+  }
+
+  /* ─── Export: fetches ALL matching partners (across every page) and ─── */
+  /* ─── re-applies the active local filters before writing the CSV.    ─── */
+  const [exporting, setExporting] = useState(false);
+  async function handleExportAll() {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      // Page through all matching supporter ids using the same server-side
+      // search predicate so the export reflects the full result set, not just
+      // the rows currently rendered.
+      const allIds: string[] = [];
+      let p = 0;
+      // Hard cap to avoid runaway loops; matches the 2000-match limit upstream.
+      while (p < 200) {
+        const { ids } = await fetchPaginatedSupporterIds(p, PAGE_SIZE, debouncedSearch);
+        if (ids.length === 0) break;
+        allIds.push(...ids);
+        if (ids.length < PAGE_SIZE) break;
+        p += 1;
+      }
+      if (allIds.length === 0) {
+        toast.info('No partners to export');
+        return;
+      }
+      const fullRows = await buildRowsForIds(allIds);
+
+      // Re-apply local filters (status / roiMode / contact / wallet / payout window)
+      // so the exported CSV matches what the user is filtering for in the UI.
+      let filtered = fullRows;
+      if (filterStatus !== 'all') filtered = filtered.filter(r => r.status === filterStatus);
+      if (filterRoiMode !== 'all') filtered = filtered.filter(r => r.roiMode === filterRoiMode);
+      if (filterContact === 'has_phone') filtered = filtered.filter(r => r.phone && !r.phone.includes('@'));
+      else if (filterContact === 'no_phone') filtered = filtered.filter(r => !r.phone || r.phone.includes('@'));
+      else if (filterContact === 'has_email') filtered = filtered.filter(r => r.email && !r.email.includes('placeholder'));
+      else if (filterContact === 'no_email') filtered = filtered.filter(r => !r.email || r.email.includes('placeholder'));
+      if (filterWallet === 'has_balance') filtered = filtered.filter(r => (r.walletBalance || 0) > 0);
+      else if (filterWallet === 'empty') filtered = filtered.filter(r => (r.walletBalance || 0) <= 0);
+      if (payoutDateFrom || payoutDateTo) {
+        const fromMs = payoutDateFrom ? new Date(payoutDateFrom.getFullYear(), payoutDateFrom.getMonth(), payoutDateFrom.getDate()).getTime() : null;
+        const toMs = payoutDateTo ? new Date(payoutDateTo.getFullYear(), payoutDateTo.getMonth(), payoutDateTo.getDate(), 23, 59, 59, 999).getTime() : null;
+        filtered = filtered.filter(r => {
+          const dates: string[] = ((r as any).payoutDates as string[] | undefined) ?? ((r as any).nextRoiDate ? [(r as any).nextRoiDate] : []);
+          if (!dates.length) return false;
+          return dates.some(d => {
+            const t = new Date(d + 'T00:00:00').getTime();
+            if (isNaN(t)) return false;
+            if (fromMs !== null && t < fromMs) return false;
+            if (toMs !== null && t > toMs) return false;
+            return true;
+          });
+        });
+      }
+      exportToCSV(filtered);
+      toast.success(`Exported ${filtered.length} partner${filtered.length !== 1 ? 's' : ''}`);
+    } catch (e: any) {
+      console.error('Export failed', e);
+      toast.error(e?.message || 'Export failed');
+    } finally {
+      setExporting(false);
+    }
   }
 
   /* ─── Invest ─── */
@@ -1716,10 +1796,17 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             Activate All ({pendingApprovalCount})
           </Button>
         )}
-        <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs ml-auto" onClick={() => exportToCSV(processed)}>
-          <Download className="h-3.5 w-3.5" /> Export CSV
+        <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs ml-auto" onClick={handleExportAll} disabled={exporting}>
+          {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+          {exporting ? 'Exporting…' : 'Export CSV'}
         </Button>
       </div>
+
+      {hasLocalFilter && totalCount > PAGE_SIZE && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[11px] text-amber-700 dark:text-amber-400">
+          Filters apply to the current page only. Clear filters to browse all {totalCount.toLocaleString()} partners across pages, or click Export CSV to download every match.
+        </div>
+      )}
 
       {/* Table */}
       <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
