@@ -1108,14 +1108,17 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
 
                 {/* Pay Now USSD Button */}
                 {amount && parseFloat(amount) > 0 && (
-                  <Button
-                    type="button"
-                    className={`w-full h-11 font-semibold ${momoProvider === 'mtn' ? 'bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))] hover:bg-[hsl(var(--warning))]/90' : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'}`}
-                    onClick={() => {
-                      const dialString = momoProvider === 'mtn'
+                  <a
+                    href={
+                      momoProvider === 'mtn'
                         ? `tel:*165*3*${amount}%23`
-                        : `tel:*185*9%23`;
-                      window.location.href = dialString;
+                        : `tel:*185*9%23`
+                    }
+                    // Native anchor — iOS Safari (and most Android in-app
+                    // webviews) refuse to launch the dialer from a
+                    // programmatic `window.location.href = "tel:"`. A real
+                    // <a href="tel:..."> is the only reliable way.
+                    onClick={() => {
                       setTimeout(() => {
                         toast.info(`Merchant ID: ${MERCHANT_CODES[momoProvider]}`, {
                           duration: 10000,
@@ -1126,10 +1129,11 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                         });
                       }, 500);
                     }}
+                    className={`w-full h-11 inline-flex items-center justify-center rounded-md font-semibold text-sm transition-colors ${momoProvider === 'mtn' ? 'bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))] hover:bg-[hsl(var(--warning))]/90' : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'}`}
                   >
                     <Phone className="h-4 w-4 mr-2" />
                     Pay Now via {momoProvider === 'mtn' ? 'MTN' : 'Airtel'}
-                  </Button>
+                  </a>
                 )}
               </div>
             )}
