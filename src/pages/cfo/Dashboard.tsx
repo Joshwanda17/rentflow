@@ -18,6 +18,7 @@ import { GeneralLedger } from '@/components/manager/GeneralLedger';
 import { FinancialOverview } from '@/components/manager/FinancialOverview';
 import CFOReconciliationPanel from '@/components/cfo/CFOReconciliationPanel';
 import PhantomDriftPanel from '@/components/cfo/PhantomDriftPanel';
+import WithdrawableDriftAlertsPanel from '@/components/cfo/WithdrawableDriftAlertsPanel';
 
 import { CFOPartnerPayoutProcessing } from '@/components/cfo/CFOPartnerPayoutProcessing';
 import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
@@ -102,6 +103,7 @@ export default function CFODashboardPage() {
       case 'reconciliation':
         return (
           <div className="space-y-6">
+            <WithdrawableDriftAlertsPanel />
             <PhantomDriftPanel />
             <CFOReconciliationPanel />
           </div>

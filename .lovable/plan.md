@@ -1,171 +1,66 @@
-Investigation result
+## Goal
 
-The 9,900 shown on the agent wallet card is not coming from `wallets.withdrawable_balance` for the user in the screenshot. I found the matching user:
+Detect when a wallet's `withdrawable_balance` deviates from its strict ledger-anchored expected value (`baseline_withdrawable + (ledger_net_now - baseline_ledger_net)`) by more than a configurable UGX threshold, and automatically raise a CFO-visible alert.
 
-- User: JOSHUA WANDA
-- Cached wallet withdrawable: UGX 0
-- `get_user_available_balance`: UGX 0
-- Agent commission ledger net: UGX 9,900
-- All wallet ledger net: UGX 502,000
+This complements the existing `detect_phantom_wallet_drift` job (which compares `wallets.balance` vs total ledger net). The new job is **withdrawable-bucket-specific** and **baseline-anchored** — matching the new strict withdrawable rule.
 
-So the issue is a frontend display bug: the Agent Wallet hero card labels `commissionBalance` as “Withdrawable” instead of using the actual `withdrawableBalance` returned by the RPC/gate.
-
-I also found the broader problem you suspected:
-
-- 18 agent accounts show commission figures above true withdrawable.
-- Total overstatement from this commission display path is about UGX 2,091,627.
-- 17 wallets have cached withdrawable above a strict ledger-backed value.
-- The current baseline-anchored RPC still allows some old cached amounts to remain withdrawable, especially when the ledger is zero or negative. This conflicts with your new rule: if it does not exist in the ledger, it must not be withdrawable.
-
-Permanent fix plan
-
-1. Make the backend RPC strict again
-
-Update `get_user_available_balance(p_user_id uuid)` so withdrawable is:
+## How it works
 
 ```text
-available = max(
-  0,
-  min(wallets.withdrawable_balance, max(0, wallet_ledger_net)) - pending_withdrawal_holds
-)
+expected_withdrawable = baseline_withdrawable + (ledger_net_now - baseline_ledger_net)
+deviation             = withdrawable_cached - max(0, expected_withdrawable)
+alert IF |deviation| >= threshold_ugx
 ```
 
-Where `wallet_ledger_net` is calculated only from production wallet ledger rows:
+Threshold is configurable per severity tier, stored in a single config row, editable by the CFO from the dashboard.
 
-```text
-cash_in  = positive
-cash_out = negative
-```
+## Backend (migration)
 
-This means:
+1. **`wallet_drift_alert_config`** (single row, seeded)
+   - `low_threshold_ugx` (default 50,000)
+   - `medium_threshold_ugx` (default 250,000)
+   - `high_threshold_ugx` (default 1,000,000)
+   - `critical_threshold_ugx` (default 10,000,000)
+   - `enabled` boolean (default true)
+   - `updated_by`, `updated_at`
+   - RLS: read = `cfo`/`manager`, update = `cfo`/`manager`.
 
-- Negative ledger net => withdrawable UGX 0.
-- No ledger backing => withdrawable UGX 0.
-- Cached wallet bucket can only reduce what is shown, never increase it.
-- Pending withdrawals are deducted from the amount shown and from withdrawal gating.
+2. **`wallet_withdrawable_drift_alerts`** table
+   - `user_id`, `withdrawable_cached`, `expected_withdrawable`, `baseline_withdrawable`, `baseline_ledger_net`, `ledger_net_now`, `deviation_amount`, `deviation_direction` (`overstated` | `understated`), `severity`, `status` (`open|investigating|resolved|false_positive`), `first_detected_at`, `last_detected_at`, `resolved_at`, `resolved_by`, `resolution_notes`, `detection_run_id`, timestamps.
+   - Unique partial index on `user_id WHERE status IN ('open','investigating')` so a user has at most one open alert.
+   - RLS: select/update = `cfo`/`manager` only.
 
-2. Keep baseline snapshot for audit, but remove it from spendable math
+3. **`detect_withdrawable_drift_alerts()`** RPC (`SECURITY DEFINER`, `search_path=public`)
+   - Reads the config row; aborts with `enabled=false`.
+   - For each user with a row in `wallet_ledger_baseline`:
+     - Compute `ledger_net_now` from `general_ledger` (wallet scope, production+admin_correction).
+     - Compute `expected_withdrawable`.
+     - Compare with `wallets.withdrawable_balance`.
+     - If `|deviation| >= low_threshold` → upsert open alert with severity tier matching the highest threshold crossed.
+   - Auto-resolve open alerts whose deviation has fallen back below `low_threshold`.
+   - Emit a `system_event` (`wallet.drift_alert.raised`) per new critical/high alert (Trust Mission compliance).
+   - Returns `jsonb` summary (run_id, new, updated, auto_resolved, total_deviation_ugx).
 
-The previous baseline table is still useful as an audit marker for historical drift, but it should not make cached historical balances withdrawable. I will leave the baseline/review artifacts in place for CFO review, but `get_user_available_balance` will stop using `baseline_withdrawable + delta` as the spendable cap.
+4. **Cron job** `detect-withdrawable-drift-alerts-every-15min` (offset 5 minutes from phantom drift to avoid contention) calling the RPC via `net.http_post` (registered via insert tool, not migration, since it carries the project URL/anon key).
 
-3. Fix the Agent Wallet hero card
+## Frontend (CFO Reconcile tab)
 
-Change `UnifiedWalletHeroCard` so the tile labeled “Withdrawable” displays `withdrawableBalance`, not `commissionBalance`.
+5. **`WithdrawableDriftAlertsPanel.tsx`** (mirrors `PhantomDriftPanel`)
+   - Filters: status, severity.
+   - Columns: user (name/phone), cached vs expected, deviation, severity, status, last detected.
+   - Actions: Investigate / Resolve / Mark false positive / Run detection now.
+   - "Configure Thresholds" dialog editing `wallet_drift_alert_config` (CFO-only).
+   - Mounted next to `<PhantomDriftPanel />` in `src/pages/cfo/Dashboard.tsx`.
 
-Current incorrect path:
+## Files
 
-```text
-Withdrawable tile -> commissionBalance -> shows UGX 9,900
-```
+- New migration: `supabase/migrations/<ts>_withdrawable_drift_alerts.sql` (tables, RPC, RLS, indexes).
+- Cron registration via insert tool (not in migration).
+- New: `src/components/cfo/WithdrawableDriftAlertsPanel.tsx`.
+- Edited: `src/pages/cfo/Dashboard.tsx` (mount panel under Reconcile tab).
+- Memory: append rule to `mem://index.md` Core + new file `mem://features/cfo/withdrawable-drift-alerts.md`.
 
-Correct path:
+## Out of scope
 
-```text
-Withdrawable tile -> withdrawableBalance -> shows UGX 0 for Joshua
-```
-
-4. Fix agent total balance display
-
-On the Agent Dashboard, change the wallet hero `balance` prop from:
-
-```text
-floatBalance + commissionBalance + otherBalance
-```
-
-to:
-
-```text
-floatBalance + withdrawableBalance
-```
-
-This prevents old commission ledger categories from inflating the prominent total balance when those funds are not currently withdrawable.
-
-5. Fix wallet sheet display consistency
-
-In `FullScreenWalletSheet`, ensure the prominent total card and agent breakdown use the same ledger-backed values:
-
-```text
-total visible balance = floatBalance + withdrawableBalance
-withdrawable line = withdrawableBalance
-```
-
-Not stale `wallet.balance` or commission-only calculations.
-
-6. Fix `useAgentBalances`
-
-Update `useAgentBalances` so:
-
-- `withdrawableBalance` is always the RPC result, clamped at zero.
-- It does not fall back to cached wallet withdrawable if the RPC succeeds.
-- `commissionBalance` remains available as an earnings/history metric, but it is no longer used as spendable money.
-- `otherBalance` is calculated only as a diagnostic and not added to prominent spendable totals.
-
-7. Fix withdrawal flow wording
-
-The withdrawal modal already gates against `computeLedgerAvailable`, but its bucket breakdown still labels cached `availableBalance` in a way that can confuse users. I will update that text so the modal says:
-
-```text
-Ledger-backed withdrawable: UGX X
-Operational float: locked
-Advance: liability, not withdrawable
-```
-
-This matches the business rule in memory: advance is a liability and float is company money.
-
-8. Fix approval edge function to use the same RPC
-
-The `approve-withdrawal` backend function still computes a raw all-time ledger net inline and calls `reconcile_wallet_from_ledger`, which is risky with the new wallet governance rules. I will change it to use `get_user_available_balance` for the funding user before approval.
-
-That makes the UI, withdrawal submission, and Financial Ops approval all use one source of truth.
-
-9. Add a strict drift inspection query/function
-
-Add a read-only diagnostic function/view for finance staff to see accounts where:
-
-```text
-wallets.withdrawable_balance > strict ledger-backed withdrawable
-```
-
-This gives CFO/Finance Ops a clean list of accounts whose cached wallet buckets should not be trusted.
-
-10. Update project memory
-
-Update the wallet baseline memory to reflect the revised rule:
-
-- Baseline remains for audit/review only.
-- Spendable/withdrawable must be strict ledger-backed.
-- Never use commission net, cached wallet balance, or baseline snapshot as withdrawable unless backed by wallet ledger net.
-
-Files/functions to change
-
-- Database migration:
-  - Replace `public.get_user_available_balance(p_user_id uuid)` with strict ledger-backed formula.
-  - Add optional finance diagnostic view/RPC for strict drift cases.
-- `src/hooks/useAgentBalances.ts`
-- `src/components/wallet/UnifiedWalletHeroCard.tsx`
-- `src/components/dashboards/AgentDashboard.tsx`
-- `src/components/wallet/FullScreenWalletSheet.tsx`
-- `src/components/payments/WithdrawFlow.tsx`
-- `supabase/functions/approve-withdrawal/index.ts`
-- `src/lib/computeLedgerAvailable.ts` comments/fallback alignment
-- `mem/architecture/wallet-baseline-anchor.md` and `mem/index.md`
-
-Expected result after implementation
-
-For the screenshot case:
-
-```text
-Agent card withdrawable: UGX 0
-Withdraw modal available: UGX 0
-Withdrawal approval gate: UGX 0
-```
-
-For all users:
-
-```text
-Displayed withdrawable <= ledger-backed wallet net
-Displayed withdrawable <= cached withdrawable bucket
-Pending withdrawals reduce displayed withdrawable
-Float remains visible but locked
-Commission can be shown as earnings/history, not as withdrawable money
-```
+- No automatic clamp of balances (operators decide). This system only **alerts**.
+- No SMS/email — CFO dashboard surfacing only (matches existing `phantom_wallet_drift` UX). SMS can be added later by emitting an Inngest event from the RPC.
