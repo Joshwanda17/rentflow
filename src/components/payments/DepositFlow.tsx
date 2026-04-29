@@ -1638,23 +1638,48 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             depositPurpose === 'operational_float' &&
             tenantAllocations.length > 0 &&
             (Math.abs(total - sum) > 1 || tenantAllocations.some((a) => !a.amount || a.amount <= 0));
-          const blocked =
-            isSubmitting || (channel === 'momo' && !isTidValid()) || opsAllocBlocked;
+          // Compute the *specific* reason the button can't submit. We keep the
+          // button visually-enabled and show the reason as an inline hint +
+          // toast on tap, so users never see a "dead button" with no
+          // explanation (root cause of the "deposit button doesn't work"
+          // complaint — see FIX-43).
+          const tidMissingMsg =
+            channel === 'momo' && !isTidValid()
+              ? momoProvider === 'mtn'
+                ? "Enter your MTN MoMo TID from the SMS (starts with 'MP', e.g. MP39665905645)"
+                : "Enter your Airtel Money TID from the SMS (starts with 'TID', e.g. TID144205097399)"
+              : null;
+          const opsAllocMsg = opsAllocBlocked ? 'Fix the tenant breakdown so amounts add up to the total.' : null;
+          const blockReason = tidMissingMsg || opsAllocMsg;
+          const blocked = isSubmitting || !!blockReason;
+          const handleAttempt = () => {
+            if (isSubmitting) return;
+            if (blockReason) {
+              toast.error(blockReason);
+              return;
+            }
+            handleSubmit();
+          };
           return (
             <div className="sticky bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              {blockReason && !isSubmitting && (
+                <div className="mb-2 flex items-start gap-2 rounded-md bg-warning/10 border border-warning/30 px-2.5 py-2 text-[11px] text-foreground">
+                  <AlertCircle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
+                  <span className="leading-snug">{blockReason}</span>
+                </div>
+              )}
               <Button
-                onClick={handleSubmit}
-                disabled={blocked}
+                onClick={handleAttempt}
+                disabled={isSubmitting}
                 className="w-full h-12 text-base font-semibold"
                 size="lg"
+                aria-disabled={blocked}
               >
                 {isSubmitting
                   ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> {isEditMode ? 'Saving…' : 'Submitting…'}</>
-                  : opsAllocBlocked
-                    ? 'Fix tenant breakdown to continue'
-                    : isEditMode
-                      ? 'Save changes'
-                      : 'Confirm deposit'}
+                  : isEditMode
+                    ? 'Save changes'
+                    : 'Confirm deposit'}
               </Button>
               {total > 0 && !blocked && (
                 <p className="text-center text-xs text-muted-foreground mt-1.5">
