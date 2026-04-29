@@ -88,7 +88,7 @@ export function TenantOpsDashboard() {
       // 1. Pull tenant payments from the ledger (source of truth)
       let ledgerQ = supabase
         .from('general_ledger')
-        .select('user_id, amount, source_id, source_table, transaction_date')
+        .select('user_id, amount, source_id, source_table, transaction_date, transaction_group_id')
         .in('category', ['tenant_repayment', 'rent_repayment'])
         .eq('direction', 'cash_in');
       if (fromIso) ledgerQ = ledgerQ.gte('transaction_date', fromIso);
@@ -101,7 +101,8 @@ export function TenantOpsDashboard() {
         return;
       }
 
-      // 2. Resolve responsible agent via agent_collections (source_table='agent_collections')
+      // 2a. Resolve responsible agent via agent_collections
+      //     (legacy manual-collect-rent path — kept for backward compat).
       const collectionIds = [...new Set(
         payments.filter(p => p.source_table === 'agent_collections' && p.source_id).map(p => p.source_id as string)
       )];
@@ -109,6 +110,45 @@ export function TenantOpsDashboard() {
         ? await supabase.from('agent_collections').select('id, agent_id, tenant_id').in('id', collectionIds)
         : { data: [] as any[] };
       const collectionMap = new Map((collections || []).map(c => [c.id, c]));
+
+      // 2b. Resolve responsible agent via the SAME transaction_group_id
+      //     (Float-Allocation path — covers virtually all production agent
+     //      collections today). Each tenant_repayment is part of a 4-leg
+     //      group: agent_float_used_for_rent (cash_out, user_id=AGENT) +
+     //      tenant_repayment (cash_in, user_id=TENANT) + 2 commission legs.
+     //      The agent identity lives on the float / commission legs, never
+     //      on the tenant leg. Looking it up via source_id alone — which is
+     //      what the previous version did — silently misses every Float-
+     //      Allocation payment, producing AGENT-COLLECTED = 0 (FIX-46).
+      const groupIds = [...new Set(
+        payments.map(p => (p as any).transaction_group_id).filter(Boolean) as string[]
+      )];
+      const { data: groupLegs } = groupIds.length
+        ? await supabase
+            .from('general_ledger')
+            .select('user_id, category, direction, transaction_group_id')
+            .in('transaction_group_id', groupIds)
+            .in('category', ['agent_float_used_for_rent', 'agent_commission_earned'])
+        : { data: [] as any[] };
+      const agentByGroup = new Map<string, string>();
+      // Pass 1 — preferred signal: the float being drawn down.
+      for (const leg of (groupLegs || []) as any[]) {
+        if (leg.category === 'agent_float_used_for_rent' && leg.direction === 'cash_out' && leg.user_id) {
+          agentByGroup.set(leg.transaction_group_id, leg.user_id);
+        }
+      }
+      // Pass 2 — fallback: the agent's commission credit (when float leg
+      // is absent for any reason).
+      for (const leg of (groupLegs || []) as any[]) {
+        if (
+          leg.category === 'agent_commission_earned'
+          && leg.direction === 'cash_in'
+          && leg.user_id
+          && !agentByGroup.has(leg.transaction_group_id)
+        ) {
+          agentByGroup.set(leg.transaction_group_id, leg.user_id);
+        }
+      }
 
       // 3. Tenant + agent profile lookups
       const tenantIds = [...new Set(payments.map(p => p.user_id).filter(Boolean) as string[])];
