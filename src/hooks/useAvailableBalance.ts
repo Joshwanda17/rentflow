@@ -36,12 +36,40 @@ export function useAvailableBalance(userId?: string) {
         { p_user_id: targetId },
       );
       if (error) throw error;
-      const r = (row ?? {}) as Record<string, unknown>;
+      // The RPC returns a scalar `numeric` (the available amount). Older
+      // versions returned a row; we tolerate both shapes for safety.
+      let available = 0;
+      let walletCached = 0;
+      let ledgerNet = 0;
+      let hasDrift = false;
+      if (row !== null && typeof row === 'object') {
+        const r = row as Record<string, unknown>;
+        available = Number(r.available ?? 0);
+        walletCached = Number(r.wallet_cached ?? 0);
+        ledgerNet = Number(r.ledger_net ?? 0);
+        hasDrift = Boolean(r.has_drift);
+      } else {
+        available = Number(row ?? 0);
+      }
+      // Pull cached wallet balance separately so the card can show "Total"
+      // alongside the strict available figure.
+      if (walletCached === 0) {
+        const { data: walletRow } = await supabase
+          .from('wallets')
+          .select('balance, withdrawable_balance')
+          .eq('user_id', targetId)
+          .maybeSingle();
+        walletCached = Number(
+          (walletRow as { withdrawable_balance?: number; balance?: number } | null)?.withdrawable_balance
+          ?? (walletRow as { balance?: number } | null)?.balance
+          ?? 0,
+        );
+      }
       setData({
-        available: Number(r.available ?? 0),
-        walletCached: Number(r.wallet_cached ?? 0),
-        ledgerNet: Number(r.ledger_net ?? 0),
-        hasDrift: Boolean(r.has_drift),
+        available,
+        walletCached,
+        ledgerNet,
+        hasDrift: hasDrift || walletCached > available,
       });
     } catch {
       // Soft-fail: leave previous value in place. We never want this hook
