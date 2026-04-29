@@ -740,6 +740,18 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
           </SheetHeader>
           {selectedRequest && (
             <div className="space-y-4 mt-4 overflow-y-auto max-h-[calc(85vh-80px)] pb-6">
+              {selectedRequest.registration_type === 'outstanding_balance' && (
+                <div className="rounded-xl border-2 border-amber-500/30 bg-amber-500/5 p-3 flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                  <div className="text-xs">
+                    <p className="font-bold text-amber-800">Outstanding balance — short approval</p>
+                    <p className="text-muted-foreground mt-0.5">
+                      Existing tenant. Two-stage approval (Tenant Ops → Agent verify).
+                      No landlord verification, no disbursement, no agent bonus.
+                    </p>
+                  </div>
+                </div>
+              )}
               {/* Request Details */}
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="space-y-0.5">
@@ -785,7 +797,8 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                 )}
               </div>
 
-              {/* LC1 & GPS Details */}
+              {/* LC1 & GPS Details — hidden for outstanding-balance (no fresh property to verify) */}
+              {selectedRequest.registration_type !== 'outstanding_balance' && (
               <div className="rounded-xl border border-border p-3 bg-muted/30 space-y-2">
                 <h4 className="text-sm font-semibold">📍 Property Location & LC1</h4>
                 <div className="grid grid-cols-2 gap-3 text-sm">
@@ -827,16 +840,18 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                   )}
                 </div>
               </div>
+              )}
 
               {/* Pipeline Status + Agent Benefits */}
               <RentPipelineTracker
                 currentStatus={selectedRequest.status}
                 rentAmount={selectedRequest.rent_amount}
                 showAgentBenefits={true}
+                registrationType={selectedRequest.registration_type}
               />
 
-              {/* Agent Proximity Selector - only for Tenant Ops */}
-              {config.showAgentSelector && (
+              {/* Agent Proximity Selector - only for Tenant Ops on normal requests */}
+              {config.showAgentSelector && selectedRequest.registration_type !== 'outstanding_balance' && (
                 <AgentProximitySelector
                   latitude={selectedRequest.request_latitude}
                   longitude={selectedRequest.request_longitude}
@@ -846,8 +861,9 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                 />
               )}
 
-              {/* Landlord Verification Checklist - only for Landlord Ops */}
-              {stage === 'agent_verified' && (
+              {/* Landlord Verification Checklist - only for Landlord Ops on normal requests
+                  (outstanding-balance requests never reach this stage) */}
+              {stage === 'agent_verified' && selectedRequest.registration_type !== 'outstanding_balance' && (
                 <div className="space-y-3 rounded-xl border-2 border-purple-500/30 p-3 bg-purple-500/5">
                   <h4 className="text-sm font-bold flex items-center gap-2">
                     <PhoneCall className="h-4 w-4 text-purple-600" />
