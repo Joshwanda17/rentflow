@@ -101,6 +101,30 @@ export function TenantOpsDashboard() {
         return;
       }
 
+      // 1b. Resolve the TRUE tenant for each payment leg.
+      //     The ledger leg's user_id often holds the AGENT (because the
+      //     agent's wallet/float is the cash mover), while the actual tenant
+      //     lives on the linked rent_request (source_id) or agent_collections
+      //     row. We build a per-leg tenant map so the report lists the rent
+      //     beneficiary, not the collector.
+      const sourceIds = [...new Set(payments.map(p => p.source_id).filter(Boolean) as string[])];
+      const [rrLookupRes, acLookupRes] = await Promise.all([
+        sourceIds.length
+          ? supabase.from('rent_requests').select('id, tenant_id').in('id', sourceIds)
+          : Promise.resolve({ data: [] as any[] }),
+        sourceIds.length
+          ? supabase.from('agent_collections').select('id, tenant_id').in('id', sourceIds)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+      const tenantBySourceId = new Map<string, string>();
+      for (const r of (rrLookupRes.data || []) as any[]) {
+        if (r.tenant_id) tenantBySourceId.set(r.id, r.tenant_id);
+      }
+      for (const c of (acLookupRes.data || []) as any[]) {
+        if (c.tenant_id && !tenantBySourceId.has(c.id)) tenantBySourceId.set(c.id, c.tenant_id);
+      }
+
+
       // 2a. Resolve responsible agent via agent_collections
       //     (legacy manual-collect-rent path — kept for backward compat).
       const collectionIds = [...new Set(
@@ -151,7 +175,15 @@ export function TenantOpsDashboard() {
       }
 
       // 3. Tenant + agent profile lookups
-      const tenantIds = [...new Set(payments.map(p => p.user_id).filter(Boolean) as string[])];
+      // Resolve the TRUE tenant id per payment: prefer the rent-request /
+      // agent-collection beneficiary; fall back to the ledger leg user_id
+      // (the legacy direct-pay case where the tenant paid from their own
+      // wallet).
+      const resolveTenantId = (p: any): string | null => {
+        const fromSource = p.source_id ? tenantBySourceId.get(p.source_id) : undefined;
+        return (fromSource || p.user_id || null) as string | null;
+      };
+      const tenantIds = [...new Set(payments.map(p => resolveTenantId(p)).filter(Boolean) as string[])];
       // Also fetch rent_requests (assigned agent fallback) AND profiles.referrer_id
       // (onboarding agent fallback). Outstanding now comes from the ledger so
       // it's accurate even for tenants without a rent_request row.
@@ -239,7 +271,7 @@ export function TenantOpsDashboard() {
         payment_count: number;
       }>();
       for (const p of payments) {
-        const tenantId = p.user_id as string | null;
+        const tenantId = resolveTenantId(p);
         if (!tenantId) continue;
         // Per-row attribution priority:
         //   (1) Float-Allocation agent — same transaction_group_id has an
@@ -253,7 +285,12 @@ export function TenantOpsDashboard() {
           ? agentByGroup.get((p as any).transaction_group_id)
           : undefined;
         const collection = p.source_id ? collectionMap.get(p.source_id) : null;
-        const collectingAgentId = collection?.agent_id;
+        // Agent identity for THIS payment: prefer the float-allocation
+        // group, then the legacy collection's agent_id; fall back to the
+        // ledger leg's user_id when it differs from the resolved tenant
+        // (i.e. the leg was posted under the agent's wallet).
+        const legUserAgentId = (p.user_id && p.user_id !== tenantId) ? p.user_id : null;
+        const collectingAgentId = collection?.agent_id || legUserAgentId;
         const isAgentCollection = !!groupAgentId || !!collectingAgentId;
         const attributedAgentId =
           groupAgentId
