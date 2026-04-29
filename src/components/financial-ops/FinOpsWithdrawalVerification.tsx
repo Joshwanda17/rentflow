@@ -407,7 +407,12 @@ export function FinOpsWithdrawalVerification() {
               <p className="text-xs text-muted-foreground">{req.user?.phone}</p>
             </div>
           </div>
-          <p className="text-base font-black">{formatCurrency(req.amount)}</p>
+          <div className="text-right space-y-1">
+            <p className="text-base font-black">{formatCurrency(req.amount)}</p>
+            <div className="flex items-center justify-end gap-1 flex-wrap">
+              {getStageBadge(req.status)}
+            </div>
+          </div>
         </div>
 
         {(req.mobile_money_name || req.bank_account_name) && (
