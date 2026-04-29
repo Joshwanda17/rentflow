@@ -1366,6 +1366,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                     </span>
                     <Input
                       type="text"
+                      id="deposit-receipt"
                       placeholder="e.g. WEL-00001 or leave blank for auto"
                       value={receiptNumber}
                       onChange={(e) => setReceiptNumber(e.target.value)}
@@ -1379,7 +1380,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 {channel === 'agent_cash' && (
                   <div className="space-y-1.5">
                     <Label className="text-xs">Agent Name *</Label>
-                    <Input placeholder="Name of the agent who received cash" value={agentName} onChange={(e) => setAgentName(e.target.value)} className="h-10 text-sm" />
+                    <Input id="deposit-agent-name" placeholder="Name of the agent who received cash" value={agentName} onChange={(e) => setAgentName(e.target.value)} className="h-10 text-sm" />
                   </div>
                 )}
               </>
