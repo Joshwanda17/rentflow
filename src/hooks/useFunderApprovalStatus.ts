@@ -8,13 +8,16 @@ export interface FunderApprovalState {
   rejectionReason: string | null;
   approvedAt: string | null;
   /**
-   * Whether the user can fund their OWN pool / back portfolios for themselves.
+   * Whether the user can fund / back portfolios.
    *
-   * Self-funding is an inherent right of any authenticated Supporter and must
-   * NEVER be gated by `proxy_agent_assignments.status`. That row only governs
-   * whether the user can act on behalf of OTHER funders (proxy authority).
+   * For SELF-REGISTERED funders (signed up via `/funder-onboarding`):
+   *   `isApproved = true` ONLY after Partner Ops or COO sets
+   *   `profiles.funder_verified_at`. Until then, Support Tenant /
+   *   Create Portfolio surfaces must be locked.
    *
-   * Always `true` here. Use `useProxyAuthority` for proxy-only surfaces.
+   * For everyone else (legacy supporters, agent-onboarded supporters, etc.)
+   *   `isApproved = true` always — those flows are governed by their own
+   *   onboarding paths, not by self-registration verification.
    */
   isApproved: boolean;
   isLoading: boolean;
@@ -33,25 +36,39 @@ export function useFunderApprovalStatus(userId: string | null | undefined): Fund
     enabled: !!userId,
     staleTime: 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_funder_approval_status', {
-        _user_id: userId as string,
-      });
-      if (error) throw error;
-      const row = Array.isArray(data) ? data[0] : data;
+      // Read both the RPC (status) and the profile signup_source so we can
+      // decide whether verification is required for THIS user.
+      const [rpcRes, profileRes] = await Promise.all([
+        supabase.rpc('get_funder_approval_status', { _user_id: userId as string }),
+        supabase
+          .from('profiles')
+          .select('signup_source, funder_verified_at')
+          .eq('id', userId as string)
+          .maybeSingle(),
+      ]);
+      if (rpcRes.error) throw rpcRes.error;
+      const row = Array.isArray(rpcRes.data) ? rpcRes.data[0] : rpcRes.data;
+      const isSelfRegistered = profileRes.data?.signup_source === 'funder-onboarding';
+      const verifiedAt = (profileRes.data as any)?.funder_verified_at as string | null | undefined;
       return {
         status: ((row?.status as FunderApprovalStatus) || 'none'),
         rejectionReason: (row?.rejection_reason as string | null) ?? null,
         approvedAt: (row?.approved_at as string | null) ?? null,
+        isSelfRegistered,
+        verifiedAt: verifiedAt ?? null,
       };
     },
   });
+
+  // Self-registered funders are gated by Partner Ops / COO verification.
+  // Everyone else keeps the legacy "always allowed" behavior.
+  const isApproved = data?.isSelfRegistered ? !!data?.verifiedAt : true;
 
   return {
     status: data?.status ?? 'none',
     rejectionReason: data?.rejectionReason ?? null,
     approvedAt: data?.approvedAt ?? null,
-    // Self-funding is always allowed; proxy status never gates it.
-    isApproved: true,
+    isApproved,
     isLoading,
   };
 }

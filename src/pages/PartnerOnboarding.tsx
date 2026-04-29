@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { roleToSlug } from '@/lib/roleRoutes';
 import { format } from 'date-fns';
 import {
-  Loader2, Phone, Search, Users, Calendar, ShieldCheck, ShieldAlert,
+  Loader2, Phone, Search, Users, Calendar, ShieldCheck, ShieldAlert, CheckCircle2, XCircle, Clock,
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import COODetailLayout, { KPICard } from '@/components/coo/COODetailLayout';
@@ -14,6 +14,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -23,6 +24,7 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { buildPartnerReference } from '@/lib/partnerReference';
+import { useToast } from '@/hooks/use-toast';
 
 interface FunderProfileRow {
   id: string;
@@ -32,6 +34,9 @@ interface FunderProfileRow {
   created_at: string;
   frozen_at: string | null;
   verified: boolean | null;
+  funder_verified_at: string | null;
+  funder_rejected_at: string | null;
+  funder_rejection_reason: string | null;
 }
 
 const PAGE_SIZE = 50;
@@ -39,10 +44,15 @@ const PAGE_SIZE = 50;
 export default function FunderOnboarding() {
   const { user, roles, loading, role } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<FunderProfileRow | null>(null);
+  const [actionMode, setActionMode] = useState<null | 'approve' | 'reject'>(null);
+  const [actionReason, setActionReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   // Reset to first page whenever search term changes
   useEffect(() => { setPage(0); }, [search]);
@@ -63,7 +73,7 @@ export default function FunderOnboarding() {
     queryFn: async () => {
       let query = supabase
         .from('profiles')
-        .select('id, full_name, phone, email, created_at, frozen_at, verified', { count: 'exact' })
+        .select('id, full_name, phone, email, created_at, frozen_at, verified, funder_verified_at, funder_rejected_at, funder_rejection_reason', { count: 'exact' })
         .eq('signup_source', 'funder-onboarding');
 
       if (trimmedSearch) {
@@ -91,12 +101,13 @@ export default function FunderOnboarding() {
     queryKey: ['funder-onboarding-kpis'],
     enabled: !!user && roles.includes('manager'),
     queryFn: async () => {
-      const [{ count: total }, { count: active }, { count: frozen }] = await Promise.all([
+      const [{ count: total }, { count: pending }, { count: verified }, { count: rejected }] = await Promise.all([
         supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('signup_source', 'funder-onboarding'),
-        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('signup_source', 'funder-onboarding').is('frozen_at', null),
-        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('signup_source', 'funder-onboarding').not('frozen_at', 'is', null),
+        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('signup_source', 'funder-onboarding').is('funder_verified_at', null).is('funder_rejected_at', null),
+        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('signup_source', 'funder-onboarding').not('funder_verified_at', 'is', null),
+        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('signup_source', 'funder-onboarding').not('funder_rejected_at', 'is', null),
       ]);
-      return { total: total || 0, active: active || 0, frozen: frozen || 0 };
+      return { total: total || 0, pending: pending || 0, verified: verified || 0, rejected: rejected || 0 };
     },
     staleTime: 60_000,
   });
@@ -113,7 +124,40 @@ export default function FunderOnboarding() {
     );
   }
 
-  const headerStatus: 'green' | 'yellow' | 'red' = (kpis?.frozen || 0) > 5 ? 'red' : (kpis?.frozen || 0) > 0 ? 'yellow' : 'green';
+  const headerStatus: 'green' | 'yellow' | 'red' = (kpis?.pending || 0) > 10 ? 'red' : (kpis?.pending || 0) > 0 ? 'yellow' : 'green';
+
+  const openAction = (mode: 'approve' | 'reject') => {
+    setActionMode(mode);
+    setActionReason('');
+  };
+
+  const submitAction = async () => {
+    if (!selected || !actionMode) return;
+    if (actionReason.trim().length < 10) {
+      toast({ title: 'Reason required', description: 'Please provide at least 10 characters.', variant: 'destructive' });
+      return;
+    }
+    setSubmitting(true);
+    const rpcName = actionMode === 'approve' ? 'approve_self_registered_funder' : 'reject_self_registered_funder';
+    const { error } = await supabase.rpc(rpcName, {
+      _target_user: selected.id,
+      _reason: actionReason.trim(),
+    });
+    setSubmitting(false);
+    if (error) {
+      toast({ title: 'Action failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({
+      title: actionMode === 'approve' ? 'Funder verified' : 'Funder rejected',
+      description: selected.full_name || selected.email || 'Updated',
+    });
+    setActionMode(null);
+    setActionReason('');
+    setSelected(null);
+    queryClient.invalidateQueries({ queryKey: ['funder-onboarding-self-registered'] });
+    queryClient.invalidateQueries({ queryKey: ['funder-onboarding-kpis'] });
+  };
 
   return (
     <COODetailLayout
@@ -122,10 +166,11 @@ export default function FunderOnboarding() {
       status={headerStatus}
     >
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KPICard label="Total Funders" value={kpis?.total ?? '—'} status="green" sub="Via funder-onboarding" />
-        <KPICard label="Active" value={kpis?.active ?? '—'} status="green" />
-        <KPICard label="Suspended" value={kpis?.frozen ?? '—'} status={(kpis?.frozen || 0) > 0 ? 'red' : 'green'} />
+        <KPICard label="Pending Review" value={kpis?.pending ?? '—'} status={(kpis?.pending || 0) > 0 ? 'yellow' : 'green'} />
+        <KPICard label="Verified" value={kpis?.verified ?? '—'} status="green" />
+        <KPICard label="Rejected" value={kpis?.rejected ?? '—'} status={(kpis?.rejected || 0) > 0 ? 'red' : 'green'} />
       </div>
 
       {/* Search */}
@@ -172,8 +217,11 @@ export default function FunderOnboarding() {
                 </TableHeader>
                 <TableBody>
                   {rows.map((r) => {
-                    const isFrozen = !!r.frozen_at;
                     const partnerRef = buildPartnerReference(r.id, r.created_at);
+                    const verState: 'verified' | 'rejected' | 'pending' =
+                      r.funder_verified_at ? 'verified'
+                      : r.funder_rejected_at ? 'rejected'
+                      : 'pending';
                     return (
                       <TableRow
                         key={r.id}
@@ -203,13 +251,19 @@ export default function FunderOnboarding() {
                           {r.email || '—'}
                         </TableCell>
                         <TableCell>
-                          {isFrozen ? (
-                            <Badge variant="outline" className="text-[10px] gap-1 bg-destructive/15 text-destructive border-destructive/30">
-                              <ShieldAlert className="h-2.5 w-2.5" /> Suspended
-                            </Badge>
-                          ) : (
+                          {verState === 'verified' && (
                             <Badge variant="outline" className="text-[10px] gap-1 bg-success/15 text-success border-success/30">
-                              <ShieldCheck className="h-2.5 w-2.5" /> Active
+                              <CheckCircle2 className="h-2.5 w-2.5" /> Verified
+                            </Badge>
+                          )}
+                          {verState === 'rejected' && (
+                            <Badge variant="outline" className="text-[10px] gap-1 bg-destructive/15 text-destructive border-destructive/30">
+                              <XCircle className="h-2.5 w-2.5" /> Rejected
+                            </Badge>
+                          )}
+                          {verState === 'pending' && (
+                            <Badge variant="outline" className="text-[10px] gap-1 bg-warning/15 text-warning border-warning/30">
+                              <Clock className="h-2.5 w-2.5" /> Pending
                             </Badge>
                           )}
                         </TableCell>
@@ -289,13 +343,17 @@ export default function FunderOnboarding() {
                     {selected.email && <span className="truncate">{selected.email}</span>}
                   </div>
                   <div className="pt-1">
-                    {selected.frozen_at ? (
+                    {selected.funder_verified_at ? (
+                      <Badge variant="outline" className="text-[10px] gap-1 bg-success/15 text-success border-success/30">
+                        <CheckCircle2 className="h-2.5 w-2.5" /> Verified
+                      </Badge>
+                    ) : selected.funder_rejected_at ? (
                       <Badge variant="outline" className="text-[10px] gap-1 bg-destructive/15 text-destructive border-destructive/30">
-                        <ShieldAlert className="h-2.5 w-2.5" /> Suspended
+                        <XCircle className="h-2.5 w-2.5" /> Rejected
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="text-[10px] gap-1 bg-success/15 text-success border-success/30">
-                        <ShieldCheck className="h-2.5 w-2.5" /> Active
+                      <Badge variant="outline" className="text-[10px] gap-1 bg-warning/15 text-warning border-warning/30">
+                        <Clock className="h-2.5 w-2.5" /> Pending Review
                       </Badge>
                     )}
                   </div>
@@ -308,19 +366,50 @@ export default function FunderOnboarding() {
                       {format(new Date(selected.created_at), 'dd MMM yyyy, HH:mm')}
                     </span>
                   </Row>
-                  <Row label="Verified">{selected.verified ? 'Yes' : 'No'}</Row>
+                  <Row label="Verified">{selected.funder_verified_at ? format(new Date(selected.funder_verified_at), 'dd MMM yyyy, HH:mm') : 'No'}</Row>
+                  {selected.funder_rejected_at && (
+                    <Row label="Rejected reason">{selected.funder_rejection_reason || '—'}</Row>
+                  )}
                 </div>
+
+                {actionMode && (
+                  <div className="rounded-xl border border-border/60 p-3 space-y-2">
+                    <p className="text-xs font-semibold">
+                      {actionMode === 'approve' ? 'Approve this funder' : 'Reject this funder'}
+                    </p>
+                    <Textarea
+                      value={actionReason}
+                      onChange={(e) => setActionReason(e.target.value)}
+                      placeholder="Reason (min 10 characters) — required for audit log"
+                      className="text-xs min-h-[72px]"
+                    />
+                    <div className="flex items-center justify-end gap-2">
+                      <Button size="sm" variant="ghost" onClick={() => setActionMode(null)} disabled={submitting}>Cancel</Button>
+                      <Button
+                        size="sm"
+                        variant={actionMode === 'approve' ? 'default' : 'destructive'}
+                        onClick={submitAction}
+                        disabled={submitting || actionReason.trim().length < 10}
+                      >
+                        {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : (actionMode === 'approve' ? 'Confirm Approval' : 'Confirm Rejection')}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <DialogFooter>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => navigate(`/admin/partners/${selected.id}`)}
-                >
-                  Open profile
-                </Button>
-                <Button size="sm" onClick={() => setSelected(null)}>Close</Button>
+                {!actionMode && !selected.funder_verified_at && (
+                  <Button size="sm" onClick={() => openAction('approve')} className="gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Approve
+                  </Button>
+                )}
+                {!actionMode && !selected.funder_rejected_at && (
+                  <Button size="sm" variant="destructive" onClick={() => openAction('reject')} className="gap-1">
+                    <XCircle className="h-3.5 w-3.5" /> Reject
+                  </Button>
+                )}
+                <Button size="sm" variant="outline" onClick={() => setSelected(null)}>Close</Button>
               </DialogFooter>
             </>
           )}

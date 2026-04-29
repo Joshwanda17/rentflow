@@ -54,6 +54,7 @@ import { InvestmentPackageSheet } from '@/components/supporter/InvestmentPackage
 // FundingPoolCard removed from direct import
 import { FunderCapitalOpportunities } from '@/components/supporter/FunderCapitalOpportunities';
 import { InvestmentAccountsDrawer } from '@/components/supporter/InvestmentAccountsDrawer';
+import { FunderApprovalBanner } from '@/components/supporter/FunderApprovalGate';
 
 import AiIdButton from '@/components/ai-id/AiIdButton';
 import { NotificationBell } from '@/components/supporter/NotificationBell';
@@ -475,7 +476,10 @@ export default function SupporterDashboard({
                   <WidgetCardSkeleton />
                 </div>
               ) : (
-                <FunderCapitalOpportunities />
+                <>
+                  <FunderApprovalBanner className="mb-3" />
+                  <FunderCapitalOpportunities />
+                </>
               )}
             </WidgetErrorBoundary>
           </div>
