@@ -1253,6 +1253,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   onChange={(e) => setAmount(e.target.value)}
                   min={MIN_DEPOSIT}
                   max={MAX_DEPOSIT}
+                  id="deposit-amount"
                   aria-invalid={
                     !!amount &&
                     Number.isFinite(parseFloat(amount)) &&
