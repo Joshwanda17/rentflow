@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Wallet, Users, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { Wallet, Users, ArrowDownLeft, ArrowUpRight, Send } from 'lucide-react';
 import { formatCurrency } from '@/lib/paymentMethods';
 import FundTenantsFlow from './FundTenantsFlow';
 import DepositFlow from './DepositFlow';
 import WithdrawFlow from './WithdrawFlow';
+import { SendMoneyDialog } from '@/components/wallet/SendMoneyDialog';
 import { WelileAITrigger } from '@/components/ai-chat/WelileAIChatButton';
 
 interface PartnerWalletWidgetProps {
@@ -22,6 +23,7 @@ export default function PartnerWalletWidget({
   const [showFundTenants, setShowFundTenants] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
+  const [showTransfer, setShowTransfer] = useState(false);
 
   return (
     <>
@@ -53,7 +55,7 @@ export default function PartnerWalletWidget({
               <Users className="w-4 h-4" />
               Fund Tenants
             </Button>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <Button onClick={() => setShowDeposit(true)} variant="outline" className="gap-2">
                 <ArrowDownLeft className="w-4 h-4" />
                 Deposit
@@ -61,6 +63,10 @@ export default function PartnerWalletWidget({
               <Button onClick={() => setShowWithdraw(true)} variant="outline" className="gap-2">
                 <ArrowUpRight className="w-4 h-4" />
                 Withdraw
+              </Button>
+              <Button onClick={() => setShowTransfer(true)} variant="outline" className="gap-2">
+                <Send className="w-4 h-4" />
+                Transfer
               </Button>
             </div>
           </div>
@@ -77,6 +83,7 @@ export default function PartnerWalletWidget({
         lockPurpose
       />
       <WithdrawFlow open={showWithdraw} onOpenChange={setShowWithdraw} availableBalance={availableBalance} roiBalance={roiEarned} onSuccess={() => setShowWithdraw(false)} />
+      <SendMoneyDialog open={showTransfer} onOpenChange={setShowTransfer} />
     </>
   );
 }
