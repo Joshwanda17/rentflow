@@ -212,6 +212,7 @@ export function ReconciliationReviewScreen({
         depositPurpose: pick.deposit_purpose,
         matchedVia,
         allocations,
+        purposeAudit: ((pick as any).purpose_audit ?? null) as Record<string, unknown> | null,
       };
     } catch (err: any) {
       return {
