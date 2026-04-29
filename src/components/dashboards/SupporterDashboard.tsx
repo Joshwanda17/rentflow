@@ -425,18 +425,17 @@ export default function SupporterDashboard({
                 setInvestmentsTab('accounts');
                 setShowInvestments(true);
               }}
+              quickActions={
+                <FunderQuickActions
+                  variant="hero"
+                  availableBalance={wallet?.balance ?? 0}
+                  roiBalance={totalRoiEarned}
+                  onChanged={() => { refreshWallet(); }}
+                />
+              }
             />
           ) : (
             <WalletHeroSkeleton />
-          )}
-
-          {/* ═══ FUNDER QUICK ACTIONS — Deposit / Withdraw / Transfer ═══ */}
-          {wallet && (
-            <FunderQuickActions
-              availableBalance={wallet?.balance ?? 0}
-              roiBalance={totalRoiEarned}
-              onChanged={() => { refreshWallet(); }}
-            />
           )}
 
           <VerificationChecklist userId={user.id} highlightRole="supporter" compact />
