@@ -64,6 +64,10 @@ interface MatchResult {
   allocations?: TenantAllocation[] | null;
   /** True when the search matched against the notes (receipt/reference) rather than the TID column. */
   matchedVia?: 'tid' | 'notes';
+  /** Audit blob carrying the depositor's purpose-choice trail.
+   *  For agent personal deposits, presence of `agent_personal_confirmed_at`
+   *  proves the agent acknowledged the in-app gate. */
+  purpose_audit?: Record<string, unknown> | null;
 }
 
 type ResultState = 'idle' | 'searching' | 'found' | 'not_found';
