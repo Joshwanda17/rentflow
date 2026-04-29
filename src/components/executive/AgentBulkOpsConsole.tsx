@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import {
   ChevronLeft, Filter, FileUp, Layers, AlertTriangle, ShieldAlert, CheckCircle2, RefreshCw, Loader2, XCircle,
 } from 'lucide-react';
-import { ChevronDown, ChevronRight, Clock, AlertCircle, Search, User, History as HistoryIcon, Skull, Eye } from 'lucide-react';
+import { ChevronDown, ChevronRight, Clock, AlertCircle, Search, User, History as HistoryIcon, Skull, Eye, Undo2 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 
 /**
@@ -218,6 +218,9 @@ export function AgentBulkOpsConsole({ onBack }: { onBack?: () => void }) {
 
       <div className="flex flex-col lg:flex-row gap-4 items-start">
         <div className="flex-1 min-w-0 space-y-4 w-full">
+
+      {/* Undo banner — shows whenever a finished job is still inside its 15-min window */}
+      <UndoBanner />
 
       {/* Live + recent jobs */}
       <RecentJobsPanel highlightJobId={activeJobId} />
