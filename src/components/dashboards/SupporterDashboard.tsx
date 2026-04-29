@@ -55,6 +55,7 @@ import { InvestmentPackageSheet } from '@/components/supporter/InvestmentPackage
 import { FunderCapitalOpportunities } from '@/components/supporter/FunderCapitalOpportunities';
 import { InvestmentAccountsDrawer } from '@/components/supporter/InvestmentAccountsDrawer';
 import { FunderApprovalBanner } from '@/components/supporter/FunderApprovalGate';
+import { FunderQuickActions } from '@/components/supporter/FunderQuickActions';
 
 import AiIdButton from '@/components/ai-id/AiIdButton';
 import { NotificationBell } from '@/components/supporter/NotificationBell';
@@ -427,6 +428,15 @@ export default function SupporterDashboard({
             />
           ) : (
             <WalletHeroSkeleton />
+          )}
+
+          {/* ═══ FUNDER QUICK ACTIONS — Deposit / Withdraw / Transfer ═══ */}
+          {wallet && (
+            <FunderQuickActions
+              availableBalance={wallet?.balance ?? 0}
+              roiBalance={totalRoiEarned}
+              onChanged={() => { refreshWallet(); }}
+            />
           )}
 
           <VerificationChecklist userId={user.id} highlightRole="supporter" compact />
