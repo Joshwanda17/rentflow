@@ -88,8 +88,10 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
             p_user_id: r.id,
           });
           if (error) throw error;
-          const o = (data ?? {}) as Record<string, unknown>;
-          return { ...r, balance: Number(o.available ?? 0) };
+          // RPC returns a single numeric (withdrawable available). Coerce
+          // directly — the previous `.available` destructure always
+          // produced NaN→0, which made every result look empty.
+          return { ...r, balance: Number(data ?? 0) };
         } catch {
           return { ...r, balance: 0 };
         }
