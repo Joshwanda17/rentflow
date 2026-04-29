@@ -394,6 +394,16 @@ export function ProxyPartnerFunds() {
     return map;
   }, [portfolios]);
 
+  // Dismissal lookup by `${partnerId}-${portfolioId || 'none'}`
+  const dismissalMap = useMemo(() => {
+    const map: Record<string, Dismissal> = {};
+    dismissals.forEach(d => {
+      const key = `${d.partner_id}-${d.portfolio_id || 'none'}`;
+      map[key] = d;
+    });
+    return map;
+  }, [dismissals]);
+
   const partnerBalances = useMemo<PartnerBalance[]>(() => {
     if (!user?.id) return [];
 
