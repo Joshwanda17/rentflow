@@ -1,9 +1,10 @@
 import { ReactNode } from 'react';
-import { Wallet, ChevronRight, Shield, Home, TrendingUp, Rocket, PiggyBank, Coins, Sparkles } from 'lucide-react';
+import { Wallet, ChevronRight, Shield, Home, TrendingUp, Rocket, PiggyBank, Coins, Sparkles, Clock } from 'lucide-react';
 import { hapticTap } from '@/lib/haptics';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useAuth } from '@/hooks/useAuth';
 import { usePayrollGrowth } from '@/hooks/usePayrollGrowth';
+import { useAvailableBalance } from '@/hooks/useAvailableBalance';
 
 export type WalletRole = 'agent' | 'tenant' | 'supporter' | 'landlord';
 
@@ -66,13 +67,24 @@ export function UnifiedWalletHeroCard({
   const { formatAmount } = useCurrency();
   const { user } = useAuth();
   const payrollGrowth = usePayrollGrowth(user?.id);
+  // Strict ledger-backed available balance (subtracts pending withdrawal_requests).
+  // Used for the headline so the wallet never shows money already promised to an
+  // in-flight withdrawal. Cached `balance` prop is shown as a smaller "Total" line.
+  const { available: ledgerAvailable, walletCached, loading: availableLoading } =
+    useAvailableBalance(user?.id);
+  const showAgentSplit = role === 'agent' && (floatBalance !== undefined || commissionBalance !== undefined);
+  // Only override the headline for non-agent split layouts (agent split has its
+  // own dedicated Withdrawable cell that already uses withdrawableBalance prop).
+  const useStrictHeadline = !showAgentSplit && !availableLoading;
+  const headlineBalance = useStrictHeadline ? ledgerAvailable : balance;
+  const pendingHold = useStrictHeadline
+    ? Math.max(0, Math.min(walletCached || 0, balance) - ledgerAvailable)
+    : 0;
 
   const handleOpenWallet = () => {
     hapticTap();
     onOpenWallet?.();
   };
-
-  const showAgentSplit = role === 'agent' && (floatBalance !== undefined || commissionBalance !== undefined);
 
   return (
     <div className="w-full text-left portfolio-hero-card rounded-3xl p-6 relative overflow-hidden">
@@ -148,8 +160,21 @@ export function UnifiedWalletHeroCard({
               Available Balance
             </p>
             <p className="text-[clamp(1.6rem,6vw,2.5rem)] font-black tracking-tight leading-none text-primary-foreground">
-              {formatAmount(balance)}
+              {formatAmount(headlineBalance)}
             </p>
+            {pendingHold > 0 && (
+              <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-300/20">
+                <Clock className="h-3 w-3 text-amber-300" />
+                <span className="text-[10px] font-semibold text-amber-200">
+                  {formatAmount(pendingHold)} pending withdrawal
+                </span>
+              </div>
+            )}
+            {pendingHold > 0 && (
+              <p className="text-[10px] text-primary-foreground/40 mt-1.5">
+                Wallet total: <span className="font-semibold text-primary-foreground/60">{formatAmount(balance)}</span>
+              </p>
+            )}
           </button>
         )}
 
