@@ -1460,11 +1460,11 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center gap-1"><Calendar className="h-3.5 w-3.5" /> Date</Label>
-                <Input type="date" value={transactionDate} onChange={(e) => setTransactionDate(e.target.value)} min={sevenDaysAgo} max={today} className="h-10 text-xs" />
+                <Input id="deposit-date" type="date" value={transactionDate} onChange={(e) => setTransactionDate(e.target.value)} min={sevenDaysAgo} max={today} className="h-10 text-xs" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> Time</Label>
-                <Input type="time" value={transactionTime} onChange={(e) => setTransactionTime(e.target.value)} className="h-10 text-xs" />
+                <Input id="deposit-time" type="time" value={transactionTime} onChange={(e) => setTransactionTime(e.target.value)} className="h-10 text-xs" />
               </div>
             </div>
 
@@ -1715,7 +1715,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 </>
               )}
               {depositPurpose === 'other' && (
-                <Input placeholder="Specify your reason..." value={reason} onChange={(e) => setReason(e.target.value)} className="h-10 text-sm" />
+                <Input id="deposit-reason" placeholder="Specify your reason..." value={reason} onChange={(e) => setReason(e.target.value)} className="h-10 text-sm" />
               )}
             </div>
 
