@@ -332,6 +332,28 @@ Deno.serve(async (req) => {
       },
     });
 
+    // ── Payroll Growth Bonus tracker ──────────────────────────────────────
+    // When CFO credits a user for payroll, register the deposit so the daily
+    // 0.5% growth job can compound un-withdrawn payroll. Only credits to a
+    // real user (not operational_wallet) qualify.
+    if (op === "credit" && platformCat === "payroll_expense" && recipient_type === "user") {
+      const { error: pgbErr } = await adminClient.from("payroll_growth_balances").insert({
+        user_id: target_user_id,
+        original_amount: amount,
+        current_balance: amount,
+        accrued_growth: 0,
+        daily_rate: 0.005,
+        source_reference_id: refId,
+        last_growth_at: new Date().toISOString(),
+        status: "active",
+      });
+      if (pgbErr) {
+        console.error("[cfo-direct-credit] payroll_growth_balances insert failed:", pgbErr.message);
+      } else {
+        console.log("[cfo-direct-credit] Payroll growth tracker created for", target_user_id, "amount:", amount);
+      }
+    }
+
     const verb = op === "credit" ? "credited to" : "debited from";
 
     // Force wallet bucket reconciliation so CFO-credited funds land in the

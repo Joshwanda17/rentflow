@@ -347,6 +347,23 @@ Deno.serve(async (req) => {
       // Ledger entry already exists — log but don't fail the user
     }
 
+    // ── Payroll Growth Bonus: stop growth on withdrawn money ─────────────
+    // Consume FIFO from any active payroll-growth tracker rows so the daily
+    // 0.5% bonus only continues to accrue on what's still parked in the wallet.
+    try {
+      const { data: consumed, error: consumeErr } = await admin.rpc(
+        "consume_payroll_growth",
+        { _user_id: fundingUserId, _amount: amount },
+      );
+      if (consumeErr) {
+        console.error("[approve-withdrawal] consume_payroll_growth error:", consumeErr.message);
+      } else if (Number(consumed ?? 0) > 0) {
+        console.log(`[approve-withdrawal] payroll growth consumed: UGX ${consumed} for ${fundingUserId}`);
+      }
+    } catch (e) {
+      console.error("[approve-withdrawal] payroll growth consume threw:", e);
+    }
+
     // Audit log
     await admin.from("audit_logs").insert({
       user_id: user.id,

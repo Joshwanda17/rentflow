@@ -7870,6 +7870,48 @@ export type Database = {
           },
         ]
       }
+      payroll_growth_balances: {
+        Row: {
+          accrued_growth: number
+          created_at: string
+          current_balance: number
+          daily_rate: number
+          id: string
+          last_growth_at: string
+          original_amount: number
+          source_reference_id: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          accrued_growth?: number
+          created_at?: string
+          current_balance: number
+          daily_rate?: number
+          id?: string
+          last_growth_at?: string
+          original_amount: number
+          source_reference_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          accrued_growth?: number
+          created_at?: string
+          current_balance?: number
+          daily_rate?: number
+          id?: string
+          last_growth_at?: string
+          original_amount?: number
+          source_reference_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       payroll_items: {
         Row: {
           amount: number
@@ -12947,6 +12989,10 @@ export type Database = {
           p_tenant_id?: string
         }
         Returns: Json
+      }
+      consume_payroll_growth: {
+        Args: { _amount: number; _user_id: string }
+        Returns: number
       }
       create_direct_conversation: {
         Args: { other_user_id: string }
