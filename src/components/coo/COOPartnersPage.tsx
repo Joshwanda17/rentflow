@@ -1604,8 +1604,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     return <ChevronDown className="h-2.5 w-2.5 text-primary" />;
   }
 
-  /* ─── Column config ─── */
-  const columns: { key: string; label: string; align?: 'left' | 'right' | 'center'; sortable?: boolean; hideOnMobile?: boolean; render?: (r: PartnerRow) => React.ReactNode }[] = [
+  /* ─── Column config (memoized so rows don't re-render on unrelated state changes) ─── */
+  const columns = useMemo<{ key: string; label: string; align?: 'left' | 'right' | 'center'; sortable?: boolean; hideOnMobile?: boolean; render?: (r: PartnerRow) => React.ReactNode }[]>(() => [
     { key: 'name', label: 'Partner', render: (r) => (
       <button
         onClick={() => openPartnerDetail(r.id)}
@@ -1697,7 +1697,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         </DropdownMenu>
       )
     },
-  ];
+  ], [readOnly]);
 
   /* ─── Render ─── */
   if (isLoading) {
