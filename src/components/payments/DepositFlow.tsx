@@ -1658,12 +1658,14 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                       }}
                     />
                   )}
-                  <OperationalFloatTenantAllocator
-                    agentId={currentUserId}
-                    totalAmount={parseFloat(amount) || 0}
-                    allocations={tenantAllocations}
-                    onChange={setTenantAllocations}
-                  />
+                  <div id="deposit-tenant-allocator" className="scroll-mt-4">
+                    <OperationalFloatTenantAllocator
+                      agentId={currentUserId}
+                      totalAmount={parseFloat(amount) || 0}
+                      allocations={tenantAllocations}
+                      onChange={setTenantAllocations}
+                    />
+                  </div>
                   {/*
                     Edit-mode diff panel — surfaces the original
                     per-tenant amounts (as captured when the dialog
