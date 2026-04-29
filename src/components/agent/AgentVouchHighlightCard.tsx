@@ -142,6 +142,36 @@ export function AgentVouchHighlightCard({ userId }: Props) {
       {/* Expandable explainer */}
       {expanded && (
         <div className="relative border-t border-primary/15 bg-background/40 backdrop-blur-sm px-4 py-3.5 space-y-3">
+          {/* Trust pillar ranking — communicates that rent collection is the
+              #2 trust pillar after Supporter Portfolio. Static order; the
+              underlying weights live in recompute_trust_score on the backend. */}
+          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-2.5">
+            <p className="text-[10px] uppercase tracking-wider font-bold text-emerald-700 dark:text-emerald-400 mb-1.5">
+              Trust Pillars (in order of weight)
+            </p>
+            <ol className="text-[11px] space-y-1">
+              <li className="flex items-center gap-1.5">
+                <span className="font-bold text-muted-foreground w-3">1.</span>
+                <span className="text-muted-foreground">Supporter Portfolio</span>
+              </li>
+              <li className="flex items-center gap-1.5 rounded px-1.5 py-1 -mx-1.5 bg-emerald-500/10">
+                <span className="font-black text-emerald-700 dark:text-emerald-400 w-3">2.</span>
+                <span className="font-bold text-foreground">Rent Collection</span>
+                <span className="ml-auto text-[9px] uppercase tracking-wider font-bold text-emerald-700 dark:text-emerald-400">
+                  You
+                </span>
+              </li>
+              <li className="flex items-center gap-1.5">
+                <span className="font-bold text-muted-foreground w-3">3.</span>
+                <span className="text-muted-foreground">Verification &amp; GPS</span>
+              </li>
+              <li className="flex items-center gap-1.5">
+                <span className="font-bold text-muted-foreground w-3">4.</span>
+                <span className="text-muted-foreground">Wallet behaviour</span>
+              </li>
+            </ol>
+          </div>
+
           <p className="text-[11px] text-muted-foreground flex items-start gap-1.5">
             <Info className="h-3.5 w-3.5 text-primary shrink-0 mt-px" />
             <span>
