@@ -582,10 +582,102 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     return transactionId.trim().toUpperCase();
   };
 
+  /**
+   * Single source of truth for "why can't this form be submitted right now?".
+   * Returns null when the form is good to go, otherwise an object with the
+   * user-facing message AND the DOM id of the field that needs attention so
+   * the Confirm button can scroll/focus the right input.
+   *
+   * IMPORTANT: every block path used by validateForm() MUST go through here
+   * so the inline hint above the button and the toast stay in lock-step —
+   * that's what kills the "the button does nothing" perception.
+   */
+  const computeBlockReason = (): { message: string; fieldId: string } | null => {
+    const amt = parseFloat(amount);
+    if (!amount || !Number.isFinite(amt) || amt <= 0) {
+      return { message: 'Enter a valid amount', fieldId: 'deposit-amount' };
+    }
+    if (amt < MIN_DEPOSIT) {
+      return { message: `Minimum deposit is ${formatCurrency(MIN_DEPOSIT)}`, fieldId: 'deposit-amount' };
+    }
+    if (amt > MAX_DEPOSIT) {
+      return { message: `Maximum deposit is ${formatCurrency(MAX_DEPOSIT)}`, fieldId: 'deposit-amount' };
+    }
+    if (channel === 'momo' && !transactionId.trim()) {
+      return {
+        message: momoProvider === 'mtn'
+          ? "Enter your MTN MoMo TID from the SMS (starts with 'MP', e.g. MP39665905645)"
+          : "Enter your Airtel Money TID from the SMS (starts with 'TID', e.g. TID144205097399)",
+        fieldId: 'deposit-tid',
+      };
+    }
+    if (channel === 'bank' && !transactionId.trim()) {
+      return { message: 'Enter the bank reference number from your transfer receipt', fieldId: 'deposit-tid' };
+    }
+    if (channel === 'agent_cash' && !receiptNumber.trim()) {
+      return { message: 'Enter the receipt number the agent gave you', fieldId: 'deposit-receipt' };
+    }
+    if (channel === 'agent_cash' && !agentName.trim()) {
+      return { message: "Enter the agent's name", fieldId: 'deposit-agent-name' };
+    }
+    if (channel === 'cash' && !receiptNumber.trim()) {
+      return { message: 'Enter the cash deposit receipt number', fieldId: 'deposit-receipt' };
+    }
+    if (channel === 'momo') {
+      const rawTid = transactionId.trim().toUpperCase();
+      if (momoProvider === 'mtn' && !rawTid.startsWith('MP')) {
+        return { message: "MTN TIDs must start with 'MP' (e.g. MP39665905645)", fieldId: 'deposit-tid' };
+      }
+      if (momoProvider === 'airtel' && !rawTid.startsWith('TID')) {
+        return { message: "Airtel TIDs must start with 'TID' (e.g. TID144205097399)", fieldId: 'deposit-tid' };
+      }
+    }
+    if (!transactionDate) {
+      return { message: 'Select the transaction date', fieldId: 'deposit-date' };
+    }
+    if (!transactionTime) {
+      return { message: 'Enter the transaction time', fieldId: 'deposit-time' };
+    }
+    if (!depositPurpose) {
+      return { message: 'Select the deposit purpose', fieldId: 'deposit-purpose' };
+    }
+    if (depositPurpose === 'other' && !reason.trim()) {
+      return { message: 'Enter the reason for this deposit', fieldId: 'deposit-reason' };
+    }
+    if (depositPurpose === 'operational_float' && tenantAllocations.length > 0) {
+      const sum = tenantAllocations.reduce((s, a) => s + (a.amount || 0), 0);
+      const total = parseFloat(amount);
+      if (tenantAllocations.some((a) => !a.amount || a.amount <= 0)) {
+        return {
+          message: 'Each tenant in the breakdown needs an amount greater than 0',
+          fieldId: 'deposit-tenant-allocator',
+        };
+      }
+      if (Math.abs(sum - total) > 1) {
+        return {
+          message: `Tenant breakdown (UGX ${sum.toLocaleString()}) must equal deposit total (UGX ${total.toLocaleString()})`,
+          fieldId: 'deposit-tenant-allocator',
+        };
+      }
+    }
+    if (transactionDate && transactionTime) {
+      const txDate = new Date(`${transactionDate}T${transactionTime}`);
+      const now = new Date();
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      if (txDate > now) {
+        return { message: 'Transaction date cannot be in the future', fieldId: 'deposit-date' };
+      }
+      if (txDate < weekAgo) {
+        return { message: 'Transaction must be within the last 7 days', fieldId: 'deposit-date' };
+      }
+    }
+    return null;
+  };
+
   const validateForm = () => {
-    const reason = computeBlockReason();
-    if (reason) {
-      toast.error(reason.message);
+    const blocked = computeBlockReason();
+    if (blocked) {
+      toast.error(blocked.message);
       return false;
     }
     return true;
