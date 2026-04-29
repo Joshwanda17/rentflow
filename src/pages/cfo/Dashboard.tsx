@@ -106,6 +106,7 @@ export default function CFODashboardPage() {
           <div className="space-y-6">
             <WithdrawableDriftAlertsPanel />
             <PhantomDriftPanel />
+            <WalletReconciliationAuditPanel />
             <CFOReconciliationPanel />
           </div>
         );
