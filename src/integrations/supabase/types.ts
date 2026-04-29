@@ -14130,6 +14130,10 @@ export type Database = {
       }
       resolve_ai_id_to_user: { Args: { p_ai_id: string }; Returns: string }
       resolve_welile_ai_id: { Args: { ai_id: string }; Returns: string }
+      resubmit_rejected_deposit: {
+        Args: { p_id: string; p_payload: Json }
+        Returns: string
+      }
       run_phantom_clamp_pass: {
         Args: { p_dry_run?: boolean }
         Returns: {
