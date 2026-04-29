@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from './KPICard';
 import { ExecutiveDataTable, Column } from './ExecutiveDataTable';
 import { RentPipelineQueue } from './RentPipelineQueue';
+import { RejectedRequestsQueue } from './RejectedRequestsQueue';
 import { ApprovalHistoryLog } from './ApprovalHistoryLog';
 import { TenantBehaviorDashboard } from './TenantBehaviorDashboard';
 import { DailyPaymentTracker } from './DailyPaymentTracker';
@@ -515,6 +516,7 @@ export function TenantOpsDashboard() {
         return (
           <div className="space-y-4">
             <RentPipelineQueue stage="pending" />
+            <RejectedRequestsQueue stageFilter="pending" title="Rejected at Tenant Ops" />
             <div className="grid grid-cols-2 gap-2">
               <KPICard title="Pending" value={pending} icon={Clock} loading={isLoading} color="bg-amber-500/10 text-amber-600" />
               <KPICard title="In Pipeline" value={inPipeline} icon={ArrowRight} loading={isLoading} color="bg-blue-500/10 text-blue-600" />
