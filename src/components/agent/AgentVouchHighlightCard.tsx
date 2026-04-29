@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Fingerprint, ShieldCheck, Sparkles, ChevronRight, ChevronDown, Info, Clock, Wallet, TrendingUp } from 'lucide-react';
+import { Fingerprint, ShieldCheck, Sparkles, ChevronRight, ChevronDown, Info, Clock } from 'lucide-react';
 import { useTrustProfile } from '@/hooks/useTrustProfile';
 import { generateWelileAiId } from '@/lib/welileAiId';
 import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/integrations/supabase/client';
 import { AgentVouchHistoryFeed } from './AgentVouchHistoryFeed';
 import { onVouchUpdated } from '@/lib/vouchEvents';
+import { EarnedVouchRangeBreakdown } from './EarnedVouchRangeBreakdown';
 
 interface Props {
   userId: string;
@@ -216,7 +216,14 @@ export function AgentVouchHighlightCard({ userId }: Props) {
            * because the 100k base + earned growth applies to every agent
            * regardless of trust-score eligibility.
            */}
-          <EarnedVouchBreakdown agentId={userId} />
+          {/* Date-range filterable breakdown (7d / 30d / 90d / All).
+              Replaces the legacy lifetime-only EarnedVouchBreakdown. */}
+          {aiId && (
+            <EarnedVouchRangeBreakdown
+              aiId={aiId}
+              effectiveLimitUgx={vouch}
+            />
+          )}
 
           {/* Per-collection vouch change feed (includes reversals) */}
           <AgentVouchHistoryFeed agentId={userId} />
@@ -373,160 +380,3 @@ function MetricRow({ label, sub, value, pct, tone }: MetricRowProps) {
 }
 
 export default AgentVouchHighlightCard;
-
-/* =====================================================================
- * EarnedVouchBreakdown
- * ---------------------------------------------------------------------
- * Three-row breakdown that surfaces the new field-collections vouch
- * driver to the agent:
- *   1. Welile base vouch       100,000 (always)
- *   2. Earned from collecting  2 × SUM(agent_collections.amount)
- *   3. Effective limit         row 1 + row 2 (visually emphasized)
- *
- * Data source: a single `get_agent_vouch_limit_ugx(agent_id)` RPC plus a
- * lightweight aggregate query for the lifetime collection total. We do
- * the math client-side from those two values rather than adding a new
- * RPC just for the breakdown — keeps the server surface small and lets
- * us evolve the copy/UI without redeploys.
- *
- * Self-contained: lives in the same file as the parent because its only
- * consumer is the expanded section above. If a second consumer ever
- * shows up, hoist into `src/components/agent/EarnedVouchBreakdown.tsx`.
- * ===================================================================== */
-
-const WELILE_VOUCH_FLOOR_UGX = 100_000;       // Mirror of welile_default_agent_vouch_floor_ugx()
-const WELILE_VOUCH_MULTIPLIER = 2;            // Mirror of welile_agent_vouch_multiplier()
-
-function EarnedVouchBreakdown({ agentId }: { agentId: string }) {
-  const [collectedTotal, setCollectedTotal] = useState<number | null>(null);
-  const [effectiveLimit, setEffectiveLimit] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshTick, setRefreshTick] = useState(0);
-
-  // Live-refresh when a collection updates the vouch limit.
-  useEffect(() => {
-    return onVouchUpdated((d) => {
-      if (!d.agentId || d.agentId === agentId) setRefreshTick((n) => n + 1);
-    });
-  }, [agentId]);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!agentId) { setLoading(false); return; }
-
-    (async () => {
-      try {
-        // Run both queries in parallel — independent reads.
-        // RPC for the authoritative effective limit, aggregate for the
-        // raw collection total used in the displayed multiplication.
-        const [{ data: limitData }, { data: rows }] = await Promise.all([
-          supabase.rpc('get_agent_vouch_limit_ugx', { p_agent_id: agentId }),
-          supabase
-            .from('agent_collections')
-            .select('amount')
-            .eq('agent_id', agentId),
-        ]);
-
-        if (cancelled) return;
-
-        const total = Array.isArray(rows)
-          ? rows.reduce((s: number, r: { amount: number | null }) => s + Number(r.amount || 0), 0)
-          : 0;
-
-        setCollectedTotal(total);
-        setEffectiveLimit(typeof limitData === 'number' ? limitData : Number(limitData ?? 0));
-      } catch {
-        // Soft-fail — show the base floor so the section still renders
-        // useful info offline / on RPC errors. Better than vanishing.
-        if (!cancelled) {
-          setCollectedTotal(0);
-          setEffectiveLimit(WELILE_VOUCH_FLOOR_UGX);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [agentId, refreshTick]);
-
-  const earned = (collectedTotal ?? 0) * WELILE_VOUCH_MULTIPLIER;
-  // The trust-engine `borrowing_limit_ugx` may push the effective limit
-  // above (floor + earned). Surface it so the math always reconciles.
-  const trustBoost = Math.max(0, (effectiveLimit ?? 0) - WELILE_VOUCH_FLOOR_UGX - earned);
-
-  return (
-    <div className="rounded-xl border border-primary/30 bg-gradient-to-br from-primary/8 to-emerald-500/5 p-3">
-      <div className="flex items-center gap-1.5 mb-2">
-        <TrendingUp className="h-3.5 w-3.5 text-primary" />
-        <p className="text-[10px] uppercase tracking-wider font-bold text-primary">
-          Earned vouch breakdown
-        </p>
-      </div>
-
-      <div className="space-y-1.5">
-        <BreakdownRow
-          label="Welile base vouch"
-          sub="Every agent starts here"
-          value={formatUGX(WELILE_VOUCH_FLOOR_UGX)}
-        />
-        <BreakdownRow
-          label="Earned from collecting"
-          sub={
-            loading
-              ? 'Calculating…'
-              : `${formatUGX(collectedTotal ?? 0)} collected × ${WELILE_VOUCH_MULTIPLIER}`
-          }
-          value={loading ? '—' : formatUGX(earned)}
-          highlight={!loading && earned > 0}
-        />
-        {trustBoost > 0 && (
-          <BreakdownRow
-            label="Trust-score boost"
-            sub="Healthy ratio × monthly book"
-            value={formatUGX(trustBoost)}
-          />
-        )}
-      </div>
-
-      <div className="mt-2.5 pt-2 border-t border-primary/20 flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <Wallet className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-400" />
-          <p className="text-[11px] font-semibold text-foreground">Effective vouch limit</p>
-        </div>
-        <p className="text-base font-bold text-emerald-700 dark:text-emerald-400 tabular-nums">
-          {loading ? '—' : formatUGX(effectiveLimit ?? WELILE_VOUCH_FLOOR_UGX)}
-        </p>
-      </div>
-
-      <p className="text-[10px] text-muted-foreground mt-1.5 leading-snug">
-        Every shilling you collect grows your vouch by {WELILE_VOUCH_MULTIPLIER}× —
-        instantly, with no approval needed.
-      </p>
-    </div>
-  );
-}
-
-function BreakdownRow({
-  label, sub, value, highlight = false,
-}: {
-  label: string;
-  sub: string;
-  value: string;
-  highlight?: boolean;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-3">
-      <div className="min-w-0">
-        <p className="text-[11px] font-semibold text-foreground leading-tight">{label}</p>
-        <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{sub}</p>
-      </div>
-      <p className={cn(
-        'text-[12px] font-bold tabular-nums shrink-0',
-        highlight ? 'text-primary' : 'text-foreground',
-      )}>
-        {value}
-      </p>
-    </div>
-  );
-}

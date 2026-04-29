@@ -18,6 +18,7 @@ import LenderRecordLoanCard from '@/components/vouch/lender/LenderRecordLoanCard
 import MyVouchedLoansCard from '@/components/vouch/borrower/MyVouchedLoansCard';
 import BorrowerVouchDisclosureModal from '@/components/vouch/borrower/BorrowerVouchDisclosureModal';
 import { useBorrowerVouchDisclosure } from '@/hooks/useBorrowerVouchDisclosure';
+import { EarnedVouchRangeBreakdown } from '@/components/agent/EarnedVouchRangeBreakdown';
 import { formatUGX } from '@/lib/rentCalculations';
 import { buildProfileShareUrl, shareProfileOnWhatsApp } from '@/lib/shareTrustProfile';
 import { isValidAiId } from '@/lib/welileAiId';
@@ -273,6 +274,18 @@ export default function HolisticProfile({ publicMode = false }: Props) {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Date-range filtered breakdown — only shows when this user has
+                actually collected rent (i.e., is an agent). RPC silently
+                returns nothing for non-agents and the component hides itself. */}
+            {profile.identity.primary_role === 'agent' && (
+              <div className="mt-3">
+                <EarnedVouchRangeBreakdown
+                  aiId={profile.ai_id}
+                  effectiveLimitUgx={profile.trust.borrowing_limit_ugx}
+                />
+              </div>
+            )}
           </motion.div>
         )}
 
