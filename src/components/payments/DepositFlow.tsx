@@ -874,23 +874,71 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             <p className="text-muted-foreground text-sm">Loading deposit details…</p>
           </div>
         ) : step === 'success' ? (
-          <div className="py-8 text-center space-y-4">
-            <div className="w-16 h-16 mx-auto bg-success/20 rounded-full flex items-center justify-center">
-              <CheckCircle2 className="h-8 w-8 text-success" />
+          <div className="py-6 space-y-5">
+            {/* Success badge */}
+            <div className="text-center space-y-2">
+              <div className="w-14 h-14 mx-auto bg-success/15 rounded-full flex items-center justify-center">
+                <CheckCircle2 className="h-7 w-7 text-success" />
+              </div>
+              <h3 className="text-lg font-semibold">
+                {isEditMode ? 'Changes saved' : 'Deposit submitted'}
+              </h3>
+              {!isEditMode && parseFloat(amount) > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  We received your request for{' '}
+                  <span className="font-semibold text-foreground">{formatCurrency(parseFloat(amount))}</span>
+                </p>
+              )}
             </div>
-            <h3 className="text-lg font-semibold">
-              {isEditMode ? 'Changes Saved!' : 'Request Submitted!'}
-            </h3>
-            <p className="text-muted-foreground text-sm">
-              {isEditMode
-                ? 'Financial Ops will see your updated allocations on their next review.'
-                : 'Your deposit is being verified.'}
-            </p>
+
+            {/* 3-step tracker — gives users certainty about where the deposit
+                sits in the Financial Ops verification pipeline. Addresses the
+                "I deposited but can't see it anywhere" complaint (FIX-43). */}
+            <div className="rounded-xl border bg-muted/30 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+                What happens next
+              </p>
+              <ol className="space-y-3">
+                <li className="flex items-start gap-3">
+                  <div className="mt-0.5 h-6 w-6 rounded-full bg-success text-success-foreground flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold leading-tight">Submitted</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Just now — recorded with your reference</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="mt-0.5 h-6 w-6 rounded-full bg-warning/20 text-warning flex items-center justify-center shrink-0 ring-2 ring-warning/30">
+                    <Clock className="h-3.5 w-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold leading-tight">Awaiting Financial Ops verification</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Usually reviewed within a few hours. You'll see it under <span className="font-medium text-foreground">View history</span> with status <span className="font-medium text-foreground">Pending</span>.
+                    </p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="mt-0.5 h-6 w-6 rounded-full bg-muted text-muted-foreground flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold leading-tight text-muted-foreground">Wallet credited</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">As soon as Financial Ops approves, the funds land in your wallet.</p>
+                  </div>
+                </li>
+              </ol>
+            </div>
+
             <div className="space-y-2">
-              <Button onClick={handleClose} className="w-full">Done</Button>
-              <Button variant="outline" className="w-full" onClick={() => { handleClose(); navigate('/deposit-history'); }}>
-                <History className="h-4 w-4 mr-2" /> View History
+              <Button
+                className="w-full"
+                onClick={() => { handleClose(); navigate('/deposit-history'); }}
+              >
+                <History className="h-4 w-4 mr-2" /> Track this deposit
               </Button>
+              <Button variant="outline" onClick={handleClose} className="w-full">Done</Button>
             </div>
           </div>
         ) : step === 'submitting' ? (
@@ -1638,23 +1686,48 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             depositPurpose === 'operational_float' &&
             tenantAllocations.length > 0 &&
             (Math.abs(total - sum) > 1 || tenantAllocations.some((a) => !a.amount || a.amount <= 0));
-          const blocked =
-            isSubmitting || (channel === 'momo' && !isTidValid()) || opsAllocBlocked;
+          // Compute the *specific* reason the button can't submit. We keep the
+          // button visually-enabled and show the reason as an inline hint +
+          // toast on tap, so users never see a "dead button" with no
+          // explanation (root cause of the "deposit button doesn't work"
+          // complaint — see FIX-43).
+          const tidMissingMsg =
+            channel === 'momo' && !isTidValid()
+              ? momoProvider === 'mtn'
+                ? "Enter your MTN MoMo TID from the SMS (starts with 'MP', e.g. MP39665905645)"
+                : "Enter your Airtel Money TID from the SMS (starts with 'TID', e.g. TID144205097399)"
+              : null;
+          const opsAllocMsg = opsAllocBlocked ? 'Fix the tenant breakdown so amounts add up to the total.' : null;
+          const blockReason = tidMissingMsg || opsAllocMsg;
+          const blocked = isSubmitting || !!blockReason;
+          const handleAttempt = () => {
+            if (isSubmitting) return;
+            if (blockReason) {
+              toast.error(blockReason);
+              return;
+            }
+            handleSubmit();
+          };
           return (
             <div className="sticky bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              {blockReason && !isSubmitting && (
+                <div className="mb-2 flex items-start gap-2 rounded-md bg-warning/10 border border-warning/30 px-2.5 py-2 text-[11px] text-foreground">
+                  <AlertCircle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
+                  <span className="leading-snug">{blockReason}</span>
+                </div>
+              )}
               <Button
-                onClick={handleSubmit}
-                disabled={blocked}
+                onClick={handleAttempt}
+                disabled={isSubmitting}
                 className="w-full h-12 text-base font-semibold"
                 size="lg"
+                aria-disabled={blocked}
               >
                 {isSubmitting
                   ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> {isEditMode ? 'Saving…' : 'Submitting…'}</>
-                  : opsAllocBlocked
-                    ? 'Fix tenant breakdown to continue'
-                    : isEditMode
-                      ? 'Save changes'
-                      : 'Confirm deposit'}
+                  : isEditMode
+                    ? 'Save changes'
+                    : 'Confirm deposit'}
               </Button>
               {total > 0 && !blocked && (
                 <p className="text-center text-xs text-muted-foreground mt-1.5">
