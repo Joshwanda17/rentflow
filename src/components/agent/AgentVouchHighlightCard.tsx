@@ -401,6 +401,14 @@ function EarnedVouchBreakdown({ agentId }: { agentId: string }) {
   const [collectedTotal, setCollectedTotal] = useState<number | null>(null);
   const [effectiveLimit, setEffectiveLimit] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshTick, setRefreshTick] = useState(0);
+
+  // Live-refresh when a collection updates the vouch limit.
+  useEffect(() => {
+    return onVouchUpdated((d) => {
+      if (!d.agentId || d.agentId === agentId) setRefreshTick((n) => n + 1);
+    });
+  }, [agentId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -440,7 +448,7 @@ function EarnedVouchBreakdown({ agentId }: { agentId: string }) {
     })();
 
     return () => { cancelled = true; };
-  }, [agentId]);
+  }, [agentId, refreshTick]);
 
   const earned = (collectedTotal ?? 0) * WELILE_VOUCH_MULTIPLIER;
   // The trust-engine `borrowing_limit_ugx` may push the effective limit
