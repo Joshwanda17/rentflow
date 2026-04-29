@@ -214,6 +214,7 @@ export function TidVerification() {
     created_at: string;
     depositorName: string;
     depositorPhone: string;
+    transaction_id: string | null;
   };
   const [pending, setPending] = useState<PendingDeposit[]>([]);
   const [pendingLoading, setPendingLoading] = useState(false);
@@ -300,7 +301,7 @@ export function TidVerification() {
       const to = from + PENDING_PAGE_SIZE - 1;
       let query = supabase
         .from('deposit_requests')
-        .select('id, user_id, amount, provider, created_at')
+        .select('id, user_id, amount, provider, created_at, transaction_id')
         .eq('status', 'pending');
       if (pendingProviderFilter !== 'all') {
         query = query.eq('provider', pendingProviderFilter);
@@ -332,6 +333,7 @@ export function TidVerification() {
         created_at: d.created_at,
         depositorName: profileMap.get(d.user_id)?.name ?? 'Unknown depositor',
         depositorPhone: profileMap.get(d.user_id)?.phone ?? '',
+        transaction_id: d.transaction_id ?? null,
       }));
       setPending((prev) => {
         if (!append) return mapped;
@@ -781,9 +783,66 @@ export function TidVerification() {
 
   const handleVerify = useCallback(async () => {
     const trimmedTid = tid.trim();
-    if (!trimmedTid) { toast.error('Enter a Transaction ID'); return; }
-    if (!operatorAmount) { toast.error('Enter the amount'); return; }
     if (!user) return;
+    if (!operatorAmount) { toast.error('Enter the amount'); return; }
+
+    // FAST PATH — when the operator picked a row from the pending pick-list,
+    // that row is the source of truth. The typed TID is informational only;
+    // a typo there must NOT make the verify button silently fail. We pull
+    // the picked deposit by id and run the exact same MatchResult logic
+    // the typed-search path uses below.
+    if (pickedId) {
+      setResultState('searching');
+      setMatches([]);
+      try {
+        const parsedAmount = parseFloat(operatorAmount);
+        const { data: d, error } = await supabase
+          .from('deposit_requests')
+          .select('*')
+          .eq('id', pickedId)
+          .eq('status', 'pending')
+          .maybeSingle();
+        if (error) throw error;
+        if (!d) {
+          // Row no longer pending (already approved/rejected by another op,
+          // or refreshed away). Fall through to typed-TID search if we have
+          // one; otherwise surface not_found.
+          if (!trimmedTid) { setResultState('not_found'); return; }
+        } else {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id, full_name, phone')
+            .eq('id', d.user_id)
+            .maybeSingle();
+          const amountMatches = Math.abs(d.amount - parsedAmount) < 1;
+          const isOpFloat = d.deposit_purpose === 'operational_float';
+          const decoded = isOpFloat ? decodeAllocationsFromNote(d.notes) : null;
+          const result: MatchResult = {
+            id: d.id, user_id: d.user_id, amount: d.amount,
+            transaction_id: d.transaction_id, provider: d.provider,
+            created_at: d.created_at, notes: d.notes,
+            userName: profile?.full_name || 'Unknown',
+            userPhone: profile?.phone || '',
+            status: amountMatches ? 'matched' : 'amount_mismatch',
+            deposit_purpose: d.deposit_purpose ?? null,
+            allocations: decoded?.allocations ?? null,
+            matchedVia: 'tid',
+          };
+          setMatches([result]);
+          setResultState('found');
+          if (amountMatches) toast.info('Picked deposit ready to approve.');
+          else toast.warning('Amount differs from the picked deposit — review before approving.');
+          return;
+        }
+      } catch (err: any) {
+        toast.error(err.message || 'Verification failed');
+        setResultState('idle');
+        return;
+      }
+    }
+
+    // TYPED-TID PATH — no row picked, fall back to searching the queue.
+    if (!trimmedTid) { toast.error('Enter a Transaction ID or pick a depositor from the list'); return; }
 
     // TID format validation
     if (provider === 'mtn' && !trimmedTid.startsWith('MP')) {
@@ -899,7 +958,7 @@ export function TidVerification() {
       toast.error(err.message || 'Verification failed');
       setResultState('idle');
     }
-  }, [tid, operatorAmount, provider, user]);
+  }, [tid, operatorAmount, provider, user, pickedId]);
 
   // Actual backend commit. Kept private — public callers go through
   // `handleAutoApprove`, which adds the 5-second undo window.
@@ -1797,6 +1856,15 @@ export function TidVerification() {
             const originalProvider = (pickedRow.provider ?? pickedProvider ?? '—')
               .replace('_', ' ')
               .toUpperCase();
+            // Pull the picked row's REAL transaction_id so the recap shows
+            // the source-of-truth TID — not whatever the operator typed.
+            // The pick-list query doesn't fetch transaction_id, so fall back
+            // to the typed value when it's missing on the row object.
+            const pickedTid = pickedRow.transaction_id ?? undefined;
+            const typedTid = tid.trim();
+            const norm = (s: string) => s.replace(/[^0-9A-Z]/gi, '').toUpperCase();
+            const tidsAgree = !!typedTid && !!pickedTid && norm(typedTid) === norm(pickedTid);
+            const tidsConflict = !!typedTid && !!pickedTid && !tidsAgree;
             return (
               <div className="rounded-md border border-border bg-muted/40 px-3 py-2.5 space-y-1.5 text-xs">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -1818,12 +1886,46 @@ export function TidVerification() {
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between gap-2 min-w-0">
-                    <span className="text-muted-foreground">TID</span>
+                    <span className="text-muted-foreground">TID on file</span>
                     <span className="font-mono text-[11px] truncate">
-                      {tid.trim() || <span className="text-muted-foreground italic">not entered</span>}
+                      {pickedTid || <span className="text-muted-foreground italic">— (use typed)</span>}
                     </span>
                   </div>
                 </div>
+                {tidsConflict && (
+                  <div className="mt-1.5 rounded border border-destructive/40 bg-destructive/5 px-2 py-1.5 space-y-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-destructive flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3" /> TID does not match the picked deposit
+                    </p>
+                    <p className="text-[11px] text-muted-foreground leading-snug">
+                      You typed <span className="font-mono">{typedTid}</span> but this depositor's pending
+                      record has <span className="font-mono">{pickedTid}</span>. Verify which is correct
+                      before approving.
+                    </p>
+                    <div className="flex gap-1.5 pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setTid(pickedTid!)}
+                        className="text-[10px] font-medium text-primary underline underline-offset-2 hover:no-underline"
+                      >
+                        Use TID on file
+                      </button>
+                      <span className="text-muted-foreground">·</span>
+                      <button
+                        type="button"
+                        onClick={() => { setTid(''); }}
+                        className="text-[10px] font-medium text-muted-foreground hover:text-foreground"
+                      >
+                        Clear typed
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {tidsAgree && (
+                  <p className="text-[10px] text-success flex items-center gap-1 pt-0.5">
+                    <CheckCircle2 className="h-3 w-3" /> TID matches the deposit on file.
+                  </p>
+                )}
               </div>
             );
           })()}

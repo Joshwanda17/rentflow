@@ -1,46 +1,50 @@
 ## What's actually happening
 
-The Confirm button **does** fire — the click reaches `handleAllocate` and the RPC `agent_allocate_tenant_payment` is called. The problem is the RPC silently rejects the allocation, and the toast disappears too fast to read.
+Operator picks **Muwanguzi Fred** from the pending list. The recap card then shows:
 
-Two distinct float sources are in play:
+- Depositor: Muwanguzi Fred ✅ (from the picked row)
+- Amount: UGX 10,000 ✅ (from the picked row)
+- Original provider: AIRTEL ✅ (from the picked row)
+- TID: **TID146037804148** ❌ (this is what the operator **typed** into the input — *not* the picked row's actual transaction_id)
 
-| Source | Value (LOLEM) | Used by |
-|---|---|---|
-| `agent_landlord_float.balance` table | **UGX 1,734,000** | UI — `useAgentLandlordFloat` hook |
-| `general_ledger` (wallet ledger − locked commission) | **UGX 1,329,260** | RPC float check |
+The actual deposit Fred submitted is in the database with TID **TID146038124944** (a typo — the operator transposed "78" vs "81").
 
-When the agent enters an amount that the UI accepts but the RPC's stricter ledger view rejects, the RPC returns `{ success: false, error: "Float allocation blocked — would require commission funds…" }`. The 4-second toast vanishes; the dialog closes back to the form; the user reads it as "button broken".
+When she clicks **Verify & Match**, `handleVerify` ignores the picked row entirely and searches `deposit_requests` for `transaction_id ILIKE '%146037804148%'`, returning zero rows → "No Matching Deposit Found".
 
-For ATUHAIRE CAROLYNE (the user reporting) it's worse: she has **no row** in `agent_landlord_float`, so the UI shows `floatBalance = 0` and the Review button is permanently disabled — she can't even reach the Confirm step.
+So the recap card is **misleading**: it surfaces the typed TID right next to the picked depositor's real name and amount, making it look like everything will line up. The operator has every reason to believe the click should succeed.
 
-## Fix (3 changes, all in one pass)
+## Fix (3 changes, one pass)
 
-### 1. Make the UI use the SAME float definition as the RPC (single source of truth)
+### 1. The recap shows the picked row's REAL TID, not the typed one
 
-Add a new RPC `get_agent_float_balance(p_agent_id uuid)` that returns `max(0, ledger_wallet_total − locked_commission)` — the exact formula the allocation RPC enforces. Switch `useAgentLandlordFloat` to call it. End of UI/RPC mismatch.
+When a depositor is picked, the "About to verify" recap pulls `transaction_id` from `pending.find(p.id === pickedId)` and renders it. If the operator has also typed a TID:
 
-### 2. Surface RPC errors instead of silently dismissing them
+- match → show the TID once with a green check
+- mismatch → show both ("Picked: TID146038124944" vs "You typed: TID146037804148") in red, with a "Use picked" button that overwrites the input
 
-In `AgentTenantCollectDialog.handleAllocate`, when the RPC returns `{ success: false }`:
-- Stay in the confirming view (don't bounce back to the form)
-- Show the error inline in red inside the dialog above the Confirm button
-- Keep the toast as a secondary signal
-- This converts "button doesn't work" into a clear "Float low — reduce to UGX X"
+This kills the illusion of agreement before the click ever happens.
 
-### 3. Backfill `agent_landlord_float` rows for active agents
+### 2. Picked row is the source of truth for Verify & Match
 
-One-time migration: insert a row for every agent who has wallet ledger activity but no `agent_landlord_float` row, so Caro and others can use the dialog at all. Going forward the row should be created on first ledger float credit (already handled by other flows — only the historical gap needs patching).
+Refactor `handleVerify` so that **when `pickedId` is set**, the verify path skips the typed-TID search entirely and goes straight to that row by id, then runs the existing amount-match/profile-resolve/show-as-MatchResult logic. The typed TID is only used as the search key when no row is picked.
+
+This makes the picked-from-list flow click-and-approve, exactly as the operator expects.
+
+### 3. The typed-TID search stays for the no-pick case
+
+Keep the existing `transaction_id` ILIKE / numeric / notes triple-search untouched as the fallback when the operator pastes a TID without picking from the list. No regressions for the original flow.
 
 ## Files
 
-- **Migration**: new RPC `get_agent_float_balance` + backfill insert.
-- **Edited**: `src/hooks/useAgentLandlordFloat.ts` → call new RPC instead of reading the table.
-- **Edited**: `src/components/agent/AgentTenantCollectDialog.tsx` → show inline error in confirming view; do not auto-close on RPC rejection.
+- **Edited**: `src/components/financial-ops/TidVerification.tsx`
+  - Replace the TID line in the recap (~line 1822) with picked-row TID + mismatch indicator + "Use picked" action.
+  - Update `handleVerify` (~line 782) to take a fast-path when `pickedId` is set: fetch that one row and build the same `MatchResult` shape.
+  - Drop the `tid` requirement when a row is picked (operator doesn't have to retype a TID that's already on the row).
 
-No edge function changes. No ledger schema changes. RPC `agent_allocate_tenant_payment` is unchanged — it remains the authoritative gatekeeper.
+No DB changes. No edge function changes. The downstream `commitApprove` already operates on `match.id` so it's unaffected.
 
-## Verification after deploy
+## Verification
 
-- LOLEM and Caro both see a float number that matches what the RPC will accept.
-- Trying to over-allocate now shows a red inline error inside the dialog rather than a flashing toast.
-- A successful 10K allocation creates a `TPAY-` row in `agent_collections` and the dialog moves to the success view.
+- Pick a row, leave TID blank, enter the amount, click Verify & Match → match found, approve works.
+- Pick a row, type a *wrong* TID → recap card shows the conflict in red BEFORE clicking, with the picked TID as the source of truth.
+- Don't pick a row, type any TID → existing fallback search runs unchanged.
