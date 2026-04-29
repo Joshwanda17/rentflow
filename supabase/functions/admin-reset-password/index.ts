@@ -124,9 +124,13 @@ serve(async (req) => {
     );
   } catch (error: any) {
     console.error("Error resetting password:", error);
+    const isWeak = error?.code === "weak_password" || /weak|pwned|known to be/i.test(error?.message ?? "");
+    const message = isWeak
+      ? "This password has appeared in a known data breach. Please choose a stronger, unique password (mix of letters, numbers, and symbols)."
+      : error.message;
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+      JSON.stringify({ error: message, code: error?.code ?? null }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: isWeak ? 422 : 400 }
     );
   }
 });
