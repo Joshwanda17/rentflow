@@ -68,6 +68,13 @@ export type Database = {
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
           },
+          {
+            foreignKeyName: "advance_fee_config_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
         ]
       }
       agent_advance_ledger: {
@@ -241,6 +248,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "agent_advance_requests_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "agent_advance_requests_approved_by_coo_fkey"
             columns: ["approved_by_coo"]
             isOneToOne: false
@@ -267,6 +281,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_approved_by_coo_fkey"
+            columns: ["approved_by_coo"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
           {
             foreignKeyName: "agent_advance_requests_paid_by_cfo_fkey"
@@ -297,6 +318,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "agent_advance_requests_paid_by_cfo_fkey"
+            columns: ["paid_by_cfo"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "agent_advance_requests_reviewed_by_agent_ops_fkey"
             columns: ["reviewed_by_agent_ops"]
             isOneToOne: false
@@ -325,6 +353,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "agent_advance_requests_reviewed_by_agent_ops_fkey"
+            columns: ["reviewed_by_agent_ops"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "agent_advance_requests_reviewed_by_landlord_ops_fkey"
             columns: ["reviewed_by_landlord_ops"]
             isOneToOne: false
@@ -353,6 +388,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "agent_advance_requests_reviewed_by_landlord_ops_fkey"
+            columns: ["reviewed_by_landlord_ops"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "agent_advance_requests_reviewed_by_tenant_ops_fkey"
             columns: ["reviewed_by_tenant_ops"]
             isOneToOne: false
@@ -379,6 +421,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_requests_reviewed_by_tenant_ops_fkey"
+            columns: ["reviewed_by_tenant_ops"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -442,6 +491,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_topups_topped_up_by_fkey"
+            columns: ["topped_up_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -533,6 +589,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "agent_advances_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "agent_advances_issued_by_fkey"
             columns: ["issued_by"]
             isOneToOne: false
@@ -559,6 +622,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advances_issued_by_fkey"
+            columns: ["issued_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -673,6 +743,13 @@ export type Database = {
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
           },
+          {
+            foreignKeyName: "agent_collection_streaks_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
         ]
       }
       agent_collections: {
@@ -769,6 +846,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "agent_collections_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "agent_collections_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -795,6 +879,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_collections_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
           {
             foreignKeyName: "agent_collections_token_id_fkey"
@@ -1061,6 +1152,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "agent_escalations_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "agent_escalations_resolved_by_fkey"
             columns: ["resolved_by"]
             isOneToOne: false
@@ -1089,6 +1187,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "agent_escalations_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "agent_escalations_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -1115,6 +1220,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_escalations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -1182,6 +1294,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "agent_float_funding_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "agent_float_funding_funded_by_fkey"
             columns: ["funded_by"]
             isOneToOne: false
@@ -1208,6 +1327,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_funding_funded_by_fkey"
+            columns: ["funded_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -1287,6 +1413,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "agent_float_limits_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "agent_float_limits_assigned_by_fkey"
             columns: ["assigned_by"]
             isOneToOne: false
@@ -1313,6 +1446,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_limits_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -1452,6 +1592,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "agent_float_withdrawals_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "agent_float_withdrawals_agent_ops_reviewed_by_fkey"
             columns: ["agent_ops_reviewed_by"]
             isOneToOne: false
@@ -1478,6 +1625,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_withdrawals_agent_ops_reviewed_by_fkey"
+            columns: ["agent_ops_reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
           {
             foreignKeyName: "agent_float_withdrawals_landlord_id_fkey"
@@ -1513,6 +1667,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_withdrawals_manager_reviewed_by_fkey"
+            columns: ["manager_reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
           {
             foreignKeyName: "agent_float_withdrawals_rent_request_id_fkey"
@@ -1555,6 +1716,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_withdrawals_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -1617,6 +1785,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_form_tokens_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -1713,6 +1888,13 @@ export type Database = {
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
           },
+          {
+            foreignKeyName: "agent_incentive_bonuses_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
         ]
       }
       agent_landlord_assignments: {
@@ -1771,6 +1953,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_landlord_assignments_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
           {
             foreignKeyName: "agent_landlord_assignments_landlord_id_fkey"
@@ -1854,6 +2043,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_landlord_float_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -2037,6 +2233,13 @@ export type Database = {
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
           },
+          {
+            foreignKeyName: "agent_landlord_payouts_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
         ]
       }
       agent_managed_user_actions: {
@@ -2190,6 +2393,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "agent_rebalance_records_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "agent_rebalance_records_approved_by_fkey"
             columns: ["approved_by"]
             isOneToOne: false
@@ -2216,6 +2426,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_rebalance_records_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -2285,6 +2502,13 @@ export type Database = {
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
           },
+          {
+            foreignKeyName: "agent_receipts_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
         ]
       }
       agent_subagents: {
@@ -2349,6 +2573,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_subagents_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -2443,6 +2674,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "agent_tasks_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "agent_tasks_assigned_by_fkey"
             columns: ["assigned_by"]
             isOneToOne: false
@@ -2471,6 +2709,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "agent_tasks_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "agent_tasks_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -2497,8 +2742,30 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_tasks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
+      }
+      agent_tier_capabilities: {
+        Row: {
+          capability: string
+          tier: Database["public"]["Enums"]["agent_tier"]
+        }
+        Insert: {
+          capability: string
+          tier: Database["public"]["Enums"]["agent_tier"]
+        }
+        Update: {
+          capability?: string
+          tier?: Database["public"]["Enums"]["agent_tier"]
+        }
+        Relationships: []
       }
       agent_visits: {
         Row: {
@@ -2564,6 +2831,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "agent_visits_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "agent_visits_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -2590,6 +2864,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_visits_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -2766,6 +3047,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "angel_pool_investments_investor_id_fkey"
+            columns: ["investor_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -3184,6 +3472,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "cashout_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "cashout_agents_assigned_by_fkey"
             columns: ["assigned_by"]
             isOneToOne: false
@@ -3210,6 +3505,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "cashout_agents_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -3352,6 +3654,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "commission_accrual_ledger_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "commission_accrual_ledger_approved_by_fkey"
             columns: ["approved_by"]
             isOneToOne: false
@@ -3378,6 +3687,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "commission_accrual_ledger_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
           {
             foreignKeyName: "commission_accrual_ledger_rent_request_id_fkey"
@@ -3420,6 +3736,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "commission_accrual_ledger_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -3862,6 +4185,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "default_recovery_ledger_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "default_recovery_ledger_rent_request_id_fkey"
             columns: ["rent_request_id"]
             isOneToOne: false
@@ -3904,6 +4234,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "default_recovery_ledger_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "default_recovery_ledger_write_off_approved_by_fkey"
             columns: ["write_off_approved_by"]
             isOneToOne: false
@@ -3930,6 +4267,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "default_recovery_ledger_write_off_approved_by_fkey"
+            columns: ["write_off_approved_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -3989,6 +4333,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "departments_head_user_id_fkey"
+            columns: ["head_user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -4191,6 +4542,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "disciplinary_records_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "disciplinary_records_issued_by_fkey"
             columns: ["issued_by"]
             isOneToOne: false
@@ -4217,6 +4575,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "disciplinary_records_issued_by_fkey"
+            columns: ["issued_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -4491,6 +4856,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "fee_revenue_ledger_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -4831,6 +5203,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "financial_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "financial_agents_assigned_by_fkey"
             columns: ["assigned_by"]
             isOneToOne: false
@@ -4857,6 +5236,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "financial_agents_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -4927,6 +5313,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "float_requests_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "float_requests_approved_by_fkey"
             columns: ["approved_by"]
             isOneToOne: false
@@ -4953,6 +5346,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "float_requests_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -5023,6 +5423,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "funder_visits_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "funder_visits_funder_id_fkey"
             columns: ["funder_id"]
             isOneToOne: false
@@ -5049,6 +5456,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "funder_visits_funder_id_fkey"
+            columns: ["funder_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -5677,6 +6091,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "investor_portfolios_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "investor_portfolios_investor_id_fkey"
             columns: ["investor_id"]
             isOneToOne: false
@@ -5703,6 +6124,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "investor_portfolios_investor_id_fkey"
+            columns: ["investor_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
           {
             foreignKeyName: "investor_portfolios_invite_id_fkey"
@@ -5820,6 +6248,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "landlord_leads_referrer_agent_id_fkey"
+            columns: ["referrer_agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -6302,6 +6737,13 @@ export type Database = {
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
           },
+          {
+            foreignKeyName: "landlords_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
         ]
       }
       lc1_chairpersons: {
@@ -6391,6 +6833,13 @@ export type Database = {
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
           },
+          {
+            foreignKeyName: "leave_balances_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
         ]
       }
       leave_requests: {
@@ -6466,6 +6915,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "leave_requests_reviewed_by_fkey"
             columns: ["reviewed_by"]
             isOneToOne: false
@@ -6492,6 +6948,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "leave_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -6891,6 +7354,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "liquidity_alerts_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "liquidity_alerts_resolved_by_fkey"
             columns: ["resolved_by"]
             isOneToOne: false
@@ -6917,6 +7387,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "liquidity_alerts_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -7316,6 +7793,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "offline_collection_submissions_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "offline_collection_submissions_rent_request_id_fkey"
             columns: ["rent_request_id"]
             isOneToOne: false
@@ -7625,6 +8109,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "payment_tokens_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "payment_tokens_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -7651,6 +8142,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payment_tokens_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
           {
             foreignKeyName: "payment_tokens_visit_id_fkey"
@@ -7737,6 +8235,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "payout_codes_claimed_by_fkey"
+            columns: ["claimed_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "payout_codes_paid_by_fkey"
             columns: ["paid_by"]
             isOneToOne: false
@@ -7765,6 +8270,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "payout_codes_paid_by_fkey"
+            columns: ["paid_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "payout_codes_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -7791,6 +8303,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payout_codes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
           {
             foreignKeyName: "payout_codes_withdrawal_request_id_fkey"
@@ -7895,6 +8414,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "payroll_batches_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "payroll_batches_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
@@ -7923,6 +8449,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "payroll_batches_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "payroll_batches_prepared_by_fkey"
             columns: ["prepared_by"]
             isOneToOne: false
@@ -7949,6 +8482,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payroll_batches_prepared_by_fkey"
+            columns: ["prepared_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -8085,6 +8625,13 @@ export type Database = {
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
           },
+          {
+            foreignKeyName: "payroll_items_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
         ]
       }
       pending_wallet_operations: {
@@ -8191,6 +8738,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "pending_wallet_operations_target_wallet_user_id_fkey"
+            columns: ["target_wallet_user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -8354,6 +8908,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "platform_expense_transfers_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "platform_expense_transfers_approved_by_fkey"
             columns: ["approved_by"]
             isOneToOne: false
@@ -8380,6 +8941,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "platform_expense_transfers_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
           {
             foreignKeyName: "platform_expense_transfers_financial_agent_id_fkey"
@@ -8713,6 +9281,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          agent_tier: Database["public"]["Enums"]["agent_tier"] | null
           agent_type: string | null
           always_share_location: boolean | null
           avatar_url: string | null
@@ -8766,6 +9335,7 @@ export type Database = {
           whatsapp_verified_at: string | null
         }
         Insert: {
+          agent_tier?: Database["public"]["Enums"]["agent_tier"] | null
           agent_type?: string | null
           always_share_location?: boolean | null
           avatar_url?: string | null
@@ -8819,6 +9389,7 @@ export type Database = {
           whatsapp_verified_at?: string | null
         }
         Update: {
+          agent_tier?: Database["public"]["Enums"]["agent_tier"] | null
           agent_type?: string | null
           always_share_location?: boolean | null
           avatar_url?: string | null
@@ -9164,6 +9735,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "proxy_agent_assignments_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "proxy_agent_assignments_approved_by_fkey"
             columns: ["approved_by"]
             isOneToOne: false
@@ -9192,6 +9770,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "proxy_agent_assignments_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "proxy_agent_assignments_assigned_by_fkey"
             columns: ["assigned_by"]
             isOneToOne: false
@@ -9220,6 +9805,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "proxy_agent_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "proxy_agent_assignments_beneficiary_id_fkey"
             columns: ["beneficiary_id"]
             isOneToOne: false
@@ -9246,6 +9838,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "proxy_agent_assignments_beneficiary_id_fkey"
+            columns: ["beneficiary_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -9502,6 +10101,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "referrals_referred_id_fkey"
+            columns: ["referred_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -9911,6 +10517,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "rent_requests_agent_verified_by_fkey"
+            columns: ["agent_verified_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "rent_requests_landlord_id_fkey"
             columns: ["landlord_id"]
             isOneToOne: false
@@ -9951,6 +10564,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "rent_requests_manager_verified_by_fkey"
+            columns: ["manager_verified_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -10157,6 +10777,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "role_access_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -10419,6 +11046,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "settlement_reconciliation_ledger_reconciled_by_fkey"
+            columns: ["reconciled_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -10887,6 +11521,13 @@ export type Database = {
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
           },
+          {
+            foreignKeyName: "supporter_capital_ledger_supporter_id_fkey"
+            columns: ["supporter_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
         ]
       }
       supporter_invites: {
@@ -11181,6 +11822,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "suspense_ledger_matched_by_fkey"
+            columns: ["matched_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "suspense_ledger_matched_to_user_id_fkey"
             columns: ["matched_to_user_id"]
             isOneToOne: false
@@ -11209,6 +11857,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "suspense_ledger_matched_to_user_id_fkey"
+            columns: ["matched_to_user_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "suspense_ledger_written_off_by_fkey"
             columns: ["written_off_by"]
             isOneToOne: false
@@ -11235,6 +11890,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "suspense_ledger_written_off_by_fkey"
+            columns: ["written_off_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -11500,6 +12162,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "tenant_transfers_from_agent_id_fkey"
+            columns: ["from_agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "tenant_transfers_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
@@ -11528,6 +12197,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "tenant_transfers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "tenant_transfers_to_agent_id_fkey"
             columns: ["to_agent_id"]
             isOneToOne: false
@@ -11556,6 +12232,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "tenant_transfers_to_agent_id_fkey"
+            columns: ["to_agent_id"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
+          {
             foreignKeyName: "tenant_transfers_transferred_by_fkey"
             columns: ["transferred_by"]
             isOneToOne: false
@@ -11582,6 +12265,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "tenant_transfers_transferred_by_fkey"
+            columns: ["transferred_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
           },
         ]
       }
@@ -12937,6 +13627,13 @@ export type Database = {
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
           },
+          {
+            foreignKeyName: "welile_trust_score_cache_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
         ]
       }
       wishlists: {
@@ -13206,6 +13903,13 @@ export type Database = {
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
           },
+          {
+            foreignKeyName: "agent_subagents_verified_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "vw_agent_ops_directory"
+            referencedColumns: ["agent_id"]
+          },
         ]
       }
       manager_profiles: {
@@ -13294,6 +13998,25 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_agent_ops_directory: {
+        Row: {
+          active_capability_count: number | null
+          agent_id: string | null
+          agent_tier: Database["public"]["Enums"]["agent_tier"] | null
+          district: string | null
+          email: string | null
+          frozen_reason: string | null
+          full_name: string | null
+          is_frozen: boolean | null
+          last_active_at: string | null
+          phone: string | null
+          region: string | null
+          territory: string | null
+          total_capability_count: number | null
+          verified: boolean | null
+        }
+        Relationships: []
+      }
       wallet_ledger_integrity_audit: {
         Row: {
           advance_balance: number | null
@@ -13352,6 +14075,15 @@ export type Database = {
       }
       agent_reverse_tenant_allocation: {
         Args: { p_collection_id: string; p_reason: string }
+        Returns: Json
+      }
+      apply_tier_capabilities: {
+        Args: {
+          _actor: string
+          _agent_id: string
+          _reason: string
+          _tier: Database["public"]["Enums"]["agent_tier"]
+        }
         Returns: Json
       }
       apply_wallet_movement:
@@ -14146,6 +14878,32 @@ export type Database = {
         Args: { p_landlord_id: string }
         Returns: undefined
       }
+      ops_bulk_set_agent_capability: {
+        Args: {
+          _action: string
+          _agent_ids: string[]
+          _capability: string
+          _reason: string
+        }
+        Returns: Json
+      }
+      ops_set_agent_capability: {
+        Args: {
+          _action: string
+          _agent_id: string
+          _capability: string
+          _reason: string
+        }
+        Returns: Json
+      }
+      ops_set_agent_tier: {
+        Args: {
+          _agent_id: string
+          _reason: string
+          _tier: Database["public"]["Enums"]["agent_tier"]
+        }
+        Returns: Json
+      }
       populate_wallet_review_queue: {
         Args: never
         Returns: {
@@ -14489,6 +15247,12 @@ export type Database = {
       }
     }
     Enums: {
+      agent_tier:
+        | "probation"
+        | "collector"
+        | "full_agent"
+        | "senior"
+        | "suspended"
       ai_priority: "low" | "medium" | "high" | "critical"
       ai_recommendation_status:
         | "pending"
@@ -14722,6 +15486,13 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      agent_tier: [
+        "probation",
+        "collector",
+        "full_agent",
+        "senior",
+        "suspended",
+      ],
       ai_priority: ["low", "medium", "high", "critical"],
       ai_recommendation_status: [
         "pending",
