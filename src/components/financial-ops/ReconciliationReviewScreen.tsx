@@ -453,6 +453,35 @@ function MatchedRow({ row }: { row: ReconRow }) {
             {row.matchedVia === 'notes' && (
               <Badge variant="secondary" className="text-[10px]">via receipt</Badge>
             )}
+            {row.depositPurpose === 'personal_deposit' && (() => {
+              const audit = (row.purposeAudit ?? {}) as Record<string, unknown>;
+              const isAgentRow = audit.is_agent === true;
+              const confirmedAt = audit.agent_personal_confirmed_at;
+              if (isAgentRow && confirmedAt) {
+                return (
+                  <Badge className="bg-emerald-600/15 text-emerald-700 text-[10px] border border-emerald-600/30">
+                    💰 Personal — confirmed
+                  </Badge>
+                );
+              }
+              if (isAgentRow && !confirmedAt) {
+                return (
+                  <Badge className="bg-amber-500/15 text-amber-700 text-[10px] border border-amber-500/40">
+                    ⚠️ Personal — no confirm
+                  </Badge>
+                );
+              }
+              return (
+                <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                  💰 Personal
+                </Badge>
+              );
+            })()}
+            {row.depositPurpose === 'operational_float' && (
+              <Badge className="bg-primary/15 text-primary text-[10px] border border-primary/30">
+                🏘️ Float
+              </Badge>
+            )}
           </div>
         </div>
       </div>
