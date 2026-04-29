@@ -1,25 +1,38 @@
 ---
-name: Wallet Baseline Anchor
-description: wallet_ledger_baseline freezes today as the reference point for available-balance math, preventing all-time ledger drift from retroactively crediting users
+name: Wallet Withdrawable Strict Rule
+description: Withdrawable is strict ledger-backed — get_user_available_balance returns min(cached withdrawable, max(0, wallet ledger net)) - pending holds; cached wallet buckets, commission balance, and baseline snapshots can NEVER inflate withdrawable
 type: feature
 ---
-**Problem:** All-time `general_ledger` net is unreliable for historical wallets — many old withdrawals were never journaled. Forcing `wallet = ledger_net` would gift users money they already received off-ledger.
+**Rule (2026-04-29 v2):** A user can only see and withdraw funds that are currently backed by their wallet ledger position. Cached values (`wallets.withdrawable_balance`, commission ledger sums, baseline snapshots) can REDUCE the displayed figure but can NEVER inflate it.
 
-**Fix:** `wallet_ledger_baseline` (one row per user) freezes the wallet's 3 buckets and the all-time ledger net at the moment of capture. From that point forward:
+**Formula** (body of `public.get_user_available_balance(p_user_id uuid)`):
 
 ```
-allowed_cap = max(0, baseline_withdrawable + (ledger_net_now − ledger_net_at_baseline))
-available   = max(0, min(withdrawable_cached, allowed_cap) − pending_holds)
+available = max(
+  0,
+  min(wallets.withdrawable_balance, max(0, wallet_ledger_net))
+  - pending_withdrawal_holds
+)
 ```
 
-This is the body of `get_user_available_balance(p_user_id uuid)` (param renamed from `_user_id`).
+- `wallet_ledger_net` = sum over `general_ledger` where `ledger_scope='wallet'` and `classification` IS NULL or `'production'`, with `cash_in` positive and `cash_out` negative.
+- Negative ledger net ⇒ withdrawable is 0 (accounting bug, surfaced in `wallet_ledger_review_queue`).
+- No ledger backing ⇒ withdrawable is 0.
+- Pending withdrawals (`pending|requested|manager_approved|processing`) reduce the figure.
 
-**Companion artifacts:**
-- `wallet_ledger_review_queue` — informational queue for understated wallets (`reason='understated'`) and unbalanced-leg cases (`reason='negative_ledger_net'`). Never auto-credits.
-- `snapshot_wallet_ledger_baseline()` — idempotent populate (ON CONFLICT DO NOTHING).
-- `run_phantom_clamp_pass(p_dry_run boolean)` — for wallets where withdrawable bucket exceeds ledger net AND ledger_net ≥ 0, clamps via `apply_wallet_movement(uid, 'system_balance_correction', amount, 'cash_out')`. Skips negative-ledger-net cases (those are accounting bugs, queued for CFO review).
-- Frontend: `src/lib/computeLedgerAvailable.ts` calls the RPC as the source of truth and falls back to `min(cache, ledger_net) − holds` only if the RPC is unavailable.
+**One source of truth:** UI (`src/hooks/useAgentBalances.ts`, `src/components/wallet/UnifiedWalletHeroCard.tsx`, `src/components/wallet/FullScreenWalletSheet.tsx`, `src/components/payments/WithdrawFlow.tsx`) and the approval gate (`supabase/functions/approve-withdrawal/index.ts`) all read this RPC. Never compute "spendable" inline.
 
-**Initial run (2026-04-29):** baseline snapshotted for all wallets; review queue populated with 71 cases.
+**Forbidden display sources for "withdrawable":**
+- raw `wallets.withdrawable_balance`
+- raw `wallets.balance`
+- `commissionBalance` (an earnings/history metric, not money currently in the wallet)
+- `baseline_withdrawable + delta` (kept ONLY for audit, not for spending math)
 
-**Rule going forward:** Any new "spendable" math MUST anchor to the baseline + delta-since-baseline, never raw all-time `general_ledger` SUM.
+**Companion artifacts (audit / cleanup only — do NOT use for spending decisions):**
+- `wallet_ledger_baseline` — frozen 2026-04-29 snapshot. Audit reference only.
+- `wallet_ledger_review_queue` — quarantined drift cases (CFO review).
+- `snapshot_wallet_ledger_baseline()` — idempotent snapshot helper.
+- `run_phantom_clamp_pass(p_dry_run boolean)` — clamps cached withdrawable down to ledger net via `apply_wallet_movement(uid,'system_balance_correction',amount,'cash_out')`.
+- `public.wallet_strict_drift_view` — finance diagnostic of accounts where cached wallet exceeds strict ledger-backed withdrawable.
+
+**Why the baseline approach was retired:** The baseline was meant to prevent retroactively crediting users for missing historical legs, but it had the side effect of letting old cached `withdrawable_balance` values remain spendable when the actual ledger said zero or negative. That contradicts the constitutional rule that the ledger is the source of truth. The strict rule clamps spendable to the ledger directly while still preventing over-credit (it never grows above the cache).
