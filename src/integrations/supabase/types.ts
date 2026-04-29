@@ -8712,6 +8712,7 @@ export type Database = {
           frozen_at: string | null
           frozen_reason: string | null
           full_name: string
+          funder_reference: string | null
           id: string
           is_frozen: boolean
           is_seller: boolean
@@ -8760,6 +8761,7 @@ export type Database = {
           frozen_at?: string | null
           frozen_reason?: string | null
           full_name: string
+          funder_reference?: string | null
           id: string
           is_frozen?: boolean
           is_seller?: boolean
@@ -8808,6 +8810,7 @@ export type Database = {
           frozen_at?: string | null
           frozen_reason?: string | null
           full_name?: string
+          funder_reference?: string | null
           id?: string
           is_frozen?: boolean
           is_seller?: boolean
@@ -13352,6 +13355,10 @@ export type Database = {
       auto_dispatch_withdrawals: {
         Args: { p_batch_size?: number }
         Returns: Json
+      }
+      build_funder_reference: {
+        Args: { p_created_at: string; p_user_id: string }
+        Returns: string
       }
       calculate_business_advance_limit: {
         Args: { _tenant_id: string }
