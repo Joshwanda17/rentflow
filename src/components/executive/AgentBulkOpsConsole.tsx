@@ -447,6 +447,118 @@ function CsvForm({ onResolved }: { onResolved: (r: ResolvedSet) => void }) {
 export default AgentBulkOpsConsole;
 
 /* =====================================================================
+ * SingleAgentForm — find ONE agent by ID, phone, or email and stage them
+ * as a 1-agent target. Lets a manager work on a specific agent inside the
+ * same Bulk Ops flow (same audit, same job pipeline).
+ * =====================================================================*/
+function SingleAgentForm({ onResolved }: { onResolved: (r: ResolvedSet) => void }) {
+  const [query, setQuery] = useState('');
+  const [matches, setMatches] = useState<Array<{ agent_id: string; full_name: string | null; phone: string | null; email?: string | null }>>([]);
+  const [unmatched, setUnmatched] = useState<string[]>([]);
+
+  const search = useMutation({
+    mutationFn: async () => {
+      const term = query.trim();
+      if (term.length < 3) throw new Error('Type at least 3 characters');
+      // Reuses the existing identifier resolver — accepts agent ID, phone, or email.
+      const { data, error } = await supabase.rpc('ops_resolve_agents_by_identifier', { _items: [term] });
+      if (error) throw error;
+      return data as any;
+    },
+    onSuccess: (d) => {
+      const matched = (d?.matched ?? []) as Array<any>;
+      const um = (d?.unmatched ?? []) as string[];
+      setMatches(matched);
+      setUnmatched(um);
+      if (matched.length === 0) {
+        toast.error('No agent matched that identifier');
+      } else if (matched.length === 1) {
+        // Auto-stage the single hit so the manager can go straight to step 2.
+        pick(matched[0]);
+      } else {
+        toast.message(`${matched.length} matches — pick one to continue`);
+      }
+    },
+    onError: (e: any) => toast.error(e?.message ?? 'Search failed'),
+  });
+
+  const pick = (a: { agent_id: string; full_name: string | null; phone: string | null }) => {
+    onResolved({
+      source: 'csv', // routed through the same identifier-based pipeline
+      agentIds: [a.agent_id],
+      count: 1,
+      sample: [{
+        agent_id: a.agent_id,
+        full_name: a.full_name,
+        phone: a.phone,
+        tier: null,
+        is_frozen: false,
+        last_active_at: null,
+      }],
+      unmatched: [],
+    });
+    toast.success(`Selected ${a.full_name ?? a.phone ?? a.agent_id.slice(0, 8)}`);
+  };
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-muted-foreground">
+        Look up one agent by their <strong>agent ID</strong>, <strong>phone</strong>, or <strong>email</strong> and apply a function change to just that agent — same audit trail and reason requirements as a bulk job.
+      </p>
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="h-4 w-4 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); search.mutate(); } }}
+            placeholder="+256700123456, agent@example.com, or UUID…"
+            className="pl-8"
+            autoFocus
+          />
+        </div>
+        <Button onClick={() => search.mutate()} disabled={search.isPending || query.trim().length < 3}>
+          {search.isPending ? 'Searching…' : 'Find agent'}
+        </Button>
+      </div>
+
+      {matches.length > 1 && (
+        <Card className="p-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+            {matches.length} matches — pick one
+          </p>
+          <div className="max-h-56 overflow-y-auto divide-y">
+            {matches.map(m => (
+              <button
+                key={m.agent_id}
+                type="button"
+                onClick={() => pick(m)}
+                className="w-full flex items-center gap-2 py-2 px-1 text-left hover:bg-muted/50 rounded"
+              >
+                <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold truncate">{m.full_name ?? '(no name)'}</p>
+                  <p className="text-[10px] text-muted-foreground truncate font-mono">
+                    {m.phone ?? '—'}{m.email ? ` · ${m.email}` : ''} · {m.agent_id.slice(0, 8)}…
+                  </p>
+                </div>
+                <span className="text-[10px] text-primary font-semibold shrink-0">Select →</span>
+              </button>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {unmatched.length > 0 && matches.length === 0 && (
+        <p className="text-xs text-destructive">
+          No agent found for "{unmatched[0]}". Check the spelling or try a different identifier.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* =====================================================================
  * Dead Letter Queue panel — terminally failed batches (after 5 retries)
  * ===================================================================*/
 interface DeadLetterRow {
