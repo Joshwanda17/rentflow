@@ -33,7 +33,7 @@ export function useAvailableBalance(userId?: string) {
     try {
       const { data: row, error } = await supabase.rpc(
         'get_user_available_balance',
-        { _user_id: targetId },
+        { p_user_id: targetId },
       );
       if (error) throw error;
       const r = (row ?? {}) as Record<string, unknown>;
