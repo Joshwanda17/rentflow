@@ -637,7 +637,6 @@ export function DirectCreditTool() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button
                     type="button"
-                    type="button"
                     onClick={() => {
                       if (selectedCategory?.recipientLock === 'operational_wallet') return;
                       setRecipientType('user');
