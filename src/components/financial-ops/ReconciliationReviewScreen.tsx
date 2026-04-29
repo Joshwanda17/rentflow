@@ -69,6 +69,10 @@ interface ReconRow {
   depositPurpose?: string | null;
   matchedVia?: 'tid' | 'notes';
   allocations?: TenantAllocation[];
+  /** Audit trail of how the depositor chose the purpose. Used to show
+   *  whether an agent personal-deposit went through the in-app
+   *  confirmation gate. */
+  purposeAudit?: Record<string, unknown> | null;
 }
 
 function reasonCopy(r: ReconRow['reason']): { title: string; hint: string } {
