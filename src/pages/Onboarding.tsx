@@ -843,7 +843,7 @@ export default function FunderOnboarding() {
   };
 
   return (
-    <div className="fixed inset-0 flex font-sans bg-[#FAFAFA] overflow-hidden">
+    <div className="fixed inset-0 flex font-sans overflow-hidden bg-[#0E0820]">
       <Toaster position="top-center" />
 
       {/* LEFT COLUMN (HERO IMAGE) */}
@@ -862,7 +862,23 @@ export default function FunderOnboarding() {
       </div>
 
       {/* RIGHT COLUMN (WIZARD) */}
-      <div className="w-full lg:w-1/2 lg:shrink-0 flex flex-col h-full overflow-hidden shadow-2xl z-20 bg-[#FAFAFA]">
+      <div className="relative w-full lg:w-1/2 lg:shrink-0 flex flex-col h-full overflow-hidden shadow-2xl z-20 bg-[#FAFAFA]">
+        {/* Ambient brand background (visible behind translucent surfaces; primarily for mobile) */}
+        <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-[#F6F2FF] via-[#FAFAFA] to-[#EFE7FF]" />
+          <div className="absolute -top-32 -left-24 w-[420px] h-[420px] rounded-full bg-[#6c11d4]/20 blur-3xl" />
+          <div className="absolute top-1/3 -right-32 w-[360px] h-[360px] rounded-full bg-[#9b5cff]/20 blur-3xl" />
+          <div className="absolute -bottom-24 left-1/4 w-[380px] h-[380px] rounded-full bg-[#FFD700]/15 blur-3xl" />
+          <div
+            className="absolute inset-0 opacity-[0.05]"
+            style={{
+              backgroundImage:
+                'linear-gradient(#6c11d4 1px,transparent 1px),linear-gradient(90deg,#6c11d4 1px,transparent 1px)',
+              backgroundSize: '32px 32px',
+            }}
+          />
+        </div>
+        <div className="relative z-10 flex flex-col h-full overflow-hidden">
         <div className="bg-white/90 backdrop-blur-sm border-b border-gray-100 shrink-0 sticky top-0 z-20">
           <div className="flex items-center justify-center pt-5 pb-2">
             <StepDots total={TOTAL} current={step} />
@@ -961,6 +977,7 @@ export default function FunderOnboarding() {
               Step {step} / {TOTAL}
             </p>
           </div>
+        </div>
         </div>
       </div>
 

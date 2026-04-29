@@ -13372,6 +13372,10 @@ export type Database = {
         Args: { p_batch_size?: number }
         Returns: Json
       }
+      backfill_missing_profile_by_email: {
+        Args: { _email: string }
+        Returns: Json
+      }
       build_funder_reference: {
         Args: { p_created_at: string; p_user_id: string }
         Returns: string
