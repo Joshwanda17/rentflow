@@ -1518,6 +1518,13 @@ export type Database = {
             foreignKeyName: "agent_float_withdrawals_rent_request_id_fkey"
             columns: ["rent_request_id"]
             isOneToOne: false
+            referencedRelation: "rent_request_formula_drift"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_float_withdrawals_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
             referencedRelation: "rent_requests"
             referencedColumns: ["id"]
           },
@@ -1770,6 +1777,13 @@ export type Database = {
             columns: ["landlord_id"]
             isOneToOne: false
             referencedRelation: "landlords"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_landlord_assignments_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_request_formula_drift"
             referencedColumns: ["id"]
           },
           {
@@ -3339,6 +3353,13 @@ export type Database = {
             foreignKeyName: "commission_accrual_ledger_rent_request_id_fkey"
             columns: ["rent_request_id"]
             isOneToOne: false
+            referencedRelation: "rent_request_formula_drift"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_accrual_ledger_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
             referencedRelation: "rent_requests"
             referencedColumns: ["id"]
           },
@@ -3809,6 +3830,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "default_recovery_ledger_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_request_formula_drift"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "default_recovery_ledger_rent_request_id_fkey"
@@ -4392,6 +4420,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fee_revenue_ledger_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_request_formula_drift"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fee_revenue_ledger_rent_request_id_fkey"
             columns: ["rent_request_id"]
@@ -6993,6 +7028,13 @@ export type Database = {
             foreignKeyName: "location_requests_rent_request_id_fkey"
             columns: ["rent_request_id"]
             isOneToOne: false
+            referencedRelation: "rent_request_formula_drift"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "location_requests_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
             referencedRelation: "rent_requests"
             referencedColumns: ["id"]
           },
@@ -7242,6 +7284,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "offline_collection_submissions_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_request_formula_drift"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "offline_collection_submissions_rent_request_id_fkey"
@@ -9854,6 +9903,13 @@ export type Database = {
             foreignKeyName: "repayments_rent_request_id_fkey"
             columns: ["rent_request_id"]
             isOneToOne: false
+            referencedRelation: "rent_request_formula_drift"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "repayments_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
             referencedRelation: "rent_requests"
             referencedColumns: ["id"]
           },
@@ -10631,6 +10687,13 @@ export type Database = {
             foreignKeyName: "subscription_charges_rent_request_id_fkey"
             columns: ["rent_request_id"]
             isOneToOne: false
+            referencedRelation: "rent_request_formula_drift"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_charges_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
             referencedRelation: "rent_requests"
             referencedColumns: ["id"]
           },
@@ -10704,6 +10767,13 @@ export type Database = {
           transaction_type?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "supporter_capital_ledger_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_request_formula_drift"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "supporter_capital_ledger_rent_request_id_fkey"
             columns: ["rent_request_id"]
@@ -10908,6 +10978,13 @@ export type Database = {
           supporter_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "supporter_roi_payments_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_request_formula_drift"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "supporter_roi_payments_rent_request_id_fkey"
             columns: ["rent_request_id"]
@@ -13015,6 +13092,27 @@ export type Database = {
         }
         Relationships: []
       }
+      rent_request_formula_drift: {
+        Row: {
+          agent_id: string | null
+          canonical_access_fee: number | null
+          canonical_daily_repayment: number | null
+          canonical_request_fee: number | null
+          canonical_total_repayment: number | null
+          created_at: string | null
+          duration_days: number | null
+          id: string | null
+          rent_amount: number | null
+          status: string | null
+          stored_access_fee: number | null
+          stored_daily_repayment: number | null
+          stored_request_fee: number | null
+          stored_total_repayment: number | null
+          tenant_id: string | null
+          total_drift_ugx: number | null
+        }
+        Relationships: []
+      }
       supporter_referral_leaderboard: {
         Row: {
           avatar_url: string | null
@@ -13185,6 +13283,15 @@ export type Database = {
         }[]
       }
       compute_daily_stats: { Args: never; Returns: undefined }
+      compute_rent_repayment: {
+        Args: { p_duration_days: number; p_rent_amount: number }
+        Returns: {
+          access_fee: number
+          daily_repayment: number
+          request_fee: number
+          total_repayment: number
+        }[]
+      }
       compute_wallet_ledger_total: {
         Args: { _user_id: string }
         Returns: number

@@ -60,10 +60,9 @@ Deno.serve(async (req) => {
     const income_type = body.income_type as string;
     const rent_amount = Number(body.rent_amount) || 0;
     const duration_days = Number(body.duration_days) || 30;
-    const access_fee = Number(body.access_fee) || 0;
-    const request_fee = Number(body.request_fee) || 0;
-    const total_repayment = Number(body.total_repayment) || 0;
-    const daily_repayment = Number(body.daily_repayment) || 0;
+    // Fee fields are NEVER trusted from the client. The DB trigger
+    // `enforce_rent_request_formula` recomputes them from rent_amount + duration_days.
+    // We pass zeros and let the trigger overwrite.
     const no_smartphone = body.no_smartphone === true;
     const house_category = (body.house_category as string) || 'single-room';
     const landlordNameCheck = validateFullName(body.landlord_name);
@@ -167,10 +166,10 @@ Deno.serve(async (req) => {
         lc1_id: lc1.id,
         rent_amount,
         duration_days,
-        access_fee,
-        request_fee,
-        total_repayment,
-        daily_repayment,
+        access_fee: 0,
+        request_fee: 0,
+        total_repayment: 0,
+        daily_repayment: 0,
         status: "pending",
         house_category,
         tenant_no_smartphone: no_smartphone,
