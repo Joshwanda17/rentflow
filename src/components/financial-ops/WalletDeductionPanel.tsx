@@ -466,7 +466,7 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
       ) : (
         <>
           {/* Selected user card */}
-          <div className="p-4 rounded-xl border border-border bg-card space-y-1">
+          <div className="p-4 rounded-xl border border-border bg-card space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
@@ -479,13 +479,37 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
               </div>
               <Button variant="ghost" size="sm" onClick={resetForm}>Change</Button>
             </div>
-            <div className="flex items-center gap-2 mt-2">
-              <Wallet className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm">Available: <strong>{formatUGX(trueBalance)}</strong></span>
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <div className="rounded-lg border border-border p-2.5">
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase tracking-wide">
+                  <Wallet className="h-3 w-3" /> Withdrawable
+                </div>
+                <p className="text-sm font-bold mt-0.5">{formatUGX(trueBalance)}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Deductible from this tool</p>
+              </div>
+              <div className={cn(
+                "rounded-lg border p-2.5",
+                selectedUser.float_balance > 0 ? "border-amber-300 bg-amber-50" : "border-border opacity-60"
+              )}>
+                <div className={cn(
+                  "flex items-center gap-1.5 text-[10px] uppercase tracking-wide",
+                  selectedUser.float_balance > 0 ? "text-amber-700" : "text-muted-foreground"
+                )}>
+                  <AlertTriangle className="h-3 w-3" /> Float (owed)
+                </div>
+                <p className={cn(
+                  "text-sm font-bold mt-0.5",
+                  selectedUser.float_balance > 0 ? "text-amber-800" : ""
+                )}>{formatUGX(selectedUser.float_balance)}</p>
+                <p className={cn(
+                  "text-[10px] mt-0.5",
+                  selectedUser.float_balance > 0 ? "text-amber-700" : "text-muted-foreground"
+                )}>Company liability — not deductible</p>
+              </div>
             </div>
-            {availableBalance !== undefined && availableBalance !== null && availableBalance < selectedUser.balance && (
+            {availableBalance !== undefined && availableBalance !== null && availableBalance < selectedUser.withdrawable_balance && (
               <p className="text-[11px] text-muted-foreground mt-1">
-                Cached wallet shows {formatUGX(selectedUser.balance)}, but ledger-true available is lower (debt / pending obligations).
+                Cached withdrawable shows {formatUGX(selectedUser.withdrawable_balance)}, but ledger-true available is lower (debt / pending obligations).
               </p>
             )}
           </div>
