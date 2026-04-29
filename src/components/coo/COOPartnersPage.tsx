@@ -217,6 +217,11 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [filterWallet, setFilterWallet] = useState<'all' | 'has_balance' | 'empty'>('all');
   const [payoutDateFrom, setPayoutDateFrom] = useState<Date | undefined>(undefined);
   const [payoutDateTo, setPayoutDateTo] = useState<Date | undefined>(undefined);
+  // When a payout date range is active we need to filter across ALL partners,
+  // not just the current server-paginated page. We lazily fetch the full set
+  // (scoped to the current search term) and cache it here.
+  const [allRowsForPayoutFilter, setAllRowsForPayoutFilter] = useState<PartnerRow[] | null>(null);
+  const [loadingAllRowsForPayout, setLoadingAllRowsForPayout] = useState(false);
 
   // Invest dialog
   const [investPartner, setInvestPartner] = useState<PartnerRow | null>(null);
