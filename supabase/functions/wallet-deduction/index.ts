@@ -105,14 +105,55 @@ Deno.serve(async (req) => {
       });
     }
 
-    const withdrawable = Number(wallet.withdrawable_balance ?? 0);
-    const floatBal = Number(wallet.float_balance ?? 0);
-    const totalAvailable = withdrawable + floatBal;
+    const cacheWithdrawable = Number(wallet.withdrawable_balance ?? 0);
+    const cacheFloat = Number(wallet.float_balance ?? 0);
 
-    if (totalAvailable < amount) {
+    // ── STRICT WITHDRAWABLE GATE (matches the UI cap) ───────────────────────
+    // The CFO panel shows "Withdrawable" via get_user_available_balance, which
+    // floors the cached bucket by the user's ledger-net position and pending
+    // holds. We MUST gate on the same number — never the raw cache, and never
+    // float (float is company liability and is NEVER deductible from this tool).
+    const { data: strictData, error: strictErr } = await adminClient.rpc(
+      'get_user_available_balance',
+      { p_user_id: target_user_id },
+    );
+    if (strictErr) {
+      console.error("[wallet-deduction] strict RPC failed:", strictErr.message);
+      return new Response(JSON.stringify({ error: `Could not verify withdrawable balance: ${strictErr.message}` }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const strictAvailable = Number(strictData ?? 0);
+
+    if (amount > strictAvailable) {
+      // Diagnostic log — record the drift between strict and cache so the CFO
+      // Reconcile tab can pick it up.
+      console.error("[wallet-deduction] rejected", {
+        user_id: target_user_id,
+        requested: amount,
+        strict_available: strictAvailable,
+        cache_withdrawable: cacheWithdrawable,
+        cache_float: cacheFloat,
+      });
+      if (cacheWithdrawable > strictAvailable) {
+        try {
+          await adminClient.from('wallet_overdraw_events').insert({
+            user_id: target_user_id,
+            attempted_amount: amount,
+            available_amount: strictAvailable,
+            context: {
+              source: 'wallet-deduction',
+              cache_withdrawable: cacheWithdrawable,
+              cache_float: cacheFloat,
+              actor_id: user.id,
+            },
+          });
+        } catch (_) { /* diagnostic only */ }
+      }
       return new Response(
         JSON.stringify({
-          error: `Insufficient balance. Withdrawable: UGX ${withdrawable.toLocaleString()}, Float: UGX ${floatBal.toLocaleString()}, Requested: UGX ${amount.toLocaleString()}`,
+          error: `Maximum deductible: UGX ${strictAvailable.toLocaleString()} (requested UGX ${amount.toLocaleString()}). Float (UGX ${cacheFloat.toLocaleString()}) is company liability and cannot be deducted from this tool.`,
         }),
         {
           status: 400,
@@ -121,9 +162,28 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Bucket-aware split: drain withdrawable first, overflow into float via float_retraction
-    const withdrawablePortion = Math.min(withdrawable, amount);
-    const floatPortion = amount - withdrawablePortion;
+    // Defensive bucket recheck — the strict RPC could have read just before a
+    // concurrent debit lowered the cached withdrawable bucket below the amount
+    // we're about to push. If so, fail fast with a 409 instead of letting the
+    // wallets_balance_check constraint fire deep in the ledger trigger.
+    const { data: walletNow } = await adminClient
+      .from("wallets")
+      .select("withdrawable_balance")
+      .eq("user_id", target_user_id)
+      .single();
+    const liveWithdrawable = Number(walletNow?.withdrawable_balance ?? 0);
+    if (liveWithdrawable < amount) {
+      return new Response(
+        JSON.stringify({
+          error: `Withdrawable balance changed: now UGX ${liveWithdrawable.toLocaleString()}. Refresh and try again.`,
+        }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Single, withdrawable-only deduction. No float spill — ever.
+    const withdrawablePortion = amount;
+    const floatPortion = 0;
 
     // Get target user profile for audit
     const { data: targetProfile } = await adminClient
