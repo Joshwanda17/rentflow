@@ -343,13 +343,17 @@ export default function FunderOnboarding() {
                     {selected.email && <span className="truncate">{selected.email}</span>}
                   </div>
                   <div className="pt-1">
-                    {selected.frozen_at ? (
+                    {selected.funder_verified_at ? (
+                      <Badge variant="outline" className="text-[10px] gap-1 bg-success/15 text-success border-success/30">
+                        <CheckCircle2 className="h-2.5 w-2.5" /> Verified
+                      </Badge>
+                    ) : selected.funder_rejected_at ? (
                       <Badge variant="outline" className="text-[10px] gap-1 bg-destructive/15 text-destructive border-destructive/30">
-                        <ShieldAlert className="h-2.5 w-2.5" /> Suspended
+                        <XCircle className="h-2.5 w-2.5" /> Rejected
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="text-[10px] gap-1 bg-success/15 text-success border-success/30">
-                        <ShieldCheck className="h-2.5 w-2.5" /> Active
+                      <Badge variant="outline" className="text-[10px] gap-1 bg-warning/15 text-warning border-warning/30">
+                        <Clock className="h-2.5 w-2.5" /> Pending Review
                       </Badge>
                     )}
                   </div>
@@ -362,19 +366,50 @@ export default function FunderOnboarding() {
                       {format(new Date(selected.created_at), 'dd MMM yyyy, HH:mm')}
                     </span>
                   </Row>
-                  <Row label="Verified">{selected.verified ? 'Yes' : 'No'}</Row>
+                  <Row label="Verified">{selected.funder_verified_at ? format(new Date(selected.funder_verified_at), 'dd MMM yyyy, HH:mm') : 'No'}</Row>
+                  {selected.funder_rejected_at && (
+                    <Row label="Rejected reason">{selected.funder_rejection_reason || '—'}</Row>
+                  )}
                 </div>
+
+                {actionMode && (
+                  <div className="rounded-xl border border-border/60 p-3 space-y-2">
+                    <p className="text-xs font-semibold">
+                      {actionMode === 'approve' ? 'Approve this funder' : 'Reject this funder'}
+                    </p>
+                    <Textarea
+                      value={actionReason}
+                      onChange={(e) => setActionReason(e.target.value)}
+                      placeholder="Reason (min 10 characters) — required for audit log"
+                      className="text-xs min-h-[72px]"
+                    />
+                    <div className="flex items-center justify-end gap-2">
+                      <Button size="sm" variant="ghost" onClick={() => setActionMode(null)} disabled={submitting}>Cancel</Button>
+                      <Button
+                        size="sm"
+                        variant={actionMode === 'approve' ? 'default' : 'destructive'}
+                        onClick={submitAction}
+                        disabled={submitting || actionReason.trim().length < 10}
+                      >
+                        {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : (actionMode === 'approve' ? 'Confirm Approval' : 'Confirm Rejection')}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <DialogFooter>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => navigate(`/admin/partners/${selected.id}`)}
-                >
-                  Open profile
-                </Button>
-                <Button size="sm" onClick={() => setSelected(null)}>Close</Button>
+                {!actionMode && !selected.funder_verified_at && (
+                  <Button size="sm" onClick={() => openAction('approve')} className="gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Approve
+                  </Button>
+                )}
+                {!actionMode && !selected.funder_rejected_at && (
+                  <Button size="sm" variant="destructive" onClick={() => openAction('reject')} className="gap-1">
+                    <XCircle className="h-3.5 w-3.5" /> Reject
+                  </Button>
+                )}
+                <Button size="sm" variant="outline" onClick={() => setSelected(null)}>Close</Button>
               </DialogFooter>
             </>
           )}
