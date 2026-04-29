@@ -20,6 +20,7 @@ import CFOReconciliationPanel from '@/components/cfo/CFOReconciliationPanel';
 import PhantomDriftPanel from '@/components/cfo/PhantomDriftPanel';
 import WalletReconciliationAuditPanel from '@/components/cfo/WalletReconciliationAuditPanel';
 import WithdrawableDriftAlertsPanel from '@/components/cfo/WithdrawableDriftAlertsPanel';
+import HistoricalDriftReviewPanel from '@/components/cfo/HistoricalDriftReviewPanel';
 
 import { CFOPartnerPayoutProcessing } from '@/components/cfo/CFOPartnerPayoutProcessing';
 import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
@@ -106,6 +107,7 @@ export default function CFODashboardPage() {
           <div className="space-y-6">
             <WithdrawableDriftAlertsPanel />
             <PhantomDriftPanel />
+            <HistoricalDriftReviewPanel />
             <WalletReconciliationAuditPanel />
             <CFOReconciliationPanel />
           </div>
