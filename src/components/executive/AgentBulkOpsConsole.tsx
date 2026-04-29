@@ -593,13 +593,18 @@ function AgentSnapshotPanel({
 
       const profileRes = await supabase
         .from('profiles')
-        .select('full_name,phone')
-        .eq('user_id', agentId)
+        .select('full_name,phone,is_frozen,last_active_at')
+        .eq('id', agentId)
         .maybeSingle();
 
       return {
         caps: capsRes.data ?? [],
-        profile: (profileRes.data as { full_name: string | null; phone: string | null } | null) ?? null,
+        profile: (profileRes.data as {
+          full_name: string | null;
+          phone: string | null;
+          is_frozen: boolean | null;
+          last_active_at: string | null;
+        } | null) ?? null,
       };
     },
     staleTime: 15_000,
@@ -664,9 +669,17 @@ function AgentSnapshotPanel({
 
       {/* Status row */}
       <div className="flex flex-wrap gap-1 mt-2">
+        <Badge variant={profile?.is_frozen ? 'destructive' : 'secondary'} className="text-[9px]">
+          {profile?.is_frozen ? 'Frozen' : 'Active'}
+        </Badge>
         <Badge variant="outline" className="text-[9px]">
           {activeByKey.size} active function{activeByKey.size === 1 ? '' : 's'}
         </Badge>
+        {profile?.last_active_at && (
+          <Badge variant="outline" className="text-[9px]" title={profile.last_active_at}>
+            seen {new Date(profile.last_active_at).toLocaleDateString()}
+          </Badge>
+        )}
         {lastUpdated && (
           <Badge variant="outline" className="text-[9px]" title={lastUpdated.toISOString()}>
             last change {lastUpdated.toLocaleDateString()}
