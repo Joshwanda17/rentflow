@@ -35,7 +35,7 @@ import {
   ClipboardList, AlertTriangle, Building2, Wallet, Bell, ArrowLeftRight,
   ChevronLeft, Briefcase, TrendingUp, UsersRound, PiggyBank, HandCoins, ShieldCheck, FileBarChart, Network,
   LayoutGrid, ChevronDown, ToggleRight, Layers
-} from 'lucide-react';
+, Sparkles, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
