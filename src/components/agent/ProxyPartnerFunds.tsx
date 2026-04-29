@@ -269,10 +269,9 @@ export function ProxyPartnerFunds() {
           .select('linked_party, status, rejection_reason, updated_at, created_at')
           .eq('user_id', user.id)
           .in('status', [...TERMINAL_UNPAID_STATUSES])
-          // Defense-in-depth: only consider terminal events from the last 30 days
-          // so really old rejections never resurface even if a later success was
-          // recorded against the same partner with a missing timestamp.
-          .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+          // Defense-in-depth: only consider terminal events from the last 7 days
+          // so old rejections naturally fall off Caro's view.
+          .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
           .order('updated_at', { ascending: false })
           .limit(500),
       ]);
@@ -374,6 +373,13 @@ export function ProxyPartnerFunds() {
       });
 
       setLastTerminalByPartner(terminalMap);
+
+      // Load this agent's dismissals (cards she has manually cleared)
+      const { data: dismissalRows } = await supabase
+        .from('agent_proxy_card_dismissals')
+        .select('partner_id, portfolio_id, snapshot_amount, dismissed_at, reason')
+        .eq('agent_id', user.id);
+      setDismissals((dismissalRows || []) as Dismissal[]);
     } catch (err) {
       console.error('Error loading proxy funds:', err);
     } finally {
