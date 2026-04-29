@@ -485,7 +485,16 @@ export function ProxyPartnerFunds() {
           available,
         };
       })
-      .filter((partner) => partner.available > 0)
+      // Auto-hide cards with negligible balance (rounding dust) and apply
+      // agent-side dismissal: hide when a dismissal exists AND nothing new has
+      // accrued since (current available <= snapshot at dismissal time).
+      .filter((partner) => {
+        if (partner.available <= 50) return false;
+        const dKey = `${partner.partnerId}-${partner.portfolioId || 'none'}`;
+        const d = dismissalMap[dKey];
+        if (d && partner.available <= Number(d.snapshot_amount)) return false;
+        return true;
+      })
       .sort((a, b) => {
         if (b.available !== a.available) return b.available - a.available;
         if (b.totalReturns !== a.totalReturns) return b.totalReturns - a.totalReturns;
