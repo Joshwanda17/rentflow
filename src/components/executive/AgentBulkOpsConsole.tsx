@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,8 +13,9 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import {
-  ChevronLeft, Filter, FileUp, Layers, AlertTriangle, ShieldAlert, CheckCircle2, RefreshCw,
+  ChevronLeft, Filter, FileUp, Layers, AlertTriangle, ShieldAlert, CheckCircle2, RefreshCw, Loader2, XCircle,
 } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 
 /**
  * AgentBulkOpsConsole
@@ -77,17 +78,26 @@ export function AgentBulkOpsConsole({ onBack }: { onBack?: () => void }) {
       if (resolved.count > 1000 && Number(confirmCount) !== resolved.count) {
         throw new Error(`Type the count (${resolved.count}) to confirm large changes`);
       }
-      const { data, error } = await supabase.rpc('ops_bulk_apply_capabilities', {
+      // Enqueue a background job — returns the job id immediately, work
+      // happens asynchronously via the process-agent-capability-jobs worker.
+      const { data: jobId, error } = await supabase.rpc('enqueue_agent_capability_job', {
         _agent_ids: resolved.agentIds,
         _capabilities: Array.from(selectedCaps),
         _action: action,
         _reason: reason.trim(),
+        _source: resolved.source,
+        _chunk_size: 1000,
       });
       if (error) throw error;
-      return data as any;
+      // Kick the worker once so users don't wait up to 30s for cron.
+      void supabase.functions.invoke('process-agent-capability-jobs', {
+        body: { job_id: jobId },
+      }).catch(() => { /* background, errors surface via job row */ });
+      return jobId as string;
     },
-    onSuccess: (r) => {
-      toast.success(`Applied ${action} on ${r?.affected_total ?? 0} agent-capability pairs`);
+    onSuccess: (jobId) => {
+      toast.success('Job queued — running in the background');
+      setActiveJobId(jobId);
       setResolved(null);
       setSelectedCaps(new Set());
       setReason('');
@@ -95,6 +105,8 @@ export function AgentBulkOpsConsole({ onBack }: { onBack?: () => void }) {
     },
     onError: (e: any) => toast.error(e?.message ?? 'Failed'),
   });
+
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
 
   const highRiskPicked = useMemo(
     () => Array.from(selectedCaps).some(k => ALL_CAPABILITIES.find(c => c.key === k)?.risk === 'high'),
@@ -113,10 +125,13 @@ export function AgentBulkOpsConsole({ onBack }: { onBack?: () => void }) {
         <div>
           <h2 className="text-lg font-bold">Bulk Ops Console</h2>
           <p className="text-xs text-muted-foreground">
-            Enable or disable functions across thousands of agents at once. Server chunks 5 000 agents per batch.
+            Enable or disable functions across thousands of agents at once. Runs in the background — close this page anytime.
           </p>
         </div>
       </div>
+
+      {/* Live + recent jobs */}
+      <RecentJobsPanel highlightJobId={activeJobId} />
 
       {/* Step 1 – build the agent set */}
       <Card className="p-4">
