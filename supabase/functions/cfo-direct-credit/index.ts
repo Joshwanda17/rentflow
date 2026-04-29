@@ -56,7 +56,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { target_user_id, amount, reason, operation, wallet_category, platform_category, financial_impact, category_label, sub_category, recipient_type } = await req.json();
+    const { target_user_id, amount: rawAmount, reason, operation, wallet_category, platform_category, financial_impact, category_label, sub_category, recipient_type } = await req.json();
+    const amount = typeof rawAmount === "number"
+      ? rawAmount
+      : Number(String(rawAmount ?? "").replace(/[, _]/g, ""));
     const op = operation === "debit" ? "debit" : "credit";
     const callerRoles = (roles || []).map((r: any) => r.role);
 
@@ -130,12 +133,12 @@ Deno.serve(async (req) => {
       }
       throw new Error("Invalid target user");
     }
-    if (!amount || typeof amount !== "number" || amount <= 0 || amount > 50000000) {
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 500000000) {
       if (shouldSample(shadowConfig)) {
         runShadowAudit('cfo-direct-credit', { target_user_id, amount, operation }, false,
           () => shadowValidateCfoAdjustment({ targetUserId: target_user_id, amount, reason, operation: op, callerRoles }), adminClient);
       }
-      throw new Error("Invalid amount (1 - 50,000,000)");
+      throw new Error(`Invalid amount: received '${rawAmount}' (typeof ${typeof rawAmount}). Allowed range 1 - 500,000,000.`);
     }
     if (!reason || typeof reason !== "string" || reason.length < 10) {
       if (shouldSample(shadowConfig)) {
