@@ -1,64 +1,66 @@
-# Agent deposits default to Float
+## Goal
 
-## Problem
+Tenants registered with an existing outstanding balance (`registration_type = 'outstanding_balance'`) are already living in their property — there is nothing for Welile to disburse to a landlord and no fresh property/landlord to verify. They must skip Landlord Ops, COO, and CFO, and complete after **Tenant Ops + Agent verification only**.
 
-Agents (e.g. ATUHAIRE CAROLYNE) are submitting their cash deposits with `deposit_purpose = 'personal_deposit'`, which routes the credit to **withdrawable** at Financial Ops approval. Per policy, agent-collected cash is company money and belongs in the **float bucket**.
+Today, all rent requests are forced through the same 5-stage pipeline (Tenant Ops → Agent Ops → Landlord Ops → COO → CFO → Disbursed). 9 outstanding-balance requests are currently sitting at `pending`, 1 at `tenant_ops_approved`, and 1 stranded at `coo_approved` because the flow doesn't fit them.
 
-The routing logic in `approve-deposit` is already correct:
-- `operational_float` → `agent_float_deposit` category → `float_balance`
-- `personal_deposit` → `wallet_deposit` category → `withdrawable_balance`
+## What changes
 
-The fix is at the **point of submission**: agents should default to Operational Float, with an explicit opt-out for genuine personal top-ups.
+### 1. Backend — branch the pipeline by `registration_type`
 
-## Scope
+Add a server-side rule (DB trigger on `rent_requests` UPDATE of `status`):
 
-- **Apply to**: every user with the `agent` role (active or in role switcher).
-- **Do NOT touch**: existing approved/pending rows, ledger, or wallet balances. Per the fresh-start anchor rule, today's mis-routed personal deposits stay where they are.
+- If `registration_type = 'outstanding_balance'`:
+  - `pending` → on Tenant Ops approve, advance to `tenant_ops_approved` (same as today, but skip the `assigned_agent_id` requirement; the original `agent_id` is the verifier).
+  - `tenant_ops_approved` → on Agent verify, jump straight to **`completed`** (terminal). Stamp `agent_verified_*`, `landlord_ops_reviewed_*`, `coo_reviewed_*`, `cfo_reviewed_*` with the same agent + timestamp so audit history stays well-formed, and mark `disbursed_at = now()` with `payout_method = 'no_disbursement_outstanding'`.
+  - Block any attempt to write `landlord_ops_approved`, `coo_approved`, `funded`, `disbursed` for these requests.
+- No landlord verification bonus, no agent float credit, no CFO payout authorization for this branch (these are tied to disbursement, which never happens).
+- Backfill: the 1 stranded `outstanding_balance / coo_approved` row gets moved to `completed` by the migration.
 
-## Changes
+### 2. Pipeline tracker — show a 2-stage view
 
-### 1. `src/components/payments/DepositFlow.tsx` — Agent default
+`src/components/executive/RentPipelineTracker.tsx`:
 
-When the dialog opens for a user whose active role is `agent` and no `defaultPurpose` was passed by the parent:
-- Pre-select `operational_float`.
-- Set `purposeEntryPoint = 'agent_default'` (new tag, for audit).
-- Still show the purpose grid so the agent can switch.
-- If they switch to `personal_deposit`, show an inline confirm panel:
-  > "This deposit will land in your withdrawable balance, not your operational float. Use this only for your own salary or personal top-ups — not for cash collected from tenants."
-  > [ Cancel ] [ Yes, this is my own money ]
-- The confirmation choice (`personal_confirmed_at`, `personal_confirmation_text`) is stamped into the `audit` blob saved with the request so Financial Ops can see the agent explicitly chose personal.
+- Accept a new prop `registrationType?: string`.
+- When `registrationType === 'outstanding_balance'`, render only:
 
-The `mustChoosePurpose` branch (forced fresh choice) keeps precedence — it already forces an empty selection for sensitive flows, and we don't want to override that.
+  ```text
+  Tenant Ops  →  Agent Verify  →  Recorded
+  ```
 
-### 2. `supabase/functions/agent-deposit/index.ts` — Server backstop
+  (no Landlord Ops, no COO, no CFO, no Disbursed). "Agent Earnings at Each Stage" collapses to a single line: "Outstanding balance recorded — no disbursement, no bonus".
 
-Cross-check on submission:
-- If the submitter has the `agent` role AND `deposit_purpose = 'personal_deposit'` AND the audit blob lacks `personal_confirmed_at`, reject with `agent_personal_deposit_requires_confirmation` and a friendly message. Forces clients (including any direct API caller) through the confirmation gate.
+### 3. Queue logic — surface and route correctly
 
-### 3. Financial Ops review UI — Visibility chip
+`src/components/executive/RentPipelineQueue.tsx`:
 
-In `src/components/financial-ops/TidVerification.tsx` and `ReconciliationReviewScreen.tsx`:
-- Show a chip on each pending row:
-  - `🏘️ Float` (operational_float)
-  - `💰 Personal — confirmed` (personal_deposit with `personal_confirmed_at` in audit)
-  - `⚠️ Personal — no confirm` (personal_deposit without confirm — legacy or bypassed)
-- The chip uses the existing `deposit_purpose` field plus the audit blob; no schema change.
+- Fetch `registration_type`, `initial_outstanding_balance` alongside existing fields.
+- In the Tenant Ops queue (`stage='pending'`), show an amber "Outstanding balance" badge on these rows and skip the agent-assignment requirement (the original agent is the verifier).
+- In the Agent Ops queue (`stage='tenant_ops_approved'`), the approve action calls the new edge function path that closes the request to `completed` instead of advancing to `agent_verified`. Button label becomes "Confirm & Record Outstanding".
+- In Landlord Ops, COO, CFO queues: filter these requests OUT (they never enter those queues anyway after the trigger fix).
 
-### 4. Memory update
+### 4. Review dialog ("Review Rent Request" sheet — the screenshot)
 
-Append to `mem://business-model/agent-deposit-policy`:
-> Agent personal deposits require explicit in-UI confirmation (stamped `personal_confirmed_at`); the default for any deposit submitted by an agent is `operational_float`. Server-side `agent-deposit` edge function rejects unconfirmed personal deposits.
+Inside the same file, when the selected request has `registration_type = 'outstanding_balance'`:
 
-## Out of scope (per your decision)
+- Hide the Property Location & LC1 card (no fresh property to verify).
+- Hide the long agent earnings table (the one highlighted in yellow in the screenshot).
+- Hide COO / CFO / Disbursed pills in the inline tracker.
+- Replace the bonus block with a compact note: "No disbursement — recording outstanding balance of UGX X for an existing tenancy."
 
-- No retro-reclassification of the ~1.62M ATUHAIRE rows already approved to withdrawable today, nor SSENKAALI's 50K. They stay in withdrawable. (Historical drift continues to flow through the existing CFO Historical Drift Review queue if anyone wants to reverse them later.)
-- No change to `approve-deposit` routing logic — it's already correct.
-- No change to wallet buckets, ledger schema, or the strict withdrawable RPC.
+### 5. Tenant-facing display
+
+In any place that shows the tracker on the tenant's side (search for `RentPipelineTracker` usages), pass through `registrationType` so the tenant sees the same short 2-step flow and isn't confused waiting for "CFO" steps that will never happen.
 
 ## Files touched
 
-- `src/components/payments/DepositFlow.tsx` — agent default + confirm panel
-- `supabase/functions/agent-deposit/index.ts` — server backstop
-- `src/components/financial-ops/TidVerification.tsx` — visibility chip
-- `src/components/financial-ops/ReconciliationReviewScreen.tsx` — visibility chip
-- `mem://business-model/agent-deposit-policy` — policy update
+- `supabase/migrations/<new>.sql` — trigger `rent_requests_outstanding_pipeline_guard` + backfill of the stranded row.
+- `src/components/executive/RentPipelineTracker.tsx` — new prop + branched rendering.
+- `src/components/executive/RentPipelineQueue.tsx` — fetch flag, badge in list, branched approve action, hide Property/LC1 + bonus blocks in the review sheet.
+- Tracker call sites that should pass `registrationType` (tenant dashboards, agent pipeline hub).
+
+## Out of scope
+
+- No change to the normal `registration_type='normal'` 5-stage flow.
+- No change to the bonus/commission engine for normal requests.
+- No new role; both approvals (Tenant Ops, Agent) already exist.
