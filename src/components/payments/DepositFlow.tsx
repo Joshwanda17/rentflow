@@ -174,6 +174,10 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   const activeEditId = editRequestId ?? matchedEditId;
   const isEditMode = !!activeEditId;
   const [editLoading, setEditLoading] = useState(false);
+  // Status of the row being edited — 'pending' goes through a direct
+  // RLS-restricted UPDATE; 'rejected' goes through the
+  // resubmit_rejected_deposit RPC (which flips status back to pending).
+  const [editStatus, setEditStatus] = useState<'pending' | 'rejected' | null>(null);
 
   /**
    * Edit-mode fallback bookkeeping.
