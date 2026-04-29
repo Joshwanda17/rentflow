@@ -9,6 +9,7 @@ import {
   addToSyncQueue 
 } from '@/lib/offlineDataStorage';
 import { useServiceValidation } from '@/core/services/useServiceValidation';
+import { computeLedgerAvailable } from '@/lib/computeLedgerAvailable';
 
 interface WalletTransaction {
   id: string;
@@ -126,21 +127,21 @@ export function useWallet() {
         try { localStorage.setItem(lsKey(user.id), JSON.stringify(newWallet)); } catch {}
         await cacheWallet(newWallet);
       } else {
-        // Overlay with ledger-true `available` balance so the user can never
-        // see a stale cached number that exceeds their actual ledger position.
+        // Overlay with ledger-true withdrawable so the user can never see a
+        // stale cached number that exceeds their actual withdrawable position.
+        // Computed inline from the ledger because get_user_available_balance
+        // RPC has historically been broken (returned 0 for everyone).
         let displayed: Wallet = data;
         try {
-          const { data: avail, error: availErr } = await supabase.rpc(
-            'get_user_available_balance',
-            { _user_id: user.id },
-          );
-          if (!availErr && avail) {
-            const o = avail as Record<string, unknown>;
-            const ledgerTrue = Number(o.available ?? data.balance);
-            displayed = { ...data, balance: Math.min(Number(data.balance), ledgerTrue) };
-          }
+          const ledger = await computeLedgerAvailable(user.id);
+          // For the generic wallet card we display TOTAL balance, but clamp
+          // it down so it never exceeds ledger-true funds.
+          displayed = {
+            ...data,
+            balance: Math.min(Number(data.balance), Math.max(ledger.available, ledger.ledgerNet)),
+          };
         } catch (e) {
-          console.warn('[useWallet] available-balance overlay failed; using cached', e);
+          console.warn('[useWallet] ledger overlay failed; using cached', e);
         }
         setWallet(displayed);
         setIsOfflineData(false);

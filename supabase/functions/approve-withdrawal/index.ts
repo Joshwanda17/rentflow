@@ -201,15 +201,39 @@ Deno.serve(async (req) => {
     // wallet bucket can drift above the ledger net (debt, holds, phantom
     // drift). We take the lesser of cached vs ledger so a payout can NEVER
     // exceed the user's true ledger position.
+    //
+    // NOTE: Computed INLINE here rather than via get_user_available_balance,
+    // because that RPC historically used wrong direction values ('in'/'out'
+    // vs 'cash_in'/'cash_out') and returned 0 for every user — silently
+    // blocking legitimate withdrawals (user-reported 2026-04-29).
     let ledgerAvailable = cachedSpendable;
     try {
-      const { data: availRow } = await admin.rpc("get_user_available_balance", {
-        _user_id: fundingUserId,
-      });
-      const a = (availRow ?? {}) as Record<string, unknown>;
-      ledgerAvailable = Number(a.available ?? cachedSpendable);
+      const { data: ledgerRows, error: lErr } = await admin
+        .from("general_ledger")
+        .select("amount, direction")
+        .eq("user_id", fundingUserId)
+        .eq("ledger_scope", "wallet")
+        .or("classification.is.null,classification.eq.production");
+      if (lErr) throw lErr;
+      const ledgerNet = (ledgerRows || []).reduce((acc: number, r: any) => {
+        const amt = Number(r.amount) || 0;
+        if (r.direction === "cash_in") return acc + amt;
+        if (r.direction === "cash_out") return acc - amt;
+        return acc;
+      }, 0);
+      const { data: pendingRows } = await admin
+        .from("withdrawal_requests")
+        .select("amount")
+        .eq("user_id", fundingUserId)
+        .neq("id", withdrawal_id)
+        .in("status", ["pending", "requested", "manager_approved", "processing"]);
+      const pendingHolds = (pendingRows || []).reduce(
+        (sum: number, p: any) => sum + Number(p.amount || 0),
+        0,
+      );
+      ledgerAvailable = Math.max(0, Math.min(cachedSpendable, ledgerNet) - pendingHolds);
     } catch (e) {
-      console.warn("[approve-withdrawal] get_user_available_balance failed; using cached", (e as Error).message);
+      console.warn("[approve-withdrawal] inline ledger compute failed; using cached", (e as Error).message);
     }
 
     const totalSpendable = Math.min(cachedSpendable, ledgerAvailable);

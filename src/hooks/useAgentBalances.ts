@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useWalletRealtime } from '@/hooks/useWalletRealtime';
+import { computeLedgerAvailable } from '@/lib/computeLedgerAvailable';
 
 export interface AgentSplitBalances {
   withdrawableBalance: number;
@@ -85,11 +86,21 @@ export function useAgentBalances(agentId?: string) {
         commissionBalance = rawWithdrawable; // fallback to legacy behavior
       }
 
-      // Withdrawable balance is the truth from the wallet row (what the user can actually
-      // cash out). Commission balance is ledger-derived (what they earned). The gap is
-      // "other" — typically CFO admin-expense credits that landed in withdrawable but
-      // aren't earnings.
-      const withdrawableBalance = rawWithdrawable;
+      // Withdrawable balance must equal what the WITHDRAW flow will actually allow:
+      // ledger truth, clamped to the withdrawable bucket, minus pending holds.
+      // The cached wallets.withdrawable_balance can drift above this (debt,
+      // phantom drift, race after rapid posts), and showing a cached value
+      // higher than what they can withdraw causes the user to see UGX X on the
+      // card but get blocked at withdraw with "Available: 0". Force parity.
+      let withdrawableBalance = rawWithdrawable;
+      try {
+        const ledger = await computeLedgerAvailable(effectiveId);
+        // Take the LESSER of the cached bucket and the ledger-true available.
+        // Never show more than what they can actually pull out.
+        withdrawableBalance = Math.min(rawWithdrawable, ledger.available);
+      } catch (e) {
+        console.warn('[useAgentBalances] ledger-true clamp failed, using cached', e);
+      }
       const otherBalance = Math.max(0, rawWithdrawable - commissionBalance);
       // After role-aware routing fix (2026-04-23), withdrawable should equal commission balance
       // for agents. Any drift means a non-commission credit landed in withdrawable — log so we
@@ -116,9 +127,11 @@ export function useAgentBalances(agentId?: string) {
     // cached zero. Realtime invalidations will still keep it fresh between
     // renders; this just stops React Query from serving a stale snapshot.
     staleTime: 0,
-    gcTime: 30_000,
+    gcTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchInterval: 30_000,
     retry: 2,
   });
 
