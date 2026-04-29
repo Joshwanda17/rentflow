@@ -56,8 +56,13 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
   const isAgent = role === 'agent';
   const { commissionBalance, withdrawableBalance } = useAgentBalances();
   const { floatBalance: walletFloatBalance } = useAgentBalances();
-  const displayBalance = wallet?.balance || 0;
+  // STRICT: total visible balance is float + ledger-backed withdrawable.
+  // We never use the raw cached `wallets.balance` because it can drift
+  // above the user's true ledger-backed position.
   const realWithdrawableBalance = Math.max(0, withdrawableBalance);
+  const displayBalance = isAgent
+    ? walletFloatBalance + realWithdrawableBalance
+    : realWithdrawableBalance;
   const balanceLabel = 'Total Balance';
   const [sendOpen, setSendOpen] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
