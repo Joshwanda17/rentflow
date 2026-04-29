@@ -442,6 +442,7 @@ export default function SupporterDashboard({
 
           {/* ═══ PORTFOLIO HERO CARD ═══ */}
           {wallet ? (
+            <div id="funder-wallet-hero">
             <UnifiedWalletHeroCard
               balance={wallet?.balance ?? 0}
               role="supporter"
@@ -469,9 +470,11 @@ export default function SupporterDashboard({
                   availableBalance={wallet?.balance ?? 0}
                   roiBalance={totalRoiEarned}
                   onChanged={() => { refreshWallet(); }}
+                  highlightDeposit={highlightDeposit}
                 />
               }
             />
+            </div>
           ) : (
             <WalletHeroSkeleton />
           )}
