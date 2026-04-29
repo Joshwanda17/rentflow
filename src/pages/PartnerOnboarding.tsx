@@ -101,12 +101,13 @@ export default function FunderOnboarding() {
     queryKey: ['funder-onboarding-kpis'],
     enabled: !!user && roles.includes('manager'),
     queryFn: async () => {
-      const [{ count: total }, { count: active }, { count: frozen }] = await Promise.all([
+      const [{ count: total }, { count: pending }, { count: verified }, { count: rejected }] = await Promise.all([
         supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('signup_source', 'funder-onboarding'),
-        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('signup_source', 'funder-onboarding').is('frozen_at', null),
-        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('signup_source', 'funder-onboarding').not('frozen_at', 'is', null),
+        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('signup_source', 'funder-onboarding').is('funder_verified_at', null).is('funder_rejected_at', null),
+        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('signup_source', 'funder-onboarding').not('funder_verified_at', 'is', null),
+        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('signup_source', 'funder-onboarding').not('funder_rejected_at', 'is', null),
       ]);
-      return { total: total || 0, active: active || 0, frozen: frozen || 0 };
+      return { total: total || 0, pending: pending || 0, verified: verified || 0, rejected: rejected || 0 };
     },
     staleTime: 60_000,
   });
@@ -123,7 +124,40 @@ export default function FunderOnboarding() {
     );
   }
 
-  const headerStatus: 'green' | 'yellow' | 'red' = (kpis?.frozen || 0) > 5 ? 'red' : (kpis?.frozen || 0) > 0 ? 'yellow' : 'green';
+  const headerStatus: 'green' | 'yellow' | 'red' = (kpis?.pending || 0) > 10 ? 'red' : (kpis?.pending || 0) > 0 ? 'yellow' : 'green';
+
+  const openAction = (mode: 'approve' | 'reject') => {
+    setActionMode(mode);
+    setActionReason('');
+  };
+
+  const submitAction = async () => {
+    if (!selected || !actionMode) return;
+    if (actionReason.trim().length < 10) {
+      toast({ title: 'Reason required', description: 'Please provide at least 10 characters.', variant: 'destructive' });
+      return;
+    }
+    setSubmitting(true);
+    const rpcName = actionMode === 'approve' ? 'approve_self_registered_funder' : 'reject_self_registered_funder';
+    const { error } = await supabase.rpc(rpcName, {
+      _target_user: selected.id,
+      _reason: actionReason.trim(),
+    });
+    setSubmitting(false);
+    if (error) {
+      toast({ title: 'Action failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({
+      title: actionMode === 'approve' ? 'Funder verified' : 'Funder rejected',
+      description: selected.full_name || selected.email || 'Updated',
+    });
+    setActionMode(null);
+    setActionReason('');
+    setSelected(null);
+    queryClient.invalidateQueries({ queryKey: ['funder-onboarding-self-registered'] });
+    queryClient.invalidateQueries({ queryKey: ['funder-onboarding-kpis'] });
+  };
 
   return (
     <COODetailLayout
@@ -132,10 +166,11 @@ export default function FunderOnboarding() {
       status={headerStatus}
     >
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KPICard label="Total Funders" value={kpis?.total ?? '—'} status="green" sub="Via funder-onboarding" />
-        <KPICard label="Active" value={kpis?.active ?? '—'} status="green" />
-        <KPICard label="Suspended" value={kpis?.frozen ?? '—'} status={(kpis?.frozen || 0) > 0 ? 'red' : 'green'} />
+        <KPICard label="Pending Review" value={kpis?.pending ?? '—'} status={(kpis?.pending || 0) > 0 ? 'yellow' : 'green'} />
+        <KPICard label="Verified" value={kpis?.verified ?? '—'} status="green" />
+        <KPICard label="Rejected" value={kpis?.rejected ?? '—'} status={(kpis?.rejected || 0) > 0 ? 'red' : 'green'} />
       </div>
 
       {/* Search */}
