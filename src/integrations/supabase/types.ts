@@ -13696,6 +13696,10 @@ export type Database = {
           phone: string
         }[]
       }
+      get_agent_earned_vouch_in_range: {
+        Args: { p_ai_id: string; p_end_at?: string; p_start_at?: string }
+        Returns: Json
+      }
       get_agent_float_balance: { Args: { p_agent_id: string }; Returns: number }
       get_agent_mission_stats: { Args: { p_agent_id?: string }; Returns: Json }
       get_agent_network_summary: { Args: { p_agent_id: string }; Returns: Json }
