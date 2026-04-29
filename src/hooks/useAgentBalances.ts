@@ -127,9 +127,11 @@ export function useAgentBalances(agentId?: string) {
     // cached zero. Realtime invalidations will still keep it fresh between
     // renders; this just stops React Query from serving a stale snapshot.
     staleTime: 0,
-    gcTime: 30_000,
+    gcTime: 0,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchInterval: 30_000,
     retry: 2,
   });
 
