@@ -1226,9 +1226,50 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     finally { setSavingEditPortfolio(false); }
   }
 
+  /* ─── When the payout-date range filter is active, fetch ALL matching ───
+     ─── partners (across every server page, scoped to the current search) ───
+     ─── so the filter evaluates against the whole dataset instead of just ───
+     ─── the current page. Cleared when the filter is turned off.          ─── */
+  useEffect(() => {
+    const filterActive = !!(payoutDateFrom || payoutDateTo);
+    if (!filterActive) {
+      if (allRowsForPayoutFilter !== null) setAllRowsForPayoutFilter(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setLoadingAllRowsForPayout(true);
+      try {
+        const allIds: string[] = [];
+        let p = 0;
+        while (p < 200) {
+          const { ids } = await fetchPaginatedSupporterIds(p, PAGE_SIZE, debouncedSearch);
+          if (ids.length === 0) break;
+          allIds.push(...ids);
+          if (ids.length < PAGE_SIZE) break;
+          p += 1;
+        }
+        const fullRows = allIds.length ? await buildRowsForIds(allIds) : [];
+        if (!cancelled) setAllRowsForPayoutFilter(fullRows);
+      } catch (e) {
+        console.error('[payout-filter] failed to fetch all partners', e);
+        if (!cancelled) setAllRowsForPayoutFilter([]);
+      } finally {
+        if (!cancelled) setLoadingAllRowsForPayout(false);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [payoutDateFrom, payoutDateTo, debouncedSearch, buildRowsForIds]);
+
   /* ─── Filtered / Sorted (local filters on current page, search is server-side) ─── */
   const processed = useMemo(() => {
-    let result = [...rows];
+    // When a payout-date range is active, evaluate filters against the full
+    // (search-scoped) dataset so we don't miss partners on other pages.
+    const sourceRows = (payoutDateFrom || payoutDateTo) && allRowsForPayoutFilter
+      ? allRowsForPayoutFilter
+      : rows;
+    let result = [...sourceRows];
     if (filterStatus !== 'all') result = result.filter(r => r.status === filterStatus);
     if (filterRoiMode !== 'all') result = result.filter(r => r.roiMode === filterRoiMode);
     if (filterContact === 'has_phone') result = result.filter(r => r.phone && !r.phone.includes('@'));
@@ -1266,7 +1307,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       });
     }
     return result;
-  }, [rows, sortKey, sortDir, filterStatus, filterRoiMode, filterContact, filterWallet, payoutDateFrom, payoutDateTo]);
+  }, [rows, allRowsForPayoutFilter, sortKey, sortDir, filterStatus, filterRoiMode, filterContact, filterWallet, payoutDateFrom, payoutDateTo]);
 
   // Detect any client-side filter that narrows results below the current page.
   // Server-side pagination only knows about `search` — every other filter runs
