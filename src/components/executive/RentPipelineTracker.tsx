@@ -56,14 +56,86 @@ const STAGES = [
 const STAGE_ORDER: Record<string, number> = {};
 STAGES.forEach((s, i) => { STAGE_ORDER[s.key] = i; });
 
+/**
+ * Short pipeline for tenants registered with an outstanding balance.
+ * They are already living in the property — no landlord disbursement,
+ * no Landlord Ops / COO / CFO. Two human steps then auto-complete.
+ */
+const OUTSTANDING_STAGES = [
+  {
+    key: 'pending',
+    label: 'Tenant Ops',
+    icon: UserCheck,
+  },
+  {
+    key: 'tenant_ops_approved',
+    label: 'Agent Verify',
+    icon: Shield,
+  },
+  {
+    key: 'completed',
+    label: 'Recorded',
+    icon: CheckCircle2,
+  },
+];
+const OUTSTANDING_ORDER: Record<string, number> = {};
+OUTSTANDING_STAGES.forEach((s, i) => { OUTSTANDING_ORDER[s.key] = i; });
+
 interface RentPipelineTrackerProps {
   currentStatus: string;
   compact?: boolean;
   rentAmount?: number;
   showAgentBenefits?: boolean;
+  /** When 'outstanding_balance', renders the short 2-step pipeline. */
+  registrationType?: string;
 }
 
-export function RentPipelineTracker({ currentStatus, compact, rentAmount, showAgentBenefits }: RentPipelineTrackerProps) {
+export function RentPipelineTracker({ currentStatus, compact, rentAmount, showAgentBenefits, registrationType }: RentPipelineTrackerProps) {
+  const isOutstanding = registrationType === 'outstanding_balance';
+
+  if (isOutstanding) {
+    const currentIndex = OUTSTANDING_ORDER[currentStatus] ?? -1;
+    return (
+      <div className="space-y-2">
+        <div className={cn('flex items-center gap-1', compact ? 'flex-wrap' : 'overflow-x-auto')}>
+          {OUTSTANDING_STAGES.map((stage, i) => {
+            const completed = i < currentIndex;
+            const active = i === currentIndex;
+            const isFinal = stage.key === 'completed';
+            return (
+              <div key={stage.key} className="flex items-center gap-1">
+                <div
+                  className={cn(
+                    'flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium transition-all',
+                    completed && 'bg-primary/10 text-primary',
+                    active && 'bg-primary text-primary-foreground',
+                    !completed && !active && 'bg-muted text-muted-foreground',
+                    isFinal && completed && 'bg-success/20 text-success'
+                  )}
+                >
+                  {completed ? <CheckCircle2 className="h-3 w-3" /> : active ? <Clock className="h-3 w-3" /> : null}
+                  {stage.label}
+                </div>
+                {i < OUTSTANDING_STAGES.length - 1 && (
+                  <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                )}
+              </div>
+            );
+          })}
+        </div>
+        {showAgentBenefits && (
+          <div className="mt-2 px-2.5 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-foreground">
+            <p className="font-semibold text-amber-700">Outstanding balance — short approval</p>
+            <p className="text-muted-foreground mt-0.5">
+              Existing tenant. No landlord disbursement, no agent bonus.
+              {rentAmount ? ` Recording UGX ${formatUGX(rentAmount).replace('UGX ', '')} owed.` : ''}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const currentIndex = STAGE_ORDER[currentStatus] ?? -1;
   const landlordVerificationBonus = 5000;
   const rentFundedBonus = 5000;

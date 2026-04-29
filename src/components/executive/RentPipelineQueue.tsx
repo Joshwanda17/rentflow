@@ -14,7 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { CheckCircle2, XCircle, Clock, MapPin, User, UserCheck, Home, Banknote, ArrowRight, Loader2, Search, MessageCircle, Phone, Pencil, Check, X, PhoneCall, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, MapPin, User, UserCheck, Home, Banknote, ArrowRight, Loader2, Search, MessageCircle, Phone, Pencil, Check, X, PhoneCall, ShieldCheck, AlertCircle } from 'lucide-react';
 import { calculateRentRepayment } from '@/lib/rentCalculations';
 import { toast as sonnerToast } from 'sonner';
 import { format } from 'date-fns';
@@ -281,13 +281,18 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
   const handleQuickApprove = async (req: any, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!user || quickProcessingId) return;
-    // CFO stage needs payout ref, Tenant Ops may need agent — use dialog
-    if (config.showPayoutFields || config.showAgentSelector) {
+    const isOutstanding = req.registration_type === 'outstanding_balance';
+    // CFO stage needs payout ref, Tenant Ops may need agent — use dialog.
+    // Outstanding-balance requests skip the agent-assignment requirement
+    // (the original requesting agent is the verifier).
+    if (config.showPayoutFields || (config.showAgentSelector && !isOutstanding)) {
       setSelectedRequest(req);
       return;
     }
-    // For Landlord Ops stage — enforce checklist
-    if (stage === 'agent_verified') {
+    // For Landlord Ops stage — enforce checklist.
+    // Outstanding-balance rows never reach this stage (trigger short-circuits
+    // them straight to completed), but guard anyway.
+    if (stage === 'agent_verified' && !isOutstanding) {
       if (!landlordCalled || !landlordAcknowledged) {
         toast({ title: 'Complete the landlord verification checklist first', variant: 'destructive' });
         return;
@@ -302,7 +307,7 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
         updated_at: new Date().toISOString(),
       };
 
-      if (stage === 'agent_verified') {
+      if (stage === 'agent_verified' && !isOutstanding) {
         updateData.landlord_called = true;
         updateData.landlord_acknowledged = true;
         updateData.landlord_verification_method = landlordVerificationMethod || 'phone_call';
@@ -322,7 +327,10 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
         .eq('id', req.id);
       if (error) throw error;
 
-      toast({ title: '✅ Approved', description: `${req.tenant_name} → ${config.nextStatus.replace(/_/g, ' ')}` });
+      const finalStatus = isOutstanding && stage === 'tenant_ops_approved'
+        ? 'completed (outstanding balance recorded)'
+        : config.nextStatus.replace(/_/g, ' ');
+      toast({ title: '✅ Approved', description: `${req.tenant_name} → ${finalStatus}` });
       queryClient.invalidateQueries({ queryKey: ['rent-pipeline'] });
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
@@ -336,7 +344,7 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
     queryFn: async () => {
       const { data } = await supabase
         .from('rent_requests')
-        .select('id, tenant_id, agent_id, landlord_id, lc1_id, rent_amount, duration_days, access_fee, request_fee, total_repayment, daily_repayment, status, created_at, house_category, request_city, request_latitude, request_longitude, assigned_agent_id, payout_method, payout_transaction_reference, approval_comment')
+        .select('id, tenant_id, agent_id, landlord_id, lc1_id, rent_amount, duration_days, access_fee, request_fee, total_repayment, daily_repayment, status, created_at, house_category, request_city, request_latitude, request_longitude, assigned_agent_id, payout_method, payout_transaction_reference, approval_comment, registration_type, initial_outstanding_balance')
         .eq('status', stage)
         .order('created_at', { ascending: true })
         .limit(100);
@@ -407,13 +415,15 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
 
   const handleApprove = async () => {
     if (!selectedRequest || !user) return;
-    if (config.showAgentSelector && !assignedAgentId && !selectedRequest.agent_id) {
+    const isOutstanding = selectedRequest.registration_type === 'outstanding_balance';
+    if (config.showAgentSelector && !isOutstanding && !assignedAgentId && !selectedRequest.agent_id) {
       toast({ title: 'Please assign an agent', variant: 'destructive' });
       return;
     }
 
-    // Landlord Ops must complete checklist
-    if (stage === 'agent_verified' && (!landlordCalled || !landlordAcknowledged)) {
+    // Landlord Ops must complete checklist (skipped for outstanding-balance
+    // tenants — they short-circuit to completed via DB trigger).
+    if (stage === 'agent_verified' && !isOutstanding && (!landlordCalled || !landlordAcknowledged)) {
       toast({ title: 'Complete the landlord verification checklist first', variant: 'destructive' });
       return;
     }
@@ -447,12 +457,12 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
           updated_at: new Date().toISOString(),
         };
 
-        if (config.showAgentSelector && assignedAgentId) {
+        if (config.showAgentSelector && !isOutstanding && assignedAgentId) {
           updateData.assigned_agent_id = assignedAgentId;
         }
 
-        // Save landlord verification checklist
-        if (stage === 'agent_verified') {
+        // Save landlord verification checklist (skipped for outstanding-balance)
+        if (stage === 'agent_verified' && !isOutstanding) {
           updateData.landlord_called = landlordCalled;
           updateData.landlord_acknowledged = landlordAcknowledged;
           updateData.landlord_verification_method = landlordVerificationMethod || 'phone_call';
@@ -468,7 +478,8 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
       }
 
       // Trigger landlord verification bonus when Landlord Ops approves
-      if (stage === 'agent_verified') {
+      // (not applicable for outstanding-balance — there is no landlord disbursement)
+      if (stage === 'agent_verified' && !isOutstanding) {
         try {
           await supabase.functions.invoke('credit-landlord-verification-bonus', {
             body: { rent_request_id: selectedRequest.id },
@@ -478,7 +489,11 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
         }
       }
 
-      toast({ title: `Request approved and forwarded` });
+      toast({
+        title: isOutstanding && stage === 'tenant_ops_approved'
+          ? 'Outstanding balance recorded'
+          : 'Request approved and forwarded',
+      });
       setSelectedRequest(null);
       setComment('');
       setAssignedAgentId(null);
@@ -644,6 +659,12 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                       <div className="flex items-center gap-1.5">
                         <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                         <span className="font-semibold text-sm truncate">{req.tenant_name}</span>
+                        {req.registration_type === 'outstanding_balance' && (
+                          <span className="inline-flex items-center gap-0.5 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 border border-amber-500/30 shrink-0">
+                            <AlertCircle className="h-2.5 w-2.5" />
+                            Outstanding
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                         <span className="flex items-center gap-1">
@@ -719,6 +740,18 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
           </SheetHeader>
           {selectedRequest && (
             <div className="space-y-4 mt-4 overflow-y-auto max-h-[calc(85vh-80px)] pb-6">
+              {selectedRequest.registration_type === 'outstanding_balance' && (
+                <div className="rounded-xl border-2 border-amber-500/30 bg-amber-500/5 p-3 flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                  <div className="text-xs">
+                    <p className="font-bold text-amber-800">Outstanding balance — short approval</p>
+                    <p className="text-muted-foreground mt-0.5">
+                      Existing tenant. Two-stage approval (Tenant Ops → Agent verify).
+                      No landlord verification, no disbursement, no agent bonus.
+                    </p>
+                  </div>
+                </div>
+              )}
               {/* Request Details */}
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="space-y-0.5">
@@ -764,7 +797,8 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                 )}
               </div>
 
-              {/* LC1 & GPS Details */}
+              {/* LC1 & GPS Details — hidden for outstanding-balance (no fresh property to verify) */}
+              {selectedRequest.registration_type !== 'outstanding_balance' && (
               <div className="rounded-xl border border-border p-3 bg-muted/30 space-y-2">
                 <h4 className="text-sm font-semibold">📍 Property Location & LC1</h4>
                 <div className="grid grid-cols-2 gap-3 text-sm">
@@ -806,16 +840,18 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                   )}
                 </div>
               </div>
+              )}
 
               {/* Pipeline Status + Agent Benefits */}
               <RentPipelineTracker
                 currentStatus={selectedRequest.status}
                 rentAmount={selectedRequest.rent_amount}
                 showAgentBenefits={true}
+                registrationType={selectedRequest.registration_type}
               />
 
-              {/* Agent Proximity Selector - only for Tenant Ops */}
-              {config.showAgentSelector && (
+              {/* Agent Proximity Selector - only for Tenant Ops on normal requests */}
+              {config.showAgentSelector && selectedRequest.registration_type !== 'outstanding_balance' && (
                 <AgentProximitySelector
                   latitude={selectedRequest.request_latitude}
                   longitude={selectedRequest.request_longitude}
@@ -825,8 +861,9 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                 />
               )}
 
-              {/* Landlord Verification Checklist - only for Landlord Ops */}
-              {stage === 'agent_verified' && (
+              {/* Landlord Verification Checklist - only for Landlord Ops on normal requests
+                  (outstanding-balance requests never reach this stage) */}
+              {stage === 'agent_verified' && selectedRequest.registration_type !== 'outstanding_balance' && (
                 <div className="space-y-3 rounded-xl border-2 border-purple-500/30 p-3 bg-purple-500/5">
                   <h4 className="text-sm font-bold flex items-center gap-2">
                     <PhoneCall className="h-4 w-4 text-purple-600" />
@@ -984,7 +1021,13 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                   ) : (
                     <CheckCircle2 className="h-4 w-4" />
                   )}
-                  {config.approveLabel}
+                  {selectedRequest?.registration_type === 'outstanding_balance'
+                    ? (stage === 'pending'
+                        ? 'Approve & Send to Agent'
+                        : stage === 'tenant_ops_approved'
+                          ? 'Confirm & Record Outstanding'
+                          : config.approveLabel)
+                    : config.approveLabel}
                 </Button>
               </div>
             </div>
