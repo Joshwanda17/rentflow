@@ -283,6 +283,8 @@ export default function HolisticProfile({ publicMode = false }: Props) {
                 <EarnedVouchRangeBreakdown
                   aiId={profile.ai_id}
                   effectiveLimitUgx={profile.trust.borrowing_limit_ugx}
+                  defaultRange="all"
+                  explain
                 />
               </div>
             )}
