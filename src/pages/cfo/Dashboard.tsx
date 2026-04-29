@@ -24,6 +24,7 @@ import HistoricalDriftReviewPanel from '@/components/cfo/HistoricalDriftReviewPa
 
 import { CFOPartnerPayoutProcessing } from '@/components/cfo/CFOPartnerPayoutProcessing';
 import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
+import { RejectedRequestsQueue } from '@/components/executive/RejectedRequestsQueue';
 import { ListingBonusApprovalQueue } from '@/components/executive/ListingBonusApprovalQueue';
 import { FinancialAgentsPanel } from '@/components/cfo/FinancialAgentsPanel';
 import { ProxyAgentManager } from '@/components/cfo/ProxyAgentManager';
@@ -91,6 +92,7 @@ export default function CFODashboardPage() {
               For landlords without a Rent Money wallet, select "Cash Payout" as the method.
             </p>
             <RentPipelineQueue stage="coo_approved" />
+            <RejectedRequestsQueue stageFilter="coo_approved" title="Rejected at CFO" />
           </div>
         );
       case 'statements':
