@@ -9,6 +9,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useProfile } from '@/hooks/useProfile';
 import { Loader2, CheckCircle2, Banknote, Smartphone, Wallet } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
+import { CollectionVouchCelebration } from './CollectionVouchCelebration';
+import { useNavigate } from 'react-router-dom';
+import { generateWelileAiId } from '@/lib/welileAiId';
 
 interface RecordAgentCollectionDialogProps {
   open: boolean;
@@ -19,15 +22,18 @@ interface RecordAgentCollectionDialogProps {
 export function RecordAgentCollectionDialog({ open, onOpenChange, onSuccess }: RecordAgentCollectionDialogProps) {
   const { profile } = useProfile();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [tokenCode, setTokenCode] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'mobile_money' | 'cash' | 'in_app_wallet'>('cash');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [showCelebration, setShowCelebration] = useState(false);
 
   const handleClose = () => {
     setTokenCode('');
     setPaymentMethod('cash');
     setResult(null);
+    setShowCelebration(false);
     onOpenChange(false);
   };
 
@@ -60,6 +66,8 @@ export function RecordAgentCollectionDialog({ open, onOpenChange, onSuccess }: R
     }
 
     setResult(res);
+    // Show vouch celebration first; the existing summary follows on Continue.
+    setShowCelebration(true);
     toast({ title: 'Payment recorded!' });
     onSuccess?.();
   };
@@ -74,7 +82,18 @@ export function RecordAgentCollectionDialog({ open, onOpenChange, onSuccess }: R
           </DialogTitle>
         </DialogHeader>
 
-        {result ? (
+        {result && showCelebration ? (
+          <CollectionVouchCelebration
+            agentId={profile!.id}
+            collectionId={result.collection_id}
+            collectedAmount={Number(result.amount)}
+            onOpenProfile={() => {
+              if (profile?.id) navigate(`/profile/${generateWelileAiId(profile.id)}`);
+              handleClose();
+            }}
+            onContinue={() => setShowCelebration(false)}
+          />
+        ) : result ? (
           <div className="text-center space-y-4 py-4">
             <div className="w-16 h-16 mx-auto bg-success/20 rounded-full flex items-center justify-center">
               <CheckCircle2 className="h-8 w-8 text-success" />
