@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Search, ShieldCheck, HandCoins, AlertTriangle, TrendingUp, FileText, Calendar, Phone, User } from 'lucide-react';
+import { BorrowerVouchBadge } from './BorrowerVouchBadge';
 import { format } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
@@ -366,6 +367,7 @@ export function LendingAgentsPanel() {
                               {format(new Date(l.created_at), 'dd MMM yy')}
                               {l.expected_repayment_date && ` • due ${format(new Date(l.expected_repayment_date), 'dd MMM')}`}
                             </p>
+                            <BorrowerVouchBadge aiId={l.borrower_ai_id} className="mt-1.5" />
                           </div>
                           <div className="text-right shrink-0">
                             <p className="font-bold text-sm">{formatUGX(Number(l.principal_ugx))}</p>
