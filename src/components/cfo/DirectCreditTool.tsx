@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
@@ -35,6 +35,13 @@ interface PayoutCategory {
   platformCategory: string;
   allowedOps: Operation[];
   subCategories?: SubCategory[];
+  /**
+   * Wallet Routing v2: which recipient bucket this category is allowed to land in.
+   * - 'user'                → money belongs to the recipient (Withdrawable)
+   * - 'operational_wallet'  → company-controlled funds (Float)
+   * - 'either'              → CFO must choose (rare)
+   */
+  recipientLock: RecipientType | 'either';
 }
 
 const PAYOUT_CATEGORIES: PayoutCategory[] = [
@@ -47,6 +54,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'roi_wallet_credit',
     platformCategory: 'roi_expense',
     allowedOps: ['credit'],
+    recipientLock: 'user',
   },
   {
     id: 'rent_disbursement',
@@ -56,6 +64,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'rent_disbursement',
     platformCategory: 'rent_disbursement',
     allowedOps: ['credit'],
+    recipientLock: 'operational_wallet',
   },
   {
     id: 'business_advance',
@@ -65,6 +74,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'rent_disbursement',
     platformCategory: 'rent_disbursement',
     allowedOps: ['credit'],
+    recipientLock: 'operational_wallet',
   },
   {
     id: 'marketing_expenses',
@@ -74,6 +84,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'marketing_expense',
     platformCategory: 'marketing_expense',
     allowedOps: ['credit'],
+    recipientLock: 'operational_wallet',
     subCategories: [
       { id: 'marketing_materials', label: 'Marketing Materials' },
       { id: 'events_exhibition', label: 'Events & Exhibition' },
@@ -87,6 +98,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'agent_commission_earned',
     platformCategory: 'agent_commission_earned',
     allowedOps: ['credit'],
+    recipientLock: 'user',
   },
   {
     id: 'research_development',
@@ -96,6 +108,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'research_development_expense',
     platformCategory: 'research_development_expense',
     allowedOps: ['credit'],
+    recipientLock: 'operational_wallet',
     subCategories: [
       { id: 'software', label: 'Software' },
       { id: 'welile_dowry', label: 'Welile Dowry' },
@@ -109,6 +122,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'general_admin_expense',
     platformCategory: 'general_admin_expense',
     allowedOps: ['credit'],
+    recipientLock: 'operational_wallet',
     subCategories: [
       { id: 'salaries', label: 'Salaries' },
       { id: 'transport', label: 'Transport' },
@@ -129,6 +143,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'payroll_expense',
     platformCategory: 'payroll_expense',
     allowedOps: ['credit'],
+    recipientLock: 'user',
   },
   {
     id: 'tax_payment',
@@ -138,6 +153,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'tax_expense',
     platformCategory: 'tax_expense',
     allowedOps: ['credit'],
+    recipientLock: 'operational_wallet',
   },
   {
     id: 'interest_payment',
@@ -147,6 +163,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'interest_expense',
     platformCategory: 'interest_expense',
     allowedOps: ['credit'],
+    recipientLock: 'operational_wallet',
   },
   {
     id: 'equipment_purchase',
@@ -156,6 +173,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'equipment_expense',
     platformCategory: 'equipment_expense',
     allowedOps: ['credit'],
+    recipientLock: 'operational_wallet',
   },
   {
     id: 'correction_credit',
@@ -165,6 +183,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'system_balance_correction',
     platformCategory: 'system_balance_correction',
     allowedOps: ['credit'],
+    recipientLock: 'user',
   },
   {
     id: 'wallet_transfer_out',
@@ -174,6 +193,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'wallet_transfer',
     platformCategory: 'wallet_transfer',
     allowedOps: ['credit'],
+    recipientLock: 'either',
   },
 
   // ── DEBIT (Wallet → Platform) ──
@@ -185,6 +205,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'wallet_deduction',
     platformCategory: 'access_fee_collected',
     allowedOps: ['debit'],
+    recipientLock: 'either',
   },
   {
     id: 'penalty',
@@ -194,6 +215,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'wallet_deduction',
     platformCategory: 'wallet_deduction',
     allowedOps: ['debit'],
+    recipientLock: 'either',
   },
   {
     id: 'correction_debit',
@@ -203,6 +225,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'system_balance_correction',
     platformCategory: 'system_balance_correction',
     allowedOps: ['debit'],
+    recipientLock: 'user',
   },
   {
     id: 'overpayment_recovery',
@@ -212,6 +235,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'wallet_deduction',
     platformCategory: 'wallet_deduction',
     allowedOps: ['debit'],
+    recipientLock: 'either',
   },
   {
     id: 'wallet_retraction',
@@ -221,6 +245,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'wallet_deduction',
     platformCategory: 'wallet_deduction',
     allowedOps: ['debit'],
+    recipientLock: 'either',
   },
 ];
 
@@ -344,6 +369,17 @@ export function DirectCreditTool() {
     setSelectedCategoryId(catId);
     setSelectedSubCategoryId('');
   };
+
+  // Wallet Routing v2: auto-pick & lock the recipient bucket based on the
+  // selected category. This prevents the CFO from accidentally routing
+  // user-owned money (e.g. system_balance_correction, ROI, payroll, agent
+  // commission) to the Operational (Float) bucket, which the routing
+  // enforcement trigger rejects with INVALID_ROUTING.
+  useEffect(() => {
+    if (!selectedCategory) return;
+    if (selectedCategory.recipientLock === 'either') return; // CFO chooses
+    setRecipientType(selectedCategory.recipientLock);
+  }, [selectedCategory]);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -592,16 +628,25 @@ export function DirectCreditTool() {
                 <Label className="flex items-center gap-1.5 mb-1.5">
                   Recipient Type
                   <span className="text-destructive">*</span>
+                  {selectedCategory && selectedCategory.recipientLock !== 'either' && (
+                    <Badge variant="outline" className="ml-1 text-[9px] px-1.5 py-0 h-4">
+                      Auto-set by category
+                    </Badge>
+                  )}
                 </Label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => setRecipientType('user')}
+                    onClick={() => {
+                      if (selectedCategory?.recipientLock === 'operational_wallet') return;
+                      setRecipientType('user');
+                    }}
+                    disabled={selectedCategory?.recipientLock === 'operational_wallet'}
                     className={`text-left rounded-lg border p-3 transition ${
                       recipientType === 'user'
                         ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200'
                         : 'border-border hover:border-emerald-300 hover:bg-emerald-50/40'
-                    }`}
+                    } ${selectedCategory?.recipientLock === 'operational_wallet' ? 'opacity-40 cursor-not-allowed hover:bg-transparent hover:border-border' : ''}`}
                   >
                     <div className="text-sm font-semibold text-emerald-700">User Wallet</div>
                     <div className="text-[11px] text-emerald-700/80 mt-0.5">
@@ -613,12 +658,16 @@ export function DirectCreditTool() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setRecipientType('operational_wallet')}
+                    onClick={() => {
+                      if (selectedCategory?.recipientLock === 'user') return;
+                      setRecipientType('operational_wallet');
+                    }}
+                    disabled={selectedCategory?.recipientLock === 'user'}
                     className={`text-left rounded-lg border p-3 transition ${
                       recipientType === 'operational_wallet'
                         ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-200'
                         : 'border-border hover:border-amber-300 hover:bg-amber-50/40'
-                    }`}
+                    } ${selectedCategory?.recipientLock === 'user' ? 'opacity-40 cursor-not-allowed hover:bg-transparent hover:border-border' : ''}`}
                   >
                     <div className="text-sm font-semibold text-amber-700">Operational Wallet</div>
                     <div className="text-[11px] text-amber-700/80 mt-0.5">
@@ -629,9 +678,18 @@ export function DirectCreditTool() {
                     </div>
                   </button>
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-1.5">
-                  Withdrawability is determined by who receives the money — not by the category.
-                </p>
+                {selectedCategory && selectedCategory.recipientLock !== 'either' ? (
+                  <p className="text-[10px] text-muted-foreground mt-1.5">
+                    🔒 Locked by category — “{selectedCategory.label}” is{' '}
+                    {selectedCategory.recipientLock === 'user'
+                      ? 'money owed to the recipient (Withdrawable).'
+                      : 'company-controlled float (Operational).'}
+                  </p>
+                ) : (
+                  <p className="text-[10px] text-muted-foreground mt-1.5">
+                    Withdrawability is determined by who receives the money — not by the category.
+                  </p>
+                )}
               </div>
             )}
 
