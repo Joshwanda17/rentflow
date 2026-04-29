@@ -380,6 +380,21 @@ export function AgentBulkOpsConsole({ onBack }: { onBack?: () => void }) {
             : `${action === 'enable' ? 'Enable' : 'Disable'} ${selectedCaps.size} function${selectedCaps.size === 1 ? '' : 's'} on ${resolved?.count.toLocaleString() ?? 0} agents`}
         </Button>
       </Card>
+        </div>
+
+        {/* Right rail — agent snapshot when a single agent is staged */}
+        {resolved && resolved.count === 1 && (
+          <aside className="w-full lg:w-80 lg:sticky lg:top-4 shrink-0">
+            <AgentSnapshotPanel
+              agentId={resolved.agentIds[0]}
+              fallbackName={resolved.sample[0]?.full_name ?? null}
+              fallbackPhone={resolved.sample[0]?.phone ?? null}
+              pendingCaps={Array.from(selectedCaps)}
+              pendingAction={action}
+            />
+          </aside>
+        )}
+      </div>
     </div>
   );
 }
