@@ -1,87 +1,39 @@
-## Why these cards "pile up"
+## Behavior change
 
-The cards on the **Proxy Partner Funds** screen are **not** the withdrawal records themselves — they are computed from CFO-approved ROI (`pending_wallet_operations`) minus delivered withdrawals. So the card stays as long as the partner has unwithdrawn ROI:
+Right now an in-flight (pending/processing) proxy withdrawal does **not** reduce the partner's "To Withdraw" amount, so the card sticks around with a `Withdrawal In Progress` button. Caro wants the card to **disappear the instant she initiates the withdrawal** — treating the ROI as already delivered to the partner.
 
-- **After rejection/cancellation**: funds are correctly restored, so the card reappears with a "Last attempt rejected" banner — by design, but it feels like nothing is disappearing.
-- **After successful approval**: the card *should* drop off (delivered = returns), but if the ROI accrues again or partial amounts remain, it lingers.
-- The "Last attempt rejected" banner uses a **30-day lookback**, so old rejections keep showing for weeks.
+If the withdrawal is later **rejected or cancelled**, the active record is gone, the balance is back to "available", and the card naturally reappears (already wired up via the realtime subscription + `loadProxyFunds` reload).
 
-The agent has no way to say *"I'm done with this — clear it from my list."*
+## Implementation
 
-## What we will build
+Single small change in `src/components/agent/ProxyPartnerFunds.tsx`:
 
-Three coordinated changes on the proxy list (`src/components/agent/ProxyPartnerFunds.tsx`):
+1. Keep the existing fetch of active withdrawals (`activeWithdrawalRes`) — it already pulls `id, linked_party, status` for `pending / requested / manager_approved / cfo_approved / processing`.
+2. **Also store the active withdrawal amounts** by adding `amount` to the select.
+3. New state `activeWithdrawalsByPartner: Record<string, number>` holding the sum of in-flight withdrawals per partner.
+4. In the `partnerBalances` memo, subtract **both** completed AND active withdrawal totals when computing `partnerAvailable`:
+   ```ts
+   const totalDeducted = (withdrawalsByPartner[partnerId] || 0)
+                       + (activeByPartner[partnerId] || 0);
+   partnerAvailable[partnerId] = Math.max(0, partnerTotals[partnerId] - totalDeducted);
+   ```
+5. Combined with the existing `available > 50` guard, the card silently drops off the list.
+6. Show a small **"In flight"** count chip next to the toolbar so Caro can see how many cards just disappeared and can still review them via a one-click filter.
 
-### 1. Per-card "Clear" / dismiss button
-- Each card gets a small **X / Clear** icon button in the header.
-- Clicking it opens a confirmation: "Hide this partner from your list?" with a short reason note (optional).
-- Writes a row to a new `agent_proxy_card_dismissals` table: `{ agent_id, partner_id, portfolio_id, dismissed_at, reason, snapshot_amount }`.
-- Once dismissed, the card is filtered out client-side (`partnerBalances` filter) **until new ROI accrues for that partner** (snapshot_amount comparison) — then the card automatically reappears so the agent never misses fresh money.
+## Visibility for the agent (no surprise)
 
-### 2. Bulk select + Clear
-- Add a **"Select"** toggle in the toolbar (next to the existing `All / Re-request needed / New ROI / Download` row).
-- When enabled, each card shows a checkbox; a sticky bottom action bar appears with:
-  - `Select All visible`
-  - `Clear N selected` (red destructive button) → single confirm dialog → bulk insert into `agent_proxy_card_dismissals`.
-- Best fit for Caro's case: she filters to `Re-request needed`, hits Select All, then Clear.
+Add a tiny new filter pill in the toolbar:
 
-### 3. Auto-clean rules (no button needed)
-- Tighten the rejected-banner lookback from **30 days → 7 days** so old rejections naturally fall off.
-- After a successful (`approved`/`completed`) withdrawal, if the partner's net `available` rounds to **0**, hide the card automatically (already mostly works — add an explicit `available > 50` guard to avoid 1-shilling rounding cards).
-
-## Database
-
-New migration:
-
-```sql
-create table public.agent_proxy_card_dismissals (
-  id uuid primary key default gen_random_uuid(),
-  agent_id uuid not null references auth.users(id) on delete cascade,
-  partner_id uuid not null,
-  portfolio_id uuid,
-  snapshot_amount numeric not null default 0,   -- "available" at time of dismissal
-  reason text,
-  dismissed_at timestamptz not null default now(),
-  unique (agent_id, partner_id, portfolio_id)
-);
-alter table public.agent_proxy_card_dismissals enable row level security;
-
--- Agent can manage only their own dismissals
-create policy "agent_can_select_own_dismissals"
-  on public.agent_proxy_card_dismissals for select
-  using (agent_id = auth.uid());
-create policy "agent_can_insert_own_dismissals"
-  on public.agent_proxy_card_dismissals for insert
-  with check (agent_id = auth.uid());
-create policy "agent_can_delete_own_dismissals"
-  on public.agent_proxy_card_dismissals for delete
-  using (agent_id = auth.uid());
+```text
+[ All (N) ] [ In flight (M) ] [ Re-request (X) ] [ New ROI (Y) ]
 ```
 
-The `unique (agent_id, partner_id, portfolio_id)` lets us **upsert** (re-dismiss after re-appearance updates `snapshot_amount`).
+`In flight` shows the cards she just sent for withdrawal — same card layout but `available = 0`. She can still hit **Cancel** there if she made a mistake. They are **excluded from the default `All` view** (which is why they "disappear" per her ask).
 
-Trust mission compliance: each dismissal also emits a `system_event` `agent.proxy_card_dismissed` with `{partner_id, portfolio_id, amount, reason}` for audit (no trust score change — this is a UI hygiene action, not a partner-facing action).
-
-## Client logic changes
-
-In `loadProxyFunds()`:
-- After loading PWOs + withdrawals, fetch `agent_proxy_card_dismissals` for `agent_id = user.id`.
-- In the `partnerBalances` memo, filter out any group where a dismissal exists **AND** `currentAvailable <= dismissal.snapshot_amount` (i.e. nothing new accrued since dismissal).
-- A small footer link `Show N hidden cards` lets Caro un-hide if she made a mistake — opens a tiny sheet listing dismissed partners with an Undo button per row (deletes the dismissal row).
-
-## Edge cases handled
-
-- **Active in-flight withdrawal**: dismiss button is hidden when there's a pending/processing withdrawal (`hasPending === true`). Forces Caro to either complete or cancel first — prevents her hiding cards she still needs to act on.
-- **New ROI after dismissal**: if CFO approves more ROI for the same partner, the card auto-reappears (snapshot comparison). She is never permanently blind to new money.
-- **No deletion of withdrawal_requests**: we never delete real financial records — only her **view** of the card is hidden. The COO and CFO dashboards are untouched.
+To make `In flight` work correctly: when computing `partnerBalances`, do not filter out cards whose available drops to 0 **only because of an in-flight withdrawal**. Instead tag them and filter at the `visibleBalances` step — so the `All` view hides them but the `In flight` view shows them.
 
 ## Files
 
-- **New**: `supabase/migrations/<ts>_agent_proxy_card_dismissals.sql`
-- **Edited**: `src/components/agent/ProxyPartnerFunds.tsx` — add dismiss button, bulk-select toolbar, sticky action bar, hidden-cards footer, snapshot filter logic, tightened lookback to 7 days, auto-hide at `available <= 50`.
+- **Edited**: `src/components/agent/ProxyPartnerFunds.tsx` only.
 
-## Out of scope
-
-- No changes to `cancel-proxy-withdrawal`, `approve-withdrawal`, or any wallet/ledger paths.
-- No changes to the COO Partners page or any other staff dashboards.
-- No deletion of `withdrawal_requests` rows — finance records remain immutable.
+No DB, edge function, ledger, or wallet changes. No effect on COO/Partner Ops dashboards.
