@@ -12328,6 +12328,78 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_fresh_start_anchors: {
+        Row: {
+          anchor_at: string
+          created_at: string
+          created_by: string | null
+          notes: string | null
+          pre_anchor_ledger_net: number
+          reason: string
+          user_id: string
+        }
+        Insert: {
+          anchor_at?: string
+          created_at?: string
+          created_by?: string | null
+          notes?: string | null
+          pre_anchor_ledger_net: number
+          reason: string
+          user_id: string
+        }
+        Update: {
+          anchor_at?: string
+          created_at?: string
+          created_by?: string | null
+          notes?: string | null
+          pre_anchor_ledger_net?: number
+          reason?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wallet_historical_drift_review: {
+        Row: {
+          cached_withdrawable: number
+          cfo_actor: string | null
+          cfo_decision: string | null
+          correction_ledger_id: string | null
+          created_at: string
+          decided_at: string | null
+          id: string
+          phantom_amount: number
+          pre_anchor_ledger_net: number
+          status: string
+          user_id: string
+        }
+        Insert: {
+          cached_withdrawable: number
+          cfo_actor?: string | null
+          cfo_decision?: string | null
+          correction_ledger_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          id?: string
+          phantom_amount: number
+          pre_anchor_ledger_net: number
+          status?: string
+          user_id: string
+        }
+        Update: {
+          cached_withdrawable?: number
+          cfo_actor?: string | null
+          cfo_decision?: string | null
+          correction_ledger_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          id?: string
+          phantom_amount?: number
+          pre_anchor_ledger_net?: number
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       wallet_ledger_baseline: {
         Row: {
           advance_at_baseline: number
@@ -14101,6 +14173,10 @@ export type Database = {
         Args: { p_listing_id: string; p_reason: string }
         Returns: Json
       }
+      release_historical_drift: {
+        Args: { p_amount: number; p_reason: string; p_review_id: string }
+        Returns: string
+      }
       release_phantom_lock: {
         Args: { _amount: number; _reason: string; _user_id: string }
         Returns: Json
@@ -14319,6 +14395,10 @@ export type Database = {
       welile_default_agent_vouch_floor_ugx:
         | { Args: never; Returns: number }
         | { Args: { p_agent_id: string }; Returns: number }
+      writedown_historical_drift: {
+        Args: { p_amount: number; p_reason: string; p_review_id: string }
+        Returns: string
+      }
     }
     Enums: {
       ai_priority: "low" | "medium" | "high" | "critical"
