@@ -86,20 +86,20 @@ export function useAgentBalances(agentId?: string) {
         commissionBalance = rawWithdrawable; // fallback to legacy behavior
       }
 
-      // Withdrawable balance must equal what the WITHDRAW flow will actually allow:
-      // ledger truth, clamped to the withdrawable bucket, minus pending holds.
-      // The cached wallets.withdrawable_balance can drift above this (debt,
-      // phantom drift, race after rapid posts), and showing a cached value
-      // higher than what they can withdraw causes the user to see UGX X on the
-      // card but get blocked at withdraw with "Available: 0". Force parity.
-      let withdrawableBalance = rawWithdrawable;
+      // STRICT LEDGER-BACKED WITHDRAWABLE.
+      // The only number the user is allowed to see as "withdrawable" is what
+      // the server-side gate (`get_user_available_balance`) will allow. We do
+      // NOT fall back to the cached wallet bucket, because that bucket can
+      // sit above the ledger position (phantom drift, missing legacy posts).
+      // If the RPC fails, we conservatively use min(cache, ledger_net_now)
+      // computed from the ledger directly — never the raw cache.
+      let withdrawableBalance = 0;
       try {
         const ledger = await computeLedgerAvailable(effectiveId);
-        // Take the LESSER of the cached bucket and the ledger-true available.
-        // Never show more than what they can actually pull out.
-        withdrawableBalance = Math.min(rawWithdrawable, ledger.available);
+        withdrawableBalance = Math.max(0, Math.min(ledger.available, rawWithdrawable));
       } catch (e) {
-        console.warn('[useAgentBalances] ledger-true clamp failed, using cached', e);
+        console.warn('[useAgentBalances] ledger-true clamp failed, defaulting to 0', e);
+        withdrawableBalance = 0;
       }
       const otherBalance = Math.max(0, rawWithdrawable - commissionBalance);
       // After role-aware routing fix (2026-04-23), withdrawable should equal commission balance
