@@ -12182,6 +12182,45 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_drift_alert_config: {
+        Row: {
+          created_at: string
+          critical_threshold_ugx: number
+          enabled: boolean
+          high_threshold_ugx: number
+          id: string
+          low_threshold_ugx: number
+          medium_threshold_ugx: number
+          singleton: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          critical_threshold_ugx?: number
+          enabled?: boolean
+          high_threshold_ugx?: number
+          id?: string
+          low_threshold_ugx?: number
+          medium_threshold_ugx?: number
+          singleton?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          critical_threshold_ugx?: number
+          enabled?: boolean
+          high_threshold_ugx?: number
+          id?: string
+          low_threshold_ugx?: number
+          medium_threshold_ugx?: number
+          singleton?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       wallet_ledger_baseline: {
         Row: {
           advance_at_baseline: number
@@ -12443,6 +12482,72 @@ export type Database = {
           id?: string
           sign_returned?: number | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      wallet_withdrawable_drift_alerts: {
+        Row: {
+          baseline_ledger_net: number
+          baseline_withdrawable: number
+          created_at: string
+          detection_run_id: string | null
+          deviation_amount: number
+          deviation_direction: string
+          expected_withdrawable: number
+          first_detected_at: string
+          id: string
+          last_detected_at: string
+          ledger_net_now: number
+          resolution_notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          status: string
+          updated_at: string
+          user_id: string
+          withdrawable_cached: number
+        }
+        Insert: {
+          baseline_ledger_net: number
+          baseline_withdrawable: number
+          created_at?: string
+          detection_run_id?: string | null
+          deviation_amount: number
+          deviation_direction: string
+          expected_withdrawable: number
+          first_detected_at?: string
+          id?: string
+          last_detected_at?: string
+          ledger_net_now: number
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          withdrawable_cached: number
+        }
+        Update: {
+          baseline_ledger_net?: number
+          baseline_withdrawable?: number
+          created_at?: string
+          detection_run_id?: string | null
+          deviation_amount?: number
+          deviation_direction?: string
+          expected_withdrawable?: number
+          first_detected_at?: string
+          id?: string
+          last_detected_at?: string
+          ledger_net_now?: number
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          withdrawable_cached?: number
         }
         Relationships: []
       }
@@ -13189,6 +13294,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      detect_withdrawable_drift_alerts: { Args: never; Returns: Json }
       drain_withdrawable_buckets: {
         Args: { p_amount: number; p_user_id: string }
         Returns: {
