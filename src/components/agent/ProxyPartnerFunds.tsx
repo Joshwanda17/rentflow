@@ -880,10 +880,21 @@ export function ProxyPartnerFunds() {
         const classification = classify(partner);
 
         return (
-          <Card key={cardKey} className="border-border/50 shadow-sm">
+          <Card
+            key={cardKey}
+            className={`border-border/50 shadow-sm ${selectMode && selectedKeys.has(cardKey) ? 'ring-2 ring-primary' : ''}`}
+          >
             <CardContent className="p-4 space-y-3">
               <div className="flex items-start justify-between">
-                <div>
+                <div className="flex items-start gap-2">
+                  {selectMode && (
+                    <Checkbox
+                      checked={selectedKeys.has(cardKey)}
+                      onCheckedChange={() => toggleSelect(partner)}
+                      className="mt-0.5"
+                    />
+                  )}
+                  <div>
                   <p className="font-semibold text-sm text-foreground">{partner.partnerName}</p>
                   {(partner.portfolioCode || partner.accountName) && (
                     <p className="text-xs text-muted-foreground mt-0.5">
@@ -896,6 +907,7 @@ export function ProxyPartnerFunds() {
                   {partner.partnerPhone && (
                     <p className="text-xs text-muted-foreground">{partner.partnerPhone}</p>
                   )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-1.5">
                   {statusBadge}
@@ -919,6 +931,17 @@ export function ProxyPartnerFunds() {
                     <Users className="h-3 w-3" />
                     Proxy
                   </Badge>
+                  {!selectMode && !hasPending && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                      title="Clear this card"
+                      onClick={() => openClearDialog([partner])}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
               </div>
 
