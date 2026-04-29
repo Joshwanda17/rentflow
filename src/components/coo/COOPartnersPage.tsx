@@ -1329,11 +1329,16 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     filterWallet !== 'all' ||
     !!payoutDateFrom ||
     !!payoutDateTo;
+  // When local filters are active we work over the full search-scoped dataset
+  // (`processed`) and paginate it client-side at PAGE_SIZE per page so the
+  // user still gets prev/next and at least 50 rows per view.
   const totalPages = hasLocalFilter
-    ? 1
+    ? Math.max(1, Math.ceil(processed.length / PAGE_SIZE))
     : Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const safePage = Math.min(page, totalPages - 1);
-  const paged = processed;
+  const paged = hasLocalFilter
+    ? processed.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE)
+    : processed;
 
   function handleSort(key: string) {
     if (sortKey === key) {
