@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { roleToSlug } from '@/lib/roleRoutes';
 import { format } from 'date-fns';
 import {
-  Loader2, Phone, Search, Users, Calendar, ShieldCheck, ShieldAlert,
+  Loader2, Phone, Search, Users, Calendar, ShieldCheck, ShieldAlert, CheckCircle2, XCircle, Clock,
   ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import COODetailLayout, { KPICard } from '@/components/coo/COODetailLayout';
@@ -14,6 +14,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -23,6 +24,7 @@ import {
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { buildPartnerReference } from '@/lib/partnerReference';
+import { useToast } from '@/hooks/use-toast';
 
 interface FunderProfileRow {
   id: string;
@@ -32,6 +34,9 @@ interface FunderProfileRow {
   created_at: string;
   frozen_at: string | null;
   verified: boolean | null;
+  funder_verified_at: string | null;
+  funder_rejected_at: string | null;
+  funder_rejection_reason: string | null;
 }
 
 const PAGE_SIZE = 50;
