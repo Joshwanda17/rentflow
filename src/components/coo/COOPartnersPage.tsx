@@ -1802,12 +1802,6 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         </Button>
       </div>
 
-      {hasLocalFilter && totalCount > PAGE_SIZE && (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[11px] text-amber-700 dark:text-amber-400">
-          Filters apply to the current page only. Clear filters to browse all {totalCount.toLocaleString()} partners across pages, or click Export CSV to download every match.
-        </div>
-      )}
-
       {/* Table */}
       <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
