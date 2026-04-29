@@ -221,6 +221,7 @@ export function TenantOpsDashboard() {
       // Resolve agent profiles for collection-based, rent-request and referrer fallbacks
       const allAgentIds = [...new Set([
         ...((collections || []).map(c => c.agent_id).filter(Boolean) as string[]),
+        ...Array.from(agentByGroup.values()),
         ...Array.from(assignedAgentByTenant.values()),
         ...Array.from(referrerAgentByTenant.values()),
       ])];
@@ -240,18 +241,38 @@ export function TenantOpsDashboard() {
       for (const p of payments) {
         const tenantId = p.user_id as string | null;
         if (!tenantId) continue;
+        // Per-row attribution priority:
+        //   (1) Float-Allocation agent — same transaction_group_id has an
+        //       agent_float_used_for_rent / commission leg (the dominant
+        //       agent path in production).
+        //   (2) Legacy collection — source_id matches an agent_collections row.
+        //   Either of (1) or (2) flips the row into "agent-collected".
+        //   (3) Assigned agent on an active rent_request — display only.
+        //   (4) Onboarding agent (profiles.referrer_id) — display only.
+        const groupAgentId = (p as any).transaction_group_id
+          ? agentByGroup.get((p as any).transaction_group_id)
+          : undefined;
         const collection = p.source_id ? collectionMap.get(p.source_id) : null;
         const collectingAgentId = collection?.agent_id;
-        const isAgentCollection = !!collectingAgentId;
-        // Per-row attribution priority:
-        // 1. Actual collecting agent (agent_collections row)
-        // 2. Assigned agent on an active rent_request
-        // 3. Onboarding agent (profiles.referrer_id, role=agent)
+        const isAgentCollection = !!groupAgentId || !!collectingAgentId;
         const attributedAgentId =
-          collectingAgentId
+          groupAgentId
+          || collectingAgentId
           || assignedAgentByTenant.get(tenantId)
           || referrerAgentByTenant.get(tenantId);
-        const agentName = attributedAgentId ? (agentMap.get(attributedAgentId)?.full_name || '—') : '—';
+        let agentName = '—';
+        if (attributedAgentId) {
+          const profileName = agentMap.get(attributedAgentId)?.full_name;
+          if (profileName) {
+            agentName = profileName;
+            // Multi-role test/sandbox case: the same UUID acts as agent +
+            // tenant. Still counted as agent-collected (it really was), but
+            // tagged so reviewers don't think it's a bug.
+            if (attributedAgentId === tenantId) agentName = `${profileName} (self)`;
+          } else if (isAgentCollection) {
+            agentName = 'Agent (deleted)';
+          }
+        }
         const amt = Number(p.amount || 0);
 
         let row = byTenant.get(tenantId);
