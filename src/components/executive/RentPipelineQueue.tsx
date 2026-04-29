@@ -1021,7 +1021,13 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                   ) : (
                     <CheckCircle2 className="h-4 w-4" />
                   )}
-                  {config.approveLabel}
+                  {selectedRequest?.registration_type === 'outstanding_balance'
+                    ? (stage === 'pending'
+                        ? 'Approve & Send to Agent'
+                        : stage === 'tenant_ops_approved'
+                          ? 'Confirm & Record Outstanding'
+                          : config.approveLabel)
+                    : config.approveLabel}
                 </Button>
               </div>
             </div>
