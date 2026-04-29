@@ -14363,9 +14363,11 @@ export type Database = {
         }
         Returns: {
           balance: number
+          float_balance: number
           full_name: string
           phone: string
           user_id: string
+          withdrawable_balance: number
         }[]
       }
       set_staff_access_password: {
