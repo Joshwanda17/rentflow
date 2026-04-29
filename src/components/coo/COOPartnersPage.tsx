@@ -1329,11 +1329,16 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     filterWallet !== 'all' ||
     !!payoutDateFrom ||
     !!payoutDateTo;
+  // When local filters are active we work over the full search-scoped dataset
+  // (`processed`) and paginate it client-side at PAGE_SIZE per page so the
+  // user still gets prev/next and at least 50 rows per view.
   const totalPages = hasLocalFilter
-    ? 1
+    ? Math.max(1, Math.ceil(processed.length / PAGE_SIZE))
     : Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const safePage = Math.min(page, totalPages - 1);
-  const paged = processed;
+  const paged = hasLocalFilter
+    ? processed.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE)
+    : processed;
 
   function handleSort(key: string) {
     if (sortKey === key) {
@@ -1802,7 +1807,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className={cn("h-9 gap-1.5 text-xs", (payoutDateFrom || payoutDateTo) && "border-primary text-primary")}>
-              {loadingAllRowsForPayout
+              {loadingAllRowsForPayout && (payoutDateFrom || payoutDateTo)
                 ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 : <CalendarDays className="h-3.5 w-3.5" />}
               {payoutDateFrom && payoutDateTo
@@ -1924,7 +1929,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         </div>
         {/* Pagination */}
         <div className="flex items-center justify-between px-3 py-2 border-t border-border bg-muted/30">
-          <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground tabular-nums">
+          <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground tabular-nums flex items-center gap-1.5">
+            {loadingAllRowsForPayout && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
             {hasLocalFilter
               ? `${processed.length.toLocaleString()} of ${totalCount.toLocaleString()} (filtered)`
               : processed.length === rows.length
