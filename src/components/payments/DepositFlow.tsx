@@ -655,33 +655,56 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           : baseNotes;
 
       if (isEditMode && activeEditId) {
-        // UPDATE — restricted by RLS to the owner's own pending row.
-        // Status is intentionally NOT touched; the row stays 'pending' so
-        // Financial Ops still owns the next move. We do, however, stamp
-        // an `edited_at`-style breadcrumb into purpose_audit so reviewers
-        // can see the row was reopened by the agent.
-        const { error: updError } = await supabase
-          .from('deposit_requests')
-          .update({
-            amount: parseFloat(amount),
-            provider: providerValue,
-            transaction_id: normalizedRef,
-            transaction_date: txDateTime.toISOString(),
-            notes,
-            deposit_purpose: depositPurpose,
-            purpose_audit: {
-              chosen_purpose: depositPurpose,
-              chosen_at: purposeChosenAt ?? new Date().toISOString(),
-              chosen_by: user.id,
-              entry_point: purposeEntryPoint,
-              required_choice: !!requirePurposeChoice,
-              last_edited_at: new Date().toISOString(),
-            },
-          } as any)
-          .eq('id', activeEditId)
-          .eq('status', 'pending'); // hard guard: never overwrite a reviewed row
-        if (updError) throw updError;
-        toast.success('Deposit updated — Financial Ops will see your changes');
+        if (editStatus === 'rejected') {
+          // RESUBMIT — the row was rejected by Financial Ops. Go through
+          // the SECURITY DEFINER RPC which validates ownership, flips
+          // status back to 'pending', clears rejection_reason, and stamps
+          // a resubmission entry into purpose_audit.resubmissions[].
+          const { error: rpcError } = await supabase.rpc(
+            'resubmit_rejected_deposit',
+            {
+              p_id: activeEditId,
+              p_payload: {
+                amount: parseFloat(amount),
+                provider: providerValue,
+                transaction_id: normalizedRef,
+                transaction_date: txDateTime.toISOString(),
+                notes,
+                deposit_purpose: depositPurpose,
+              },
+            } as any,
+          );
+          if (rpcError) throw rpcError;
+          toast.success('Resubmitted — Financial Ops will review again');
+        } else {
+          // UPDATE — restricted by RLS to the owner's own pending row.
+          // Status is intentionally NOT touched; the row stays 'pending' so
+          // Financial Ops still owns the next move. We do, however, stamp
+          // an `edited_at`-style breadcrumb into purpose_audit so reviewers
+          // can see the row was reopened by the agent.
+          const { error: updError } = await supabase
+            .from('deposit_requests')
+            .update({
+              amount: parseFloat(amount),
+              provider: providerValue,
+              transaction_id: normalizedRef,
+              transaction_date: txDateTime.toISOString(),
+              notes,
+              deposit_purpose: depositPurpose,
+              purpose_audit: {
+                chosen_purpose: depositPurpose,
+                chosen_at: purposeChosenAt ?? new Date().toISOString(),
+                chosen_by: user.id,
+                entry_point: purposeEntryPoint,
+                required_choice: !!requirePurposeChoice,
+                last_edited_at: new Date().toISOString(),
+              },
+            } as any)
+            .eq('id', activeEditId)
+            .eq('status', 'pending'); // hard guard: never overwrite a reviewed row
+          if (updError) throw updError;
+          toast.success('Deposit updated — Financial Ops will see your changes');
+        }
       } else {
         const { error: depositError } = await supabase
           .from('deposit_requests')
