@@ -200,6 +200,9 @@ export function AgentBulkOpsConsole({ onBack }: { onBack?: () => void }) {
         </div>
       </div>
 
+      <div className="flex flex-col lg:flex-row gap-4 items-start">
+        <div className="flex-1 min-w-0 space-y-4 w-full">
+
       {/* Live + recent jobs */}
       <RecentJobsPanel highlightJobId={activeJobId} />
       <DeadLetterPanel />
@@ -377,6 +380,21 @@ export function AgentBulkOpsConsole({ onBack }: { onBack?: () => void }) {
             : `${action === 'enable' ? 'Enable' : 'Disable'} ${selectedCaps.size} function${selectedCaps.size === 1 ? '' : 's'} on ${resolved?.count.toLocaleString() ?? 0} agents`}
         </Button>
       </Card>
+        </div>
+
+        {/* Right rail — agent snapshot when a single agent is staged */}
+        {resolved && resolved.count === 1 && (
+          <aside className="w-full lg:w-80 lg:sticky lg:top-4 shrink-0">
+            <AgentSnapshotPanel
+              agentId={resolved.agentIds[0]}
+              fallbackName={resolved.sample[0]?.full_name ?? null}
+              fallbackPhone={resolved.sample[0]?.phone ?? null}
+              pendingCaps={Array.from(selectedCaps)}
+              pendingAction={action}
+            />
+          </aside>
+        )}
+      </div>
     </div>
   );
 }
@@ -548,6 +566,216 @@ function CsvForm({ onResolved }: { onResolved: (r: ResolvedSet) => void }) {
 }
 
 export default AgentBulkOpsConsole;
+
+/* =====================================================================
+ * AgentSnapshotPanel — pre-submit side panel showing the selected agent's
+ * current capabilities, status, and last-update timestamp so the manager
+ * can sanity-check the impact before queuing the change.
+ * ===================================================================*/
+function AgentSnapshotPanel({
+  agentId, fallbackName, fallbackPhone, pendingCaps, pendingAction,
+}: {
+  agentId: string;
+  fallbackName: string | null;
+  fallbackPhone: string | null;
+  pendingCaps: string[];
+  pendingAction: 'enable' | 'disable';
+}) {
+  const q = useQuery({
+    queryKey: ['agent-snapshot', agentId],
+    queryFn: async () => {
+      const capsRes = await supabase
+        .from('agent_capabilities')
+        .select('capability,status,granted_at,revoked_at,updated_at')
+        .eq('agent_id', agentId)
+        .order('updated_at', { ascending: false });
+      if (capsRes.error) throw capsRes.error;
+
+      const profileRes = await supabase
+        .from('profiles')
+        .select('full_name,phone,is_frozen,last_active_at')
+        .eq('id', agentId)
+        .maybeSingle();
+
+      return {
+        caps: capsRes.data ?? [],
+        profile: (profileRes.data as {
+          full_name: string | null;
+          phone: string | null;
+          is_frozen: boolean | null;
+          last_active_at: string | null;
+        } | null) ?? null,
+      };
+    },
+    staleTime: 15_000,
+  });
+  const data = q.data;
+  const isLoading = q.isLoading;
+  const refetch = q.refetch;
+  const dataUpdatedAt = q.dataUpdatedAt;
+
+  const activeByKey = useMemo(() => {
+    const map = new Map<string, { status: string; updated_at: string }>();
+    for (const c of data?.caps ?? []) {
+      const cur = map.get(c.capability);
+      if (!cur || new Date(c.updated_at) > new Date(cur.updated_at)) {
+        map.set(c.capability, { status: c.status, updated_at: c.updated_at });
+      }
+    }
+    return map;
+  }, [data]);
+
+  const lastUpdated = useMemo(() => {
+    const ts = (data?.caps ?? []).map(c => new Date(c.updated_at).getTime());
+    if (ts.length === 0) return null;
+    return new Date(Math.max(...ts));
+  }, [data]);
+
+  const profile = data?.profile;
+  const displayName = profile?.full_name ?? fallbackName ?? agentId.slice(0, 8);
+  const displayPhone = profile?.phone ?? fallbackPhone ?? '—';
+
+  // Diff: which pending changes are no-ops vs real changes?
+  const diff = useMemo(() => {
+    const noop: string[] = [];
+    const change: string[] = [];
+    const newGrants: string[] = [];
+    for (const cap of pendingCaps) {
+      const cur = activeByKey.get(cap);
+      const isCurrentlyEnabled = cur?.status === 'active' || cur?.status === 'granted';
+      const willBeEnabled = pendingAction === 'enable';
+      if (isCurrentlyEnabled === willBeEnabled) noop.push(cap);
+      else if (!cur && pendingAction === 'enable') newGrants.push(cap);
+      else change.push(cap);
+    }
+    return { noop, change, newGrants };
+  }, [pendingCaps, activeByKey, pendingAction]);
+
+  return (
+    <Card className="p-3 border-primary/30">
+      <div className="flex items-start gap-2">
+        <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+          <User className="h-4 w-4 text-primary" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold truncate">{displayName}</p>
+          <p className="text-[10px] text-muted-foreground font-mono truncate">{displayPhone}</p>
+          <p className="text-[10px] text-muted-foreground font-mono truncate">{agentId}</p>
+        </div>
+        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => refetch()} title="Refresh">
+          <RefreshCw className="h-3 w-3" />
+        </Button>
+      </div>
+
+      {/* Status row */}
+      <div className="flex flex-wrap gap-1 mt-2">
+        <Badge variant={profile?.is_frozen ? 'destructive' : 'secondary'} className="text-[9px]">
+          {profile?.is_frozen ? 'Frozen' : 'Active'}
+        </Badge>
+        <Badge variant="outline" className="text-[9px]">
+          {activeByKey.size} active function{activeByKey.size === 1 ? '' : 's'}
+        </Badge>
+        {profile?.last_active_at && (
+          <Badge variant="outline" className="text-[9px]" title={profile.last_active_at}>
+            seen {new Date(profile.last_active_at).toLocaleDateString()}
+          </Badge>
+        )}
+        {lastUpdated && (
+          <Badge variant="outline" className="text-[9px]" title={lastUpdated.toISOString()}>
+            last change {lastUpdated.toLocaleDateString()}
+          </Badge>
+        )}
+      </div>
+
+      {/* Pending diff summary */}
+      {pendingCaps.length > 0 && (
+        <div className="mt-3 p-2 rounded border border-primary/30 bg-primary/5">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-primary mb-1">
+            Pending: {pendingAction === 'enable' ? 'enable' : 'disable'} {pendingCaps.length}
+          </p>
+          <div className="text-[10px] space-y-0.5">
+            {diff.change.length > 0 && (
+              <p className="text-amber-700">
+                <strong>{diff.change.length}</strong> will change
+              </p>
+            )}
+            {diff.newGrants.length > 0 && (
+              <p className="text-emerald-700">
+                <strong>{diff.newGrants.length}</strong> new grant{diff.newGrants.length === 1 ? '' : 's'}
+              </p>
+            )}
+            {diff.noop.length > 0 && (
+              <p className="text-muted-foreground">
+                <strong>{diff.noop.length}</strong> already in target state (no-op)
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Current capabilities list */}
+      <div className="mt-3">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+          Current functions ({activeByKey.size})
+        </p>
+        {isLoading ? (
+          <div className="flex items-center gap-2 text-[10px] text-muted-foreground py-2">
+            <Loader2 className="h-3 w-3 animate-spin" /> Loading…
+          </div>
+        ) : activeByKey.size === 0 ? (
+          <p className="text-[10px] text-muted-foreground py-2">No capabilities recorded.</p>
+        ) : (
+          <div className="max-h-72 overflow-y-auto space-y-0.5">
+            {ALL_CAPABILITIES.map(c => {
+              const cur = activeByKey.get(c.key);
+              const enabled = cur?.status === 'active' || cur?.status === 'granted';
+              const willBeTouched = pendingCaps.includes(c.key);
+              return (
+                <div
+                  key={c.key}
+                  className={`flex items-center gap-2 text-[10px] py-1 px-1.5 rounded ${
+                    willBeTouched ? 'bg-primary/10 ring-1 ring-primary/30' : ''
+                  }`}
+                >
+                  <span className={`h-2 w-2 rounded-full shrink-0 ${
+                    enabled ? 'bg-emerald-500' : cur ? 'bg-muted-foreground/40' : 'bg-muted-foreground/20'
+                  }`} />
+                  <span className="truncate flex-1" title={c.key}>{c.label}</span>
+                  {cur && (
+                    <span
+                      className="text-muted-foreground tabular-nums shrink-0"
+                      title={`Last updated ${new Date(cur.updated_at).toLocaleString()}`}
+                    >
+                      {new Date(cur.updated_at).toLocaleDateString()}
+                    </span>
+                  )}
+                  {willBeTouched && (
+                    <Badge
+                      variant={pendingAction === 'enable' ? 'default' : 'destructive'}
+                      className="text-[8px] py-0 px-1 shrink-0"
+                    >
+                      {pendingAction === 'enable' ? '+EN' : '−DIS'}
+                    </Badge>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Footer: last-updated overall */}
+      <div className="mt-2 pt-2 border-t border-border flex items-center justify-between text-[10px] text-muted-foreground">
+        <span title={lastUpdated?.toISOString()}>
+          Last function update: {lastUpdated ? lastUpdated.toLocaleString() : '—'}
+        </span>
+        <span title={new Date(dataUpdatedAt).toISOString()}>
+          Snapshot {new Date(dataUpdatedAt).toLocaleTimeString()}
+        </span>
+      </div>
+    </Card>
+  );
+}
 
 /* =====================================================================
  * SingleAgentForm — find ONE agent by ID, phone, or email and stage them
