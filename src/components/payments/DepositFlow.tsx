@@ -407,7 +407,10 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           }
           return;
         }
-        if (data.status !== 'pending') {
+        // Allow editing 'pending' (in-queue tweak) and 'rejected'
+        // (resubmit after FinOps bounce). Anything else (approved /
+        // reviewed) is locked — touching it would desync the ledger.
+        if (data.status !== 'pending' && data.status !== 'rejected') {
           if (!applyMatchFallback('That deposit is already under review')) {
             toast.error('This deposit is already under review and can no longer be edited');
             onOpenChange(false);
