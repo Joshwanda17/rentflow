@@ -1228,12 +1228,19 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     finally { setSavingEditPortfolio(false); }
   }
 
-  /* ─── When the payout-date range filter is active, fetch ALL matching ───
-     ─── partners (across every server page, scoped to the current search) ───
-     ─── so the filter evaluates against the whole dataset instead of just ───
-     ─── the current page. Cleared when the filter is turned off.          ─── */
+  /* ─── When ANY local filter is active (status, ROI mode, contact, wallet,  ───
+     ─── payout date range), fetch ALL matching partners across every server  ───
+     ─── page (scoped to the current search) so client-side filters evaluate  ───
+     ─── against the whole dataset instead of only the visible 50-row page.   ───
+     ─── Cleared when no local filter is active.                              ─── */
   useEffect(() => {
-    const filterActive = !!(payoutDateFrom || payoutDateTo);
+    const filterActive =
+      filterStatus !== 'all' ||
+      filterRoiMode !== 'all' ||
+      filterContact !== 'all' ||
+      filterWallet !== 'all' ||
+      !!payoutDateFrom ||
+      !!payoutDateTo;
     if (!filterActive) {
       if (allRowsForPayoutFilter !== null) setAllRowsForPayoutFilter(null);
       return;
@@ -1254,7 +1261,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         const fullRows = allIds.length ? await buildRowsForIds(allIds) : [];
         if (!cancelled) setAllRowsForPayoutFilter(fullRows);
       } catch (e) {
-        console.error('[payout-filter] failed to fetch all partners', e);
+        console.error('[local-filter] failed to fetch all partners', e);
         if (!cancelled) setAllRowsForPayoutFilter([]);
       } finally {
         if (!cancelled) setLoadingAllRowsForPayout(false);
@@ -1262,15 +1269,13 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [payoutDateFrom, payoutDateTo, debouncedSearch, buildRowsForIds]);
+  }, [filterStatus, filterRoiMode, filterContact, filterWallet, payoutDateFrom, payoutDateTo, debouncedSearch, buildRowsForIds]);
 
   /* ─── Filtered / Sorted (local filters on current page, search is server-side) ─── */
   const processed = useMemo(() => {
-    // When a payout-date range is active, evaluate filters against the full
+    // When ANY local filter is active, evaluate against the full
     // (search-scoped) dataset so we don't miss partners on other pages.
-    const sourceRows = (payoutDateFrom || payoutDateTo) && allRowsForPayoutFilter
-      ? allRowsForPayoutFilter
-      : rows;
+    const sourceRows = allRowsForPayoutFilter ?? rows;
     let result = [...sourceRows];
     if (filterStatus !== 'all') result = result.filter(r => r.status === filterStatus);
     if (filterRoiMode !== 'all') result = result.filter(r => r.roiMode === filterRoiMode);
@@ -1879,7 +1884,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
               </tr>
             </thead>
             <tbody className="divide-y divide-border/30">
-              {isSearching && paged.length === 0 ? (
+               {(isSearching || (loadingAllRowsForPayout && paged.length === 0)) && paged.length === 0 ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <tr key={`sk-${i}`} className="animate-pulse">
                     <td className="px-2 sm:px-3 py-3"><div className="h-3 w-4 bg-muted rounded" /></td>
@@ -1920,7 +1925,11 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         {/* Pagination */}
         <div className="flex items-center justify-between px-3 py-2 border-t border-border bg-muted/30">
           <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground tabular-nums">
-            {processed.length === rows.length ? `${rows.length} partner${rows.length !== 1 ? 's' : ''}` : `${processed.length} of ${rows.length} (filtered)`}
+            {hasLocalFilter
+              ? `${processed.length.toLocaleString()} of ${totalCount.toLocaleString()} (filtered)`
+              : processed.length === rows.length
+                ? `${rows.length.toLocaleString()} partner${rows.length !== 1 ? 's' : ''}`
+                : `${processed.length.toLocaleString()} of ${rows.length.toLocaleString()} (filtered)`}
           </span>
           {totalPages > 1 && (
             <div className="flex items-center gap-1">
