@@ -235,9 +235,20 @@ export function UserDepositRequests() {
                     </div>
                   </div>
                   {request.status === 'rejected' && request.rejection_reason && (
-                    <p className="text-xs text-destructive mt-2 bg-destructive/10 p-2 rounded">
-                      Reason: {request.rejection_reason}
-                    </p>
+                    <div className="mt-2 space-y-2">
+                      <p className="text-xs text-destructive bg-destructive/10 p-2 rounded">
+                        Reason: {request.rejection_reason}
+                      </p>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => setEditingId(request.id)}
+                      >
+                        <Pencil className="h-3 w-3 mr-1" />
+                        Fix details & resubmit
+                      </Button>
+                    </div>
                   )}
                       {request.status === 'pending' &&
                         (request.deposit_purpose === 'operational_float' ||
