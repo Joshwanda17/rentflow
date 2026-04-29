@@ -70,6 +70,15 @@ export function CollectionVouchCelebration({
         if (data) {
           setRow(data as VouchHistoryRow);
           setLoading(false);
+          // Notify any mounted vouch/trust UI to refresh with the precise delta.
+          try {
+            const { emitVouchUpdated } = await import('@/lib/vouchEvents');
+            emitVouchUpdated({
+              agentId,
+              collectionId,
+              deltaUgx: Number((data as VouchHistoryRow).delta_ugx ?? 0),
+            });
+          } catch {}
           return;
         }
         await new Promise((r) => setTimeout(r, 250 * attempts));
