@@ -1,59 +1,84 @@
-# Why "Approve & Complete" never reaches FinOps for these cards
+## Goal
 
-## What the data confirms
+Stop the "publish but staff still see old version" problem on welilereceipts.com by replacing the current **silent auto-reload** with a **visible, user-controlled "Update available" toast**. Today the SW hook detects a new version and silently calls `window.location.reload()`, which (a) is blocked/delayed in the middle of forms, (b) gives no feedback that an update happened, and (c) on iOS Safari often gets deferred until the tab is reopened. A visible prompt makes the new version land within seconds of any tab gaining focus.
 
-I checked every angle:
+## What changes
 
-- All 9 stuck cards have `fin_ops_approved_at = NULL`, `fin_ops_reference = NULL`, `processed_at = NULL`.
-- Zero ledger entries reference any of these withdrawal IDs in `general_ledger`.
-- Zero `withdrawal_approved` `system_events` for any of these IDs (the only one today was WAKATO ALI at 11:19, which IS `approved` and correctly gone from the list).
-- Zero edge function calls to `approve-withdrawal` in the last 6 hours.
-- All 9 are stuck in `manager_approved` state — Manager pressed approve, FinOps never finished.
+### 1. `src/hooks/useServiceWorkerUpdate.ts` — expose state instead of auto-reloading
 
-So the cards aren't "ghost approvals". The FinOps "Approve & Complete" dialog is simply not being completed (the operator opens it and abandons, OR the button silently fails to send).
+- Convert the hook to return `{ updateReady, applyUpdate, dismiss }`.
+- When a new SW reaches `installed` AND `navigator.serviceWorker.controller` exists (i.e. it's an update, not first install) → set `updateReady = true` instead of calling `handleUpdate()` immediately.
+- Keep all existing triggers that currently force a silent reload, but route them through `setUpdateReady(true)`:
+  - `updatefound` → `installed` while controller exists
+  - `controllerchange` (only if we initiated it via `applyUpdate`)
+  - `SW_UPDATED` postMessage
+  - Build-time mismatch check (`__BUILD_TIME__` vs `localStorage.welile_build_time`)
+- `applyUpdate()` does what `handleUpdate()` does today: post `SKIP_WAITING` to the waiting worker, clear `welile-*` caches, then `window.location.reload()`. Sets an internal `isReloading` ref so we don't double-fire.
+- `dismiss()` just hides the toast for this session (re-shown next time the page becomes visible / focus / online, since we re-check there).
+- Keep the 5-min `setInterval`, `visibilitychange`, `focus`, `online` checks unchanged.
 
-But there are TWO real bugs we should fix while we're here:
+### 2. New component `src/components/UpdateAvailableToast.tsx`
 
-## Bug 1: Approve button gives no feedback if validation fails silently
+- Calls `useServiceWorkerUpdate()`.
+- When `updateReady` is true, shows a single **sonner** toast (we already use sonner elsewhere) that is:
+  - Persistent (`duration: Infinity`)
+  - Has an **"Update now"** action button → calls `applyUpdate()`
+  - Has a dismiss (X) → calls `dismiss()`
+  - Title: "New version available"
+  - Description: "Reload to get the latest fixes."
+- Uses a ref/`useRef` to track the toast id so it isn't duplicated on re-renders.
+- Renders nothing (`return null`) — it's a behavior-only component.
 
-The Approve button is disabled until `reference.length ≥ 3` AND `paymentMethod` is selected. If either is missing, the button just looks dead — no toast, no hint. On a 384-wide phone the dialog is cramped; the operator may think they tapped Approve but actually nothing fired.
+### 3. `src/components/DeferredExtras.tsx` — mount the toast component
 
-## Bug 2: List has no realtime refresh
+- Remove the bare `useServiceWorkerUpdate()` call at the top of `DeferredExtras` (the new `<UpdateAvailableToast />` will own it).
+- Add `<UpdateAvailableToast />` **outside** the `if (!ready) return null` gate, so the update prompt works even before idle-callback fires (updates are higher priority than iOS extras).
 
-Even when an approve does succeed, other FinOps operators on other devices won't see the card disappear until they manually press the refresh icon. Cards from yesterday can linger visually if the page hasn't been reloaded.
+```tsx
+return (
+  <>
+    <UpdateAvailableToast />
+    {ready && (
+      <ExtrasBoundary>...</ExtrasBoundary>
+    )}
+  </>
+);
+```
 
-## Bug 3: No way to clear stale `manager_approved` cards quickly
+### 4. Triage the 9 stuck `manager_approved` withdrawals (Option A)
 
-The 9 stuck cards from today need to either be (a) actually paid + completed with TID, or (b) rejected if they were duplicates / errors. Right now there's no fast path.
+After the toast ships, run the bulk action discussed earlier:
 
-## Plan
+- Update the 9 stuck rows where `status = 'manager_approved'` AND `fin_ops_approved_at IS NULL` AND created today, setting:
+  - `status = 'rejected'`
+  - `rejection_reason = 'Manager-approved but FinOps did not complete; please re-request.'`
+  - `rejected_at = now()`
+- Emit a `system_event` of type `withdrawal.bulk_rejected_finops_stuck` with the affected ids for audit (per system constitution: every state change emits an event).
+- No wallet/ledger movement is needed because no funds were ever debited (`approved_at IS NULL`).
 
-### Step 1 — Make the dialog impossible to abandon silently
-In `src/components/financial-ops/FinOpsWithdrawalVerification.tsx`:
-- Add visible inline hints under the Payment Method and Reference inputs ("Pick a method to enable Approve" / "Enter at least 3 chars").
-- Add a stage badge on each pending card: yellow "Awaiting Manager", blue "Manager Approved → needs FinOps TID", purple "CFO Approved", green "FinOps Approved → finalising". Operator sees instantly which cards still need their action.
-- Add a tiny age countdown chip ("47m old") that turns amber after 1h and red after 4h, so stuck cards stand out.
+This will be done as a single migration so it's auditable.
 
-### Step 2 — Realtime auto-refresh
-Add a `supabase.channel('finops-withdrawals')` subscription on `withdrawal_requests` that calls `fetchRequests()` on INSERT/UPDATE. The moment any operator (or edge function) flips a card to `approved`/`rejected`, it disappears from everyone's screen. Cleans up the manual-refresh dance.
+## What does NOT change
 
-### Step 3 — Triage the 9 currently stuck cards
-Two safe options I can run for you on your say-so:
-- **Option A — bulk reject all 9 with reason "Manager-approved but FinOps did not complete; please re-request"**, so users re-submit and you start clean. Their wallets are untouched (no ledger entries exist).
-- **Option B — leave them; Financial Ops finishes each one manually** with the real TID/RCT for whichever ones are already paid out off-platform.
+- `public/sw.js` — already correctly cache-busts on every deploy via `Date.now()` cache name and handles `SKIP_WAITING`. No edits needed.
+- `useForceRefresh` (already a no-op stub) — left alone.
+- The Financial Ops realtime channel added last turn — already shipped.
+- No changes to `index.html`, build config, or vite config.
 
-I will NOT auto-approve them — that bypasses the TID capture which is the whole point of the FinOps step (Withdrawal Governance + Funder Deposit Workflow rules).
+## Why this fixes "changes ineffective on custom domain"
 
-## Files to touch
+- The custom domain (welilereceipts.com) is served identically to the `.lovable.app` URL — there is no separate deployment. The lag is **always** stale tabs holding the old SW + old chunks.
+- Today's silent reload often loses the race when the user is mid-action; the visible toast lets them apply the update at a safe moment, and (critically) the toast appears within seconds of any focus/visibility/online event because the SW `update()` check is already wired to those.
 
-- `src/components/financial-ops/FinOpsWithdrawalVerification.tsx` — stage badge, inline validation hints, age chip, realtime channel subscription on `withdrawal_requests`.
+## Files to be edited
 
-## What I will NOT do
+- `src/hooks/useServiceWorkerUpdate.ts` (refactor to return state)
+- `src/components/UpdateAvailableToast.tsx` (new)
+- `src/components/DeferredExtras.tsx` (mount toast, drop direct hook call)
+- One DB migration to bulk-reject the 9 stuck withdrawal_requests rows + emit system_event
 
-- Won't change the `approve-withdrawal` edge function or wallet/ledger logic — that path works (verified by yesterday's successful approvals: PV013, RCT 027, A849C24DB9094, etc.).
-- Won't auto-flip `manager_approved` → `approved`. Locked governance.
-- Won't add new tables or DB schema changes.
+## Out of scope (not doing now)
 
-## After you approve
-
-Tell me whether to also run **Option A (bulk reject the 9)** or leave triage to your operators.
+- No changes to other roles' dashboards.
+- No change to update-check frequency (stays at 5 min + visibility/focus/online).
+- No PWA manifest or install-prompt changes.

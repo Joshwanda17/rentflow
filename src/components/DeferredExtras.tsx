@@ -1,9 +1,9 @@
 import { lazy, Suspense, useState, useEffect, Component, ReactNode } from "react";
 import { useLocation } from "react-router-dom";
-import { useServiceWorkerUpdate } from "@/hooks/useServiceWorkerUpdate";
 import { useForceRefresh } from "@/hooks/useForceRefresh";
 import { useIOSCacheInvalidation } from "@/hooks/useIOSCacheInvalidation";
 import { useAuth } from "@/hooks/useAuth";
+import UpdateAvailableToast from "@/components/UpdateAvailableToast";
 
 const IOSOptimizations = lazy(() => import("@/components/IOSOptimizations"));
 const IOSLinkHandler = lazy(() => import("@/components/IOSLinkHandler"));
@@ -22,7 +22,6 @@ export default function DeferredExtras() {
   const [ready, setReady] = useState(false);
   const { pathname } = useLocation();
 
-  useServiceWorkerUpdate();
   useForceRefresh();
   useIOSCacheInvalidation();
 
@@ -38,15 +37,19 @@ export default function DeferredExtras() {
     return () => clearTimeout(timer);
   }, []);
 
-  if (!ready) return null;
-
   return (
-    <ExtrasBoundary>
-      <Suspense fallback={null}>
-        <IOSOptimizations />
-        <IOSLinkHandler />
-        <IOSShareReceiver />
-      </Suspense>
-    </ExtrasBoundary>
+    <>
+      {/* Update prompt mounts immediately — higher priority than iOS extras */}
+      <UpdateAvailableToast />
+      {ready && (
+        <ExtrasBoundary>
+          <Suspense fallback={null}>
+            <IOSOptimizations />
+            <IOSLinkHandler />
+            <IOSShareReceiver />
+          </Suspense>
+        </ExtrasBoundary>
+      )}
+    </>
   );
 }
