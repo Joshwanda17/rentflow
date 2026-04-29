@@ -38,12 +38,28 @@ interface UserResult {
   balance: number;
 }
 
-export function WalletDeductionPanel() {
-  const [searchMode, setSearchMode] = useState<'name' | 'balance'>('name');
+interface WalletDeductionPanelProps {
+  /**
+   * When 'balance', the panel opens directly on the "By Balance Range"
+   * tab. Combined with `initialBalancePreset`, this lets callers (e.g.
+   * the Financial Ops hero "229 with balance" pill) jump straight to a
+   * pre-loaded list of every wallet currently holding money.
+   */
+  initialMode?: 'name' | 'balance';
+  /** Min / max UGX to pre-fill and auto-search on mount. */
+  initialBalancePreset?: { min: number; max: number };
+}
+
+export function WalletDeductionPanel({ initialMode = 'name', initialBalancePreset }: WalletDeductionPanelProps = {}) {
+  const [searchMode, setSearchMode] = useState<'name' | 'balance'>(initialMode);
   const [searchQuery, setSearchQuery] = useState('');
-  const [minBalance, setMinBalance] = useState('');
-  const [maxBalance, setMaxBalance] = useState('');
-  const [balanceSearchTriggered, setBalanceSearchTriggered] = useState(false);
+  const [minBalance, setMinBalance] = useState(
+    initialBalancePreset ? String(initialBalancePreset.min) : '',
+  );
+  const [maxBalance, setMaxBalance] = useState(
+    initialBalancePreset ? String(initialBalancePreset.max) : '',
+  );
+  const [balanceSearchTriggered, setBalanceSearchTriggered] = useState(!!initialBalancePreset);
   const [selectedUser, setSelectedUser] = useState<UserResult | null>(null);
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('general_adjustment');

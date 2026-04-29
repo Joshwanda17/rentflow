@@ -62,9 +62,13 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
   const [view, setView] = useState<View>('home');
   const [activeTool, setActiveTool] = useState<Tool>(null);
   const [moreSheet, setMoreSheet] = useState(false);
+  // When set, the Wallet Deductions tool opens pre-filtered to wallets
+  // currently holding money (driven by the hero "X with balance" pill).
+  const [deductionsAutoBalance, setDeductionsAutoBalance] = useState(false);
 
-  const openTool = (t: Tool) => {
+  const openTool = (t: Tool, opts?: { withBalance?: boolean }) => {
     setActiveTool(t);
+    setDeductionsAutoBalance(t === 'deductions' && !!opts?.withBalance);
     setMoreSheet(false);
   };
 
@@ -150,7 +154,12 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
               <MinusCircle className="h-6 w-6 text-orange-600" />
               Wallet Deductions
             </h2>
-            <WalletDeductionPanel />
+            <WalletDeductionPanel
+              initialMode={deductionsAutoBalance ? 'balance' : 'name'}
+              initialBalancePreset={
+                deductionsAutoBalance ? { min: 1, max: 999999999999 } : undefined
+              }
+            />
           </div>
         )}
         {activeTool === 'requisitions' && (
@@ -177,7 +186,10 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         </p>
       </div>
 
-      <WalletOverviewCard onOpenDeductions={() => openTool('deductions')} />
+      <WalletOverviewCard
+        onOpenDeductions={() => openTool('deductions')}
+        onViewActiveWallets={() => openTool('deductions', { withBalance: true })}
+      />
       <FinancialOpsPulseStrip />
 
       {/* ═══ CORE: Wallet Management ═══

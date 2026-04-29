@@ -12,9 +12,15 @@ interface WalletOverviewCardProps {
    * stop propagation so they keep their independent behavior.
    */
   onOpenDeductions?: () => void;
+  /**
+   * Tapping the "X with balance" pill opens Wallet Deductions pre-loaded
+   * with the "All with balance" preset so operators can immediately drill
+   * into every wallet currently holding money.
+   */
+  onViewActiveWallets?: () => void;
 }
 
-export function WalletOverviewCard({ onOpenDeductions }: WalletOverviewCardProps = {}) {
+export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets }: WalletOverviewCardProps = {}) {
   // Operators reviewing a deposit don't want the screen reshuffling under
   // their cursor. The shared toggle gates polling on this card AND on the
   // Verify Deposits hub at the same time.
@@ -149,9 +155,21 @@ export function WalletOverviewCard({ onOpenDeductions }: WalletOverviewCardProps
           <Users className="h-3.5 w-3.5" />
           {isLoading ? '—' : data?.walletCount?.toLocaleString()} wallets
         </span>
-        <span className="text-primary font-medium">
-          {isLoading ? '—' : data?.activeWallets?.toLocaleString()} with balance
-        </span>
+        {onViewActiveWallets ? (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onViewActiveWallets(); }}
+            className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 -my-0.5 text-primary font-medium underline-offset-2 hover:bg-primary/10 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label="View all wallets with balance"
+          >
+            {isLoading ? '—' : data?.activeWallets?.toLocaleString()} with balance
+            <ChevronRight className="h-3 w-3" />
+          </button>
+        ) : (
+          <span className="text-primary font-medium">
+            {isLoading ? '—' : data?.activeWallets?.toLocaleString()} with balance
+          </span>
+        )}
       </div>
 
       {/* ─── Two live key stats that mirror the two action buttons below ─── */}
