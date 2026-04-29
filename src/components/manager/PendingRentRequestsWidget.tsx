@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { CollapsibleAgentSection } from '@/components/agent/CollapsibleAgentSection';
 import { SwipeableRow, swipeActions } from '@/components/SwipeableRow';
 import { RentRequestDetailDrawer } from '@/components/rent/RentRequestDetailDrawer';
+import { RentApprovalConfirmDialog } from '@/components/rent/RentApprovalConfirmDialog';
 
 interface PendingRequest {
   id: string;
@@ -46,6 +47,7 @@ export function PendingRentRequestsWidget() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const [pendingApproval, setPendingApproval] = useState<PendingRequest | null>(null);
 
   const fetchRequests = async () => {
     const { data, error } = await supabase
@@ -93,7 +95,13 @@ export function PendingRentRequestsWidget() {
     };
   }, []);
 
-  const handleApprove = async (id: string) => {
+  const requestApproval = (req: PendingRequest) => {
+    setPendingApproval(req);
+  };
+
+  const confirmApproval = async () => {
+    if (!pendingApproval) return;
+    const id = pendingApproval.id;
     setActionLoading(id);
     const { error } = await supabase
       .from('rent_requests')
@@ -104,6 +112,7 @@ export function PendingRentRequestsWidget() {
     } else {
       toast.success('Request approved!');
       setRequests(prev => prev.filter(r => r.id !== id));
+      setPendingApproval(null);
     }
     setActionLoading(null);
   };
@@ -158,7 +167,7 @@ export function PendingRentRequestsWidget() {
               transition={{ delay: i * 0.03 }}
             >
               <SwipeableRow
-                leftActions={[swipeActions.approve(() => handleApprove(req.id))]}
+                leftActions={[swipeActions.approve(() => requestApproval(req))]}
                 rightActions={[swipeActions.reject(() => handleReject(req.id))]}
                 disabled={!!actionLoading}
               >
@@ -246,6 +255,22 @@ export function PendingRentRequestsWidget() {
         requestId={selectedRequestId}
         open={!!selectedRequestId}
         onOpenChange={(open) => { if (!open) setSelectedRequestId(null); }}
+      />
+      <RentApprovalConfirmDialog
+        open={!!pendingApproval}
+        onOpenChange={(open) => { if (!open) setPendingApproval(null); }}
+        request={pendingApproval ? {
+          id: pendingApproval.id,
+          rent_amount: pendingApproval.rent_amount,
+          duration_days: pendingApproval.duration_days,
+          access_fee: pendingApproval.access_fee,
+          request_fee: pendingApproval.request_fee,
+          total_repayment: pendingApproval.total_repayment,
+          daily_repayment: pendingApproval.daily_repayment,
+          tenant_name: pendingApproval.tenant?.full_name ?? null,
+        } : null}
+        onConfirm={confirmApproval}
+        loading={actionLoading === pendingApproval?.id}
       />
     </CollapsibleAgentSection>
   );
