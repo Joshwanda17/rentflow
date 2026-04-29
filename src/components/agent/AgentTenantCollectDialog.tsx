@@ -38,6 +38,7 @@ export function AgentTenantCollectDialog({
   const [celebrationOpen, setCelebrationOpen] = useState(false);
   const [celebrationData, setCelebrationData] = useState<{ commission: number; amount: number } | null>(null);
   const [draftSaved, setDraftSaved] = useState<{ provisional_receipt_no: string; amount: number } | null>(null);
+  const [rpcError, setRpcError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -46,6 +47,7 @@ export function AgentTenantCollectDialog({
       setResult(null);
       setConfirming(false);
       setDraftSaved(null);
+      setRpcError(null);
       refetchBalances();
     }
   }, [open]);
@@ -77,6 +79,7 @@ export function AgentTenantCollectDialog({
       return;
     }
     setLoading(true);
+    setRpcError(null);
     try {
       const { data, error } = await supabase.rpc('agent_allocate_tenant_payment', {
         p_agent_id: user.id,
@@ -116,9 +119,12 @@ export function AgentTenantCollectDialog({
         description: `${formatUGX(amount)} moved from float for ${tenant.full_name}`,
       });
     } catch (err: any) {
-      toast.error('Allocation failed', {
-        description: err instanceof Error ? err.message : 'Allocation failed. Please try again.',
-      });
+      const msg = err instanceof Error ? err.message : 'Allocation failed. Please try again.';
+      // Keep the user IN the confirming view and show the reason inline so
+      // they can act on it (reduce amount, top up float, etc.) instead of
+      // experiencing it as a "button does nothing" failure.
+      setRpcError(msg);
+      toast.error('Allocation failed', { description: msg });
     } finally {
       setLoading(false);
     }
@@ -245,12 +251,23 @@ export function AgentTenantCollectDialog({
               </div>
             </div>
 
+            {rpcError && (
+              <div className="rounded-xl bg-destructive/10 border border-destructive/30 p-3 flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                <div className="text-[11px] text-destructive leading-relaxed">
+                  <p className="font-semibold mb-0.5">Could not complete allocation</p>
+                  <p className="text-destructive/90">{rpcError}</p>
+                  <p className="text-destructive/70 mt-1">Tap Edit to change the amount, or top up your float and try again.</p>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2">
               <Button
                 type="button"
                 variant="outline"
                 className="flex-1 h-12"
-                onClick={() => setConfirming(false)}
+                onClick={() => { setRpcError(null); setConfirming(false); }}
                 disabled={loading}
                 style={{ touchAction: 'manipulation' }}
               >
