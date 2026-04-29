@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import {
   ChevronLeft, Filter, FileUp, Layers, AlertTriangle, ShieldAlert, CheckCircle2, RefreshCw, Loader2, XCircle,
 } from 'lucide-react';
-import { ChevronDown, ChevronRight, Clock, AlertCircle } from 'lucide-react';
+import { ChevronDown, ChevronRight, Clock, AlertCircle, Search, User } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 
 /**
