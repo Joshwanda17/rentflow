@@ -763,32 +763,43 @@ function AgentSnapshotPanel({
               const cur = activeByKey.get(c.key);
               const enabled = cur?.status === 'active' || cur?.status === 'granted';
               const willBeTouched = pendingCaps.includes(c.key);
+              const isOpen = openCap === c.key;
               return (
-                <div
-                  key={c.key}
-                  className={`flex items-center gap-2 text-[10px] py-1 px-1.5 rounded ${
-                    willBeTouched ? 'bg-primary/10 ring-1 ring-primary/30' : ''
-                  }`}
-                >
-                  <span className={`h-2 w-2 rounded-full shrink-0 ${
-                    enabled ? 'bg-emerald-500' : cur ? 'bg-muted-foreground/40' : 'bg-muted-foreground/20'
-                  }`} />
-                  <span className="truncate flex-1" title={c.key}>{c.label}</span>
-                  {cur && (
-                    <span
-                      className="text-muted-foreground tabular-nums shrink-0"
-                      title={`Last updated ${new Date(cur.updated_at).toLocaleString()}`}
-                    >
-                      {new Date(cur.updated_at).toLocaleDateString()}
-                    </span>
-                  )}
-                  {willBeTouched && (
-                    <Badge
-                      variant={pendingAction === 'enable' ? 'default' : 'destructive'}
-                      className="text-[8px] py-0 px-1 shrink-0"
-                    >
-                      {pendingAction === 'enable' ? '+EN' : '−DIS'}
-                    </Badge>
+                <div key={c.key}>
+                  <button
+                    type="button"
+                    onClick={() => setOpenCap(isOpen ? null : c.key)}
+                    className={`w-full flex items-center gap-2 text-[10px] py-1 px-1.5 rounded text-left hover:bg-muted/50 transition-colors ${
+                      willBeTouched ? 'bg-primary/10 ring-1 ring-primary/30' : ''
+                    }`}
+                    title="Show last 10 updates for this function"
+                  >
+                    {isOpen
+                      ? <ChevronDown className="h-2.5 w-2.5 shrink-0 text-muted-foreground" />
+                      : <ChevronRight className="h-2.5 w-2.5 shrink-0 text-muted-foreground" />}
+                    <span className={`h-2 w-2 rounded-full shrink-0 ${
+                      enabled ? 'bg-emerald-500' : cur ? 'bg-muted-foreground/40' : 'bg-muted-foreground/20'
+                    }`} />
+                    <span className="truncate flex-1" title={c.key}>{c.label}</span>
+                    {cur && (
+                      <span
+                        className="text-muted-foreground tabular-nums shrink-0"
+                        title={`Last updated ${new Date(cur.updated_at).toLocaleString()}`}
+                      >
+                        {new Date(cur.updated_at).toLocaleDateString()}
+                      </span>
+                    )}
+                    {willBeTouched && (
+                      <Badge
+                        variant={pendingAction === 'enable' ? 'default' : 'destructive'}
+                        className="text-[8px] py-0 px-1 shrink-0"
+                      >
+                        {pendingAction === 'enable' ? '+EN' : '−DIS'}
+                      </Badge>
+                    )}
+                  </button>
+                  {isOpen && (
+                    <CapabilityHistoryRow agentId={agentId} capability={c.key} />
                   )}
                 </div>
               );
