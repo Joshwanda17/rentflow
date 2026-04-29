@@ -687,6 +687,16 @@ interface BatchRow {
 }
 
 function BatchTimeline({ jobId, jobActive }: { jobId: string; jobActive: boolean }) {
+  type StatusFilter = 'all' | 'pending' | 'running' | 'done' | 'failed' | 'dead_letter' | 'retry';
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [groupByError, setGroupByError] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const toggleGroup = (key: string) => setExpandedGroups(prev => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+
   const { data: batches = [], refetch, isLoading } = useQuery<BatchRow[]>({
     queryKey: ['agent-capability-ops-job-batches', jobId],
     queryFn: async () => {
@@ -744,6 +754,41 @@ function BatchTimeline({ jobId, jobActive }: { jobId: string; jobActive: boolean
     return c;
   }, [batches]);
 
+  // Classify a batch into the same buckets as the counters
+  const classify = (b: BatchRow): Exclude<StatusFilter, 'all'> | 'other' => {
+    const isDead = b.status === 'dead_letter' || b.status === 'dead-lettered' || !!b.dead_lettered_at;
+    if (isDead) return 'dead_letter';
+    if (b.status === 'done' || b.status === 'completed') return 'done';
+    if (b.status === 'running' || b.status === 'claimed') return 'running';
+    if (b.status === 'failed') return 'failed';
+    if (b.status === 'pending') return 'pending';
+    return 'other';
+  };
+  const isRetryQueued = (b: BatchRow) =>
+    !!b.next_attempt_at && (b.status === 'pending' || b.status === 'failed') && b.attempt_count > 0;
+
+  const filteredBatches = useMemo(() => {
+    if (statusFilter === 'all') return batches;
+    if (statusFilter === 'retry') return batches.filter(isRetryQueued);
+    return batches.filter(b => classify(b) === statusFilter);
+  }, [batches, statusFilter]);
+
+  // Per-error groups built from the *filtered* batches (so filter + grouping compose)
+  const errorGroupsFiltered = useMemo(() => {
+    const map = new Map<string, { count: number; batches: BatchRow[] }>();
+    for (const b of filteredBatches) {
+      const msg = (b.last_error || b.error || '').trim();
+      if (!msg) continue;
+      const key = msg.slice(0, 200);
+      const cur = map.get(key);
+      if (cur) { cur.count += 1; cur.batches.push(b); }
+      else map.set(key, { count: 1, batches: [b] });
+    }
+    return Array.from(map.entries())
+      .map(([msg, v]) => ({ msg, count: v.count, batches: v.batches }))
+      .sort((a, b) => b.count - a.count);
+  }, [filteredBatches]);
+
   if (isLoading) {
     return (
       <div className="mt-2 pl-5 text-[10px] text-muted-foreground flex items-center gap-2">
@@ -758,38 +803,78 @@ function BatchTimeline({ jobId, jobActive }: { jobId: string; jobActive: boolean
     );
   }
 
+  const FilterChip = ({
+    value, label, count, tone,
+  }: { value: StatusFilter; label: string; count: number; tone?: string }) => {
+    const active = statusFilter === value;
+    return (
+      <button
+        type="button"
+        onClick={() => setStatusFilter(active ? 'all' : value)}
+        disabled={count === 0 && value !== 'all'}
+        className={`px-1.5 py-0.5 rounded border font-mono text-[10px] transition ${
+          active ? 'bg-primary text-primary-foreground border-primary' :
+          count === 0 && value !== 'all' ? 'opacity-40 cursor-not-allowed border-muted' :
+          tone || 'border-border hover:bg-muted'
+        }`}
+      >
+        {label} {count}
+      </button>
+    );
+  };
+
   return (
     <div className="mt-2 pl-5 border-l-2 border-muted ml-1 space-y-2">
-      {/* Counters */}
-      <div className="flex flex-wrap gap-1.5 text-[10px]">
-        <Badge variant="outline" className="font-mono">pending {counts.pending}</Badge>
-        <Badge variant="outline" className="font-mono text-primary border-primary/40">running {counts.running}</Badge>
-        <Badge variant="outline" className="font-mono text-emerald-700 border-emerald-300">done {counts.done}</Badge>
-        {counts.retry > 0 && (
-          <Badge variant="outline" className="font-mono text-amber-700 border-amber-300">retry queued {counts.retry}</Badge>
-        )}
-        {counts.failed > 0 && (
-          <Badge variant="outline" className="font-mono text-destructive border-destructive/40">failed {counts.failed}</Badge>
-        )}
-        {counts.dead_letter > 0 && (
-          <Badge variant="destructive" className="font-mono">dead-letter {counts.dead_letter}</Badge>
+      {/* Filterable counters */}
+      <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+        <FilterChip value="all"         label="all"          count={batches.length} />
+        <FilterChip value="pending"     label="pending"      count={counts.pending} />
+        <FilterChip value="running"     label="running"      count={counts.running} tone="text-primary border-primary/40 hover:bg-primary/10" />
+        <FilterChip value="done"        label="done"         count={counts.done} tone="text-emerald-700 border-emerald-300 hover:bg-emerald-50" />
+        <FilterChip value="retry"       label="retry queued" count={counts.retry} tone="text-amber-700 border-amber-300 hover:bg-amber-50" />
+        <FilterChip value="failed"      label="failed"       count={counts.failed} tone="text-destructive border-destructive/40 hover:bg-destructive/10" />
+        <FilterChip value="dead_letter" label="dead-letter"  count={counts.dead_letter} tone="text-destructive bg-destructive/10 border-destructive/50 hover:bg-destructive/20" />
+        <div className="flex-1" />
+        <button
+          type="button"
+          onClick={() => setGroupByError(g => !g)}
+          className={`px-1.5 py-0.5 rounded border text-[10px] flex items-center gap-1 transition ${
+            groupByError ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:bg-muted'
+          }`}
+          title="Group identical errors together"
+        >
+          <Layers className="h-3 w-3" /> Group by error
+        </button>
+        {(statusFilter !== 'all' || groupByError) && (
+          <button
+            type="button"
+            onClick={() => { setStatusFilter('all'); setGroupByError(false); }}
+            className="text-[10px] text-muted-foreground underline"
+          >
+            Reset
+          </button>
         )}
       </div>
 
-      {/* Error breakdown */}
-      {errorGroups.length > 0 && (
+      {/* Error breakdown — top-5 summary, hidden when group-by-error mode is on */}
+      {!groupByError && errorGroups.length > 0 && (
         <div className="space-y-1">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
             <AlertCircle className="h-3 w-3 text-destructive" /> Error breakdown
           </p>
           {errorGroups.slice(0, 5).map((g) => (
-            <div key={g.msg} className="text-[10px] p-1.5 rounded bg-destructive/5 border border-destructive/20">
+            <button
+              type="button"
+              key={g.msg}
+              onClick={() => { setGroupByError(true); setExpandedGroups(new Set([g.msg.slice(0, 200)])); }}
+              className="w-full text-left text-[10px] p-1.5 rounded bg-destructive/5 border border-destructive/20 hover:bg-destructive/10"
+            >
               <div className="flex items-center gap-2">
                 <Badge variant="destructive" className="text-[9px]">×{g.count}</Badge>
                 <span className="text-muted-foreground">batch #{g.sample.batch_index} · {g.sample.capability} · attempt {g.sample.attempt_count}/{g.sample.max_attempts}</span>
               </div>
               <p className="mt-0.5 text-destructive font-mono break-all" title={g.msg}>{g.msg}</p>
-            </div>
+            </button>
           ))}
           {errorGroups.length > 5 && (
             <p className="text-[10px] text-muted-foreground">+{errorGroups.length - 5} more distinct errors</p>
@@ -797,13 +882,71 @@ function BatchTimeline({ jobId, jobActive }: { jobId: string; jobActive: boolean
         </div>
       )}
 
-      {/* Per-batch timeline */}
+      {/* Body: either per-batch timeline or grouped-by-error view */}
+      {groupByError ? (
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
+            <AlertCircle className="h-3 w-3 text-destructive" />
+            Errors ({errorGroupsFiltered.length}) · {filteredBatches.length} batch{filteredBatches.length === 1 ? '' : 'es'}
+          </p>
+          {errorGroupsFiltered.length === 0 ? (
+            <p className="text-[10px] text-muted-foreground">
+              No errored batches{statusFilter !== 'all' ? ` in "${statusFilter.replace(/_/g, ' ')}" filter` : ''}.
+            </p>
+          ) : (
+            <div className="max-h-72 overflow-y-auto space-y-1 pr-1">
+              {errorGroupsFiltered.map(g => {
+                const key = g.msg.slice(0, 200);
+                const open = expandedGroups.has(key);
+                return (
+                  <div key={key} className="rounded border border-destructive/20 bg-destructive/5">
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(key)}
+                      className="w-full text-left p-1.5 flex items-start gap-2"
+                    >
+                      {open ? <ChevronDown className="h-3 w-3 mt-0.5 shrink-0" /> : <ChevronRight className="h-3 w-3 mt-0.5 shrink-0" />}
+                      <Badge variant="destructive" className="text-[9px] shrink-0">×{g.count}</Badge>
+                      <p className="flex-1 text-[10px] text-destructive font-mono break-all">{g.msg}</p>
+                    </button>
+                    {open && (
+                      <div className="border-t border-destructive/20 p-1.5 space-y-0.5">
+                        {g.batches.map(b => {
+                          const isDead = classify(b) === 'dead_letter';
+                          return (
+                            <div key={b.id} className="flex items-center gap-2 text-[10px]">
+                              <span className={`h-2 w-2 rounded-full shrink-0 ${isDead ? 'bg-destructive' : 'bg-amber-500'}`} />
+                              <span className="font-mono text-muted-foreground w-10 shrink-0">#{b.batch_index}</span>
+                              <span className="truncate flex-1" title={b.capability}>{b.capability}</span>
+                              <span className="text-muted-foreground shrink-0">try {b.attempt_count}/{b.max_attempts}</span>
+                              <span className="capitalize text-muted-foreground shrink-0">{(b.status || '').replace(/_/g, ' ')}</span>
+                              {b.next_attempt_at && !isDead && (
+                                <span className="text-amber-700 shrink-0" title={b.next_attempt_at}>
+                                  retry {new Date(b.next_attempt_at).toLocaleTimeString()}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : (
       <div>
         <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1 flex items-center gap-1">
-          <Clock className="h-3 w-3" /> Batches ({batches.length})
+          <Clock className="h-3 w-3" />
+          Batches ({filteredBatches.length}{statusFilter !== 'all' ? ` of ${batches.length}` : ''})
         </p>
+        {filteredBatches.length === 0 ? (
+          <p className="text-[10px] text-muted-foreground">No batches match this filter.</p>
+        ) : (
         <div className="max-h-64 overflow-y-auto space-y-0.5 pr-1">
-          {batches.map(b => {
+          {filteredBatches.map(b => {
             const isDead = b.status === 'dead_letter' || b.status === 'dead-lettered' || !!b.dead_lettered_at;
             const isDone = b.status === 'done' || b.status === 'completed';
             const isRunning = b.status === 'running' || b.status === 'claimed';
@@ -845,7 +988,9 @@ function BatchTimeline({ jobId, jobActive }: { jobId: string; jobActive: boolean
             );
           })}
         </div>
+        )}
       </div>
+      )}
     </div>
   );
 }
