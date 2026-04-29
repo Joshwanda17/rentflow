@@ -1,53 +1,53 @@
-## What's actually failing
+## Goal
 
-The toast `Ledger error: new row for relation "wallets" violates check constraint "wallets_balance_check"` is raised by Postgres because `wallets.balance` (or a bucket) was driven below 0 by `apply_wallet_movement`. The constraint is `CHECK (balance >= 0)` and bucket subtractions are unclamped.
+Make the four highlighted dropdown filters in the **Partner Management Table** (`All Wallets`, `Status (Filter)`, `Compounding/ROI Mode`, `Contact (Phone)`) actually work across the entire dataset — not just the currently visible page.
 
-Tracing the CFO Wallet Deduction flow:
+## Current behavior (the bug)
 
-1. UI shows "Withdrawable" using the **strict** RPC `get_user_available_balance` — that value is capped by the ledger floor (`min(cache, ledger_net) − holds`). It can be **lower** than the cached `wallets.withdrawable_balance`.
-2. The CFO types up to that strict number (e.g. UGX 145,097,964) and submits.
-3. `wallet-deduction` edge function ignores the strict RPC. It reads the **cached** `withdrawable_balance` + `float_balance` and, if cached withdrawable can't cover the request, **spills the remainder into the user's float bucket** as `agent_float_settlement`.
-4. Float is company liability money (per the 3-bucket rule, "never withdrawable"). Spilling into it is illegal AND if the cached float is smaller than the spill, the bucket UPDATE goes negative → `wallets_balance_check` fires and the whole transaction aborts with the message you see.
-
-So two bugs compound: (a) the edge function is allowed to draw float, which violates the wallet model; (b) it sizes the deduction from a cache the UI doesn't trust, so what looks deductible to the CFO can blow past what the ledger/buckets actually support.
+- The partners table loads **50 rows per page** from the server (server-side pagination, scoped only to the search box).
+- The four Select filters and sorting run **client-side over `rows`** — meaning over only the 50 rows on screen.
+- Result: picking `Compounding`, `Has Phone`, `Has Balance`, or `Suspended` often shows "No matching partners found" (or only a handful) even when many matches exist on other pages. The pager also collapses to "1/1", hiding the rest of the data.
+- The Payout Range filter already has the correct fix (it pre-fetches all matching IDs across pages into `allRowsForPayoutFilter`). The other four filters do not.
 
 ## Fix
 
-### 1. Edge function `wallet-deduction` — strict-withdrawable only
+Extend the existing "fetch all matching IDs across pages" pattern to also activate whenever **any** local filter (status, ROI mode, contact, wallet) is engaged — not just the payout date range.
 
-- Call `get_user_available_balance(target_user_id)` (the same RPC the UI uses) and use **that** as the cap. Reject the request if `amount > strict_available` with a clear "Maximum deductible: UGX X" message that matches what the panel shows.
-- **Remove the float-spill branch entirely.** A CFO wallet deduction must only debit withdrawable. If the user genuinely owes more than their withdrawable, that is a separate workflow (advance/recovery), not this tool.
-- Keep the existing role check, treasury guard, validation, and audit logging intact.
-- Keep one ledger-balanced pair: `wallet_deduction` cash_out (wallet scope, recipient_type='user') + `wallet_deduction` cash_in (platform scope). Pass `recipient_type: 'user'` so Wallet Routing v2 routes to withdrawable as required.
+### Technical changes (single file: `src/components/coo/COOPartnersPage.tsx`)
 
-### 2. Edge function — defensive bucket pre-check
+1. **Rename + repurpose** `allRowsForPayoutFilter` → `allRowsForLocalFilter` (and its loading flag) so it represents "all rows across pages, scoped to current search" whenever ANY local filter is active.
 
-Even after capping by the strict RPC, re-read `wallets.withdrawable_balance` inside the same request right before issuing the RPC and assert `cache_withdrawable >= amount`. If a race lowered it, return a friendly "Balance changed, please retry" 409 instead of letting the constraint fire.
+2. **Update the prefetch `useEffect`** (currently keyed on `payoutDateFrom/payoutDateTo`) to trigger on **any** of:
+   - `filterStatus !== 'all'`
+   - `filterRoiMode !== 'all'`
+   - `filterContact !== 'all'`
+   - `filterWallet !== 'all'`
+   - `payoutDateFrom || payoutDateTo`
+   
+   When none are active, clear `allRowsForLocalFilter` and fall back to the paged `rows`.
 
-### 3. UI `WalletDeductionPanel.tsx` — surface the new error cleanly
+3. **`processed` memo**: source from `allRowsForLocalFilter ?? rows` whenever any local filter is active (already partially done for payout). Apply all filters against that source.
 
-- When the edge function returns the new "Maximum deductible" or "Balance changed" errors, show them as the toast description (no code change to the message format — the function already returns `{ error }`).
-- Remove the now-unreachable "Float only — company liability" copy paths that implied float could be touched here, leaving only the withdrawable display.
-- Auto-refresh the `deduction-available-balance` query on submit failure so the CFO immediately sees the corrected ceiling.
+4. **Pager**: `hasLocalFilter` already collapses `totalPages` to 1 — keep that behavior so the user sees the complete filtered set on a single virtual page (consistent with how Payout Range works today).
 
-### 4. Diagnostics
+5. **Loading + empty states**:
+   - While `loadingAllRowsForLocalFilter` is true, show skeleton rows (reuse the existing `isSearching` skeleton path).
+   - Empty state copy: distinguish "No partners match the selected filters" (already present) from "Loading filtered partners…".
 
-- Add a one-line `console.error` in the edge function logging `{ user_id, requested, strict_available, cache_withdrawable, cache_float }` whenever a deduction is rejected, so we can audit any future drift between cache and strict.
-- Insert a row into `wallet_overdraw_events` (already exists per memory) for any rejected attempt where `cache_withdrawable < strict_available`, so the CFO Reconcile tab surfaces these silently-broken wallets.
+6. **Result counter** (`{processed.length} of {rows.length} (filtered)`): when filtering across all pages, compare against `totalCount` instead of `rows.length` so the counter reads e.g. "37 of 1,240 (filtered)" rather than "37 of 50".
 
-## Out of scope / not changed
+7. **No changes** to: search debounce, server pagination, column memoization, CSV export logic (already correct — it re-fetches all matching partners and re-applies filters).
 
-- No DB migration. The `balance >= 0` constraint stays — it's the safety net that caught this.
-- `apply_wallet_movement` stays the sole writer; we are not touching it.
-- Other deduction paths (advance recovery, withdrawal approval) are unaffected.
-- No change to the ledger schema or to the strict RPC.
+### Files affected
 
-## Files to edit
+- `src/components/coo/COOPartnersPage.tsx` (only)
 
-- `supabase/functions/wallet-deduction/index.ts` — strict cap, remove float-spill, defensive recheck, diagnostic logs.
-- `src/components/financial-ops/WalletDeductionPanel.tsx` — clean error surfacing + invalidate balance on failure; remove dead "float-only" hint.
+## Out of scope
 
-## Expected outcome
+- The `Payout Range`, `Import`, `Update Dates`, `Export CSV` buttons — already working.
+- Search box behavior — already optimized in the previous turn.
+- Any backend/RPC changes — purely client-side wiring.
 
-- The 145M UGX deduction will either succeed cleanly (debiting withdrawable only) or be rejected up front with the exact deductible cap. The "wallets_balance_check" constraint will no longer fire from this tool.
-- Float buckets are protected; the CFO Wallet Deduction tool can no longer touch company liability money.
+## Expected result
+
+Picking `Compounding`, `Suspended`, `Has Phone / No Phone`, or `Has Balance / Empty` (alone or combined with Payout Range and Search) returns the **complete** matching set across all pages, with an accurate counter and no false "No matching partners found".
