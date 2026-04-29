@@ -659,6 +659,12 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                       <div className="flex items-center gap-1.5">
                         <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                         <span className="font-semibold text-sm truncate">{req.tenant_name}</span>
+                        {req.registration_type === 'outstanding_balance' && (
+                          <span className="inline-flex items-center gap-0.5 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 border border-amber-500/30 shrink-0">
+                            <AlertCircle className="h-2.5 w-2.5" />
+                            Outstanding
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                         <span className="flex items-center gap-1">
