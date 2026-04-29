@@ -44,10 +44,15 @@ const PAGE_SIZE = 50;
 export default function FunderOnboarding() {
   const { user, roles, loading, role } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<FunderProfileRow | null>(null);
+  const [actionMode, setActionMode] = useState<null | 'approve' | 'reject'>(null);
+  const [actionReason, setActionReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   // Reset to first page whenever search term changes
   useEffect(() => { setPage(0); }, [search]);
@@ -68,7 +73,7 @@ export default function FunderOnboarding() {
     queryFn: async () => {
       let query = supabase
         .from('profiles')
-        .select('id, full_name, phone, email, created_at, frozen_at, verified', { count: 'exact' })
+        .select('id, full_name, phone, email, created_at, frozen_at, verified, funder_verified_at, funder_rejected_at, funder_rejection_reason', { count: 'exact' })
         .eq('signup_source', 'funder-onboarding');
 
       if (trimmedSearch) {
