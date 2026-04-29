@@ -150,13 +150,17 @@ export function WalletDeductionPanel() {
       // Use the cached balance only as the candidate filter; replace with
       // ledger-true `available` for display so stale cache figures never
       // reach the operator.
-      return overlayLedgerBalances(
+      const overlaid = await overlayLedgerBalances(
         (data || []).map((r: any) => ({
           id: r.user_id,
           full_name: r.full_name || 'Unnamed',
           phone: r.phone || '',
         })),
       );
+      // Re-apply the requested range against the LEDGER-TRUE balance so
+      // wallets whose cache is inflated above the floor but ledger is 0
+      // (or below `min`) don't pollute the results.
+      return overlaid.filter((u) => u.balance >= min && u.balance <= max);
     },
     enabled: searchMode === 'balance' && balanceSearchTriggered,
   });
