@@ -297,17 +297,23 @@ export function ProxyPartnerFunds() {
       // Build active withdrawal status map + ID map
       const statusMap: Record<string, string> = {};
       const idMap: Record<string, string> = {};
+      // Sum of in-flight amounts per partner — used to silently hide cards from
+      // the default view once Caro has initiated a withdrawal for them.
+      const activeAmountByPartner: Record<string, number> = {};
       // Track the most recent active-withdrawal timestamp per partner so we
       // can suppress stale terminal banners that have been superseded.
       const lastActiveAtByPartner: Record<string, string> = {};
       (activeWithdrawalRes.data || []).forEach((w: any) => {
         const portfolioKey = w.linked_party;
+        const wAmt = Number(w.amount) || 0;
 
         if (w.linked_party && uniquePartnerIds.includes(w.linked_party)) {
           const ts = w.updated_at || w.created_at;
           if (ts && (!lastActiveAtByPartner[w.linked_party] || ts > lastActiveAtByPartner[w.linked_party])) {
             lastActiveAtByPartner[w.linked_party] = ts;
           }
+          activeAmountByPartner[w.linked_party] =
+            (activeAmountByPartner[w.linked_party] || 0) + wAmt;
           if (portfolioKey) {
             const existing = statusMap[portfolioKey];
             if (!existing || w.status === 'pending') {
@@ -330,6 +336,7 @@ export function ProxyPartnerFunds() {
                 statusMap[pid] = w.status;
                 idMap[pid] = w.id;
               }
+              activeAmountByPartner[pid] = (activeAmountByPartner[pid] || 0) + wAmt;
               const ts = w.updated_at || w.created_at;
               if (ts && (!lastActiveAtByPartner[pid] || ts > lastActiveAtByPartner[pid])) {
                 lastActiveAtByPartner[pid] = ts;
@@ -341,6 +348,7 @@ export function ProxyPartnerFunds() {
       });
       setPartnerWithdrawalStatus(statusMap);
       setPartnerWithdrawalIds(idMap);
+      setActiveWithdrawalsByPartner(activeAmountByPartner);
 
       // Track the most recent successful (delivered) withdrawal timestamp per
       // partner — a terminal event older than this means Caro already
