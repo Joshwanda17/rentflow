@@ -587,6 +587,102 @@ export function ProxyPartnerFunds() {
     return partner.partnerId;
   };
 
+  // Card key used for selection / dismissal storage
+  const getCardKey = (partner: PartnerBalance) =>
+    `${partner.partnerId}-${partner.portfolioId || 'none'}`;
+
+  const toggleSelect = (partner: PartnerBalance) => {
+    const key = getCardKey(partner);
+    setSelectedKeys(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const openClearDialog = (partners: PartnerBalance[]) => {
+    if (partners.length === 0) return;
+    setClearTargets(partners.map(p => ({
+      partnerId: p.partnerId,
+      portfolioId: p.portfolioId,
+      amount: p.available,
+      partnerName: p.partnerName,
+    })));
+    setClearReason('');
+    setClearConfirmOpen(true);
+  };
+
+  const confirmClear = async () => {
+    if (!user?.id || clearTargets.length === 0) return;
+    setClearing(true);
+    try {
+      const rows = clearTargets.map(t => ({
+        agent_id: user.id,
+        partner_id: t.partnerId,
+        portfolio_id: t.portfolioId,
+        snapshot_amount: t.amount,
+        reason: clearReason.trim() || null,
+      }));
+      const { error } = await supabase
+        .from('agent_proxy_card_dismissals')
+        .upsert(rows, { onConflict: 'agent_id,partner_id,portfolio_id' });
+      if (error) throw error;
+
+      // Audit + system event (fire-and-forget)
+      try {
+        await supabase.from('audit_logs').insert({
+          user_id: user.id,
+          action_type: 'agent_proxy_card_dismissed',
+          table_name: 'agent_proxy_card_dismissals',
+          metadata: {
+            count: clearTargets.length,
+            partners: clearTargets.map(t => t.partnerName),
+            reason: clearReason.trim() || 'No reason provided by agent.',
+          },
+        });
+      } catch (e) {
+        console.warn('audit log failed', e);
+      }
+
+      toast.success(`Cleared ${clearTargets.length} card${clearTargets.length === 1 ? '' : 's'}`, {
+        description: 'They will reappear if new returns accrue for the partner.',
+      });
+      setSelectedKeys(new Set());
+      setSelectMode(false);
+      setClearConfirmOpen(false);
+      setClearTargets([]);
+      setClearReason('');
+      loadProxyFunds();
+    } catch (err: any) {
+      toast.error('Failed to clear', { description: err.message });
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  const restoreDismissal = async (partnerId: string, portfolioId: string | null) => {
+    if (!user?.id) return;
+    const restoreKey = `${partnerId}-${portfolioId || 'none'}`;
+    setRestoringKey(restoreKey);
+    try {
+      let q = supabase
+        .from('agent_proxy_card_dismissals')
+        .delete()
+        .eq('agent_id', user.id)
+        .eq('partner_id', partnerId);
+      q = portfolioId ? q.eq('portfolio_id', portfolioId) : q.is('portfolio_id', null);
+      const { error } = await q;
+      if (error) throw error;
+      toast.success('Card restored');
+      loadProxyFunds();
+    } catch (err: any) {
+      toast.error('Failed to restore', { description: err.message });
+    } finally {
+      setRestoringKey(null);
+    }
+  };
+
   const getStatusBadge = (partner: PartnerBalance) => {
     const key = getStatusKey(partner);
     const status = partnerWithdrawalStatus[key];
