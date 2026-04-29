@@ -177,7 +177,7 @@ export function WalletDeductionPanel() {
 
       const { data, error } = await supabase.functions.invoke('wallet-deduction', {
         body: {
-          targetp_user_id: selectedUser.id,
+          target_user_id: selectedUser.id,
           amount: numAmount,
           category,
           reason: reason.trim(),
