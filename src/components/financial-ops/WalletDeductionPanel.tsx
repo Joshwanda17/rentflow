@@ -432,9 +432,27 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
 
               {balanceResults && balanceResults.length > 0 && (
                 <>
-                  <p className="text-xs text-muted-foreground">
-                    {balanceResults.length} wallets found · Total: {formatUGX(balanceResults.reduce((s: number, u: UserResult) => s + u.balance, 0))}
-                  </p>
+                  {(() => {
+                    const withW = balanceResults.filter((u) => u.withdrawable_balance > 0);
+                    const withF = balanceResults.filter((u) => u.float_balance > 0);
+                    const totalW = withW.reduce((s, u) => s + u.withdrawable_balance, 0);
+                    const totalF = withF.reduce((s, u) => s + u.float_balance, 0);
+                    return (
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                        <span className="text-muted-foreground">
+                          {balanceResults.length} wallets
+                        </span>
+                        <span className="text-foreground">
+                          <strong>{withW.length}</strong> with withdrawable · <strong>{formatUGX(totalW)}</strong>
+                        </span>
+                        {withF.length > 0 && (
+                          <span className="text-amber-700">
+                            <strong>{withF.length}</strong> carry float · <strong>{formatUGX(totalF)}</strong> <span className="text-amber-600">(owed)</span>
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                   <UserList users={balanceResults} />
                 </>
               )}
