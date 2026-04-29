@@ -29,6 +29,12 @@ interface PartnerBalance {
   totalReturns: number;
   totalWithdrawn: number;
   available: number;
+  /**
+   * Amount the agent has already pulled into a pending/processing withdrawal
+   * for this partner. When > 0 the card is treated as "in flight" — hidden
+   * from the default All view but reachable via the In flight filter pill.
+   */
+  inFlightAmount: number;
 }
 
 interface PwoEntry {
@@ -69,7 +75,7 @@ const COMPLETED_PROXY_WITHDRAWAL_STATUSES = [
 // available; the partner simply needs the agent to re-request a payout.
 const TERMINAL_UNPAID_STATUSES = ['rejected', 'expired', 'cancelled'] as const;
 
-type FilterMode = 'all' | 'reattempt' | 'fresh';
+type FilterMode = 'all' | 'inflight' | 'reattempt' | 'fresh';
 
 interface LastTerminal {
   status: string;
@@ -100,6 +106,10 @@ export function ProxyPartnerFunds() {
   const [selectedPartnerId, setSelectedPartnerId] = useState<string>('');
   const [partnerWithdrawalStatus, setPartnerWithdrawalStatus] = useState<Record<string, string>>({});
   const [partnerWithdrawalIds, setPartnerWithdrawalIds] = useState<Record<string, string>>({});
+  // Sum of in-flight (pending/processing/manager_approved/cfo_approved/requested)
+  // withdrawal amounts per partner. Treated as already-paid for display so the
+  // card disappears from the default view the instant Caro initiates.
+  const [activeWithdrawalsByPartner, setActiveWithdrawalsByPartner] = useState<Record<string, number>>({});
   const [lastTerminalByPartner, setLastTerminalByPartner] = useState<Record<string, LastTerminal>>({});
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [cancellingId, setCancellingId] = useState<string | null>(null);
@@ -237,6 +247,7 @@ export function ProxyPartnerFunds() {
         setProfiles({});
         setCompletedWithdrawals([]);
         setPartnerWithdrawalStatus({});
+        setActiveWithdrawalsByPartner({});
         setLastTerminalByPartner({});
         setLoading(false);
         return;
@@ -259,7 +270,7 @@ export function ProxyPartnerFunds() {
         // Active (pending/processing) withdrawal requests
         supabase
           .from('withdrawal_requests')
-          .select('id, linked_party, status, reason, updated_at, created_at')
+          .select('id, linked_party, status, reason, amount, updated_at, created_at')
           .eq('user_id', user.id)
           .in('status', [...ACTIVE_PROXY_WITHDRAWAL_STATUSES]),
         // Terminal-unpaid: rejected / expired / cancelled (so we can explain
@@ -286,17 +297,23 @@ export function ProxyPartnerFunds() {
       // Build active withdrawal status map + ID map
       const statusMap: Record<string, string> = {};
       const idMap: Record<string, string> = {};
+      // Sum of in-flight amounts per partner — used to silently hide cards from
+      // the default view once Caro has initiated a withdrawal for them.
+      const activeAmountByPartner: Record<string, number> = {};
       // Track the most recent active-withdrawal timestamp per partner so we
       // can suppress stale terminal banners that have been superseded.
       const lastActiveAtByPartner: Record<string, string> = {};
       (activeWithdrawalRes.data || []).forEach((w: any) => {
         const portfolioKey = w.linked_party;
+        const wAmt = Number(w.amount) || 0;
 
         if (w.linked_party && uniquePartnerIds.includes(w.linked_party)) {
           const ts = w.updated_at || w.created_at;
           if (ts && (!lastActiveAtByPartner[w.linked_party] || ts > lastActiveAtByPartner[w.linked_party])) {
             lastActiveAtByPartner[w.linked_party] = ts;
           }
+          activeAmountByPartner[w.linked_party] =
+            (activeAmountByPartner[w.linked_party] || 0) + wAmt;
           if (portfolioKey) {
             const existing = statusMap[portfolioKey];
             if (!existing || w.status === 'pending') {
@@ -319,6 +336,7 @@ export function ProxyPartnerFunds() {
                 statusMap[pid] = w.status;
                 idMap[pid] = w.id;
               }
+              activeAmountByPartner[pid] = (activeAmountByPartner[pid] || 0) + wAmt;
               const ts = w.updated_at || w.created_at;
               if (ts && (!lastActiveAtByPartner[pid] || ts > lastActiveAtByPartner[pid])) {
                 lastActiveAtByPartner[pid] = ts;
@@ -330,6 +348,7 @@ export function ProxyPartnerFunds() {
       });
       setPartnerWithdrawalStatus(statusMap);
       setPartnerWithdrawalIds(idMap);
+      setActiveWithdrawalsByPartner(activeAmountByPartner);
 
       // Track the most recent successful (delivered) withdrawal timestamp per
       // partner — a terminal event older than this means Caro already
@@ -452,7 +471,13 @@ export function ProxyPartnerFunds() {
     const partnerAvailable: Record<string, number> = {};
     Object.keys(partnerTotals).forEach(partnerId => {
       const totalWithdrawn = withdrawalsByPartner[partnerId] || 0;
-      partnerAvailable[partnerId] = Math.max(0, partnerTotals[partnerId] - totalWithdrawn);
+      // Treat in-flight withdrawals as already paid out — the moment Caro
+      // initiates a withdrawal the card should disappear from the default view.
+      const totalInFlight = activeWithdrawalsByPartner[partnerId] || 0;
+      partnerAvailable[partnerId] = Math.max(
+        0,
+        partnerTotals[partnerId] - totalWithdrawn - totalInFlight,
+      );
     });
 
     // Build display entries — distribute proportionally across portfolio groups
@@ -463,6 +488,9 @@ export function ProxyPartnerFunds() {
         const proportion = group.totalAmount / partnerTotal;
         const available = Math.round(partnerAvailable[group.partnerId] * proportion);
         const totalWithdrawn = Math.round((withdrawalsByPartner[group.partnerId] || 0) * proportion);
+        const inFlightAmount = Math.round(
+          (activeWithdrawalsByPartner[group.partnerId] || 0) * proportion,
+        );
 
         const pInfo = group.portfolioId ? portfolioMap[group.portfolioId] : null;
         // Use metadata partner_name as fallback if profile not found
@@ -483,13 +511,17 @@ export function ProxyPartnerFunds() {
           totalReturns: Math.round(group.totalAmount),
           totalWithdrawn,
           available,
+          inFlightAmount,
         };
       })
       // Auto-hide cards with negligible balance (rounding dust) and apply
       // agent-side dismissal: hide when a dismissal exists AND nothing new has
       // accrued since (current available <= snapshot at dismissal time).
       .filter((partner) => {
-        if (partner.available <= 50) return false;
+        // Keep zero-balance cards that are zero ONLY because of an in-flight
+        // withdrawal — they need to remain reachable via the In flight pill so
+        // Caro can cancel a mistaken withdrawal.
+        if (partner.available <= 50 && partner.inFlightAmount <= 50) return false;
         const dKey = `${partner.partnerId}-${partner.portfolioId || 'none'}`;
         const d = dismissalMap[dKey];
         if (d && partner.available <= Number(d.snapshot_amount)) return false;
@@ -500,7 +532,7 @@ export function ProxyPartnerFunds() {
         if (b.totalReturns !== a.totalReturns) return b.totalReturns - a.totalReturns;
         return a.partnerName.localeCompare(b.partnerName);
       });
-  }, [approvedOps, completedWithdrawals, profiles, portfolioMap, dismissalMap, user?.id]);
+  }, [approvedOps, completedWithdrawals, activeWithdrawalsByPartner, profiles, portfolioMap, dismissalMap, user?.id]);
 
   const handleWithdraw = async (partner: PartnerBalance) => {
     setSelectedPartnerId(partner.partnerId);
@@ -731,15 +763,22 @@ export function ProxyPartnerFunds() {
   // Priority: active in-flight > last terminal (reject/expire/cancel) > fresh (no prior request).
   const classify = (partner: PartnerBalance):
     | { kind: 'active' }
+    | { kind: 'inflight' }
     | { kind: 'reattempt'; terminal: LastTerminal }
     | { kind: 'fresh' } => {
     const key = getStatusKey(partner);
     if (partnerWithdrawalStatus[key]) return { kind: 'active' };
+    // Card has zero available because Caro already initiated — surface it
+    // under the In flight pill but hide it from the default All view.
+    if (partner.inFlightAmount > 50 && partner.available <= 50) {
+      return { kind: 'inflight' };
+    }
     const t = lastTerminalByPartner[partner.partnerId];
     if (t) return { kind: 'reattempt', terminal: t };
     return { kind: 'fresh' };
   };
 
+  const inFlightCount = partnerBalances.filter((p) => classify(p).kind === 'inflight').length;
   const reattemptCount = partnerBalances.filter((p) => classify(p).kind === 'reattempt').length;
   const freshCount = partnerBalances.filter((p) => classify(p).kind === 'fresh').length;
 
@@ -772,8 +811,11 @@ export function ProxyPartnerFunds() {
   };
 
   const visibleBalances = partnerBalances.filter((p) => {
-    if (filterMode === 'all') return true;
     const c = classify(p);
+    // Default All view hides in-flight cards — once Caro initiates a
+    // withdrawal the partner is treated as paid and the card disappears.
+    if (filterMode === 'all') return c.kind !== 'inflight';
+    if (filterMode === 'inflight') return c.kind === 'inflight';
     if (filterMode === 'reattempt') return c.kind === 'reattempt';
     if (filterMode === 'fresh') return c.kind === 'fresh';
     return true;
@@ -793,7 +835,17 @@ export function ProxyPartnerFunds() {
           className="h-7 text-xs gap-1"
           onClick={() => setFilterMode('all')}
         >
-          All ({partnerBalances.length})
+          All ({partnerBalances.length - inFlightCount})
+        </Button>
+        <Button
+          size="sm"
+          variant={filterMode === 'inflight' ? 'default' : 'outline'}
+          className="h-7 text-xs gap-1"
+          onClick={() => setFilterMode('inflight')}
+          disabled={inFlightCount === 0}
+        >
+          <Hourglass className="h-3 w-3" />
+          In flight ({inFlightCount})
         </Button>
         <Button
           size="sm"
