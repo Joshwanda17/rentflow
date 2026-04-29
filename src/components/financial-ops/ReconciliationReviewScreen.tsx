@@ -69,6 +69,10 @@ interface ReconRow {
   depositPurpose?: string | null;
   matchedVia?: 'tid' | 'notes';
   allocations?: TenantAllocation[];
+  /** Audit trail of how the depositor chose the purpose. Used to show
+   *  whether an agent personal-deposit went through the in-app
+   *  confirmation gate. */
+  purposeAudit?: Record<string, unknown> | null;
 }
 
 function reasonCopy(r: ReconRow['reason']): { title: string; hint: string } {
@@ -143,7 +147,7 @@ export function ReconciliationReviewScreen({
       const { data, error } = await supabase
         .from('deposit_requests')
         .select(
-          'id, amount, transaction_id, notes, status, deposit_purpose, created_at, user_id'
+          'id, amount, transaction_id, notes, status, deposit_purpose, purpose_audit, created_at, user_id'
         )
         .or(`transaction_id.ilike.%${ref}%,notes.ilike.%${ref}%`)
         .order('created_at', { ascending: false })
@@ -208,6 +212,7 @@ export function ReconciliationReviewScreen({
         depositPurpose: pick.deposit_purpose,
         matchedVia,
         allocations,
+        purposeAudit: ((pick as any).purpose_audit ?? null) as Record<string, unknown> | null,
       };
     } catch (err: any) {
       return {
@@ -447,6 +452,35 @@ function MatchedRow({ row }: { row: ReconRow }) {
             )}
             {row.matchedVia === 'notes' && (
               <Badge variant="secondary" className="text-[10px]">via receipt</Badge>
+            )}
+            {row.depositPurpose === 'personal_deposit' && (() => {
+              const audit = (row.purposeAudit ?? {}) as Record<string, unknown>;
+              const isAgentRow = audit.is_agent === true;
+              const confirmedAt = audit.agent_personal_confirmed_at;
+              if (isAgentRow && confirmedAt) {
+                return (
+                  <Badge className="bg-emerald-600/15 text-emerald-700 text-[10px] border border-emerald-600/30">
+                    💰 Personal — confirmed
+                  </Badge>
+                );
+              }
+              if (isAgentRow && !confirmedAt) {
+                return (
+                  <Badge className="bg-amber-500/15 text-amber-700 text-[10px] border border-amber-500/40">
+                    ⚠️ Personal — no confirm
+                  </Badge>
+                );
+              }
+              return (
+                <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                  💰 Personal
+                </Badge>
+              );
+            })()}
+            {row.depositPurpose === 'operational_float' && (
+              <Badge className="bg-primary/15 text-primary text-[10px] border border-primary/30">
+                🏘️ Float
+              </Badge>
             )}
           </div>
         </div>

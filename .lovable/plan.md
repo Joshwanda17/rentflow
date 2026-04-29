@@ -1,50 +1,64 @@
-# Reopen Rejected Rent Requests
+# Agent deposits default to Float
 
-Today the rent pipeline has 40 `rejected` requests with no path back into the workflow. Once a Tenant-Ops, Agent, Landlord-Ops, COO, or CFO reviewer marks a request as rejected, it disappears from every queue and there is no UI to reconsider it — even if the rejection was wrong, the tenant fixed the issue, or new evidence arrived. This adds a controlled "reopen" path.
+## Problem
 
-## How it works
+Agents (e.g. ATUHAIRE CAROLYNE) are submitting their cash deposits with `deposit_purpose = 'personal_deposit'`, which routes the credit to **withdrawable** at Financial Ops approval. Per policy, agent-collected cash is company money and belongs in the **float bucket**.
 
-A new **Rejected Requests** tab is added to every existing pipeline tab (Tenant Ops, Agent Ops, Landlord Ops, COO, CFO). Each rejected row shows: who rejected, when, the reason, the tenant, and the rejection stage. Two actions:
+The routing logic in `approve-deposit` is already correct:
+- `operational_float` → `agent_float_deposit` category → `float_balance`
+- `personal_deposit` → `wallet_deposit` category → `withdrawable_balance`
 
-- **Reopen** — sends the request back to the stage at which it was rejected (e.g. a request rejected by Tenant Ops returns to `pending` so Tenant Ops re-reviews it; one rejected by COO returns to `landlord_ops_approved`). Requires a 10-character reopen reason. Logged in `audit_logs`.
-- **Approve directly** — only available to **manager** and **cfo** roles. Skips re-walking the chain and forwards the request straight to the next stage after where it was rejected (or to `funded` for CFO). Requires a 10-character override reason and the standard payout TID if it lands at the CFO step. Also logged.
+The fix is at the **point of submission**: agents should default to Operational Float, with an explicit opt-out for genuine personal top-ups.
 
-Reopened requests appear in the normal stage queue exactly like any other pending item, with a small "Reopened" badge and a tooltip showing the prior rejection reason. The reopen counter prevents endless ping-pong: after **3 reopens** the row is locked and only a manager can act on it.
+## Scope
 
-## Database changes
+- **Apply to**: every user with the `agent` role (active or in role switcher).
+- **Do NOT touch**: existing approved/pending rows, ledger, or wallet balances. Per the fresh-start anchor rule, today's mis-routed personal deposits stay where they are.
 
-- `rent_requests`: add `rejected_at timestamptz`, `rejected_at_stage text` (snapshot of the stage when rejected), `reopened_at timestamptz`, `reopened_by uuid`, `reopen_count int default 0`, `reopen_reason text`.
-- Backfill `rejected_at_stage` for the 40 existing rejected rows by deriving from the existing reviewer columns (CFO=1, COO=6, LandlordOps=6, AgentOps=5, TenantOps=16, Unknown=12 — the Unknown set goes back to `pending`).
-- New SECURITY DEFINER RPCs (CFO/Manager/COO/role-scoped via `has_role`):
-  - `reopen_rent_request(p_request_id uuid, p_reason text)` — resets status to the original rejection stage, increments counter, writes audit log, emits `system_event` `rent_request.reopened`.
-  - `force_approve_rejected_rent_request(p_request_id uuid, p_reason text, p_payout_ref text default null)` — manager/CFO only; advances status to `nextStatus` for the rejected-at-stage; emits `rent_request.force_approved`.
+## Changes
 
-## UI changes
+### 1. `src/components/payments/DepositFlow.tsx` — Agent default
 
-- New `RejectedRequestsQueue` component — same row layout as `RentPipelineQueue`, filter `status='rejected'`. Two action buttons per row, dialog with reason textarea + (when force-approving from CFO stage) TID field.
-- `AgentOpsPipelineHub`, `LandlordOpsDashboard`, `pages/coo/Dashboard`, `pages/cfo/Dashboard` each get a new **"Rejected"** tab/section that mounts `RejectedRequestsQueue` filtered to rows whose `rejected_at_stage` belongs to that role.
-- Reopened-row badge added to `RentPipelineQueue` row renderer (small amber "Reopened ×N" pill with hover tooltip showing the prior `rejected_reason`).
+When the dialog opens for a user whose active role is `agent` and no `defaultPurpose` was passed by the parent:
+- Pre-select `operational_float`.
+- Set `purposeEntryPoint = 'agent_default'` (new tag, for audit).
+- Still show the purpose grid so the agent can switch.
+- If they switch to `personal_deposit`, show an inline confirm panel:
+  > "This deposit will land in your withdrawable balance, not your operational float. Use this only for your own salary or personal top-ups — not for cash collected from tenants."
+  > [ Cancel ] [ Yes, this is my own money ]
+- The confirmation choice (`personal_confirmed_at`, `personal_confirmation_text`) is stamped into the `audit` blob saved with the request so Financial Ops can see the agent explicitly chose personal.
+
+The `mustChoosePurpose` branch (forced fresh choice) keeps precedence — it already forces an empty selection for sensitive flows, and we don't want to override that.
+
+### 2. `supabase/functions/agent-deposit/index.ts` — Server backstop
+
+Cross-check on submission:
+- If the submitter has the `agent` role AND `deposit_purpose = 'personal_deposit'` AND the audit blob lacks `personal_confirmed_at`, reject with `agent_personal_deposit_requires_confirmation` and a friendly message. Forces clients (including any direct API caller) through the confirmation gate.
+
+### 3. Financial Ops review UI — Visibility chip
+
+In `src/components/financial-ops/TidVerification.tsx` and `ReconciliationReviewScreen.tsx`:
+- Show a chip on each pending row:
+  - `🏘️ Float` (operational_float)
+  - `💰 Personal — confirmed` (personal_deposit with `personal_confirmed_at` in audit)
+  - `⚠️ Personal — no confirm` (personal_deposit without confirm — legacy or bypassed)
+- The chip uses the existing `deposit_purpose` field plus the audit blob; no schema change.
+
+### 4. Memory update
+
+Append to `mem://business-model/agent-deposit-policy`:
+> Agent personal deposits require explicit in-UI confirmation (stamped `personal_confirmed_at`); the default for any deposit submitted by an agent is `operational_float`. Server-side `agent-deposit` edge function rejects unconfirmed personal deposits.
+
+## Out of scope (per your decision)
+
+- No retro-reclassification of the ~1.62M ATUHAIRE rows already approved to withdrawable today, nor SSENKAALI's 50K. They stay in withdrawable. (Historical drift continues to flow through the existing CFO Historical Drift Review queue if anyone wants to reverse them later.)
+- No change to `approve-deposit` routing logic — it's already correct.
+- No change to wallet buckets, ledger schema, or the strict withdrawable RPC.
 
 ## Files touched
 
-- `supabase/migrations/<ts>_rent_request_reopen.sql` — schema + backfill + 2 RPCs
-- `src/components/executive/RejectedRequestsQueue.tsx` (new)
-- `src/components/executive/RentPipelineQueue.tsx` — render reopened badge
-- `src/components/executive/AgentOpsPipelineHub.tsx`, `LandlordOpsDashboard.tsx` — add Rejected tab
-- `src/pages/coo/Dashboard.tsx`, `src/pages/cfo/Dashboard.tsx` — add Rejected tab/section
-- Memory: new entry `mem://features/rent/reopen-rejected-requests`
-
-## Out of scope
-
-- No automatic reopens. Every reopen is an explicit click.
-- No change to the rejection action itself. The existing `handleReject` paths only get an extra two columns (`rejected_at`, `rejected_at_stage`) populated — which I'll add to all 5 rejection sites in one pass.
-- No tenant-facing notification on reopen (suppressed per Database Write Suppression policy). The reopened request will simply re-enter the pipeline; existing event-driven listeners pick it up.
-
-## One question before I implement
-
-Should **force-approve** be available to:
-1. **Manager + CFO only** (recommended; safest)
-2. **Manager + CFO + COO**
-3. **Anyone who can reopen** (most permissive — Tenant Ops could push their own rejected row through)
-
-Default if you don't answer: option 1.
+- `src/components/payments/DepositFlow.tsx` — agent default + confirm panel
+- `supabase/functions/agent-deposit/index.ts` — server backstop
+- `src/components/financial-ops/TidVerification.tsx` — visibility chip
+- `src/components/financial-ops/ReconciliationReviewScreen.tsx` — visibility chip
+- `mem://business-model/agent-deposit-policy` — policy update

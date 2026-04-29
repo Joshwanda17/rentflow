@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, CheckCircle2, Phone, Calendar, Clock, Hash, AlertCircle, History, Building2, Banknote, Upload, Receipt, Copy, ShieldAlert, ClipboardPaste, Camera, X, ImageIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
 import OperationalFloatTenantAllocator, {
   encodeAllocationsNote,
   decodeAllocationsFromNote,
@@ -108,6 +109,20 @@ const MAX_DEPOSIT = 1_000_000_000;
 
 export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowedPurposes, lockPurpose, requirePurposeChoice, editRequestId, prefillFromMatch }: DepositFlowProps) {
   const navigate = useNavigate();
+  const { roles } = useAuth();
+  /**
+   * Agents are field cash collectors first. Per company policy, a deposit
+   * landing in their wallet should be Operational Float (company money,
+   * float bucket) by default — NOT Personal Deposit (which would land in
+   * withdrawable). Agents can still submit a personal top-up, but only
+   * after explicitly confirming via the in-form gate so the choice is
+   * intentional and auditable.
+   */
+  const isAgent = Array.isArray(roles) && roles.includes('agent' as any);
+  // Stamped on the audit blob when an agent acknowledges the personal-money gate.
+  const [agentPersonalConfirmedAt, setAgentPersonalConfirmedAt] = useState<string | null>(null);
+  // Pending switch the agent has clicked but not yet confirmed/cancelled.
+  const [pendingPersonalChoice, setPendingPersonalChoice] = useState<boolean>(false);
   /**
    * Universal purpose-capture rule: if a caller didn't pre-select a purpose
    * AND didn't explicitly request the gate, we still force the gate. This
@@ -325,6 +340,26 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
 
   // Re-apply default when dialog re-opens
   useEffect(() => {
+    // Reset agent personal-money confirmation every time the dialog opens.
+    if (open) {
+      setAgentPersonalConfirmedAt(null);
+      setPendingPersonalChoice(false);
+    }
+    // ── Agent default → Operational Float ──
+    // For users with the agent role who didn't get a parent-pinned purpose
+    // and aren't being forced through the explicit gate, pre-select
+    // Operational Float and skip straight to the channel step. Agents can
+    // still switch to Personal Deposit on the form, but only via the
+    // explicit confirmation gate (handled below in the in-form grid).
+    if (open && isAgent && !defaultPurpose && !requirePurposeChoice) {
+      setDepositPurpose('operational_float');
+      setReason('Operational Float');
+      setShowPurposeGrid(true);
+      setPurposeChosenAt(new Date().toISOString());
+      setPurposeEntryPoint('default');
+      setStep('channel');
+      return;
+    }
     if (open && mustChoosePurpose) {
       // Force a fresh choice every time the dialog opens
       setStep('purpose');
@@ -343,7 +378,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       setPurposeChosenAt(new Date().toISOString());
       setPurposeEntryPoint('default');
     }
-  }, [open, defaultPurpose, lockPurpose, mustChoosePurpose]);
+  }, [open, defaultPurpose, lockPurpose, mustChoosePurpose, isAgent, requirePurposeChoice]);
 
   /**
    * Handoff hydration from the dashboard "Collect from receipt/reference"
@@ -698,6 +733,11 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 entry_point: purposeEntryPoint,
                 required_choice: !!requirePurposeChoice,
                 last_edited_at: new Date().toISOString(),
+                is_agent: isAgent,
+                agent_personal_confirmed_at:
+                  isAgent && depositPurpose === 'personal_deposit'
+                    ? agentPersonalConfirmedAt
+                    : null,
               },
             } as any)
             .eq('id', activeEditId)
@@ -723,6 +763,11 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
               chosen_by: user.id,
               entry_point: purposeEntryPoint,
               required_choice: !!requirePurposeChoice,
+              is_agent: isAgent,
+              agent_personal_confirmed_at:
+                isAgent && depositPurpose === 'personal_deposit'
+                  ? agentPersonalConfirmedAt
+                  : null,
             },
           } as any);
 
@@ -1354,12 +1399,28 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                     key={p.id}
                     type="button"
                     onClick={() => {
+                      // Agent gate: switching to Personal Deposit means the
+                      // money will land in withdrawable, not float. Force an
+                      // explicit confirmation so it can't be done by mistake.
+                      if (
+                        isAgent &&
+                        p.id === 'personal_deposit' &&
+                        !agentPersonalConfirmedAt
+                      ) {
+                        setPendingPersonalChoice(true);
+                        return;
+                      }
                       setDepositPurpose(p.id);
                       if (p.id !== 'other') setReason(p.label);
                       else setReason('');
                       if (lockPurpose) setShowPurposeGrid(false);
                       setPurposeChosenAt(new Date().toISOString());
                       setPurposeEntryPoint((prev) => (prev === 'gate' ? 'gate' : 'in_form'));
+                      // Switching away from personal_deposit clears any prior
+                      // confirmation so toggling back will gate again.
+                      if (p.id !== 'personal_deposit' && agentPersonalConfirmedAt) {
+                        setAgentPersonalConfirmedAt(null);
+                      }
                     }}
                     className={`flex items-start gap-2 p-2.5 rounded-xl border-2 text-left transition-all text-xs ${
                       depositPurpose === p.id
@@ -1375,6 +1436,50 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   </button>
                 ))}
               </div>
+              )}
+              {isAgent && pendingPersonalChoice && (
+                <div className="rounded-xl border-2 border-warning bg-warning/10 p-3 space-y-2.5">
+                  <div className="flex items-start gap-2">
+                    <ShieldAlert className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold text-foreground">
+                        Confirm: this is your own money
+                      </p>
+                      <p className="text-xs text-muted-foreground leading-snug">
+                        Personal Deposit lands in your <span className="font-semibold">withdrawable balance</span>, not your operational float. Use this only for your own salary or personal top-ups — <span className="font-semibold">never</span> for cash collected from tenants.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 h-9"
+                      onClick={() => setPendingPersonalChoice(false)}
+                    >
+                      Cancel — keep as Float
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      className="flex-1 h-9 bg-warning text-warning-foreground hover:bg-warning/90"
+                      onClick={() => {
+                        const now = new Date().toISOString();
+                        setAgentPersonalConfirmedAt(now);
+                        setPendingPersonalChoice(false);
+                        setDepositPurpose('personal_deposit');
+                        setReason('Personal Deposit');
+                        if (lockPurpose) setShowPurposeGrid(false);
+                        setPurposeChosenAt(now);
+                        setPurposeEntryPoint('in_form');
+                      }}
+                    >
+                      Yes, this is my own money
+                    </Button>
+                  </div>
+                </div>
               )}
               {depositPurpose === 'operational_float' && (
                 <div className="flex items-start gap-2 p-2 bg-primary/5 rounded-lg border border-primary/20">

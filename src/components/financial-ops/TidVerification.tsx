@@ -64,6 +64,10 @@ interface MatchResult {
   allocations?: TenantAllocation[] | null;
   /** True when the search matched against the notes (receipt/reference) rather than the TID column. */
   matchedVia?: 'tid' | 'notes';
+  /** Audit blob carrying the depositor's purpose-choice trail.
+   *  For agent personal deposits, presence of `agent_personal_confirmed_at`
+   *  proves the agent acknowledged the in-app gate. */
+  purpose_audit?: Record<string, unknown> | null;
 }
 
 type ResultState = 'idle' | 'searching' | 'found' | 'not_found';
@@ -827,6 +831,7 @@ export function TidVerification() {
             deposit_purpose: d.deposit_purpose ?? null,
             allocations: decoded?.allocations ?? null,
             matchedVia: 'tid',
+            purpose_audit: (d as any).purpose_audit ?? null,
           };
           setMatches([result]);
           setResultState('found');
@@ -939,6 +944,7 @@ export function TidVerification() {
             deposit_purpose: d.deposit_purpose ?? null,
             allocations: decoded?.allocations ?? null,
             matchedVia: tidIds.has(d.id) ? 'tid' : 'notes',
+            purpose_audit: (d as any).purpose_audit ?? null,
           };
         });
 
@@ -2091,6 +2097,30 @@ export function TidVerification() {
                                 Op-Float · {m.allocations?.length ?? 0} tenants
                               </Badge>
                             )}
+                            {m.deposit_purpose === 'personal_deposit' && (() => {
+                              const audit = (m.purpose_audit ?? {}) as Record<string, unknown>;
+                              const isAgentRow = audit.is_agent === true;
+                              const confirmedAt = audit.agent_personal_confirmed_at;
+                              if (isAgentRow && confirmedAt) {
+                                return (
+                                  <Badge className="bg-emerald-600/15 text-emerald-700 text-[9px] h-4 gap-0.5 px-1 border border-emerald-600/30">
+                                    💰 Personal — confirmed
+                                  </Badge>
+                                );
+                              }
+                              if (isAgentRow && !confirmedAt) {
+                                return (
+                                  <Badge className="bg-amber-500/15 text-amber-700 text-[9px] h-4 gap-0.5 px-1 border border-amber-500/40">
+                                    ⚠️ Personal — no confirm
+                                  </Badge>
+                                );
+                              }
+                              return (
+                                <Badge variant="outline" className="text-[9px] h-4 gap-0.5 px-1 text-muted-foreground">
+                                  💰 Personal
+                                </Badge>
+                              );
+                            })()}
                             {m.matchedVia === 'notes' && (
                               <Badge variant="outline" className="text-[9px] h-4 gap-0.5 px-1 border-primary/30 text-primary">
                                 <Receipt className="h-2.5 w-2.5" />
