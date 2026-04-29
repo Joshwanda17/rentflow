@@ -88,8 +88,10 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
             p_user_id: r.id,
           });
           if (error) throw error;
-          const o = (data ?? {}) as Record<string, unknown>;
-          return { ...r, balance: Number(o.available ?? 0) };
+          // RPC returns a single numeric (withdrawable available). Coerce
+          // directly — the previous `.available` destructure always
+          // produced NaN→0, which made every result look empty.
+          return { ...r, balance: Number(data ?? 0) };
         } catch {
           return { ...r, balance: 0 };
         }
@@ -160,23 +162,23 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
       const { data, error } = await supabase.rpc('search_wallets_by_balance', {
         p_min_balance: min,
         p_max_balance: max,
-        p_limit: 100,
+        // Match the hero "X with balance" count — operators expect every
+        // wallet the hero is counting to surface here. 500 comfortably
+        // covers the current active-wallet population.
+        p_limit: 500,
       });
       if (error) throw error;
-      // Use the cached balance only as the candidate filter; replace with
-      // ledger-true `available` for display so stale cache figures never
-      // reach the operator.
-      const overlaid = await overlayLedgerBalances(
-        (data || []).map((r: any) => ({
-          id: r.user_id,
-          full_name: r.full_name || 'Unnamed',
-          phone: r.phone || '',
-        })),
-      );
-      // Re-apply the requested range against the LEDGER-TRUE balance so
-      // wallets whose cache is inflated above the floor but ledger is 0
-      // (or below `min`) don't pollute the results.
-      return overlaid.filter((u) => u.balance >= min && u.balance <= max);
+      // Show the SAME balance figure the Financial Ops hero uses
+      // (`wallets.balance` aggregate — all buckets) so every wallet
+      // counted in the "X with balance" pill surfaces here. The deduction
+      // edge function still revalidates ledger-true funds at submit time,
+      // so this is a display-only choice, not a safety regression.
+      return ((data || []) as Array<{ user_id: string; full_name: string | null; phone: string | null; balance: number | string }>).map((r) => ({
+        id: r.user_id,
+        full_name: r.full_name || 'Unnamed',
+        phone: r.phone || '',
+        balance: Number(r.balance ?? 0),
+      }));
     },
     enabled: searchMode === 'balance' && balanceSearchTriggered,
   });
