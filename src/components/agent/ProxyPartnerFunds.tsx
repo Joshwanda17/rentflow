@@ -471,7 +471,13 @@ export function ProxyPartnerFunds() {
     const partnerAvailable: Record<string, number> = {};
     Object.keys(partnerTotals).forEach(partnerId => {
       const totalWithdrawn = withdrawalsByPartner[partnerId] || 0;
-      partnerAvailable[partnerId] = Math.max(0, partnerTotals[partnerId] - totalWithdrawn);
+      // Treat in-flight withdrawals as already paid out — the moment Caro
+      // initiates a withdrawal the card should disappear from the default view.
+      const totalInFlight = activeWithdrawalsByPartner[partnerId] || 0;
+      partnerAvailable[partnerId] = Math.max(
+        0,
+        partnerTotals[partnerId] - totalWithdrawn - totalInFlight,
+      );
     });
 
     // Build display entries — distribute proportionally across portfolio groups
@@ -482,6 +488,9 @@ export function ProxyPartnerFunds() {
         const proportion = group.totalAmount / partnerTotal;
         const available = Math.round(partnerAvailable[group.partnerId] * proportion);
         const totalWithdrawn = Math.round((withdrawalsByPartner[group.partnerId] || 0) * proportion);
+        const inFlightAmount = Math.round(
+          (activeWithdrawalsByPartner[group.partnerId] || 0) * proportion,
+        );
 
         const pInfo = group.portfolioId ? portfolioMap[group.portfolioId] : null;
         // Use metadata partner_name as fallback if profile not found
@@ -502,13 +511,17 @@ export function ProxyPartnerFunds() {
           totalReturns: Math.round(group.totalAmount),
           totalWithdrawn,
           available,
+          inFlightAmount,
         };
       })
       // Auto-hide cards with negligible balance (rounding dust) and apply
       // agent-side dismissal: hide when a dismissal exists AND nothing new has
       // accrued since (current available <= snapshot at dismissal time).
       .filter((partner) => {
-        if (partner.available <= 50) return false;
+        // Keep zero-balance cards that are zero ONLY because of an in-flight
+        // withdrawal — they need to remain reachable via the In flight pill so
+        // Caro can cancel a mistaken withdrawal.
+        if (partner.available <= 50 && partner.inFlightAmount <= 50) return false;
         const dKey = `${partner.partnerId}-${partner.portfolioId || 'none'}`;
         const d = dismissalMap[dKey];
         if (d && partner.available <= Number(d.snapshot_amount)) return false;
@@ -519,7 +532,7 @@ export function ProxyPartnerFunds() {
         if (b.totalReturns !== a.totalReturns) return b.totalReturns - a.totalReturns;
         return a.partnerName.localeCompare(b.partnerName);
       });
-  }, [approvedOps, completedWithdrawals, profiles, portfolioMap, dismissalMap, user?.id]);
+  }, [approvedOps, completedWithdrawals, activeWithdrawalsByPartner, profiles, portfolioMap, dismissalMap, user?.id]);
 
   const handleWithdraw = async (partner: PartnerBalance) => {
     setSelectedPartnerId(partner.partnerId);
