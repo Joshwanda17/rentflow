@@ -584,6 +584,8 @@ function AgentSnapshotPanel({
   pendingCaps: string[];
   pendingAction: 'enable' | 'disable';
 }) {
+  // Auto-refresh: off by default. User picks an interval; we feed it to React Query.
+  const [autoMs, setAutoMs] = useState<number>(0); // 0 = off
   const q = useQuery({
     queryKey: ['agent-snapshot', agentId],
     queryFn: async () => {
@@ -610,7 +612,9 @@ function AgentSnapshotPanel({
         } | null) ?? null,
       };
     },
-    staleTime: 15_000,
+    staleTime: autoMs > 0 ? autoMs : 15_000,
+    refetchInterval: autoMs > 0 ? autoMs : false,
+    refetchIntervalInBackground: false,
   });
   const data = q.data;
   const isLoading = q.isLoading;
