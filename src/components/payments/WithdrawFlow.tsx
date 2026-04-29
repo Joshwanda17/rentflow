@@ -251,18 +251,14 @@ export default function WithdrawFlow({
     isSubmittingRef.current = true;
 
     try {
-      // FINAL LEDGER GATE — re-fetch ledger truth right before submission.
+      // FINAL LEDGER GATE — recompute ledger truth right before submission.
       // Cached props may be stale; the ledger is the source of truth.
       try {
-        const { data: freshAvail } = await supabase.rpc(
-          'get_user_available_balance',
-          { _user_id: user.id },
-        );
-        const fa = (freshAvail ?? {}) as Record<string, unknown>;
-        const freshLedger = Number(fa.available ?? trueAvailable);
+        const fresh = await computeLedgerAvailable(user.id);
+        const freshLedger = Number.isFinite(fresh.available) ? fresh.available : trueAvailable;
         if (source === 'available' && amount > freshLedger) {
           toast.error(
-            `Withdrawal blocked: ledger shows only UGX ${freshLedger.toLocaleString()} available (you tried UGX ${amount.toLocaleString()}). Refresh and try again.`,
+            `Withdrawal blocked: only UGX ${freshLedger.toLocaleString()} is currently withdrawable (you tried UGX ${amount.toLocaleString()}). Refresh and try again.`,
             { duration: 8000 },
           );
           isSubmittingRef.current = false;
