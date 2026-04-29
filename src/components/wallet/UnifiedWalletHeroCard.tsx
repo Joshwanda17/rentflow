@@ -1,7 +1,9 @@
 import { ReactNode } from 'react';
-import { Wallet, ChevronRight, Shield, Home, TrendingUp, Rocket, PiggyBank, Coins } from 'lucide-react';
+import { Wallet, ChevronRight, Shield, Home, TrendingUp, Rocket, PiggyBank, Coins, Sparkles } from 'lucide-react';
 import { hapticTap } from '@/lib/haptics';
 import { useCurrency } from '@/hooks/useCurrency';
+import { useAuth } from '@/hooks/useAuth';
+import { usePayrollGrowth } from '@/hooks/usePayrollGrowth';
 
 export type WalletRole = 'agent' | 'tenant' | 'supporter' | 'landlord';
 
@@ -62,6 +64,8 @@ export function UnifiedWalletHeroCard({
   quickActions,
 }: UnifiedWalletHeroCardProps) {
   const { formatAmount } = useCurrency();
+  const { user } = useAuth();
+  const payrollGrowth = usePayrollGrowth(user?.id);
 
   const handleOpenWallet = () => {
     hapticTap();
