@@ -12182,6 +12182,93 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_ledger_baseline: {
+        Row: {
+          advance_at_baseline: number
+          baseline_at: string
+          baseline_reason: string
+          created_at: string
+          float_at_baseline: number
+          ledger_net_at_baseline: number
+          user_id: string
+          withdrawable_at_baseline: number
+        }
+        Insert: {
+          advance_at_baseline?: number
+          baseline_at?: string
+          baseline_reason?: string
+          created_at?: string
+          float_at_baseline?: number
+          ledger_net_at_baseline?: number
+          user_id: string
+          withdrawable_at_baseline?: number
+        }
+        Update: {
+          advance_at_baseline?: number
+          baseline_at?: string
+          baseline_reason?: string
+          created_at?: string
+          float_at_baseline?: number
+          ledger_net_at_baseline?: number
+          user_id?: string
+          withdrawable_at_baseline?: number
+        }
+        Relationships: []
+      }
+      wallet_ledger_review_queue: {
+        Row: {
+          advance_balance: number
+          created_at: string
+          float_balance: number
+          gap: number
+          id: string
+          ledger_net: number
+          metadata: Json | null
+          reason: string
+          resolution_notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          withdrawable_balance: number
+        }
+        Insert: {
+          advance_balance?: number
+          created_at?: string
+          float_balance?: number
+          gap?: number
+          id?: string
+          ledger_net?: number
+          metadata?: Json | null
+          reason: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          withdrawable_balance?: number
+        }
+        Update: {
+          advance_balance?: number
+          created_at?: string
+          float_balance?: number
+          gap?: number
+          id?: string
+          ledger_net?: number
+          metadata?: Json | null
+          reason?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          withdrawable_balance?: number
+        }
+        Relationships: []
+      }
       wallet_overdraw_events: {
         Row: {
           advance_after: number | null
@@ -13534,7 +13621,10 @@ export type Database = {
         }[]
       }
       get_trust_coverage_stats: { Args: never; Returns: Json }
-      get_user_available_balance: { Args: { _user_id: string }; Returns: Json }
+      get_user_available_balance: {
+        Args: { p_user_id: string }
+        Returns: number
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -13646,6 +13736,12 @@ export type Database = {
       notify_landlord_registration_helper: {
         Args: { p_landlord_id: string }
         Returns: undefined
+      }
+      populate_wallet_review_queue: {
+        Args: never
+        Returns: {
+          inserted_count: number
+        }[]
       }
       preview_business_advance_limit: {
         Args: {
@@ -13775,6 +13871,16 @@ export type Database = {
       }
       resolve_ai_id_to_user: { Args: { p_ai_id: string }; Returns: string }
       resolve_welile_ai_id: { Args: { ai_id: string }; Returns: string }
+      run_phantom_clamp_pass: {
+        Args: { p_dry_run?: boolean }
+        Returns: {
+          clamp_amount: number
+          executed: boolean
+          ledger_net: number
+          user_id: string
+          withdrawable_before: number
+        }[]
+      }
       search_agents: {
         Args: { result_limit?: number; search_term?: string }
         Returns: {
@@ -13862,6 +13968,12 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      snapshot_wallet_ledger_baseline: {
+        Args: never
+        Returns: {
+          snapshotted_count: number
+        }[]
+      }
       suggest_nearby_agents: {
         Args: { _lat: number; _limit?: number; _lng: number }
         Returns: {
