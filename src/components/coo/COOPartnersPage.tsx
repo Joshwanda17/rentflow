@@ -1259,8 +1259,22 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     return result;
   }, [rows, sortKey, sortDir, filterStatus, filterRoiMode, filterContact, filterWallet, payoutDateFrom, payoutDateTo]);
 
-  // Server-side pagination: use totalCount for page count, display all rows from current page
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  // Detect any client-side filter that narrows results below the current page.
+  // Server-side pagination only knows about `search` — every other filter runs
+  // locally on the current page, so combining them with multi-page pagination
+  // produces "No matching partners found" on later pages even though the pager
+  // still shows e.g. 11/55. When local filters are active we collapse the pager
+  // to a single page over the filtered current page.
+  const hasLocalFilter =
+    filterStatus !== 'all' ||
+    filterRoiMode !== 'all' ||
+    filterContact !== 'all' ||
+    filterWallet !== 'all' ||
+    !!payoutDateFrom ||
+    !!payoutDateTo;
+  const totalPages = hasLocalFilter
+    ? 1
+    : Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const safePage = Math.min(page, totalPages - 1);
   const paged = processed;
 
