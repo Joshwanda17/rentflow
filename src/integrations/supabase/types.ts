@@ -680,41 +680,119 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_capability_ops_dead_letters: {
+        Row: {
+          action: string
+          agent_ids: string[]
+          attempt_count: number
+          batch_id: number
+          capability: string
+          created_at: string
+          id: number
+          job_id: string
+          last_error: string | null
+          reason: string
+          requested_by: string
+          resolution: string | null
+          resolved_at: string | null
+        }
+        Insert: {
+          action: string
+          agent_ids: string[]
+          attempt_count: number
+          batch_id: number
+          capability: string
+          created_at?: string
+          id?: number
+          job_id: string
+          last_error?: string | null
+          reason: string
+          requested_by: string
+          resolution?: string | null
+          resolved_at?: string | null
+        }
+        Update: {
+          action?: string
+          agent_ids?: string[]
+          attempt_count?: number
+          batch_id?: number
+          capability?: string
+          created_at?: string
+          id?: number
+          job_id?: string
+          last_error?: string | null
+          reason?: string
+          requested_by?: string
+          resolution?: string | null
+          resolved_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_capability_ops_dead_letters_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "agent_capability_ops_job_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_capability_ops_dead_letters_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "agent_capability_ops_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_capability_ops_job_batches: {
         Row: {
           affected: number
           agent_count: number
+          attempt_count: number
           batch_index: number
           capability: string
           claimed_at: string | null
+          dead_lettered_at: string | null
           error: string | null
           finished_at: string | null
           id: number
           job_id: string
+          last_error: string | null
+          max_attempts: number
+          next_attempt_at: string | null
           status: string
         }
         Insert: {
           affected?: number
           agent_count: number
+          attempt_count?: number
           batch_index: number
           capability: string
           claimed_at?: string | null
+          dead_lettered_at?: string | null
           error?: string | null
           finished_at?: string | null
           id?: number
           job_id: string
+          last_error?: string | null
+          max_attempts?: number
+          next_attempt_at?: string | null
           status?: string
         }
         Update: {
           affected?: number
           agent_count?: number
+          attempt_count?: number
           batch_index?: number
           capability?: string
           claimed_at?: string | null
+          dead_lettered_at?: string | null
           error?: string | null
           finished_at?: string | null
           id?: number
           job_id?: string
+          last_error?: string | null
+          max_attempts?: number
+          next_attempt_at?: string | null
           status?: string
         }
         Relationships: [
@@ -14221,6 +14299,10 @@ export type Database = {
         Args: { _reason: string; _target_user: string }
         Returns: undefined
       }
+      archive_dead_letter_batch: {
+        Args: { _dead_letter_id: number }
+        Returns: undefined
+      }
       assert_routing_compatible: {
         Args: { p_category: string; p_recipient_type: string }
         Returns: undefined
@@ -14296,7 +14378,7 @@ export type Database = {
       cleanup_old_system_events: { Args: never; Returns: undefined }
       complete_agent_capability_batch: {
         Args: { _affected: number; _batch_id: number; _error?: string }
-        Returns: undefined
+        Returns: Json
       }
       compute_agent_performance: {
         Args: { p_agent_id: string }
@@ -15199,6 +15281,10 @@ export type Database = {
           p_reason: string
         }
         Returns: Json
+      }
+      requeue_dead_letter_batch: {
+        Args: { _dead_letter_id: number }
+        Returns: undefined
       }
       reset_agent_float_if_stale: {
         Args: { p_agent_id: string }

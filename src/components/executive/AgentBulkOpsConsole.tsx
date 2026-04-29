@@ -132,6 +132,7 @@ export function AgentBulkOpsConsole({ onBack }: { onBack?: () => void }) {
 
       {/* Live + recent jobs */}
       <RecentJobsPanel highlightJobId={activeJobId} />
+      <DeadLetterPanel />
 
       {/* Step 1 – build the agent set */}
       <Card className="p-4">
@@ -439,6 +440,100 @@ function CsvForm({ onResolved }: { onResolved: (r: ResolvedSet) => void }) {
 }
 
 export default AgentBulkOpsConsole;
+
+/* =====================================================================
+ * Dead Letter Queue panel — terminally failed batches (after 5 retries)
+ * ===================================================================*/
+interface DeadLetterRow {
+  id: number;
+  job_id: string;
+  batch_id: number;
+  capability: string;
+  action: 'enable' | 'disable';
+  agent_ids: string[];
+  attempt_count: number;
+  last_error: string | null;
+  reason: string;
+  created_at: string;
+}
+
+function DeadLetterPanel() {
+  const { data: rows = [], refetch } = useQuery<DeadLetterRow[]>({
+    queryKey: ['agent-capability-dead-letters'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('agent_capability_ops_dead_letters')
+        .select('id,job_id,batch_id,capability,action,agent_ids,attempt_count,last_error,reason,created_at')
+        .is('resolved_at', null)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return (data ?? []) as DeadLetterRow[];
+    },
+    refetchInterval: 15_000,
+  });
+
+  useEffect(() => {
+    const ch = supabase
+      .channel('agent-capability-dead-letters-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'agent_capability_ops_dead_letters' },
+        () => refetch())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [refetch]);
+
+  if (rows.length === 0) return null;
+
+  const requeue = async (id: number) => {
+    const { error } = await supabase.rpc('requeue_dead_letter_batch', { _dead_letter_id: id });
+    if (error) toast.error(error.message);
+    else toast.success('Re-queued for one more attempt');
+    refetch();
+  };
+
+  const archive = async (id: number) => {
+    const { error } = await supabase.rpc('archive_dead_letter_batch', { _dead_letter_id: id });
+    if (error) toast.error(error.message);
+    else toast.success('Archived');
+    refetch();
+  };
+
+  return (
+    <Card className="p-3 border-destructive/40 bg-destructive/5">
+      <div className="flex items-center gap-2 mb-2">
+        <ShieldAlert className="h-4 w-4 text-destructive" />
+        <p className="text-xs font-semibold uppercase tracking-wider text-destructive">
+          Dead-letter queue · {rows.length} batch{rows.length === 1 ? '' : 'es'} need attention
+        </p>
+      </div>
+      <p className="text-[10px] text-muted-foreground mb-2">
+        These chunks failed after 5 retries with exponential backoff. Re-queue to give them one more cycle, or archive to give up.
+      </p>
+      <div className="space-y-2">
+        {rows.map(r => (
+          <div key={r.id} className="p-2 rounded border bg-background">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant="outline" className="text-[9px] capitalize">{r.action}</Badge>
+              <span className="text-xs font-semibold">{r.capability}</span>
+              <span className="text-xs text-muted-foreground">· {r.agent_ids.length.toLocaleString()} agents · {r.attempt_count} attempts</span>
+              <div className="flex-1" />
+              <Button size="sm" variant="outline" onClick={() => requeue(r.id)}>Re-queue</Button>
+              <Button size="sm" variant="ghost" onClick={() => archive(r.id)}>Archive</Button>
+            </div>
+            {r.last_error && (
+              <p className="text-[10px] text-destructive font-mono mt-1 truncate" title={r.last_error}>
+                {r.last_error}
+              </p>
+            )}
+            <p className="text-[10px] text-muted-foreground mt-1 truncate" title={r.reason}>
+              {r.reason}
+            </p>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
 
 /* =====================================================================
  * Recent jobs panel — live progress for in-flight bulk jobs
