@@ -586,6 +586,8 @@ function AgentSnapshotPanel({
 }) {
   // Auto-refresh: off by default. User picks an interval; we feed it to React Query.
   const [autoMs, setAutoMs] = useState<number>(0); // 0 = off
+  // Per-capability expanded history (last 10 enable/disable updates for that capability)
+  const [openCap, setOpenCap] = useState<string | null>(null);
   const q = useQuery({
     queryKey: ['agent-snapshot', agentId],
     queryFn: async () => {
