@@ -133,16 +133,13 @@ Deno.serve(async (req) => {
       }
       throw new Error("Invalid target user");
     }
-    const amountNum = typeof amount === "number" ? amount : Number(String(amount ?? "").replace(/[, _]/g, ""));
-    if (!Number.isFinite(amountNum) || amountNum <= 0 || amountNum > 500000000) {
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 500000000) {
       if (shouldSample(shadowConfig)) {
         runShadowAudit('cfo-direct-credit', { target_user_id, amount, operation }, false,
           () => shadowValidateCfoAdjustment({ targetUserId: target_user_id, amount, reason, operation: op, callerRoles }), adminClient);
       }
-      throw new Error(`Invalid amount: received '${amount}' (typeof ${typeof amount}). Allowed range 1 - 500,000,000.`);
+      throw new Error(`Invalid amount: received '${rawAmount}' (typeof ${typeof rawAmount}). Allowed range 1 - 500,000,000.`);
     }
-    // Use the coerced number downstream
-    amount = amountNum;
     if (!reason || typeof reason !== "string" || reason.length < 10) {
       if (shouldSample(shadowConfig)) {
         runShadowAudit('cfo-direct-credit', { target_user_id, amount, reason, operation }, false,
