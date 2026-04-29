@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { AgentVouchHistoryFeed } from './AgentVouchHistoryFeed';
 import { onVouchUpdated } from '@/lib/vouchEvents';
+import { EarnedVouchRangeBreakdown } from './EarnedVouchRangeBreakdown';
 
 interface Props {
   userId: string;
@@ -216,7 +217,14 @@ export function AgentVouchHighlightCard({ userId }: Props) {
            * because the 100k base + earned growth applies to every agent
            * regardless of trust-score eligibility.
            */}
-          <EarnedVouchBreakdown agentId={userId} />
+          {/* Date-range filterable breakdown (7d / 30d / 90d / All).
+              Replaces the legacy lifetime-only EarnedVouchBreakdown. */}
+          {aiId && (
+            <EarnedVouchRangeBreakdown
+              aiId={aiId}
+              effectiveLimitUgx={vouch}
+            />
+          )}
 
           {/* Per-collection vouch change feed (includes reversals) */}
           <AgentVouchHistoryFeed agentId={userId} />
