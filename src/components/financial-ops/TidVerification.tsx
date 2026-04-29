@@ -1860,7 +1860,7 @@ export function TidVerification() {
             // the source-of-truth TID — not whatever the operator typed.
             // The pick-list query doesn't fetch transaction_id, so fall back
             // to the typed value when it's missing on the row object.
-            const pickedTid = (pickedRow as any).transaction_id as string | undefined;
+            const pickedTid = pickedRow.transaction_id ?? undefined;
             const typedTid = tid.trim();
             const norm = (s: string) => s.replace(/[^0-9A-Z]/gi, '').toUpperCase();
             const tidsAgree = !!typedTid && !!pickedTid && norm(typedTid) === norm(pickedTid);
