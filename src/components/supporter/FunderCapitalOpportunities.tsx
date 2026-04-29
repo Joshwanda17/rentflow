@@ -21,7 +21,6 @@ import { toast } from 'sonner';
 import { FundRentDialog } from './FundRentDialog';
 import { InvestmentWithdrawButton } from './InvestmentWithdrawButton';
 import { InvestmentSelectionSheet, type PoolType } from '@/components/angel-pool/InvestmentSelectionSheet';
-import { FunderApprovalBanner } from './FunderApprovalGate';
 import { useAuth } from '@/hooks/useAuth';
 import { useFunderApprovalStatus } from '@/hooks/useFunderApprovalStatus';
 
@@ -362,7 +361,6 @@ export function FunderCapitalOpportunities() {
                 >
                   {isApproved ? (<>Support Tenant <ChevronRight className="h-4 w-4" /></>) : (<><Lock className="h-4 w-4" /> {approvalStatus === 'rejected' ? 'Verification Required' : 'Awaiting Verification'}</>)}
                 </Button>
-                <FunderApprovalBanner />
                 <InvestmentWithdrawButton />
 
                 {/* Footer */}
@@ -475,7 +473,6 @@ export function FunderCapitalOpportunities() {
               >
                 {isApproved ? (<><Home className="h-4 w-4" /> Support Tenant</>) : (<><Lock className="h-4 w-4" /> {approvalStatus === 'rejected' ? 'Verification Required' : 'Awaiting Verification'}</>)}
               </Button>
-              <FunderApprovalBanner />
             </TabsContent>
 
             <TabsContent value="angel" className="mt-3 space-y-3">

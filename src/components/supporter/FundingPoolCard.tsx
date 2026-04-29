@@ -12,7 +12,6 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { FundRentDialog } from './FundRentDialog';
 import { InvestmentWithdrawButton } from './InvestmentWithdrawButton';
-import { FunderApprovalBanner } from './FunderApprovalGate';
 import { useAuth } from '@/hooks/useAuth';
 import { useFunderApprovalStatus } from '@/hooks/useFunderApprovalStatus';
 import { Lock } from 'lucide-react';
@@ -258,7 +257,6 @@ export function FundingPoolCard({ fundedAmount }: FundingPoolCardProps) {
 
         {/* ═══ CTA ═══ */}
         <div className="px-5 pt-2 pb-4 space-y-3">
-          <FunderApprovalBanner />
           <Button
             onClick={() => isApproved && setShowFundDialog(true)}
             disabled={liquidityStatus === 'warning' || !isApproved}
