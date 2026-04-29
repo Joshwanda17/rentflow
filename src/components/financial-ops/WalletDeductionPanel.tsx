@@ -129,7 +129,10 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
   // Show the lesser of (cached, ledger) so the operator can never type a
   // figure the backend will reject.
   const trueBalance = selectedUser
-    ? Math.min(selectedUser.balance, availableBalance ?? selectedUser.balance)
+    ? Math.min(
+        selectedUser.withdrawable_balance,
+        availableBalance ?? selectedUser.withdrawable_balance,
+      )
     : 0;
 
   // Search users by name/phone
