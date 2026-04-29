@@ -126,7 +126,9 @@ Deno.serve(async (req) => {
       try {
         await admin.from("system_events").insert({
           event_type: "payroll.growth.applied",
-          actor_user_id: r.user_id,
+          user_id: r.user_id,
+          related_entity_type: "payroll_growth_balances",
+          related_entity_id: r.id,
           metadata: {
             tracker_id: r.id,
             growth,
