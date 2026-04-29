@@ -439,3 +439,109 @@ function CsvForm({ onResolved }: { onResolved: (r: ResolvedSet) => void }) {
 }
 
 export default AgentBulkOpsConsole;
+
+/* =====================================================================
+ * Recent jobs panel — live progress for in-flight bulk jobs
+ * ===================================================================*/
+interface JobRow {
+  id: string;
+  action: 'enable' | 'disable';
+  capabilities: string[];
+  total_agents: number;
+  total_batches: number;
+  batches_done: number;
+  affected_total: number;
+  failed_total: number;
+  status: 'queued' | 'running' | 'done' | 'failed' | 'cancelled';
+  source: string;
+  reason: string;
+  last_error: string | null;
+  created_at: string;
+  finished_at: string | null;
+}
+
+function RecentJobsPanel({ highlightJobId }: { highlightJobId: string | null }) {
+  const { data: jobs = [], refetch } = useQuery<JobRow[]>({
+    queryKey: ['agent-capability-ops-jobs'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('agent_capability_ops_jobs')
+        .select('id,action,capabilities,total_agents,total_batches,batches_done,affected_total,failed_total,status,source,reason,last_error,created_at,finished_at')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return (data ?? []) as JobRow[];
+    },
+    refetchInterval: (q) => {
+      const rows = (q.state.data ?? []) as JobRow[];
+      return rows.some(j => j.status === 'queued' || j.status === 'running') ? 2_000 : 15_000;
+    },
+  });
+
+  // Realtime nudge so other ops sessions see fresh state instantly
+  useEffect(() => {
+    const ch = supabase
+      .channel('agent-capability-ops-jobs-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'agent_capability_ops_jobs' },
+        () => refetch())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [refetch]);
+
+  if (jobs.length === 0) return null;
+
+  const cancel = async (id: string) => {
+    const { error } = await supabase.rpc('cancel_agent_capability_job', { _job_id: id });
+    if (error) toast.error(error.message);
+    else toast.success('Job cancelled');
+    refetch();
+  };
+
+  return (
+    <Card className="p-3">
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+        Recent bulk jobs
+      </p>
+      <div className="space-y-2">
+        {jobs.map(j => {
+          const pct = j.total_batches === 0 ? 0 : Math.round((j.batches_done / j.total_batches) * 100);
+          const isActive = j.status === 'queued' || j.status === 'running';
+          return (
+            <div
+              key={j.id}
+              className={`p-2 rounded border ${j.id === highlightJobId ? 'border-primary bg-primary/5' : ''}`}
+            >
+              <div className="flex items-center gap-2 flex-wrap">
+                {j.status === 'running' && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
+                {j.status === 'done' && <CheckCircle2 className="h-3 w-3 text-emerald-600" />}
+                {j.status === 'failed' && <XCircle className="h-3 w-3 text-destructive" />}
+                {j.status === 'cancelled' && <XCircle className="h-3 w-3 text-muted-foreground" />}
+                {j.status === 'queued' && <Loader2 className="h-3 w-3 text-muted-foreground" />}
+                <Badge variant="outline" className="capitalize text-[9px]">{j.action}</Badge>
+                <span className="text-xs font-semibold">
+                  {j.capabilities.length} function{j.capabilities.length === 1 ? '' : 's'} · {j.total_agents.toLocaleString()} agents
+                </span>
+                <span className="text-[10px] text-muted-foreground">{j.source}</span>
+                <div className="flex-1" />
+                <span className="text-xs tabular-nums">{j.batches_done}/{j.total_batches} batches · {j.affected_total.toLocaleString()} applied</span>
+                {isActive && (
+                  <Button size="sm" variant="ghost" onClick={() => cancel(j.id)}>Cancel</Button>
+                )}
+              </div>
+              <Progress value={pct} className="h-1 mt-1" />
+              <p className="text-[10px] text-muted-foreground mt-1 truncate" title={j.reason}>
+                {j.reason}
+                {j.failed_total > 0 && (
+                  <span className="text-destructive"> · {j.failed_total} failed batch{j.failed_total === 1 ? '' : 'es'}</span>
+                )}
+                {j.last_error && j.status === 'failed' && (
+                  <span className="text-destructive"> · {j.last_error.slice(0, 80)}</span>
+                )}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
