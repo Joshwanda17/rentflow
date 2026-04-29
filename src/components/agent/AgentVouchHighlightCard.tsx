@@ -8,6 +8,7 @@ import { hapticTap } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { AgentVouchHistoryFeed } from './AgentVouchHistoryFeed';
+import { onVouchUpdated } from '@/lib/vouchEvents';
 
 interface Props {
   userId: string;
@@ -23,8 +24,15 @@ interface Props {
 export function AgentVouchHighlightCard({ userId }: Props) {
   const navigate = useNavigate();
   const aiId = userId ? generateWelileAiId(userId) : undefined;
-  const { profile, loading } = useTrustProfile(aiId);
+  const { profile, loading, refresh } = useTrustProfile(aiId);
   const [expanded, setExpanded] = useState(false);
+
+  // Refresh trust profile in real-time when a collection lands.
+  useEffect(() => {
+    return onVouchUpdated((d) => {
+      if (!d.agentId || d.agentId === userId) refresh();
+    });
+  }, [userId, refresh]);
 
   if (loading && !profile) return null;
   if (!profile) return null;
@@ -393,6 +401,14 @@ function EarnedVouchBreakdown({ agentId }: { agentId: string }) {
   const [collectedTotal, setCollectedTotal] = useState<number | null>(null);
   const [effectiveLimit, setEffectiveLimit] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshTick, setRefreshTick] = useState(0);
+
+  // Live-refresh when a collection updates the vouch limit.
+  useEffect(() => {
+    return onVouchUpdated((d) => {
+      if (!d.agentId || d.agentId === agentId) setRefreshTick((n) => n + 1);
+    });
+  }, [agentId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -432,7 +448,7 @@ function EarnedVouchBreakdown({ agentId }: { agentId: string }) {
     })();
 
     return () => { cancelled = true; };
-  }, [agentId]);
+  }, [agentId, refreshTick]);
 
   const earned = (collectedTotal ?? 0) * WELILE_VOUCH_MULTIPLIER;
   // The trust-engine `borrowing_limit_ugx` may push the effective limit

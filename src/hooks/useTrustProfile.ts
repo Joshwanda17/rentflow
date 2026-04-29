@@ -182,5 +182,19 @@ export function useTrustProfile(aiId: string | undefined, opts?: { publicMode?: 
     refresh();
   }, [aiId, publicMode, refresh]);
 
+  // Live-refresh on cross-component vouch updates (e.g., a collection just
+  // landed). Filters by AI ID when the emitter knows it; otherwise refreshes.
+  useEffect(() => {
+    if (!aiId) return;
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ aiId?: string }>).detail || {};
+      if (!detail.aiId || detail.aiId.toUpperCase() === aiId.toUpperCase()) {
+        refresh();
+      }
+    };
+    window.addEventListener('welile:vouch:updated', handler);
+    return () => window.removeEventListener('welile:vouch:updated', handler);
+  }, [aiId, refresh]);
+
   return { profile, loading, error, refresh };
 }
