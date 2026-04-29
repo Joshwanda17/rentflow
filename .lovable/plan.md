@@ -1,67 +1,62 @@
-## Problem
+## Diagnosis
 
-The NFC card was written with a **truncated payload** (only 4 fields):
-```json
-{ "version": 1, "issuer": "Welile", "card_id": "6804fb0d…", "hmac_signature": "6bc9…" }
+The screenshot ("Welile Tenant", UGX 1,000,000 rent wallet) belongs to **JOSHUA WANDA** (`cb798acb…`), who submitted a UGX 1,000,000 withdrawal at 13:38 today and got it **manager-approved** at 13:39 (status `manager_approved`). His wallet still shows the full UGX 1,000,000.
+
+Verified in DB:
+- `withdrawal_requests` row exists, status = `manager_approved`, `fin_ops_approved_at IS NULL`.
+- **Zero ledger entries** linked to this withdrawal — no pending hold, no debit.
+- Other recent FinOps-approved withdrawals (Namatovu 20K, Mukhaye 30K, Wakato 15K, etc.) DO have proper `wallet_withdrawal` ledger debits and their wallets reconcile correctly. So the FinOps-approval flow works.
+
+**Root cause**: the withdrawal lifecycle only debits the wallet at the final `fin_ops_approved` step. Between "user requests" → "manager approves" → "FinOps approves" the funds are NOT held, so the wallet card keeps showing the full balance and the user assumes the system is broken.
+
+The `approve-withdrawal` edge function is already designed to find and release pre-existing `withdrawal_pending` ledger holds (lines 156–183 of `supabase/functions/approve-withdrawal/index.ts`) — but **nothing in the codebase ever creates those holds**. The release path is dead code.
+
+## Fix
+
+### 1. Create the missing pending-hold writer
+Add a balanced ledger pair the moment a withdrawal request is **created** (and again if a previously rejected one is re-submitted to manager_approved). This shows up immediately on the wallet card via the existing `get_user_available_balance` RPC, which already subtracts pending holds.
+
+Two options for where to write the hold:
+- **Preferred**: extend the existing `request-withdrawal` edge function (or wherever `withdrawal_requests` is INSERTed) to call `create_ledger_transaction` with category `withdrawal_pending`, scope `wallet`, direction `cash_out`, balanced by a `withdrawal_pending` `cash_in` on `platform`. This keeps double-entry symmetry and satisfies the strict ledger guard.
+- **Backup**: if multiple client paths insert withdrawals, add a Postgres `AFTER INSERT` trigger on `withdrawal_requests` that calls the same RPC.
+
+Implementation will use the **edge function** path (existing pattern, no migration risk to triggers/RLS).
+
+### 2. Make `withdrawal_pending` an allowlisted ledger category
+Add `withdrawal_pending` to the locked-flow allowlist in `supabase/functions/_shared/` (and the Postgres allowlist if one exists) so `create_ledger_transaction` doesn't silently reject it in strict mode. Map it as: wallet `cash_out` → `liability` movement; platform `cash_in` → `liability` movement (offsetting). No revenue impact.
+
+### 3. Reconcile the affected open withdrawal NOW
+For `72db97da-7f04-4199-8521-1f10476c6f0c` (Joshua Wanda, 1M, manager_approved): backfill a `withdrawal_pending` hold so his wallet card immediately drops by 1,000,000 and the next FinOps approval cleanly releases it (the existing release loop in `approve-withdrawal` already handles this). Do the same for any other `manager_approved`/`pending`/`requested` rows currently missing a hold:
+
+```sql
+SELECT wr.id, wr.user_id, wr.amount, wr.status
+FROM withdrawal_requests wr
+WHERE wr.status IN ('pending','requested','manager_approved')
+  AND NOT EXISTS (
+    SELECT 1 FROM general_ledger gl
+    WHERE gl.source_table='withdrawal_requests'
+      AND gl.source_id=wr.id AND gl.category='withdrawal_pending'
+  );
 ```
 
-But the verifier (`supabase/functions/verify-nfc-card/index.ts`) requires 7 fields — it needs `user_id`, `pinless_limit`, and `issued_at` to recompute the HMAC. So even if the phone reads the card, verification fails. The reason it appears to "keep scanning" is the NDEF reader fires `onreading`, JSON.parse succeeds with the partial object, the call to `verify-nfc-card` returns `{error: "Card payload incomplete"}` (400) — but on some Android devices the reader event also silently fails when the record `recordType` is `"unknown"` (raw bytes) instead of `"text"`/`"mime"`, so it never even calls `processCard`.
+Backfill hold rows for each via a one-shot script using `create_ledger_transaction`.
 
-Both issues need fixing.
+### 4. Cancel/reject path
+`cancel-proxy-withdrawal` and `reject-withdrawal` must also delete the matching `withdrawal_pending` ledger rows and re-reconcile the wallet — same pattern already used inside `approve-withdrawal`. Audit those two functions and add the release block.
 
-## Fix Plan
-
-### 1. Make the NFC card payload self-sufficient (server-side hydration)
-
-Update `supabase/functions/verify-nfc-card/index.ts` so it accepts the **compact card form** (just `card_id` + `hmac_signature` + `version` + `issuer`) and hydrates the missing fields from the `nfc_cards` table before recomputing the HMAC. This matches what the printable JSON/PDF actually contains and what users will write to physical cards.
-
-- If `user_id` / `pinless_limit` / `issued_at` are missing on the incoming `card`, look up `nfc_cards` by `card_id`, pull `user_id`, `pinless_limit`, `issued_at`, then recompute `expectedSig = HMAC(card_id|user_id|pinless_limit|issued_at)` and compare with `hmac_signature`.
-- Keep the existing full-payload path as a fallback (backward compat).
-- Tighten the "Card payload incomplete" error so only truly invalid payloads (no `card_id` or no `hmac_signature`) get rejected.
-
-### 2. Make the client-side NDEF reader more tolerant
-
-In `src/components/wallet/RequestMoneyDialog.tsx` `startNfcTap()`:
-- Iterate **all** records (not break on first), and accept `recordType === 'text'`, `'mime'`, **and** `'unknown'` (decode raw bytes as UTF-8 then try JSON.parse).
-- Also try to JSON.parse the URL record body as a fallback.
-- Add a 30s waiting timeout that flips to `failed` with a clear "No card detected" message instead of spinning forever.
-- Log the read attempt + the parsed payload to console (debug aid for the user's current card).
-
-### 3. New transaction-result popup component
-
-Create `src/components/wallet/NfcTransactionResultDialog.tsx` — a small, polished dialog with three variants:
-
-- **Success** — green check ring, "Payment Successful", amount in big UGX, recipient name (returned from edge function), reference id, "Done" button.
-- **Insufficient Balance** — amber/red wallet icon, "Insufficient Balance on Card", shows requested amount and (when the edge function returns it) the cardholder's available balance, "Try Smaller Amount" + "Close" buttons.
-- **Failed** — destructive icon, friendly mapped messages for: `Card signature invalid`, `Card is blocked or revoked`, `Card not registered`, `Cannot charge your own card`, `Incorrect PIN`, `NFC not supported`, generic fallback. "Try Again" + "Close".
-
-Mount this dialog from `RequestMoneyDialog` and trigger it in place of the current inline `success`/`failed` blocks for a clearer UX (the inline states stay as quick visual feedback inside the tap card, but the popup is the authoritative confirmation).
-
-### 4. Edge function returns balance context on insufficient funds
-
-In `verify-nfc-card`, after the cardholder is identified, call `get_user_available_balance(p_user_id := card.user_id)`. If `amount > availableBalance`, respond with HTTP 402 and:
-```json
-{ "error": "INSUFFICIENT_BALANCE", "available": <number>, "requested": <number> }
-```
-Then the popup can show "Card has UGX X available; you tried to charge UGX Y."
-
-(Note: the actual debit still happens later when the cardholder approves the `money_requests` row — but a pre-flight balance check at tap time is the correct UX so the merchant doesn't think the tap "worked" and then have it silently fail.)
-
-### 5. Memory update
-
-Add a short memory note `mem://features/wallet/nfc-card-payment` describing:
-- Compact card payload format (4 fields) is canonical; verifier hydrates from `nfc_cards`.
-- Tap creates a `money_requests` row for the cardholder to approve (no auto-debit).
-- Pre-flight balance check uses `get_user_available_balance`.
+### 5. Wallet-card copy
+Add a small "Pending withdrawal: UGX X" line under the available balance when `pending_holds > 0` so users see WHY the balance is lower than what they earned. Source: same `get_user_available_balance` RPC already exposes the breakdown via `useAvailableBalance` hook (it returns `walletCached`, `ledgerNet`; we'll surface a derived `pendingHold = walletCached − available` indicator).
 
 ## Files to change
 
-- `supabase/functions/verify-nfc-card/index.ts` — hydrate missing fields, pre-flight balance check, structured `INSUFFICIENT_BALANCE` response.
-- `src/components/wallet/RequestMoneyDialog.tsx` — tolerant NDEF reader, 30s timeout, wire popup.
-- `src/components/wallet/NfcTransactionResultDialog.tsx` — **new** popup with 3 states.
-- `mem://features/wallet/nfc-card-payment` — **new** memory + index.md update.
+- `supabase/functions/request-withdrawal/index.ts` (or equivalent submit endpoint) — create hold on insert.
+- `supabase/functions/reject-withdrawal/index.ts` — release hold on reject.
+- `supabase/functions/cancel-proxy-withdrawal/index.ts` — release hold on cancel.
+- `supabase/functions/_shared/ledgerCategories.ts` (or the allowlist file) — add `withdrawal_pending`.
+- `src/components/wallet/*` (rent wallet card / hero card) — show "Pending withdrawal" sub-line.
+- One-shot SQL/edge call to backfill the missing hold for Joshua Wanda's 1M and any other open requests.
 
 ## Out of scope
 
-- Re-issuing the user's card (their existing card stays valid once the verifier hydrates from DB).
-- Changing the actual money-movement model (still goes through `money_requests` approval).
+- No wallet bucket math change. The strict-withdrawable rule and the 3-bucket model stay exactly as documented in [Wallet Withdrawable Strict Rule](mem://architecture/wallet-baseline-anchor) and [Wallet 3-Bucket Model](mem://business-model/wallet-three-bucket-model).
+- No change to FinOps approval logic — it already releases holds correctly; we're just finally feeding it real holds.
