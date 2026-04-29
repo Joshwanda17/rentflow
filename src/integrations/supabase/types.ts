@@ -7808,6 +7808,7 @@ export type Database = {
           batch_month: string
           created_at: string
           created_by: string
+          default_recovery_percent: number
           employee_count: number | null
           id: string
           notes: string | null
@@ -7828,6 +7829,7 @@ export type Database = {
           batch_month: string
           created_at?: string
           created_by: string
+          default_recovery_percent?: number
           employee_count?: number | null
           id?: string
           notes?: string | null
@@ -7848,6 +7850,7 @@ export type Database = {
           batch_month?: string
           created_at?: string
           created_by?: string
+          default_recovery_percent?: number
           employee_count?: number | null
           id?: string
           notes?: string | null
@@ -7993,6 +7996,7 @@ export type Database = {
       }
       payroll_items: {
         Row: {
+          advance_balance_snapshot: number
           amount: number
           batch_id: string
           bonuses: Json
@@ -8004,9 +8008,13 @@ export type Database = {
           id: string
           ledger_reference_id: string | null
           paid_at: string | null
+          recovery_amount: number
+          recovery_percent: number | null
           status: string
+          take_home_amount: number
         }
         Insert: {
+          advance_balance_snapshot?: number
           amount: number
           batch_id: string
           bonuses?: Json
@@ -8018,9 +8026,13 @@ export type Database = {
           id?: string
           ledger_reference_id?: string | null
           paid_at?: string | null
+          recovery_amount?: number
+          recovery_percent?: number | null
           status?: string
+          take_home_amount?: number
         }
         Update: {
+          advance_balance_snapshot?: number
           amount?: number
           batch_id?: string
           bonuses?: Json
@@ -8032,7 +8044,10 @@ export type Database = {
           id?: string
           ledger_reference_id?: string | null
           paid_at?: string | null
+          recovery_amount?: number
+          recovery_percent?: number | null
           status?: string
+          take_home_amount?: number
         }
         Relationships: [
           {
