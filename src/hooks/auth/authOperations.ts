@@ -3,15 +3,29 @@ import { lovable } from '@/integrations/lovable';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import type { AppRole } from './types';
 
-export async function signUp(email: string, password: string, fullName: string, phone: string, role: AppRole, signupSource?: string) {
+export async function signUp(
+  email: string,
+  password: string,
+  fullName: string,
+  phone: string,
+  role: AppRole,
+  signupSource?: string,
+) {
   const redirectUrl = `${window.location.origin}/`;
+  // Build metadata explicitly. Only include `signup_source` when it is a
+  // non-empty string so the Postgres `handle_new_user` trigger persists it
+  // verbatim into `profiles.signup_source` (it NULLIFs empty strings).
+  const data: Record<string, unknown> = { full_name: fullName, phone, role };
+  const trimmedSource = (signupSource ?? '').trim();
+  if (trimmedSource) {
+    data.signup_source = trimmedSource;
+    // eslint-disable-next-line no-console
+    console.log('[signUp] attribution →', { signup_source: trimmedSource, role });
+  }
   const { error } = await supabase.auth.signUp({
     email,
     password,
-    options: {
-      emailRedirectTo: redirectUrl,
-      data: { full_name: fullName, phone, role, signup_source: signupSource || null },
-    },
+    options: { emailRedirectTo: redirectUrl, data },
   });
   return { error: error as Error | null };
 }
