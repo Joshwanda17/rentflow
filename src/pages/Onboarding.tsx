@@ -978,6 +978,7 @@ export default function FunderOnboarding() {
             </p>
           </div>
         </div>
+        </div>
       </div>
 
       {/* Success Modal — shown for 3s after account creation, then auto-redirects. */}
