@@ -35,6 +35,13 @@ interface PayoutCategory {
   platformCategory: string;
   allowedOps: Operation[];
   subCategories?: SubCategory[];
+  /**
+   * Wallet Routing v2: which recipient bucket this category is allowed to land in.
+   * - 'user'                → money belongs to the recipient (Withdrawable)
+   * - 'operational_wallet'  → company-controlled funds (Float)
+   * - 'either'              → CFO must choose (rare)
+   */
+  recipientLock: RecipientType | 'either';
 }
 
 const PAYOUT_CATEGORIES: PayoutCategory[] = [
@@ -47,6 +54,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'roi_wallet_credit',
     platformCategory: 'roi_expense',
     allowedOps: ['credit'],
+    recipientLock: 'user',
   },
   {
     id: 'rent_disbursement',
@@ -56,6 +64,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'rent_disbursement',
     platformCategory: 'rent_disbursement',
     allowedOps: ['credit'],
+    recipientLock: 'operational_wallet',
   },
   {
     id: 'business_advance',
@@ -65,6 +74,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'rent_disbursement',
     platformCategory: 'rent_disbursement',
     allowedOps: ['credit'],
+    recipientLock: 'operational_wallet',
   },
   {
     id: 'marketing_expenses',
@@ -74,6 +84,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'marketing_expense',
     platformCategory: 'marketing_expense',
     allowedOps: ['credit'],
+    recipientLock: 'operational_wallet',
     subCategories: [
       { id: 'marketing_materials', label: 'Marketing Materials' },
       { id: 'events_exhibition', label: 'Events & Exhibition' },
@@ -87,6 +98,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'agent_commission_earned',
     platformCategory: 'agent_commission_earned',
     allowedOps: ['credit'],
+    recipientLock: 'user',
   },
   {
     id: 'research_development',
@@ -96,6 +108,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'research_development_expense',
     platformCategory: 'research_development_expense',
     allowedOps: ['credit'],
+    recipientLock: 'operational_wallet',
     subCategories: [
       { id: 'software', label: 'Software' },
       { id: 'welile_dowry', label: 'Welile Dowry' },
@@ -109,6 +122,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'general_admin_expense',
     platformCategory: 'general_admin_expense',
     allowedOps: ['credit'],
+    recipientLock: 'operational_wallet',
     subCategories: [
       { id: 'salaries', label: 'Salaries' },
       { id: 'transport', label: 'Transport' },
@@ -129,6 +143,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'payroll_expense',
     platformCategory: 'payroll_expense',
     allowedOps: ['credit'],
+    recipientLock: 'user',
   },
   {
     id: 'tax_payment',
@@ -138,6 +153,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'tax_expense',
     platformCategory: 'tax_expense',
     allowedOps: ['credit'],
+    recipientLock: 'operational_wallet',
   },
   {
     id: 'interest_payment',
@@ -147,6 +163,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'interest_expense',
     platformCategory: 'interest_expense',
     allowedOps: ['credit'],
+    recipientLock: 'operational_wallet',
   },
   {
     id: 'equipment_purchase',
@@ -156,6 +173,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'equipment_expense',
     platformCategory: 'equipment_expense',
     allowedOps: ['credit'],
+    recipientLock: 'operational_wallet',
   },
   {
     id: 'correction_credit',
@@ -165,6 +183,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'system_balance_correction',
     platformCategory: 'system_balance_correction',
     allowedOps: ['credit'],
+    recipientLock: 'user',
   },
   {
     id: 'wallet_transfer_out',
@@ -174,6 +193,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'wallet_transfer',
     platformCategory: 'wallet_transfer',
     allowedOps: ['credit'],
+    recipientLock: 'either',
   },
 
   // ── DEBIT (Wallet → Platform) ──
@@ -185,6 +205,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'wallet_deduction',
     platformCategory: 'access_fee_collected',
     allowedOps: ['debit'],
+    recipientLock: 'either',
   },
   {
     id: 'penalty',
@@ -194,6 +215,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'wallet_deduction',
     platformCategory: 'wallet_deduction',
     allowedOps: ['debit'],
+    recipientLock: 'either',
   },
   {
     id: 'correction_debit',
@@ -203,6 +225,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'system_balance_correction',
     platformCategory: 'system_balance_correction',
     allowedOps: ['debit'],
+    recipientLock: 'user',
   },
   {
     id: 'overpayment_recovery',
@@ -212,6 +235,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'wallet_deduction',
     platformCategory: 'wallet_deduction',
     allowedOps: ['debit'],
+    recipientLock: 'either',
   },
   {
     id: 'wallet_retraction',
@@ -221,6 +245,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'wallet_deduction',
     platformCategory: 'wallet_deduction',
     allowedOps: ['debit'],
+    recipientLock: 'either',
   },
 ];
 
