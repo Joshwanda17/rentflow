@@ -75,6 +75,7 @@ export function RecordAgentCollectionDialog({ open, onOpenChange, onSuccess }: R
     emitVouchUpdated({
       agentId: profile.id,
       collectionId: res.collection_id,
+      aiId: generateWelileAiId(profile.id),
     });
     onSuccess?.();
   };
