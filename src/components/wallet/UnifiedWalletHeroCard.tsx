@@ -157,7 +157,7 @@ export function UnifiedWalletHeroCard({
             className="w-full text-left active:scale-[0.98] transition-transform"
           >
             <p className="text-[10px] uppercase tracking-[0.15em] font-semibold text-primary-foreground/50 mb-2">
-              Available Balance
+              Withdrawable Balance
             </p>
             <p className="text-[clamp(1.6rem,6vw,2.5rem)] font-black tracking-tight leading-none text-primary-foreground">
               {formatAmount(headlineBalance)}
