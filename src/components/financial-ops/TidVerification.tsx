@@ -944,6 +944,7 @@ export function TidVerification() {
             deposit_purpose: d.deposit_purpose ?? null,
             allocations: decoded?.allocations ?? null,
             matchedVia: tidIds.has(d.id) ? 'tid' : 'notes',
+            purpose_audit: (d as any).purpose_audit ?? null,
           };
         });
 
