@@ -14878,6 +14878,15 @@ export type Database = {
         Args: { p_landlord_id: string }
         Returns: undefined
       }
+      ops_bulk_apply_capabilities: {
+        Args: {
+          _action: string
+          _agent_ids: string[]
+          _capabilities: string[]
+          _reason: string
+        }
+        Returns: Json
+      }
       ops_bulk_set_agent_capability: {
         Args: {
           _action: string
@@ -14885,6 +14894,24 @@ export type Database = {
           _capability: string
           _reason: string
         }
+        Returns: Json
+      }
+      ops_resolve_agent_segment: {
+        Args: {
+          _district?: string
+          _frozen?: boolean
+          _has_capability?: string
+          _inactive_days?: number
+          _limit_preview?: number
+          _missing_capability?: string
+          _region?: string
+          _territory?: string
+          _tier?: Database["public"]["Enums"]["agent_tier"]
+        }
+        Returns: Json
+      }
+      ops_resolve_agents_by_identifier: {
+        Args: { _items: string[] }
         Returns: Json
       }
       ops_set_agent_capability: {
