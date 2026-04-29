@@ -13550,6 +13550,7 @@ export type Database = {
           phone: string
         }[]
       }
+      get_agent_float_balance: { Args: { p_agent_id: string }; Returns: number }
       get_agent_mission_stats: { Args: { p_agent_id?: string }; Returns: Json }
       get_agent_network_summary: { Args: { p_agent_id: string }; Returns: Json }
       get_agent_ops_balances: {
