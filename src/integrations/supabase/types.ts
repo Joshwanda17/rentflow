@@ -12953,6 +12953,21 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_strict_drift_view: {
+        Row: {
+          cached_advance: number | null
+          cached_float: number | null
+          cached_overstatement: number | null
+          cached_withdrawable: number | null
+          full_name: string | null
+          pending_holds: number | null
+          phone: string | null
+          strict_withdrawable: number | null
+          user_id: string | null
+          wallet_ledger_net: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       _test_proxy_capability_sync: {
