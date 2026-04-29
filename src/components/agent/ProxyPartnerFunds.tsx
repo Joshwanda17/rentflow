@@ -77,6 +77,14 @@ interface LastTerminal {
   at: string; // ISO date
 }
 
+interface Dismissal {
+  partner_id: string;
+  portfolio_id: string | null;
+  snapshot_amount: number;
+  dismissed_at: string;
+  reason: string | null;
+}
+
 export function ProxyPartnerFunds() {
   const { user } = useAuth();
   const { wallet } = useWallet();
@@ -98,6 +106,16 @@ export function ProxyPartnerFunds() {
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<{ key: string; withdrawalId: string; partnerName: string; partnerId: string } | null>(null);
   const [cancelReason, setCancelReason] = useState('');
+  // Dismissal state
+  const [dismissals, setDismissals] = useState<Dismissal[]>([]);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+  const [clearTargets, setClearTargets] = useState<Array<{ partnerId: string; portfolioId: string | null; amount: number; partnerName: string }>>([]);
+  const [clearReason, setClearReason] = useState('');
+  const [clearing, setClearing] = useState(false);
+  const [hiddenSheetOpen, setHiddenSheetOpen] = useState(false);
+  const [restoringKey, setRestoringKey] = useState<string | null>(null);
   useEffect(() => {
     if (!user?.id) return;
     loadProxyFunds();
