@@ -14,7 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { CheckCircle2, XCircle, Clock, MapPin, User, UserCheck, Home, Banknote, ArrowRight, Loader2, Search, MessageCircle, Phone, Pencil, Check, X, PhoneCall, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, MapPin, User, UserCheck, Home, Banknote, ArrowRight, Loader2, Search, MessageCircle, Phone, Pencil, Check, X, PhoneCall, ShieldCheck, AlertCircle } from 'lucide-react';
 import { calculateRentRepayment } from '@/lib/rentCalculations';
 import { toast as sonnerToast } from 'sonner';
 import { format } from 'date-fns';
@@ -281,13 +281,18 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
   const handleQuickApprove = async (req: any, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!user || quickProcessingId) return;
-    // CFO stage needs payout ref, Tenant Ops may need agent — use dialog
-    if (config.showPayoutFields || config.showAgentSelector) {
+    const isOutstanding = req.registration_type === 'outstanding_balance';
+    // CFO stage needs payout ref, Tenant Ops may need agent — use dialog.
+    // Outstanding-balance requests skip the agent-assignment requirement
+    // (the original requesting agent is the verifier).
+    if (config.showPayoutFields || (config.showAgentSelector && !isOutstanding)) {
       setSelectedRequest(req);
       return;
     }
-    // For Landlord Ops stage — enforce checklist
-    if (stage === 'agent_verified') {
+    // For Landlord Ops stage — enforce checklist.
+    // Outstanding-balance rows never reach this stage (trigger short-circuits
+    // them straight to completed), but guard anyway.
+    if (stage === 'agent_verified' && !isOutstanding) {
       if (!landlordCalled || !landlordAcknowledged) {
         toast({ title: 'Complete the landlord verification checklist first', variant: 'destructive' });
         return;
@@ -302,7 +307,7 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
         updated_at: new Date().toISOString(),
       };
 
-      if (stage === 'agent_verified') {
+      if (stage === 'agent_verified' && !isOutstanding) {
         updateData.landlord_called = true;
         updateData.landlord_acknowledged = true;
         updateData.landlord_verification_method = landlordVerificationMethod || 'phone_call';
@@ -322,7 +327,10 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
         .eq('id', req.id);
       if (error) throw error;
 
-      toast({ title: '✅ Approved', description: `${req.tenant_name} → ${config.nextStatus.replace(/_/g, ' ')}` });
+      const finalStatus = isOutstanding && stage === 'tenant_ops_approved'
+        ? 'completed (outstanding balance recorded)'
+        : config.nextStatus.replace(/_/g, ' ');
+      toast({ title: '✅ Approved', description: `${req.tenant_name} → ${finalStatus}` });
       queryClient.invalidateQueries({ queryKey: ['rent-pipeline'] });
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
@@ -336,7 +344,7 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
     queryFn: async () => {
       const { data } = await supabase
         .from('rent_requests')
-        .select('id, tenant_id, agent_id, landlord_id, lc1_id, rent_amount, duration_days, access_fee, request_fee, total_repayment, daily_repayment, status, created_at, house_category, request_city, request_latitude, request_longitude, assigned_agent_id, payout_method, payout_transaction_reference, approval_comment')
+        .select('id, tenant_id, agent_id, landlord_id, lc1_id, rent_amount, duration_days, access_fee, request_fee, total_repayment, daily_repayment, status, created_at, house_category, request_city, request_latitude, request_longitude, assigned_agent_id, payout_method, payout_transaction_reference, approval_comment, registration_type, initial_outstanding_balance')
         .eq('status', stage)
         .order('created_at', { ascending: true })
         .limit(100);
