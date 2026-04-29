@@ -441,13 +441,13 @@ export default function WithdrawFlow({
                   )}
                 </div>
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">💰 Withdrawable</span>
-                  <span className="font-medium text-foreground">{formatCurrency(availableBalance, 'UGX')}</span>
+                  <span className="text-muted-foreground">💰 Ledger-backed withdrawable</span>
+                  <span className="font-medium text-foreground">{formatCurrency(trueAvailable, 'UGX')}</span>
                 </div>
                 {advanceBalance > 0 && (
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">📋 Advance (also withdrawable)</span>
-                    <span className="font-medium text-emerald-600">{formatCurrency(advanceBalance, 'UGX')}</span>
+                    <span className="text-muted-foreground">📋 Advance (liability — not withdrawable)</span>
+                    <span className="font-medium text-destructive">{formatCurrency(advanceBalance, 'UGX')}</span>
                   </div>
                 )}
                 {floatBalance > 0 && (
@@ -457,9 +457,7 @@ export default function WithdrawFlow({
                   </div>
                 )}
                 <p className="text-[10px] text-muted-foreground leading-relaxed pt-1 border-t border-border/40">
-                  <span className="font-semibold text-foreground">Withdrawable</span> and <span className="font-semibold text-foreground">Advance</span> are both yours to withdraw.
-                  <span className="font-semibold text-foreground"> Operational Float </span>
-                  is company money reserved for agent/partner operations and cannot be withdrawn.
+                  Only <span className="font-semibold text-foreground">Ledger-backed withdrawable</span> can be paid out. <span className="font-semibold text-foreground">Advance</span> is money you owe Welile, and <span className="font-semibold text-foreground">Operational Float</span> is company money reserved for agent/partner operations — neither can be withdrawn.
                 </p>
               </div>
             )}

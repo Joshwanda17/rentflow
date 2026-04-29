@@ -357,7 +357,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* Wallet Hero Card — always visible */}
         {wallet ? (
           <UnifiedWalletHeroCard
-          balance={walletFloatBalance + commissionBalance + (otherBalance ?? 0)}
+          balance={walletFloatBalance + realWithdrawableBalance}
           role="agent"
           floatBalance={walletFloatBalance}
           commissionBalance={commissionBalance}

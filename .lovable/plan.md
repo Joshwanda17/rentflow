@@ -1,88 +1,171 @@
-## Goal
+Investigation result
 
-Stop phantom withdrawable balances **today** without retroactively gifting users money they already spent or withdrew before the ledger became the source of truth.
+The 9,900 shown on the agent wallet card is not coming from `wallets.withdrawable_balance` for the user in the screenshot. I found the matching user:
 
-The all-time `general_ledger` net is unreliable for historical wallets — many old withdrawals/payouts were never journaled as `cash_out` rows. Forcing `wallet = ledger_net` would credit users with money they already received off-ledger.
+- User: JOSHUA WANDA
+- Cached wallet withdrawable: UGX 0
+- `get_user_available_balance`: UGX 0
+- Agent commission ledger net: UGX 9,900
+- All wallet ledger net: UGX 502,000
 
-The fix is a **baseline anchor**: from this moment forward, drift is measured as *change in wallet* vs *change in ledger* since the baseline — never against all-time history.
+So the issue is a frontend display bug: the Agent Wallet hero card labels `commissionBalance` as “Withdrawable” instead of using the actual `withdrawableBalance` returned by the RPC/gate.
 
-## What gets built
+I also found the broader problem you suspected:
 
-### 1. Baseline snapshot table
+- 18 agent accounts show commission figures above true withdrawable.
+- Total overstatement from this commission display path is about UGX 2,091,627.
+- 17 wallets have cached withdrawable above a strict ledger-backed value.
+- The current baseline-anchored RPC still allows some old cached amounts to remain withdrawable, especially when the ledger is zero or negative. This conflicts with your new rule: if it does not exist in the ledger, it must not be withdrawable.
 
-`wallet_ledger_baseline` — one row per wallet, captured once:
+Permanent fix plan
 
-- `user_id`, `withdrawable_at_baseline`, `float_at_baseline`, `advance_at_baseline`
-- `ledger_net_at_baseline` (all-time net at the moment of snapshot)
-- `baseline_at` timestamp, `baseline_reason`
+1. Make the backend RPC strict again
 
-From here on, "true balance" = `baseline_wallet + (ledger_net_now − ledger_net_at_baseline)`.
+Update `get_user_available_balance(p_user_id uuid)` so withdrawable is:
 
-### 2. One-time clamp pass (overstated wallets only)
-
-For each wallet where `withdrawable + float − advance > max(0, ledger_net_all_time)` AND ledger_net is non-negative:
-
-- Reduce `withdrawable_balance` down to `min(current_withdrawable, max(0, ledger_net))` via `apply_wallet_movement` with a `system_balance_correction` cash_out leg, paired with an `interest_expense`/`admin_correction` platform leg (balanced).
-- Tag the correcting ledger row `classification = 'admin_correction'` and metadata `reason = 'phantom_clamp_2026_04_29'`.
-- Never touch `float_balance` or `advance_balance` in this pass.
-- Never clamp using a negative ledger net (those are accounting bugs, handled separately).
-
-### 3. Freeze pass (understated wallets)
-
-For wallets where ledger_net > current bucket sum: **do nothing automatic**. Insert a row into `wallet_ledger_review_queue` with the gap, current buckets, ledger_net, and recipient_type histogram of the user's ledger rows. CFO reviews case-by-case in a new dashboard tab.
-
-### 4. Negative-ledger-net quarantine
-
-Wallets whose all-time ledger net is negative (e.g. user b4d7c324 at −50M) indicate unbalanced legs / posting bugs, not real debts. Insert into `wallet_ledger_review_queue` with reason `negative_ledger_net` and **do not** alter the wallet.
-
-### 5. Forward-looking "true available" helper
-
-Update `get_user_available_balance` and `computeLedgerAvailable.ts` to use the **baseline-anchored** formula:
-
-```
-available = max(0, min(
-  withdrawable_balance,
-  baseline_withdrawable + (ledger_net_now − ledger_net_at_baseline)
-) − pending_holds)
+```text
+available = max(
+  0,
+  min(wallets.withdrawable_balance, max(0, wallet_ledger_net)) - pending_withdrawal_holds
+)
 ```
 
-If no baseline row exists yet (new user), fall back to today's wallet cache (which is also the implicit baseline at first deposit).
+Where `wallet_ledger_net` is calculated only from production wallet ledger rows:
 
-### 6. CFO Reconcile dashboard additions
+```text
+cash_in  = positive
+cash_out = negative
+```
 
-A new "Wallet Review Queue" panel showing:
+This means:
 
-- Phantom clamp results (amount removed per user, total)
-- Understated cases awaiting decision (Approve credit / Mark as legitimate prior payout / Investigate)
-- Negative-ledger-net cases
+- Negative ledger net => withdrawable UGX 0.
+- No ledger backing => withdrawable UGX 0.
+- Cached wallet bucket can only reduce what is shown, never increase it.
+- Pending withdrawals are deducted from the amount shown and from withdrawal gating.
 
-Approve actions post a properly-tagged `admin_correction` ledger transaction through `apply_wallet_movement`.
+2. Keep baseline snapshot for audit, but remove it from spendable math
 
-## Files & migrations
+The previous baseline table is still useful as an audit marker for historical drift, but it should not make cached historical balances withdrawable. I will leave the baseline/review artifacts in place for CFO review, but `get_user_available_balance` will stop using `baseline_withdrawable + delta` as the spendable cap.
 
-- **Migration**: create `wallet_ledger_baseline`, `wallet_ledger_review_queue` tables + RLS (CFO/COO/manager only).
-- **Migration**: function `snapshot_wallet_ledger_baseline()` — populates baseline for all wallets in one go.
-- **Migration**: function `run_phantom_clamp_pass(p_dry_run boolean)` — returns preview or executes; uses `apply_wallet_movement` only.
-- **Migration**: rewrite `get_user_available_balance` to use baseline-anchored formula.
-- **Edit**: `src/lib/computeLedgerAvailable.ts` to call the new RPC instead of computing inline.
-- **New**: `src/components/admin/WalletReviewQueuePanel.tsx` mounted in CFO Reconcile tab.
-- **New edge function**: `cfo-resolve-wallet-review` to action review-queue rows safely.
+3. Fix the Agent Wallet hero card
 
-## Execution order (after approval)
+Change `UnifiedWalletHeroCard` so the tile labeled “Withdrawable” displays `withdrawableBalance`, not `commissionBalance`.
 
-1. Migration: tables + baseline snapshot function. Run it (snapshots all wallets at current state).
-2. Migration: clamp function. Run dry-run first, show CFO the preview, then execute.
-3. Populate review queue for understated + negative-net cases.
-4. Update RPC + frontend helper to baseline-anchored math.
-5. Ship CFO Reconcile UI panel.
+Current incorrect path:
 
-## What this explicitly does NOT do
+```text
+Withdrawable tile -> commissionBalance -> shows UGX 9,900
+```
 
-- Does not credit any wallet upward automatically.
-- Does not touch the ledger history (no edits, only new `admin_correction` rows).
-- Does not bypass `apply_wallet_movement` — every wallet mutation goes through the sole writer.
-- Does not assume the all-time ledger is correct; it just freezes today as the new reference point.
+Correct path:
 
-## Memory updates after build
+```text
+Withdrawable tile -> withdrawableBalance -> shows UGX 0 for Joshua
+```
 
-Add a new core memory: **WALLET BASELINE ANCHOR** — `wallet_ledger_baseline` is the start-of-truth for each wallet; "available" math is `baseline + Δledger_since_baseline`, never raw all-time ledger net.
+4. Fix agent total balance display
+
+On the Agent Dashboard, change the wallet hero `balance` prop from:
+
+```text
+floatBalance + commissionBalance + otherBalance
+```
+
+to:
+
+```text
+floatBalance + withdrawableBalance
+```
+
+This prevents old commission ledger categories from inflating the prominent total balance when those funds are not currently withdrawable.
+
+5. Fix wallet sheet display consistency
+
+In `FullScreenWalletSheet`, ensure the prominent total card and agent breakdown use the same ledger-backed values:
+
+```text
+total visible balance = floatBalance + withdrawableBalance
+withdrawable line = withdrawableBalance
+```
+
+Not stale `wallet.balance` or commission-only calculations.
+
+6. Fix `useAgentBalances`
+
+Update `useAgentBalances` so:
+
+- `withdrawableBalance` is always the RPC result, clamped at zero.
+- It does not fall back to cached wallet withdrawable if the RPC succeeds.
+- `commissionBalance` remains available as an earnings/history metric, but it is no longer used as spendable money.
+- `otherBalance` is calculated only as a diagnostic and not added to prominent spendable totals.
+
+7. Fix withdrawal flow wording
+
+The withdrawal modal already gates against `computeLedgerAvailable`, but its bucket breakdown still labels cached `availableBalance` in a way that can confuse users. I will update that text so the modal says:
+
+```text
+Ledger-backed withdrawable: UGX X
+Operational float: locked
+Advance: liability, not withdrawable
+```
+
+This matches the business rule in memory: advance is a liability and float is company money.
+
+8. Fix approval edge function to use the same RPC
+
+The `approve-withdrawal` backend function still computes a raw all-time ledger net inline and calls `reconcile_wallet_from_ledger`, which is risky with the new wallet governance rules. I will change it to use `get_user_available_balance` for the funding user before approval.
+
+That makes the UI, withdrawal submission, and Financial Ops approval all use one source of truth.
+
+9. Add a strict drift inspection query/function
+
+Add a read-only diagnostic function/view for finance staff to see accounts where:
+
+```text
+wallets.withdrawable_balance > strict ledger-backed withdrawable
+```
+
+This gives CFO/Finance Ops a clean list of accounts whose cached wallet buckets should not be trusted.
+
+10. Update project memory
+
+Update the wallet baseline memory to reflect the revised rule:
+
+- Baseline remains for audit/review only.
+- Spendable/withdrawable must be strict ledger-backed.
+- Never use commission net, cached wallet balance, or baseline snapshot as withdrawable unless backed by wallet ledger net.
+
+Files/functions to change
+
+- Database migration:
+  - Replace `public.get_user_available_balance(p_user_id uuid)` with strict ledger-backed formula.
+  - Add optional finance diagnostic view/RPC for strict drift cases.
+- `src/hooks/useAgentBalances.ts`
+- `src/components/wallet/UnifiedWalletHeroCard.tsx`
+- `src/components/dashboards/AgentDashboard.tsx`
+- `src/components/wallet/FullScreenWalletSheet.tsx`
+- `src/components/payments/WithdrawFlow.tsx`
+- `supabase/functions/approve-withdrawal/index.ts`
+- `src/lib/computeLedgerAvailable.ts` comments/fallback alignment
+- `mem/architecture/wallet-baseline-anchor.md` and `mem/index.md`
+
+Expected result after implementation
+
+For the screenshot case:
+
+```text
+Agent card withdrawable: UGX 0
+Withdraw modal available: UGX 0
+Withdrawal approval gate: UGX 0
+```
+
+For all users:
+
+```text
+Displayed withdrawable <= ledger-backed wallet net
+Displayed withdrawable <= cached withdrawable bucket
+Pending withdrawals reduce displayed withdrawable
+Float remains visible but locked
+Commission can be shown as earnings/history, not as withdrawable money
+```
