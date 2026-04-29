@@ -568,6 +568,203 @@ function CsvForm({ onResolved }: { onResolved: (r: ResolvedSet) => void }) {
 export default AgentBulkOpsConsole;
 
 /* =====================================================================
+ * AgentSnapshotPanel — pre-submit side panel showing the selected agent's
+ * current capabilities, status, and last-update timestamp so the manager
+ * can sanity-check the impact before queuing the change.
+ * ===================================================================*/
+function AgentSnapshotPanel({
+  agentId, fallbackName, fallbackPhone, pendingCaps, pendingAction,
+}: {
+  agentId: string;
+  fallbackName: string | null;
+  fallbackPhone: string | null;
+  pendingCaps: string[];
+  pendingAction: 'enable' | 'disable';
+}) {
+  const { data, isLoading, refetch, dataUpdatedAt } = useQuery({
+    queryKey: ['agent-snapshot', agentId],
+    queryFn: async () => {
+      const [capsRes, profileRes] = await Promise.all([
+        supabase
+          .from('agent_capabilities')
+          .select('capability,status,granted_at,revoked_at,updated_at,granted_by,revoked_by')
+          .eq('agent_id', agentId)
+          .order('updated_at', { ascending: false }),
+        supabase
+          .from('profiles')
+          .select('full_name,phone,role,is_frozen,last_active_at,updated_at')
+          .eq('user_id', agentId)
+          .maybeSingle(),
+      ]);
+      if (capsRes.error) throw capsRes.error;
+      return {
+        caps: capsRes.data ?? [],
+        profile: profileRes.data ?? null,
+      };
+    },
+    staleTime: 15_000,
+  });
+
+  const activeByKey = useMemo(() => {
+    const map = new Map<string, { status: string; updated_at: string }>();
+    for (const c of data?.caps ?? []) {
+      const cur = map.get(c.capability);
+      if (!cur || new Date(c.updated_at) > new Date(cur.updated_at)) {
+        map.set(c.capability, { status: c.status, updated_at: c.updated_at });
+      }
+    }
+    return map;
+  }, [data]);
+
+  const lastUpdated = useMemo(() => {
+    const ts = (data?.caps ?? []).map(c => new Date(c.updated_at).getTime());
+    if (ts.length === 0) return null;
+    return new Date(Math.max(...ts));
+  }, [data]);
+
+  const profile = data?.profile;
+  const displayName = profile?.full_name ?? fallbackName ?? agentId.slice(0, 8);
+  const displayPhone = profile?.phone ?? fallbackPhone ?? '—';
+  const isFrozen = !!profile?.is_frozen;
+
+  // Diff: which pending changes are no-ops vs real changes?
+  const diff = useMemo(() => {
+    const noop: string[] = [];
+    const change: string[] = [];
+    const newGrants: string[] = [];
+    for (const cap of pendingCaps) {
+      const cur = activeByKey.get(cap);
+      const isCurrentlyEnabled = cur?.status === 'active' || cur?.status === 'granted';
+      const willBeEnabled = pendingAction === 'enable';
+      if (isCurrentlyEnabled === willBeEnabled) noop.push(cap);
+      else if (!cur && pendingAction === 'enable') newGrants.push(cap);
+      else change.push(cap);
+    }
+    return { noop, change, newGrants };
+  }, [pendingCaps, activeByKey, pendingAction]);
+
+  return (
+    <Card className="p-3 border-primary/30">
+      <div className="flex items-start gap-2">
+        <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+          <User className="h-4 w-4 text-primary" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold truncate">{displayName}</p>
+          <p className="text-[10px] text-muted-foreground font-mono truncate">{displayPhone}</p>
+          <p className="text-[10px] text-muted-foreground font-mono truncate">{agentId}</p>
+        </div>
+        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => refetch()} title="Refresh">
+          <RefreshCw className="h-3 w-3" />
+        </Button>
+      </div>
+
+      {/* Status row */}
+      <div className="flex flex-wrap gap-1 mt-2">
+        {profile?.role && (
+          <Badge variant="outline" className="text-[9px] capitalize">{String(profile.role).replace(/_/g, ' ')}</Badge>
+        )}
+        <Badge variant={isFrozen ? 'destructive' : 'secondary'} className="text-[9px]">
+          {isFrozen ? 'Frozen' : 'Active'}
+        </Badge>
+        {profile?.last_active_at && (
+          <Badge variant="outline" className="text-[9px]" title={profile.last_active_at}>
+            seen {new Date(profile.last_active_at).toLocaleDateString()}
+          </Badge>
+        )}
+      </div>
+
+      {/* Pending diff summary */}
+      {pendingCaps.length > 0 && (
+        <div className="mt-3 p-2 rounded border border-primary/30 bg-primary/5">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-primary mb-1">
+            Pending: {pendingAction === 'enable' ? 'enable' : 'disable'} {pendingCaps.length}
+          </p>
+          <div className="text-[10px] space-y-0.5">
+            {diff.change.length > 0 && (
+              <p className="text-amber-700">
+                <strong>{diff.change.length}</strong> will change
+              </p>
+            )}
+            {diff.newGrants.length > 0 && (
+              <p className="text-emerald-700">
+                <strong>{diff.newGrants.length}</strong> new grant{diff.newGrants.length === 1 ? '' : 's'}
+              </p>
+            )}
+            {diff.noop.length > 0 && (
+              <p className="text-muted-foreground">
+                <strong>{diff.noop.length}</strong> already in target state (no-op)
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Current capabilities list */}
+      <div className="mt-3">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+          Current functions ({activeByKey.size})
+        </p>
+        {isLoading ? (
+          <div className="flex items-center gap-2 text-[10px] text-muted-foreground py-2">
+            <Loader2 className="h-3 w-3 animate-spin" /> Loading…
+          </div>
+        ) : activeByKey.size === 0 ? (
+          <p className="text-[10px] text-muted-foreground py-2">No capabilities recorded.</p>
+        ) : (
+          <div className="max-h-72 overflow-y-auto space-y-0.5">
+            {ALL_CAPABILITIES.map(c => {
+              const cur = activeByKey.get(c.key);
+              const enabled = cur?.status === 'active' || cur?.status === 'granted';
+              const willBeTouched = pendingCaps.includes(c.key);
+              return (
+                <div
+                  key={c.key}
+                  className={`flex items-center gap-2 text-[10px] py-1 px-1.5 rounded ${
+                    willBeTouched ? 'bg-primary/10 ring-1 ring-primary/30' : ''
+                  }`}
+                >
+                  <span className={`h-2 w-2 rounded-full shrink-0 ${
+                    enabled ? 'bg-emerald-500' : cur ? 'bg-muted-foreground/40' : 'bg-muted-foreground/20'
+                  }`} />
+                  <span className="truncate flex-1" title={c.key}>{c.label}</span>
+                  {cur && (
+                    <span
+                      className="text-muted-foreground tabular-nums shrink-0"
+                      title={`Last updated ${new Date(cur.updated_at).toLocaleString()}`}
+                    >
+                      {new Date(cur.updated_at).toLocaleDateString()}
+                    </span>
+                  )}
+                  {willBeTouched && (
+                    <Badge
+                      variant={pendingAction === 'enable' ? 'default' : 'destructive'}
+                      className="text-[8px] py-0 px-1 shrink-0"
+                    >
+                      {pendingAction === 'enable' ? '+EN' : '−DIS'}
+                    </Badge>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Footer: last-updated overall */}
+      <div className="mt-2 pt-2 border-t border-border flex items-center justify-between text-[10px] text-muted-foreground">
+        <span title={lastUpdated?.toISOString()}>
+          Last function update: {lastUpdated ? lastUpdated.toLocaleString() : '—'}
+        </span>
+        <span title={new Date(dataUpdatedAt).toISOString()}>
+          Snapshot {new Date(dataUpdatedAt).toLocaleTimeString()}
+        </span>
+      </div>
+    </Card>
+  );
+}
+
+/* =====================================================================
  * SingleAgentForm — find ONE agent by ID, phone, or email and stage them
  * as a 1-agent target. Lets a manager work on a specific agent inside the
  * same Bulk Ops flow (same audit, same job pipeline).
