@@ -88,7 +88,7 @@ export function TenantOpsDashboard() {
       // 1. Pull tenant payments from the ledger (source of truth)
       let ledgerQ = supabase
         .from('general_ledger')
-        .select('user_id, amount, source_id, source_table, transaction_date')
+        .select('user_id, amount, source_id, source_table, transaction_date, transaction_group_id')
         .in('category', ['tenant_repayment', 'rent_repayment'])
         .eq('direction', 'cash_in');
       if (fromIso) ledgerQ = ledgerQ.gte('transaction_date', fromIso);
@@ -101,7 +101,8 @@ export function TenantOpsDashboard() {
         return;
       }
 
-      // 2. Resolve responsible agent via agent_collections (source_table='agent_collections')
+      // 2a. Resolve responsible agent via agent_collections
+      //     (legacy manual-collect-rent path — kept for backward compat).
       const collectionIds = [...new Set(
         payments.filter(p => p.source_table === 'agent_collections' && p.source_id).map(p => p.source_id as string)
       )];
@@ -109,6 +110,45 @@ export function TenantOpsDashboard() {
         ? await supabase.from('agent_collections').select('id, agent_id, tenant_id').in('id', collectionIds)
         : { data: [] as any[] };
       const collectionMap = new Map((collections || []).map(c => [c.id, c]));
+
+      // 2b. Resolve responsible agent via the SAME transaction_group_id
+      //     (Float-Allocation path — covers virtually all production agent
+     //      collections today). Each tenant_repayment is part of a 4-leg
+     //      group: agent_float_used_for_rent (cash_out, user_id=AGENT) +
+     //      tenant_repayment (cash_in, user_id=TENANT) + 2 commission legs.
+     //      The agent identity lives on the float / commission legs, never
+     //      on the tenant leg. Looking it up via source_id alone — which is
+     //      what the previous version did — silently misses every Float-
+     //      Allocation payment, producing AGENT-COLLECTED = 0 (FIX-46).
+      const groupIds = [...new Set(
+        payments.map(p => (p as any).transaction_group_id).filter(Boolean) as string[]
+      )];
+      const { data: groupLegs } = groupIds.length
+        ? await supabase
+            .from('general_ledger')
+            .select('user_id, category, direction, transaction_group_id')
+            .in('transaction_group_id', groupIds)
+            .in('category', ['agent_float_used_for_rent', 'agent_commission_earned'])
+        : { data: [] as any[] };
+      const agentByGroup = new Map<string, string>();
+      // Pass 1 — preferred signal: the float being drawn down.
+      for (const leg of (groupLegs || []) as any[]) {
+        if (leg.category === 'agent_float_used_for_rent' && leg.direction === 'cash_out' && leg.user_id) {
+          agentByGroup.set(leg.transaction_group_id, leg.user_id);
+        }
+      }
+      // Pass 2 — fallback: the agent's commission credit (when float leg
+      // is absent for any reason).
+      for (const leg of (groupLegs || []) as any[]) {
+        if (
+          leg.category === 'agent_commission_earned'
+          && leg.direction === 'cash_in'
+          && leg.user_id
+          && !agentByGroup.has(leg.transaction_group_id)
+        ) {
+          agentByGroup.set(leg.transaction_group_id, leg.user_id);
+        }
+      }
 
       // 3. Tenant + agent profile lookups
       const tenantIds = [...new Set(payments.map(p => p.user_id).filter(Boolean) as string[])];
@@ -181,6 +221,7 @@ export function TenantOpsDashboard() {
       // Resolve agent profiles for collection-based, rent-request and referrer fallbacks
       const allAgentIds = [...new Set([
         ...((collections || []).map(c => c.agent_id).filter(Boolean) as string[]),
+        ...Array.from(agentByGroup.values()),
         ...Array.from(assignedAgentByTenant.values()),
         ...Array.from(referrerAgentByTenant.values()),
       ])];
@@ -200,18 +241,38 @@ export function TenantOpsDashboard() {
       for (const p of payments) {
         const tenantId = p.user_id as string | null;
         if (!tenantId) continue;
+        // Per-row attribution priority:
+        //   (1) Float-Allocation agent — same transaction_group_id has an
+        //       agent_float_used_for_rent / commission leg (the dominant
+        //       agent path in production).
+        //   (2) Legacy collection — source_id matches an agent_collections row.
+        //   Either of (1) or (2) flips the row into "agent-collected".
+        //   (3) Assigned agent on an active rent_request — display only.
+        //   (4) Onboarding agent (profiles.referrer_id) — display only.
+        const groupAgentId = (p as any).transaction_group_id
+          ? agentByGroup.get((p as any).transaction_group_id)
+          : undefined;
         const collection = p.source_id ? collectionMap.get(p.source_id) : null;
         const collectingAgentId = collection?.agent_id;
-        const isAgentCollection = !!collectingAgentId;
-        // Per-row attribution priority:
-        // 1. Actual collecting agent (agent_collections row)
-        // 2. Assigned agent on an active rent_request
-        // 3. Onboarding agent (profiles.referrer_id, role=agent)
+        const isAgentCollection = !!groupAgentId || !!collectingAgentId;
         const attributedAgentId =
-          collectingAgentId
+          groupAgentId
+          || collectingAgentId
           || assignedAgentByTenant.get(tenantId)
           || referrerAgentByTenant.get(tenantId);
-        const agentName = attributedAgentId ? (agentMap.get(attributedAgentId)?.full_name || '—') : '—';
+        let agentName = '—';
+        if (attributedAgentId) {
+          const profileName = agentMap.get(attributedAgentId)?.full_name;
+          if (profileName) {
+            agentName = profileName;
+            // Multi-role test/sandbox case: the same UUID acts as agent +
+            // tenant. Still counted as agent-collected (it really was), but
+            // tagged so reviewers don't think it's a bug.
+            if (attributedAgentId === tenantId) agentName = `${profileName} (self)`;
+          } else if (isAgentCollection) {
+            agentName = 'Agent (deleted)';
+          }
+        }
         const amt = Number(p.amount || 0);
 
         let row = byTenant.get(tenantId);
