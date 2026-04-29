@@ -493,20 +493,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     }
   };
 
-  /* ─── Core fetch logic: server-side paginated ─── */
-  const fetchDataCore = useCallback(async (fetchPage: number, searchTerm: string) => {
-    const { ids: supporterIds, totalCount: count } = await fetchPaginatedSupporterIds(fetchPage, PAGE_SIZE, searchTerm);
-    setTotalCount(count);
-
-    if (supporterIds.length === 0) {
-      setRows([]);
-      if (count === 0) {
-        setSummary({ totalPartners: 0, activePartners: 0, suspendedPartners: 0, totalFunded: 0, totalWalletBalance: 0, avgROI: 0, totalDeals: 0, topPartnerName: '—' });
-      }
-      return;
-    }
-
-    const ids = supporterIds;
+  /* ─── Build PartnerRow[] for an arbitrary set of supporter ids. ─── */
+  const buildRowsForIds = useCallback(async (ids: string[]): Promise<PartnerRow[]> => {
+    if (ids.length === 0) return [];
     const [profiles, wallets, portfolios] = await Promise.all([
       batchedQuery<any>(ids, (batch) => supabase.from('profiles').select('id, full_name, phone, email, created_at, frozen_at').in('id', batch)),
       batchedQuery<any>(ids, (batch) => supabase.from('wallets').select('user_id, balance').in('user_id', batch)),
@@ -561,7 +550,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       partnerAgg.set(ownerId, existing);
     });
 
-    const tableRows: PartnerRow[] = ids.map(id => {
+    return ids.map(id => {
       const agg = partnerAgg.get(id) || { funded: 0, deals: 0, roiPercentage: 15, payoutDay: 15, roiMode: 'monthly_payout', lastActivity: '', nextRoiDate: null, payoutDates: [] as string[] };
       const profile = profileMap.get(id);
       const isSuspended = !!profile?.frozen_at;
@@ -584,9 +573,24 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         payoutDates: agg.payoutDates,
       };
     });
-
-    setRows(tableRows);
   }, []);
+
+  /* ─── Core fetch logic: server-side paginated ─── */
+  const fetchDataCore = useCallback(async (fetchPage: number, searchTerm: string) => {
+    const { ids: supporterIds, totalCount: count } = await fetchPaginatedSupporterIds(fetchPage, PAGE_SIZE, searchTerm);
+    setTotalCount(count);
+
+    if (supporterIds.length === 0) {
+      setRows([]);
+      if (count === 0) {
+        setSummary({ totalPartners: 0, activePartners: 0, suspendedPartners: 0, totalFunded: 0, totalWalletBalance: 0, avgROI: 0, totalDeals: 0, topPartnerName: '—' });
+      }
+      return;
+    }
+
+    const tableRows = await buildRowsForIds(supporterIds);
+    setRows(tableRows);
+  }, [buildRowsForIds]);
 
   /* ─── Nearing payouts: loaded independently from ALL supporters ─── */
   const [nearingPayoutsLoading, setNearingPayoutsLoading] = useState(false); // eslint-disable-line -- top-level hook, after all other useState
