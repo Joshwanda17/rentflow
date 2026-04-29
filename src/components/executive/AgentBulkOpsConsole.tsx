@@ -63,6 +63,75 @@ export function AgentBulkOpsConsole({ onBack }: { onBack?: () => void }) {
   const [reason, setReason] = useState('');
   const [confirmCount, setConfirmCount] = useState('');
 
+  // Quick-action presets — appear after a single agent is selected so the
+  // manager doesn't re-pick the same combinations every time.
+  type Preset = {
+    key: string;
+    label: string;
+    caps: string[];
+    action: 'enable' | 'disable';
+    reason: string;
+    tone: 'destructive' | 'warning' | 'success' | 'neutral';
+    icon: typeof ShieldAlert;
+  };
+  const QUICK_PRESETS: Preset[] = [
+    {
+      key: 'freeze-all',
+      label: 'Freeze (disable all high-risk)',
+      caps: ['collect_rent','request_float','process_cash_out','act_as_proxy'],
+      action: 'disable',
+      reason: 'Single-agent freeze — disable all high-risk functions pending review',
+      tone: 'destructive',
+      icon: ShieldAlert,
+    },
+    {
+      key: 'restore-default',
+      label: 'Restore default agent set',
+      caps: ['view_agent_dashboard','collect_rent','onboard_tenants','onboard_landlords'],
+      action: 'enable',
+      reason: 'Single-agent restore — re-enable the standard agent function set',
+      tone: 'success',
+      icon: CheckCircle2,
+    },
+    {
+      key: 'block-cashout',
+      label: 'Block cash-out only',
+      caps: ['process_cash_out'],
+      action: 'disable',
+      reason: 'Single-agent — temporarily block cash-out pending verification',
+      tone: 'warning',
+      icon: AlertTriangle,
+    },
+    {
+      key: 'block-collection',
+      label: 'Block rent collection',
+      caps: ['collect_rent'],
+      action: 'disable',
+      reason: 'Single-agent — pause rent collection pending investigation',
+      tone: 'warning',
+      icon: AlertTriangle,
+    },
+    {
+      key: 'enable-supervisor',
+      label: 'Enable supervisor tools',
+      caps: ['manage_subagents','approve_subagents','view_subagent_data'],
+      action: 'enable',
+      reason: 'Single-agent — promote to supervisor with sub-agent management tools',
+      tone: 'neutral',
+      icon: Layers,
+    },
+  ];
+  const applyPreset = (p: Preset) => {
+    setSelectedCaps(new Set(p.caps));
+    setAction(p.action);
+    if (reason.trim().length < 10) setReason(p.reason);
+    toast.success(`Preset loaded: ${p.label}`);
+    // Scroll the reason/confirm card into view so the manager sees the CTA.
+    requestAnimationFrame(() => {
+      document.getElementById('bulk-ops-confirm-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  };
+
   const toggleCap = (k: string) => {
     setSelectedCaps(prev => {
       const n = new Set(prev);
