@@ -200,6 +200,9 @@ export function AgentBulkOpsConsole({ onBack }: { onBack?: () => void }) {
         </div>
       </div>
 
+      <div className="flex flex-col lg:flex-row gap-4 items-start">
+        <div className="flex-1 min-w-0 space-y-4 w-full">
+
       {/* Live + recent jobs */}
       <RecentJobsPanel highlightJobId={activeJobId} />
       <DeadLetterPanel />
