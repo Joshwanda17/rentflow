@@ -811,8 +811,11 @@ export function ProxyPartnerFunds() {
   };
 
   const visibleBalances = partnerBalances.filter((p) => {
-    if (filterMode === 'all') return true;
     const c = classify(p);
+    // Default All view hides in-flight cards — once Caro initiates a
+    // withdrawal the partner is treated as paid and the card disappears.
+    if (filterMode === 'all') return c.kind !== 'inflight';
+    if (filterMode === 'inflight') return c.kind === 'inflight';
     if (filterMode === 'reattempt') return c.kind === 'reattempt';
     if (filterMode === 'fresh') return c.kind === 'fresh';
     return true;
@@ -832,7 +835,17 @@ export function ProxyPartnerFunds() {
           className="h-7 text-xs gap-1"
           onClick={() => setFilterMode('all')}
         >
-          All ({partnerBalances.length})
+          All ({partnerBalances.length - inFlightCount})
+        </Button>
+        <Button
+          size="sm"
+          variant={filterMode === 'inflight' ? 'default' : 'outline'}
+          className="h-7 text-xs gap-1"
+          onClick={() => setFilterMode('inflight')}
+          disabled={inFlightCount === 0}
+        >
+          <Hourglass className="h-3 w-3" />
+          In flight ({inFlightCount})
         </Button>
         <Button
           size="sm"
