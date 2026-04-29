@@ -69,7 +69,7 @@ export function WalletDeductionPanel() {
       rows.map(async (r) => {
         try {
           const { data, error } = await supabase.rpc('get_user_available_balance', {
-            _user_id: r.id,
+            p_user_id: r.id,
           });
           if (error) throw error;
           const o = (data ?? {}) as Record<string, unknown>;
@@ -91,7 +91,7 @@ export function WalletDeductionPanel() {
     queryFn: async () => {
       if (!selectedUser) return null;
       const { data, error } = await supabase.rpc('get_user_available_balance', {
-        _user_id: selectedUser.id,
+        p_user_id: selectedUser.id,
       });
       if (error) throw error;
       const r = (data ?? {}) as Record<string, unknown>;

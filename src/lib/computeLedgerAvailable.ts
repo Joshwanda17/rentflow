@@ -1,12 +1,14 @@
 import { supabase } from '@/integrations/supabase/client';
 
 /**
- * Returns the user's TRUE withdrawable balance computed from the ledger,
- * independent of any cached `wallets.withdrawable_balance` snapshot and
- * independent of `get_user_available_balance` RPC (which has historically
- * been broken). Result is clamped to the wallet's withdrawable bucket so
- * float / advance can never fund a payout, and pending withdrawal requests
- * are subtracted so the same money can't be queued twice.
+ * Returns the user's TRUE withdrawable balance using the baseline-anchored
+ * `get_user_available_balance` RPC as the source of truth. The RPC computes:
+ *   available = max(0, min(withdrawable_cached,
+ *                          baseline_w + (ledger_net_now - ledger_net_at_baseline))
+ *                       - pending_holds)
+ * which prevents both phantom money (cap by withdrawable bucket) AND
+ * retroactive over-crediting from all-time ledger drift (cap by baseline + delta).
+ * We still surface the raw inputs for UI diagnostics.
  */
 export async function computeLedgerAvailable(userId: string): Promise<{
   available: number;
@@ -14,7 +16,8 @@ export async function computeLedgerAvailable(userId: string): Promise<{
   withdrawableCached: number;
   pendingHolds: number;
 }> {
-  const [walletRes, ledgerRes, pendingRes] = await Promise.all([
+  const [rpcRes, walletRes, ledgerRes, pendingRes] = await Promise.all([
+    supabase.rpc('get_user_available_balance', { p_user_id: userId }),
     supabase
       .from('wallets')
       .select('withdrawable_balance')
@@ -45,6 +48,11 @@ export async function computeLedgerAvailable(userId: string): Promise<{
     0,
   );
 
-  const available = Math.max(0, Math.min(withdrawableCached, ledgerNet) - pendingHolds);
+  // Baseline-anchored RPC is the source of truth. Fall back to the
+  // conservative min(cache, ledger) only if the RPC is unavailable.
+  const rpcVal = Number((rpcRes as any)?.data ?? NaN);
+  const available = Number.isFinite(rpcVal)
+    ? rpcVal
+    : Math.max(0, Math.min(withdrawableCached, ledgerNet) - pendingHolds);
   return { available, ledgerNet, withdrawableCached, pendingHolds };
 }
