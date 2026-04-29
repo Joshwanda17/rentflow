@@ -340,6 +340,26 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
 
   // Re-apply default when dialog re-opens
   useEffect(() => {
+    // Reset agent personal-money confirmation every time the dialog opens.
+    if (open) {
+      setAgentPersonalConfirmedAt(null);
+      setPendingPersonalChoice(false);
+    }
+    // ── Agent default → Operational Float ──
+    // For users with the agent role who didn't get a parent-pinned purpose
+    // and aren't being forced through the explicit gate, pre-select
+    // Operational Float and skip straight to the channel step. Agents can
+    // still switch to Personal Deposit on the form, but only via the
+    // explicit confirmation gate (handled below in the in-form grid).
+    if (open && isAgent && !defaultPurpose && !requirePurposeChoice) {
+      setDepositPurpose('operational_float');
+      setReason('Operational Float');
+      setShowPurposeGrid(true);
+      setPurposeChosenAt(new Date().toISOString());
+      setPurposeEntryPoint('default');
+      setStep('channel');
+      return;
+    }
     if (open && mustChoosePurpose) {
       // Force a fresh choice every time the dialog opens
       setStep('purpose');
@@ -358,7 +378,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       setPurposeChosenAt(new Date().toISOString());
       setPurposeEntryPoint('default');
     }
-  }, [open, defaultPurpose, lockPurpose, mustChoosePurpose]);
+  }, [open, defaultPurpose, lockPurpose, mustChoosePurpose, isAgent, requirePurposeChoice]);
 
   /**
    * Handoff hydration from the dashboard "Collect from receipt/reference"
