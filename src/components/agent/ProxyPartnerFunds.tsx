@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Users, ArrowUpRight, Clock, CheckCircle2, XCircle, AlertCircle, Info, Hourglass, Download } from 'lucide-react';
+import { Loader2, Users, ArrowUpRight, Clock, CheckCircle2, XCircle, AlertCircle, Info, Hourglass, Download, X, CheckSquare, Eye, RotateCcw, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useWallet } from '@/hooks/useWallet';
@@ -16,6 +16,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
 interface PartnerBalance {
   partnerId: string;
@@ -75,6 +77,14 @@ interface LastTerminal {
   at: string; // ISO date
 }
 
+interface Dismissal {
+  partner_id: string;
+  portfolio_id: string | null;
+  snapshot_amount: number;
+  dismissed_at: string;
+  reason: string | null;
+}
+
 export function ProxyPartnerFunds() {
   const { user } = useAuth();
   const { wallet } = useWallet();
@@ -96,6 +106,16 @@ export function ProxyPartnerFunds() {
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<{ key: string; withdrawalId: string; partnerName: string; partnerId: string } | null>(null);
   const [cancelReason, setCancelReason] = useState('');
+  // Dismissal state
+  const [dismissals, setDismissals] = useState<Dismissal[]>([]);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+  const [clearTargets, setClearTargets] = useState<Array<{ partnerId: string; portfolioId: string | null; amount: number; partnerName: string }>>([]);
+  const [clearReason, setClearReason] = useState('');
+  const [clearing, setClearing] = useState(false);
+  const [hiddenSheetOpen, setHiddenSheetOpen] = useState(false);
+  const [restoringKey, setRestoringKey] = useState<string | null>(null);
   useEffect(() => {
     if (!user?.id) return;
     loadProxyFunds();
@@ -249,10 +269,9 @@ export function ProxyPartnerFunds() {
           .select('linked_party, status, rejection_reason, updated_at, created_at')
           .eq('user_id', user.id)
           .in('status', [...TERMINAL_UNPAID_STATUSES])
-          // Defense-in-depth: only consider terminal events from the last 30 days
-          // so really old rejections never resurface even if a later success was
-          // recorded against the same partner with a missing timestamp.
-          .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+          // Defense-in-depth: only consider terminal events from the last 7 days
+          // so old rejections naturally fall off Caro's view.
+          .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
           .order('updated_at', { ascending: false })
           .limit(500),
       ]);
@@ -354,6 +373,13 @@ export function ProxyPartnerFunds() {
       });
 
       setLastTerminalByPartner(terminalMap);
+
+      // Load this agent's dismissals (cards she has manually cleared)
+      const { data: dismissalRows } = await supabase
+        .from('agent_proxy_card_dismissals')
+        .select('partner_id, portfolio_id, snapshot_amount, dismissed_at, reason')
+        .eq('agent_id', user.id);
+      setDismissals((dismissalRows || []) as Dismissal[]);
     } catch (err) {
       console.error('Error loading proxy funds:', err);
     } finally {
@@ -367,6 +393,16 @@ export function ProxyPartnerFunds() {
     portfolios.forEach(p => { map[p.id] = p; });
     return map;
   }, [portfolios]);
+
+  // Dismissal lookup by `${partnerId}-${portfolioId || 'none'}`
+  const dismissalMap = useMemo(() => {
+    const map: Record<string, Dismissal> = {};
+    dismissals.forEach(d => {
+      const key = `${d.partner_id}-${d.portfolio_id || 'none'}`;
+      map[key] = d;
+    });
+    return map;
+  }, [dismissals]);
 
   const partnerBalances = useMemo<PartnerBalance[]>(() => {
     if (!user?.id) return [];
@@ -449,13 +485,22 @@ export function ProxyPartnerFunds() {
           available,
         };
       })
-      .filter((partner) => partner.available > 0)
+      // Auto-hide cards with negligible balance (rounding dust) and apply
+      // agent-side dismissal: hide when a dismissal exists AND nothing new has
+      // accrued since (current available <= snapshot at dismissal time).
+      .filter((partner) => {
+        if (partner.available <= 50) return false;
+        const dKey = `${partner.partnerId}-${partner.portfolioId || 'none'}`;
+        const d = dismissalMap[dKey];
+        if (d && partner.available <= Number(d.snapshot_amount)) return false;
+        return true;
+      })
       .sort((a, b) => {
         if (b.available !== a.available) return b.available - a.available;
         if (b.totalReturns !== a.totalReturns) return b.totalReturns - a.totalReturns;
         return a.partnerName.localeCompare(b.partnerName);
       });
-  }, [approvedOps, completedWithdrawals, profiles, portfolioMap, user?.id]);
+  }, [approvedOps, completedWithdrawals, profiles, portfolioMap, dismissalMap, user?.id]);
 
   const handleWithdraw = async (partner: PartnerBalance) => {
     setSelectedPartnerId(partner.partnerId);
@@ -540,6 +585,102 @@ export function ProxyPartnerFunds() {
       if (partnerWithdrawalStatus[portfolioKey]) return portfolioKey;
     }
     return partner.partnerId;
+  };
+
+  // Card key used for selection / dismissal storage
+  const getCardKey = (partner: PartnerBalance) =>
+    `${partner.partnerId}-${partner.portfolioId || 'none'}`;
+
+  const toggleSelect = (partner: PartnerBalance) => {
+    const key = getCardKey(partner);
+    setSelectedKeys(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const openClearDialog = (partners: PartnerBalance[]) => {
+    if (partners.length === 0) return;
+    setClearTargets(partners.map(p => ({
+      partnerId: p.partnerId,
+      portfolioId: p.portfolioId,
+      amount: p.available,
+      partnerName: p.partnerName,
+    })));
+    setClearReason('');
+    setClearConfirmOpen(true);
+  };
+
+  const confirmClear = async () => {
+    if (!user?.id || clearTargets.length === 0) return;
+    setClearing(true);
+    try {
+      const rows = clearTargets.map(t => ({
+        agent_id: user.id,
+        partner_id: t.partnerId,
+        portfolio_id: t.portfolioId,
+        snapshot_amount: t.amount,
+        reason: clearReason.trim() || null,
+      }));
+      const { error } = await supabase
+        .from('agent_proxy_card_dismissals')
+        .upsert(rows, { onConflict: 'agent_id,partner_id,portfolio_id' });
+      if (error) throw error;
+
+      // Audit + system event (fire-and-forget)
+      try {
+        await supabase.from('audit_logs').insert({
+          user_id: user.id,
+          action_type: 'agent_proxy_card_dismissed',
+          table_name: 'agent_proxy_card_dismissals',
+          metadata: {
+            count: clearTargets.length,
+            partners: clearTargets.map(t => t.partnerName),
+            reason: clearReason.trim() || 'No reason provided by agent.',
+          },
+        });
+      } catch (e) {
+        console.warn('audit log failed', e);
+      }
+
+      toast.success(`Cleared ${clearTargets.length} card${clearTargets.length === 1 ? '' : 's'}`, {
+        description: 'They will reappear if new returns accrue for the partner.',
+      });
+      setSelectedKeys(new Set());
+      setSelectMode(false);
+      setClearConfirmOpen(false);
+      setClearTargets([]);
+      setClearReason('');
+      loadProxyFunds();
+    } catch (err: any) {
+      toast.error('Failed to clear', { description: err.message });
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  const restoreDismissal = async (partnerId: string, portfolioId: string | null) => {
+    if (!user?.id) return;
+    const restoreKey = `${partnerId}-${portfolioId || 'none'}`;
+    setRestoringKey(restoreKey);
+    try {
+      let q = supabase
+        .from('agent_proxy_card_dismissals')
+        .delete()
+        .eq('agent_id', user.id)
+        .eq('partner_id', partnerId);
+      q = portfolioId ? q.eq('portfolio_id', portfolioId) : q.is('portfolio_id', null);
+      const { error } = await q;
+      if (error) throw error;
+      toast.success('Card restored');
+      loadProxyFunds();
+    } catch (err: any) {
+      toast.error('Failed to restore', { description: err.message });
+    } finally {
+      setRestoringKey(null);
+    }
   };
 
   const getStatusBadge = (partner: PartnerBalance) => {
@@ -684,7 +825,50 @@ export function ProxyPartnerFunds() {
           <Download className="h-3 w-3" />
           Download
         </Button>
+        <Button
+          size="sm"
+          variant={selectMode ? 'default' : 'outline'}
+          className="h-7 text-xs gap-1"
+          onClick={() => {
+            setSelectMode(s => !s);
+            setSelectedKeys(new Set());
+          }}
+          disabled={visibleBalances.length === 0}
+        >
+          <CheckSquare className="h-3 w-3" />
+          {selectMode ? 'Cancel select' : 'Select to clear'}
+        </Button>
       </div>
+
+      {selectMode && (
+        <div className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 text-xs">
+          <button
+            type="button"
+            className="font-medium text-primary hover:underline"
+            onClick={() => {
+              const allKeys = new Set(visibleBalances.map(p => getCardKey(p)));
+              const allSelected = visibleBalances.every(p => selectedKeys.has(getCardKey(p)));
+              setSelectedKeys(allSelected ? new Set() : allKeys);
+            }}
+          >
+            {visibleBalances.every(p => selectedKeys.has(getCardKey(p))) && selectedKeys.size > 0
+              ? 'Unselect all'
+              : `Select all visible (${visibleBalances.length})`}
+          </button>
+          <Button
+            size="sm"
+            variant="destructive"
+            className="h-7 text-xs gap-1"
+            disabled={selectedKeys.size === 0}
+            onClick={() => openClearDialog(
+              visibleBalances.filter(p => selectedKeys.has(getCardKey(p)))
+            )}
+          >
+            <Trash2 className="h-3 w-3" />
+            Clear {selectedKeys.size} selected
+          </Button>
+        </div>
+      )}
 
       {visibleBalances.map((partner) => {
         const statusKey = getStatusKey(partner);
@@ -696,10 +880,21 @@ export function ProxyPartnerFunds() {
         const classification = classify(partner);
 
         return (
-          <Card key={cardKey} className="border-border/50 shadow-sm">
+          <Card
+            key={cardKey}
+            className={`border-border/50 shadow-sm ${selectMode && selectedKeys.has(cardKey) ? 'ring-2 ring-primary' : ''}`}
+          >
             <CardContent className="p-4 space-y-3">
               <div className="flex items-start justify-between">
-                <div>
+                <div className="flex items-start gap-2">
+                  {selectMode && (
+                    <Checkbox
+                      checked={selectedKeys.has(cardKey)}
+                      onCheckedChange={() => toggleSelect(partner)}
+                      className="mt-0.5"
+                    />
+                  )}
+                  <div>
                   <p className="font-semibold text-sm text-foreground">{partner.partnerName}</p>
                   {(partner.portfolioCode || partner.accountName) && (
                     <p className="text-xs text-muted-foreground mt-0.5">
@@ -712,6 +907,7 @@ export function ProxyPartnerFunds() {
                   {partner.partnerPhone && (
                     <p className="text-xs text-muted-foreground">{partner.partnerPhone}</p>
                   )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-1.5">
                   {statusBadge}
@@ -735,6 +931,17 @@ export function ProxyPartnerFunds() {
                     <Users className="h-3 w-3" />
                     Proxy
                   </Badge>
+                  {!selectMode && !hasPending && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                      title="Clear this card"
+                      onClick={() => openClearDialog([partner])}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -867,6 +1074,115 @@ export function ProxyPartnerFunds() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Yes, Cancel Withdrawal
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Hidden cards footer */}
+      {dismissals.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setHiddenSheetOpen(true)}
+          className="w-full text-center text-xs text-muted-foreground hover:text-foreground py-2 underline-offset-2 hover:underline"
+        >
+          <Eye className="inline h-3 w-3 mr-1" />
+          Show {dismissals.length} hidden card{dismissals.length === 1 ? '' : 's'}
+        </button>
+      )}
+
+      {/* Hidden cards sheet */}
+      <Sheet open={hiddenSheetOpen} onOpenChange={setHiddenSheetOpen}>
+        <SheetContent side="bottom" className="h-[70dvh] rounded-t-2xl">
+          <SheetHeader>
+            <SheetTitle>Hidden Partner Cards</SheetTitle>
+          </SheetHeader>
+          <div className="mt-3 space-y-2 overflow-y-auto pr-1">
+            <p className="text-xs text-muted-foreground">
+              These cards are hidden from your main list. They will reappear automatically if new returns accrue above the snapshot amount.
+            </p>
+            {dismissals.length === 0 && (
+              <p className="text-sm text-muted-foreground py-6 text-center">No hidden cards.</p>
+            )}
+            {dismissals.map(d => {
+              const restoreKey = `${d.partner_id}-${d.portfolio_id || 'none'}`;
+              const profile = profiles[d.partner_id];
+              const portfolio = d.portfolio_id ? portfolioMap[d.portfolio_id] : null;
+              return (
+                <div key={restoreKey} className="flex items-center justify-between rounded-md border border-border/50 px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{profile?.full_name || 'Unknown partner'}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">
+                      {portfolio?.account_name || portfolio?.portfolio_code || '—'} · Snapshot {formatAmount(Number(d.snapshot_amount))}
+                    </p>
+                    {d.reason && (
+                      <p className="text-[10px] text-muted-foreground/80 italic truncate">"{d.reason}"</p>
+                    )}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1 shrink-0"
+                    disabled={restoringKey === restoreKey}
+                    onClick={() => restoreDismissal(d.partner_id, d.portfolio_id)}
+                  >
+                    {restoringKey === restoreKey ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
+                    Restore
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Clear confirmation dialog */}
+      <AlertDialog open={clearConfirmOpen} onOpenChange={(open) => {
+        setClearConfirmOpen(open);
+        if (!open) { setClearTargets([]); setClearReason(''); }
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Clear {clearTargets.length} card{clearTargets.length === 1 ? '' : 's'} from your list?
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  This only hides {clearTargets.length === 1 ? 'this card' : 'these cards'} from your view. No financial records are deleted. The card will reappear if new returns accrue for the partner.
+                </p>
+                {clearTargets.length <= 5 && (
+                  <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-0.5">
+                    {clearTargets.map(t => (
+                      <li key={`${t.partnerId}-${t.portfolioId || 'none'}`}>
+                        <span className="text-foreground font-medium">{t.partnerName}</span> — {formatAmount(t.amount)}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div>
+                  <Label className="text-xs font-medium">Reason (optional)</Label>
+                  <Textarea
+                    placeholder="e.g. Already paid in cash / partner contacted / awaiting partner response"
+                    value={clearReason}
+                    onChange={e => setClearReason(e.target.value)}
+                    maxLength={300}
+                    rows={2}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={clearing}>Keep on list</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmClear}
+              disabled={clearing}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {clearing ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Trash2 className="h-3.5 w-3.5 mr-1" />}
+              Yes, clear
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

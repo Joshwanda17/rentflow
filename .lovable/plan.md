@@ -1,63 +1,87 @@
-## Goal
+## Why these cards "pile up"
 
-Make this formula the **single source of truth** everywhere a rent request is created or edited:
+The cards on the **Proxy Partner Funds** screen are **not** the withdrawal records themselves — they are computed from CFO-approved ROI (`pending_wallet_operations`) minus delivered withdrawals. So the card stays as long as the partner has unwithdrawn ROI:
 
-```text
-Total Repayment = (Rent × 1.33ⁿ) + Registration Fee   where n = days/30
-Registration Fee = 10,000 if Rent ≤ 200,000 else 20,000
-Daily Payment    = ceil(Total Repayment / Days)
+- **After rejection/cancellation**: funds are correctly restored, so the card reappears with a "Last attempt rejected" banner — by design, but it feels like nothing is disappearing.
+- **After successful approval**: the card *should* drop off (delivered = returns), but if the ROI accrues again or partial amounts remain, it lingers.
+- The "Last attempt rejected" banner uses a **30-day lookback**, so old rejections keep showing for weeks.
+
+The agent has no way to say *"I'm done with this — clear it from my list."*
+
+## What we will build
+
+Three coordinated changes on the proxy list (`src/components/agent/ProxyPartnerFunds.tsx`):
+
+### 1. Per-card "Clear" / dismiss button
+- Each card gets a small **X / Clear** icon button in the header.
+- Clicking it opens a confirmation: "Hide this partner from your list?" with a short reason note (optional).
+- Writes a row to a new `agent_proxy_card_dismissals` table: `{ agent_id, partner_id, portfolio_id, dismissed_at, reason, snapshot_amount }`.
+- Once dismissed, the card is filtered out client-side (`partnerBalances` filter) **until new ROI accrues for that partner** (snapshot_amount comparison) — then the card automatically reappears so the agent never misses fresh money.
+
+### 2. Bulk select + Clear
+- Add a **"Select"** toggle in the toolbar (next to the existing `All / Re-request needed / New ROI / Download` row).
+- When enabled, each card shows a checkbox; a sticky bottom action bar appears with:
+  - `Select All visible`
+  - `Clear N selected` (red destructive button) → single confirm dialog → bulk insert into `agent_proxy_card_dismissals`.
+- Best fit for Caro's case: she filters to `Re-request needed`, hits Select All, then Clear.
+
+### 3. Auto-clean rules (no button needed)
+- Tighten the rejected-banner lookback from **30 days → 7 days** so old rejections naturally fall off.
+- After a successful (`approved`/`completed`) withdrawal, if the partner's net `available` rounds to **0**, hide the card automatically (already mostly works — add an explicit `available > 50` guard to avoid 1-shilling rounding cards).
+
+## Database
+
+New migration:
+
+```sql
+create table public.agent_proxy_card_dismissals (
+  id uuid primary key default gen_random_uuid(),
+  agent_id uuid not null references auth.users(id) on delete cascade,
+  partner_id uuid not null,
+  portfolio_id uuid,
+  snapshot_amount numeric not null default 0,   -- "available" at time of dismissal
+  reason text,
+  dismissed_at timestamptz not null default now(),
+  unique (agent_id, partner_id, portfolio_id)
+);
+alter table public.agent_proxy_card_dismissals enable row level security;
+
+-- Agent can manage only their own dismissals
+create policy "agent_can_select_own_dismissals"
+  on public.agent_proxy_card_dismissals for select
+  using (agent_id = auth.uid());
+create policy "agent_can_insert_own_dismissals"
+  on public.agent_proxy_card_dismissals for insert
+  with check (agent_id = auth.uid());
+create policy "agent_can_delete_own_dismissals"
+  on public.agent_proxy_card_dismissals for delete
+  using (agent_id = auth.uid());
 ```
 
-Today the formula lives correctly in `src/lib/rentCalculations.ts` and is used by the UI, but **the server trusts client-supplied numbers**. A bad client (or my recent simulation script) can persist mismatched values like 110,000 instead of 143,000. We will close that gap.
+The `unique (agent_id, partner_id, portfolio_id)` lets us **upsert** (re-dismiss after re-appearance updates `snapshot_amount`).
 
----
+Trust mission compliance: each dismissal also emits a `system_event` `agent.proxy_card_dismissed` with `{partner_id, portfolio_id, amount, reason}` for audit (no trust score change — this is a UI hygiene action, not a partner-facing action).
 
-## What we'll change
+## Client logic changes
 
-### 1. Frontend — formula stays, add a guard
+In `loadProxyFunds()`:
+- After loading PWOs + withdrawals, fetch `agent_proxy_card_dismissals` for `agent_id = user.id`.
+- In the `partnerBalances` memo, filter out any group where a dismissal exists **AND** `currentAvailable <= dismissal.snapshot_amount` (i.e. nothing new accrued since dismissal).
+- A small footer link `Show N hidden cards` lets Caro un-hide if she made a mistake — opens a tiny sheet listing dismissed partners with an Undo button per row (deletes the dismissal row).
 
-- Keep `src/lib/rentCalculations.ts` as the canonical TS implementation (unchanged math).
-- Add `src/lib/__tests__/rentCalculations.test.ts` asserting the full 8-row reference table from your spec. Locks against silent regressions.
-- Audit the 3 known UI call sites (`CreditRequestSheet`, `RegisterTenantPublic`, `PublicRentCalculator`) to confirm none hand-roll the math; convert any stragglers to `calculateRentRepayment()`.
+## Edge cases handled
 
-### 2. Database — authoritative formula + hard guard
+- **Active in-flight withdrawal**: dismiss button is hidden when there's a pending/processing withdrawal (`hasPending === true`). Forces Caro to either complete or cancel first — prevents her hiding cards she still needs to act on.
+- **New ROI after dismissal**: if CFO approves more ROI for the same partner, the card auto-reappears (snapshot comparison). She is never permanently blind to new money.
+- **No deletion of withdrawal_requests**: we never delete real financial records — only her **view** of the card is hidden. The COO and CFO dashboards are untouched.
 
-New migration adds:
+## Files
 
-- **`compute_rent_repayment(rent numeric, days int)`** — `IMMUTABLE` SQL function returning `(access_fee, request_fee, total_repayment, daily_repayment)`. Mirrors the TS formula exactly (`rent * pow(1.33, days/30.0) - rent` rounded, fee 10k/20k, ceil for daily).
-- **`enforce_rent_request_formula()`** trigger BEFORE INSERT OR UPDATE on `rent_requests`:
-  - Recomputes the canonical values from `rent_amount` + `duration_days`.
-  - **Overwrites** `access_fee`, `request_fee`, `total_repayment`, `daily_repayment` with the canonical values (small Δ tolerance of 1 UGX for legacy rows on UPDATE only).
-  - On INSERT, raises an exception if client sent values that diverge by >1 UGX (so we surface bugs instead of silently fixing).
-- Backfill audit query (read-only, written into a `rent_request_formula_drift` view) listing existing rows whose stored numbers don't match the formula. CFO can review before we run a one-shot correction.
-
-### 3. Edge functions — stop trusting client numbers
-
-- `supabase/functions/submit-tenant-form/index.ts`: drop the client `access_fee` / `request_fee` / `total_repayment` inputs and call `compute_rent_repayment` (or recompute inline) before insert.
-- `supabase/functions/approve-rent-request/index.ts`: re-derive from `rent_amount + duration_days` before any disbursement decision.
-- `validate-payload/index.ts`: change `derived: true` from a label into actual behavior — strip those fields from incoming payloads for `rent_requests`.
-
-### 4. Memory
-
-Add `mem://business-model/rent-formula` capturing:
-- The formula and reference table
-- "DB trigger `enforce_rent_request_formula` is the source of truth; client values are ignored"
-- The 8-row test as the regression contract
-
----
+- **New**: `supabase/migrations/<ts>_agent_proxy_card_dismissals.sql`
+- **Edited**: `src/components/agent/ProxyPartnerFunds.tsx` — add dismiss button, bulk-select toolbar, sticky action bar, hidden-cards footer, snapshot filter logic, tightened lookback to 7 days, auto-hide at `available <= 50`.
 
 ## Out of scope
 
-- Commission rate changes. Commission stays at 10% of `total_repayment` (so for 100K/30d = 14,300, not 11,000). The earlier "11,000" in my simulation summary was my arithmetic error, not a code bug.
-- Editing existing historical rent requests. The drift view is reported; correction is a separate approved action.
-
----
-
-## Verification after build
-
-1. Run vitest — new reference-table test must pass.
-2. Insert a rent request via `psql` with deliberately wrong `total_repayment` → trigger raises.
-3. Insert via `submit-tenant-form` with no fee fields → row stored with canonical 143,000 for 100K/30d.
-4. Query `rent_request_formula_drift` and report row count to you before any backfill.
-
-Approve and I'll implement.
+- No changes to `cancel-proxy-withdrawal`, `approve-withdrawal`, or any wallet/ledger paths.
+- No changes to the COO Partners page or any other staff dashboards.
+- No deletion of `withdrawal_requests` rows — finance records remain immutable.

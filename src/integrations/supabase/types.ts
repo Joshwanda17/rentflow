@@ -2099,6 +2099,36 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_proxy_card_dismissals: {
+        Row: {
+          agent_id: string
+          dismissed_at: string
+          id: string
+          partner_id: string
+          portfolio_id: string | null
+          reason: string | null
+          snapshot_amount: number
+        }
+        Insert: {
+          agent_id: string
+          dismissed_at?: string
+          id?: string
+          partner_id: string
+          portfolio_id?: string | null
+          reason?: string | null
+          snapshot_amount?: number
+        }
+        Update: {
+          agent_id?: string
+          dismissed_at?: string
+          id?: string
+          partner_id?: string
+          portfolio_id?: string | null
+          reason?: string | null
+          snapshot_amount?: number
+        }
+        Relationships: []
+      }
       agent_rebalance_records: {
         Row: {
           agent_id: string
