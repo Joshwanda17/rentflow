@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef, useState } from "react";
 
 declare const __BUILD_TIME__: number;
 
@@ -32,53 +32,62 @@ async function precacheAppShell() {
 export function useServiceWorkerUpdate() {
   const isReloading = useRef(false);
   const hasCheckedOnMount = useRef(false);
+  const [updateReady, setUpdateReady] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+  const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
 
-  const handleUpdate = useCallback(() => {
+  const flagUpdateReady = useCallback(() => {
+    setUpdateReady(true);
+  }, []);
+
+  const dismiss = useCallback(() => {
+    setDismissed(true);
+  }, []);
+
+  const applyUpdate = useCallback(() => {
     if (isReloading.current) return;
     isReloading.current = true;
 
-    console.log('[SW Update] New version detected, updating...');
+    console.log('[SW Update] User-initiated update, reloading...');
 
-    // Clear caches and reload silently
+    // Tell waiting worker to take over
+    const reg = registrationRef.current;
+    if (reg?.waiting) {
+      reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+    }
+
     if ("caches" in window) {
       caches.keys().then((keys) => {
         Promise.all(keys.filter((k) => k.startsWith("welile-")).map((k) => caches.delete(k)));
       });
     }
-    
-    // Force reload bypassing cache
-    window.location.reload();
+
+    // Small delay to let SKIP_WAITING land before reload
+    setTimeout(() => window.location.reload(), 100);
   }, []);
 
   const activateWaitingWorker = useCallback((reg: ServiceWorkerRegistration) => {
     if (reg.waiting) {
-      console.log('[SW Update] Activating waiting worker...');
-      reg.waiting.postMessage({ type: "SKIP_WAITING" });
+      console.log('[SW Update] Waiting worker present — prompting user.');
+      flagUpdateReady();
     }
-  }, []);
+  }, [flagUpdateReady]);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
 
     let registration: ServiceWorkerRegistration | null = null;
-    let refreshing = false;
 
-    // Auto-refresh immediately when new service worker takes control
+    // Controller change happens after we call applyUpdate -> SKIP_WAITING.
+    // The reload is already scheduled by applyUpdate; nothing else to do.
     const onControllerChange = () => {
-      if (refreshing) return;
-      refreshing = true;
-      console.log('[SW Update] Controller changed, refreshing...');
-      handleUpdate();
+      console.log('[SW Update] Controller changed.');
     };
 
-    // Listen for messages from service worker
     const onMessage = (event: MessageEvent) => {
       if (event.data?.type === 'SW_UPDATED') {
         console.log('[SW Update] Received update message from SW');
-        if (!refreshing) {
-          refreshing = true;
-          handleUpdate();
-        }
+        flagUpdateReady();
       }
     };
 
@@ -92,11 +101,9 @@ export function useServiceWorkerUpdate() {
         console.log('[SW Update] Worker state:', newWorker.state);
         if (newWorker.state === "installed") {
           if (navigator.serviceWorker.controller) {
-            // New worker ready, activate immediately
-            console.log('[SW Update] New worker installed, activating...');
-            activateWaitingWorker(registration!);
+            console.log('[SW Update] New worker installed — prompting user.');
+            flagUpdateReady();
           } else {
-            // First install - cache app shell for offline
             console.log('[SW Update] First install - caching app shell for offline...');
             precacheAppShell();
           }
@@ -109,11 +116,11 @@ export function useServiceWorkerUpdate() {
 
     navigator.serviceWorker.ready.then((reg) => {
       registration = reg;
+      registrationRef.current = reg;
 
-      // If there's already a waiting worker, activate it immediately
       if (reg.waiting) {
         console.log('[SW Update] Found waiting worker on load');
-        activateWaitingWorker(reg);
+        flagUpdateReady();
       }
 
       reg.addEventListener("updatefound", onUpdateFound);
@@ -165,10 +172,9 @@ export function useServiceWorkerUpdate() {
     const currentBuildTime = String(__BUILD_TIME__);
     
     if (storedBuildTime && storedBuildTime !== currentBuildTime) {
-      // New version detected, trigger update immediately
-      console.log('[SW Update] Build time mismatch detected');
+      console.log('[SW Update] Build time mismatch detected — prompting user.');
       localStorage.setItem("welile_build_time", currentBuildTime);
-      handleUpdate();
+      flagUpdateReady();
     } else {
       localStorage.setItem("welile_build_time", currentBuildTime);
     }
@@ -182,5 +188,11 @@ export function useServiceWorkerUpdate() {
       window.removeEventListener("online", onOnline);
       clearInterval(interval);
     };
-  }, [handleUpdate, activateWaitingWorker]);
+  }, [flagUpdateReady, activateWaitingWorker]);
+
+  return {
+    updateReady: updateReady && !dismissed,
+    applyUpdate,
+    dismiss,
+  };
 }
