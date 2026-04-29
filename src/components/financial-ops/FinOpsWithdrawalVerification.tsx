@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   ArrowDownToLine, CheckCircle, XCircle, Loader2, RefreshCw,
-  Smartphone,
+  Smartphone, Clock,
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -60,6 +60,13 @@ export function FinOpsWithdrawalVerification() {
   const [paymentMethod, setPaymentMethod] = useState<string>('');
   
   const [activeTab, setActiveTab] = useState<ActiveTab>('pending');
+
+  // Force re-render every 60s so the age chip stays fresh.
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   const fetchProfiles = async (data: any[]) => {
     if (!data.length) return [];
@@ -115,6 +122,22 @@ export function FinOpsWithdrawalVerification() {
   }, []);
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
+
+  // Realtime: refetch on any insert/update to withdrawal_requests so cards
+  // disappear the moment ANY operator approves/rejects them.
+  const fetchRef = useRef(fetchRequests);
+  fetchRef.current = fetchRequests;
+  useEffect(() => {
+    const channel = supabase
+      .channel('finops-withdrawals-rt')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'withdrawal_requests' },
+        () => fetchRef.current(),
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   // Approve with TID/Receipt/Bank Ref → approved (final) via ledger-first edge function
   const handleApprove = async () => {
@@ -276,10 +299,60 @@ export function FinOpsWithdrawalVerification() {
   };
 
   const getAgeBadge = (createdAt: string) => {
-    const days = Math.floor((Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24));
-    if (days >= 30) return <Badge variant="destructive" size="sm">{Math.floor(days / 30)}mo old</Badge>;
-    if (days >= 7) return <Badge variant="warning" size="sm">{Math.floor(days / 7)}w old</Badge>;
-    return null;
+    const ms = Date.now() - new Date(createdAt).getTime();
+    const minutes = Math.floor(ms / 60_000);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    let label: string;
+    if (days >= 30) label = `${Math.floor(days / 30)}mo old`;
+    else if (days >= 7) label = `${Math.floor(days / 7)}w old`;
+    else if (days >= 1) label = `${days}d old`;
+    else if (hours >= 1) label = `${hours}h old`;
+    else label = `${Math.max(1, minutes)}m old`;
+
+    let variant: 'destructive' | 'warning' | 'secondary' = 'secondary';
+    if (hours >= 4 || days >= 1) variant = 'destructive';
+    else if (hours >= 1) variant = 'warning';
+
+    return (
+      <Badge variant={variant} size="sm" className="gap-1">
+        <Clock className="h-2.5 w-2.5" />
+        {label}
+      </Badge>
+    );
+  };
+
+  // Stage badge: tells the operator EXACTLY which approval is missing on a card.
+  const getStageBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+      case 'requested':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-[10px] font-bold uppercase tracking-wider">
+            Awaiting Manager
+          </span>
+        );
+      case 'manager_approved':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/30 text-blue-700 dark:text-blue-300 text-[10px] font-bold uppercase tracking-wider">
+            Manager OK → Needs FinOps TID
+          </span>
+        );
+      case 'cfo_approved':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/10 border border-purple-500/30 text-purple-700 dark:text-purple-300 text-[10px] font-bold uppercase tracking-wider">
+            CFO OK → Needs FinOps TID
+          </span>
+        );
+      case 'fin_ops_approved':
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold uppercase tracking-wider">
+            FinOps OK → Finalising
+          </span>
+        );
+      default:
+        return null;
+    }
   };
 
   const renderPendingCard = (req: WithdrawalRequest) => {
@@ -334,7 +407,12 @@ export function FinOpsWithdrawalVerification() {
               <p className="text-xs text-muted-foreground">{req.user?.phone}</p>
             </div>
           </div>
-          <p className="text-base font-black">{formatCurrency(req.amount)}</p>
+          <div className="text-right space-y-1">
+            <p className="text-base font-black">{formatCurrency(req.amount)}</p>
+            <div className="flex items-center justify-end gap-1 flex-wrap">
+              {getStageBadge(req.status)}
+            </div>
+          </div>
         </div>
 
         {(req.mobile_money_name || req.bank_account_name) && (
@@ -630,6 +708,11 @@ export function FinOpsWithdrawalVerification() {
                       <SelectItem value="cash">Cash</SelectItem>
                     </SelectContent>
                   </Select>
+                  {!paymentMethod && (
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1 font-medium">
+                      ⚠ Pick a method to enable Approve
+                    </p>
+                  )}
                 </div>
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-1.5">
@@ -643,6 +726,11 @@ export function FinOpsWithdrawalVerification() {
                   />
                   {reference.length > 0 && reference.trim().length < 3 && (
                     <p className="text-[10px] text-destructive mt-1">Must be at least 3 characters</p>
+                  )}
+                  {reference.trim().length === 0 && (
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1 font-medium">
+                      ⚠ Enter the TID / receipt to enable Approve
+                    </p>
                   )}
                 </div>
               </div>

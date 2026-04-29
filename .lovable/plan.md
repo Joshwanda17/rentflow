@@ -1,62 +1,59 @@
-## What's actually happening
+# Why "Approve & Complete" never reaches FinOps for these cards
 
-The wallet card is correct. The cache is wrong.
+## What the data confirms
 
-For SSENKAALI PIUS (`0b109aad-212a-4fd0-ab03-3d7aee9cf397`):
+I checked every angle:
 
-- `wallets.withdrawable_balance` (cache) = **UGX 800,000**
-- `get_user_available_balance` (strict ledger truth) = **UGX 650,000** ← what the card shows
-- `wallets.balance` = 800,000 (also stale)
+- All 9 stuck cards have `fin_ops_approved_at = NULL`, `fin_ops_reference = NULL`, `processed_at = NULL`.
+- Zero ledger entries reference any of these withdrawal IDs in `general_ledger`.
+- Zero `withdrawal_approved` `system_events` for any of these IDs (the only one today was WAKATO ALI at 11:19, which IS `approved` and correctly gone from the list).
+- Zero edge function calls to `approve-withdrawal` in the last 6 hours.
+- All 9 are stuck in `manager_approved` state — Manager pressed approve, FinOps never finished.
 
-Per the **Wallet Withdrawable Strict Rule**, the card MUST show the lesser of cached and ledger-net. So the headline showing 650K is correct behavior.
+So the cards aren't "ghost approvals". The FinOps "Approve & Complete" dialog is simply not being completed (the operator opens it and abandons, OR the button silently fails to send).
 
-### Why the ledger says 650K (post-anchor window)
+But there are TWO real bugs we should fix while we're here:
 
-A `wallet_fresh_start_anchors` row exists for this user at `2026-04-28 21:00 UTC`. All ledger entries since then on the wallet scope:
+## Bug 1: Approve button gives no feedback if validation fails silently
 
-```
-+800,000  system_balance_correction   Payroll: Salary for April   (12:19)
--800,000  wallet_deduction            CFO Wallet Retraction        (12:34)
-+800,000  system_balance_correction   Payroll: Salary for April    (12:39)  (re-credited)
--150,000  wallet_deduction            CFO Debit — Overpayment Recovery (13:28)
-─────────
- 650,000  net
-```
+The Approve button is disabled until `reference.length ≥ 3` AND `paymentMethod` is selected. If either is missing, the button just looks dead — no toast, no hint. On a 384-wide phone the dialog is cramped; the operator may think they tapped Approve but actually nothing fired.
 
-The **150,000 CFO "Overpayment Recovery"** debit at 13:28 today is the missing 150K. The card is honestly reflecting it; the cached 800K never got decremented because that wallet_deduction posted to the ledger but the wallet bucket sync didn't run (a known phantom-drift case — `apply_wallet_movement` is the sole writer, and the CFO debit path appears to have skipped it).
+## Bug 2: List has no realtime refresh
+
+Even when an approve does succeed, other FinOps operators on other devices won't see the card disappear until they manually press the refresh icon. Cards from yesterday can linger visually if the page hasn't been reloaded.
+
+## Bug 3: No way to clear stale `manager_approved` cards quickly
+
+The 9 stuck cards from today need to either be (a) actually paid + completed with TID, or (b) rejected if they were duplicates / errors. Right now there's no fast path.
 
 ## Plan
 
-### 1. Sync the cache to truth (one-shot data fix)
+### Step 1 — Make the dialog impossible to abandon silently
+In `src/components/financial-ops/FinOpsWithdrawalVerification.tsx`:
+- Add visible inline hints under the Payment Method and Reference inputs ("Pick a method to enable Approve" / "Enter at least 3 chars").
+- Add a stage badge on each pending card: yellow "Awaiting Manager", blue "Manager Approved → needs FinOps TID", purple "CFO Approved", green "FinOps Approved → finalising". Operator sees instantly which cards still need their action.
+- Add a tiny age countdown chip ("47m old") that turns amber after 1h and red after 4h, so stuck cards stand out.
 
-Run a one-time wallet bucket correction for this user so cache matches ledger:
+### Step 2 — Realtime auto-refresh
+Add a `supabase.channel('finops-withdrawals')` subscription on `withdrawal_requests` that calls `fetchRequests()` on INSERT/UPDATE. The moment any operator (or edge function) flips a card to `approved`/`rejected`, it disappears from everyone's screen. Cleans up the manual-refresh dance.
 
-```sql
-UPDATE public.wallets
-SET withdrawable_balance = 650000,
-    balance              = 650000
-WHERE user_id = '0b109aad-212a-4fd0-ab03-3d7aee9cf397';
-```
+### Step 3 — Triage the 9 currently stuck cards
+Two safe options I can run for you on your say-so:
+- **Option A — bulk reject all 9 with reason "Manager-approved but FinOps did not complete; please re-request"**, so users re-submit and you start clean. Their wallets are untouched (no ledger entries exist).
+- **Option B — leave them; Financial Ops finishes each one manually** with the real TID/RCT for whichever ones are already paid out off-platform.
 
-Do this through the standard `apply_wallet_movement` path (not a raw UPDATE) so it respects the wallet write-lockdown trigger. If a direct correction is required, set the `wallet.sync_authorized=true` session flag for that single statement.
+I will NOT auto-approve them — that bypasses the TID capture which is the whole point of the FinOps step (Withdrawal Governance + Funder Deposit Workflow rules).
 
-### 2. Investigate the CFO debit path that bypassed the bucket writer
+## Files to touch
 
-The `wallet_deduction` ledger entry at 13:28 (description: `CFO Debit [🔁 Overpayment Recovery]: OVERPAYMENT`) posted to `general_ledger` but did not call `apply_wallet_movement`. This is a **phantom drift** — the same class of bug that triggered the strict-headline rule.
+- `src/components/financial-ops/FinOpsWithdrawalVerification.tsx` — stage badge, inline validation hints, age chip, realtime channel subscription on `withdrawal_requests`.
 
-Audit the edge function / RPC behind "CFO Overpayment Recovery" and ensure every ledger leg it posts is paired with `apply_wallet_movement` so the cached buckets stay in sync. Add the user to `phantom_wallet_drift` review if not already flagged.
+## What I will NOT do
 
-### 3. Confirm with the user
+- Won't change the `approve-withdrawal` edge function or wallet/ledger logic — that path works (verified by yesterday's successful approvals: PV013, RCT 027, A849C24DB9094, etc.).
+- Won't auto-flip `manager_approved` → `approved`. Locked governance.
+- Won't add new tables or DB schema changes.
 
-After the cache fix:
-- The Partner Wallet card will show **UGX 650,000** (still 650K — because that IS the truth)
-- The stale "800K" expectation goes away because the cache no longer disagrees
+## After you approve
 
-If the user believes the **150K overpayment recovery itself was wrong**, that's a separate CFO reversal — they need to reverse that debit (post a +150K correction) to legitimately get back to 800K. We won't do that automatically.
-
-## Technical details
-
-- Strict RPC: `get_user_available_balance` — already correct, no change needed
-- Card source: `useAvailableBalance` → strict RPC — correct, no change
-- Memory: matches `mem://architecture/wallet-baseline-anchor` and `mem://constraints/wallet-sole-writer`
-- Root cause to fix: the CFO Overpayment Recovery handler must call `apply_wallet_movement` after posting the ledger leg
+Tell me whether to also run **Option A (bulk reject the 9)** or leave triage to your operators.
