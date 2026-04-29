@@ -155,9 +155,25 @@ Deno.serve(async (req) => {
       if (updateError) throw updateError;
 
       // === AUTO-CREATE SUBSCRIPTION CHARGE ===
-      const totalRepayment = Number(rentRequest.total_repayment);
+      // Re-derive from canonical formula in case the row predates the
+      // enforce_rent_request_formula trigger. Trigger-protected rows already
+      // match these values exactly.
       const durationDays = Number(rentRequest.duration_days);
-      const dailyRepayment = Number(rentRequest.daily_repayment);
+      const rentAmount = Number(rentRequest.rent_amount);
+      let totalRepayment = Number(rentRequest.total_repayment);
+      let dailyRepayment = Number(rentRequest.daily_repayment);
+      try {
+        const { data: canon } = await adminClient.rpc('compute_rent_repayment', {
+          p_rent_amount: rentAmount,
+          p_duration_days: durationDays,
+        });
+        if (canon && Array.isArray(canon) && canon.length > 0) {
+          totalRepayment = Number(canon[0].total_repayment) || totalRepayment;
+          dailyRepayment = Number(canon[0].daily_repayment) || dailyRepayment;
+        }
+      } catch (e) {
+        console.warn('[approve-rent-request] compute_rent_repayment fallback:', e);
+      }
 
       if (totalRepayment > 0 && durationDays > 0) {
         let frequency = "daily";
