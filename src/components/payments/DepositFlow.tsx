@@ -1311,6 +1311,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   <Input
                     type="text"
                     inputMode="text"
+                    id="deposit-tid"
                     placeholder={
                       channel === 'bank'
                         ? 'e.g. FT24123456789'
