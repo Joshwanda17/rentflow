@@ -733,6 +733,11 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 entry_point: purposeEntryPoint,
                 required_choice: !!requirePurposeChoice,
                 last_edited_at: new Date().toISOString(),
+                is_agent: isAgent,
+                agent_personal_confirmed_at:
+                  isAgent && depositPurpose === 'personal_deposit'
+                    ? agentPersonalConfirmedAt
+                    : null,
               },
             } as any)
             .eq('id', activeEditId)
@@ -758,6 +763,11 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
               chosen_by: user.id,
               entry_point: purposeEntryPoint,
               required_choice: !!requirePurposeChoice,
+              is_agent: isAgent,
+              agent_personal_confirmed_at:
+                isAgent && depositPurpose === 'personal_deposit'
+                  ? agentPersonalConfirmedAt
+                  : null,
             },
           } as any);
 
