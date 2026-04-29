@@ -195,6 +195,7 @@ export function AgentOpsDashboard() {
       case 'trust-capture': return <TrustCaptureTab />;
       case 'performance-report': return <AgentPerformanceReport />;
       case 'allocation-report': return <AgentAllocationReport />;
+      case 'feature-flags': return <AgentFeatureFlagsPanel onBack={() => setActiveView(null)} />;
       case 'pipeline': return <AgentOpsPipelineHub />;
       case 'brief': return <AgentOpsBrief />;
       case 'directory': return <AgentDirectory />;
