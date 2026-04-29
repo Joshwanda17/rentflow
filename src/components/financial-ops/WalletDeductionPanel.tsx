@@ -120,8 +120,11 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
         p_user_id: selectedUser.id,
       });
       if (error) throw error;
-      const r = (data ?? {}) as Record<string, unknown>;
-      return Number(r.available ?? 0);
+      // RPC returns a scalar numeric (the strict withdrawable available),
+      // NOT an object. The previous `r.available` destructure always
+      // produced NaN→0, which made the deduction tool show USh 0 and
+      // refuse to deduct even when the wallet was funded.
+      return Number(data ?? 0);
     },
     enabled: !!selectedUser,
   });
