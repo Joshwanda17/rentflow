@@ -167,13 +167,51 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
         // covers the current active-wallet population.
         p_limit: 500,
       });
-      if (error) throw error;
+      if (error) {
+        console.error('[WalletDeductionPanel] balance search RPC error:', error);
+        throw error;
+      }
+      console.log('[WalletDeductionPanel] balance search', { min, max, count: (data || []).length });
+      let rows = (data || []) as Array<{ user_id: string; full_name: string | null; phone: string | null; balance: number | string }>;
+      // Fallback: if the RPC returned nothing (e.g. PostgREST schema cache
+      // hasn't picked it up after a recent deploy), query the wallets
+      // table directly so the 229 wallets the hero counts always surface.
+      if (rows.length === 0) {
+        console.warn('[WalletDeductionPanel] RPC returned 0 — falling back to direct wallets query');
+        const { data: walletRows, error: wErr } = await supabase
+          .from('wallets')
+          .select('user_id, balance')
+          .gte('balance', min)
+          .lte('balance', max)
+          .order('balance', { ascending: false })
+          .limit(500);
+        if (wErr) {
+          console.error('[WalletDeductionPanel] fallback wallets query error:', wErr);
+        } else if (walletRows && walletRows.length > 0) {
+          const ids = walletRows.map((w) => w.user_id);
+          const { data: profs } = await supabase
+            .from('profiles')
+            .select('id, full_name, phone')
+            .in('id', ids);
+          const profMap = new Map((profs || []).map((p) => [p.id, p]));
+          rows = walletRows.map((w) => {
+            const p = profMap.get(w.user_id);
+            return {
+              user_id: w.user_id,
+              full_name: p?.full_name || 'Unnamed',
+              phone: p?.phone || '',
+              balance: w.balance,
+            };
+          });
+          console.log('[WalletDeductionPanel] fallback returned', rows.length, 'wallets');
+        }
+      }
       // Show the SAME balance figure the Financial Ops hero uses
       // (`wallets.balance` aggregate — all buckets) so every wallet
       // counted in the "X with balance" pill surfaces here. The deduction
       // edge function still revalidates ledger-true funds at submit time,
       // so this is a display-only choice, not a safety regression.
-      return ((data || []) as Array<{ user_id: string; full_name: string | null; phone: string | null; balance: number | string }>).map((r) => ({
+      return rows.map((r) => ({
         id: r.user_id,
         full_name: r.full_name || 'Unnamed',
         phone: r.phone || '',
