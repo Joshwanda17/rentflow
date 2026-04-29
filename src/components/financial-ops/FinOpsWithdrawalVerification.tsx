@@ -708,6 +708,11 @@ export function FinOpsWithdrawalVerification() {
                       <SelectItem value="cash">Cash</SelectItem>
                     </SelectContent>
                   </Select>
+                  {!paymentMethod && (
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1 font-medium">
+                      ⚠ Pick a method to enable Approve
+                    </p>
+                  )}
                 </div>
                 <div>
                   <p className="text-xs font-medium text-muted-foreground mb-1.5">
@@ -721,6 +726,11 @@ export function FinOpsWithdrawalVerification() {
                   />
                   {reference.length > 0 && reference.trim().length < 3 && (
                     <p className="text-[10px] text-destructive mt-1">Must be at least 3 characters</p>
+                  )}
+                  {reference.trim().length === 0 && (
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1 font-medium">
+                      ⚠ Enter the TID / receipt to enable Approve
+                    </p>
                   )}
                 </div>
               </div>
