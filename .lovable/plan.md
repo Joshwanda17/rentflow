@@ -1,72 +1,84 @@
-## Problem
+## Goal
 
-The Tenant Payments Report shows `AGENT-COLLECTED UGX 0` and "Direct (no agent)" for every row, even though every payment in the selected period (28–29 Apr 2026) was collected by an agent through the Float-Allocation flow.
+When the CFO processes payroll, the system must detect each employee's outstanding advance (`wallets.advance_balance`) and recover only a configurable percentage of their gross salary toward that advance — never the entire salary. The employee always receives a take-home amount.
 
-## Root cause (verified against the live ledger)
+## Current behavior (problem)
 
-`TenantOpsDashboard.handleDownloadRentReport()` decides "agent-collected vs direct" by looking up `general_ledger.source_id` in the `agent_collections` table. For Float-Allocation deposits (the dominant agent path today), the `source_id` on the `tenant_repayment cash_in` leg is an **allocation/batch UUID that does not exist in `agent_collections`**. The lookup misses, `isAgentCollection = false`, the row is bucketed as Direct, and the agent column falls back to assigned/referrer (also empty for these tenants), printing "Direct (no agent)".
+- `PayrollPanel.tsx` adds employees with a flat `amount` and calls the `platform-expense-transfer` edge function with `action: 'process_payroll'`.
+- The function simply credits each `payroll_items.amount` to the employee wallet via `create_ledger_transaction`.
+- Outstanding `wallets.advance_balance` is ignored. The deposit-side auto-recovery (30% of incoming deposits) does not run on payroll because payroll posts directly to `wallet:cash_in`, not via the deposit pipeline. Result: either nothing is recovered, or downstream auto-recovery sweeps the entire deposit and leaves the employee with zero take-home.
 
-Concretely, every Float-Allocation transaction posts a balanced 4-leg group sharing one `transaction_group_id`:
+## New behavior
 
-```text
-agent_float_used_for_rent   cash_out   user_id = AGENT
-tenant_repayment            cash_in    user_id = TENANT
-agent_commission_earned     cash_in    user_id = AGENT
-agent_commission_earned     cash_out   user_id = PLATFORM
-```
-
-The agent's identity lives on the `agent_float_used_for_rent` (or commission) leg, not on the tenant_repayment leg. That's the signal the report should use.
-
-## Fix
-
-All edits in `src/components/executive/TenantOpsDashboard.tsx` (the report-builder block, lines ~85–250). PDF template untouched.
-
-### 1. Pull every leg in the same transaction group
-
-After fetching the in-range `tenant_repayment / rent_repayment cash_in` rows (call this `payments`), collect their `transaction_group_id`s and run a second query:
+For every payroll item where the employee has `advance_balance > 0`:
 
 ```text
-select user_id, category, direction, transaction_group_id
-from general_ledger
-where transaction_group_id in (...)
-  and category in ('agent_float_used_for_rent', 'agent_commission_earned')
+gross         = payroll_items.amount
+recovery_pct  = item.recovery_percent  (default = batch.default_recovery_percent, default 30%)
+recovery_cap  = min(advance_balance, gross * recovery_pct / 100)
+take_home     = gross - recovery_cap
 ```
 
-Build `agentByGroup: Map<group_id, agent_user_id>` from the `agent_float_used_for_rent cash_out` leg first (preferred), falling back to `agent_commission_earned cash_in` if the float leg is missing.
+- `take_home` is credited to the wallet (withdrawable bucket) exactly like today.
+- `recovery_cap` is posted as an advance repayment: debits `wallets.advance_balance`, balanced by a platform leg categorized as `advance_repayment`.
+- If `advance_balance == 0`, behave exactly like today (full salary credited).
+- The CFO can override the percentage per-employee in the UI before processing.
 
-### 2. Per-payment attribution priority (rewrite)
+## UI changes (CFO Payroll panel)
 
-Replace the current 3-step priority with:
+1. **Batch-level default recovery %** — small input on the batch card (default 30, range 0–100). Persisted in a new `payroll_batches.default_recovery_percent` column.
+2. **Add Item dialog** — when entering an employee, after resolving the profile, fetch their `wallets.advance_balance`. If > 0, show:
+   - Amber warning banner: "Outstanding advance: UGX X. System will deduct Y% (UGX Z) and pay take-home UGX W."
+   - Editable `Recovery %` slider/input (0–100, default = batch default).
+3. **Batch list rows** — per item, show three figures: `Gross`, `Advance Recovery`, `Take-home`, plus an "Advance" badge when applicable.
+4. **Pre-process summary** — before the CFO clicks Play, the panel shows totals: `Total gross`, `Total recovery`, `Total cash-out` so the CFO sees exactly how much float leaves the platform vs. how much settles internal advances.
 
-1. `agentByGroup.get(p.transaction_group_id)` — Float-Allocation agent (covers ~all current production data).
-2. Existing `collectionMap` lookup on `agent_collections` (legacy manual-collect-rent path).
-3. `assignedAgentByTenant` — agent on the active rent_request.
-4. `referrerAgentByTenant` — onboarding agent (profiles.referrer_id, role=agent).
+## Backend changes
 
-If ANY of (1) or (2) match, set `isAgentCollection = true` and use that agent for the row. (3) and (4) are display-only fallbacks for the "Agent" column — they should NOT flip a Direct payment into "agent-collected".
+### Schema migration
 
-### 3. Fix the silent-self payment edge case
+```sql
+ALTER TABLE payroll_batches
+  ADD COLUMN default_recovery_percent numeric NOT NULL DEFAULT 30
+    CHECK (default_recovery_percent BETWEEN 0 AND 100);
 
-When the resolved `agentId === tenantId` (the test/multi-role case we have today), still count it as agent-collected — that's what actually happened — but display the agent name with a `(self)` suffix so reviewers aren't confused.
+ALTER TABLE payroll_items
+  ADD COLUMN recovery_percent numeric CHECK (recovery_percent BETWEEN 0 AND 100),
+  ADD COLUMN advance_balance_snapshot numeric NOT NULL DEFAULT 0,
+  ADD COLUMN recovery_amount numeric NOT NULL DEFAULT 0,
+  ADD COLUMN take_home_amount numeric NOT NULL DEFAULT 0;
+```
 
-### 4. Make sure `transaction_group_id` is in the SELECT
+`recovery_percent` is nullable so it falls back to the batch default at process-time.
 
-The current query selects `user_id, amount, source_id, source_table, transaction_date`. Add `transaction_group_id` so step (1) has the join key. (Confirmed the column exists on `general_ledger`.)
+### Edge function: `platform-expense-transfer` → `process_payroll`
 
-### 5. Light agent-name UX polish in the table
+For each pending item, before posting:
 
-When the resolved agent matches but the tenant has multiple payments split across agents, keep the existing `Set<string>` join. When `isAgentCollection` is true but no name resolves (deleted profile), show `Agent (deleted)` instead of `—`, so a Direct row and an agent row with a missing profile can never look identical.
+1. Read `wallets.advance_balance` (snapshot to `advance_balance_snapshot`).
+2. Compute `recovery_pct` (item override → batch default → 30).
+3. Compute `recovery = min(advance_balance, gross * recovery_pct / 100)` and `take_home = gross - recovery`.
+4. Persist `recovery_amount`, `take_home_amount` on the item.
+5. Post a single `create_ledger_transaction` call with up to 4 legs (kept double-entry, balanced):
+   - `platform : cash_out : take_home` (category `system_balance_correction`)
+   - `wallet   : cash_in  : take_home` (category `system_balance_correction`)
+   - If `recovery > 0`:
+     - `wallet   : cash_out : recovery` (category `advance_repayment`) — reduces `advance_balance` via existing wallet trigger
+     - `platform : cash_in  : recovery` (category `advance_repayment`) — recoups company outflow
+6. Audit log entry per processed item with `{ gross, recovery, take_home, recovery_pct }` so CFO Actions Log shows the deduction trail.
 
-## Verification
+### Wallet trigger compatibility
 
-After the fix, regenerating the report for 28–29 Apr 2026 should show:
+The `apply_wallet_movement` sole-writer (per `mem://constraints/wallet-sole-writer`) already routes `advance_repayment` category to decrement `advance_balance`. We confirm the category is in the ledger allowlist; if not, the migration adds it to the allowlist enum used by `create_ledger_transaction` strict mode.
 
-- DIRECT PAYMENTS: UGX 0
-- AGENT-COLLECTED: UGX 145,000
-- Both rows ("LOLEM FIRICILA", "Muwanguzi Fred") tagged Channel = "Agent" with the resolved agent name (or `(self)` for the multi-role test users).
+## Files to change
+
+- `supabase/migrations/<timestamp>_payroll_advance_recovery.sql` — new columns + ensure `advance_repayment` is allowlisted.
+- `supabase/functions/platform-expense-transfer/index.ts` — rewrite the `process_payroll` loop with the recovery math and 4-leg ledger post.
+- `src/components/cfo/PayrollPanel.tsx` — batch default %, per-item recovery %, advance preview banner, take-home columns, pre-process summary strip.
 
 ## Out of scope
 
-- Changing the underlying ledger / float-allocation accounting (the legs already balance correctly).
-- The PDF layout (`generateTenantOpsReportPdf.ts`).
-- Outstanding-balance math (already ledger-driven and accurate).
+- Changing how advances are issued (still via existing `IssueAdvanceSheet` / `RecordAdvancePaymentDialog`).
+- Changing the deposit-side 30% auto-recovery for non-payroll deposits.
+- Multi-month amortization schedules — this round is single-paycheck percentage.
