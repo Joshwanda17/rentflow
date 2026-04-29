@@ -211,6 +211,7 @@ Deno.serve(async (req) => {
         source_table: 'wallet_deductions',
         linked_party: user.id,
         transaction_date: nowIso,
+        recipient_type: 'user',
       });
       entries.push({
         direction: 'cash_in',
@@ -224,30 +225,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (floatPortion > 0) {
-      entries.push({
-        user_id: target_user_id,
-        amount: floatPortion,
-        direction: 'cash_out',
-        category: 'agent_float_settlement',
-        ledger_scope: 'wallet',
-        description: `Float settlement (${safeCategory}): ${reason}`,
-        currency: 'UGX',
-        source_table: 'wallet_deductions',
-        linked_party: user.id,
-        transaction_date: nowIso,
-      });
-      entries.push({
-        direction: 'cash_in',
-        amount: floatPortion,
-        category: 'agent_float_settlement',
-        ledger_scope: 'platform',
-        description: `Platform receives float settlement (${safeCategory}): ${reason}`,
-        currency: 'UGX',
-        source_table: 'wallet_deductions',
-        transaction_date: nowIso,
-      });
-    }
+    // Float spill removed: this tool is strict-withdrawable-only. See plan
+    // 2026-04-29 — float is company liability and is never deductible here.
 
     const { data: txnGroupId, error: ledgerErr } = await adminClient.rpc('create_ledger_transaction', { entries });
 
