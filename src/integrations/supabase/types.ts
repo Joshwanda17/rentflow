@@ -8713,6 +8713,10 @@ export type Database = {
           frozen_reason: string | null
           full_name: string
           funder_reference: string | null
+          funder_rejected_at: string | null
+          funder_rejection_reason: string | null
+          funder_verified_at: string | null
+          funder_verified_by: string | null
           id: string
           is_frozen: boolean
           is_seller: boolean
@@ -8762,6 +8766,10 @@ export type Database = {
           frozen_reason?: string | null
           full_name: string
           funder_reference?: string | null
+          funder_rejected_at?: string | null
+          funder_rejection_reason?: string | null
+          funder_verified_at?: string | null
+          funder_verified_by?: string | null
           id: string
           is_frozen?: boolean
           is_seller?: boolean
@@ -8811,6 +8819,10 @@ export type Database = {
           frozen_reason?: string | null
           full_name?: string
           funder_reference?: string | null
+          funder_rejected_at?: string | null
+          funder_rejection_reason?: string | null
+          funder_verified_at?: string | null
+          funder_verified_by?: string | null
           id?: string
           is_frozen?: boolean
           is_seller?: boolean
@@ -13348,6 +13360,10 @@ export type Database = {
             Returns: undefined
           }
       apply_welile_homes_monthly_interest: { Args: never; Returns: number }
+      approve_self_registered_funder: {
+        Args: { _reason: string; _target_user: string }
+        Returns: undefined
+      }
       assert_routing_compatible: {
         Args: { p_category: string; p_recipient_type: string }
         Returns: undefined
@@ -14201,6 +14217,10 @@ export type Database = {
       reject_house_listing: {
         Args: { p_listing_id: string; p_reason: string }
         Returns: Json
+      }
+      reject_self_registered_funder: {
+        Args: { _reason: string; _target_user: string }
+        Returns: undefined
       }
       release_historical_drift: {
         Args: { p_amount: number; p_reason: string; p_review_id: string }
