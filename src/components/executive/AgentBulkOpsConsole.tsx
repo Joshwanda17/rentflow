@@ -822,6 +822,93 @@ function AgentSnapshotPanel({
 }
 
 /* =====================================================================
+ * CapabilityHistoryRow — last 10 enable/disable updates that touched
+ * this specific (agent, capability) pair. Derived from
+ * agent_capability_ops_jobs (the only durable history source) by
+ * filtering jobs whose agent_ids array contains this agent and whose
+ * capabilities array contains this capability. Each entry shows the
+ * action, when it ran, the source channel, and the audit reason.
+ * =====================================================================*/
+function CapabilityHistoryRow({ agentId, capability }: { agentId: string; capability: string }) {
+  const q = useQuery({
+    queryKey: ['cap-history', agentId, capability],
+    queryFn: async () => {
+      const res = await supabase
+        .from('agent_capability_ops_jobs')
+        .select('id,action,reason,status,source,created_at,finished_at,requested_by,failed_total')
+        .contains('agent_ids', [agentId])
+        .contains('capabilities', [capability])
+        .order('created_at', { ascending: false })
+        .limit(10);
+      if (res.error) throw res.error;
+      return res.data ?? [];
+    },
+    staleTime: 30_000,
+  });
+
+  const rows = q.data ?? [];
+
+  return (
+    <div className="ml-5 mr-1 mb-1 mt-0.5 border-l-2 border-border pl-2 py-1 space-y-0.5">
+      <p className="text-[9px] uppercase tracking-wider text-muted-foreground">
+        Last 10 updates
+      </p>
+      {q.isLoading ? (
+        <div className="flex items-center gap-1.5 text-[9px] text-muted-foreground py-0.5">
+          <Loader2 className="h-2.5 w-2.5 animate-spin" /> Loading…
+        </div>
+      ) : rows.length === 0 ? (
+        <p className="text-[9px] text-muted-foreground py-0.5">
+          No bulk-ops history for this function.
+        </p>
+      ) : (
+        rows.map(r => {
+          const failed = r.status === 'failed' || (r.failed_total ?? 0) > 0;
+          return (
+            <div key={r.id} className="flex items-center gap-1.5 text-[9px]">
+              <Badge
+                variant={r.action === 'enable' ? 'default' : 'destructive'}
+                className="text-[8px] py-0 px-1 shrink-0"
+              >
+                {r.action === 'enable' ? '+EN' : '−DIS'}
+              </Badge>
+              <span
+                className="text-muted-foreground tabular-nums shrink-0"
+                title={r.created_at}
+              >
+                {new Date(r.created_at).toLocaleString(undefined, {
+                  month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+                })}
+              </span>
+              <span className="text-muted-foreground shrink-0">·</span>
+              <span className="text-muted-foreground shrink-0" title={`source: ${r.source}`}>
+                {r.source}
+              </span>
+              {failed && (
+                <Badge variant="destructive" className="text-[8px] py-0 px-1 shrink-0">
+                  failed
+                </Badge>
+              )}
+              {r.status === 'cancelled' && (
+                <Badge variant="outline" className="text-[8px] py-0 px-1 shrink-0">
+                  cancelled
+                </Badge>
+              )}
+              <span
+                className="text-muted-foreground italic truncate flex-1 min-w-0"
+                title={r.reason ?? ''}
+              >
+                {r.reason ? `“${r.reason}”` : ''}
+              </span>
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
+/* =====================================================================
  * SingleAgentForm — find ONE agent by ID, phone, or email and stage them
  * as a 1-agent target. Lets a manager work on a specific agent inside the
  * same Bulk Ops flow (same audit, same job pipeline).
