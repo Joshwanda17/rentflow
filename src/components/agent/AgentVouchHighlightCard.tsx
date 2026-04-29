@@ -8,6 +8,7 @@ import { hapticTap } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { AgentVouchHistoryFeed } from './AgentVouchHistoryFeed';
+import { onVouchUpdated } from '@/lib/vouchEvents';
 
 interface Props {
   userId: string;
@@ -23,8 +24,15 @@ interface Props {
 export function AgentVouchHighlightCard({ userId }: Props) {
   const navigate = useNavigate();
   const aiId = userId ? generateWelileAiId(userId) : undefined;
-  const { profile, loading } = useTrustProfile(aiId);
+  const { profile, loading, refresh } = useTrustProfile(aiId);
   const [expanded, setExpanded] = useState(false);
+
+  // Refresh trust profile in real-time when a collection lands.
+  useEffect(() => {
+    return onVouchUpdated((d) => {
+      if (!d.agentId || d.agentId === userId) refresh();
+    });
+  }, [userId, refresh]);
 
   if (loading && !profile) return null;
   if (!profile) return null;
