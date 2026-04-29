@@ -1854,6 +1854,15 @@ export function TidVerification() {
             const originalProvider = (pickedRow.provider ?? pickedProvider ?? '—')
               .replace('_', ' ')
               .toUpperCase();
+            // Pull the picked row's REAL transaction_id so the recap shows
+            // the source-of-truth TID — not whatever the operator typed.
+            // The pick-list query doesn't fetch transaction_id, so fall back
+            // to the typed value when it's missing on the row object.
+            const pickedTid = (pickedRow as any).transaction_id as string | undefined;
+            const typedTid = tid.trim();
+            const norm = (s: string) => s.replace(/[^0-9A-Z]/gi, '').toUpperCase();
+            const tidsAgree = !!typedTid && !!pickedTid && norm(typedTid) === norm(pickedTid);
+            const tidsConflict = !!typedTid && !!pickedTid && !tidsAgree;
             return (
               <div className="rounded-md border border-border bg-muted/40 px-3 py-2.5 space-y-1.5 text-xs">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -1875,12 +1884,46 @@ export function TidVerification() {
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between gap-2 min-w-0">
-                    <span className="text-muted-foreground">TID</span>
+                    <span className="text-muted-foreground">TID on file</span>
                     <span className="font-mono text-[11px] truncate">
-                      {tid.trim() || <span className="text-muted-foreground italic">not entered</span>}
+                      {pickedTid || <span className="text-muted-foreground italic">— (use typed)</span>}
                     </span>
                   </div>
                 </div>
+                {tidsConflict && (
+                  <div className="mt-1.5 rounded border border-destructive/40 bg-destructive/5 px-2 py-1.5 space-y-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-destructive flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3" /> TID does not match the picked deposit
+                    </p>
+                    <p className="text-[11px] text-muted-foreground leading-snug">
+                      You typed <span className="font-mono">{typedTid}</span> but this depositor's pending
+                      record has <span className="font-mono">{pickedTid}</span>. Verify which is correct
+                      before approving.
+                    </p>
+                    <div className="flex gap-1.5 pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setTid(pickedTid!)}
+                        className="text-[10px] font-medium text-primary underline underline-offset-2 hover:no-underline"
+                      >
+                        Use TID on file
+                      </button>
+                      <span className="text-muted-foreground">·</span>
+                      <button
+                        type="button"
+                        onClick={() => { setTid(''); }}
+                        className="text-[10px] font-medium text-muted-foreground hover:text-foreground"
+                      >
+                        Clear typed
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {tidsAgree && (
+                  <p className="text-[10px] text-success flex items-center gap-1 pt-0.5">
+                    <CheckCircle2 className="h-3 w-3" /> TID matches the deposit on file.
+                  </p>
+                )}
               </div>
             );
           })()}
