@@ -308,7 +308,51 @@ function rangeLabel(r: Range) {
     case '30d': return 'last 30 days';
     case '90d': return 'last 90 days';
     case 'all': return 'lifetime';
+    case 'custom': return 'selected range';
   }
+}
+
+function DateField({
+  label, value, onChange, min, max,
+}: {
+  label: string;
+  value: Date | undefined;
+  onChange: (d: Date | undefined) => void;
+  min?: Date;
+  max?: Date;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn(
+            'h-7 px-2 text-[10px] gap-1 font-semibold',
+            !value && 'text-muted-foreground',
+          )}
+        >
+          <CalendarIcon className="h-3 w-3" />
+          <span className="text-muted-foreground">{label}:</span>
+          {value ? format(value, 'd MMM yy') : 'pick'}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={value}
+          onSelect={onChange}
+          disabled={(d) =>
+            (min ? d < new Date(min.getFullYear(), min.getMonth(), min.getDate()) : false) ||
+            (max ? d > new Date(max.getFullYear(), max.getMonth(), max.getDate()) : false) ||
+            d > new Date()
+          }
+          initialFocus
+          className={cn('p-3 pointer-events-auto')}
+        />
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 function Row({
