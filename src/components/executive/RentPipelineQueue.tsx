@@ -415,13 +415,15 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
 
   const handleApprove = async () => {
     if (!selectedRequest || !user) return;
-    if (config.showAgentSelector && !assignedAgentId && !selectedRequest.agent_id) {
+    const isOutstanding = selectedRequest.registration_type === 'outstanding_balance';
+    if (config.showAgentSelector && !isOutstanding && !assignedAgentId && !selectedRequest.agent_id) {
       toast({ title: 'Please assign an agent', variant: 'destructive' });
       return;
     }
 
-    // Landlord Ops must complete checklist
-    if (stage === 'agent_verified' && (!landlordCalled || !landlordAcknowledged)) {
+    // Landlord Ops must complete checklist (skipped for outstanding-balance
+    // tenants — they short-circuit to completed via DB trigger).
+    if (stage === 'agent_verified' && !isOutstanding && (!landlordCalled || !landlordAcknowledged)) {
       toast({ title: 'Complete the landlord verification checklist first', variant: 'destructive' });
       return;
     }
@@ -455,12 +457,12 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
           updated_at: new Date().toISOString(),
         };
 
-        if (config.showAgentSelector && assignedAgentId) {
+        if (config.showAgentSelector && !isOutstanding && assignedAgentId) {
           updateData.assigned_agent_id = assignedAgentId;
         }
 
-        // Save landlord verification checklist
-        if (stage === 'agent_verified') {
+        // Save landlord verification checklist (skipped for outstanding-balance)
+        if (stage === 'agent_verified' && !isOutstanding) {
           updateData.landlord_called = landlordCalled;
           updateData.landlord_acknowledged = landlordAcknowledged;
           updateData.landlord_verification_method = landlordVerificationMethod || 'phone_call';
@@ -476,7 +478,8 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
       }
 
       // Trigger landlord verification bonus when Landlord Ops approves
-      if (stage === 'agent_verified') {
+      // (not applicable for outstanding-balance — there is no landlord disbursement)
+      if (stage === 'agent_verified' && !isOutstanding) {
         try {
           await supabase.functions.invoke('credit-landlord-verification-bonus', {
             body: { rent_request_id: selectedRequest.id },
@@ -486,7 +489,11 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
         }
       }
 
-      toast({ title: `Request approved and forwarded` });
+      toast({
+        title: isOutstanding && stage === 'tenant_ops_approved'
+          ? 'Outstanding balance recorded'
+          : 'Request approved and forwarded',
+      });
       setSelectedRequest(null);
       setComment('');
       setAssignedAgentId(null);
