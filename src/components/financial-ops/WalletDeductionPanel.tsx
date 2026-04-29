@@ -283,6 +283,9 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
     onError: (err: Error) => {
       toast.error(err.message);
       setConfirmStep(false);
+      // Refresh the strict balance so the CFO immediately sees the corrected
+      // ceiling after a "Maximum deductible" or "Balance changed" rejection.
+      queryClient.invalidateQueries({ queryKey: ['deduction-available-balance'] });
     },
   });
 
