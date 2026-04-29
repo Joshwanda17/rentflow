@@ -36,6 +36,8 @@ interface UserResult {
   full_name: string;
   phone: string;
   balance: number;
+  withdrawable_balance: number;
+  float_balance: number;
 }
 
 interface WalletDeductionPanelProps {
@@ -91,9 +93,15 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
           // RPC returns a single numeric (withdrawable available). Coerce
           // directly — the previous `.available` destructure always
           // produced NaN→0, which made every result look empty.
-          return { ...r, balance: Number(data ?? 0) };
+          const withdrawable = Number(data ?? 0);
+          return {
+            ...r,
+            balance: withdrawable,
+            withdrawable_balance: withdrawable,
+            float_balance: 0,
+          };
         } catch {
-          return { ...r, balance: 0 };
+          return { ...r, balance: 0, withdrawable_balance: 0, float_balance: 0 };
         }
       }),
     );
@@ -121,7 +129,10 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
   // Show the lesser of (cached, ledger) so the operator can never type a
   // figure the backend will reject.
   const trueBalance = selectedUser
-    ? Math.min(selectedUser.balance, availableBalance ?? selectedUser.balance)
+    ? Math.min(
+        selectedUser.withdrawable_balance,
+        availableBalance ?? selectedUser.withdrawable_balance,
+      )
     : 0;
 
   // Search users by name/phone
@@ -172,7 +183,14 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
         throw error;
       }
       console.log('[WalletDeductionPanel] balance search', { min, max, count: (data || []).length });
-      let rows = (data || []) as Array<{ user_id: string; full_name: string | null; phone: string | null; balance: number | string }>;
+      let rows = (data || []) as Array<{
+        user_id: string;
+        full_name: string | null;
+        phone: string | null;
+        balance: number | string;
+        withdrawable_balance?: number | string | null;
+        float_balance?: number | string | null;
+      }>;
       // Fallback: if the RPC returned nothing (e.g. PostgREST schema cache
       // hasn't picked it up after a recent deploy), query the wallets
       // table directly so the 229 wallets the hero counts always surface.
@@ -180,10 +198,10 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
         console.warn('[WalletDeductionPanel] RPC returned 0 — falling back to direct wallets query');
         const { data: walletRows, error: wErr } = await supabase
           .from('wallets')
-          .select('user_id, balance')
+          .select('user_id, balance, withdrawable_balance, float_balance')
           .gte('balance', min)
           .lte('balance', max)
-          .order('balance', { ascending: false })
+          .order('withdrawable_balance', { ascending: false, nullsFirst: false })
           .limit(500);
         if (wErr) {
           console.error('[WalletDeductionPanel] fallback wallets query error:', wErr);
@@ -201,21 +219,22 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
               full_name: p?.full_name || 'Unnamed',
               phone: p?.phone || '',
               balance: w.balance,
+              withdrawable_balance: w.withdrawable_balance,
+              float_balance: w.float_balance,
             };
           });
           console.log('[WalletDeductionPanel] fallback returned', rows.length, 'wallets');
         }
       }
-      // Show the SAME balance figure the Financial Ops hero uses
-      // (`wallets.balance` aggregate — all buckets) so every wallet
-      // counted in the "X with balance" pill surfaces here. The deduction
-      // edge function still revalidates ledger-true funds at submit time,
-      // so this is a display-only choice, not a safety regression.
+      // Float is company money we owe back to the user — operators MUST
+      // see it as a separate figure so they never deduct from a liability.
       return rows.map((r) => ({
         id: r.user_id,
         full_name: r.full_name || 'Unnamed',
         phone: r.phone || '',
         balance: Number(r.balance ?? 0),
+        withdrawable_balance: Number(r.withdrawable_balance ?? 0),
+        float_balance: Number(r.float_balance ?? 0),
       }));
     },
     enabled: searchMode === 'balance' && balanceSearchTriggered,
@@ -293,10 +312,23 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
           <div className="flex-1 min-w-0">
             <p className="font-medium text-sm truncate">{u.full_name}</p>
             <p className="text-xs text-muted-foreground">{u.phone}</p>
+            {u.float_balance > 0 && u.withdrawable_balance === 0 && (
+              <p className="text-[10px] text-amber-600 font-medium mt-0.5">
+                Float only — company liability (not deductible)
+              </p>
+            )}
           </div>
-          <div className="text-right shrink-0">
-            <p className="text-xs text-muted-foreground">Available (ledger)</p>
-            <p className="text-sm font-semibold">{formatUGX(u.balance)}</p>
+          <div className="text-right shrink-0 space-y-0.5">
+            <div>
+              <p className="text-[10px] text-muted-foreground leading-none">Withdrawable</p>
+              <p className="text-sm font-semibold leading-tight">{formatUGX(u.withdrawable_balance)}</p>
+            </div>
+            {u.float_balance > 0 && (
+              <div className="mt-1">
+                <p className="text-[10px] text-amber-600 leading-none">Float (owed)</p>
+                <p className="text-xs font-medium text-amber-700 leading-tight">{formatUGX(u.float_balance)}</p>
+              </div>
+            )}
           </div>
         </button>
       ))}
@@ -403,9 +435,27 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
 
               {balanceResults && balanceResults.length > 0 && (
                 <>
-                  <p className="text-xs text-muted-foreground">
-                    {balanceResults.length} wallets found · Total: {formatUGX(balanceResults.reduce((s: number, u: UserResult) => s + u.balance, 0))}
-                  </p>
+                  {(() => {
+                    const withW = balanceResults.filter((u) => u.withdrawable_balance > 0);
+                    const withF = balanceResults.filter((u) => u.float_balance > 0);
+                    const totalW = withW.reduce((s, u) => s + u.withdrawable_balance, 0);
+                    const totalF = withF.reduce((s, u) => s + u.float_balance, 0);
+                    return (
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                        <span className="text-muted-foreground">
+                          {balanceResults.length} wallets
+                        </span>
+                        <span className="text-foreground">
+                          <strong>{withW.length}</strong> with withdrawable · <strong>{formatUGX(totalW)}</strong>
+                        </span>
+                        {withF.length > 0 && (
+                          <span className="text-amber-700">
+                            <strong>{withF.length}</strong> carry float · <strong>{formatUGX(totalF)}</strong> <span className="text-amber-600">(owed)</span>
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                   <UserList users={balanceResults} />
                 </>
               )}
@@ -419,7 +469,7 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
       ) : (
         <>
           {/* Selected user card */}
-          <div className="p-4 rounded-xl border border-border bg-card space-y-1">
+          <div className="p-4 rounded-xl border border-border bg-card space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
@@ -432,13 +482,37 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
               </div>
               <Button variant="ghost" size="sm" onClick={resetForm}>Change</Button>
             </div>
-            <div className="flex items-center gap-2 mt-2">
-              <Wallet className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm">Available: <strong>{formatUGX(trueBalance)}</strong></span>
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <div className="rounded-lg border border-border p-2.5">
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground uppercase tracking-wide">
+                  <Wallet className="h-3 w-3" /> Withdrawable
+                </div>
+                <p className="text-sm font-bold mt-0.5">{formatUGX(trueBalance)}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Deductible from this tool</p>
+              </div>
+              <div className={cn(
+                "rounded-lg border p-2.5",
+                selectedUser.float_balance > 0 ? "border-amber-300 bg-amber-50" : "border-border opacity-60"
+              )}>
+                <div className={cn(
+                  "flex items-center gap-1.5 text-[10px] uppercase tracking-wide",
+                  selectedUser.float_balance > 0 ? "text-amber-700" : "text-muted-foreground"
+                )}>
+                  <AlertTriangle className="h-3 w-3" /> Float (owed)
+                </div>
+                <p className={cn(
+                  "text-sm font-bold mt-0.5",
+                  selectedUser.float_balance > 0 ? "text-amber-800" : ""
+                )}>{formatUGX(selectedUser.float_balance)}</p>
+                <p className={cn(
+                  "text-[10px] mt-0.5",
+                  selectedUser.float_balance > 0 ? "text-amber-700" : "text-muted-foreground"
+                )}>Company liability — not deductible</p>
+              </div>
             </div>
-            {availableBalance !== undefined && availableBalance !== null && availableBalance < selectedUser.balance && (
+            {availableBalance !== undefined && availableBalance !== null && availableBalance < selectedUser.withdrawable_balance && (
               <p className="text-[11px] text-muted-foreground mt-1">
-                Cached wallet shows {formatUGX(selectedUser.balance)}, but ledger-true available is lower (debt / pending obligations).
+                Cached withdrawable shows {formatUGX(selectedUser.withdrawable_balance)}, but ledger-true available is lower (debt / pending obligations).
               </p>
             )}
           </div>
