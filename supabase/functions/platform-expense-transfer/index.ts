@@ -133,6 +133,8 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ success: true, message: 'No items to process' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
+      const batchDefaultPct = Number((batch as any).default_recovery_percent ?? 30);
+
       let processed = 0;
       for (const item of items) {
         try {
@@ -140,27 +142,63 @@ Deno.serve(async (req) => {
           await adminClient.from('wallets')
             .upsert({ user_id: item.employee_id, balance: 0 }, { onConflict: 'user_id', ignoreDuplicates: true });
 
-          // Credit via balanced RPC: platform cash_out + wallet cash_in
+          // Detect outstanding advance and compute recovery split
+          const gross = Number(item.amount);
+          const { data: walletRow } = await adminClient
+            .from('wallets')
+            .select('advance_balance')
+            .eq('user_id', item.employee_id)
+            .maybeSingle();
+          const advanceBal = Math.max(0, Number(walletRow?.advance_balance ?? 0));
+          const itemPct = item.recovery_percent != null ? Number(item.recovery_percent) : batchDefaultPct;
+          const pct = Math.max(0, Math.min(100, itemPct));
+          // Only deduct against advance for salary/bonus/allowance — never an advance disbursement itself
+          const eligible = item.category !== 'advance' && advanceBal > 0;
+          const recovery = eligible ? Math.min(advanceBal, Math.floor((gross * pct) / 100)) : 0;
+          const takeHome = gross - recovery;
+
           const refId = crypto.randomUUID();
           const payTxDate = new Date().toISOString();
-          const { error: rpcErr } = await adminClient.rpc('create_ledger_transaction', {
-            entries: [
-              {
-                user_id: item.employee_id, ledger_scope: 'platform', direction: 'cash_out',
-                amount: item.amount, category: 'system_balance_correction',
-                source_table: 'payroll_items',
-                description: `${item.category === 'salary' ? 'Salary' : 'Employee advance'} payment`,
-                currency: 'UGX', reference_id: refId, transaction_date: payTxDate,
-              },
-              {
-                user_id: item.employee_id, ledger_scope: 'wallet', direction: 'cash_in',
-                amount: item.amount, category: 'system_balance_correction',
-                source_table: 'payroll_items',
-                description: item.description || `${item.category} payment`,
-                currency: 'UGX', reference_id: refId, transaction_date: payTxDate,
-              },
-            ],
-          });
+
+          const entries: any[] = [];
+          if (takeHome > 0) {
+            entries.push({
+              user_id: item.employee_id, ledger_scope: 'platform', direction: 'cash_out',
+              amount: takeHome, category: 'system_balance_correction',
+              source_table: 'payroll_items',
+              description: `${item.category === 'salary' ? 'Salary' : item.category} take-home`,
+              currency: 'UGX', reference_id: refId, transaction_date: payTxDate,
+              recipient_type: 'user',
+            });
+            entries.push({
+              user_id: item.employee_id, ledger_scope: 'wallet', direction: 'cash_in',
+              amount: takeHome, category: 'system_balance_correction',
+              source_table: 'payroll_items',
+              description: item.description || `${item.category} payment`,
+              currency: 'UGX', reference_id: refId, transaction_date: payTxDate,
+              recipient_type: 'user',
+            });
+          }
+          if (recovery > 0) {
+            entries.push({
+              user_id: item.employee_id, ledger_scope: 'wallet', direction: 'cash_out',
+              amount: recovery, category: 'advance_repayment',
+              source_table: 'payroll_items',
+              description: `Advance recovery from ${item.category} (${pct}%)`,
+              currency: 'UGX', reference_id: refId, transaction_date: payTxDate,
+            });
+            entries.push({
+              user_id: item.employee_id, ledger_scope: 'platform', direction: 'cash_in',
+              amount: recovery, category: 'advance_repayment',
+              source_table: 'payroll_items',
+              description: `Advance recovery from ${item.category}`,
+              currency: 'UGX', reference_id: refId, transaction_date: payTxDate,
+            });
+          }
+
+          const { error: rpcErr } = entries.length === 0
+            ? { error: null }
+            : await adminClient.rpc('create_ledger_transaction', { entries });
 
           if (rpcErr) {
             console.error(`Payroll RPC error for ${item.id}:`, rpcErr);
@@ -168,7 +206,30 @@ Deno.serve(async (req) => {
             continue;
           }
 
-          await adminClient.from('payroll_items').update({ status: 'paid', paid_at: new Date().toISOString(), ledger_reference_id: refId }).eq('id', item.id);
+          await adminClient.from('payroll_items').update({
+            status: 'paid',
+            paid_at: new Date().toISOString(),
+            ledger_reference_id: refId,
+            advance_balance_snapshot: advanceBal,
+            recovery_amount: recovery,
+            take_home_amount: takeHome,
+            recovery_percent: pct,
+          }).eq('id', item.id);
+
+          await adminClient.from('audit_logs').insert({
+            user_id: user.id,
+            action_type: 'payroll_item_paid',
+            table_name: 'payroll_items',
+            record_id: item.id,
+            metadata: {
+              employee_id: item.employee_id,
+              category: item.category,
+              gross, recovery, take_home: takeHome,
+              recovery_percent: pct,
+              advance_balance_before: advanceBal,
+              reason: 'payroll_advance_recovery',
+            },
+          });
           processed++;
         } catch (e) {
           console.error(`Payroll item ${item.id} failed:`, e);
