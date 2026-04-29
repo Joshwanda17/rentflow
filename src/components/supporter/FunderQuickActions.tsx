@@ -31,9 +31,14 @@ interface Props {
    * surfaces so it sits cleanly under the "Invested" row.
    */
   variant?: 'default' | 'hero';
+  /**
+   * When true, the Deposit button gets a temporary primary-ring pulse to
+   * draw attention (used right after the Funder activation modal closes).
+   */
+  highlightDeposit?: boolean;
 }
 
-export function FunderQuickActions({ availableBalance, roiBalance = 0, onChanged, variant = 'default' }: Props) {
+export function FunderQuickActions({ availableBalance, roiBalance = 0, onChanged, variant = 'default', highlightDeposit = false }: Props) {
   const [showDeposit, setShowDeposit] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
@@ -48,13 +53,16 @@ export function FunderQuickActions({ availableBalance, roiBalance = 0, onChanged
     ? 'gap-2 h-11 rounded-xl bg-primary-foreground/10 hover:bg-primary-foreground/15 backdrop-blur-sm border border-primary-foreground/15 text-primary-foreground'
     : 'gap-2 h-11';
   const btnVariant = isHero ? 'ghost' as const : 'outline' as const;
+  const depositHighlightClass = highlightDeposit
+    ? ' ring-2 ring-primary ring-offset-2 ring-offset-background animate-pulse shadow-lg'
+    : '';
 
   return (
     <>
       <div className="grid grid-cols-3 gap-2">
         <Button
           variant={btnVariant}
-          className={btnClass}
+          className={btnClass + depositHighlightClass}
           onClick={() => { hapticTap(); setShowDeposit(true); }}
         >
           <ArrowDownLeft className={`w-4 h-4 ${isHero ? 'text-emerald-300' : 'text-emerald-600'}`} />
