@@ -144,12 +144,16 @@ export function AgentBulkOpsConsole({ onBack }: { onBack?: () => void }) {
           <TabsList>
             <TabsTrigger value="segment"><Filter className="h-3 w-3 mr-1" /> Segment</TabsTrigger>
             <TabsTrigger value="csv"><FileUp className="h-3 w-3 mr-1" /> CSV / paste list</TabsTrigger>
+            <TabsTrigger value="single"><Search className="h-3 w-3 mr-1" /> Single agent</TabsTrigger>
           </TabsList>
           <TabsContent value="segment" className="mt-3">
             <SegmentForm onResolved={setResolved} />
           </TabsContent>
           <TabsContent value="csv" className="mt-3">
             <CsvForm onResolved={setResolved} />
+          </TabsContent>
+          <TabsContent value="single" className="mt-3">
+            <SingleAgentForm onResolved={setResolved} />
           </TabsContent>
         </Tabs>
       </Card>
