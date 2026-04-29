@@ -594,7 +594,11 @@ function SegmentForm({ onResolved }: { onResolved: (r: ResolvedSet) => void }) {
   });
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+    <div className="space-y-2">
+      <p className="text-xs text-muted-foreground">
+        Set any filters you want, then tap <strong>Find agents</strong>. Leave fields blank to skip them.
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
       <Select value={tier} onValueChange={(v) => setTier(v as Tier | 'all')}>
         <SelectTrigger><SelectValue placeholder="Tier" /></SelectTrigger>
         <SelectContent>
@@ -602,9 +606,9 @@ function SegmentForm({ onResolved }: { onResolved: (r: ResolvedSet) => void }) {
           {TIERS.map(t => <SelectItem key={t} value={t}>{t.replace('_',' ')}</SelectItem>)}
         </SelectContent>
       </Select>
-      <Input placeholder="Region (exact)" value={region} onChange={e => setRegion(e.target.value)} />
-      <Input placeholder="District (exact)" value={district} onChange={e => setDistrict(e.target.value)} />
-      <Input placeholder="Territory (exact)" value={territory} onChange={e => setTerritory(e.target.value)} />
+      <Input placeholder="Region (e.g. Central)" value={region} onChange={e => setRegion(e.target.value)} className="text-base sm:text-sm" />
+      <Input placeholder="District" value={district} onChange={e => setDistrict(e.target.value)} className="text-base sm:text-sm" />
+      <Input placeholder="Territory" value={territory} onChange={e => setTerritory(e.target.value)} className="text-base sm:text-sm" />
       <Select value={frozen} onValueChange={(v) => setFrozen(v as any)}>
         <SelectTrigger><SelectValue /></SelectTrigger>
         <SelectContent>
@@ -614,27 +618,31 @@ function SegmentForm({ onResolved }: { onResolved: (r: ResolvedSet) => void }) {
         </SelectContent>
       </Select>
       <Input
-        placeholder="Inactive ≥ N days"
+        placeholder="Inactive for at least N days"
         type="number"
+        inputMode="numeric"
         value={inactiveDays}
         onChange={e => setInactiveDays(e.target.value)}
+        className="text-base sm:text-sm"
       />
       <Select value={hasCap || 'none'} onValueChange={(v) => setHasCap(v === 'none' ? '' : v)}>
-        <SelectTrigger><SelectValue placeholder="Has function (optional)" /></SelectTrigger>
+        <SelectTrigger><SelectValue placeholder="Already has function…" /></SelectTrigger>
         <SelectContent>
-          <SelectItem value="none">— Has function —</SelectItem>
+          <SelectItem value="none">— Already has function —</SelectItem>
           {ALL_CAPABILITIES.map(c => <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>)}
         </SelectContent>
       </Select>
       <Select value={missingCap || 'none'} onValueChange={(v) => setMissingCap(v === 'none' ? '' : v)}>
-        <SelectTrigger><SelectValue placeholder="Missing function (optional)" /></SelectTrigger>
+        <SelectTrigger><SelectValue placeholder="Missing function…" /></SelectTrigger>
         <SelectContent>
           <SelectItem value="none">— Missing function —</SelectItem>
           {ALL_CAPABILITIES.map(c => <SelectItem key={c.key} value={c.key}>{c.label}</SelectItem>)}
         </SelectContent>
       </Select>
-      <Button onClick={() => resolve.mutate()} disabled={resolve.isPending} className="md:col-span-3">
-        {resolve.isPending ? 'Resolving…' : 'Resolve segment'}
+      </div>
+      <Button onClick={() => resolve.mutate()} disabled={resolve.isPending} className="w-full h-11">
+        <Search className="h-4 w-4 mr-2" />
+        {resolve.isPending ? 'Searching…' : 'Find agents'}
       </Button>
     </div>
   );
@@ -691,27 +699,29 @@ function CsvForm({ onResolved }: { onResolved: (r: ResolvedSet) => void }) {
   return (
     <div className="space-y-2">
       <p className="text-xs text-muted-foreground">
-        Paste one identifier per line or upload a CSV. Accepts agent IDs (UUID), phone numbers, or emails.
+        Paste agent <strong>phone numbers</strong>, <strong>emails</strong>, or <strong>IDs</strong> — one per line. Or upload a CSV/TXT file.
       </p>
       <Textarea
         rows={6}
-        placeholder={'+256700123456\n+256700123457\nagent@example.com\n9c2d…'}
+        placeholder={'+256700123456\n+256700123457\nagent@example.com'}
         value={text}
         onChange={e => setText(e.target.value)}
+        className="text-base sm:text-sm font-mono"
       />
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
         <Input
           type="file"
           accept=".csv,.txt"
           onChange={e => { const f = e.target.files?.[0]; if (f) onFile(f); }}
-          className="max-w-xs"
+          className="sm:max-w-xs text-xs"
         />
         <span className="text-xs text-muted-foreground">
-          {parseItems(text).length.toLocaleString()} identifier{parseItems(text).length === 1 ? '' : 's'}
+          {parseItems(text).length.toLocaleString()} item{parseItems(text).length === 1 ? '' : 's'} ready
         </span>
         <div className="flex-1" />
-        <Button onClick={() => resolve.mutate()} disabled={resolve.isPending}>
-          {resolve.isPending ? 'Resolving…' : 'Resolve list'}
+        <Button onClick={() => resolve.mutate()} disabled={resolve.isPending} className="w-full sm:w-auto h-11 sm:h-10">
+          <Search className="h-4 w-4 mr-2" />
+          {resolve.isPending ? 'Checking…' : 'Find these agents'}
         </Button>
       </div>
     </div>
