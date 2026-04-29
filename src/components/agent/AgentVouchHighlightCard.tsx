@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Fingerprint, ShieldCheck, Sparkles, ChevronRight, ChevronDown, Info, Clock, Wallet, TrendingUp } from 'lucide-react';
+import { Fingerprint, ShieldCheck, Sparkles, ChevronRight, ChevronDown, Info, Clock } from 'lucide-react';
 import { useTrustProfile } from '@/hooks/useTrustProfile';
 import { generateWelileAiId } from '@/lib/welileAiId';
 import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/integrations/supabase/client';
 import { AgentVouchHistoryFeed } from './AgentVouchHistoryFeed';
 import { onVouchUpdated } from '@/lib/vouchEvents';
 import { EarnedVouchRangeBreakdown } from './EarnedVouchRangeBreakdown';
