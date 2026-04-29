@@ -29,11 +29,12 @@ import { TrustCaptureTab } from './TrustCaptureTab';
 import { AgentPerformanceReport } from './AgentPerformanceReport';
 import { AgentAllocationReport } from './AgentAllocationReport';
 import { AgentFeatureFlagsPanel } from './AgentFeatureFlagsPanel';
+import { AgentBulkOpsConsole } from './AgentBulkOpsConsole';
 import { 
   Users, Banknote, DollarSign, Search, UserPlus, Trophy, BarChart3, 
   ClipboardList, AlertTriangle, Building2, Wallet, Bell, ArrowLeftRight,
   ChevronLeft, Briefcase, TrendingUp, UsersRound, PiggyBank, HandCoins, ShieldCheck, FileBarChart, Network,
-  LayoutGrid, ChevronDown, ToggleRight
+  LayoutGrid, ChevronDown, ToggleRight, Layers
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -48,9 +49,10 @@ import { format } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 
-type ActiveView = null | 'pipeline' | 'brief' | 'directory' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'alerts' | 'leaderboard' | 'earnings' | 'transfers' | 'advance-requests' | 'balances' | 'lending-agents' | 'trust-capture' | 'performance-report' | 'allocation-report' | 'feature-flags';
+type ActiveView = null | 'pipeline' | 'brief' | 'directory' | 'connector' | 'performance' | 'lifecycle' | 'tasks' | 'escalations' | 'service-centres' | 'sub-agents' | 'promote-tenant' | 'float-payouts' | 'alerts' | 'leaderboard' | 'earnings' | 'transfers' | 'advance-requests' | 'balances' | 'lending-agents' | 'trust-capture' | 'performance-report' | 'allocation-report' | 'feature-flags' | 'bulk-ops';
 
 const NAV_ITEMS: { key: ActiveView; icon: any; label: string; color: string; priority?: boolean }[] = [
+  { key: 'bulk-ops', icon: Layers, label: 'Bulk Ops Console', color: 'bg-rose-700', priority: true },
   { key: 'feature-flags', icon: ToggleRight, label: 'Feature Flags', color: 'bg-rose-600', priority: true },
   { key: 'performance-report', icon: FileBarChart, label: 'Performance Report', color: 'bg-teal-600', priority: true },
   { key: 'allocation-report', icon: Network, label: 'Allocations & Repayment', color: 'bg-indigo-600', priority: true },
@@ -196,6 +198,7 @@ export function AgentOpsDashboard() {
       case 'performance-report': return <AgentPerformanceReport />;
       case 'allocation-report': return <AgentAllocationReport />;
       case 'feature-flags': return <AgentFeatureFlagsPanel onBack={() => setActiveView(null)} />;
+      case 'bulk-ops': return <AgentBulkOpsConsole onBack={() => setActiveView(null)} />;
       case 'pipeline': return <AgentOpsPipelineHub />;
       case 'brief': return <AgentOpsBrief />;
       case 'directory': return <AgentDirectory />;
