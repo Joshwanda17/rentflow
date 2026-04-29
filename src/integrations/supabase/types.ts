@@ -680,6 +680,116 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_capability_ops_job_batches: {
+        Row: {
+          affected: number
+          agent_count: number
+          batch_index: number
+          capability: string
+          claimed_at: string | null
+          error: string | null
+          finished_at: string | null
+          id: number
+          job_id: string
+          status: string
+        }
+        Insert: {
+          affected?: number
+          agent_count: number
+          batch_index: number
+          capability: string
+          claimed_at?: string | null
+          error?: string | null
+          finished_at?: string | null
+          id?: number
+          job_id: string
+          status?: string
+        }
+        Update: {
+          affected?: number
+          agent_count?: number
+          batch_index?: number
+          capability?: string
+          claimed_at?: string | null
+          error?: string | null
+          finished_at?: string | null
+          id?: number
+          job_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_capability_ops_job_batches_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "agent_capability_ops_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_capability_ops_jobs: {
+        Row: {
+          action: string
+          affected_total: number
+          agent_ids: string[]
+          batches_done: number
+          capabilities: string[]
+          chunk_size: number
+          created_at: string
+          failed_total: number
+          finished_at: string | null
+          id: string
+          last_error: string | null
+          reason: string
+          requested_by: string
+          source: string
+          started_at: string | null
+          status: string
+          total_agents: number
+          total_batches: number
+        }
+        Insert: {
+          action: string
+          affected_total?: number
+          agent_ids: string[]
+          batches_done?: number
+          capabilities: string[]
+          chunk_size?: number
+          created_at?: string
+          failed_total?: number
+          finished_at?: string | null
+          id?: string
+          last_error?: string | null
+          reason: string
+          requested_by: string
+          source?: string
+          started_at?: string | null
+          status?: string
+          total_agents: number
+          total_batches: number
+        }
+        Update: {
+          action?: string
+          affected_total?: number
+          agent_ids?: string[]
+          batches_done?: number
+          capabilities?: string[]
+          chunk_size?: number
+          created_at?: string
+          failed_total?: number
+          finished_at?: string | null
+          id?: string
+          last_error?: string | null
+          reason?: string
+          requested_by?: string
+          source?: string
+          started_at?: string | null
+          status?: string
+          total_agents?: number
+          total_batches?: number
+        }
+        Relationships: []
+      }
       agent_collection_streaks: {
         Row: {
           agent_id: string
@@ -14140,6 +14250,10 @@ export type Database = {
         Args: { _target_agent_id: string; _viewer_id: string }
         Returns: boolean
       }
+      cancel_agent_capability_job: {
+        Args: { _job_id: string }
+        Returns: undefined
+      }
       capture_trust_signal: {
         Args: {
           p_accuracy?: number
@@ -14174,8 +14288,16 @@ export type Database = {
           id: string
         }[]
       }
+      claim_next_agent_capability_batch: {
+        Args: { _job_id?: string }
+        Returns: Json
+      }
       cleanup_expired_otps: { Args: never; Returns: undefined }
       cleanup_old_system_events: { Args: never; Returns: undefined }
+      complete_agent_capability_batch: {
+        Args: { _affected: number; _batch_id: number; _error?: string }
+        Returns: undefined
+      }
       compute_agent_performance: {
         Args: { p_agent_id: string }
         Returns: {
@@ -14319,6 +14441,17 @@ export type Database = {
       enforce_recipient_routing: {
         Args: { p_amount: number; p_recipient_type: string; p_user_id: string }
         Returns: Json
+      }
+      enqueue_agent_capability_job: {
+        Args: {
+          _action: string
+          _agent_ids: string[]
+          _capabilities: string[]
+          _chunk_size?: number
+          _reason: string
+          _source?: string
+        }
+        Returns: string
       }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
