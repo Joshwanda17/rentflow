@@ -652,8 +652,14 @@ export default function SupporterDashboard({
 
       <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />
       <InvestmentAccountsDrawer open={showInvestments} onOpenChange={setShowInvestments} defaultTab={investmentsTab} />
-      
-      
+
+      <FunderActivationModal
+        open={showActivationModal}
+        onOpenChange={setShowActivationModal}
+        onDepositClick={handleActivationDeposit}
+        onSnooze={handleActivationSnooze}
+      />
+
     </div>
   );
 }
