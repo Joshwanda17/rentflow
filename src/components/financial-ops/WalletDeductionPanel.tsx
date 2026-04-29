@@ -36,6 +36,8 @@ interface UserResult {
   full_name: string;
   phone: string;
   balance: number;
+  withdrawable_balance: number;
+  float_balance: number;
 }
 
 interface WalletDeductionPanelProps {
@@ -91,9 +93,15 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
           // RPC returns a single numeric (withdrawable available). Coerce
           // directly — the previous `.available` destructure always
           // produced NaN→0, which made every result look empty.
-          return { ...r, balance: Number(data ?? 0) };
+          const withdrawable = Number(data ?? 0);
+          return {
+            ...r,
+            balance: withdrawable,
+            withdrawable_balance: withdrawable,
+            float_balance: 0,
+          };
         } catch {
-          return { ...r, balance: 0 };
+          return { ...r, balance: 0, withdrawable_balance: 0, float_balance: 0 };
         }
       }),
     );
@@ -172,7 +180,14 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
         throw error;
       }
       console.log('[WalletDeductionPanel] balance search', { min, max, count: (data || []).length });
-      let rows = (data || []) as Array<{ user_id: string; full_name: string | null; phone: string | null; balance: number | string }>;
+      let rows = (data || []) as Array<{
+        user_id: string;
+        full_name: string | null;
+        phone: string | null;
+        balance: number | string;
+        withdrawable_balance?: number | string | null;
+        float_balance?: number | string | null;
+      }>;
       // Fallback: if the RPC returned nothing (e.g. PostgREST schema cache
       // hasn't picked it up after a recent deploy), query the wallets
       // table directly so the 229 wallets the hero counts always surface.
@@ -180,10 +195,10 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
         console.warn('[WalletDeductionPanel] RPC returned 0 — falling back to direct wallets query');
         const { data: walletRows, error: wErr } = await supabase
           .from('wallets')
-          .select('user_id, balance')
+          .select('user_id, balance, withdrawable_balance, float_balance')
           .gte('balance', min)
           .lte('balance', max)
-          .order('balance', { ascending: false })
+          .order('withdrawable_balance', { ascending: false, nullsFirst: false })
           .limit(500);
         if (wErr) {
           console.error('[WalletDeductionPanel] fallback wallets query error:', wErr);
@@ -201,21 +216,22 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
               full_name: p?.full_name || 'Unnamed',
               phone: p?.phone || '',
               balance: w.balance,
+              withdrawable_balance: w.withdrawable_balance,
+              float_balance: w.float_balance,
             };
           });
           console.log('[WalletDeductionPanel] fallback returned', rows.length, 'wallets');
         }
       }
-      // Show the SAME balance figure the Financial Ops hero uses
-      // (`wallets.balance` aggregate — all buckets) so every wallet
-      // counted in the "X with balance" pill surfaces here. The deduction
-      // edge function still revalidates ledger-true funds at submit time,
-      // so this is a display-only choice, not a safety regression.
+      // Float is company money we owe back to the user — operators MUST
+      // see it as a separate figure so they never deduct from a liability.
       return rows.map((r) => ({
         id: r.user_id,
         full_name: r.full_name || 'Unnamed',
         phone: r.phone || '',
         balance: Number(r.balance ?? 0),
+        withdrawable_balance: Number(r.withdrawable_balance ?? 0),
+        float_balance: Number(r.float_balance ?? 0),
       }));
     },
     enabled: searchMode === 'balance' && balanceSearchTriggered,
@@ -293,10 +309,23 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
           <div className="flex-1 min-w-0">
             <p className="font-medium text-sm truncate">{u.full_name}</p>
             <p className="text-xs text-muted-foreground">{u.phone}</p>
+            {u.float_balance > 0 && u.withdrawable_balance === 0 && (
+              <p className="text-[10px] text-amber-600 font-medium mt-0.5">
+                Float only — company liability (not deductible)
+              </p>
+            )}
           </div>
-          <div className="text-right shrink-0">
-            <p className="text-xs text-muted-foreground">Available (ledger)</p>
-            <p className="text-sm font-semibold">{formatUGX(u.balance)}</p>
+          <div className="text-right shrink-0 space-y-0.5">
+            <div>
+              <p className="text-[10px] text-muted-foreground leading-none">Withdrawable</p>
+              <p className="text-sm font-semibold leading-tight">{formatUGX(u.withdrawable_balance)}</p>
+            </div>
+            {u.float_balance > 0 && (
+              <div className="mt-1">
+                <p className="text-[10px] text-amber-600 leading-none">Float (owed)</p>
+                <p className="text-xs font-medium text-amber-700 leading-tight">{formatUGX(u.float_balance)}</p>
+              </div>
+            )}
           </div>
         </button>
       ))}
