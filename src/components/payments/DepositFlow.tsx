@@ -427,6 +427,11 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         pendingMatchFallbackRef.current = null;
         preEditSnapshotRef.current = null;
 
+        // Remember which lane this row is on; the submit handler picks
+        // between the direct UPDATE (pending) and the resubmit RPC
+        // (rejected) based on this.
+        setEditStatus(data.status === 'rejected' ? 'rejected' : 'pending');
+
         // Channel + provider — derive from stored `provider` enum
         const prov = String(data.provider || '');
         if (prov === 'mtn' || prov === 'airtel') {
