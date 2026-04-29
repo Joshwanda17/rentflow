@@ -760,6 +760,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     setOriginalAllocations([]);
     setOriginalAmount(null);
     setMatchedEditId(null);
+    setEditStatus(null);
     onOpenChange(false);
   };
 
