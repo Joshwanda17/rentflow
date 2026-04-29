@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import {
   ChevronLeft, Filter, FileUp, Layers, AlertTriangle, ShieldAlert, CheckCircle2, RefreshCw, Loader2, XCircle,
 } from 'lucide-react';
-import { ChevronDown, ChevronRight, Clock, AlertCircle, Search, User, History as HistoryIcon, Skull, Eye } from 'lucide-react';
+import { ChevronDown, ChevronRight, Clock, AlertCircle, Search, User, History as HistoryIcon, Skull, Eye, Undo2 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 
 /**
@@ -218,6 +218,9 @@ export function AgentBulkOpsConsole({ onBack }: { onBack?: () => void }) {
 
       <div className="flex flex-col lg:flex-row gap-4 items-start">
         <div className="flex-1 min-w-0 space-y-4 w-full">
+
+      {/* Undo banner — shows whenever a finished job is still inside its 15-min window */}
+      <UndoBanner />
 
       {/* Live + recent jobs */}
       <RecentJobsPanel highlightJobId={activeJobId} />
@@ -1270,6 +1273,160 @@ function AgentHistoryPanel({ agentId }: { agentId: string }) {
               </div>
             );
           })}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+/* =====================================================================
+ * UndoBanner — sticky banner that appears whenever the current user has
+ * a finished bulk-ops job within the last 15 minutes that has NOT been
+ * undone yet. Shows a live countdown and a single "Undo" button that
+ * calls ops_undo_agent_capability_job to restore exactly the rows the
+ * job changed (using the per-row prior-state snapshot table).
+ * =====================================================================*/
+function UndoBanner() {
+  const UNDO_WINDOW_MIN = 15;
+  const [tick, setTick] = useState(0);
+  const [undoing, setUndoing] = useState(false);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [reason, setReason] = useState('');
+
+  const q = useQuery({
+    queryKey: ['undo-eligible-job'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      const cutoff = new Date(Date.now() - UNDO_WINDOW_MIN * 60_000).toISOString();
+      const res = await supabase
+        .from('agent_capability_ops_jobs')
+        .select('id,action,capabilities,total_agents,affected_total,finished_at,undone_at,status,reason')
+        .eq('requested_by', user.id)
+        .gte('finished_at', cutoff)
+        .is('undone_at', null)
+        .in('status', ['done', 'failed', 'cancelled'])
+        .order('finished_at', { ascending: false })
+        .limit(1);
+      if (res.error) throw res.error;
+      return res.data?.[0] ?? null;
+    },
+    refetchInterval: 15_000,
+    staleTime: 10_000,
+  });
+
+  // Re-render every second so the countdown ticks
+  useEffect(() => {
+    if (!q.data?.finished_at) return;
+    const i = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(i);
+  }, [q.data?.finished_at]);
+
+  const job = q.data;
+  const remainingMs = useMemo(() => {
+    if (!job?.finished_at) return 0;
+    const ends = new Date(job.finished_at).getTime() + UNDO_WINDOW_MIN * 60_000;
+    return Math.max(0, ends - Date.now());
+    // tick is read so this re-runs every second
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [job?.finished_at, tick]);
+
+  const undo = useMutation({
+    mutationFn: async () => {
+      if (!job) throw new Error('No job to undo');
+      if (reason.trim().length < 10) throw new Error('Type at least 10 characters of reason');
+      const { data, error } = await supabase.rpc('ops_undo_agent_capability_job', {
+        _job_id: job.id,
+        _reason: reason.trim(),
+      });
+      if (error) throw error;
+      return data as { restored: number; deleted: number; snapshot_total: number };
+    },
+    onSuccess: (r) => {
+      const total = (r?.restored ?? 0) + (r?.deleted ?? 0);
+      toast.success(`Undone — restored ${total.toLocaleString()} row${total === 1 ? '' : 's'}`);
+      setConfirmId(null);
+      setReason('');
+      q.refetch();
+    },
+    onError: (e: any) => toast.error(e?.message ?? 'Undo failed'),
+  });
+
+  if (!job || remainingMs <= 0) return null;
+
+  const mins = Math.floor(remainingMs / 60_000);
+  const secs = Math.floor((remainingMs % 60_000) / 1000);
+  const verb = job.action === 'enable' ? 'turned ON' : 'turned OFF';
+  const capCount = job.capabilities?.length ?? 0;
+  const isConfirming = confirmId === job.id;
+
+  return (
+    <Card className="p-3 border-2 border-amber-400 bg-amber-50">
+      <div className="flex items-start gap-2">
+        <div className="h-9 w-9 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+          <Undo2 className="h-4 w-4 text-amber-700" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold text-amber-900">
+            You can undo your last change
+          </p>
+          <p className="text-xs text-amber-800 leading-snug">
+            {verb} <strong>{capCount}</strong> function{capCount === 1 ? '' : 's'} on{' '}
+            <strong>{(job.affected_total ?? job.total_agents).toLocaleString()}</strong> agent{(job.affected_total ?? job.total_agents) === 1 ? '' : 's'}.
+            Reverts each agent to exactly what it was before.
+          </p>
+          <p className="text-[10px] text-amber-700 mt-0.5 font-mono">
+            Undo expires in {mins}:{String(secs).padStart(2, '0')}
+          </p>
+        </div>
+        {!isConfirming && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="shrink-0 border-amber-500 text-amber-900 hover:bg-amber-100"
+            onClick={() => {
+              setConfirmId(job.id);
+              setReason(`Undo of bulk job — reverting ${verb} ${capCount} function(s)`);
+            }}
+          >
+            <Undo2 className="h-3 w-3 mr-1" /> Undo
+          </Button>
+        )}
+      </div>
+
+      {isConfirming && (
+        <div className="mt-3 pt-3 border-t border-amber-300 space-y-2">
+          <p className="text-xs text-amber-900 font-semibold">
+            Type a short reason to confirm the undo:
+          </p>
+          <Textarea
+            rows={2}
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+            placeholder="e.g. Wrong agent set picked, restoring previous state"
+            className="text-base sm:text-sm bg-background"
+          />
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => { setConfirmId(null); setReason(''); }}
+              disabled={undo.isPending}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => undo.mutate()}
+              disabled={undo.isPending || reason.trim().length < 10}
+              className="flex-1 bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              {undo.isPending
+                ? 'Reversing…'
+                : <><Undo2 className="h-3 w-3 mr-1" /> Confirm undo</>}
+            </Button>
+          </div>
         </div>
       )}
     </Card>
