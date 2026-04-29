@@ -1796,10 +1796,17 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
             Activate All ({pendingApprovalCount})
           </Button>
         )}
-        <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs ml-auto" onClick={() => exportToCSV(processed)}>
-          <Download className="h-3.5 w-3.5" /> Export CSV
+        <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs ml-auto" onClick={handleExportAll} disabled={exporting}>
+          {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+          {exporting ? 'Exporting…' : 'Export CSV'}
         </Button>
       </div>
+
+      {hasLocalFilter && totalCount > PAGE_SIZE && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[11px] text-amber-700 dark:text-amber-400">
+          Filters apply to the current page only. Clear filters to browse all {totalCount.toLocaleString()} partners across pages, or click Export CSV to download every match.
+        </div>
+      )}
 
       {/* Table */}
       <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
