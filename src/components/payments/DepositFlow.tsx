@@ -109,6 +109,20 @@ const MAX_DEPOSIT = 1_000_000_000;
 
 export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowedPurposes, lockPurpose, requirePurposeChoice, editRequestId, prefillFromMatch }: DepositFlowProps) {
   const navigate = useNavigate();
+  const { roles } = useAuth();
+  /**
+   * Agents are field cash collectors first. Per company policy, a deposit
+   * landing in their wallet should be Operational Float (company money,
+   * float bucket) by default — NOT Personal Deposit (which would land in
+   * withdrawable). Agents can still submit a personal top-up, but only
+   * after explicitly confirming via the in-form gate so the choice is
+   * intentional and auditable.
+   */
+  const isAgent = Array.isArray(roles) && roles.includes('agent' as any);
+  // Stamped on the audit blob when an agent acknowledges the personal-money gate.
+  const [agentPersonalConfirmedAt, setAgentPersonalConfirmedAt] = useState<string | null>(null);
+  // Pending switch the agent has clicked but not yet confirmed/cancelled.
+  const [pendingPersonalChoice, setPendingPersonalChoice] = useState<boolean>(false);
   /**
    * Universal purpose-capture rule: if a caller didn't pre-select a purpose
    * AND didn't explicitly request the gate, we still force the gate. This
