@@ -191,6 +191,24 @@ export function UnifiedWalletHeroCard({
         {/* Quick Actions slot */}
         {quickActions}
 
+        {/* Payroll Growth Bonus indicator — only renders for staff with active un-withdrawn payroll */}
+        {payrollGrowth && (
+          <div className="rounded-xl bg-gradient-to-r from-amber-500/15 to-emerald-500/15 border border-amber-300/20 px-3 py-2 flex items-start gap-2">
+            <Sparkles className="h-3.5 w-3.5 text-amber-300 mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] uppercase tracking-[0.12em] font-semibold text-amber-200/90">
+                Payroll growing · {(payrollGrowth.dailyRate * 100).toFixed(1)}% / day
+              </p>
+              <p className="text-[10px] text-primary-foreground/70 mt-0.5">
+                <span className="font-bold text-primary-foreground">{formatAmount(payrollGrowth.currentBalance)}</span>
+                <span className="text-primary-foreground/50"> parked · </span>
+                <span className="font-semibold text-emerald-300">+{formatAmount(payrollGrowth.accruedGrowth)}</span>
+                <span className="text-primary-foreground/50"> earned</span>
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Footer — View Wallet link */}
         <div className="flex items-center justify-between pt-1">
           <div className="flex items-center gap-1.5">
