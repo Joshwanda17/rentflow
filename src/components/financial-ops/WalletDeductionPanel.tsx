@@ -167,7 +167,11 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
         // covers the current active-wallet population.
         p_limit: 500,
       });
-      if (error) throw error;
+      if (error) {
+        console.error('[WalletDeductionPanel] balance search RPC error:', error);
+        throw error;
+      }
+      console.log('[WalletDeductionPanel] balance search', { min, max, count: (data || []).length });
       // Show the SAME balance figure the Financial Ops hero uses
       // (`wallets.balance` aggregate — all buckets) so every wallet
       // counted in the "X with balance" pill surfaces here. The deduction
