@@ -9671,8 +9671,14 @@ export type Database = {
           payout_method: string | null
           payout_transaction_reference: string | null
           registration_type: string
+          rejected_at: string | null
+          rejected_at_stage: string | null
           rejected_reason: string | null
           rent_amount: number
+          reopen_count: number
+          reopen_reason: string | null
+          reopened_at: string | null
+          reopened_by: string | null
           request_city: string | null
           request_country: string | null
           request_fee: number
@@ -9740,8 +9746,14 @@ export type Database = {
           payout_method?: string | null
           payout_transaction_reference?: string | null
           registration_type?: string
+          rejected_at?: string | null
+          rejected_at_stage?: string | null
           rejected_reason?: string | null
           rent_amount: number
+          reopen_count?: number
+          reopen_reason?: string | null
+          reopened_at?: string | null
+          reopened_by?: string | null
           request_city?: string | null
           request_country?: string | null
           request_fee: number
@@ -9809,8 +9821,14 @@ export type Database = {
           payout_method?: string | null
           payout_transaction_reference?: string | null
           registration_type?: string
+          rejected_at?: string | null
+          rejected_at_stage?: string | null
           rejected_reason?: string | null
           rent_amount?: number
+          reopen_count?: number
+          reopen_reason?: string | null
+          reopened_at?: string | null
+          reopened_by?: string | null
           request_city?: string | null
           request_country?: string | null
           request_fee?: number
@@ -13571,6 +13589,10 @@ export type Database = {
           verified: boolean
         }[]
       }
+      force_approve_rejected_rent_request: {
+        Args: { p_payout_ref?: string; p_reason: string; p_request_id: string }
+        Returns: string
+      }
       generate_daily_merchant_commission_report: {
         Args: { p_date?: string }
         Returns: {
@@ -14186,6 +14208,10 @@ export type Database = {
         Returns: {
           released_count: number
         }[]
+      }
+      reopen_rent_request: {
+        Args: { p_reason: string; p_request_id: string }
+        Returns: string
       }
       replace_tenant_at_property: {
         Args: {
