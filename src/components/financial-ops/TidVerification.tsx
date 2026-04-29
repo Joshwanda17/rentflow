@@ -781,9 +781,66 @@ export function TidVerification() {
 
   const handleVerify = useCallback(async () => {
     const trimmedTid = tid.trim();
-    if (!trimmedTid) { toast.error('Enter a Transaction ID'); return; }
-    if (!operatorAmount) { toast.error('Enter the amount'); return; }
     if (!user) return;
+    if (!operatorAmount) { toast.error('Enter the amount'); return; }
+
+    // FAST PATH — when the operator picked a row from the pending pick-list,
+    // that row is the source of truth. The typed TID is informational only;
+    // a typo there must NOT make the verify button silently fail. We pull
+    // the picked deposit by id and run the exact same MatchResult logic
+    // the typed-search path uses below.
+    if (pickedId) {
+      setResultState('searching');
+      setMatches([]);
+      try {
+        const parsedAmount = parseFloat(operatorAmount);
+        const { data: d, error } = await supabase
+          .from('deposit_requests')
+          .select('*')
+          .eq('id', pickedId)
+          .eq('status', 'pending')
+          .maybeSingle();
+        if (error) throw error;
+        if (!d) {
+          // Row no longer pending (already approved/rejected by another op,
+          // or refreshed away). Fall through to typed-TID search if we have
+          // one; otherwise surface not_found.
+          if (!trimmedTid) { setResultState('not_found'); return; }
+        } else {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id, full_name, phone')
+            .eq('id', d.user_id)
+            .maybeSingle();
+          const amountMatches = Math.abs(d.amount - parsedAmount) < 1;
+          const isOpFloat = d.deposit_purpose === 'operational_float';
+          const decoded = isOpFloat ? decodeAllocationsFromNote(d.notes) : null;
+          const result: MatchResult = {
+            id: d.id, user_id: d.user_id, amount: d.amount,
+            transaction_id: d.transaction_id, provider: d.provider,
+            created_at: d.created_at, notes: d.notes,
+            userName: profile?.full_name || 'Unknown',
+            userPhone: profile?.phone || '',
+            status: amountMatches ? 'matched' : 'amount_mismatch',
+            deposit_purpose: d.deposit_purpose ?? null,
+            allocations: decoded?.allocations ?? null,
+            matchedVia: 'tid',
+          };
+          setMatches([result]);
+          setResultState('found');
+          if (amountMatches) toast.info('Picked deposit ready to approve.');
+          else toast.warning('Amount differs from the picked deposit — review before approving.');
+          return;
+        }
+      } catch (err: any) {
+        toast.error(err.message || 'Verification failed');
+        setResultState('idle');
+        return;
+      }
+    }
+
+    // TYPED-TID PATH — no row picked, fall back to searching the queue.
+    if (!trimmedTid) { toast.error('Enter a Transaction ID or pick a depositor from the list'); return; }
 
     // TID format validation
     if (provider === 'mtn' && !trimmedTid.startsWith('MP')) {
@@ -899,7 +956,7 @@ export function TidVerification() {
       toast.error(err.message || 'Verification failed');
       setResultState('idle');
     }
-  }, [tid, operatorAmount, provider, user]);
+  }, [tid, operatorAmount, provider, user, pickedId]);
 
   // Actual backend commit. Kept private — public callers go through
   // `handleAutoApprove`, which adds the 5-second undo window.
