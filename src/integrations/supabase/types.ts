@@ -825,6 +825,9 @@ export type Database = {
           status: string
           total_agents: number
           total_batches: number
+          undo_reason: string | null
+          undone_at: string | null
+          undone_by: string | null
         }
         Insert: {
           action: string
@@ -845,6 +848,9 @@ export type Database = {
           status?: string
           total_agents: number
           total_batches: number
+          undo_reason?: string | null
+          undone_at?: string | null
+          undone_by?: string | null
         }
         Update: {
           action?: string
@@ -865,8 +871,74 @@ export type Database = {
           status?: string
           total_agents?: number
           total_batches?: number
+          undo_reason?: string | null
+          undone_at?: string | null
+          undone_by?: string | null
         }
         Relationships: []
+      }
+      agent_capability_ops_undo_snapshots: {
+        Row: {
+          agent_id: string
+          batch_id: number | null
+          capability: string
+          captured_at: string
+          id: number
+          job_id: string
+          op: string
+          prior_granted_at: string | null
+          prior_granted_by: string | null
+          prior_metadata: Json | null
+          prior_revoked_at: string | null
+          prior_revoked_by: string | null
+          prior_status: string | null
+        }
+        Insert: {
+          agent_id: string
+          batch_id?: number | null
+          capability: string
+          captured_at?: string
+          id?: number
+          job_id: string
+          op: string
+          prior_granted_at?: string | null
+          prior_granted_by?: string | null
+          prior_metadata?: Json | null
+          prior_revoked_at?: string | null
+          prior_revoked_by?: string | null
+          prior_status?: string | null
+        }
+        Update: {
+          agent_id?: string
+          batch_id?: number | null
+          capability?: string
+          captured_at?: string
+          id?: number
+          job_id?: string
+          op?: string
+          prior_granted_at?: string | null
+          prior_granted_by?: string | null
+          prior_metadata?: Json | null
+          prior_revoked_at?: string | null
+          prior_revoked_by?: string | null
+          prior_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_capability_ops_undo_snapshots_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "agent_capability_ops_job_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_capability_ops_undo_snapshots_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "agent_capability_ops_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       agent_collection_streaks: {
         Row: {
@@ -15144,6 +15216,10 @@ export type Database = {
           _reason: string
           _tier: Database["public"]["Enums"]["agent_tier"]
         }
+        Returns: Json
+      }
+      ops_undo_agent_capability_job: {
+        Args: { _job_id: string; _reason: string }
         Returns: Json
       }
       populate_wallet_review_queue: {
