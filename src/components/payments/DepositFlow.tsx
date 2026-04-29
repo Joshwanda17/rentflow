@@ -1389,12 +1389,28 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                     key={p.id}
                     type="button"
                     onClick={() => {
+                      // Agent gate: switching to Personal Deposit means the
+                      // money will land in withdrawable, not float. Force an
+                      // explicit confirmation so it can't be done by mistake.
+                      if (
+                        isAgent &&
+                        p.id === 'personal_deposit' &&
+                        !agentPersonalConfirmedAt
+                      ) {
+                        setPendingPersonalChoice(true);
+                        return;
+                      }
                       setDepositPurpose(p.id);
                       if (p.id !== 'other') setReason(p.label);
                       else setReason('');
                       if (lockPurpose) setShowPurposeGrid(false);
                       setPurposeChosenAt(new Date().toISOString());
                       setPurposeEntryPoint((prev) => (prev === 'gate' ? 'gate' : 'in_form'));
+                      // Switching away from personal_deposit clears any prior
+                      // confirmation so toggling back will gate again.
+                      if (p.id !== 'personal_deposit' && agentPersonalConfirmedAt) {
+                        setAgentPersonalConfirmedAt(null);
+                      }
                     }}
                     className={`flex items-start gap-2 p-2.5 rounded-xl border-2 text-left transition-all text-xs ${
                       depositPurpose === p.id
@@ -1410,6 +1426,50 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   </button>
                 ))}
               </div>
+              )}
+              {isAgent && pendingPersonalChoice && (
+                <div className="rounded-xl border-2 border-warning bg-warning/10 p-3 space-y-2.5">
+                  <div className="flex items-start gap-2">
+                    <ShieldAlert className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold text-foreground">
+                        Confirm: this is your own money
+                      </p>
+                      <p className="text-xs text-muted-foreground leading-snug">
+                        Personal Deposit lands in your <span className="font-semibold">withdrawable balance</span>, not your operational float. Use this only for your own salary or personal top-ups — <span className="font-semibold">never</span> for cash collected from tenants.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 h-9"
+                      onClick={() => setPendingPersonalChoice(false)}
+                    >
+                      Cancel — keep as Float
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      className="flex-1 h-9 bg-warning text-warning-foreground hover:bg-warning/90"
+                      onClick={() => {
+                        const now = new Date().toISOString();
+                        setAgentPersonalConfirmedAt(now);
+                        setPendingPersonalChoice(false);
+                        setDepositPurpose('personal_deposit');
+                        setReason('Personal Deposit');
+                        if (lockPurpose) setShowPurposeGrid(false);
+                        setPurposeChosenAt(now);
+                        setPurposeEntryPoint('in_form');
+                      }}
+                    >
+                      Yes, this is my own money
+                    </Button>
+                  </div>
+                </div>
               )}
               {depositPurpose === 'operational_float' && (
                 <div className="flex items-start gap-2 p-2 bg-primary/5 rounded-lg border border-primary/20">
