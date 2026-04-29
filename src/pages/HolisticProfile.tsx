@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, Copy, FileDown, Loader2, AlertTriangle, BadgeCheck, Phone, Mail,
-  IdCard, Calendar, TrendingUp, Wallet, Users, Banknote, RefreshCw, MessageCircle, Link as LinkIcon, Trophy,
+  IdCard, Calendar, TrendingUp, Wallet, Users, Banknote, RefreshCw, MessageCircle, Link as LinkIcon, Trophy, ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -247,6 +247,34 @@ export default function HolisticProfile({ publicMode = false }: Props) {
             primaryRole={profile.identity.primary_role}
           />
         </motion.div>
+
+        {/* Welile Vouch tile — visible whenever a vouch limit exists. The 2×
+            agent_earned_vouch driver is rolled into borrowing_limit_ugx by
+            get_agent_vouch_limit_ugx() so we just present the result. */}
+        {profile.trust.borrowing_limit_ugx > 0 && (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.07 }}>
+            <Card className="border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 via-emerald-500/[0.04] to-transparent">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="h-12 w-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                  <ShieldCheck className="h-6 w-6" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] uppercase tracking-[0.14em] font-bold text-emerald-700 dark:text-emerald-400">
+                    Welile Vouches
+                  </p>
+                  <p className="text-2xl font-black tabular-nums leading-tight">
+                    {formatUGX(profile.trust.borrowing_limit_ugx)}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {profile.identity.primary_role === 'agent'
+                      ? 'Earned 2× from rent collected on schedule'
+                      : 'Trust-backed lending limit'}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         {/* Boost Your Trust suggestions (self only) */}
         <TrustBoostSuggestions profile={profile} />
