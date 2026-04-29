@@ -582,78 +582,123 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     return transactionId.trim().toUpperCase();
   };
 
-  const validateForm = () => {
+  /**
+   * Single source of truth for "why can't this form be submitted right now?".
+   * Returns null when the form is good to go, otherwise an object with the
+   * user-facing message AND the DOM id of the field that needs attention so
+   * the Confirm button can scroll/focus the right input.
+   *
+   * IMPORTANT: every block path used by validateForm() MUST go through here
+   * so the inline hint above the button and the toast stay in lock-step —
+   * that's what kills the "the button does nothing" perception.
+   */
+  const computeBlockReason = (): { message: string; fieldId: string } | null => {
     const amt = parseFloat(amount);
     if (!amount || !Number.isFinite(amt) || amt <= 0) {
-      toast.error('Enter a valid amount');
-      return false;
+      return { message: 'Enter a valid amount', fieldId: 'deposit-amount' };
     }
     if (amt < MIN_DEPOSIT) {
-      toast.error(`Minimum deposit is ${formatCurrency(MIN_DEPOSIT)}`);
-      return false;
+      return { message: `Minimum deposit is ${formatCurrency(MIN_DEPOSIT)}`, fieldId: 'deposit-amount' };
     }
     if (amt > MAX_DEPOSIT) {
-      toast.error(`Maximum deposit is ${formatCurrency(MAX_DEPOSIT)}`);
-      return false;
+      return { message: `Maximum deposit is ${formatCurrency(MAX_DEPOSIT)}`, fieldId: 'deposit-amount' };
     }
-    if (channel === 'momo' && !transactionId.trim()) { toast.error('Enter the transaction ID'); return false; }
-    if (channel === 'bank' && !transactionId.trim()) { toast.error('Enter the bank reference number'); return false; }
-    if (channel === 'agent_cash' && !receiptNumber.trim()) { toast.error('Enter the receipt number'); return false; }
-    if (channel === 'agent_cash' && !agentName.trim()) { toast.error('Enter the agent name'); return false; }
-    if (channel === 'cash' && !receiptNumber.trim()) { toast.error('Enter the receipt number'); return false; }
-
-    // TID format validation
+    if (channel === 'momo' && !transactionId.trim()) {
+      return {
+        message: momoProvider === 'mtn'
+          ? "Enter your MTN MoMo TID from the SMS (starts with 'MP', e.g. MP39665905645)"
+          : "Enter your Airtel Money TID from the SMS (starts with 'TID', e.g. TID144205097399)",
+        fieldId: 'deposit-tid',
+      };
+    }
+    if (channel === 'bank' && !transactionId.trim()) {
+      return { message: 'Enter the bank reference number from your transfer receipt', fieldId: 'deposit-tid' };
+    }
+    if (channel === 'agent_cash' && !receiptNumber.trim()) {
+      return { message: 'Enter the receipt number the agent gave you', fieldId: 'deposit-receipt' };
+    }
+    if (channel === 'agent_cash' && !agentName.trim()) {
+      return { message: "Enter the agent's name", fieldId: 'deposit-agent-name' };
+    }
+    if (channel === 'cash' && !receiptNumber.trim()) {
+      return { message: 'Enter the cash deposit receipt number', fieldId: 'deposit-receipt' };
+    }
     if (channel === 'momo') {
       const rawTid = transactionId.trim().toUpperCase();
       if (momoProvider === 'mtn' && !rawTid.startsWith('MP')) {
-        toast.error("MTN TIDs must start with 'MP' (e.g. MP39665905645)");
-        return false;
+        return { message: "MTN TIDs must start with 'MP' (e.g. MP39665905645)", fieldId: 'deposit-tid' };
       }
       if (momoProvider === 'airtel' && !rawTid.startsWith('TID')) {
-        toast.error("Airtel TIDs must start with 'TID' (e.g. TID144205097399)");
-        return false;
+        return { message: "Airtel TIDs must start with 'TID' (e.g. TID144205097399)", fieldId: 'deposit-tid' };
       }
     }
-    if (!transactionDate) { toast.error('Select the transaction date'); return false; }
-    if (!transactionTime) { toast.error('Enter the transaction time'); return false; }
-    if (!depositPurpose) { toast.error('Select the deposit purpose'); return false; }
-    if (depositPurpose === 'other' && !reason.trim()) { toast.error('Enter the reason for this deposit'); return false; }
-
-    // Operational Float deposits MUST carry a tenant breakdown so Financial
-    // Ops can reconcile the bulk drop. Skip when no allocations were made
-    // (legacy / no tenants linked yet) — the agent can still submit, but if
-    // they DID start a breakdown it has to balance.
+    if (!transactionDate) {
+      return { message: 'Select the transaction date', fieldId: 'deposit-date' };
+    }
+    if (!transactionTime) {
+      return { message: 'Enter the transaction time', fieldId: 'deposit-time' };
+    }
+    if (!depositPurpose) {
+      return { message: 'Select the deposit purpose', fieldId: 'deposit-purpose' };
+    }
+    if (depositPurpose === 'other' && !reason.trim()) {
+      return { message: 'Enter the reason for this deposit', fieldId: 'deposit-reason' };
+    }
     if (depositPurpose === 'operational_float' && tenantAllocations.length > 0) {
       const sum = tenantAllocations.reduce((s, a) => s + (a.amount || 0), 0);
       const total = parseFloat(amount);
       if (tenantAllocations.some((a) => !a.amount || a.amount <= 0)) {
-        toast.error('Each tenant in the breakdown needs an amount greater than 0');
-        return false;
+        return {
+          message: 'Each tenant in the breakdown needs an amount greater than 0',
+          fieldId: 'deposit-tenant-allocator',
+        };
       }
       if (Math.abs(sum - total) > 1) {
-        toast.error(
-          `Tenant breakdown (UGX ${sum.toLocaleString()}) must equal deposit total (UGX ${total.toLocaleString()})`,
-        );
-        return false;
+        return {
+          message: `Tenant breakdown (UGX ${sum.toLocaleString()}) must equal deposit total (UGX ${total.toLocaleString()})`,
+          fieldId: 'deposit-tenant-allocator',
+        };
       }
     }
+    if (transactionDate && transactionTime) {
+      const txDate = new Date(`${transactionDate}T${transactionTime}`);
+      const now = new Date();
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      if (txDate > now) {
+        return { message: 'Transaction date cannot be in the future', fieldId: 'deposit-date' };
+      }
+      if (txDate < weekAgo) {
+        return { message: 'Transaction must be within the last 7 days', fieldId: 'deposit-date' };
+      }
+    }
+    return null;
+  };
 
-    const txDate = new Date(`${transactionDate}T${transactionTime}`);
-    const now = new Date();
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    if (txDate > now) { toast.error('Transaction date cannot be in the future'); return false; }
-    if (txDate < sevenDaysAgo) { toast.error('Transaction must be within the last 7 days'); return false; }
+  const validateForm = () => {
+    const blocked = computeBlockReason();
+    if (blocked) {
+      toast.error(blocked.message);
+      return false;
+    }
     return true;
   };
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
-    setIsSubmitting(true);
-    setStep('submitting');
-
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { toast.error('Please log in'); setStep('form'); return; }
+      if (!user) {
+        toast.error('Please log in');
+        setStep('form');
+        setIsSubmitting(false);
+        return;
+      }
+      // Only flip into the submitting state AFTER the auth check passes —
+      // otherwise an unauthed user gets the spinner stuck forever (root
+      // cause of the "Confirm deposit button is dead" complaint when a
+      // session has lapsed).
+      setIsSubmitting(true);
+      setStep('submitting');
 
       const txDateTime = new Date(`${transactionDate}T${transactionTime}`);
       const normalizedRef = getReferenceId();
@@ -789,6 +834,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
 
   const handleClose = () => {
     setStep(mustChoosePurpose ? 'purpose' : 'channel');
+    setIsSubmitting(false);
     setChannel('momo');
     setMomoProvider('mtn');
     setAmount('');
@@ -1207,6 +1253,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   onChange={(e) => setAmount(e.target.value)}
                   min={MIN_DEPOSIT}
                   max={MAX_DEPOSIT}
+                  id="deposit-amount"
                   aria-invalid={
                     !!amount &&
                     Number.isFinite(parseFloat(amount)) &&
@@ -1264,6 +1311,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   <Input
                     type="text"
                     inputMode="text"
+                    id="deposit-tid"
                     placeholder={
                       channel === 'bank'
                         ? 'e.g. FT24123456789'
@@ -1318,6 +1366,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                     </span>
                     <Input
                       type="text"
+                      id="deposit-receipt"
                       placeholder="e.g. WEL-00001 or leave blank for auto"
                       value={receiptNumber}
                       onChange={(e) => setReceiptNumber(e.target.value)}
@@ -1331,7 +1380,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 {channel === 'agent_cash' && (
                   <div className="space-y-1.5">
                     <Label className="text-xs">Agent Name *</Label>
-                    <Input placeholder="Name of the agent who received cash" value={agentName} onChange={(e) => setAgentName(e.target.value)} className="h-10 text-sm" />
+                    <Input id="deposit-agent-name" placeholder="Name of the agent who received cash" value={agentName} onChange={(e) => setAgentName(e.target.value)} className="h-10 text-sm" />
                   </div>
                 )}
               </>
@@ -1411,16 +1460,16 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center gap-1"><Calendar className="h-3.5 w-3.5" /> Date</Label>
-                <Input type="date" value={transactionDate} onChange={(e) => setTransactionDate(e.target.value)} min={sevenDaysAgo} max={today} className="h-10 text-xs" />
+                <Input id="deposit-date" type="date" value={transactionDate} onChange={(e) => setTransactionDate(e.target.value)} min={sevenDaysAgo} max={today} className="h-10 text-xs" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> Time</Label>
-                <Input type="time" value={transactionTime} onChange={(e) => setTransactionTime(e.target.value)} className="h-10 text-xs" />
+                <Input id="deposit-time" type="time" value={transactionTime} onChange={(e) => setTransactionTime(e.target.value)} className="h-10 text-xs" />
               </div>
             </div>
 
             {/* ─── Deposit Purpose ─── */}
-            <div className="space-y-2">
+            <div id="deposit-purpose" className="space-y-2 scroll-mt-4">
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <Label className="text-xs flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" /> Deposit Purpose *</Label>
                 {lockPurpose && depositPurpose && (
@@ -1609,12 +1658,14 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                       }}
                     />
                   )}
-                  <OperationalFloatTenantAllocator
-                    agentId={currentUserId}
-                    totalAmount={parseFloat(amount) || 0}
-                    allocations={tenantAllocations}
-                    onChange={setTenantAllocations}
-                  />
+                  <div id="deposit-tenant-allocator" className="scroll-mt-4">
+                    <OperationalFloatTenantAllocator
+                      agentId={currentUserId}
+                      totalAmount={parseFloat(amount) || 0}
+                      allocations={tenantAllocations}
+                      onChange={setTenantAllocations}
+                    />
+                  </div>
                   {/*
                     Edit-mode diff panel — surfaces the original
                     per-tenant amounts (as captured when the dialog
@@ -1666,7 +1717,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 </>
               )}
               {depositPurpose === 'other' && (
-                <Input placeholder="Specify your reason..." value={reason} onChange={(e) => setReason(e.target.value)} className="h-10 text-sm" />
+                <Input id="deposit-reason" placeholder="Specify your reason..." value={reason} onChange={(e) => setReason(e.target.value)} className="h-10 text-sm" />
               )}
             </div>
 
@@ -1685,29 +1736,25 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             Choose method) which act as their own CTAs. */}
         {step === 'form' && !editLoading && (() => {
           const total = parseFloat(amount) || 0;
-          const sum = tenantAllocations.reduce((s, a) => s + (a.amount || 0), 0);
-          const opsAllocBlocked =
-            depositPurpose === 'operational_float' &&
-            tenantAllocations.length > 0 &&
-            (Math.abs(total - sum) > 1 || tenantAllocations.some((a) => !a.amount || a.amount <= 0));
-          // Compute the *specific* reason the button can't submit. We keep the
-          // button visually-enabled and show the reason as an inline hint +
-          // toast on tap, so users never see a "dead button" with no
-          // explanation (root cause of the "deposit button doesn't work"
-          // complaint — see FIX-43).
-          const tidMissingMsg =
-            channel === 'momo' && !isTidValid()
-              ? momoProvider === 'mtn'
-                ? "Enter your MTN MoMo TID from the SMS (starts with 'MP', e.g. MP39665905645)"
-                : "Enter your Airtel Money TID from the SMS (starts with 'TID', e.g. TID144205097399)"
-              : null;
-          const opsAllocMsg = opsAllocBlocked ? 'Fix the tenant breakdown so amounts add up to the total.' : null;
-          const blockReason = tidMissingMsg || opsAllocMsg;
+          // Single source of truth — same helper that gates handleSubmit.
+          // No more drift between the inline hint and the toast (root cause
+          // of the "Confirm deposit does nothing" complaint — FIX-46).
+          const blockReason = computeBlockReason();
           const blocked = isSubmitting || !!blockReason;
           const handleAttempt = () => {
             if (isSubmitting) return;
             if (blockReason) {
-              toast.error(blockReason);
+              console.warn('[DepositFlow] submit blocked:', blockReason);
+              toast.error(blockReason.message);
+              const el = document.getElementById(blockReason.fieldId);
+              if (el) {
+                el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                // Focusing inputs pops the mobile keyboard — exactly what we
+                // want so the agent immediately sees the offending field.
+                if (typeof (el as HTMLElement & { focus?: () => void }).focus === 'function') {
+                  setTimeout(() => (el as HTMLInputElement).focus(), 250);
+                }
+              }
               return;
             }
             handleSubmit();
@@ -1715,9 +1762,16 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           return (
             <div className="sticky bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
               {blockReason && !isSubmitting && (
-                <div className="mb-2 flex items-start gap-2 rounded-md bg-warning/10 border border-warning/30 px-2.5 py-2 text-[11px] text-foreground">
-                  <AlertCircle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
-                  <span className="leading-snug">{blockReason}</span>
+                <div className="mb-2 flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/40 px-2.5 py-2 text-[11px] text-foreground">
+                  <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0 mt-0.5" />
+                  <span className="leading-snug flex-1">{blockReason.message}</span>
+                  <button
+                    type="button"
+                    onClick={handleAttempt}
+                    className="text-[11px] font-semibold text-destructive underline underline-offset-2 shrink-0"
+                  >
+                    Fix
+                  </button>
                 </div>
               )}
               <Button

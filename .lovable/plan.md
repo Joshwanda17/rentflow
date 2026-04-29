@@ -1,42 +1,88 @@
-## Why
+## Problem
 
-Right now the Wallet Deductions list shows a single "Available (ledger)" figure that is actually `wallets.balance` = **withdrawable + float**. Float is company money we owe back to the user (rent supporters' parked funds, agent float, etc.) and must never be visually merged with their own withdrawable cash.
+The "Confirm deposit" button in `DepositFlow.tsx` (step 3 of the Deposit-to-Wallet sheet) is *not actually broken* — it does fire `handleAttempt()` on every tap. What is broken is the **feedback**: when a required field is missing, the user sees nothing happen.
 
-Confirmed from DB on the current 229 wallets:
-- 217 wallets carry withdrawable balances (UGX 144,122,644 total)
-- 22 wallets carry float (UGX 1,262,426 total — company liability)
-- Example: LOLEM FIRICILA shows UGX 2,199,539 but only UGX 1,597,133 is hers; UGX 602,406 is float we owe her
+Concretely, on the screenshot:
 
-## What changes
+- Channel = MoMo / Airtel, Amount = UGX 9,400, but **no TID has been entered** (the TID input is above the fold, hidden by the scrolling card).
+- Tap on Confirm → `handleAttempt` → `blockReason = "Enter your Airtel Money TID from the SMS…"` → `toast.error(...)`.
+- On a small phone the Sonner toast renders at the top, behind the sticky dialog header, and disappears in ~3s. The agent sees the button "do nothing" and reports it as broken.
 
-### 1. RPC `search_wallets_by_balance` returns the breakdown
-Migrate the function to also return `withdrawable_balance` and `float_balance` (keeps the same `balance` total for back-compat). Filter range still uses `wallets.balance` so the count keeps matching the hero "229 with balance" pill.
+Other silent block paths today:
 
-### 2. Wallet Deductions list (`WalletDeductionPanel.tsx`)
-Each row now shows two stacked figures on the right:
+1. `validateForm()` in `handleSubmit` re-checks the same things and toasts again — equally invisible.
+2. The submit button is only `disabled={isSubmitting}` — it stays visually enabled even when the form can't pass validation, which is correct, but with no inline reason.
+3. The blockReason hint above the button (`{blockReason && !isSubmitting && …}`) only mentions TID and tenant-allocation drift. Missing amount / date / time / receipt number / agent name fall straight through to invisible toasts.
+
+## Fix (permanent)
+
+All edits in `src/components/payments/DepositFlow.tsx`. No DB / edge-function changes.
+
+### 1. Single source of truth for "why can't I submit?"
+
+Refactor the inline block-reason logic into one helper `computeBlockReason()` that returns `{ message, fieldId } | null` covering **every** validation case currently in `validateForm`:
+
+- amount empty / NaN / `< MIN_DEPOSIT` / `> MAX_DEPOSIT`
+- TID missing or wrong prefix per `momoProvider`
+- bank reference missing
+- agent_cash receipt number / agent name missing
+- cash receipt number missing
+- transaction date / time missing or future / >7 days old
+- purpose `'other'` with no reason text
+- operational_float tenant breakdown mismatch (existing logic)
+
+`validateForm()` is rewritten to delegate to `computeBlockReason()` so the toast text and inline hint stay in lock-step (no more drift between the two).
+
+### 2. Always-visible inline hint above the button
+
+Replace the current narrow hint block with one that:
+
+- Renders whenever `blockReason` is non-null (not just for TID/allocation).
+- Uses `bg-destructive/10 border-destructive/40 text-destructive-foreground` so it reads as a real error, not a soft warning.
+- Includes a small "Fix it" link/button on the right. Tapping it calls `scrollIntoView({ block: 'center', behavior: 'smooth' })` on the offending field via the `fieldId` returned from `computeBlockReason`.
+
+### 3. Auto-scroll + focus on tap
+
+`handleAttempt`:
 
 ```text
-Withdrawable     UGX 1,597,133
-Float (owed)     UGX 602,406      ← amber pill, only when > 0
+if (blockReason) {
+  toast.error(blockReason.message);
+  document.getElementById(blockReason.fieldId)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  document.getElementById(blockReason.fieldId)?.focus?.();
+  return;
+}
+handleSubmit();
 ```
 
-- Rows with zero withdrawable but float > 0 get a small "Float only — company liability" tag so an operator never deducts from money we owe.
-- The list summary header changes from one total to two:
-  `217 with withdrawable · UGX 144.1M  ·  22 carry float · UGX 1.26M`
+So even if the toast is missed, the screen physically jumps to the empty field and focuses it. The dead-button feeling disappears.
 
-### 3. Selected-user card
-Replace the single "Available: UShX" line with a two-row breakdown:
-- Withdrawable (deductible) — bold
-- Float (company owes user) — muted amber, with helper text "Not deductible from this tool"
+### 4. Add stable `id`s to every input the block-reason can point at
 
-The amount-vs-available validation already gates on `trueBalance` (ledger withdrawable), so deduction safety is unchanged — this is purely making the display honest.
+Add `id="deposit-amount"`, `id="deposit-tid"`, `id="deposit-date"`, `id="deposit-time"`, `id="deposit-receipt"`, `id="deposit-agent-name"`, `id="deposit-reason"`, `id="deposit-tenant-allocator"`. These are the scroll/focus targets.
 
-### 4. Direct-table fallback
-Update the fallback `wallets` query to also select `withdrawable_balance, float_balance` so the same breakdown renders whether RPC or fallback path runs.
+### 5. Make `isSubmitting` resilient
 
-## Files
-- `supabase/migrations/<new>.sql` — extend `search_wallets_by_balance` return signature
-- `src/components/financial-ops/WalletDeductionPanel.tsx` — `UserResult` type, list row, summary, selected-user card, fallback query
+Wrap the inner body of `handleSubmit` in a `try/catch/finally` that **always** clears `isSubmitting` (today the early `return` after the auth guard at line 656 leaves `isSubmitting = true` if `user` is null because `setStep('form')` runs but `setIsSubmitting(false)` never does — the Confirm button then stays in the spinner state forever and the user sees a permanently dead button).
+
+Fix: move `setIsSubmitting(true)` to *after* the auth check, or add `setIsSubmitting(false)` to every early-return branch. Cleanest is to move it.
+
+### 6. Defensive: also clear `isSubmitting` when the dialog is closed mid-submit
+
+In `handleClose` and the `useEffect` that resets state on `open === false`, also set `isSubmitting = false`. Prevents a re-open showing the spinner from a previous aborted attempt.
+
+### 7. Console breadcrumb
+
+Log `console.warn('[DepositFlow] submit blocked:', blockReason)` and on real failures `console.error('[DepositFlow] submit failed:', error)`. Lets the next session-replay/console-log capture pin-point future regressions in one tool call.
+
+## What the user will see after the fix
+
+- If they tap Confirm with the TID empty: the page scrolls to the TID input, the input gets focus and the keyboard pops up, and a red banner above the Confirm button says exactly what to fix.
+- Same behaviour for missing date/time/amount/etc.
+- If `handleSubmit` ever fails (auth lapse, RLS error), the spinner clears and the form re-appears with a toast — no more "stuck on submitting".
 
 ## Out of scope
-No change to the `wallet-deduction` edge function or to ledger logic. No change to the hero "X with balance" count (still based on `wallets.balance`).
+
+- The Pay-Now-via-Airtel anchor swap (already shipped).
+- Any change to the deposit RPC, RLS, or Financial-Ops verification flow.
+- Wallet-deduction / withdrawable-vs-float UI (already shipped).
