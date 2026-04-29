@@ -1807,7 +1807,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className={cn("h-9 gap-1.5 text-xs", (payoutDateFrom || payoutDateTo) && "border-primary text-primary")}>
-              {loadingAllRowsForPayout
+              {loadingAllRowsForPayout && (payoutDateFrom || payoutDateTo)
                 ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 : <CalendarDays className="h-3.5 w-3.5" />}
               {payoutDateFrom && payoutDateTo
