@@ -83,5 +83,31 @@ export function useAvailableBalance(userId?: string) {
     void refresh();
   }, [refresh]);
 
+  // Live-refresh on wallet bucket changes, ledger inserts, or withdrawal
+  // request lifecycle changes. This keeps the wallet card honest the moment
+  // a user submits a withdrawal request — without a hard reload.
+  useEffect(() => {
+    if (!targetId) return;
+    const channel = supabase
+      .channel(`available-bal-${targetId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'wallets', filter: `user_id=eq.${targetId}` },
+        () => { void refresh(); },
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'withdrawal_requests', filter: `user_id=eq.${targetId}` },
+        () => { void refresh(); },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'general_ledger', filter: `user_id=eq.${targetId}` },
+        () => { void refresh(); },
+      )
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [targetId, refresh]);
+
   return { ...(data ?? { available: 0, walletCached: 0, ledgerNet: 0, hasDrift: false }), loading, refresh };
 }
