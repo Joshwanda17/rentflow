@@ -1280,6 +1280,7 @@ function AgentHistoryPanel({ agentId }: { agentId: string }) {
 }
 
 function SingleAgentForm({ onResolved }: { onResolved: (r: ResolvedSet) => void }) {
+  // (placeholder anchor — UndoBanner is defined just above)
   const [query, setQuery] = useState('');
   const [matches, setMatches] = useState<Array<{ agent_id: string; full_name: string | null; phone: string | null; email?: string | null }>>([]);
   const [unmatched, setUnmatched] = useState<string[]>([]);
