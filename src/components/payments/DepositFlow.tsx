@@ -685,12 +685,20 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
-    setIsSubmitting(true);
-    setStep('submitting');
-
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { toast.error('Please log in'); setStep('form'); return; }
+      if (!user) {
+        toast.error('Please log in');
+        setStep('form');
+        setIsSubmitting(false);
+        return;
+      }
+      // Only flip into the submitting state AFTER the auth check passes —
+      // otherwise an unauthed user gets the spinner stuck forever (root
+      // cause of the "Confirm deposit button is dead" complaint when a
+      // session has lapsed).
+      setIsSubmitting(true);
+      setStep('submitting');
 
       const txDateTime = new Date(`${transactionDate}T${transactionTime}`);
       const normalizedRef = getReferenceId();
