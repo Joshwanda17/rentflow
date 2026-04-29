@@ -583,66 +583,11 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   };
 
   const validateForm = () => {
-    const amt = parseFloat(amount);
-    if (!amount || !Number.isFinite(amt) || amt <= 0) {
-      toast.error('Enter a valid amount');
+    const reason = computeBlockReason();
+    if (reason) {
+      toast.error(reason.message);
       return false;
     }
-    if (amt < MIN_DEPOSIT) {
-      toast.error(`Minimum deposit is ${formatCurrency(MIN_DEPOSIT)}`);
-      return false;
-    }
-    if (amt > MAX_DEPOSIT) {
-      toast.error(`Maximum deposit is ${formatCurrency(MAX_DEPOSIT)}`);
-      return false;
-    }
-    if (channel === 'momo' && !transactionId.trim()) { toast.error('Enter the transaction ID'); return false; }
-    if (channel === 'bank' && !transactionId.trim()) { toast.error('Enter the bank reference number'); return false; }
-    if (channel === 'agent_cash' && !receiptNumber.trim()) { toast.error('Enter the receipt number'); return false; }
-    if (channel === 'agent_cash' && !agentName.trim()) { toast.error('Enter the agent name'); return false; }
-    if (channel === 'cash' && !receiptNumber.trim()) { toast.error('Enter the receipt number'); return false; }
-
-    // TID format validation
-    if (channel === 'momo') {
-      const rawTid = transactionId.trim().toUpperCase();
-      if (momoProvider === 'mtn' && !rawTid.startsWith('MP')) {
-        toast.error("MTN TIDs must start with 'MP' (e.g. MP39665905645)");
-        return false;
-      }
-      if (momoProvider === 'airtel' && !rawTid.startsWith('TID')) {
-        toast.error("Airtel TIDs must start with 'TID' (e.g. TID144205097399)");
-        return false;
-      }
-    }
-    if (!transactionDate) { toast.error('Select the transaction date'); return false; }
-    if (!transactionTime) { toast.error('Enter the transaction time'); return false; }
-    if (!depositPurpose) { toast.error('Select the deposit purpose'); return false; }
-    if (depositPurpose === 'other' && !reason.trim()) { toast.error('Enter the reason for this deposit'); return false; }
-
-    // Operational Float deposits MUST carry a tenant breakdown so Financial
-    // Ops can reconcile the bulk drop. Skip when no allocations were made
-    // (legacy / no tenants linked yet) — the agent can still submit, but if
-    // they DID start a breakdown it has to balance.
-    if (depositPurpose === 'operational_float' && tenantAllocations.length > 0) {
-      const sum = tenantAllocations.reduce((s, a) => s + (a.amount || 0), 0);
-      const total = parseFloat(amount);
-      if (tenantAllocations.some((a) => !a.amount || a.amount <= 0)) {
-        toast.error('Each tenant in the breakdown needs an amount greater than 0');
-        return false;
-      }
-      if (Math.abs(sum - total) > 1) {
-        toast.error(
-          `Tenant breakdown (UGX ${sum.toLocaleString()}) must equal deposit total (UGX ${total.toLocaleString()})`,
-        );
-        return false;
-      }
-    }
-
-    const txDate = new Date(`${transactionDate}T${transactionTime}`);
-    const now = new Date();
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    if (txDate > now) { toast.error('Transaction date cannot be in the future'); return false; }
-    if (txDate < sevenDaysAgo) { toast.error('Transaction must be within the last 7 days'); return false; }
     return true;
   };
 
