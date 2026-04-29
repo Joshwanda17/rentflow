@@ -63,6 +63,75 @@ export function AgentBulkOpsConsole({ onBack }: { onBack?: () => void }) {
   const [reason, setReason] = useState('');
   const [confirmCount, setConfirmCount] = useState('');
 
+  // Quick-action presets — appear after a single agent is selected so the
+  // manager doesn't re-pick the same combinations every time.
+  type Preset = {
+    key: string;
+    label: string;
+    caps: string[];
+    action: 'enable' | 'disable';
+    reason: string;
+    tone: 'destructive' | 'warning' | 'success' | 'neutral';
+    icon: typeof ShieldAlert;
+  };
+  const QUICK_PRESETS: Preset[] = [
+    {
+      key: 'freeze-all',
+      label: 'Freeze (disable all high-risk)',
+      caps: ['collect_rent','request_float','process_cash_out','act_as_proxy'],
+      action: 'disable',
+      reason: 'Single-agent freeze — disable all high-risk functions pending review',
+      tone: 'destructive',
+      icon: ShieldAlert,
+    },
+    {
+      key: 'restore-default',
+      label: 'Restore default agent set',
+      caps: ['view_agent_dashboard','collect_rent','onboard_tenants','onboard_landlords'],
+      action: 'enable',
+      reason: 'Single-agent restore — re-enable the standard agent function set',
+      tone: 'success',
+      icon: CheckCircle2,
+    },
+    {
+      key: 'block-cashout',
+      label: 'Block cash-out only',
+      caps: ['process_cash_out'],
+      action: 'disable',
+      reason: 'Single-agent — temporarily block cash-out pending verification',
+      tone: 'warning',
+      icon: AlertTriangle,
+    },
+    {
+      key: 'block-collection',
+      label: 'Block rent collection',
+      caps: ['collect_rent'],
+      action: 'disable',
+      reason: 'Single-agent — pause rent collection pending investigation',
+      tone: 'warning',
+      icon: AlertTriangle,
+    },
+    {
+      key: 'enable-supervisor',
+      label: 'Enable supervisor tools',
+      caps: ['manage_subagents','approve_subagents','view_subagent_data'],
+      action: 'enable',
+      reason: 'Single-agent — promote to supervisor with sub-agent management tools',
+      tone: 'neutral',
+      icon: Layers,
+    },
+  ];
+  const applyPreset = (p: Preset) => {
+    setSelectedCaps(new Set(p.caps));
+    setAction(p.action);
+    if (reason.trim().length < 10) setReason(p.reason);
+    toast.success(`Preset loaded: ${p.label}`);
+    // Scroll the reason/confirm card into view so the manager sees the CTA.
+    requestAnimationFrame(() => {
+      document.getElementById('bulk-ops-confirm-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  };
+
   const toggleCap = (k: string) => {
     setSelectedCaps(prev => {
       const n = new Set(prev);
@@ -198,6 +267,40 @@ export function AgentBulkOpsConsole({ onBack }: { onBack?: () => void }) {
               </pre>
             </details>
           )}
+
+          {/* Quick actions — single-agent only */}
+          {resolved.count === 1 && (
+            <div className="mt-3 pt-3 border-t border-primary/20">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Quick actions for this agent
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {QUICK_PRESETS.map(p => {
+                  const Icon = p.icon;
+                  const toneClass =
+                    p.tone === 'destructive' ? 'border-destructive/40 text-destructive hover:bg-destructive/10' :
+                    p.tone === 'warning'     ? 'border-amber-300 text-amber-700 hover:bg-amber-50' :
+                    p.tone === 'success'     ? 'border-emerald-300 text-emerald-700 hover:bg-emerald-50' :
+                                               'border-border text-foreground hover:bg-muted';
+                  return (
+                    <button
+                      key={p.key}
+                      type="button"
+                      onClick={() => applyPreset(p)}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition active:scale-95 ${toneClass}`}
+                      title={`${p.action === 'enable' ? 'Enable' : 'Disable'}: ${p.caps.join(', ')}`}
+                    >
+                      <Icon className="h-3 w-3" />
+                      {p.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1.5">
+                Presets pre-fill the function list, action, and reason — review and confirm in step 3.
+              </p>
+            </div>
+          )}
         </Card>
       )}
 
@@ -241,7 +344,7 @@ export function AgentBulkOpsConsole({ onBack }: { onBack?: () => void }) {
       </Card>
 
       {/* Step 3 – reason + confirm */}
-      <Card className="p-4">
+      <Card id="bulk-ops-confirm-card" className="p-4">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
           3 · Reason &amp; confirm
         </p>
