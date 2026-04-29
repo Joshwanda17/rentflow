@@ -1078,6 +1078,115 @@ export function ProxyPartnerFunds() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Hidden cards footer */}
+      {dismissals.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setHiddenSheetOpen(true)}
+          className="w-full text-center text-xs text-muted-foreground hover:text-foreground py-2 underline-offset-2 hover:underline"
+        >
+          <Eye className="inline h-3 w-3 mr-1" />
+          Show {dismissals.length} hidden card{dismissals.length === 1 ? '' : 's'}
+        </button>
+      )}
+
+      {/* Hidden cards sheet */}
+      <Sheet open={hiddenSheetOpen} onOpenChange={setHiddenSheetOpen}>
+        <SheetContent side="bottom" className="h-[70dvh] rounded-t-2xl">
+          <SheetHeader>
+            <SheetTitle>Hidden Partner Cards</SheetTitle>
+          </SheetHeader>
+          <div className="mt-3 space-y-2 overflow-y-auto pr-1">
+            <p className="text-xs text-muted-foreground">
+              These cards are hidden from your main list. They will reappear automatically if new returns accrue above the snapshot amount.
+            </p>
+            {dismissals.length === 0 && (
+              <p className="text-sm text-muted-foreground py-6 text-center">No hidden cards.</p>
+            )}
+            {dismissals.map(d => {
+              const restoreKey = `${d.partner_id}-${d.portfolio_id || 'none'}`;
+              const profile = profiles[d.partner_id];
+              const portfolio = d.portfolio_id ? portfolioMap[d.portfolio_id] : null;
+              return (
+                <div key={restoreKey} className="flex items-center justify-between rounded-md border border-border/50 px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{profile?.full_name || 'Unknown partner'}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">
+                      {portfolio?.account_name || portfolio?.portfolio_code || '—'} · Snapshot {formatAmount(Number(d.snapshot_amount))}
+                    </p>
+                    {d.reason && (
+                      <p className="text-[10px] text-muted-foreground/80 italic truncate">"{d.reason}"</p>
+                    )}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1 shrink-0"
+                    disabled={restoringKey === restoreKey}
+                    onClick={() => restoreDismissal(d.partner_id, d.portfolio_id)}
+                  >
+                    {restoringKey === restoreKey ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
+                    Restore
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Clear confirmation dialog */}
+      <AlertDialog open={clearConfirmOpen} onOpenChange={(open) => {
+        setClearConfirmOpen(open);
+        if (!open) { setClearTargets([]); setClearReason(''); }
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Clear {clearTargets.length} card{clearTargets.length === 1 ? '' : 's'} from your list?
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  This only hides {clearTargets.length === 1 ? 'this card' : 'these cards'} from your view. No financial records are deleted. The card will reappear if new returns accrue for the partner.
+                </p>
+                {clearTargets.length <= 5 && (
+                  <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-0.5">
+                    {clearTargets.map(t => (
+                      <li key={`${t.partnerId}-${t.portfolioId || 'none'}`}>
+                        <span className="text-foreground font-medium">{t.partnerName}</span> — {formatAmount(t.amount)}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div>
+                  <Label className="text-xs font-medium">Reason (optional)</Label>
+                  <Textarea
+                    placeholder="e.g. Already paid in cash / partner contacted / awaiting partner response"
+                    value={clearReason}
+                    onChange={e => setClearReason(e.target.value)}
+                    maxLength={300}
+                    rows={2}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={clearing}>Keep on list</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmClear}
+              disabled={clearing}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {clearing ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Trash2 className="h-3.5 w-3.5 mr-1" />}
+              Yes, clear
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
