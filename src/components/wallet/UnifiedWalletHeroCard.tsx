@@ -220,7 +220,7 @@ export function UnifiedWalletHeroCard({
 
         {/* Payroll Growth Bonus indicator — only renders for staff with active un-withdrawn payroll */}
         {payrollGrowth && (
-          <div className="rounded-xl bg-gradient-to-r from-amber-500/15 to-emerald-500/15 border border-amber-300/20 px-3 py-2 flex items-start gap-2">
+          <div className="rounded-xl bg-gradient-to-r from-amber-500/15 to-emerald-500/15 border border-amber-300/20 px-3 flex items-start gap-2 py-[12px]">
             <Sparkles className="h-3.5 w-3.5 text-amber-300 mt-0.5 shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-[10px] uppercase tracking-[0.12em] font-semibold text-amber-200/90">
