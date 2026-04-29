@@ -91,7 +91,6 @@ import { FileWarning } from 'lucide-react';
 import { FieldCollectDailyTotals } from '@/components/agent/FieldCollectDailyTotals';
 import { FieldCollectCard } from '@/components/agent/FieldCollectCard';
 import { FieldDepositQueueCard } from '@/components/agent/FieldDepositQueueCard';
-import { UnbankedCashBanner } from '@/components/agent/UnbankedCashBanner';
 import { CollectFromReferenceDialog } from '@/components/agent/CollectFromReferenceDialog';
 
 import { AgentTopUpTenantDialog } from '@/components/agent/AgentTopUpTenantDialog';
@@ -405,14 +404,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* === HOME TAB === Most-used actions, at-a-glance */}
         {activeTab === 'home' && (
           <div className="space-y-4 animate-in fade-in duration-200">
-            {/*
-             * Persistent "unbanked cash" banner. Shows whenever the agent has
-             * recorded field cash but has not yet attached a transaction ID,
-             * bank reference, or merchant receipt. Stays visible (cannot be
-             * dismissed) until proof is submitted.
-             */}
-            <UnbankedCashBanner />
-
             {/*
              * Agent shortcut: paste a bank reference / MoMo TID / merchant
              * receipt number you grabbed in the field, and we resolve it
