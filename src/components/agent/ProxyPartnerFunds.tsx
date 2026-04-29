@@ -515,8 +515,12 @@ export function ProxyPartnerFunds() {
         };
       })
       // Auto-hide cards with negligible balance (rounding dust) and apply
-      // agent-side dismissal: hide when a dismissal exists AND nothing new has
-      // accrued since (current available <= snapshot at dismissal time).
+      // agent-side dismissal: once Caro dismisses a card it stays hidden
+      // permanently. New ROI accrual no longer un-hides it — she must
+      // explicitly Restore it from the "Show N hidden cards" sheet. This is
+      // intentional: dismissals carry a written reason ("ALREADY PAID AND
+      // EXPIRED" etc.) that should not be silently overridden by a tiny
+      // ledger accrual.
       .filter((partner) => {
         // Keep zero-balance cards that are zero ONLY because of an in-flight
         // withdrawal — they need to remain reachable via the In flight pill so
@@ -524,7 +528,7 @@ export function ProxyPartnerFunds() {
         if (partner.available <= 50 && partner.inFlightAmount <= 50) return false;
         const dKey = `${partner.partnerId}-${partner.portfolioId || 'none'}`;
         const d = dismissalMap[dKey];
-        if (d && partner.available <= Number(d.snapshot_amount)) return false;
+        if (d) return false;
         return true;
       })
       .sort((a, b) => {
