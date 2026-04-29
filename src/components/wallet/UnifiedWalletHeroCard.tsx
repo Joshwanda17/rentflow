@@ -160,8 +160,21 @@ export function UnifiedWalletHeroCard({
               Available Balance
             </p>
             <p className="text-[clamp(1.6rem,6vw,2.5rem)] font-black tracking-tight leading-none text-primary-foreground">
-              {formatAmount(balance)}
+              {formatAmount(headlineBalance)}
             </p>
+            {pendingHold > 0 && (
+              <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-300/20">
+                <Clock className="h-3 w-3 text-amber-300" />
+                <span className="text-[10px] font-semibold text-amber-200">
+                  {formatAmount(pendingHold)} pending withdrawal
+                </span>
+              </div>
+            )}
+            {pendingHold > 0 && (
+              <p className="text-[10px] text-primary-foreground/40 mt-1.5">
+                Wallet total: <span className="font-semibold text-primary-foreground/60">{formatAmount(balance)}</span>
+              </p>
+            )}
           </button>
         )}
 
