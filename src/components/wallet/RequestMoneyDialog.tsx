@@ -21,6 +21,7 @@ import {
   Contact, Nfc, ScanLine, ShieldCheck, XCircle, KeyRound,
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
+import { NfcTransactionResultDialog, type NfcResultPayload } from './NfcTransactionResultDialog';
 
 interface RequestMoneyDialogProps {
   open: boolean;
@@ -69,6 +70,21 @@ export function RequestMoneyDialog({ open, onOpenChange, onSuccess }: RequestMon
   const nfcAbortRef = useRef<AbortController | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const scannerElId = 'tap-qr-reader';
+  const tapTimeoutRef = useRef<number | null>(null);
+  const [resultOpen, setResultOpen] = useState(false);
+  const [resultPayload, setResultPayload] = useState<NfcResultPayload | null>(null);
+
+  const showResult = (payload: NfcResultPayload) => {
+    setResultPayload(payload);
+    setResultOpen(true);
+  };
+
+  const clearTapTimeout = () => {
+    if (tapTimeoutRef.current) {
+      clearTimeout(tapTimeoutRef.current);
+      tapTimeoutRef.current = null;
+    }
+  };
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-UG', {
@@ -156,6 +172,7 @@ export function RequestMoneyDialog({ open, onOpenChange, onSuccess }: RequestMon
   const stopNfc = () => {
     try { nfcAbortRef.current?.abort(); } catch { /* ignore */ }
     nfcAbortRef.current = null;
+    clearTapTimeout();
   };
 
   const resetTap = async () => {
@@ -180,8 +197,18 @@ export function RequestMoneyDialog({ open, onOpenChange, onSuccess }: RequestMon
       const { data, error } = await supabase.functions.invoke('verify-nfc-card', {
         body: { card, amount: amt, pin: pinValue ?? null, reason: tapReason || null },
       });
-      if (error) throw error;
       const payload: any = data;
+      // Insufficient balance is returned with HTTP 402, surface as friendly popup
+      if (payload?.error === 'INSUFFICIENT_BALANCE') {
+        setTapStage('idle');
+        showResult({
+          status: 'insufficient',
+          amount: amt,
+          available: Number(payload.available ?? 0),
+        });
+        return;
+      }
+      if (error) throw error;
       if (payload?.pin_required) {
         setPendingCard(card);
         setTapStage('pin');
@@ -190,15 +217,17 @@ export function RequestMoneyDialog({ open, onOpenChange, onSuccess }: RequestMon
       if (!payload?.success) {
         throw new Error(payload?.error || 'Payment failed');
       }
-      setTapStage('success');
-      toast.success(`Charged ${formatCurrency(amt)} to card`);
-      setTimeout(async () => {
-        await resetTap();
-        setTapAmount('');
-        setTapReason('');
-        onOpenChange(false);
-        onSuccess?.();
-      }, 1500);
+      setTapStage('idle');
+      showResult({
+        status: 'success',
+        amount: amt,
+        recipientName: payload.recipient_name,
+        requestId: payload.request_id,
+      });
+      await resetTap();
+      setTapAmount('');
+      setTapReason('');
+      onSuccess?.();
     } catch (e: any) {
       const msg = e?.context?.error || e?.message || 'Card verification failed';
       // If edge function returned 401 with pin_required in body
@@ -208,8 +237,10 @@ export function RequestMoneyDialog({ open, onOpenChange, onSuccess }: RequestMon
         setTapError(null);
         return;
       }
-      setTapError(typeof msg === 'string' ? msg : 'Card verification failed');
-      setTapStage('failed');
+      const errText = typeof msg === 'string' ? msg : 'Card verification failed';
+      setTapError(errText);
+      setTapStage('idle');
+      showResult({ status: 'failed', amount: amt, errorMessage: errText });
     }
   };
 
@@ -237,33 +268,60 @@ export function RequestMoneyDialog({ open, onOpenChange, onSuccess }: RequestMon
       const ctrl = new AbortController();
       nfcAbortRef.current = ctrl;
       await reader.scan({ signal: ctrl.signal });
+      // 30s safety timeout — surface a clear "no card detected" instead of spinning forever
+      tapTimeoutRef.current = window.setTimeout(() => {
+        stopNfc();
+        setTapStage('idle');
+        showResult({
+          status: 'failed',
+          amount: amt,
+          errorMessage: 'No card detected. Hold the card flat against the back of your phone and try again.',
+        });
+      }, 30000);
       reader.onreading = (event: any) => {
         try {
           const decoder = new TextDecoder();
           let text = '';
+          // Iterate ALL records and accept text / mime / unknown / url payloads
           for (const record of event.message.records) {
-            if (record.recordType === 'text' || record.recordType === 'mime') {
-              text = decoder.decode(record.data);
-              break;
-            }
+            try {
+              const decoded = decoder.decode(record.data);
+              if (!decoded) continue;
+              if (record.recordType === 'text' || record.recordType === 'mime' || record.recordType === 'unknown') {
+                text = decoded; break;
+              }
+              if (record.recordType === 'url' && decoded.startsWith('{')) {
+                text = decoded; break;
+              }
+            } catch { /* try next record */ }
           }
+          if (!text) throw new Error('No readable record on card');
+          // Strip any UTF-8 BOM / language prefix bytes that some text records prepend
+          const firstBrace = text.indexOf('{');
+          if (firstBrace > 0) text = text.slice(firstBrace);
+          console.log('[NFC] decoded payload:', text);
           const card = JSON.parse(text);
           stopNfc();
           processCard(card);
         } catch {
-          setTapError('Could not read card payload');
-          setTapStage('failed');
           stopNfc();
+          setTapStage('idle');
+          showResult({
+            status: 'failed',
+            amount: amt,
+            errorMessage: 'Could not read this card. It may not be a Welile card or the payload is corrupted.',
+          });
         }
       };
       reader.onreadingerror = () => {
-        setTapError('Failed to read card');
-        setTapStage('failed');
         stopNfc();
+        setTapStage('idle');
+        showResult({ status: 'failed', amount: amt, errorMessage: 'Failed to read card. Try tapping again.' });
       };
     } catch (e: any) {
       setTapError(e?.message || 'NFC permission denied');
       setTapStage('failed');
+      showResult({ status: 'failed', amount: amt, errorMessage: e?.message || 'NFC permission denied' });
     }
   };
 
@@ -339,6 +397,12 @@ export function RequestMoneyDialog({ open, onOpenChange, onSuccess }: RequestMon
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto border-border/50 glass-card">
+        <NfcTransactionResultDialog
+          open={resultOpen}
+          onOpenChange={setResultOpen}
+          result={resultPayload}
+          onRetry={() => { setTapStage('idle'); }}
+        />
         <div className="absolute inset-0 bg-gradient-to-br from-accent/5 via-transparent to-primary/5 pointer-events-none" />
         
         <AnimatePresence mode="wait">
