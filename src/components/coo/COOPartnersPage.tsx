@@ -696,11 +696,13 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     setPendingApprovalCount(count || 0);
   }, []);
 
-  // Debounce search input
+  // Debounce search input — single source of truth for resetting page on search.
+  // The input's onChange purposefully does NOT touch page, so we only fire one
+  // fetch per settled search term instead of one per keystroke.
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSearch(search);
-      setPage(0);
+      setDebouncedSearch(prev => (prev === search ? prev : search));
+      setPage(prev => (prev === 0 ? prev : 0));
     }, 400);
     return () => clearTimeout(timer);
   }, [search]);
@@ -1602,8 +1604,8 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     return <ChevronDown className="h-2.5 w-2.5 text-primary" />;
   }
 
-  /* ─── Column config ─── */
-  const columns: { key: string; label: string; align?: 'left' | 'right' | 'center'; sortable?: boolean; hideOnMobile?: boolean; render?: (r: PartnerRow) => React.ReactNode }[] = [
+  /* ─── Column config (memoized so rows don't re-render on unrelated state changes) ─── */
+  const columns = useMemo<{ key: string; label: string; align?: 'left' | 'right' | 'center'; sortable?: boolean; hideOnMobile?: boolean; render?: (r: PartnerRow) => React.ReactNode }[]>(() => [
     { key: 'name', label: 'Partner', render: (r) => (
       <button
         onClick={() => openPartnerDetail(r.id)}
@@ -1695,7 +1697,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         </DropdownMenu>
       )
     },
-  ];
+  ], [readOnly]);
 
   /* ─── Render ─── */
   if (isLoading) {
@@ -1746,7 +1748,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[180px] max-w-xs">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <input type="text" value={search} onChange={e => { setSearch(e.target.value); setPage(0); }}
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search by name or phone…"
             className="h-9 w-full rounded-lg border border-border bg-background pl-8 pr-8 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors" />
           {isSearching ? (
@@ -1877,10 +1879,25 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
               </tr>
             </thead>
             <tbody className="divide-y divide-border/30">
-              {paged.length === 0 ? (
+              {isSearching && paged.length === 0 ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={`sk-${i}`} className="animate-pulse">
+                    <td className="px-2 sm:px-3 py-3"><div className="h-3 w-4 bg-muted rounded" /></td>
+                    {columns.map(col => (
+                      <td key={col.key} className={cn('px-2 sm:px-3 py-3', col.hideOnMobile && 'hidden lg:table-cell')}>
+                        <div className="h-3 w-20 bg-muted rounded" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : paged.length === 0 ? (
                 <tr>
                   <td colSpan={columns.length + 1} className="px-4 py-12 text-center text-sm text-muted-foreground italic">
-                    {search ? 'No matching partners found' : 'No partners registered'}
+                    {hasLocalFilter
+                      ? 'No partners match the selected filters'
+                      : search
+                        ? `No matching partners found for "${search}"`
+                        : 'No partners registered'}
                   </td>
                 </tr>
               ) : (
