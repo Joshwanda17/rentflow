@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ShieldCheck, TrendingUp } from 'lucide-react';
+import { CalendarIcon, ShieldCheck, TrendingUp } from 'lucide-react';
+import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
 import { onVouchUpdated } from '@/lib/vouchEvents';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 /**
  * EarnedVouchRangeBreakdown
@@ -21,9 +25,9 @@ import { Skeleton } from '@/components/ui/skeleton';
  * the RPC returns lifetime totals, matching the legacy view.
  */
 
-type Range = '7d' | '30d' | '90d' | 'all';
+type Range = '7d' | '30d' | '90d' | 'all' | 'custom';
 
-const RANGES: { key: Range; label: string; days: number | null }[] = [
+const RANGES: { key: Exclude<Range, 'custom'>; label: string; days: number | null }[] = [
   { key: '7d',  label: '7d',  days: 7 },
   { key: '30d', label: '30d', days: 30 },
   { key: '90d', label: '90d', days: 90 },
@@ -68,6 +72,12 @@ export function EarnedVouchRangeBreakdown({
   const [data, setData] = useState<RangeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshTick, setRefreshTick] = useState(0);
+  const [customStart, setCustomStart] = useState<Date | undefined>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d;
+  });
+  const [customEnd, setCustomEnd] = useState<Date | undefined>(new Date());
 
   // Live-refresh when a collection lands for this AI ID.
   useEffect(() => {
@@ -78,13 +88,23 @@ export function EarnedVouchRangeBreakdown({
     });
   }, [aiId]);
 
-  const startAt = useMemo(() => {
+  const { startAt, endAt } = useMemo(() => {
+    if (range === 'custom') {
+      const s = customStart ? new Date(customStart) : null;
+      if (s) s.setHours(0, 0, 0, 0);
+      const e = customEnd ? new Date(customEnd) : null;
+      if (e) e.setHours(23, 59, 59, 999);
+      return {
+        startAt: s ? s.toISOString() : null,
+        endAt: e ? e.toISOString() : null,
+      };
+    }
     const cfg = RANGES.find((r) => r.key === range);
-    if (!cfg?.days) return null;
+    if (!cfg?.days) return { startAt: null, endAt: null };
     const d = new Date();
     d.setDate(d.getDate() - cfg.days);
-    return d.toISOString();
-  }, [range]);
+    return { startAt: d.toISOString(), endAt: null };
+  }, [range, customStart, customEnd]);
 
   useEffect(() => {
     let cancelled = false;
@@ -95,7 +115,7 @@ export function EarnedVouchRangeBreakdown({
       const { data: rpcData, error } = await supabase.rpc('get_agent_earned_vouch_in_range', {
         p_ai_id: aiId.toUpperCase(),
         p_start_at: startAt,
-        p_end_at: null,
+        p_end_at: endAt,
       });
 
       if (cancelled) return;
@@ -116,7 +136,7 @@ export function EarnedVouchRangeBreakdown({
     })();
 
     return () => { cancelled = true; };
-  }, [aiId, startAt, refreshTick]);
+  }, [aiId, startAt, endAt, refreshTick]);
 
   if (!loading && (!data || !data.found)) return null;
 
@@ -132,14 +152,14 @@ export function EarnedVouchRangeBreakdown({
       'rounded-xl border border-primary/30 bg-gradient-to-br from-primary/8 to-emerald-500/5 p-3',
       className,
     )}>
-      <div className="flex items-center justify-between gap-2 mb-2">
+      <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
         <div className="flex items-center gap-1.5">
           <TrendingUp className="h-3.5 w-3.5 text-primary" />
           <p className="text-[10px] uppercase tracking-wider font-bold text-primary">
             Earned vouch breakdown
           </p>
         </div>
-        <div className="flex items-center gap-0.5 rounded-md bg-background/60 p-0.5">
+        <div className="flex items-center gap-0.5 rounded-md bg-background/60 p-0.5 flex-wrap">
           {RANGES.map((r) => (
             <button
               key={r.key}
@@ -156,8 +176,28 @@ export function EarnedVouchRangeBreakdown({
               {r.label}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => setRange('custom')}
+            className={cn(
+              'px-2 py-0.5 text-[10px] font-semibold rounded transition-colors',
+              range === 'custom'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+            aria-pressed={range === 'custom'}
+          >
+            Custom
+          </button>
         </div>
       </div>
+
+      {range === 'custom' && (
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
+          <DateField label="From" value={customStart} onChange={setCustomStart} max={customEnd} />
+          <DateField label="To" value={customEnd} onChange={setCustomEnd} min={customStart} />
+        </div>
+      )}
 
       {loading ? (
         <div className="space-y-1.5">
