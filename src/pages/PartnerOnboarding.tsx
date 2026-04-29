@@ -217,8 +217,11 @@ export default function FunderOnboarding() {
                 </TableHeader>
                 <TableBody>
                   {rows.map((r) => {
-                    const isFrozen = !!r.frozen_at;
                     const partnerRef = buildPartnerReference(r.id, r.created_at);
+                    const verState: 'verified' | 'rejected' | 'pending' =
+                      r.funder_verified_at ? 'verified'
+                      : r.funder_rejected_at ? 'rejected'
+                      : 'pending';
                     return (
                       <TableRow
                         key={r.id}
@@ -248,13 +251,19 @@ export default function FunderOnboarding() {
                           {r.email || '—'}
                         </TableCell>
                         <TableCell>
-                          {isFrozen ? (
-                            <Badge variant="outline" className="text-[10px] gap-1 bg-destructive/15 text-destructive border-destructive/30">
-                              <ShieldAlert className="h-2.5 w-2.5" /> Suspended
-                            </Badge>
-                          ) : (
+                          {verState === 'verified' && (
                             <Badge variant="outline" className="text-[10px] gap-1 bg-success/15 text-success border-success/30">
-                              <ShieldCheck className="h-2.5 w-2.5" /> Active
+                              <CheckCircle2 className="h-2.5 w-2.5" /> Verified
+                            </Badge>
+                          )}
+                          {verState === 'rejected' && (
+                            <Badge variant="outline" className="text-[10px] gap-1 bg-destructive/15 text-destructive border-destructive/30">
+                              <XCircle className="h-2.5 w-2.5" /> Rejected
+                            </Badge>
+                          )}
+                          {verState === 'pending' && (
+                            <Badge variant="outline" className="text-[10px] gap-1 bg-warning/15 text-warning border-warning/30">
+                              <Clock className="h-2.5 w-2.5" /> Pending
                             </Badge>
                           )}
                         </TableCell>
