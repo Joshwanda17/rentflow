@@ -217,6 +217,11 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
   const [filterWallet, setFilterWallet] = useState<'all' | 'has_balance' | 'empty'>('all');
   const [payoutDateFrom, setPayoutDateFrom] = useState<Date | undefined>(undefined);
   const [payoutDateTo, setPayoutDateTo] = useState<Date | undefined>(undefined);
+  // When a payout date range is active we need to filter across ALL partners,
+  // not just the current server-paginated page. We lazily fetch the full set
+  // (scoped to the current search term) and cache it here.
+  const [allRowsForPayoutFilter, setAllRowsForPayoutFilter] = useState<PartnerRow[] | null>(null);
+  const [loadingAllRowsForPayout, setLoadingAllRowsForPayout] = useState(false);
 
   // Invest dialog
   const [investPartner, setInvestPartner] = useState<PartnerRow | null>(null);
@@ -1221,9 +1226,50 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
     finally { setSavingEditPortfolio(false); }
   }
 
+  /* ─── When the payout-date range filter is active, fetch ALL matching ───
+     ─── partners (across every server page, scoped to the current search) ───
+     ─── so the filter evaluates against the whole dataset instead of just ───
+     ─── the current page. Cleared when the filter is turned off.          ─── */
+  useEffect(() => {
+    const filterActive = !!(payoutDateFrom || payoutDateTo);
+    if (!filterActive) {
+      if (allRowsForPayoutFilter !== null) setAllRowsForPayoutFilter(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setLoadingAllRowsForPayout(true);
+      try {
+        const allIds: string[] = [];
+        let p = 0;
+        while (p < 200) {
+          const { ids } = await fetchPaginatedSupporterIds(p, PAGE_SIZE, debouncedSearch);
+          if (ids.length === 0) break;
+          allIds.push(...ids);
+          if (ids.length < PAGE_SIZE) break;
+          p += 1;
+        }
+        const fullRows = allIds.length ? await buildRowsForIds(allIds) : [];
+        if (!cancelled) setAllRowsForPayoutFilter(fullRows);
+      } catch (e) {
+        console.error('[payout-filter] failed to fetch all partners', e);
+        if (!cancelled) setAllRowsForPayoutFilter([]);
+      } finally {
+        if (!cancelled) setLoadingAllRowsForPayout(false);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [payoutDateFrom, payoutDateTo, debouncedSearch, buildRowsForIds]);
+
   /* ─── Filtered / Sorted (local filters on current page, search is server-side) ─── */
   const processed = useMemo(() => {
-    let result = [...rows];
+    // When a payout-date range is active, evaluate filters against the full
+    // (search-scoped) dataset so we don't miss partners on other pages.
+    const sourceRows = (payoutDateFrom || payoutDateTo) && allRowsForPayoutFilter
+      ? allRowsForPayoutFilter
+      : rows;
+    let result = [...sourceRows];
     if (filterStatus !== 'all') result = result.filter(r => r.status === filterStatus);
     if (filterRoiMode !== 'all') result = result.filter(r => r.roiMode === filterRoiMode);
     if (filterContact === 'has_phone') result = result.filter(r => r.phone && !r.phone.includes('@'));
@@ -1261,7 +1307,7 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
       });
     }
     return result;
-  }, [rows, sortKey, sortDir, filterStatus, filterRoiMode, filterContact, filterWallet, payoutDateFrom, payoutDateTo]);
+  }, [rows, allRowsForPayoutFilter, sortKey, sortDir, filterStatus, filterRoiMode, filterContact, filterWallet, payoutDateFrom, payoutDateTo]);
 
   // Detect any client-side filter that narrows results below the current page.
   // Server-side pagination only knows about `search` — every other filter runs
@@ -1749,7 +1795,9 @@ export default function COOPartnersPage({ readOnly = false }: { readOnly?: boole
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className={cn("h-9 gap-1.5 text-xs", (payoutDateFrom || payoutDateTo) && "border-primary text-primary")}>
-              <CalendarDays className="h-3.5 w-3.5" />
+              {loadingAllRowsForPayout
+                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                : <CalendarDays className="h-3.5 w-3.5" />}
               {payoutDateFrom && payoutDateTo
                 ? `${format(payoutDateFrom, 'MMM d')} – ${format(payoutDateTo, 'MMM d')}`
                 : payoutDateFrom
