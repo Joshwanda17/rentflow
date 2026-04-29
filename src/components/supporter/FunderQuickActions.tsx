@@ -25,9 +25,15 @@ interface Props {
   roiBalance?: number;
   /** Called after any flow closes so caller can refresh wallet caches. */
   onChanged?: () => void;
+  /**
+   * `default` → standalone card (light surface).
+   * `hero` → rendered inside the dark wallet hero card; uses translucent
+   * surfaces so it sits cleanly under the "Invested" row.
+   */
+  variant?: 'default' | 'hero';
 }
 
-export function FunderQuickActions({ availableBalance, roiBalance = 0, onChanged }: Props) {
+export function FunderQuickActions({ availableBalance, roiBalance = 0, onChanged, variant = 'default' }: Props) {
   const [showDeposit, setShowDeposit] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
@@ -37,31 +43,37 @@ export function FunderQuickActions({ availableBalance, roiBalance = 0, onChanged
     if (!open) onChanged?.();
   };
 
+  const isHero = variant === 'hero';
+  const btnClass = isHero
+    ? 'gap-2 h-11 rounded-xl bg-primary-foreground/10 hover:bg-primary-foreground/15 backdrop-blur-sm border border-primary-foreground/15 text-primary-foreground'
+    : 'gap-2 h-11';
+  const btnVariant = isHero ? 'ghost' as const : 'outline' as const;
+
   return (
     <>
       <div className="grid grid-cols-3 gap-2">
         <Button
-          variant="outline"
-          className="gap-2 h-11"
+          variant={btnVariant}
+          className={btnClass}
           onClick={() => { hapticTap(); setShowDeposit(true); }}
         >
-          <ArrowDownLeft className="w-4 h-4 text-emerald-600" />
+          <ArrowDownLeft className={`w-4 h-4 ${isHero ? 'text-emerald-300' : 'text-emerald-600'}`} />
           <span className="font-semibold">Deposit</span>
         </Button>
         <Button
-          variant="outline"
-          className="gap-2 h-11"
+          variant={btnVariant}
+          className={btnClass}
           onClick={() => { hapticTap(); setShowWithdraw(true); }}
         >
-          <ArrowUpRight className="w-4 h-4 text-rose-600" />
+          <ArrowUpRight className={`w-4 h-4 ${isHero ? 'text-rose-300' : 'text-rose-600'}`} />
           <span className="font-semibold">Withdraw</span>
         </Button>
         <Button
-          variant="outline"
-          className="gap-2 h-11"
+          variant={btnVariant}
+          className={btnClass}
           onClick={() => { hapticTap(); setShowTransfer(true); }}
         >
-          <Send className="w-4 h-4 text-primary" />
+          <Send className={`w-4 h-4 ${isHero ? 'text-primary-foreground' : 'text-primary'}`} />
           <span className="font-semibold">Transfer</span>
         </Button>
       </div>
