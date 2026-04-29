@@ -47,6 +47,14 @@ interface Props {
   className?: string;
   /** Default selected range. Defaults to "30d". */
   defaultRange?: Range;
+  /**
+   * When true, each row shows a verbose, itemized "how this number is
+   * calculated" line (formula + inputs in UGX), and a footer note
+   * explains the overall logic. Used on the public HolisticProfile so
+   * any visitor can audit the math. Defaults to false (terse mode) for
+   * the agent's own dashboard where space is tight.
+   */
+  explain?: boolean;
 }
 
 export function EarnedVouchRangeBreakdown({
@@ -54,6 +62,7 @@ export function EarnedVouchRangeBreakdown({
   effectiveLimitUgx,
   className,
   defaultRange = '30d',
+  explain = false,
 }: Props) {
   const [range, setRange] = useState<Range>(defaultRange);
   const [data, setData] = useState<RangeData | null>(null);
@@ -161,25 +170,41 @@ export function EarnedVouchRangeBreakdown({
           {range === 'all' && (
             <Row
               label="Welile base vouch"
-              sub="Every active agent starts here"
+              sub={
+                explain
+                  ? `Fixed floor granted to every active agent: ${formatUGX(data.floor_ugx)}.`
+                  : 'Every active agent starts here'
+              }
               value={formatUGX(data.floor_ugx)}
             />
           )}
           <Row
             label={`Collected (${rangeLabel(range)})`}
-            sub={`${data.collection_count} ${data.collection_count === 1 ? 'collection' : 'collections'}`}
+            sub={
+              explain
+                ? `Sum of every rent collection recorded ${rangeLabel(range)} — ${data.collection_count} ${data.collection_count === 1 ? 'collection' : 'collections'} totalling ${formatUGX(data.collected_ugx)}.`
+                : `${data.collection_count} ${data.collection_count === 1 ? 'collection' : 'collections'}`
+            }
             value={formatUGX(data.collected_ugx)}
           />
           <Row
             label={`Earned vouch (${data.multiplier}× collected)`}
-            sub="Welile vouches double the rent collected"
+            sub={
+              explain
+                ? `${formatUGX(data.collected_ugx)} collected × ${data.multiplier} = ${formatUGX(data.earned_vouch_ugx)}. Welile vouches twice every shilling collected.`
+                : 'Welile vouches double the rent collected'
+            }
             value={formatUGX(data.earned_vouch_ugx)}
             accent
           />
           {showTrustBoost && trustBoost > 0 && (
             <Row
               label="Trust score boost"
-              sub="Extra vouch from your overall trust score"
+              sub={
+                explain
+                  ? `Effective limit (${formatUGX(effectiveLimitUgx ?? 0)}) − base (${formatUGX(data!.floor_ugx)}) − earned (${formatUGX(data!.earned_vouch_ugx)}) = ${formatUGX(trustBoost)}. Bonus from healthy ratio × monthly book.`
+                  : 'Extra vouch from your overall trust score'
+              }
               value={formatUGX(trustBoost)}
             />
           )}
@@ -192,6 +217,43 @@ export function EarnedVouchRangeBreakdown({
               <span className="text-sm font-black tabular-nums text-emerald-700 dark:text-emerald-400">
                 {formatUGX(effectiveLimitUgx)}
               </span>
+            </div>
+          )}
+
+          {explain && (
+            <div className="mt-2 pt-2 border-t border-primary/15 space-y-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                How this is calculated
+              </p>
+              <ul className="text-[10px] text-muted-foreground leading-snug list-disc pl-4 space-y-0.5">
+                <li>
+                  <span className="font-semibold text-foreground">Base vouch:</span>{' '}
+                  every active Welile agent gets {formatUGX(data.floor_ugx)} as a starting trust floor.
+                </li>
+                <li>
+                  <span className="font-semibold text-foreground">Earned vouch:</span>{' '}
+                  Welile multiplies the rent this agent has collected by {data.multiplier} —
+                  every shilling collected on schedule earns {data.multiplier} shillings of vouch.
+                </li>
+                {range !== 'all' && (
+                  <li>
+                    <span className="font-semibold text-foreground">Window:</span>{' '}
+                    only collections recorded in the {rangeLabel(range)} are counted here.
+                    Switch to <span className="font-semibold text-foreground">All</span> to see lifetime totals.
+                  </li>
+                )}
+                {showTrustBoost && trustBoost > 0 && (
+                  <li>
+                    <span className="font-semibold text-foreground">Trust boost:</span>{' '}
+                    extra vouch unlocked when the agent's healthy-tenant ratio and monthly
+                    book push their trust score above the base + earned amount.
+                  </li>
+                )}
+                <li>
+                  <span className="font-semibold text-foreground">Effective limit:</span>{' '}
+                  base + earned + trust boost. This is what lenders may safely lend against.
+                </li>
+              </ul>
             </div>
           )}
         </div>
