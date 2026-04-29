@@ -500,7 +500,7 @@ export function ProxyPartnerFunds() {
         if (b.totalReturns !== a.totalReturns) return b.totalReturns - a.totalReturns;
         return a.partnerName.localeCompare(b.partnerName);
       });
-  }, [approvedOps, completedWithdrawals, profiles, portfolioMap, user?.id]);
+  }, [approvedOps, completedWithdrawals, profiles, portfolioMap, dismissalMap, user?.id]);
 
   const handleWithdraw = async (partner: PartnerBalance) => {
     setSelectedPartnerId(partner.partnerId);
