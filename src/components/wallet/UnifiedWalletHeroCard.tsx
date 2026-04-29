@@ -1,9 +1,10 @@
 import { ReactNode } from 'react';
-import { Wallet, ChevronRight, Shield, Home, TrendingUp, Rocket, PiggyBank, Coins, Sparkles } from 'lucide-react';
+import { Wallet, ChevronRight, Shield, Home, TrendingUp, Rocket, PiggyBank, Coins, Sparkles, Clock } from 'lucide-react';
 import { hapticTap } from '@/lib/haptics';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useAuth } from '@/hooks/useAuth';
 import { usePayrollGrowth } from '@/hooks/usePayrollGrowth';
+import { useAvailableBalance } from '@/hooks/useAvailableBalance';
 
 export type WalletRole = 'agent' | 'tenant' | 'supporter' | 'landlord';
 
@@ -66,13 +67,24 @@ export function UnifiedWalletHeroCard({
   const { formatAmount } = useCurrency();
   const { user } = useAuth();
   const payrollGrowth = usePayrollGrowth(user?.id);
+  // Strict ledger-backed available balance (subtracts pending withdrawal_requests).
+  // Used for the headline so the wallet never shows money already promised to an
+  // in-flight withdrawal. Cached `balance` prop is shown as a smaller "Total" line.
+  const { available: ledgerAvailable, walletCached, loading: availableLoading } =
+    useAvailableBalance(user?.id);
+  const showAgentSplit = role === 'agent' && (floatBalance !== undefined || commissionBalance !== undefined);
+  // Only override the headline for non-agent split layouts (agent split has its
+  // own dedicated Withdrawable cell that already uses withdrawableBalance prop).
+  const useStrictHeadline = !showAgentSplit && !availableLoading;
+  const headlineBalance = useStrictHeadline ? ledgerAvailable : balance;
+  const pendingHold = useStrictHeadline
+    ? Math.max(0, Math.min(walletCached || 0, balance) - ledgerAvailable)
+    : 0;
 
   const handleOpenWallet = () => {
     hapticTap();
     onOpenWallet?.();
   };
-
-  const showAgentSplit = role === 'agent' && (floatBalance !== undefined || commissionBalance !== undefined);
 
   return (
     <div className="w-full text-left portfolio-hero-card rounded-3xl p-6 relative overflow-hidden">
