@@ -13402,6 +13402,16 @@ export type Database = {
         }
         Returns: Json
       }
+      cfo_correct_trail_entry: {
+        Args: {
+          p_audit_id: string
+          p_correction_reason: string
+          p_new_reason: string
+          p_new_target_user_id: string
+          p_new_tid: string
+        }
+        Returns: Json
+      }
       check_landlord_payout_eligibility: {
         Args: { p_agent_id: string; p_amount: number; p_landlord_id: string }
         Returns: Json

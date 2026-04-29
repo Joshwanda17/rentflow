@@ -1,13 +1,18 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Clock, Download, Search, Filter } from 'lucide-react';
+import { Loader2, Clock, Download, Search, Filter, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 const ALL_CFO_ACTIONS = [
   // Direct wallet operations
@@ -137,6 +142,16 @@ const DEBIT_ACTIONS = new Set([
 export function CFOActionsLog() {
   const [filterGroup, setFilterGroup] = useState('all');
   const [search, setSearch] = useState('');
+  const { roles } = useAuth();
+  const isCFO = (roles || []).includes('cfo');
+  const qc = useQueryClient();
+
+  const [editing, setEditing] = useState<any | null>(null);
+  const [newTid, setNewTid] = useState('');
+  const [newReason, setNewReason] = useState('');
+  const [newTargetQuery, setNewTargetQuery] = useState('');
+  const [newTargetUserId, setNewTargetUserId] = useState<string | null>(null);
+  const [correctionReason, setCorrectionReason] = useState('');
 
   const activeActions = FILTER_GROUPS.find(g => g.value === filterGroup)?.actions || ALL_CFO_ACTIONS;
 
@@ -181,6 +196,60 @@ export function CFOActionsLog() {
     },
     staleTime: 30_000,
   });
+
+  const { data: targetMatches } = useQuery({
+    queryKey: ['cfo-trail-target-search', newTargetQuery],
+    enabled: !!editing && newTargetQuery.trim().length >= 2,
+    queryFn: async () => {
+      const q = newTargetQuery.trim();
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone')
+        .or(`full_name.ilike.%${q}%,phone.ilike.%${q}%`)
+        .limit(8);
+      return data || [];
+    },
+    staleTime: 10_000,
+  });
+
+  const correct = useMutation({
+    mutationFn: async () => {
+      if (!editing) throw new Error('No row selected');
+      if (correctionReason.trim().length < 10) {
+        throw new Error('Correction reason must be at least 10 characters');
+      }
+      const { error } = await supabase.rpc('cfo_correct_trail_entry', {
+        p_audit_id: editing.id,
+        p_new_tid: newTid.trim() || null,
+        p_new_reason: newReason.trim() || null,
+        p_new_target_user_id: newTargetUserId,
+        p_correction_reason: correctionReason.trim(),
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Trail entry corrected');
+      setEditing(null);
+      setNewTid(''); setNewReason(''); setNewTargetQuery(''); setNewTargetUserId(null); setCorrectionReason('');
+      qc.invalidateQueries({ queryKey: ['cfo-actions-log'] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? 'Correction failed'),
+  });
+
+  const openEdit = (action: any) => {
+    const meta = action.metadata || {};
+    setEditing(action);
+    setNewTid(meta.tid || meta.transaction_id || meta.tpay_reference || meta.batch_reference || '');
+    setNewReason(meta.reason || meta.description || '');
+    setNewTargetQuery('');
+    setNewTargetUserId(null);
+    setCorrectionReason('');
+  };
+
+  const currentTid = useMemo(() => {
+    const m = editing?.metadata || {};
+    return m.tid || m.transaction_id || m.tpay_reference || m.batch_reference || '—';
+  }, [editing]);
 
   const filtered = (actions || []).filter((a: any) => {
     if (!search) return true;
@@ -330,14 +399,101 @@ export function CFOActionsLog() {
                           Manager
                         </Badge>
                       )}
+                      {(action.metadata?.edit_history?.length ?? 0) > 0 && (
+                        <Badge variant="outline" className="text-[9px] h-4 px-1 border-blue-400 text-blue-600">
+                          Edited ×{action.metadata.edit_history.length}
+                        </Badge>
+                      )}
                     </div>
                   </div>
+                  {isCFO && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0"
+                      onClick={() => openEdit(action)}
+                      title="Correct TID / reason / target"
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </Button>
+                  )}
                 </div>
               );
             })}
           </div>
         )}
       </CardContent>
+
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Correct trail entry</DialogTitle>
+            <DialogDescription>
+              Overwrite the transaction reference, reason, or target user. The original values are
+              preserved in the entry's edit history and a separate audit row is recorded.
+            </DialogDescription>
+          </DialogHeader>
+          {editing && (
+            <div className="space-y-3 text-sm">
+              <div className="rounded-md bg-muted/40 p-2 text-xs space-y-0.5">
+                <div><span className="text-muted-foreground">Action:</span> {ACTION_LABELS[editing.action_type] || editing.action_type}</div>
+                <div><span className="text-muted-foreground">Current TID:</span> <span className="font-mono">{currentTid}</span></div>
+                <div><span className="text-muted-foreground">Current target:</span> {editing.metadata?.target_name || editing.metadata?.user_name || editing.metadata?.agent_name || '—'}</div>
+              </div>
+
+              <div>
+                <Label className="text-xs">New TID / reference</Label>
+                <Input value={newTid} onChange={(e) => setNewTid(e.target.value)} className="h-8 text-xs font-mono" placeholder="Leave blank to keep current" />
+              </div>
+
+              <div>
+                <Label className="text-xs">New reason / description</Label>
+                <Textarea value={newReason} onChange={(e) => setNewReason(e.target.value)} rows={2} className="text-xs" placeholder="Leave blank to keep current" />
+              </div>
+
+              <div>
+                <Label className="text-xs">Re-link target user (optional)</Label>
+                <Input
+                  value={newTargetQuery}
+                  onChange={(e) => { setNewTargetQuery(e.target.value); setNewTargetUserId(null); }}
+                  className="h-8 text-xs"
+                  placeholder="Search by name or phone (min 2 chars)"
+                />
+                {newTargetQuery.length >= 2 && (targetMatches?.length ?? 0) > 0 && (
+                  <div className="mt-1 max-h-32 overflow-y-auto rounded-md border border-border/50">
+                    {targetMatches!.map((p: any) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => { setNewTargetUserId(p.id); setNewTargetQuery(p.full_name); }}
+                        className={`w-full text-left px-2 py-1 text-xs hover:bg-muted ${newTargetUserId === p.id ? 'bg-muted' : ''}`}
+                      >
+                        <div className="font-medium">{p.full_name}</div>
+                        <div className="text-muted-foreground">{p.phone}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {newTargetUserId && (
+                  <p className="text-[10px] text-emerald-600 mt-1">Will re-link to this user.</p>
+                )}
+              </div>
+
+              <div>
+                <Label className="text-xs">Correction reason (min 10 chars) <span className="text-destructive">*</span></Label>
+                <Textarea value={correctionReason} onChange={(e) => setCorrectionReason(e.target.value)} rows={2} className="text-xs" placeholder="Why is this correction needed?" />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
+            <Button onClick={() => correct.mutate()} disabled={correct.isPending}>
+              {correct.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Save correction
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
