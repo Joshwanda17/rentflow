@@ -247,6 +247,7 @@ export function ProxyPartnerFunds() {
         setProfiles({});
         setCompletedWithdrawals([]);
         setPartnerWithdrawalStatus({});
+        setActiveWithdrawalsByPartner({});
         setLastTerminalByPartner({});
         setLoading(false);
         return;
@@ -269,7 +270,7 @@ export function ProxyPartnerFunds() {
         // Active (pending/processing) withdrawal requests
         supabase
           .from('withdrawal_requests')
-          .select('id, linked_party, status, reason, updated_at, created_at')
+          .select('id, linked_party, status, reason, amount, updated_at, created_at')
           .eq('user_id', user.id)
           .in('status', [...ACTIVE_PROXY_WITHDRAWAL_STATUSES]),
         // Terminal-unpaid: rejected / expired / cancelled (so we can explain
