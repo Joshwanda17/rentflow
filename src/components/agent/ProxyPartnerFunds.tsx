@@ -763,15 +763,22 @@ export function ProxyPartnerFunds() {
   // Priority: active in-flight > last terminal (reject/expire/cancel) > fresh (no prior request).
   const classify = (partner: PartnerBalance):
     | { kind: 'active' }
+    | { kind: 'inflight' }
     | { kind: 'reattempt'; terminal: LastTerminal }
     | { kind: 'fresh' } => {
     const key = getStatusKey(partner);
     if (partnerWithdrawalStatus[key]) return { kind: 'active' };
+    // Card has zero available because Caro already initiated — surface it
+    // under the In flight pill but hide it from the default All view.
+    if (partner.inFlightAmount > 50 && partner.available <= 50) {
+      return { kind: 'inflight' };
+    }
     const t = lastTerminalByPartner[partner.partnerId];
     if (t) return { kind: 'reattempt', terminal: t };
     return { kind: 'fresh' };
   };
 
+  const inFlightCount = partnerBalances.filter((p) => classify(p).kind === 'inflight').length;
   const reattemptCount = partnerBalances.filter((p) => classify(p).kind === 'reattempt').length;
   const freshCount = partnerBalances.filter((p) => classify(p).kind === 'fresh').length;
 
