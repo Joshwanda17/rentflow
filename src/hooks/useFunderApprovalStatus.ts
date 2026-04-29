@@ -20,6 +20,10 @@ export interface FunderApprovalState {
    *   onboarding paths, not by self-registration verification.
    */
   isApproved: boolean;
+  /** True when the profile signed up via /funder-onboarding. */
+  isSelfRegistered: boolean;
+  /** Timestamp when Partner Ops / COO verified this self-registered funder. */
+  verifiedAt: string | null;
   isLoading: boolean;
 }
 
@@ -69,6 +73,8 @@ export function useFunderApprovalStatus(userId: string | null | undefined): Fund
     rejectionReason: data?.rejectionReason ?? null,
     approvedAt: data?.approvedAt ?? null,
     isApproved,
+    isSelfRegistered: !!data?.isSelfRegistered,
+    verifiedAt: data?.verifiedAt ?? null,
     isLoading,
   };
 }

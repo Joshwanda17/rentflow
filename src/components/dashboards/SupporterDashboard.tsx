@@ -56,6 +56,8 @@ import { FunderCapitalOpportunities } from '@/components/supporter/FunderCapital
 import { InvestmentAccountsDrawer } from '@/components/supporter/InvestmentAccountsDrawer';
 import { FunderApprovalBanner } from '@/components/supporter/FunderApprovalGate';
 import { FunderQuickActions } from '@/components/supporter/FunderQuickActions';
+import { FunderActivationModal } from '@/components/supporter/FunderActivationModal';
+import { useFunderApprovalStatus } from '@/hooks/useFunderApprovalStatus';
 
 import AiIdButton from '@/components/ai-id/AiIdButton';
 import { NotificationBell } from '@/components/supporter/NotificationBell';
@@ -109,6 +111,42 @@ export default function SupporterDashboard({
   const { wallet, refreshWallet } = useWallet();
   const { fireSuccess, fireFirstFunding } = useConfetti();
   const [hasEverFunded, setHasEverFunded] = useState<boolean | null>(null);
+
+  // ─── Funder activation modal (self-registered + just approved + empty wallet) ───
+  const { isSelfRegistered, verifiedAt } = useFunderApprovalStatus(user.id);
+  const [showActivationModal, setShowActivationModal] = useState(false);
+  const [highlightDeposit, setHighlightDeposit] = useState(false);
+  const SNOOZE_KEY = `funder_activation_snooze_${user.id}`;
+
+  useEffect(() => {
+    if (!isSelfRegistered || !verifiedAt) return;
+    const walletEmpty =
+      (wallet?.balance ?? 0) === 0 &&
+      (((wallet as any)?.withdrawable_balance ?? 0) === 0);
+    if (!walletEmpty) return;
+    try {
+      const raw = localStorage.getItem(SNOOZE_KEY);
+      const snoozeUntil = raw ? parseInt(raw, 10) : 0;
+      if (snoozeUntil && Date.now() < snoozeUntil) return;
+    } catch {}
+    setShowActivationModal(true);
+  }, [isSelfRegistered, verifiedAt, wallet?.balance, (wallet as any)?.withdrawable_balance, SNOOZE_KEY]);
+
+  const handleActivationDeposit = () => {
+    setShowActivationModal(false);
+    try { localStorage.removeItem(SNOOZE_KEY); } catch {}
+    setTimeout(() => {
+      const el = document.getElementById('funder-wallet-hero');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setHighlightDeposit(true);
+      setTimeout(() => setHighlightDeposit(false), 2500);
+    }, 150);
+  };
+
+  const handleActivationSnooze = () => {
+    try { localStorage.setItem(SNOOZE_KEY, String(Date.now() + 60 * 60 * 1000)); } catch {}
+    setShowActivationModal(false);
+  };
 
   // Local-first: read cache synchronously in useState init
   const [virtualHouses, setVirtualHouses] = useState<VirtualHouse[]>(() => {
@@ -404,6 +442,7 @@ export default function SupporterDashboard({
 
           {/* ═══ PORTFOLIO HERO CARD ═══ */}
           {wallet ? (
+            <div id="funder-wallet-hero">
             <UnifiedWalletHeroCard
               balance={wallet?.balance ?? 0}
               role="supporter"
@@ -431,9 +470,11 @@ export default function SupporterDashboard({
                   availableBalance={wallet?.balance ?? 0}
                   roiBalance={totalRoiEarned}
                   onChanged={() => { refreshWallet(); }}
+                  highlightDeposit={highlightDeposit}
                 />
               }
             />
+            </div>
           ) : (
             <WalletHeroSkeleton />
           )}
@@ -611,8 +652,14 @@ export default function SupporterDashboard({
 
       <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />
       <InvestmentAccountsDrawer open={showInvestments} onOpenChange={setShowInvestments} defaultTab={investmentsTab} />
-      
-      
+
+      <FunderActivationModal
+        open={showActivationModal}
+        onOpenChange={setShowActivationModal}
+        onDepositClick={handleActivationDeposit}
+        onSnooze={handleActivationSnooze}
+      />
+
     </div>
   );
 }
