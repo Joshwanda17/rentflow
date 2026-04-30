@@ -92,12 +92,15 @@ export function AgentTenantCollectDialog({
       if (error) {
         const message = await extractFromErrorObject(error, 'Allocation failed');
         console.error('[AgentTenantCollectDialog] allocation RPC failed:', message, error);
-        throw new Error(message);
+        throw new Error(humanizeAllocationError(message));
       }
 
       const res = data as any;
       if (!res?.success || res?.error) {
-        const message = res?.error || 'Allocation failed. Please try again.';
+        const rawMsg = res?.error || 'Allocation failed. Please try again.';
+        const message = res?.error_code
+          ? humanizeAllocationError(rawMsg, res.error_code)
+          : humanizeAllocationError(rawMsg);
         console.error('[AgentTenantCollectDialog] allocation rejected:', res);
         throw new Error(message);
       }
