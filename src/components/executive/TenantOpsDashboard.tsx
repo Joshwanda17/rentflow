@@ -27,6 +27,15 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { downloadCsv } from '@/lib/csvExport';
+import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
@@ -35,7 +44,7 @@ import { toast } from 'sonner';
 import {
   FileCheck, Clock, AlertTriangle, CheckCircle2, Banknote,
   ArrowRight, Activity, ClipboardList, CalendarCheck, CalendarX2,
-  ArrowLeft, History, Table2, Link2, HandCoins, Users, Trash2, Loader2, FileSearch, Printer, Network, Shield, CalendarIcon
+  ArrowLeft, History, Table2, Link2, HandCoins, Users, Trash2, Loader2, FileSearch, Printer, Network, Shield, CalendarIcon, Download
 } from 'lucide-react';
 import { generateTenantOpsReportPdf } from '@/lib/generateTenantOpsReportPdf';
 import { format } from 'date-fns';
@@ -66,6 +75,7 @@ export function TenantOpsDashboard() {
   const [printingPdf, setPrintingPdf] = useState(false);
   const [reportFrom, setReportFrom] = useState<Date | undefined>(undefined);
   const [reportTo, setReportTo] = useState<Date | undefined>(undefined);
+  const [extracting, setExtracting] = useState<null | 'applied' | 'approved' | 'collected' | 'expected'>(null);
 
   const handlePrintReport = async () => {
     setPrintingPdf(true);
@@ -361,6 +371,273 @@ export function TenantOpsDashboard() {
       toast.error(err.message || 'Failed to generate report');
     } finally {
       setPrintingPdf(false);
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Quick CSV extracts (Tenants Applied / Approved / Repayments Collected /
+  // Expected). Share the same From / To pickers as Print Report. When no
+  // dates are picked we default to the last 30 days for the three time-bound
+  // reports; "Expected" defaults to today → +90 days so the user always sees
+  // a meaningful forward-looking number on first click.
+  // ---------------------------------------------------------------------------
+  const resolveWindow = (defaultDays: number, forward = false) => {
+    let from = reportFrom ? new Date(reportFrom) : null;
+    let to = reportTo ? new Date(reportTo) : null;
+    if (from && to && from.getTime() > to.getTime()) {
+      const t = from; from = to; to = t;
+    }
+    if (!from && !to) {
+      if (forward) {
+        from = new Date();
+        to = new Date(Date.now() + defaultDays * 86400_000);
+      } else {
+        to = new Date();
+        from = new Date(Date.now() - defaultDays * 86400_000);
+      }
+    } else if (from && !to) {
+      to = new Date();
+    } else if (!from && to) {
+      from = new Date(to.getTime() - defaultDays * 86400_000);
+    }
+    if (from) from.setHours(0, 0, 0, 0);
+    if (to) to.setHours(23, 59, 59, 999);
+    return { from: from!, to: to! };
+  };
+
+  const windowSuffix = (from: Date, to: Date) =>
+    `${format(from, 'yyyyMMdd')}_${format(to, 'yyyyMMdd')}`;
+
+  // Fetch tenant + landlord names for a list of rent_request rows in one go.
+  const enrichWithProfiles = async (rows: any[]) => {
+    const ids = [...new Set(rows.flatMap(r => [r.tenant_id, r.landlord_id, r.approved_by]).filter(Boolean) as string[])];
+    if (!ids.length) return new Map<string, any>();
+    const { data } = await supabase.from('profiles').select('id, full_name, phone').in('id', ids);
+    return new Map((data || []).map((p: any) => [p.id, p]));
+  };
+
+  const handleExtractApplied = async () => {
+    setExtracting('applied');
+    try {
+      const { from, to } = resolveWindow(30);
+      const { data, error } = await supabase
+        .from('rent_requests')
+        .select('id, tenant_id, landlord_id, rent_amount, daily_repayment, duration_days, status, created_at')
+        .gte('created_at', from.toISOString())
+        .lte('created_at', to.toISOString())
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      if (!data || data.length === 0) { toast.error('No tenant applications in this window'); return; }
+      const profiles = await enrichWithProfiles(data);
+      const rows = data.map((r: any) => {
+        const t = profiles.get(r.tenant_id); const l = profiles.get(r.landlord_id);
+        return [
+          r.id,
+          t?.full_name || '—',
+          t?.phone || '—',
+          l?.full_name || '—',
+          Number(r.rent_amount || 0),
+          Number(r.daily_repayment || 0),
+          r.duration_days ?? '',
+          r.status || '',
+          r.created_at,
+        ];
+      });
+      downloadCsv(
+        `tenants-applied_${windowSuffix(from, to)}.csv`,
+        ['request_id', 'tenant_name', 'tenant_phone', 'landlord_name', 'rent_amount_ugx', 'daily_repayment_ugx', 'duration_days', 'status', 'applied_at'],
+        rows,
+      );
+      toast.success(`Extracted ${rows.length} applications`);
+    } catch (err: any) {
+      toast.error(err.message || 'Extract failed');
+    } finally {
+      setExtracting(null);
+    }
+  };
+
+  const handleExtractApproved = async () => {
+    setExtracting('approved');
+    try {
+      const { from, to } = resolveWindow(30);
+      const { data, error } = await supabase
+        .from('rent_requests')
+        .select('id, tenant_id, approved_by, rent_amount, total_repayment, daily_repayment, approved_at, status')
+        .not('approved_at', 'is', null)
+        .gte('approved_at', from.toISOString())
+        .lte('approved_at', to.toISOString())
+        .not('status', 'in', '(rejected,cancelled)')
+        .order('approved_at', { ascending: false });
+      if (error) throw error;
+      if (!data || data.length === 0) { toast.error('No approvals in this window'); return; }
+      const profiles = await enrichWithProfiles(data);
+      const rows = data.map((r: any) => {
+        const t = profiles.get(r.tenant_id); const a = profiles.get(r.approved_by);
+        return [
+          r.id,
+          t?.full_name || '—',
+          t?.phone || '—',
+          Number(r.rent_amount || 0),
+          Number(r.total_repayment || 0),
+          Number(r.daily_repayment || 0),
+          r.approved_at,
+          a?.full_name || '—',
+          r.status || '',
+        ];
+      });
+      downloadCsv(
+        `tenants-approved_${windowSuffix(from, to)}.csv`,
+        ['request_id', 'tenant_name', 'tenant_phone', 'rent_amount_ugx', 'total_repayment_ugx', 'daily_repayment_ugx', 'approved_at', 'approved_by_name', 'status'],
+        rows,
+      );
+      toast.success(`Extracted ${rows.length} approvals`);
+    } catch (err: any) {
+      toast.error(err.message || 'Extract failed');
+    } finally {
+      setExtracting(null);
+    }
+  };
+
+  const handleExtractCollected = async () => {
+    setExtracting('collected');
+    try {
+      const { from, to } = resolveWindow(30);
+      // Pull from the ledger — same source as the PDF, so totals reconcile.
+      const { data: payments, error } = await supabase
+        .from('general_ledger')
+        .select('user_id, amount, source_id, source_table, transaction_date, transaction_group_id')
+        .in('category', ['tenant_repayment', 'rent_repayment'])
+        .eq('direction', 'cash_in')
+        .gte('transaction_date', from.toISOString())
+        .lte('transaction_date', to.toISOString())
+        .order('transaction_date', { ascending: false });
+      if (error) throw error;
+      if (!payments || payments.length === 0) { toast.error('No repayments collected in this window'); return; }
+
+      // Resolve true tenant per leg via rent_requests / agent_collections.
+      const sourceIds = [...new Set(payments.map((p: any) => p.source_id).filter(Boolean) as string[])];
+      const [rrLookup, acLookup] = await Promise.all([
+        sourceIds.length ? supabase.from('rent_requests').select('id, tenant_id').in('id', sourceIds) : Promise.resolve({ data: [] as any[] }),
+        sourceIds.length ? supabase.from('agent_collections').select('id, tenant_id, agent_id').in('id', sourceIds) : Promise.resolve({ data: [] as any[] }),
+      ]);
+      const tenantBySource = new Map<string, string>();
+      const agentBySource = new Map<string, string>();
+      for (const r of (rrLookup.data || []) as any[]) if (r.tenant_id) tenantBySource.set(r.id, r.tenant_id);
+      for (const c of (acLookup.data || []) as any[]) {
+        if (c.tenant_id && !tenantBySource.has(c.id)) tenantBySource.set(c.id, c.tenant_id);
+        if (c.agent_id) agentBySource.set(c.id, c.agent_id);
+      }
+      // Float-allocation agent attribution via transaction_group_id.
+      const groupIds = [...new Set(payments.map((p: any) => p.transaction_group_id).filter(Boolean) as string[])];
+      const { data: groupLegs } = groupIds.length
+        ? await supabase.from('general_ledger').select('user_id, category, direction, transaction_group_id')
+            .in('transaction_group_id', groupIds)
+            .in('category', ['agent_float_used_for_rent', 'agent_commission_earned'])
+        : { data: [] as any[] };
+      const agentByGroup = new Map<string, string>();
+      for (const leg of (groupLegs || []) as any[]) {
+        if (leg.category === 'agent_float_used_for_rent' && leg.direction === 'cash_out' && leg.user_id) agentByGroup.set(leg.transaction_group_id, leg.user_id);
+      }
+      for (const leg of (groupLegs || []) as any[]) {
+        if (leg.category === 'agent_commission_earned' && leg.direction === 'cash_in' && leg.user_id && !agentByGroup.has(leg.transaction_group_id)) agentByGroup.set(leg.transaction_group_id, leg.user_id);
+      }
+
+      const resolveTenant = (p: any) => (p.source_id && tenantBySource.get(p.source_id)) || p.user_id || null;
+      const tenantIds = [...new Set(payments.map(resolveTenant).filter(Boolean) as string[])];
+      const agentIds = [...new Set([...agentByGroup.values(), ...agentBySource.values()])];
+      const profileIds = [...new Set([...tenantIds, ...agentIds])];
+      const { data: profs } = profileIds.length
+        ? await supabase.from('profiles').select('id, full_name, phone').in('id', profileIds)
+        : { data: [] as any[] };
+      const pmap = new Map((profs || []).map((p: any) => [p.id, p]));
+
+      let total = 0;
+      const rows = payments.map((p: any) => {
+        const tid = resolveTenant(p);
+        const aid = (p.transaction_group_id && agentByGroup.get(p.transaction_group_id)) || (p.source_id && agentBySource.get(p.source_id)) || null;
+        const t = tid ? pmap.get(tid) : null;
+        const a = aid ? pmap.get(aid) : null;
+        const amt = Number(p.amount || 0);
+        total += amt;
+        return [
+          p.transaction_date,
+          t?.full_name || '—',
+          t?.phone || '—',
+          a?.full_name || (aid ? 'Agent' : 'Direct (no agent)'),
+          amt,
+          p.source_table || '',
+        ];
+      });
+      rows.push(['', '', '', 'TOTAL', total, '']);
+      downloadCsv(
+        `repayments-collected_${windowSuffix(from, to)}.csv`,
+        ['payment_date', 'tenant_name', 'tenant_phone', 'agent_name', 'amount_ugx', 'source'],
+        rows,
+      );
+      toast.success(`Collected: UGX ${Math.round(total).toLocaleString()} across ${payments.length} payments`);
+    } catch (err: any) {
+      toast.error(err.message || 'Extract failed');
+    } finally {
+      setExtracting(null);
+    }
+  };
+
+  const handleExtractExpected = async () => {
+    setExtracting('expected');
+    try {
+      const { from, to } = resolveWindow(90, true);
+      // Active rent plans = funded/disbursed/repaying (not rejected/cancelled/fully_repaid/defaulted).
+      const { data: plans, error } = await supabase
+        .from('rent_requests')
+        .select('id, tenant_id, daily_repayment, total_repayment, amount_repaid, duration_days, disbursed_at, funded_at, status, tenancy_status')
+        .in('status', ['funded', 'disbursed', 'repaying']);
+      if (error) throw error;
+      const active = (plans || []).filter((p: any) =>
+        !['ended', 'terminated'].includes((p.tenancy_status || '').toLowerCase())
+      );
+      if (active.length === 0) { toast.error('No active rent plans'); return; }
+      const profiles = await enrichWithProfiles(active);
+
+      const winStart = from.getTime();
+      const winEnd = to.getTime();
+      let totalExpected = 0;
+      let totalOutstanding = 0;
+      const rows = active.map((r: any) => {
+        const start = r.disbursed_at || r.funded_at;
+        const startMs = start ? new Date(start).getTime() : winStart;
+        const planEndMs = startMs + (Number(r.duration_days || 0) * 86400_000);
+        const overlapStart = Math.max(startMs, winStart);
+        const overlapEnd = Math.min(planEndMs, winEnd);
+        const days = Math.max(0, Math.ceil((overlapEnd - overlapStart) / 86400_000));
+        const daily = Number(r.daily_repayment || 0);
+        const expected = days * daily;
+        const outstanding = Math.max(0, Number(r.total_repayment || 0) - Number(r.amount_repaid || 0));
+        totalExpected += expected;
+        totalOutstanding += outstanding;
+        const t = profiles.get(r.tenant_id);
+        return [
+          r.id,
+          t?.full_name || '—',
+          t?.phone || '—',
+          daily,
+          days,
+          expected,
+          Number(r.total_repayment || 0),
+          Number(r.amount_repaid || 0),
+          outstanding,
+        ];
+      });
+      rows.push(['', '', 'TOTAL', '', '', totalExpected, '', '', totalOutstanding]);
+      downloadCsv(
+        `repayments-expected_${windowSuffix(from, to)}.csv`,
+        ['request_id', 'tenant_name', 'tenant_phone', 'daily_repayment_ugx', 'days_in_window', 'expected_in_window_ugx', 'total_repayment_ugx', 'amount_repaid_ugx', 'outstanding_ugx'],
+        rows,
+      );
+      toast.success(`Expected (window): UGX ${Math.round(totalExpected).toLocaleString()} • Outstanding: UGX ${Math.round(totalOutstanding).toLocaleString()}`);
+    } catch (err: any) {
+      toast.error(err.message || 'Extract failed');
+    } finally {
+      setExtracting(null);
     }
   };
 
@@ -803,6 +1080,31 @@ export function TenantOpsDashboard() {
                   Clear
                 </Button>
               )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1.5" disabled={!!extracting}>
+                    {extracting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                    Extract
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64 bg-popover">
+                  <DropdownMenuLabel className="text-xs">Tenants</DropdownMenuLabel>
+                  <DropdownMenuItem disabled={!!extracting} onClick={handleExtractApplied}>
+                    <ClipboardList className="h-4 w-4 mr-2" /> How many applied (CSV)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled={!!extracting} onClick={handleExtractApproved}>
+                    <CheckCircle2 className="h-4 w-4 mr-2" /> How many approved (CSV)
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-xs">Repayments</DropdownMenuLabel>
+                  <DropdownMenuItem disabled={!!extracting} onClick={handleExtractCollected}>
+                    <Banknote className="h-4 w-4 mr-2" /> How much collected (CSV)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled={!!extracting} onClick={handleExtractExpected}>
+                    <CalendarCheck className="h-4 w-4 mr-2" /> How much expected (CSV)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button
                 variant="outline"
                 size="sm"
