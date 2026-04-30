@@ -411,7 +411,10 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     setPurposeChosenAt(new Date().toISOString());
     setPurposeEntryPoint('default');
     if (m.amount > 0) setAmount(String(m.amount));
-    if (m.allocations?.length) setTenantAllocations(m.allocations);
+    if (m.allocations?.length) {
+      setTenantAllocations(m.allocations);
+      setBreakdownChoice('yes');
+    }
     if (m.providerHint === 'mtn' || m.providerHint === 'airtel') {
       setChannel('momo');
       setMomoProvider(m.providerHint);
