@@ -491,28 +491,28 @@ function Step3({ form, setForm }: { form: FormState; setForm: React.Dispatch<Rea
     <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-5">
       <motion.div
         variants={fadeUp}
-        className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1C1433] via-[#261B4A] to-[#1C1433] px-4 py-3"
+        className="relative overflow-hidden rounded-2xl px-4 py-3"
       >
         <div
-          className="absolute inset-0 opacity-[0.06] pointer-events-none"
+          className="absolute inset-0 pointer-events-none"
           style={{
             backgroundImage:
-              'linear-gradient(#fff 1px,transparent 1px),linear-gradient(90deg,#fff 1px,transparent 1px)',
+              'linear-gradient(rgba(108,17,212,0.18) 1px,transparent 1px),linear-gradient(90deg,rgba(108,17,212,0.18) 1px,transparent 1px)',
             backgroundSize: '24px 24px',
           }}
         />
         <div className="relative z-10 flex items-center justify-between">
           <div>
-            <p className="text-[9px] font-black text-purple-400 uppercase tracking-[0.1em] mb-0.5">Secure Registration</p>
-            <h2 className="text-lg font-black text-white tracking-tight leading-snug">
+            <p className="text-[9px] font-black text-[#6c11d4] uppercase tracking-[0.1em] mb-0.5">Secure Registration</p>
+            <h2 className="text-lg font-black text-[#1C1C2E] tracking-tight leading-snug">
               Create Your<br />Funder Account
             </h2>
           </div>
           <div className="flex flex-col items-center gap-1">
-            <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center">
-              <Shield size={20} className="text-purple-300" strokeWidth={1.75} />
+            <div className="w-10 h-10 rounded-xl bg-[#6c11d4]/10 border border-[#6c11d4]/20 flex items-center justify-center">
+              <Shield size={20} className="text-[#6c11d4]" strokeWidth={1.75} />
             </div>
-            <span className="text-[9px] text-purple-400 font-bold">256-BIT</span>
+            <span className="text-[9px] text-[#6c11d4] font-bold">256-BIT</span>
           </div>
         </div>
         <div className="relative z-10 flex items-center gap-2 mt-3">
@@ -521,9 +521,9 @@ function Step3({ form, setForm }: { form: FormState; setForm: React.Dispatch<Rea
             { icon: Shield, label: 'KYC Ready' },
             { icon: BadgeCheck, label: 'Regulated' },
           ].map(({ icon: Icon, label }) => (
-            <div key={label} className="flex items-center gap-1 bg-white/10 border border-white/15 rounded-lg px-2 py-1">
-              <Icon size={10} className="text-purple-300" strokeWidth={2} />
-              <span className="text-[9px] font-bold text-purple-200">{label}</span>
+            <div key={label} className="flex items-center gap-1 bg-[#6c11d4]/5 border border-[#6c11d4]/15 rounded-lg px-2 py-1">
+              <Icon size={10} className="text-[#6c11d4]" strokeWidth={2} />
+              <span className="text-[9px] font-bold text-[#6c11d4]">{label}</span>
             </div>
           ))}
         </div>
