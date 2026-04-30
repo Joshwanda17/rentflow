@@ -1,72 +1,65 @@
 import ExecutiveDashboardLayout from '@/components/layout/ExecutiveDashboardLayout';
 import COOReportPage from '@/components/coo/COOReportPage';
+import { useTenantOpsReportData } from '@/components/coo/useCOOReportData';
 import { usePersistedActiveTab } from '@/hooks/usePersistedActiveTab';
-import { Home, UserPlus, Clock, ShieldCheck, FileWarning, HeartHandshake, AlertTriangle } from 'lucide-react';
+import { Home, UserPlus, Clock, ShieldCheck, FileWarning, HeartHandshake, AlertTriangle, Banknote } from 'lucide-react';
+
+const ugx = (n: number) => `UGX ${new Intl.NumberFormat('en-UG').format(Math.round(n || 0))}`;
 
 /**
  * COO → Reports → Tenant Ops
- * Wire `activities` to: tenants, rent_requests, support_tickets, tenant_kyc.
+ * Live data from `rent_requests` (the canonical Rent Plan pipeline).
  */
 export default function TenantOpsReportPage() {
   const [, setActiveTab] = usePersistedActiveTab('coo');
+  const { data, isLoading, refetch } = useTenantOpsReportData();
 
-  const activities = [
-    { id: 'TEN-3320', type: 'New tenant',         person: 'Ruth N.',     amount: null,      status: 'Pending review',  statusKind: 'warning' as const,     date: new Date(Date.now() - 2*3600e3).toISOString(),  staff: 'Linda M.', reference: 'REG-3320', details: { department: 'Tenant Ops', assigned_partner: 'Mukasa Ventures' } },
-    { id: 'TEN-3319', type: 'Rent payment',       person: 'David K.',    amount: 450_000,   status: 'Approved',         statusKind: 'success' as const,     date: new Date(Date.now() - 5*3600e3).toISOString(),  staff: 'System',   reference: 'PAY-7711', details: { department: 'Financial Ops' } },
-    { id: 'TEN-3318', type: 'Support request',    person: 'Grace A.',    amount: null,      status: 'Pending',          statusKind: 'warning' as const,     date: new Date(Date.now() - 8*3600e3).toISOString(),  staff: 'Linda M.', reference: 'TKT-2210', details: { department: 'Tenant Ops', topic: 'Late payment grace' } },
-    { id: 'TEN-3317', type: 'KYC submission',     person: 'Ruth N.',     amount: null,      status: 'Missing docs',     statusKind: 'destructive' as const, date: new Date(Date.now() - 26*3600e3).toISOString(), staff: 'Linda M.', reference: 'KYC-7720', details: { department: 'Tenant Ops', missing: 'National ID' } },
-    { id: 'TEN-3316', type: 'Rent support',       person: 'Peter O.',    amount: 220_000,   status: 'Approved',         statusKind: 'success' as const,     date: new Date(Date.now() - 50*3600e3).toISOString(), staff: 'Linda M.', reference: 'SUP-1180', details: { department: 'Tenant Ops', supporter: 'Hope Foundation' } },
-    { id: 'TEN-3315', type: 'COO escalation',     person: 'David K.',    amount: 950_000,   status: 'Pending',          statusKind: 'destructive' as const, date: new Date(Date.now() - 72*3600e3).toISOString(), staff: 'COO',      reference: 'ESC-0091', details: { department: 'Tenant Ops', reason: 'Repeat default' } },
-  ];
+  const k = data?.kpis ?? { total: 0, pending: 0, approved: 0, funded: 0, disbursed: 0, rejected: 0, totalRent: 0 };
+  const activities = data?.activities ?? [];
+  const trend = data?.trend ?? [];
+  const funnel = data?.funnel ?? [];
 
   return (
     <ExecutiveDashboardLayout role="coo" activeTab="reports-tenant-ops" onTabChange={setActiveTab}>
       <COOReportPage
         title="Tenant Ops Report"
-        description="Track tenant onboarding, support tickets, rent support, verification status, and cases needing COO attention."
+        description="Live Rent Plan pipeline — submissions, approvals, funding, and disbursements across the last 30 days."
         icon={Home}
-        statusOptions={['Pending review', 'Pending', 'Approved', 'Rejected', 'Missing docs']}
-        activityTypeOptions={['New tenant', 'Rent payment', 'Support request', 'KYC submission', 'Rent support', 'COO escalation']}
-        departmentOptions={['Tenant Ops', 'Financial Ops']}
-        staffOptions={['Linda M.', 'System', 'COO']}
+        loading={isLoading}
+        onGenerate={async () => { await refetch(); }}
+        statusOptions={['pending', 'approved', 'funded', 'disbursed', 'rejected']}
+        activityTypeOptions={['Rent plan request']}
+        departmentOptions={['Tenant Ops']}
         kpis={[
-          { label: 'New tenants (7d)',      value: '38',   sub: '+11 vs prev. week',     icon: UserPlus,     severity: 'info' },
-          { label: 'Pending tenant reviews', value: '6',   sub: 'Awaiting Tenant Ops',   icon: Clock,        severity: 'warning', urgent: true },
-          { label: 'Supported tenants',     value: '214',  sub: 'Active rent plans',     icon: HeartHandshake, severity: 'success' },
-          { label: 'Active tenant cases',   value: '17',   sub: 'Open with Tenant Ops',  icon: AlertTriangle, severity: 'warning' },
-          { label: 'Pending verifications', value: '9',    sub: 'KYC incomplete',        icon: FileWarning,   severity: 'destructive' },
-          { label: 'Rent support requests', value: '12',   sub: 'New this week',         icon: HeartHandshake, severity: 'info' },
-          { label: 'KYC verified',          value: '92%',  sub: 'Of active tenants',     icon: ShieldCheck,   severity: 'success' },
-          { label: 'COO escalations',       value: '3',    sub: 'Awaiting decision',     icon: AlertTriangle, severity: 'destructive', urgent: true },
+          { label: 'Submitted (30d)',     value: String(k.total),     sub: 'Total Rent Plans',     icon: UserPlus,       severity: 'info' },
+          { label: 'Pending review',      value: String(k.pending),   sub: 'Awaiting Tenant Ops',  icon: Clock,          severity: 'warning', urgent: k.pending > 0 },
+          { label: 'Approved',            value: String(k.approved),  sub: 'Cleared for funding',  icon: ShieldCheck,    severity: 'success' },
+          { label: 'Funded',              value: String(k.funded),    sub: 'Capital allocated',    icon: HeartHandshake, severity: 'success' },
+          { label: 'Disbursed to landlord', value: String(k.disbursed), sub: 'Cash routed',        icon: Banknote,       severity: 'success' },
+          { label: 'Rejected',            value: String(k.rejected),  sub: 'Did not pass',         icon: FileWarning,    severity: 'destructive' },
+          { label: 'Total rent value',    value: ugx(k.totalRent),    sub: 'Sum of monthly rent',  icon: Banknote,       severity: 'info' },
+          { label: 'Conversion: sub→fund', value: k.total ? `${Math.round((k.funded / k.total) * 100)}%` : '0%', sub: 'Funded / submitted', icon: AlertTriangle, severity: 'neutral' },
         ]}
         charts={[
           {
             kind: 'line',
-            title: 'New tenants vs verified (last 14 days)',
-            seriesKeys: ['new', 'verified'],
-            data: Array.from({ length: 14 }, (_, i) => ({
-              label: `D${i + 1}`,
-              new: Math.round(3 + Math.random() * 8),
-              verified: Math.round(2 + Math.random() * 6),
-            })),
+            title: 'Daily Rent Plan submissions (last 14 days)',
+            seriesKeys: ['count'],
+            data: trend,
           },
           {
-            kind: 'pie',
-            title: 'Open cases by category',
-            data: [
-              { label: 'Late payment',  value: 9 },
-              { label: 'Verification',  value: 4 },
-              { label: 'Plan change',   value: 2 },
-              { label: 'Dispute',       value: 2 },
-            ],
+            kind: 'bar',
+            title: 'Pipeline funnel',
+            seriesKeys: ['value'],
+            data: funnel,
           },
         ]}
         activities={activities}
         insights={[
-          { kind: 'priority',   title: '3 escalations need COO sign-off', body: 'Repeat-default case for David K. flagged twice — coordinate with Financial Ops before next billing cycle.' },
-          { kind: 'pending',    title: '9 KYC packs incomplete > 48h',     body: 'National ID is the most common missing item. Re-trigger SMS prompts.' },
-          { kind: 'trend',      title: 'New tenants up 41% w/w',           body: 'Largely from Hope Foundation supporter pool. Brief Tenant Ops on capacity.' },
-          { kind: 'action',     title: 'Reassign 4 stale support tickets',  body: 'All sit with Linda M. and are >24h old. Spread to next available agent.' },
+          { kind: k.pending > 0 ? 'pending' : 'trend', title: `${k.pending} Rent Plan requests pending`, body: 'Tenant Ops should triage within SLA — every hour late delays landlord disbursement.' },
+          { kind: 'trend', title: 'Pipeline conversion', body: `${k.approved} approved, ${k.funded} funded, ${k.disbursed} disbursed of ${k.total} submitted.` },
+          { kind: 'priority', title: `${k.rejected} rejections this month`, body: 'Review rejection reasons to refine the inbound qualification criteria.' },
+          { kind: 'action', title: 'Total rent under management', body: `Rent Plans worth ${ugx(k.totalRent)} entered the pipeline this window.` },
         ]}
       />
     </ExecutiveDashboardLayout>
