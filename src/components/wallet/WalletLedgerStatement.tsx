@@ -101,6 +101,9 @@ export function WalletLedgerStatement() {
       .select('id, transaction_date, amount, direction, category, description, reference_id, linked_party, source_table')
       .eq('user_id', user.id)
       .in('ledger_scope', ['wallet', 'bridge'])
+      // Hide admin/CFO reconciliation legs from end users.
+      .neq('classification', 'admin_correction')
+      .neq('category', 'system_balance_correction')
       .order('transaction_date', { ascending: false });
 
     if (error) {
