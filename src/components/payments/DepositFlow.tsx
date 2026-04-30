@@ -931,11 +931,23 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     setMatchedEditId(null);
     setEditStatus(null);
     setBreakdownChoice('pending');
+    setErrorFieldId(null);
     onOpenChange(false);
   };
 
   const today = new Date().toISOString().split('T')[0];
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+  /**
+   * Tailwind class snippet to paint a field red when it's the current
+   * blocker. The destructive ring catches the eye even after the toast
+   * fades, and the matching aria-invalid is picked up by screen readers
+   * so this works for assistive tech too.
+   */
+  const errClass = (id: string) =>
+    errorFieldId === id
+      ? 'border-destructive ring-2 ring-destructive/40 focus-visible:ring-destructive'
+      : '';
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
