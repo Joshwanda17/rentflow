@@ -27,16 +27,14 @@ export function useAgentBalances(agentId?: string) {
     queryFn: async (): Promise<AgentSplitBalances> => {
       if (!effectiveId) throw new Error('No agent ID available');
 
-      // Read wallet buckets + true commission earnings ledger in parallel.
-      // Do not include referral bonuses or legacy proxy investment entries here:
-      // those are not earned agent commission, and old ghost/back-fill rows can
-      // otherwise resurface in the dashboard after the wallet has been zeroed.
-      const [walletRes, commissionRes] = await Promise.all([
-        supabase
-          .from('wallets')
-          .select('withdrawable_balance, float_balance, advance_balance, balance')
-          .eq('user_id', effectiveId)
-          .maybeSingle(),
+      // Read the STRICT ledger-derived wallet view + the true commission
+      // earnings ledger in parallel. The agent dashboard NEVER reads
+      // wallets.* directly — that cache is operator-only (CFO/FinOps).
+      // Do not include referral bonuses or legacy proxy investment entries
+      // in commission: those are not earned agent commission, and old
+      // ghost/back-fill rows can otherwise resurface in the dashboard.
+      const [viewRes, commissionRes] = await Promise.all([
+        supabase.rpc('get_user_wallet_view', { p_user_id: effectiveId }),
         supabase
           .from('general_ledger')
           .select('amount, direction, category')
@@ -52,15 +50,15 @@ export function useAgentBalances(agentId?: string) {
           ]),
       ]);
 
-      if (walletRes.error) {
-        console.error('[useAgentBalances] wallet error:', walletRes.error);
-        throw walletRes.error;
+      if (viewRes.error) {
+        console.error('[useAgentBalances] strict wallet view error:', viewRes.error);
+        throw viewRes.error;
       }
 
-      const wallet = walletRes.data as any;
-      const rawWithdrawable = Number(wallet?.withdrawable_balance ?? 0);
-      const floatBalance = Number(wallet?.float_balance ?? 0);
-      const advanceBalance = Number(wallet?.advance_balance ?? 0);
+      const view = (viewRes.data ?? {}) as Record<string, unknown>;
+      const strictWithdrawable = Number((view.withdrawable as number | string | undefined) ?? 0);
+      const floatBalance = Number((view.float_balance as number | string | undefined) ?? 0);
+      const advanceBalance = Number((view.advance_balance as number | string | undefined) ?? 0);
 
       // Compute true commission balance by NETTING in vs out per row.
       // CRITICAL: legacy ghost/back-fill data sometimes contains a paired
@@ -83,32 +81,20 @@ export function useAgentBalances(agentId?: string) {
         commissionBalance = Math.max(0, commissionBalance);
       } else if (commissionRes.error) {
         console.warn('[useAgentBalances] commission ledger error (non-fatal):', commissionRes.error);
-        commissionBalance = rawWithdrawable; // fallback to legacy behavior
+        commissionBalance = strictWithdrawable; // fallback to strict figure
       }
 
-      // STRICT LEDGER-BACKED WITHDRAWABLE.
-      // The only number the user is allowed to see as "withdrawable" is what
-      // the server-side gate (`get_user_available_balance`) will allow. We do
-      // NOT fall back to the cached wallet bucket, because that bucket can
-      // sit above the ledger position (phantom drift, missing legacy posts).
-      // If the RPC fails, we conservatively use min(cache, ledger_net_now)
-      // computed from the ledger directly — never the raw cache.
-      let withdrawableBalance = 0;
-      try {
-        const ledger = await computeLedgerAvailable(effectiveId);
-        withdrawableBalance = Math.max(0, Math.min(ledger.available, rawWithdrawable));
-      } catch (e) {
-        console.warn('[useAgentBalances] ledger-true clamp failed, defaulting to 0', e);
-        withdrawableBalance = 0;
-      }
-      const otherBalance = Math.max(0, rawWithdrawable - commissionBalance);
+      // Strict view IS the withdrawable — already clamped to ledger truth
+      // and pending-hold subtracted on the database side.
+      const withdrawableBalance = strictWithdrawable;
+      const otherBalance = Math.max(0, strictWithdrawable - commissionBalance);
       // After role-aware routing fix (2026-04-23), withdrawable should equal commission balance
       // for agents. Any drift means a non-commission credit landed in withdrawable — log so we
       // can catch missed categories in the router, but don't alarm the user.
       if (otherBalance > 1) {
         console.info(
           '[useAgentBalances] withdrawable/commission drift (non-commission funds in withdrawable)',
-          { agentId: effectiveId, rawWithdrawable, commissionBalance, otherBalance }
+          { agentId: effectiveId, strictWithdrawable, commissionBalance, otherBalance }
         );
       }
 
