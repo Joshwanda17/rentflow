@@ -38,6 +38,8 @@ interface UserResult {
   balance: number;
   withdrawable_balance: number;
   float_balance: number;
+  /** Pre-clamp cached value, kept so the row can warn about reconciliation drift. */
+  cached_withdrawable?: number;
 }
 
 interface WalletDeductionPanelProps {
