@@ -1,45 +1,50 @@
-# Tenant Ops — quick report extracts
+## The bug
 
-Add four CSV-export buttons to the Tenant Ops dashboard, alongside the existing "Print Report" PDF, sharing the same From/To date pickers that are already there:
+The "Tenants Approved" PDF only shows **2 tenants** for 31 Mar – 30 Apr, even though the database actually has **96 rent_requests past the approval gate** (statuses: `agent_verified`, `tenant_ops_approved`, `landlord_ops_approved`, `coo_approved`, `funded`, `disbursed`, `repaying`, `completed`).
 
-1. **Tenants Applied** — every `rent_requests` row created in the window.
-2. **Tenants Approved** — every `rent_requests` row with `approved_at` in the window (status = approved/funded/disbursed/active/etc., excluding rejected).
-3. **Repayments Collected** — sum + per-tenant breakdown of `general_ledger` entries with category in (`tenant_repayment`, `rent_repayment`), `direction='cash_in'`, `transaction_date` in window. Same source as the existing PDF, so the totals match.
-4. **Expected Repayments** — for every active rent plan whose tenancy overlaps the window, the daily‑repayment × overlap‑days expected, minus repaid → outstanding. Sums across the portfolio.
+### Why
 
-Each button downloads a CSV (`/mnt/documents/`-style local download — actually a browser download via `Blob`, no server file needed) using the existing `csvExport` helper (`src/lib/csvExport.ts`).
+The handler (`handleExtractApproved` in `src/components/executive/TenantOpsDashboard.tsx:477`) filters strictly on `approved_at`:
 
-## UI placement
+```ts
+.not('approved_at', 'is', null)
+.gte('approved_at', from.toISOString())
+.lte('approved_at', to.toISOString())
+```
 
-In the same toolbar row that already contains `From`, `To`, `Clear`, and `Print Report`, add a single new **"Extract"** dropdown (shadcn `DropdownMenu`) with the four items. This keeps the row from getting noisy and works on mobile (one extra control instead of four extra buttons). Each item shows a tiny spinner while its CSV is being prepared.
+But the data shows `approved_at` is almost never populated — only 12 of 96 post-approval requests have it set. The approval workflow flips `status` forward but does not consistently stamp `approved_at`. So the report finds only 2 in the window.
 
-## Data sources & SQL
+Live counts (post-approval, excluding pending/rejected/cancelled):
 
-| Report | Table / scope | Filter |
+| Status | with `approved_at` | missing `approved_at` |
 |---|---|---|
-| Applied | `rent_requests` | `created_at` between From and To |
-| Approved | `rent_requests` | `approved_at` between From and To AND `status NOT IN ('rejected','cancelled')` |
-| Collected | `general_ledger` | `category IN ('tenant_repayment','rent_repayment')` AND `direction='cash_in'` AND `transaction_date` in window |
-| Expected | `rent_requests` | active plans (`status IN ('approved','funded','disbursed','active','repaying')` AND `tenancy_status` not ended), expected = `daily_repayment × overlap_days(window, plan_start, plan_end)`; outstanding = `total_repayment − amount_repaid` |
+| agent_verified | 0 | 2 |
+| tenant_ops_approved | 0 | 1 |
+| landlord_ops_approved | 0 | 2 |
+| coo_approved | 0 | 3 |
+| funded | 9 | 43 |
+| disbursed | 0 | 2 |
+| repaying | 2 | 17 |
+| completed | 1 | 15 |
 
-For Collected, reuse the same tenant‑resolution logic as `handlePrintReport` (resolve agent‑legged payments back to the true tenant via `rent_requests.tenant_id` / `agent_collections.tenant_id`) so the figures reconcile with the PDF.
+## The fix
 
-## CSV columns
+Treat a request as "approved" when its **status is past the approval gate**, and use `COALESCE(approved_at, created_at)` as the timestamp for window filtering and display. This is what every other dashboard already does (e.g. `ApprovedRentRequestsWidget`, the COO funnel) and it matches the user's mental model of "approved tenant".
 
-- **Applied**: `request_id, tenant_name, tenant_phone, landlord_name, rent_amount, daily_repayment, duration_days, status, applied_at`
-- **Approved**: `request_id, tenant_name, tenant_phone, rent_amount, total_repayment, daily_repayment, approved_at, approved_by_name, status`
-- **Collected**: `payment_date, tenant_name, tenant_phone, agent_name, amount, source` + a final TOTAL row
-- **Expected**: `request_id, tenant_name, tenant_phone, daily_repayment, days_in_window, expected_in_window, total_repayment, amount_repaid, outstanding` + a final TOTAL row
+### Changes to `handleExtractApproved`
 
-## Defaults & guardrails
+1. **Replace the filter** with a status whitelist of "post-approval" statuses:
+   `agent_verified, tenant_ops_approved, landlord_ops_approved, coo_approved, approved, funded, disbursed, active, repaying, completed`.
+2. **Window by `COALESCE(approved_at, created_at)`** — fetch with a generous `created_at` bound, then filter in JS using `approved_at ?? created_at` so we catch rows missing the stamp.
+3. **Display column**: show `approved_at ?? created_at` and add a small "(from created_at)" hint in the Status column when the stamp was missing — keeps the report honest.
+4. **KPI**: add a third KPI "Stamped vs Inferred" so the operator can see how many had a real `approved_at`.
 
-- If the user has not picked a From/To, default to **last 30 days** for Applied/Approved/Collected; Expected defaults to **today → end of longest active plan** (so the user always sees a meaningful number on first click).
-- Toast a clear message and skip download if the result is empty.
-- Each CSV filename: `tenants-applied_<from>_<to>.csv`, etc., matching the existing PDF naming.
+### Side recommendation (separate, not in this fix)
 
-## Files to touch
+Backfill `approved_at` once for the 84 historical rows, and add a DB trigger that stamps `approved_at = now()` whenever `status` transitions into a post-approval state and `approved_at` is null. This makes the column trustworthy going forward. I'll flag this but won't do it in this change — let me know if you want it as a follow-up migration.
 
-- `src/components/executive/TenantOpsDashboard.tsx` — add the dropdown, four handlers, and reuse the existing date state.
-- (No new shared lib file — extraction logic lives next to the existing `handlePrintReport` to keep the change local. If it grows we can move it later.)
+## Files touched
 
-No new tables, no new RPCs, no migration. Permissions are already enforced by the dashboard's role gate (Tenant Ops / COO / CFO / super_admin).
+- `src/components/executive/TenantOpsDashboard.tsx` — rewrite `handleExtractApproved` query + row mapping (~30 line diff, no new imports).
+
+No DB changes, no new dependencies.
