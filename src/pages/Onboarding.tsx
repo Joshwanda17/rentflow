@@ -862,15 +862,11 @@ export default function FunderOnboarding() {
       </div>
 
       {/* RIGHT COLUMN (WIZARD) */}
-      <div className="relative w-full lg:w-1/2 lg:shrink-0 flex flex-col h-full overflow-hidden shadow-2xl z-20 bg-[#FAFAFA]">
-        {/* Ambient brand background (visible behind translucent surfaces; primarily for mobile) */}
+      <div className="relative w-full lg:w-1/2 lg:shrink-0 flex flex-col h-full overflow-hidden shadow-2xl z-20 bg-white">
+        {/* Ambient grid only (gradient & color blobs removed per request) */}
         <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-[#F6F2FF] via-[#FAFAFA] to-[#EFE7FF]" />
-          <div className="absolute -top-32 -left-24 w-[420px] h-[420px] rounded-full bg-[#6c11d4]/20 blur-3xl" />
-          <div className="absolute top-1/3 -right-32 w-[360px] h-[360px] rounded-full bg-[#9b5cff]/20 blur-3xl" />
-          <div className="absolute -bottom-24 left-1/4 w-[380px] h-[380px] rounded-full bg-[#FFD700]/15 blur-3xl" />
           <div
-            className="absolute inset-0 opacity-[0.05]"
+            className="absolute inset-0 opacity-[0.08]"
             style={{
               backgroundImage:
                 'linear-gradient(#6c11d4 1px,transparent 1px),linear-gradient(90deg,#6c11d4 1px,transparent 1px)',
