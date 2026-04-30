@@ -14354,6 +14354,21 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_ledger_truth_view: {
+        Row: {
+          cached_advance: number | null
+          cached_balance: number | null
+          cached_float: number | null
+          cached_withdrawable: number | null
+          drift_amount: number | null
+          drift_direction: string | null
+          full_name: string | null
+          ledger_net: number | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       wallet_strict_drift_view: {
         Row: {
           cached_advance: number | null
@@ -15343,10 +15358,9 @@ export type Database = {
           withdrawable: number
         }[]
       }
-      reconcile_wallet_from_ledger: {
-        Args: { p_user_id: string }
-        Returns: number
-      }
+      reconcile_wallet_from_ledger:
+        | { Args: { p_user_id: string }; Returns: number }
+        | { Args: { p_reason: string; p_user_id: string }; Returns: Json }
       record_double_entry: {
         Args: {
           p_amount: number

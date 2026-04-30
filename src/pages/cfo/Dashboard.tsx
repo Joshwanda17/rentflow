@@ -22,6 +22,7 @@ import WalletReconciliationAuditPanel from '@/components/cfo/WalletReconciliatio
 import WithdrawableDriftAlertsPanel from '@/components/cfo/WithdrawableDriftAlertsPanel';
 import HistoricalDriftReviewPanel from '@/components/cfo/HistoricalDriftReviewPanel';
 import AnchoredCacheDriftPanel from '@/components/cfo/AnchoredCacheDriftPanel';
+import LedgerReconciliationPanel from '@/components/cfo/LedgerReconciliationPanel';
 
 import { CFOPartnerPayoutProcessing } from '@/components/cfo/CFOPartnerPayoutProcessing';
 import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
@@ -108,6 +109,7 @@ export default function CFODashboardPage() {
       case 'reconciliation':
         return (
           <div className="space-y-6">
+            <LedgerReconciliationPanel />
             <WithdrawableDriftAlertsPanel />
             <AnchoredCacheDriftPanel />
             <PhantomDriftPanel />
