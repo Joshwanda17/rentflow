@@ -21,9 +21,18 @@ const registerUser = async (payload: {
   lastName: string;
   phone: string;
   role: string;
+  referrerId?: string;
 }): Promise<{ status: string; data: { access_token: string; user: any } }> => {
   const fullName = `${payload.firstName} ${payload.lastName}`.trim();
-  const { error } = await signUp(payload.email, payload.password, fullName, payload.phone, 'supporter', 'funder-onboarding');
+  const { error } = await signUp(
+    payload.email,
+    payload.password,
+    fullName,
+    payload.phone,
+    'supporter',
+    'funder-onboarding',
+    payload.referrerId,
+  );
   if (error) throw error;
   // The auth state listener in useRealAuth will pick up the session automatically.
   // Pull the freshly-created user (id needed for the deterministic partner reference).
