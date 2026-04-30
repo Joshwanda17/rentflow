@@ -615,8 +615,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         open={showQuickDeposit}
         onOpenChange={setShowQuickDeposit}
         allowedPurposes={['operational_float', 'personal_deposit']}
+        defaultPurpose="operational_float"
         lockPurpose
-        requirePurposeChoice
       />
       <WithdrawFlow open={showQuickWithdraw} onOpenChange={setShowQuickWithdraw} availableBalance={realWithdrawableBalance} />
       <SendMoneyDialog open={showQuickTransfer} onOpenChange={setShowQuickTransfer} />
