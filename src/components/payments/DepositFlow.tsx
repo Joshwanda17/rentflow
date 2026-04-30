@@ -163,6 +163,17 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     mustChoosePurpose ? '' : (defaultPurpose ?? '')
   );
   const [showPurposeGrid, setShowPurposeGrid] = useState<boolean>(!lockPurpose);
+  /**
+   * Closure-bypass override for the silent-recovery path. When the user
+   * clicks Confirm with an empty `depositPurpose` but `defaultPurpose +
+   * lockPurpose` are set, we want to submit immediately without waiting
+   * for React to flush `setDepositPurpose(...)`. Functions called from
+   * the same tick still see the OLD `depositPurpose` via closure, so
+   * `validateForm`/`computeBlockReason`/`handleSubmit` all consult this
+   * ref first and treat its value as the effective purpose for one
+   * submit. Cleared right after the submit is consumed.
+   */
+  const purposeOverrideRef = useRef<DepositPurpose | null>(null);
   const [bankSlipFile, setBankSlipFile] = useState<File | null>(null);
   // Object URL for the local slip preview thumbnail. Revoked on cleanup
   // so we don't leak blob memory across multiple re-uploads.
@@ -637,6 +648,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
    * that's what kills the "the button does nothing" perception.
    */
   const computeBlockReason = (): { message: string; fieldId: string } | null => {
+    const effectiveDepositPurpose = (purposeOverrideRef.current || depositPurpose) as DepositPurpose | '';
     const amt = parseFloat(amount);
     if (!amount || !Number.isFinite(amt) || amt <= 0) {
       return { message: 'Enter a valid amount', fieldId: 'deposit-amount' };
@@ -682,19 +694,19 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     if (!transactionTime) {
       return { message: 'Enter the transaction time', fieldId: 'deposit-time' };
     }
-    if (!depositPurpose) {
+    if (!effectiveDepositPurpose) {
       return { message: 'Select the deposit purpose', fieldId: 'deposit-purpose' };
     }
-    if (depositPurpose === 'other' && !reason.trim()) {
+    if (effectiveDepositPurpose === 'other' && !reason.trim()) {
       return { message: 'Enter the reason for this deposit', fieldId: 'deposit-reason' };
     }
-    if (depositPurpose === 'operational_float' && breakdownChoice === 'pending' && (parseFloat(amount) || 0) > 0) {
+    if (effectiveDepositPurpose === 'operational_float' && breakdownChoice === 'pending' && (parseFloat(amount) || 0) > 0) {
       return {
         message: 'Choose: deposit with or without a tenant breakdown',
         fieldId: 'deposit-breakdown-choice',
       };
     }
-    if (depositPurpose === 'operational_float' && breakdownChoice === 'yes' && tenantAllocations.length > 0) {
+    if (effectiveDepositPurpose === 'operational_float' && breakdownChoice === 'yes' && tenantAllocations.length > 0) {
       const sum = tenantAllocations.reduce((s, a) => s + (a.amount || 0), 0);
       const total = parseFloat(amount);
       if (tenantAllocations.some((a) => !a.amount || a.amount <= 0)) {
