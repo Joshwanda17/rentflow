@@ -21,6 +21,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { SupporterDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { useWallet } from '@/hooks/useWallet';
+import { useAvailableBalance } from '@/hooks/useAvailableBalance';
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
 import PaymentPartnersDialog from '@/components/payments/PaymentPartnersDialog';
 import { InvestmentCalculator } from '@/components/supporter/InvestmentCalculator';
