@@ -142,6 +142,10 @@ const NewPartnerRequestsDetail = lazy(() => import('./pages/coo/NewPartnerReques
 const ActiveLandlordsDetail = lazy(() => import('./pages/coo/ActiveLandlordsDetail'));
 const PipelineLandlordsDetail = lazy(() => import('./pages/coo/PipelineLandlordsDetail'));
 const RentCoverageDetail = lazy(() => import('./pages/coo/RentCoverageDetail'));
+const COOPartnerOpsReport = lazy(() => import('./pages/coo/reports/PartnerOpsReport'));
+const COOAgentOpsReport = lazy(() => import('./pages/coo/reports/AgentOpsReport'));
+const COOTenantOpsReport = lazy(() => import('./pages/coo/reports/TenantOpsReport'));
+const COOFinancialOpsReport = lazy(() => import('./pages/coo/reports/FinancialOpsReport'));
 const WelileAIPage = lazy(() => import('./components/ai-chat/WelileAIChatButton').then(m => ({ default: m.WelileAIPage })));
 const Terms = lazy(() => import('./pages/Terms'));
 const PartnersTerms = lazy(() => import('./pages/PartnersTerms'));
@@ -386,6 +390,11 @@ function AppRoutes() {
           <Route path="/coo/active-landlords" element={<ActiveLandlordsDetail />} />
           <Route path="/coo/pipeline-landlords" element={<PipelineLandlordsDetail />} />
           <Route path="/coo/rent-coverage" element={<RentCoverageDetail />} />
+          {/* COO → Reports */}
+          <Route path="/coo/reports/partner-ops"   element={<RoleGuard allowedRoles={['coo', 'super_admin', 'cto', 'manager']}><COOPartnerOpsReport /></RoleGuard>} />
+          <Route path="/coo/reports/agent-ops"     element={<RoleGuard allowedRoles={['coo', 'super_admin', 'cto', 'manager']}><COOAgentOpsReport /></RoleGuard>} />
+          <Route path="/coo/reports/tenant-ops"    element={<RoleGuard allowedRoles={['coo', 'super_admin', 'cto', 'manager']}><COOTenantOpsReport /></RoleGuard>} />
+          <Route path="/coo/reports/financial-ops" element={<RoleGuard allowedRoles={['coo', 'super_admin', 'cto', 'manager']}><COOFinancialOpsReport /></RoleGuard>} />
           <Route path="/share" element={<Index />} />
           <Route path="/ai" element={<WelileAIPage />} />
           <Route path="/terms" element={<Terms />} />
