@@ -10,6 +10,7 @@ export async function signUp(
   phone: string,
   role: AppRole,
   signupSource?: string,
+  referrerId?: string,
 ) {
   const redirectUrl = `${window.location.origin}/`;
   // Build metadata explicitly. Only include `signup_source` when it is a
@@ -21,6 +22,13 @@ export async function signUp(
     data.signup_source = trimmedSource;
     // eslint-disable-next-line no-console
     console.log('[signUp] attribution →', { signup_source: trimmedSource, role });
+  }
+  const trimmedReferrer = (referrerId ?? '').trim();
+  // Basic UUID shape check — handle_new_user trigger NULLIFs invalid input.
+  if (trimmedReferrer && /^[0-9a-fA-F-]{32,36}$/.test(trimmedReferrer)) {
+    data.referrer_id = trimmedReferrer;
+    // eslint-disable-next-line no-console
+    console.log('[signUp] referrer →', trimmedReferrer);
   }
   const { error } = await supabase.auth.signUp({
     email,
