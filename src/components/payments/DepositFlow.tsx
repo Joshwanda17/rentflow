@@ -170,6 +170,14 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tidError, setTidError] = useState('');
   /**
+   * The DOM id of the field that's currently failing validation. Set
+   * when the agent taps Confirm with a missing/invalid field so we can
+   * paint that input with a red ring (not just toast + scroll). Cleared
+   * the moment the offending field becomes valid (computed live from
+   * `computeBlockReason()` — no manual clearing needed on every onChange).
+   */
+  const [errorFieldId, setErrorFieldId] = useState<string | null>(null);
+  /**
    * Per-tenant breakdown for an Operational Float deposit. The agent
    * collected one bulk amount in the field, dropped it at the merchant
    * code under one TID, and now needs to tell us *which tenants* it came
@@ -923,11 +931,23 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     setMatchedEditId(null);
     setEditStatus(null);
     setBreakdownChoice('pending');
+    setErrorFieldId(null);
     onOpenChange(false);
   };
 
   const today = new Date().toISOString().split('T')[0];
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+  /**
+   * Tailwind class snippet to paint a field red when it's the current
+   * blocker. The destructive ring catches the eye even after the toast
+   * fades, and the matching aria-invalid is picked up by screen readers
+   * so this works for assistive tech too.
+   */
+  const errClass = (id: string) =>
+    errorFieldId === id
+      ? 'border-destructive ring-2 ring-destructive/40 focus-visible:ring-destructive'
+      : '';
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -1328,11 +1348,12 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   max={MAX_DEPOSIT}
                   id="deposit-amount"
                   aria-invalid={
+                    errorFieldId === 'deposit-amount' ||
                     !!amount &&
                     Number.isFinite(parseFloat(amount)) &&
                     (parseFloat(amount) < MIN_DEPOSIT || parseFloat(amount) > MAX_DEPOSIT)
                   }
-                  className="text-2xl font-bold tabular-nums h-14 pl-14 pr-3"
+                  className={`text-2xl font-bold tabular-nums h-14 pl-14 pr-3 ${errClass('deposit-amount')}`}
                 />
               </div>
               <p className="text-xs text-muted-foreground">
@@ -1398,7 +1419,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                       setTransactionId(val);
                       if (channel === 'momo') validateTid(val);
                     }}
-                    className={`font-mono text-sm pr-9 ${channel === 'momo' && tidError ? 'border-destructive focus:ring-destructive' : channel === 'momo' && transactionId.trim() && !tidError ? 'border-emerald-500 focus:ring-emerald-500' : ''}`}
+                    className={`font-mono text-sm pr-9 ${errClass('deposit-tid')} ${channel === 'momo' && tidError ? 'border-destructive focus:ring-destructive' : channel === 'momo' && transactionId.trim() && !tidError ? 'border-emerald-500 focus:ring-emerald-500' : ''}`}
                   />
                   {transactionId.trim() && (
                     <button
@@ -1443,7 +1464,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                       placeholder="e.g. WEL-00001 or leave blank for auto"
                       value={receiptNumber}
                       onChange={(e) => setReceiptNumber(e.target.value)}
-                      className="font-mono border-0 focus:ring-0 rounded-l-none text-sm"
+                      className={`font-mono border-0 focus:ring-0 rounded-l-none text-sm ${errClass('deposit-receipt')}`}
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -1453,7 +1474,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 {channel === 'agent_cash' && (
                   <div className="space-y-1.5">
                     <Label className="text-xs">Agent Name *</Label>
-                    <Input id="deposit-agent-name" placeholder="Name of the agent who received cash" value={agentName} onChange={(e) => setAgentName(e.target.value)} className="h-10 text-sm" />
+                    <Input id="deposit-agent-name" placeholder="Name of the agent who received cash" value={agentName} onChange={(e) => setAgentName(e.target.value)} className={`h-10 text-sm ${errClass('deposit-agent-name')}`} />
                   </div>
                 )}
               </>
@@ -1533,16 +1554,16 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center gap-1"><Calendar className="h-3.5 w-3.5" /> Date</Label>
-                <Input id="deposit-date" type="date" value={transactionDate} onChange={(e) => setTransactionDate(e.target.value)} min={sevenDaysAgo} max={today} className="h-10 text-xs" />
+                <Input id="deposit-date" type="date" value={transactionDate} onChange={(e) => setTransactionDate(e.target.value)} min={sevenDaysAgo} max={today} className={`h-10 text-xs ${errClass('deposit-date')}`} />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> Time</Label>
-                <Input id="deposit-time" type="time" value={transactionTime} onChange={(e) => setTransactionTime(e.target.value)} className="h-10 text-xs" />
+                <Input id="deposit-time" type="time" value={transactionTime} onChange={(e) => setTransactionTime(e.target.value)} className={`h-10 text-xs ${errClass('deposit-time')}`} />
               </div>
             </div>
 
             {/* ─── Deposit Purpose ─── */}
-            <div id="deposit-purpose" className="space-y-2 scroll-mt-4">
+            <div id="deposit-purpose" className={`space-y-2 scroll-mt-4 rounded-md ${errorFieldId === 'deposit-purpose' ? 'ring-2 ring-destructive/40 p-2 -m-2 border border-destructive/40' : ''}`}>
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <Label className="text-xs flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" /> Deposit Purpose *</Label>
                 {lockPurpose && depositPurpose && (
@@ -1666,7 +1687,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
               {depositPurpose === 'operational_float' && currentUserId && (
                 <>
                   {/* === Breakdown choice card === */}
-                  <div id="deposit-breakdown-choice" className="space-y-2 scroll-mt-4">
+                  <div id="deposit-breakdown-choice" className={`space-y-2 scroll-mt-4 rounded-md ${errorFieldId === 'deposit-breakdown-choice' ? 'ring-2 ring-destructive/40 p-2 -m-2 border border-destructive/40' : ''}`}>
                     <Label className="text-sm font-semibold">
                       How are you depositing this float?
                     </Label>
@@ -1792,7 +1813,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                     />
                   )}
                   {breakdownChoice === 'yes' && (
-                    <div id="deposit-tenant-allocator" className="scroll-mt-4">
+                    <div id="deposit-tenant-allocator" className={`scroll-mt-4 rounded-md ${errorFieldId === 'deposit-tenant-allocator' ? 'ring-2 ring-destructive/40 p-2 -m-2 border border-destructive/40' : ''}`}>
                       <OperationalFloatTenantAllocator
                         agentId={currentUserId}
                         totalAmount={parseFloat(amount) || 0}
@@ -1852,7 +1873,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 </>
               )}
               {depositPurpose === 'other' && (
-                <Input id="deposit-reason" placeholder="Specify your reason..." value={reason} onChange={(e) => setReason(e.target.value)} className="h-10 text-sm" />
+                <Input id="deposit-reason" placeholder="Specify your reason..." value={reason} onChange={(e) => setReason(e.target.value)} className={`h-10 text-sm ${errClass('deposit-reason')}`} />
               )}
             </div>
 
@@ -1876,11 +1897,19 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           // of the "Confirm deposit does nothing" complaint — FIX-46).
           const blockReason = computeBlockReason();
           const blocked = isSubmitting || !!blockReason;
+          // Auto-clear the red ring once the offending field is fixed —
+          // either because the user corrected it, or because a different
+          // field is now the blocker.
+          if (errorFieldId && (!blockReason || blockReason.fieldId !== errorFieldId)) {
+            // schedule outside render to avoid setState-in-render warning
+            queueMicrotask(() => setErrorFieldId(null));
+          }
           const handleAttempt = () => {
             if (isSubmitting) return;
             if (blockReason) {
               console.warn('[DepositFlow] submit blocked:', blockReason);
               toast.error(blockReason.message);
+              setErrorFieldId(blockReason.fieldId);
               const el = document.getElementById(blockReason.fieldId);
               if (el) {
                 el.scrollIntoView({ block: 'center', behavior: 'smooth' });
