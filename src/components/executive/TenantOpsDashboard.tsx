@@ -478,19 +478,39 @@ export function TenantOpsDashboard() {
     setExtracting('approved');
     try {
       const { from, to } = resolveWindow(30);
+      // `approved_at` is rarely stamped — most rows just transition status forward.
+      // So we widen the net: any row whose status is past the approval gate, then
+      // window by COALESCE(approved_at, created_at).
+      const POST_APPROVAL_STATUSES = [
+        'agent_verified',
+        'tenant_ops_approved',
+        'landlord_ops_approved',
+        'coo_approved',
+        'approved',
+        'funded',
+        'disbursed',
+        'active',
+        'repaying',
+        'completed',
+      ];
       const { data, error } = await supabase
         .from('rent_requests')
-        .select('id, tenant_id, approved_by, rent_amount, total_repayment, daily_repayment, approved_at, status')
-        .not('approved_at', 'is', null)
-        .gte('approved_at', from.toISOString())
-        .lte('approved_at', to.toISOString())
-        .not('status', 'in', '(rejected,cancelled)')
-        .order('approved_at', { ascending: false });
+        .select('id, tenant_id, approved_by, rent_amount, total_repayment, daily_repayment, approved_at, created_at, status')
+        .in('status', POST_APPROVAL_STATUSES)
+        // Pull anything that *could* fall in the window using either timestamp,
+        // then filter precisely in JS.
+        .or(`and(approved_at.gte.${from.toISOString()},approved_at.lte.${to.toISOString()}),and(approved_at.is.null,created_at.gte.${from.toISOString()},created_at.lte.${to.toISOString()})`)
+        .order('created_at', { ascending: false });
       if (error) throw error;
       if (!data || data.length === 0) { toast.error('No approvals in this window'); return; }
       const profiles = await enrichWithProfiles(data);
+      let stamped = 0;
+      let inferred = 0;
       const rows = data.map((r: any) => {
         const t = profiles.get(r.tenant_id); const a = profiles.get(r.approved_by);
+        const effectiveTs = r.approved_at || r.created_at;
+        const isInferred = !r.approved_at;
+        if (isInferred) inferred++; else stamped++;
         return [
           r.id,
           t?.full_name || '—',
@@ -498,21 +518,22 @@ export function TenantOpsDashboard() {
           Number(r.rent_amount || 0),
           Number(r.total_repayment || 0),
           Number(r.daily_repayment || 0),
-          r.approved_at,
+          effectiveTs,
           a?.full_name || '—',
-          r.status || '',
+          isInferred ? `${r.status || ''} (inferred)` : (r.status || ''),
         ];
       });
       const totalRent = rows.reduce((s, r: any) => s + Number(r[3] || 0), 0);
       const totalRepay = rows.reduce((s, r: any) => s + Number(r[4] || 0), 0);
       const blob = generateTenantOpsExtractPdf({
         title: 'Tenants Approved',
-        subtitle: 'Rent applications approved in this period (excludes rejected / cancelled).',
+        subtitle: 'Rent applications past the approval gate in this period. Rows missing approved_at are inferred from created_at (marked).',
         range: { from, to },
         kpis: [
           { label: 'Approvals', value: rows.length.toLocaleString(), color: [22, 163, 74] },
           { label: 'Rent Approved', value: `UGX ${Math.round(totalRent).toLocaleString()}`, color: [15, 23, 42] },
           { label: 'Total Repayable', value: `UGX ${Math.round(totalRepay).toLocaleString()}`, color: [124, 58, 237] },
+          { label: 'Stamped / Inferred', value: `${stamped} / ${inferred}`, color: [148, 163, 184] },
         ],
         columns: [
           { label: '#',              width: 8,  align: 'left' },
@@ -527,7 +548,7 @@ export function TenantOpsDashboard() {
         ],
         rows: rows.map((r, i) => [i + 1, r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8]]),
         totals: ['', 'TOTAL', '', totalRent, totalRepay, '', '', '', ''],
-        footerNote: 'Rent amount = monthly rent due to the landlord. Total repayable = full repayment commitment from the tenant.',
+        footerNote: 'Approved = status past approval gate (agent_verified → completed). When approved_at is missing, created_at is shown and the row is marked "inferred".',
       });
       downloadPdfBlob(blob, `tenants-approved_${windowSuffix(from, to)}.pdf`);
       toast.success(`Extracted ${rows.length} approvals`);
