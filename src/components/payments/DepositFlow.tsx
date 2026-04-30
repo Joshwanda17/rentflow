@@ -735,6 +735,25 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         setIsSubmitting(false);
         return;
       }
+      // FINAL purpose gate. Even though `validateForm` already checks
+      // `depositPurpose`, state-update races (prefill effect, agent default
+      // effect, or a stale `handleClose` reset) have been observed letting
+      // an empty string slip through and hit the Postgres enum, surfacing
+      // as "invalid input value for enum deposit_purpose: """ in the logs
+      // and a totally dead Confirm button on the agent's phone. Belt &
+      // braces: recompute, validate against the enum allowlist, and abort
+      // cleanly with a friendly toast if anything is off.
+      const effectivePurpose: DepositPurpose | '' =
+        (depositPurpose ||
+          defaultPurpose ||
+          (isAgent ? 'operational_float' : '')) as DepositPurpose | '';
+      if (!ALLOWED_DEPOSIT_PURPOSES.includes(effectivePurpose as DepositPurpose)) {
+        toast.error('Pick a deposit purpose before continuing');
+        setStep(mustChoosePurpose ? 'purpose' : 'channel');
+        setIsSubmitting(false);
+        return;
+      }
+      const safePurpose = effectivePurpose as DepositPurpose;
       // Only flip into the submitting state AFTER the auth check passes —
       // otherwise an unauthed user gets the spinner stuck forever (root
       // cause of the "Confirm deposit button is dead" complaint when a
@@ -760,7 +779,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       }
 
       const providerValue = channel === 'momo' ? momoProvider : channel === 'bank' ? 'bank_transfer' : channel === 'cash' ? 'cash_deposit' : 'agent_cash';
-      const purposeLabel = DEPOSIT_PURPOSES.find(p => p.id === depositPurpose)?.label || depositPurpose;
+      const purposeLabel = DEPOSIT_PURPOSES.find(p => p.id === safePurpose)?.label || safePurpose;
       const baseNotes = [
         `Purpose: ${purposeLabel}`,
         reason.trim() ? reason.trim() : '',
@@ -772,7 +791,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       // notes as a structured tail. Financial Ops parses this and shows a
       // tenant-by-tenant table at approval time.
       const notes =
-        depositPurpose === 'operational_float' && breakdownChoice === 'yes' && tenantAllocations.length > 0
+        safePurpose === 'operational_float' && breakdownChoice === 'yes' && tenantAllocations.length > 0
           ? encodeAllocationsNote(baseNotes, tenantAllocations)
           : baseNotes;
 
@@ -792,7 +811,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 transaction_id: normalizedRef,
                 transaction_date: txDateTime.toISOString(),
                 notes,
-                deposit_purpose: depositPurpose,
+                deposit_purpose: safePurpose,
               },
             } as any,
           );
@@ -812,9 +831,9 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
               transaction_id: normalizedRef,
               transaction_date: txDateTime.toISOString(),
               notes,
-              deposit_purpose: depositPurpose,
+              deposit_purpose: safePurpose,
               purpose_audit: {
-                chosen_purpose: depositPurpose,
+                chosen_purpose: safePurpose,
                 chosen_at: purposeChosenAt ?? new Date().toISOString(),
                 chosen_by: user.id,
                 entry_point: purposeEntryPoint,
@@ -822,7 +841,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 last_edited_at: new Date().toISOString(),
                 is_agent: isAgent,
                 agent_personal_confirmed_at:
-                  isAgent && depositPurpose === 'personal_deposit'
+                  isAgent && safePurpose === 'personal_deposit'
                     ? agentPersonalConfirmedAt
                     : null,
               },
@@ -843,16 +862,16 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             transaction_id: normalizedRef,
             transaction_date: txDateTime.toISOString(),
             notes,
-            deposit_purpose: depositPurpose,
+            deposit_purpose: safePurpose,
             purpose_audit: {
-              chosen_purpose: depositPurpose,
+              chosen_purpose: safePurpose,
               chosen_at: purposeChosenAt ?? new Date().toISOString(),
               chosen_by: user.id,
               entry_point: purposeEntryPoint,
               required_choice: !!requirePurposeChoice,
               is_agent: isAgent,
               agent_personal_confirmed_at:
-                isAgent && depositPurpose === 'personal_deposit'
+                isAgent && safePurpose === 'personal_deposit'
                   ? agentPersonalConfirmedAt
                   : null,
             },
@@ -865,9 +884,18 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       setStep('success');
     } catch (error: any) {
       console.error('Deposit error:', error);
-      toast.error('Failed to submit deposit', {
-        description: error?.message || 'Please try again or contact support.',
-      });
+      const msg = String(error?.message ?? '');
+      let friendly = 'Please try again or contact support.';
+      if (msg.includes('invalid input value for enum deposit_purpose')) {
+        friendly = 'Deposit purpose was missing — please pick a purpose and try again.';
+      } else if (msg.includes('agent_personal_deposit_requires_confirmation')) {
+        friendly = 'Confirm this is your personal money before submitting a Personal Deposit.';
+      } else if (error?.code === '23505' || msg.toLowerCase().includes('duplicate')) {
+        friendly = 'This transaction reference has already been used.';
+      } else if (msg) {
+        friendly = msg;
+      }
+      toast.error('Failed to submit deposit', { description: friendly });
       setStep('form');
     } finally {
       setIsSubmitting(false);
