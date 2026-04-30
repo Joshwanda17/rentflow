@@ -1587,7 +1587,24 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   </div>
                 </div>
               )}
-              {(showPurposeGrid || !lockPurpose) && (
+              {/* Defensive visibility: if depositPurpose is empty for any
+                  reason (state-update race after handleClose, prefill effect
+                  hasn't run yet, etc.) ALWAYS show the picker — otherwise
+                  the user gets a "pick a purpose" toast with no purpose
+                  field on screen to pick from. */}
+              {(showPurposeGrid || !lockPurpose || !depositPurpose) && (
+                <>
+                {!depositPurpose && (
+                  <p
+                    className={`text-xs ${
+                      errorFieldId === 'deposit-purpose'
+                        ? 'text-destructive font-medium'
+                        : 'text-muted-foreground'
+                    }`}
+                  >
+                    Pick what this money is for to continue.
+                  </p>
+                )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {DEPOSIT_PURPOSES.filter(p => !allowedPurposes || allowedPurposes.includes(p.id)).map((p) => (
                   <button
@@ -1631,6 +1648,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   </button>
                 ))}
               </div>
+                </>
               )}
               {isAgent && pendingPersonalChoice && (
                 <div className="rounded-xl border-2 border-warning bg-warning/10 p-3 space-y-2.5">
@@ -1907,6 +1925,29 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           const handleAttempt = () => {
             if (isSubmitting) return;
             if (blockReason) {
+              // Silent recovery: if the only blocker is an empty
+              // `depositPurpose` and the caller pinned a `defaultPurpose`
+              // with `lockPurpose`, restore it transparently and submit.
+              // This recovers the state-update race where `handleClose`
+              // reset the value just before the dialog reopened, without
+              // confronting the agent with a "pick a purpose" toast for a
+              // value they already implicitly chose by opening this flow.
+              if (
+                blockReason.fieldId === 'deposit-purpose' &&
+                !depositPurpose &&
+                defaultPurpose &&
+                lockPurpose &&
+                ALLOWED_DEPOSIT_PURPOSES.includes(defaultPurpose)
+              ) {
+                setDepositPurpose(defaultPurpose);
+                const purposeLabel = DEPOSIT_PURPOSES.find(p => p.id === defaultPurpose)?.label;
+                if (purposeLabel && defaultPurpose !== 'other') setReason(purposeLabel);
+                setPurposeChosenAt(new Date().toISOString());
+                setPurposeEntryPoint('default');
+                // Defer submit by one tick so the new state is applied.
+                setTimeout(() => handleSubmit(), 0);
+                return;
+              }
               console.warn('[DepositFlow] submit blocked:', blockReason);
               toast.error(blockReason.message);
               setErrorFieldId(blockReason.fieldId);

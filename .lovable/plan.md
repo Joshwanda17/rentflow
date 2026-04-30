@@ -1,142 +1,69 @@
-## Diagnosis (confirmed in Postgres logs)
+## Root cause
 
-The actual error from the database is:
+When an Agent opens **Deposit to wallet** from the dashboard, `DepositFlow` is opened with:
 
-```text
-invalid input value for enum deposit_purpose: ""
-```
+- `defaultPurpose="operational_float"`
+- `lockPurpose={true}`
+- `allowedPurposes=['operational_float','personal_deposit']`
 
-So `DepositFlow` is sending an **empty string** for `deposit_purpose` to `deposit_requests`. The Postgres enum only accepts: `operational_float`, `personal_deposit`, `partnership_deposit`, `personal_rent_repayment`, `other`.
-
-`validateForm()` already has a guard:
-
-```ts
-if (!depositPurpose) {
-  return { message: 'Select the deposit purpose', fieldId: 'deposit-purpose' };
-}
-```
-
-…but the empty-string is still reaching the `INSERT`. Two real defects allow this:
-
-1. **The submit payload is not defensive.** The handler passes `depositPurpose` directly into the insert; if state is briefly empty (race between the prefill `useEffect`, the agent-default `useEffect`, and the user tapping the sticky footer button), an empty string is sent. The DB is the only thing catching it.
-2. **The `agent-default` `useEffect` (line 366) only fires when `defaultPurpose` is absent.** When the dialog opens for an agent with `defaultPurpose='operational_float'`, the value is set by the line-385 branch — but if `useAuth().roles` resolves later (or the dialog opens and closes quickly enough that `handleClose` runs), `setDepositPurpose('')` from `handleClose` (line 874) wins via `(defaultPurpose ?? '')` when `defaultPurpose` is briefly stale.
-
-Postgres logs also show a parallel, unrelated error spamming the project (~30 / hour):
+This means `mustChoosePurpose` is **false**, so the dedicated "purpose" step is skipped and the user lands directly on the form. On the form, the Deposit Purpose section behaves like this today:
 
 ```text
-column reference "rejection_reason" is ambiguous
+if (lockPurpose && depositPurpose) → show locked chip ("Operational Float")
+if (showPurposeGrid || !lockPurpose) → show the 2-up picker grid
+otherwise                            → render NOTHING
 ```
 
-This is `get_funder_approval_status` failing. It blocks the Supporter approval gate from ever returning a clean status. Worth fixing in the same migration since the user reported "ensure all pages work and data integrity".
+If `depositPurpose` is briefly empty (state-update race between `handleClose` resetting it to `''`, the prefill effect, and the agent-default effect), **neither the chip nor the grid is rendered**. The submit handler then refuses the empty value and toasts *"Deposit purpose was missing — please pick a purpose and try again"* — but the form has no purpose field to pick from. That is exactly the screenshot the user sent.
 
----
+So the toast is correct, but the form is genuinely incomplete in that moment. Fix: the purpose section must always render *something selectable* whenever the value is empty, so the user can never be told to "pick a purpose" without being shown the choices.
 
 ## Plan
 
-### Step 1 — Make the submit handler refuse empty / unknown purposes (frontend)
+Single file: `src/components/payments/DepositFlow.tsx`
 
-`src/components/payments/DepositFlow.tsx`
+### 1. Always render the picker when no purpose is selected
 
-- Add a constant allowlist `ALLOWED_DEPOSIT_PURPOSES = ['operational_float','personal_deposit','partnership_deposit','personal_rent_repayment','other']`.
-- At the top of `handleSubmit`, before any DB call, recompute the effective purpose:
+In the Deposit Purpose section (around lines 1565–1634), change the visibility rule from:
 
-  ```ts
-  const effectivePurpose =
-    depositPurpose ||
-    defaultPurpose ||
-    (isAgent ? 'operational_float' : '');
-
-  if (!ALLOWED_DEPOSIT_PURPOSES.includes(effectivePurpose as any)) {
-    toast.error('Pick a deposit purpose before continuing');
-    setStep('purpose');
-    setIsSubmitting(false);
-    return;
-  }
-  ```
-
-- Use `effectivePurpose` in BOTH the INSERT and the UPDATE/RPC payloads (replace every `deposit_purpose: depositPurpose` and `chosen_purpose: depositPurpose` write at lines 780, 800, 802, 831, 833).
-- Remove the silent fallback `(defaultPurpose ?? '')` in `handleClose` — instead reset to `defaultPurpose ?? null` only when `mustChoosePurpose`, otherwise keep the locked default.
-
-This guarantees no empty value can ever reach the DB, regardless of state-update races, prefill ordering, or stale `isAgent`.
-
-### Step 2 — Surface the backend error properly (frontend)
-
-The current catch block toasts `error?.message`, which for Postgres enum errors is unreadable to a field agent. Map the known database error codes to a friendly toast:
-
-```ts
-} catch (error: any) {
-  const msg = error?.message ?? '';
-  let friendly = 'Please try again or contact support.';
-  if (msg.includes('invalid input value for enum deposit_purpose')) {
-    friendly = 'Deposit purpose was missing — please pick a purpose and try again.';
-  } else if (msg.includes('agent_personal_deposit_requires_confirmation')) {
-    friendly = 'Confirm this is your personal money before submitting a Personal Deposit.';
-  } else if (error?.code === '23505') {
-    friendly = 'This transaction reference has already been used.';
-  } else if (msg) {
-    friendly = msg;
-  }
-  toast.error('Failed to submit deposit', { description: friendly });
-  setStep('form');
-}
+```text
+showPurposeGrid || !lockPurpose
 ```
 
-### Step 3 — Migration: fix `get_funder_approval_status` ambiguous column
+to:
 
-The function body has both a CTE column named `rejection_reason` AND a return-table column with the same name, causing every call to throw. Aliasing the CTE columns fixes it without changing the public signature.
-
-```sql
-CREATE OR REPLACE FUNCTION public.get_funder_approval_status(_user_id uuid)
-RETURNS TABLE (status text, rejection_reason text, approved_at timestamptz)
-LANGUAGE plpgsql STABLE SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  RETURN QUERY
-  WITH ranked AS (
-    SELECT
-      paa.approval_status   AS r_status,
-      paa.rejection_reason  AS r_reason,
-      paa.approved_at       AS r_approved_at,
-      paa.is_active         AS r_active,
-      CASE
-        WHEN paa.approval_status = 'approved' AND paa.is_active = true THEN 1
-        WHEN paa.approval_status = 'pending'  THEN 2
-        WHEN paa.approval_status = 'rejected' THEN 3
-        ELSE 4
-      END AS rank
-    FROM public.proxy_agent_assignments paa
-    WHERE paa.beneficiary_id = _user_id
-      AND paa.beneficiary_role = 'supporter'
-    ORDER BY rank ASC, paa.created_at DESC
-    LIMIT 1
-  )
-  SELECT
-    COALESCE(
-      CASE WHEN r_status = 'approved' AND r_active THEN 'approved' ELSE r_status END,
-      'none'
-    )::text,
-    r_reason::text,
-    r_approved_at
-  FROM ranked
-  UNION ALL
-  SELECT 'none'::text, NULL::text, NULL::timestamptz
-  WHERE NOT EXISTS (SELECT 1 FROM ranked)
-  LIMIT 1;
-END;
-$$;
+```text
+showPurposeGrid || !lockPurpose || !depositPurpose
 ```
 
-### Step 4 — Verify
+So if `depositPurpose` is empty for any reason — even with `lockPurpose` on — the 2-up grid of allowed purposes appears and the user can tap one. As soon as they pick, the locked chip takes over again as today.
 
-- Reopen the Deposit to wallet flow on Agent dashboard, allocate to Muhindo Brian, tap **Deposit UGX 55,000** → expect a successful "Deposit submitted for verification" toast and a row in `deposit_requests` with `deposit_purpose='operational_float'`.
-- If the user lands on Step 2 with state still empty for any reason, the new client-side guard now shows "Pick a deposit purpose before continuing" and routes them back to the purpose step instead of throwing the cryptic enum error.
-- `select * from get_funder_approval_status('cb798acb-…')` returns one row with `status='none'`, no error.
+### 2. Add a visible "Empty state" hint inside the purpose section
 
----
+When `!depositPurpose`, show a small inline notice above the grid:
+
+```text
+"Pick what this money is for to continue."
+```
+
+styled with `text-destructive` when `errorFieldId === 'deposit-purpose'`, plain muted otherwise. This makes the error toast self-explanatory: the user looks down and immediately sees the choices they need to make.
+
+### 3. Defensive re-prefill on submit attempt
+
+In `handleAttempt` (the wrapper that runs `validateForm` before `handleSubmit`), if the only blocking reason is an empty `depositPurpose` AND `defaultPurpose` is set AND `lockPurpose` is true, silently set `depositPurpose = defaultPurpose` and re-run validation once. This recovers the common race (state was reset by `handleClose` then the dialog was reopened) without bothering the user. If it's still empty after the recovery attempt (e.g. no `defaultPurpose` was ever passed), fall through to the existing scroll-to-field + focus + error-ring behaviour.
+
+### 4. Keep the existing `handleSubmit` enum allowlist guard untouched
+
+The belt-and-braces guard at lines 754–763 stays — it still catches any path that bypasses the form (e.g. programmatic submits). Only the user-facing visibility is being fixed here; the data-integrity guard is correct.
+
+### 5. Verify
+
+- Open Agent dashboard → tap **Deposit to wallet** → tap **Cash with agent** → land on form → confirm the "Operational Float" chip appears as today.
+- Manually break the state (clear depositPurpose via React DevTools) → confirm the picker now appears with the 2 allowed options instead of nothing.
+- Tap Confirm with the value re-set → deposit submits cleanly; no "pick a purpose" toast.
 
 ## Out of scope
 
-- No edge-function changes (the failing path is a direct PostgREST `INSERT` from the client, not the `agent-deposit` function).
-- No enum change to `deposit_purpose` — the existing values are correct; the bug is sending an empty string.
-- No UI redesign of the allocator screen — only the submit handler hardening.
+- No DB migration, no edge-function change, no enum change.
+- No redesign of the supporter or partner deposit flows — they already have `mustChoosePurpose=true` and hit the dedicated purpose step, so they were never affected by this bug.
+- No change to the agent personal-deposit confirmation gate (lines 1635–1678) — that flow already works.
