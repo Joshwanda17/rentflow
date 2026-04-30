@@ -219,7 +219,22 @@ export function UnifiedWalletHeroCard({
         {quickActions}
 
         {/* Payroll Growth Bonus indicator — only renders for staff with active un-withdrawn payroll */}
-        {payrollGrowth && (
+        {payrollGrowth && (() => {
+          // Never claim more is "parked" than the user actually has in their wallet.
+          // Withdrawals reduce the real balance immediately; the payroll_growth_balances
+          // FIFO consumer may lag (or, for historical rows, never ran), so we cap the
+          // displayed parked amount at the current withdrawable balance.
+          const realWithdrawable = useStrictHeadline
+            ? Math.max(0, ledgerAvailable)
+            : Math.max(0, walletCached ?? balance ?? 0);
+          const displayedParked = Math.min(payrollGrowth.currentBalance, realWithdrawable);
+          // If the user has withdrawn everything, hide the indicator entirely —
+          // there is nothing left to grow.
+          if (displayedParked <= 0) return null;
+          const displayedEarned = displayedParked >= payrollGrowth.currentBalance
+            ? payrollGrowth.accruedGrowth
+            : Math.round(payrollGrowth.accruedGrowth * (displayedParked / payrollGrowth.currentBalance));
+          return (
           <div className="rounded-xl bg-gradient-to-r from-amber-500/15 to-emerald-500/15 border border-amber-300/20 px-3 flex items-start gap-2 py-[12px]">
             <Sparkles className="h-3.5 w-3.5 text-amber-300 mt-0.5 shrink-0" />
             <div className="flex-1 min-w-0">
@@ -227,14 +242,15 @@ export function UnifiedWalletHeroCard({
                 Payroll growing · {(payrollGrowth.dailyRate * 100).toFixed(1)}% / day
               </p>
               <p className="text-[10px] text-primary-foreground/70 mt-0.5">
-                <span className="font-bold text-primary-foreground">{formatAmount(payrollGrowth.currentBalance)}</span>
+                <span className="font-bold text-primary-foreground">{formatAmount(displayedParked)}</span>
                 <span className="text-primary-foreground/50"> parked · </span>
-                <span className="font-semibold text-emerald-300">+{formatAmount(payrollGrowth.accruedGrowth)}</span>
+                <span className="font-semibold text-emerald-300">+{formatAmount(displayedEarned)}</span>
                 <span className="text-primary-foreground/50"> earned</span>
               </p>
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* Footer — View Wallet link */}
         <div className="flex items-center justify-between pt-1">
