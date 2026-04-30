@@ -1955,13 +1955,18 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 lockPurpose &&
                 ALLOWED_DEPOSIT_PURPOSES.includes(defaultPurpose)
               ) {
+                // Bypass the React-async closure race: stamp the override
+                // ref so the very next computeBlockReason/handleSubmit
+                // call sees the chosen purpose even before state flushes.
+                purposeOverrideRef.current = defaultPurpose;
                 setDepositPurpose(defaultPurpose);
                 const purposeLabel = DEPOSIT_PURPOSES.find(p => p.id === defaultPurpose)?.label;
                 if (purposeLabel && defaultPurpose !== 'other') setReason(purposeLabel);
                 setPurposeChosenAt(new Date().toISOString());
                 setPurposeEntryPoint('default');
-                // Defer submit by one tick so the new state is applied.
-                setTimeout(() => handleSubmit(), 0);
+                // Submit immediately — the ref guarantees validation
+                // sees the right purpose without waiting for React.
+                handleSubmit();
                 return;
               }
               console.warn('[DepositFlow] submit blocked:', blockReason);
