@@ -764,16 +764,20 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       // braces: recompute, validate against the enum allowlist, and abort
       // cleanly with a friendly toast if anything is off.
       const effectivePurpose: DepositPurpose | '' =
-        (depositPurpose ||
+        (purposeOverrideRef.current ||
+          depositPurpose ||
           defaultPurpose ||
           (isAgent ? 'operational_float' : '')) as DepositPurpose | '';
       if (!ALLOWED_DEPOSIT_PURPOSES.includes(effectivePurpose as DepositPurpose)) {
         toast.error('Pick a deposit purpose before continuing');
         setStep(mustChoosePurpose ? 'purpose' : 'channel');
         setIsSubmitting(false);
+        purposeOverrideRef.current = null;
         return;
       }
       const safePurpose = effectivePurpose as DepositPurpose;
+      // Override consumed; clear so subsequent submits use real state.
+      purposeOverrideRef.current = null;
       // Only flip into the submitting state AFTER the auth check passes —
       // otherwise an unauthed user gets the spinner stuck forever (root
       // cause of the "Confirm deposit button is dead" complaint when a
