@@ -559,6 +559,94 @@ export function TenantOpsDashboard() {
     }
   };
 
+  const handleExtractFunded = async () => {
+    setExtracting('funded');
+    try {
+      const { from, to } = resolveWindow(30);
+      // Same dual-window trick as Approved: `funded_at` is sometimes
+      // unstamped on legacy rows. We widen the net to any row whose
+      // status is past the funding gate, then window by the best
+      // available timestamp (funded_at → approved_at → created_at).
+      const POST_FUNDING_STATUSES = [
+        'funded',
+        'disbursed',
+        'active',
+        'repaying',
+        'completed',
+      ];
+      const { data, error } = await supabase
+        .from('rent_requests')
+        .select('id, tenant_id, approved_by, rent_amount, total_repayment, daily_repayment, amount_repaid, funded_at, approved_at, created_at, status')
+        .in('status', POST_FUNDING_STATUSES)
+        .or(
+          `and(funded_at.gte.${from.toISOString()},funded_at.lte.${to.toISOString()}),` +
+          `and(funded_at.is.null,approved_at.gte.${from.toISOString()},approved_at.lte.${to.toISOString()}),` +
+          `and(funded_at.is.null,approved_at.is.null,created_at.gte.${from.toISOString()},created_at.lte.${to.toISOString()})`
+        )
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      if (!data || data.length === 0) { toast.error('No funded tenants in this window'); return; }
+      const profiles = await enrichWithProfiles(data);
+      let stamped = 0;
+      let inferred = 0;
+      const rows = data.map((r: any) => {
+        const t = profiles.get(r.tenant_id);
+        const a = profiles.get(r.approved_by);
+        const effectiveTs = r.funded_at || r.approved_at || r.created_at;
+        const isInferred = !r.funded_at;
+        if (isInferred) inferred++; else stamped++;
+        return [
+          r.id,
+          t?.full_name || '—',
+          t?.phone || '—',
+          Number(r.rent_amount || 0),
+          Number(r.total_repayment || 0),
+          Number(r.daily_repayment || 0),
+          Number(r.amount_repaid || 0),
+          effectiveTs,
+          a?.full_name || '—',
+          isInferred ? `${r.status || ''} (inferred)` : (r.status || ''),
+        ];
+      });
+      const totalFunded = rows.reduce((s, r: any) => s + Number(r[3] || 0), 0);
+      const totalRepay = rows.reduce((s, r: any) => s + Number(r[4] || 0), 0);
+      const totalRepaid = rows.reduce((s, r: any) => s + Number(r[6] || 0), 0);
+      const blob = generateTenantOpsExtractPdf({
+        title: 'Tenants Funded',
+        subtitle: 'Rent applications past the funding gate in this period. Rows missing funded_at fall back to approved_at / created_at and are marked.',
+        range: { from, to },
+        kpis: [
+          { label: 'Funded', value: rows.length.toLocaleString(), color: [22, 163, 74] },
+          { label: 'Rent Funded', value: `UGX ${Math.round(totalFunded).toLocaleString()}`, color: [15, 23, 42] },
+          { label: 'Total Repayable', value: `UGX ${Math.round(totalRepay).toLocaleString()}`, color: [124, 58, 237] },
+          { label: 'Already Repaid', value: `UGX ${Math.round(totalRepaid).toLocaleString()}`, color: [217, 119, 6] },
+          { label: 'Stamped / Inferred', value: `${stamped} / ${inferred}`, color: [148, 163, 184] },
+        ],
+        columns: [
+          { label: '#',              width: 8,  align: 'left' },
+          { label: 'Tenant',         width: 38, format: 'text' },
+          { label: 'Phone',          width: 24, format: 'text' },
+          { label: 'Rent (UGX)',     width: 22, format: 'ugx' },
+          { label: 'Total Repay',    width: 24, format: 'ugx' },
+          { label: 'Daily (UGX)',    width: 20, format: 'ugx' },
+          { label: 'Repaid (UGX)',   width: 22, format: 'ugx' },
+          { label: 'Funded',         width: 26, format: 'datetime' },
+          { label: 'Funded By',      width: 28, format: 'text' },
+          { label: 'Status',         width: 22, format: 'text' },
+        ],
+        rows: rows.map((r, i) => [i + 1, r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9]]),
+        totals: ['', 'TOTAL', '', totalFunded, totalRepay, '', totalRepaid, '', '', ''],
+        footerNote: 'Funded = status past funding gate (funded → completed). When funded_at is missing, the next-best timestamp is shown and the row is marked "inferred".',
+      });
+      downloadPdfBlob(blob, `tenants-funded_${windowSuffix(from, to)}.pdf`);
+      toast.success(`Extracted ${rows.length} funded tenants`);
+    } catch (err: any) {
+      toast.error(err.message || 'Extract failed');
+    } finally {
+      setExtracting(null);
+    }
+  };
+
   const handleExtractCollected = async () => {
     setExtracting('collected');
     try {
