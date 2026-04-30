@@ -1925,6 +1925,29 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           const handleAttempt = () => {
             if (isSubmitting) return;
             if (blockReason) {
+              // Silent recovery: if the only blocker is an empty
+              // `depositPurpose` and the caller pinned a `defaultPurpose`
+              // with `lockPurpose`, restore it transparently and submit.
+              // This recovers the state-update race where `handleClose`
+              // reset the value just before the dialog reopened, without
+              // confronting the agent with a "pick a purpose" toast for a
+              // value they already implicitly chose by opening this flow.
+              if (
+                blockReason.fieldId === 'deposit-purpose' &&
+                !depositPurpose &&
+                defaultPurpose &&
+                lockPurpose &&
+                ALLOWED_DEPOSIT_PURPOSES.includes(defaultPurpose)
+              ) {
+                setDepositPurpose(defaultPurpose);
+                const purposeLabel = DEPOSIT_PURPOSES.find(p => p.id === defaultPurpose)?.label;
+                if (purposeLabel && defaultPurpose !== 'other') setReason(purposeLabel);
+                setPurposeChosenAt(new Date().toISOString());
+                setPurposeEntryPoint('default');
+                // Defer submit by one tick so the new state is applied.
+                setTimeout(() => handleSubmit(), 0);
+                return;
+              }
               console.warn('[DepositFlow] submit blocked:', blockReason);
               toast.error(blockReason.message);
               setErrorFieldId(blockReason.fieldId);
