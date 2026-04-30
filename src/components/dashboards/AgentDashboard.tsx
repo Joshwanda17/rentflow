@@ -718,7 +718,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             const { toast } = await import('sonner');
             toast.info('Generating short link...');
             const { createShortLink } = await import('@/lib/createShortLink');
-            const investorLink = await createShortLink(user.id, '/auth', { ref: user.id, role: 'supporter' });
+            const investorLink = await createShortLink(user.id, '/funder-onboarding', { ref: user.id, role: 'supporter' });
             const shareText = `🦄 Join the Welile Angel Pool — invest in Africa's rent-tech revolution! Own equity in a high-growth platform. Sign up here: ${investorLink}`;
             if (navigator.share) {
               navigator.share({ title: 'Invest in Welile Angel Pool', text: shareText, url: investorLink }).catch(() => {});
