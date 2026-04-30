@@ -918,6 +918,14 @@ export default function FunderOnboarding() {
             </p>
             <div className="w-8" />
           </div>
+          {referrerId && (
+            <div className="px-6 lg:px-[18px] pb-2 flex justify-center">
+              <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-[#6c11d4] bg-[#F3F0FF] border border-[#E0D2FA] rounded-full px-2.5 py-1">
+                <BadgeCheck size={11} strokeWidth={2.5} />
+                Referred signup
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-8 lg:px-[18px]">
