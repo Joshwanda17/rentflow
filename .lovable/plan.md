@@ -1,102 +1,78 @@
-# Production Ledger-Truth Mode — Permanent Drift Elimination
+## Goal
 
-We have 9,150 ledger entries across 762 users since 2026‑02‑11, all timestamped and double‑entry. That history is the legal source of truth. We will rebuild every wallet from it, lock the cached buckets behind it, and remove every code path that can inflate a balance again.
+Treat every `general_ledger` entry dated **2026-04-01 or later** as **production money** so reconciliation, dashboards, and the wallet-truth view stop excluding it as legacy/test data. Anything before April stays as-is (history is preserved).
 
-Today's exposure: **78 drifting wallets, +54.4M phantom air, -78.6M hidden debt**, total cache vs ledger gap **UGX 178.9M**. After this work the gap is **0** and stays 0.
+## Current state (live DB)
 
----
+April 1 → today, by classification:
 
-## Phase 1 — Full per‑user reconciliation from ledger history (one‑shot, CFO‑gated)
+| Classification | Legs | Action |
+|---|---|---|
+| `production` | 3,870 | leave |
+| `legacy_real` | 296 | **promote → `production`** |
+| `test_dev` | 10 | **promote → `production`** |
+| `admin_correction` | 79 | **leave** (these are reconciliation pairs — must stay tagged so CFO can audit them separately) |
 
-For every wallet in the system (6,082), we replay its entire `general_ledger` history (production scope only, ordered by `created_at`), recompute the three buckets exactly as `apply_wallet_movement` would have produced them, and overwrite the cached row. Every adjustment is itself posted as a balanced `admin_correction` ledger pair so the audit trail stays double‑entry.
+Default for new inserts is already `production`, so no schema change is needed for going-forward writes.
 
-New RPC: `reconcile_wallet_from_ledger(p_user_id, p_reason)`
-- Reads all wallet‑scope production entries for the user, ordered by timestamp.
-- Computes target `withdrawable_balance`, `float_balance`, `advance_balance`, `balance` by replaying each entry through the bucket router (`recipient_type` + category).
-- Compares to current cached values, posts a balanced correction pair for the delta:
-  - if cache > ledger → `system_balance_correction` cash_out from user wallet, cash_in to platform (writedown of phantom air).
-  - if cache < ledger → cash_in to user wallet, cash_out from platform (release of hidden owed).
-- Flips `wallets.sync_authorized = true` for the duration of the write (only path allowed by the wallet write‑lockdown trigger), then resets it.
-- Writes `audit_logs` row with `action_type='wallet_full_reconciliation'`, mandatory ≥10‑char reason, before/after snapshot.
-- Emits `system_event` `wallet.reconciled_from_ledger`.
+## Plan
 
-New CFO panel: `LedgerReconciliationPanel` (CFO Reconciliation tab, above the existing PhantomDriftPanel)
-- Lists every wallet whose `ROUND(cached) ≠ ROUND(ledger_net)` with: user name, cached buckets, ledger net, delta, direction (phantom vs owed), last ledger entry timestamp.
-- "Reconcile" button per row → modal showing the replay preview (bucket‑by‑bucket) → CFO types reason → calls the RPC.
-- "Reconcile All Drifting" bulk button → confirmation dialog showing total phantom + total owed → batches calls server‑side with a single `audit_logs` parent row.
+### 1. Data backfill (one-shot, idempotent SQL)
 
-Outcome: cached buckets = ledger‑replayed buckets for all 6,082 wallets, zero drift.
+Run via the data-insert tool (not a schema migration), wrapped in a transaction:
 
----
+```sql
+-- Promote April-onward non-production real legs to production.
+-- Excludes admin_correction (kept for audit visibility) and any pre-April rows.
+UPDATE public.general_ledger
+SET classification = 'production'
+WHERE transaction_date >= '2026-04-01'
+  AND classification IN ('legacy_real', 'test_dev');
+```
 
-## Phase 2 — Permanent ledger‑backed display (no more cache‑first numbers)
+Then write a single audit row capturing what was promoted:
 
-Today the dashboard sums `wallets.balance` and shows it as truth. We switch every headline figure to a ledger‑backed view so even if the cache ever drifts again, the user never sees inflated money.
+```sql
+INSERT INTO public.audit_logs (action_type, table_name, record_id, action, reason, metadata)
+VALUES (
+  'ledger_classification_backfill',
+  'general_ledger',
+  gen_random_uuid(),
+  'promote_april_to_production',
+  'CEO directive: timestamp transactions from April going forward as production',
+  jsonb_build_object('cutoff', '2026-04-01', 'promoted_from', ARRAY['legacy_real','test_dev'])
+);
+```
 
-New SQL view: `wallet_ledger_truth_view`
-- Per user: `ledger_net`, `withdrawable_baseline`, `float_baseline`, `advance_baseline`, `cached_*`, `displayable_withdrawable = max(0, min(cached_withdrawable, max(0, ledger_net)))`.
-- RLS: super_admin / cfo / coo / operations read; user reads own row.
+And a `system_events` entry: `ledger.classification.backfilled` with the same metadata + actual row counts.
 
-Frontend changes:
-- `useAgentBalances`, `useAvailableBalance`, `computeLedgerAvailable` → already call `get_user_available_balance`. Confirm and lock that as the only allowed source for displayed withdrawable. Add an ESLint rule (custom) banning direct reads of `wallets.withdrawable_balance` outside `computeLedgerAvailable.ts`.
-- CFO Dashboard "What we have / owe / can use" cards → switch to `wallet_ledger_truth_view` aggregates instead of `SUM(wallets.balance)`.
-- Wallet Hero cards (agent, supporter, tenant) → show only `get_user_available_balance` value.
+### 2. Going-forward guard (DB trigger)
 
-Outcome: even between reconciliations, no user or executive ever sees money that isn't in the ledger.
+Add a `BEFORE INSERT` trigger on `general_ledger` that forces `classification = 'production'` when:
+- `transaction_date >= '2026-04-01'`, **and**
+- caller did not explicitly set `classification` to `'admin_correction'` (reconciliation/correction tooling must stay distinguishable)
 
----
+This guarantees no new April-onward leg can sneak in as `legacy_real` or `test_dev`, even if an old code path tries.
 
-## Phase 3 — Permanent write barriers (drift becomes impossible)
+### 3. Reconciliation refresh
 
-The wallet write‑lockdown trigger already exists. We harden it and remove every remaining bypass:
+Because 306 legs are moving into `production` scope, `wallet_ledger_truth_view` will report new drift for affected users. After the backfill we will:
+- Re-query the view and surface the new drift count in the existing CFO **Ledger Reconciliation Panel**.
+- No code change needed — the panel already picks up production-scope changes automatically.
 
-1. **`apply_wallet_movement` becomes the only writer** — already true, but we add a `pg_audit`‑style log table `wallet_write_attempts` capturing every UPDATE on `wallets` with the calling function name. Any non‑`apply_wallet_movement` writer raises an alert.
-2. **`sync_wallet_from_ledger` stays a no‑op forever** — add a comment + migration assertion that fails CI if its body ever grows beyond `RETURN NEW;`.
-3. **Strict mode default ON in production** — `general_ledger` strict mode (rejects unrouted categories) is flipped from warn to enforce. The two known offenders (`test_funds_cleanup`, `proxy_investment_commission`) get bucket routes added in this migration.
-4. **Edge functions audit** — sweep `supabase/functions/` for any direct `update('wallets')` or balance arithmetic outside `apply_wallet_movement` / `create_ledger_transaction`. The repo already has `scripts/guard-frontend-ledger-writes.mjs`; we extend it to also scan edge functions and fail CI on violations.
-5. **Drop the legacy ledger‑bypass triggers** — explicitly verify and disable any trigger on `wallets`/`wallet_transactions` that isn't `enforce_wallet_ledger_only` or `apply_wallet_movement`'s posting trigger.
+### 4. No frontend changes required
 
-Outcome: every UGX into or out of any wallet must pass through a balanced ledger entry. No exceptions.
+All dashboards (`useCFOOverviewData`, `useFinancialStatements`, `DailyCashPositionReport`, `FinancialMetricsCards`, `AgentActivityChart`, `computeLedgerAvailable`, `approve-withdrawal`) already filter on `classification IN ('production','legacy_real')` or `= 'production'`. Promoting the rows to `production` makes them visible everywhere consistently — no query rewrites.
 
----
+## Technical notes
 
-## Phase 4 — Continuous reconciliation watchdog
+- **Cutoff is inclusive**: `transaction_date >= '2026-04-01 00:00:00+00'` (UTC). Confirmed against current data: earliest April leg is `2026-04-01 00:00:00+00`.
+- **`admin_correction` is intentionally preserved** so the `LedgerReconciliationPanel` and `WalletReconciliationAuditPanel` keep showing reconciliation pairs as a separate, auditable class. They still affect ledger net (truth view sums all production-scope rows AND corrections via `apply_wallet_movement`).
+- **Pre-April rows are untouched** — `legacy_real` history before April stays where it is, so prior CFO reports don't shift retroactively.
+- **Trigger placement**: `BEFORE INSERT ... FOR EACH ROW`, marked `SECURITY DEFINER`, `SET search_path = public`, and only acts when the row would otherwise be tagged non-production. Does not interfere with the existing `wallet.sync_authorized` write path.
 
-- **15‑minute cron** (already exists as `detect_phantom_wallet_drift`) extended to: if any wallet drifts > 1 UGX, it is auto‑logged AND auto‑frozen (`wallets.frozen_reason = 'drift_detected'`) until CFO reviews.
-- **Daily reconciliation report** emailed to CFO: count of drifting wallets (target: 0), total phantom, total owed, list of frozen wallets.
-- **System event** `wallet.drift_detected` emitted for each occurrence (Trust Mission compliant).
-- A frozen wallet blocks withdrawals at the `approve-withdrawal` edge function level until reconciled.
+## Out of scope
 
-Outcome: any future drift is caught within 15 minutes, the affected user is protected from over‑withdrawal, and CFO is notified the same day.
-
----
-
-## Phase 5 — Per‑user ledger statement (transparency for users and ops)
-
-New page: `/wallet/statement`
-- Lists every `general_ledger` entry for the logged‑in user, oldest → newest, with running balance per bucket.
-- Shows the timestamp, category (in user‑friendly terminology — Rent Plan / Returns / Supporter / etc), counterparty, direction, amount, and resulting bucket totals.
-- "Download PDF" generates a signed monthly statement.
-
-Same view for CFO (`/cfo/wallet/<user_id>/statement`) — the audit trail any regulator or auditor needs to trace any single shilling end‑to‑end.
-
----
-
-## Technical summary
-
-New DB objects:
-- RPC `reconcile_wallet_from_ledger(uuid, text)`
-- View `wallet_ledger_truth_view`
-- Table `wallet_write_attempts` (audit only)
-- Extended cron `detect_phantom_wallet_drift` with auto‑freeze
-
-Code changes:
-- New panel `src/components/cfo/LedgerReconciliationPanel.tsx`
-- New page `src/pages/wallet/Statement.tsx` + CFO variant
-- Update CFO dashboard cards to use `wallet_ledger_truth_view`
-- Extend `scripts/guard-frontend-ledger-writes.mjs` to cover edge functions
-- Custom ESLint rule banning `withdrawable_balance` reads outside the approved file
-
-Migrations are sequenced so Phase 1 reconciliation runs against the still‑permissive trigger, then Phase 3 hardens. Phase 2 ships in the same release as Phase 1 so dashboards never show pre‑reconciliation numbers.
-
-After this rolls out: cached balance always equals ledger replay, no path exists to make them diverge, and every shilling has a timestamped, double‑entry trail back to its origin.
+- Re-running historical CFO reports (numbers will shift forward only; that's the point).
+- Migrating pre-April `legacy_real` rows.
+- Changing how `admin_correction` is classified.
