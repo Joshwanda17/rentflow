@@ -1,14 +1,14 @@
 import { supabase } from '@/integrations/supabase/client';
 
 /**
- * Returns the user's TRUE withdrawable balance using the baseline-anchored
- * `get_user_available_balance` RPC as the source of truth. The RPC computes:
- *   available = max(0, min(withdrawable_cached,
- *                          baseline_w + (ledger_net_now - ledger_net_at_baseline))
- *                       - pending_holds)
- * which prevents both phantom money (cap by withdrawable bucket) AND
- * retroactive over-crediting from all-time ledger drift (cap by baseline + delta).
- * We still surface the raw inputs for UI diagnostics.
+ * Returns the user's TRUE withdrawable balance using the strict
+ * ledger-only `get_user_wallet_view` RPC. End-user wallet UIs MUST NOT
+ * read `wallets.balance` / `wallets.withdrawable_balance` directly —
+ * those are operator-only caches that can drift above the ledger.
+ *
+ * The returned `withdrawableCached` field is kept for API compatibility
+ * with existing callers but now mirrors `available` exactly (no drift
+ * possible). `ledgerNet` reflects the raw ledger net used internally.
  */
 export async function computeLedgerAvailable(userId: string): Promise<{
   available: number;
@@ -16,43 +16,23 @@ export async function computeLedgerAvailable(userId: string): Promise<{
   withdrawableCached: number;
   pendingHolds: number;
 }> {
-  const [rpcRes, walletRes, ledgerRes, pendingRes] = await Promise.all([
-    supabase.rpc('get_user_available_balance', { p_user_id: userId }),
-    supabase
-      .from('wallets')
-      .select('withdrawable_balance')
-      .eq('user_id', userId)
-      .maybeSingle(),
-    supabase
-      .from('general_ledger')
-      .select('amount, direction')
-      .eq('user_id', userId)
-      .eq('ledger_scope', 'wallet')
-      .or('classification.is.null,classification.eq.production'),
-    supabase
-      .from('withdrawal_requests')
-      .select('amount')
-      .eq('user_id', userId)
-      .in('status', ['pending', 'requested', 'manager_approved', 'processing']),
-  ]);
-
-  const withdrawableCached = Number((walletRes.data as any)?.withdrawable_balance ?? 0);
-  const ledgerNet = (ledgerRes.data || []).reduce((acc: number, r: any) => {
-    const amt = Number(r.amount) || 0;
-    if (r.direction === 'cash_in') return acc + amt;
-    if (r.direction === 'cash_out') return acc - amt;
-    return acc;
-  }, 0);
-  const pendingHolds = (pendingRes.data || []).reduce(
-    (sum: number, p: any) => sum + Number(p.amount || 0),
-    0,
-  );
-
-  // Baseline-anchored RPC is the source of truth. Fall back to the
-  // conservative min(cache, ledger) only if the RPC is unavailable.
-  const rpcVal = Number((rpcRes as any)?.data ?? NaN);
-  const available = Number.isFinite(rpcVal)
-    ? rpcVal
-    : Math.max(0, Math.min(withdrawableCached, ledgerNet) - pendingHolds);
-  return { available, ledgerNet, withdrawableCached, pendingHolds };
+  const { data, error } = await supabase.rpc('get_user_wallet_view', {
+    p_user_id: userId,
+  });
+  if (error) {
+    // Conservative fallback: zero out rather than read the cache.
+    // The cache is exactly what we are trying to avoid trusting.
+    return { available: 0, ledgerNet: 0, withdrawableCached: 0, pendingHolds: 0 };
+  }
+  const row = (data ?? {}) as {
+    withdrawable?: number | string;
+    pending_holds?: number | string;
+  };
+  const available = Number(row.withdrawable ?? 0);
+  const pendingHolds = Number(row.pending_holds ?? 0);
+  // ledgerNet is just available + pending_holds (pre-hold figure) for diagnostics.
+  const ledgerNet = available + pendingHolds;
+  // For backwards compat: callers reading `withdrawableCached` now see the
+  // strict figure too — there is no separate cached value to expose.
+  return { available, ledgerNet, withdrawableCached: available, pendingHolds };
 }
