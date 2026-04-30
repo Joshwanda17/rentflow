@@ -38,6 +38,8 @@ interface UserResult {
   balance: number;
   withdrawable_balance: number;
   float_balance: number;
+  /** Pre-clamp cached value, kept so the row can warn about reconciliation drift. */
+  cached_withdrawable?: number;
 }
 
 interface WalletDeductionPanelProps {
@@ -231,7 +233,7 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
       }
       // Float is company money we owe back to the user — operators MUST
       // see it as a separate figure so they never deduct from a liability.
-      return rows.map((r) => ({
+      const mapped = rows.map((r) => ({
         id: r.user_id,
         full_name: r.full_name || 'Unnamed',
         phone: r.phone || '',
@@ -239,6 +241,36 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
         withdrawable_balance: Number(r.withdrawable_balance ?? 0),
         float_balance: Number(r.float_balance ?? 0),
       }));
+
+      // STRICT-CLAMP every row's withdrawable to what the backend gate will
+      // actually allow. The cached `wallets.withdrawable_balance` can sit
+      // ABOVE the ledger-true position — most commonly for agents anchored
+      // by the 2026-04-29 hybrid fresh-start backfill, where the cached
+      // bucket was never reseeded against the post-anchor window. Showing
+      // the cached figure here lets operators promise money the system
+      // refuses to pay out (LOLEM FIRICILA: cache 1.897M vs strict 313K).
+      // We never let the strict figure INFLATE the cache — only narrow it.
+      const clamped = await Promise.all(
+        mapped.map(async (u) => {
+          try {
+            const { data: strict, error: sErr } = await supabase.rpc(
+              'get_user_available_balance',
+              { p_user_id: u.id },
+            );
+            if (sErr) throw sErr;
+            const strictAvailable = Math.max(0, Number(strict ?? 0));
+            return {
+              ...u,
+              cached_withdrawable: u.withdrawable_balance,
+              withdrawable_balance: Math.min(u.withdrawable_balance, strictAvailable),
+            };
+          } catch {
+            // RPC unavailable — fall back conservatively (don't trust cache).
+            return { ...u, cached_withdrawable: u.withdrawable_balance };
+          }
+        }),
+      );
+      return clamped;
     },
     enabled: searchMode === 'balance' && balanceSearchTriggered,
   });
@@ -323,6 +355,12 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
                 Float only — company liability (not deductible)
               </p>
             )}
+            {typeof u.cached_withdrawable === 'number' &&
+              u.cached_withdrawable - u.withdrawable_balance > 1 && (
+                <p className="text-[10px] text-amber-600 font-medium mt-0.5">
+                  Cache shows {formatUGX(u.cached_withdrawable)} — pending CFO reconciliation
+                </p>
+              )}
           </div>
           <div className="text-right shrink-0 space-y-0.5">
             <div>

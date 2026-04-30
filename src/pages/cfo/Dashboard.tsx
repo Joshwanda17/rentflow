@@ -21,6 +21,7 @@ import PhantomDriftPanel from '@/components/cfo/PhantomDriftPanel';
 import WalletReconciliationAuditPanel from '@/components/cfo/WalletReconciliationAuditPanel';
 import WithdrawableDriftAlertsPanel from '@/components/cfo/WithdrawableDriftAlertsPanel';
 import HistoricalDriftReviewPanel from '@/components/cfo/HistoricalDriftReviewPanel';
+import AnchoredCacheDriftPanel from '@/components/cfo/AnchoredCacheDriftPanel';
 
 import { CFOPartnerPayoutProcessing } from '@/components/cfo/CFOPartnerPayoutProcessing';
 import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
@@ -108,6 +109,7 @@ export default function CFODashboardPage() {
         return (
           <div className="space-y-6">
             <WithdrawableDriftAlertsPanel />
+            <AnchoredCacheDriftPanel />
             <PhantomDriftPanel />
             <HistoricalDriftReviewPanel />
             <WalletReconciliationAuditPanel />
