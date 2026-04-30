@@ -1659,7 +1659,10 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                         // collections → prefill the form with the sum,
                         // the allocations, and the pasted reference.
                         if (m.amount > 0) setAmount(String(m.amount));
-                        if (m.allocations.length) setTenantAllocations(m.allocations);
+                        if (m.allocations.length) {
+                          setTenantAllocations(m.allocations);
+                          setBreakdownChoice('yes');
+                        }
                         if (m.reference) {
                           if (channel === 'momo') {
                             setTransactionId(m.reference);
