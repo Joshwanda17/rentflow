@@ -163,6 +163,18 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   const [tenantAllocations, setTenantAllocations] = useState<TenantAllocation[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   /**
+   * Agent's explicit choice for Operational Float drops:
+   *   • 'pending' — haven't picked yet, show the chooser card.
+   *   • 'no'      — bulk float drop, no per-tenant breakdown.
+   *   • 'yes'     — wants to tag each tenant individually.
+   *
+   * Many field agents don't see/understand the per-tenant allocator,
+   * so we surface a clear binary choice instead of dropping them
+   * straight into the allocator. Auto-set to 'yes' when allocations
+   * already exist (edit mode, matcher prefill).
+   */
+  const [breakdownChoice, setBreakdownChoice] = useState<'pending' | 'no' | 'yes'>('pending');
+  /**
    * Edit-mode snapshot of the per-tenant breakdown as it was when the
    * dialog opened. Used purely for the in-form "Original vs Updated"
    * diff panel so the agent can eyeball every change before saving.
