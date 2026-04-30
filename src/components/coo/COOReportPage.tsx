@@ -2,13 +2,15 @@ import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import {
   Calendar as CalendarIcon, Download, FileSpreadsheet, FileText, RefreshCw, Search,
-  AlertTriangle, TrendingUp, Clock, Sparkles, ChevronRight, ArrowLeft, type LucideIcon
+  AlertTriangle, TrendingUp, Clock, Sparkles, ChevronRight, ArrowLeft, Loader2, type LucideIcon
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   PieChart, Pie, Cell, Legend, LineChart, Line,
 } from 'recharts';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -92,6 +94,9 @@ export interface COOReportPageProps {
    * "Generate Report" button busy until it resolves.
    */
   onGenerate?: (range: { from?: Date; to?: Date }) => Promise<void> | void;
+
+  /** Show a loading state over the page while parent is fetching. */
+  loading?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -138,7 +143,7 @@ export default function COOReportPage(props: COOReportPageProps) {
   const {
     title, description, icon: Icon,
     statusOptions = [], activityTypeOptions = [], departmentOptions = [], staffOptions = [],
-    kpis, charts, activities, insights, onGenerate,
+    kpis, charts, activities, insights, onGenerate, loading = false,
   } = props;
 
   const navigate = useNavigate();
@@ -211,10 +216,94 @@ export default function COOReportPage(props: COOReportPageProps) {
   }
 
   function exportPdf() {
-    // Lightweight: hand off to the browser print dialog scoped to this page.
-    // (Wiring up jsPDF can be added later without changing the API.)
-    window.print();
-    toast.message('Use your browser dialog to save as PDF.');
+    try {
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const generatedAt = format(new Date(), 'PPpp');
+      const range = `${from ? format(from, 'PP') : '—'}  →  ${to ? format(to, 'PP') : '—'}`;
+
+      // Header
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.text(title, 40, 40);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(110);
+      doc.text(description, 40, 58, { maxWidth: pageWidth - 80 });
+      doc.text(`Generated: ${generatedAt}    |    Range: ${range}    |    Rows: ${filtered.length} of ${activities.length}`, 40, 78);
+      doc.setTextColor(0);
+
+      // KPI summary table
+      autoTable(doc, {
+        startY: 96,
+        head: [['KPI', 'Value', 'Detail']],
+        body: kpis.map((k) => [k.label, String(k.value), k.sub ?? '']),
+        theme: 'grid',
+        headStyles: { fillColor: [139, 61, 217], textColor: 255, fontStyle: 'bold', fontSize: 9 },
+        styles: { fontSize: 8.5, cellPadding: 4 },
+        columnStyles: { 0: { cellWidth: 180, fontStyle: 'bold' }, 1: { cellWidth: 140 } },
+        margin: { left: 40, right: 40 },
+      });
+
+      // Activity table
+      const afterKpi = (doc as any).lastAutoTable?.finalY ?? 200;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text('Activities', 40, afterKpi + 22);
+
+      autoTable(doc, {
+        startY: afterKpi + 30,
+        head: [['Date', 'Type', 'Person', 'Amount (UGX)', 'Status', 'Staff', 'Reference']],
+        body: filtered.map((a) => [
+          format(new Date(a.date), 'dd MMM yy HH:mm'),
+          a.type,
+          a.person,
+          a.amount == null ? '—' : new Intl.NumberFormat('en-UG').format(Math.round(a.amount)),
+          a.status,
+          a.staff ?? '—',
+          a.reference ?? '—',
+        ]),
+        theme: 'striped',
+        headStyles: { fillColor: [30, 30, 35], textColor: 255, fontStyle: 'bold', fontSize: 9 },
+        styles: { fontSize: 8, cellPadding: 3.5 },
+        columnStyles: { 3: { halign: 'right' } },
+        margin: { left: 40, right: 40 },
+        didDrawPage: (data) => {
+          const str = `Page ${doc.getNumberOfPages()}`;
+          doc.setFontSize(8);
+          doc.setTextColor(140);
+          doc.text(str, pageWidth - 60, doc.internal.pageSize.getHeight() - 18);
+          doc.setTextColor(0);
+        },
+      });
+
+      // Insights
+      if (insights.length > 0) {
+        const afterAct = (doc as any).lastAutoTable?.finalY ?? 400;
+        const remaining = doc.internal.pageSize.getHeight() - afterAct;
+        if (remaining < 120) doc.addPage();
+        const startY = remaining < 120 ? 40 : afterAct + 22;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(11);
+        doc.text('Insights & recommended actions', 40, startY);
+        autoTable(doc, {
+          startY: startY + 8,
+          head: [['Kind', 'Title', 'Detail']],
+          body: insights.map((i) => [i.kind, i.title, i.body]),
+          theme: 'grid',
+          headStyles: { fillColor: [139, 61, 217], textColor: 255, fontStyle: 'bold', fontSize: 9 },
+          styles: { fontSize: 8.5, cellPadding: 4 },
+          columnStyles: { 0: { cellWidth: 90, fontStyle: 'bold' }, 1: { cellWidth: 200, fontStyle: 'bold' } },
+          margin: { left: 40, right: 40 },
+        });
+      }
+
+      const filename = `${title.replace(/\s+/g, '_').toLowerCase()}_${format(new Date(), 'yyyyMMdd_HHmm')}.pdf`;
+      doc.save(filename);
+      toast.success('PDF exported');
+    } catch (e: any) {
+      toast.error('Could not export PDF', { description: e?.message ?? 'Unknown error' });
+    }
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -261,6 +350,13 @@ export default function COOReportPage(props: COOReportPageProps) {
           </div>
         </div>
       </div>
+
+      {loading && (
+        <div className="rounded-2xl border border-border bg-card p-3 flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+          Loading live data…
+        </div>
+      )}
 
       {/* KPI Summary */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
