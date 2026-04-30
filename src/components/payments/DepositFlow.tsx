@@ -1687,7 +1687,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
               {depositPurpose === 'operational_float' && currentUserId && (
                 <>
                   {/* === Breakdown choice card === */}
-                  <div id="deposit-breakdown-choice" className="space-y-2 scroll-mt-4">
+                  <div id="deposit-breakdown-choice" className={`space-y-2 scroll-mt-4 rounded-md ${errorFieldId === 'deposit-breakdown-choice' ? 'ring-2 ring-destructive/40 p-2 -m-2 border border-destructive/40' : ''}`}>
                     <Label className="text-sm font-semibold">
                       How are you depositing this float?
                     </Label>
@@ -1813,7 +1813,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                     />
                   )}
                   {breakdownChoice === 'yes' && (
-                    <div id="deposit-tenant-allocator" className="scroll-mt-4">
+                    <div id="deposit-tenant-allocator" className={`scroll-mt-4 rounded-md ${errorFieldId === 'deposit-tenant-allocator' ? 'ring-2 ring-destructive/40 p-2 -m-2 border border-destructive/40' : ''}`}>
                       <OperationalFloatTenantAllocator
                         agentId={currentUserId}
                         totalAmount={parseFloat(amount) || 0}
