@@ -70,7 +70,7 @@ export function OtpVerificationStep({
         type="button"
         onClick={handleSend}
         disabled={otpLoading || !phone}
-        className="w-full gap-2 h-12 rounded-xl text-white font-semibold border-0 animate-pulse-red hover:animate-none hover:bg-red-700"
+        className="w-full gap-2 h-12 rounded-xl !text-white font-bold border-0 !bg-red-600 hover:!bg-red-700 animate-[pulse-red_1.2s_ease-in-out_infinite] shadow-lg"
       >
         {otpLoading ? (
           <Loader2 className="h-4 w-4 animate-spin" />
