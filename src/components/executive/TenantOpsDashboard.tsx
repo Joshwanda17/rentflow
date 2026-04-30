@@ -34,7 +34,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { downloadCsv } from '@/lib/csvExport';
+import { generateTenantOpsExtractPdf, downloadPdfBlob } from '@/lib/generateTenantOpsExtractPdf';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -443,11 +443,29 @@ export function TenantOpsDashboard() {
           r.created_at,
         ];
       });
-      downloadCsv(
-        `tenants-applied_${windowSuffix(from, to)}.csv`,
-        ['request_id', 'tenant_name', 'tenant_phone', 'landlord_name', 'rent_amount_ugx', 'daily_repayment_ugx', 'duration_days', 'status', 'applied_at'],
-        rows,
-      );
+      const blob = generateTenantOpsExtractPdf({
+        title: 'Tenants Applied',
+        subtitle: 'Every rent application created in this period.',
+        range: { from, to },
+        kpis: [
+          { label: 'Applications', value: rows.length.toLocaleString(), color: [37, 99, 235] },
+          { label: 'Rent Requested', value: `UGX ${Math.round(rows.reduce((s, r: any) => s + Number(r[4] || 0), 0)).toLocaleString()}`, color: [15, 23, 42] },
+        ],
+        columns: [
+          { label: '#',                   width: 8,  align: 'left' },
+          { label: 'Tenant',              width: 40, format: 'text' },
+          { label: 'Phone',               width: 24, format: 'text' },
+          { label: 'Landlord',            width: 36, format: 'text' },
+          { label: 'Rent (UGX)',          width: 24, format: 'ugx' },
+          { label: 'Daily (UGX)',         width: 22, format: 'ugx' },
+          { label: 'Days',                width: 12, format: 'number' },
+          { label: 'Status',              width: 22, format: 'text' },
+          { label: 'Applied',             width: 28, format: 'datetime' },
+        ],
+        rows: rows.map((r, i) => [i + 1, r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8]]),
+        footerNote: 'One row per rent application created in the selected period. Status reflects current pipeline state.',
+      });
+      downloadPdfBlob(blob, `tenants-applied_${windowSuffix(from, to)}.pdf`);
       toast.success(`Extracted ${rows.length} applications`);
     } catch (err: any) {
       toast.error(err.message || 'Extract failed');
@@ -485,11 +503,33 @@ export function TenantOpsDashboard() {
           r.status || '',
         ];
       });
-      downloadCsv(
-        `tenants-approved_${windowSuffix(from, to)}.csv`,
-        ['request_id', 'tenant_name', 'tenant_phone', 'rent_amount_ugx', 'total_repayment_ugx', 'daily_repayment_ugx', 'approved_at', 'approved_by_name', 'status'],
-        rows,
-      );
+      const totalRent = rows.reduce((s, r: any) => s + Number(r[3] || 0), 0);
+      const totalRepay = rows.reduce((s, r: any) => s + Number(r[4] || 0), 0);
+      const blob = generateTenantOpsExtractPdf({
+        title: 'Tenants Approved',
+        subtitle: 'Rent applications approved in this period (excludes rejected / cancelled).',
+        range: { from, to },
+        kpis: [
+          { label: 'Approvals', value: rows.length.toLocaleString(), color: [22, 163, 74] },
+          { label: 'Rent Approved', value: `UGX ${Math.round(totalRent).toLocaleString()}`, color: [15, 23, 42] },
+          { label: 'Total Repayable', value: `UGX ${Math.round(totalRepay).toLocaleString()}`, color: [124, 58, 237] },
+        ],
+        columns: [
+          { label: '#',              width: 8,  align: 'left' },
+          { label: 'Tenant',         width: 40, format: 'text' },
+          { label: 'Phone',          width: 24, format: 'text' },
+          { label: 'Rent (UGX)',     width: 24, format: 'ugx' },
+          { label: 'Total Repay',    width: 26, format: 'ugx' },
+          { label: 'Daily (UGX)',    width: 22, format: 'ugx' },
+          { label: 'Approved',       width: 28, format: 'datetime' },
+          { label: 'Approved By',    width: 32, format: 'text' },
+          { label: 'Status',         width: 22, format: 'text' },
+        ],
+        rows: rows.map((r, i) => [i + 1, r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8]]),
+        totals: ['', 'TOTAL', '', totalRent, totalRepay, '', '', '', ''],
+        footerNote: 'Rent amount = monthly rent due to the landlord. Total repayable = full repayment commitment from the tenant.',
+      });
+      downloadPdfBlob(blob, `tenants-approved_${windowSuffix(from, to)}.pdf`);
       toast.success(`Extracted ${rows.length} approvals`);
     } catch (err: any) {
       toast.error(err.message || 'Extract failed');
@@ -568,12 +608,29 @@ export function TenantOpsDashboard() {
           p.source_table || '',
         ];
       });
-      rows.push(['', '', '', 'TOTAL', total, '']);
-      downloadCsv(
-        `repayments-collected_${windowSuffix(from, to)}.csv`,
-        ['payment_date', 'tenant_name', 'tenant_phone', 'agent_name', 'amount_ugx', 'source'],
-        rows,
-      );
+      const blob = generateTenantOpsExtractPdf({
+        title: 'Repayments Collected',
+        subtitle: 'Every tenant repayment posted to the ledger in this period.',
+        range: { from, to },
+        kpis: [
+          { label: 'Total Collected', value: `UGX ${Math.round(total).toLocaleString()}`, color: [22, 163, 74] },
+          { label: 'Payments', value: payments.length.toLocaleString(), color: [15, 23, 42] },
+          { label: 'Unique Tenants', value: new Set(payments.map((p: any) => resolveTenant(p)).filter(Boolean)).size.toLocaleString(), color: [37, 99, 235] },
+        ],
+        columns: [
+          { label: '#',              width: 8,  align: 'left' },
+          { label: 'Date',           width: 26, format: 'datetime' },
+          { label: 'Tenant',         width: 40, format: 'text' },
+          { label: 'Phone',          width: 24, format: 'text' },
+          { label: 'Agent',          width: 36, format: 'text' },
+          { label: 'Amount (UGX)',   width: 26, format: 'ugx' },
+          { label: 'Source',         width: 22, format: 'text' },
+        ],
+        rows: rows.map((r, i) => [i + 1, r[0], r[1], r[2], r[3], r[4], r[5]]),
+        totals: ['', '', '', '', 'TOTAL', total, ''],
+        footerNote: 'Source = ledger source table (rent_requests, agent_collections, etc.). Reconciles with the Tenant Payments PDF for the same period.',
+      });
+      downloadPdfBlob(blob, `repayments-collected_${windowSuffix(from, to)}.pdf`);
       toast.success(`Collected: UGX ${Math.round(total).toLocaleString()} across ${payments.length} payments`);
     } catch (err: any) {
       toast.error(err.message || 'Extract failed');
@@ -627,12 +684,31 @@ export function TenantOpsDashboard() {
           outstanding,
         ];
       });
-      rows.push(['', '', 'TOTAL', '', '', totalExpected, '', '', totalOutstanding]);
-      downloadCsv(
-        `repayments-expected_${windowSuffix(from, to)}.csv`,
-        ['request_id', 'tenant_name', 'tenant_phone', 'daily_repayment_ugx', 'days_in_window', 'expected_in_window_ugx', 'total_repayment_ugx', 'amount_repaid_ugx', 'outstanding_ugx'],
-        rows,
-      );
+      const blob = generateTenantOpsExtractPdf({
+        title: 'Repayments Expected',
+        subtitle: 'Daily-repayment × days-in-window for every active rent plan, plus lifetime outstanding.',
+        range: { from, to },
+        kpis: [
+          { label: 'Active Plans', value: active.length.toLocaleString(), color: [37, 99, 235] },
+          { label: 'Expected (window)', value: `UGX ${Math.round(totalExpected).toLocaleString()}`, color: [22, 163, 74] },
+          { label: 'Outstanding (lifetime)', value: `UGX ${Math.round(totalOutstanding).toLocaleString()}`, color: [220, 38, 38] },
+        ],
+        columns: [
+          { label: '#',              width: 8,  align: 'left' },
+          { label: 'Tenant',         width: 40, format: 'text' },
+          { label: 'Phone',          width: 24, format: 'text' },
+          { label: 'Daily (UGX)',    width: 22, format: 'ugx' },
+          { label: 'Days',           width: 14, format: 'number' },
+          { label: 'Expected (UGX)', width: 28, format: 'ugx' },
+          { label: 'Total Repay',    width: 26, format: 'ugx' },
+          { label: 'Repaid',         width: 24, format: 'ugx' },
+          { label: 'Outstanding',    width: 28, format: 'ugx' },
+        ],
+        rows: rows.map((r, i) => [i + 1, r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8]]),
+        totals: ['', 'TOTAL', '', '', '', totalExpected, '', '', totalOutstanding],
+        footerNote: 'Expected (window) = daily_repayment × days the plan overlaps the selected period. Outstanding = total_repayment − amount_repaid (lifetime).',
+      });
+      downloadPdfBlob(blob, `repayments-expected_${windowSuffix(from, to)}.pdf`);
       toast.success(`Expected (window): UGX ${Math.round(totalExpected).toLocaleString()} • Outstanding: UGX ${Math.round(totalOutstanding).toLocaleString()}`);
     } catch (err: any) {
       toast.error(err.message || 'Extract failed');
