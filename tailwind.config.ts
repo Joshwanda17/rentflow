@@ -154,6 +154,16 @@ export default {
           "0%, 100%": { opacity: "1" },
           "50%": { opacity: "0" },
         },
+        "pulse-red": {
+          "0%, 100%": {
+            backgroundColor: "hsl(0 84% 55%)",
+            boxShadow: "0 0 0 0 hsl(0 84% 55% / 0.7)",
+          },
+          "50%": {
+            backgroundColor: "hsl(0 90% 45%)",
+            boxShadow: "0 0 0 10px hsl(0 84% 55% / 0)",
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -165,6 +175,7 @@ export default {
         "slide-up": "slide-up 0.25s ease-out",
         "shake": "shake 0.5s ease-in-out",
         "blink": "blink 1s steps(2, start) infinite",
+        "pulse-red": "pulse-red 1.2s ease-in-out infinite",
       },
       transitionDuration: {
         DEFAULT: '150ms',
