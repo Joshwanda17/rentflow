@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useWalletRealtime } from '@/hooks/useWalletRealtime';
-import { computeLedgerAvailable } from '@/lib/computeLedgerAvailable';
 
 export interface AgentSplitBalances {
   withdrawableBalance: number;
