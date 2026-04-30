@@ -1,50 +1,58 @@
-## The bug
+## What's broken
 
-The "Tenants Approved" PDF only shows **2 tenants** for 31 Mar – 30 Apr, even though the database actually has **96 rent_requests past the approval gate** (statuses: `agent_verified`, `tenant_ops_approved`, `landlord_ops_approved`, `coo_approved`, `funded`, `disbursed`, `repaying`, `completed`).
+Agent **Akampurira Onesmus** can't allocate UGX 20,000 to tenant Beinobwengye Simon. The error in the UI ("new row for relation 'wallets' violates check constraint 'wallets_balance_check'") is the raw Postgres trigger response and tells the agent nothing useful.
 
-### Why
+### The actual cause (verified against live DB)
 
-The handler (`handleExtractApproved` in `src/components/executive/TenantOpsDashboard.tsx:477`) filters strictly on `approved_at`:
+| Metric | Value |
+|---|---|
+| Agent's wallet ledger total (`ledger_scope=wallet`) | **UGX 1,121,133** |
+| Agent's cached `wallets.balance` | **UGX 9,300** |
+| Agent's cached `wallets.float_balance` | **UGX 0** |
+| Agent's "commission locked" per RPC formula | **−6,265,500** (clamped to 0) |
+| Allocation requested | UGX 20,000 |
 
-```ts
-.not('approved_at', 'is', null)
-.gte('approved_at', from.toISOString())
-.lte('approved_at', to.toISOString())
-```
+Two compounding bugs:
 
-But the data shows `approved_at` is almost never populated — only 12 of 96 post-approval requests have it set. The approval workflow flips `status` forward but does not consistently stamp `approved_at`. So the report finds only 2 in the window.
+1. **Anchored cache drift (float side).** `wallets.balance` is stale at 9,300 while the ledger says 1,121,133. The wallet sole-writer trigger correctly refuses `9,300 − 20,000 = −10,700`. We already have an anchored-drift fix for `withdrawable_balance` (`reseed_anchored_withdrawable` RPC + `wallet_anchored_drift_view`), but the same drift exists on `balance` / `float_balance` with no reseed path.
+2. **Commission accounting is broken — the RPC clamps it.** The agent has UGX 6.27M more `agent_commission_used_for_rent` / `wallet_withdrawal` debits than `agent_commission_earned` credits. The RPC does `GREATEST(0, v_commission)`, so the float-vs-commission gate passes when it shouldn't, and the trigger downstream is the only thing catching the drift.
 
-Live counts (post-approval, excluding pending/rejected/cancelled):
+The screen showing "Float after UGX 1,101,133" is the **ledger-derived** number — agents see a healthy float that doesn't actually exist in the wallet cache, then get punished by the constraint.
 
-| Status | with `approved_at` | missing `approved_at` |
-|---|---|---|
-| agent_verified | 0 | 2 |
-| tenant_ops_approved | 0 | 1 |
-| landlord_ops_approved | 0 | 2 |
-| coo_approved | 0 | 3 |
-| funded | 9 | 43 |
-| disbursed | 0 | 2 |
-| repaying | 2 | 17 |
-| completed | 1 | 15 |
+## Fix (3 parts)
 
-## The fix
+### 1. Extend the anchored-drift fix to the full balance (DB migration)
 
-Treat a request as "approved" when its **status is past the approval gate**, and use `COALESCE(approved_at, created_at)` as the timestamp for window filtering and display. This is what every other dashboard already does (e.g. `ApprovedRentRequestsWidget`, the COO funnel) and it matches the user's mental model of "approved tenant".
+- Add `wallet_anchored_balance_drift_view` modeled on the existing withdrawable view, comparing `wallets.balance` against the ledger sum for `ledger_scope='wallet'`.
+- Add `reseed_anchored_balance(p_user_id uuid)` RPC: if cache is **lower** than ledger, raise it to the ledger figure (mirrors the strict rule — caches can never inflate withdrawable beyond ledger, and conversely cannot understate `balance` below ledger). Same `sync_authorized` session-flag pattern as the existing reseed.
+- Wire `agent_allocate_tenant_payment` to call `reseed_anchored_balance(p_agent_id)` **before** the float check, so we self-heal at the moment the agent tries to spend.
 
-### Changes to `handleExtractApproved`
+### 2. Replace `GREATEST(0, ...)` with a real solvency gate (DB migration)
 
-1. **Replace the filter** with a status whitelist of "post-approval" statuses:
-   `agent_verified, tenant_ops_approved, landlord_ops_approved, coo_approved, approved, funded, disbursed, active, repaying, completed`.
-2. **Window by `COALESCE(approved_at, created_at)`** — fetch with a generous `created_at` bound, then filter in JS using `approved_at ?? created_at` so we catch rows missing the stamp.
-3. **Display column**: show `approved_at ?? created_at` and add a small "(from created_at)" hint in the Status column when the stamp was missing — keeps the report honest.
-4. **KPI**: add a third KPI "Stamped vs Inferred" so the operator can see how many had a real `approved_at`.
+In `agent_allocate_tenant_payment`:
 
-### Side recommendation (separate, not in this fix)
+- Compute `v_commission_raw` (no floor) and `v_commission := GREATEST(0, v_commission_raw)`.
+- If `v_commission_raw < 0`, that means commission accounting is corrupted for this agent. Return a structured error (`error_code: 'COMMISSION_LEDGER_INCONSISTENT'`) and write a row to a new `wallet_commission_drift` diagnostic table for FinOps to triage. **Do not silently allow the allocation** — silent allow is what got us here.
+- After posting ledger legs, do a defensive `SELECT balance FROM wallets WHERE user_id = p_agent_id` and bail with a clean error if it would have gone negative. (Belt + suspenders behind the trigger.)
 
-Backfill `approved_at` once for the 84 historical rows, and add a DB trigger that stamps `approved_at = now()` whenever `status` transitions into a post-approval state and `approved_at` is null. This makes the column trustworthy going forward. I'll flag this but won't do it in this change — let me know if you want it as a follow-up migration.
+### 3. Surface a human error, not raw Postgres (frontend)
 
-## Files touched
+In `src/components/agent/AgentTenantCollectDialog.tsx` (line ~258), map known DB error fragments:
 
-- `src/components/executive/TenantOpsDashboard.tsx` — rewrite `handleExtractApproved` query + row mapping (~30 line diff, no new imports).
+- `wallets_balance_check` → "Your wallet float is out of sync with the ledger. We've flagged this for review — please retry in a moment, or contact support if it persists."
+- `COMMISSION_LEDGER_INCONSISTENT` → "Float allocation paused — your commission ledger needs reconciliation. Support has been notified."
+- Default → keep current message but strip the `new row for relation "wallets"...` jargon.
 
-No DB changes, no new dependencies.
+Also call `reseed_anchored_balance` once on retry so the next click typically just works.
+
+### One-time backfill for this agent (after migration is approved)
+
+Run `reseed_anchored_balance('e3cf4d3a-d021-49e4-b815-7e1938166eeb')` once so Akampurira can allocate immediately, then run the same RPC across all agents whose `wallets.balance < ledger total` to pre-empt other stuck agents.
+
+## Files / artifacts
+
+- New migration: `wallet_anchored_balance_drift_view` + `reseed_anchored_balance` RPC + updated `agent_allocate_tenant_payment` + new `wallet_commission_drift` table.
+- `src/components/agent/AgentTenantCollectDialog.tsx` — humanize error mapping and add automatic reseed-on-retry.
+- Memory update: extend `mem://architecture/anchored-cache-drift` to cover `balance` not just `withdrawable_balance`.
+
+No UI redesign, no schema changes outside the wallet/ledger surface area. Aligned with the existing wallet sole-writer + anchored-drift architecture.
