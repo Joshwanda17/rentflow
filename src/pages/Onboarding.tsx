@@ -866,7 +866,7 @@ export default function FunderOnboarding() {
         {/* Ambient grid only (gradient & color blobs removed per request) */}
         <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
           <div
-            className="absolute inset-0 opacity-[0.08]"
+            className="absolute inset-0 opacity-[0.03]"
             style={{
               backgroundImage:
                 'linear-gradient(#6c11d4 1px,transparent 1px),linear-gradient(90deg,#6c11d4 1px,transparent 1px)',
