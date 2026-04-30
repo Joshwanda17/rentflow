@@ -889,14 +889,16 @@ export default function Auth() {
                     />
                   )}
 
-                  <Button
-                    type="submit"
-                    className="w-full h-12 text-base rounded-xl font-semibold touch-manipulation active:scale-[0.98]"
-                    disabled={isLoading || isDuplicate || isCheckingDuplicate || !otpVerified}
-                    style={{ fontSize: '16px', WebkitTapHighlightColor: 'transparent' }}
-                  >
-                    {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Create Account'}
-                  </Button>
+                  {otpSent && (
+                    <Button
+                      type="submit"
+                      className="w-full h-12 text-base rounded-xl font-semibold touch-manipulation active:scale-[0.98]"
+                      disabled={isLoading || isDuplicate || isCheckingDuplicate || !otpVerified}
+                      style={{ fontSize: '16px', WebkitTapHighlightColor: 'transparent' }}
+                    >
+                      {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Create Account'}
+                    </Button>
+                  )}
                 </form>
               </div>
             )}
