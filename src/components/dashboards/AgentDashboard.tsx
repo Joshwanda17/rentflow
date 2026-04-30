@@ -296,7 +296,12 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   };
 
   const handleRegisterUser = () => { hapticTap(); setRegisterUserOpen(true); };
-  const handleDeposit = () => { hapticTap(); setDepositOpen(true); };
+  // Route the side-menu Deposit entry to the same flow used by the hero
+  // wallet card so agents have ONE deposit experience, not two. The hero
+  // flow defaults to Operational Float (collected rent cash) and still
+  // lets the agent switch to Personal Deposit through the existing
+  // confirmation gate inside the form.
+  const handleDeposit = () => { hapticTap(); setShowQuickDeposit(true); };
   const handleInviteSubAgent = () => { hapticTap(); setInviteSubAgentOpen(true); };
   const handleViewWallet = () => { hapticTap(); setShowWallet(true); };
   const handleOpenMenu = () => { hapticTap(); setMenuOpen(true); };
@@ -615,8 +620,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         open={showQuickDeposit}
         onOpenChange={setShowQuickDeposit}
         allowedPurposes={['operational_float', 'personal_deposit']}
+        defaultPurpose="operational_float"
         lockPurpose
-        requirePurposeChoice
       />
       <WithdrawFlow open={showQuickWithdraw} onOpenChange={setShowQuickWithdraw} availableBalance={realWithdrawableBalance} />
       <SendMoneyDialog open={showQuickTransfer} onOpenChange={setShowQuickTransfer} />
