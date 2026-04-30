@@ -929,6 +929,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   const handleClose = () => {
     setStep(mustChoosePurpose ? 'purpose' : 'channel');
     setIsSubmitting(false);
+    purposeOverrideRef.current = null;
     setChannel('momo');
     setMomoProvider('mtn');
     setAmount('');
