@@ -14277,6 +14277,22 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_anchored_drift_view: {
+        Row: {
+          anchor_at: string | null
+          anchor_reason: string | null
+          cached_float: number | null
+          cached_total: number | null
+          cached_withdrawable: number | null
+          full_name: string | null
+          over_cache_delta: number | null
+          phone: string | null
+          pre_anchor_ledger_net: number | null
+          strict_available: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       wallet_ledger_integrity_audit: {
         Row: {
           advance_balance: number | null
@@ -15361,6 +15377,10 @@ export type Database = {
       requeue_dead_letter_batch: {
         Args: { _dead_letter_id: number }
         Returns: undefined
+      }
+      reseed_anchored_withdrawable: {
+        Args: { p_reason: string; p_user_id: string }
+        Returns: Json
       }
       reset_agent_float_if_stale: {
         Args: { p_agent_id: string }
