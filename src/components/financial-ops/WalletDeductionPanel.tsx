@@ -355,6 +355,12 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
                 Float only — company liability (not deductible)
               </p>
             )}
+            {typeof u.cached_withdrawable === 'number' &&
+              u.cached_withdrawable - u.withdrawable_balance > 1 && (
+                <p className="text-[10px] text-amber-600 font-medium mt-0.5">
+                  Cache shows {formatUGX(u.cached_withdrawable)} — pending CFO reconciliation
+                </p>
+              )}
           </div>
           <div className="text-right shrink-0 space-y-0.5">
             <div>
