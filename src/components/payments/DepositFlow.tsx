@@ -665,7 +665,13 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     if (depositPurpose === 'other' && !reason.trim()) {
       return { message: 'Enter the reason for this deposit', fieldId: 'deposit-reason' };
     }
-    if (depositPurpose === 'operational_float' && tenantAllocations.length > 0) {
+    if (depositPurpose === 'operational_float' && breakdownChoice === 'pending' && (parseFloat(amount) || 0) > 0) {
+      return {
+        message: 'Choose: deposit with or without a tenant breakdown',
+        fieldId: 'deposit-breakdown-choice',
+      };
+    }
+    if (depositPurpose === 'operational_float' && breakdownChoice === 'yes' && tenantAllocations.length > 0) {
       const sum = tenantAllocations.reduce((s, a) => s + (a.amount || 0), 0);
       const total = parseFloat(amount);
       if (tenantAllocations.some((a) => !a.amount || a.amount <= 0)) {
