@@ -1348,11 +1348,12 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   max={MAX_DEPOSIT}
                   id="deposit-amount"
                   aria-invalid={
+                    errorFieldId === 'deposit-amount' ||
                     !!amount &&
                     Number.isFinite(parseFloat(amount)) &&
                     (parseFloat(amount) < MIN_DEPOSIT || parseFloat(amount) > MAX_DEPOSIT)
                   }
-                  className="text-2xl font-bold tabular-nums h-14 pl-14 pr-3"
+                  className={`text-2xl font-bold tabular-nums h-14 pl-14 pr-3 ${errClass('deposit-amount')}`}
                 />
               </div>
               <p className="text-xs text-muted-foreground">
