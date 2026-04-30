@@ -39,6 +39,26 @@ const RANGE_OPTIONS: { key: DateRange; label: string }[] = [
   { key: '1m', label: '1M' },
 ];
 
+const COMMISSION_LEDGER_CATEGORIES = [
+  'agent_commission_earned',
+  'agent_commission',
+  'agent_bonus',
+  'agent_investment_commission',
+  'proxy_investment_commission',
+  'partner_commission',
+];
+
+const COMMISSION_CREDIT_DIRECTIONS = ['cash_in', 'credit'];
+
+interface TimestampRow {
+  created_at: string | null;
+}
+
+interface CommissionLedgerRow extends TimestampRow {
+  transaction_date?: string | null;
+  amount?: number | string | null;
+}
+
 function getRangeStart(range: DateRange): Date {
   switch (range) {
     case '24h':
@@ -187,7 +207,7 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
   useEffect(() => {
     const channel = supabase
       .channel('agent-ops-home-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'commission_accrual_ledger' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'general_ledger' }, () => {
         queryClient.invalidateQueries({ queryKey: ['agent-ops-home'] });
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'rent_requests' }, () => {
@@ -228,12 +248,21 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
           .select('id', { count: 'exact', head: true })
           .gte('created_at', prevRangeStart)
           .lt('created_at', rangeStart),
-        // Source of truth: commission_accrual_ledger (live).
-        // Legacy `agent_earnings` cache stopped writing in early April.
-        supabase.from('commission_accrual_ledger').select('amount, created_at').gte('created_at', rangeStart),
+        // Source of truth: wallet-scoped general ledger commission credits.
+        // `commission_accrual_ledger` and `agent_earnings` are legacy/accrual views and can lag real wallet earnings.
         supabase
-          .from('commission_accrual_ledger')
+          .from('general_ledger')
+          .select('amount, created_at, transaction_date')
+          .eq('ledger_scope', 'wallet')
+          .in('category', COMMISSION_LEDGER_CATEGORIES)
+          .in('direction', COMMISSION_CREDIT_DIRECTIONS)
+          .gte('created_at', rangeStart),
+        supabase
+          .from('general_ledger')
           .select('amount')
+          .eq('ledger_scope', 'wallet')
+          .in('category', COMMISSION_LEDGER_CATEGORIES)
+          .in('direction', COMMISSION_CREDIT_DIRECTIONS)
           .gte('created_at', prevRangeStart)
           .lt('created_at', rangeStart),
         supabase
@@ -247,9 +276,11 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
           .lt('last_active_at', rangeStart),
       ]);
 
+      const currentCommissionRows = (earningsCurr.data ?? []) as CommissionLedgerRow[];
+      const previousCommissionRows = (earningsPrev.data ?? []) as CommissionLedgerRow[];
       const newAgentsCurrCount = (newAgentsCurr.data ?? []).length;
-      const earningsCurrTotal = (earningsCurr.data ?? []).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
-      const earningsPrevTotal = (earningsPrev.data ?? []).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+      const earningsCurrTotal = currentCommissionRows.reduce((s, r) => s + Number(r.amount ?? 0), 0);
+      const earningsPrevTotal = previousCommissionRows.reduce((s, r) => s + Number(r.amount ?? 0), 0);
       const rentCurrCount = (rentRequestsCurr.data ?? []).length;
 
       // Build buckets
@@ -258,16 +289,16 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
       const rentByBucket = new Map(buckets.map((b) => [bucketKey(b.date, range), 0]));
       const earningsByBucket = new Map(buckets.map((b) => [bucketKey(b.date, range), 0]));
 
-      (newAgentsCurr.data ?? []).forEach((r: any) => {
+      ((newAgentsCurr.data ?? []) as TimestampRow[]).forEach((r) => {
         const k = bucketKey(new Date(r.created_at), range);
         if (newAgentsByBucket.has(k)) newAgentsByBucket.set(k, (newAgentsByBucket.get(k) || 0) + 1);
       });
-      (rentRequestsCurr.data ?? []).forEach((r: any) => {
+      ((rentRequestsCurr.data ?? []) as TimestampRow[]).forEach((r) => {
         const k = bucketKey(new Date(r.created_at), range);
         if (rentByBucket.has(k)) rentByBucket.set(k, (rentByBucket.get(k) || 0) + 1);
       });
-      (earningsCurr.data ?? []).forEach((r: any) => {
-        const k = bucketKey(new Date(r.created_at), range);
+      currentCommissionRows.forEach((r) => {
+        const k = bucketKey(new Date(r.transaction_date || r.created_at), range);
         if (earningsByBucket.has(k))
           earningsByBucket.set(k, (earningsByBucket.get(k) || 0) + Number(r.amount ?? 0));
       });
