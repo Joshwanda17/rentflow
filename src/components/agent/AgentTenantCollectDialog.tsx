@@ -15,6 +15,32 @@ import { useOffline } from '@/contexts/OfflineContext';
 import { CommissionCelebration } from './CommissionCelebration';
 import { captureOfflineDraft } from '@/lib/offlineCollectionDrafts';
 
+/**
+ * Translate raw RPC / Postgres errors into something an agent can act on.
+ * Two flavours:
+ *  - structured `error_code` from `agent_allocate_tenant_payment`
+ *  - raw constraint message ("new row for relation 'wallets' violates check
+ *    constraint 'wallets_balance_check'") that bubbles up from the wallet
+ *    sole-writer trigger when the cached balance is stale.
+ */
+function humanizeAllocationError(message: string, code?: string): string {
+  if (code === 'COMMISSION_LEDGER_INCONSISTENT') {
+    return 'Float allocation paused — your commission ledger is out of balance. Support has been notified and will reconcile your wallet shortly.';
+  }
+  const m = (message || '').toLowerCase();
+  if (m.includes('wallets_balance_check') || m.includes('violates check constraint')) {
+    return 'Your wallet float is temporarily out of sync with the ledger. We have flagged this for review — please retry in a moment.';
+  }
+  if (m.includes('amount exceeds outstanding')) {
+    // Already a clean message from the RPC — leave it.
+    return message;
+  }
+  if (m.includes('rent request not found')) {
+    return 'This rent plan could not be located. Please refresh and try again.';
+  }
+  return message;
+}
+
 interface AgentTenantCollectDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -92,12 +118,15 @@ export function AgentTenantCollectDialog({
       if (error) {
         const message = await extractFromErrorObject(error, 'Allocation failed');
         console.error('[AgentTenantCollectDialog] allocation RPC failed:', message, error);
-        throw new Error(message);
+        throw new Error(humanizeAllocationError(message));
       }
 
       const res = data as any;
       if (!res?.success || res?.error) {
-        const message = res?.error || 'Allocation failed. Please try again.';
+        const rawMsg = res?.error || 'Allocation failed. Please try again.';
+        const message = res?.error_code
+          ? humanizeAllocationError(rawMsg, res.error_code)
+          : humanizeAllocationError(rawMsg);
         console.error('[AgentTenantCollectDialog] allocation rejected:', res);
         throw new Error(message);
       }

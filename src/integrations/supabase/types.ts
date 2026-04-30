@@ -13227,6 +13227,45 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_commission_drift: {
+        Row: {
+          attempted_amount: number | null
+          context: string | null
+          detected_at: string
+          id: string
+          notes: string | null
+          raw_commission: number
+          reviewed_at: string | null
+          reviewer: string | null
+          total_wallet_ledger: number
+          user_id: string
+        }
+        Insert: {
+          attempted_amount?: number | null
+          context?: string | null
+          detected_at?: string
+          id?: string
+          notes?: string | null
+          raw_commission: number
+          reviewed_at?: string | null
+          reviewer?: string | null
+          total_wallet_ledger: number
+          user_id: string
+        }
+        Update: {
+          attempted_amount?: number | null
+          context?: string | null
+          detected_at?: string
+          id?: string
+          notes?: string | null
+          raw_commission?: number
+          reviewed_at?: string | null
+          reviewer?: string | null
+          total_wallet_ledger?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       wallet_deductions: {
         Row: {
           amount: number
@@ -14274,6 +14313,16 @@ export type Database = {
           territory: string | null
           total_capability_count: number | null
           verified: boolean | null
+        }
+        Relationships: []
+      }
+      wallet_anchored_balance_drift_view: {
+        Row: {
+          cached_balance: number | null
+          ledger_total: number | null
+          understated_by: number | null
+          user_id: string | null
+          wallet_updated_at: string | null
         }
         Relationships: []
       }
@@ -15377,6 +15426,10 @@ export type Database = {
       requeue_dead_letter_batch: {
         Args: { _dead_letter_id: number }
         Returns: undefined
+      }
+      reseed_anchored_balance: {
+        Args: { p_reason: string; p_user_id: string }
+        Returns: Json
       }
       reseed_anchored_withdrawable: {
         Args: { p_reason: string; p_user_id: string }
