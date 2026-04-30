@@ -118,11 +118,14 @@ export default function SupporterDashboard({
   const [highlightDeposit, setHighlightDeposit] = useState(false);
   const SNOOZE_KEY = `funder_activation_snooze_${user.id}`;
 
+  // Strict ledger-derived available balance (never the wallets cache) for
+  // the "wallet is empty" nag trigger. Keeps user-facing surfaces locked
+  // to the same source of truth as the wallet card / withdraw flow.
+  const { available: strictAvailable } = useAvailableBalance(user.id);
+
   useEffect(() => {
     if (!isSelfRegistered || !verifiedAt) return;
-    const walletEmpty =
-      (wallet?.balance ?? 0) === 0 &&
-      (((wallet as any)?.withdrawable_balance ?? 0) === 0);
+    const walletEmpty = strictAvailable === 0;
     if (!walletEmpty) return;
     try {
       const raw = localStorage.getItem(SNOOZE_KEY);
@@ -130,7 +133,7 @@ export default function SupporterDashboard({
       if (snoozeUntil && Date.now() < snoozeUntil) return;
     } catch {}
     setShowActivationModal(true);
-  }, [isSelfRegistered, verifiedAt, wallet?.balance, (wallet as any)?.withdrawable_balance, SNOOZE_KEY]);
+  }, [isSelfRegistered, verifiedAt, strictAvailable, SNOOZE_KEY]);
 
   const handleActivationDeposit = () => {
     setShowActivationModal(false);
