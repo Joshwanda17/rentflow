@@ -699,7 +699,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             const { toast } = await import('sonner');
             toast.info('Generating short link...');
             const { createShortLink } = await import('@/lib/createShortLink');
-            const funderLink = await createShortLink(user.id, '/auth', { ref: user.id, role: 'funder' });
+            const funderLink = await createShortLink(user.id, '/funder-onboarding', { ref: user.id });
             const shareText = `Join Welile as a funder and start earning! Sign up here: ${funderLink}`;
             if (navigator.share) {
               navigator.share({ title: 'Become a Welile Funder', text: shareText, url: funderLink }).catch(() => {});
