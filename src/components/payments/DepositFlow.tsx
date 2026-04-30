@@ -170,6 +170,14 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tidError, setTidError] = useState('');
   /**
+   * The DOM id of the field that's currently failing validation. Set
+   * when the agent taps Confirm with a missing/invalid field so we can
+   * paint that input with a red ring (not just toast + scroll). Cleared
+   * the moment the offending field becomes valid (computed live from
+   * `computeBlockReason()` — no manual clearing needed on every onChange).
+   */
+  const [errorFieldId, setErrorFieldId] = useState<string | null>(null);
+  /**
    * Per-tenant breakdown for an Operational Float deposit. The agent
    * collected one bulk amount in the field, dropped it at the merchant
    * code under one TID, and now needs to tell us *which tenants* it came
