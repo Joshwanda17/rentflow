@@ -1280,6 +1280,9 @@ export function TenantOpsDashboard() {
                   <DropdownMenuItem disabled={!!extracting} onClick={handleExtractApproved}>
                     <CheckCircle2 className="h-4 w-4 mr-2" /> How many approved (CSV)
                   </DropdownMenuItem>
+                  <DropdownMenuItem disabled={!!extracting} onClick={handleExtractFunded}>
+                    <Wallet className="h-4 w-4 mr-2" /> How many funded (PDF)
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuLabel className="text-xs">Repayments</DropdownMenuLabel>
                   <DropdownMenuItem disabled={!!extracting} onClick={handleExtractCollected}>
