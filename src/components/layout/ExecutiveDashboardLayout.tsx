@@ -4,7 +4,7 @@ import { useAuth, type AppRole } from '@/hooks/useAuth';
 import { roleToSlug } from '@/lib/roleRoutes';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import { LogOut, Menu, X, ArrowLeft, RotateCcw } from 'lucide-react';
+import { LogOut, Menu, X, ArrowLeft, RotateCcw, ChevronDown, ChevronRight } from 'lucide-react';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { SidebarSkeleton, TopBarSkeleton } from '@/components/skeletons/SectionSkeletons';
 import { executiveSidebarConfig, roleLabels, roleDashboardRoutes } from './executiveSidebarConfig';
@@ -51,6 +51,38 @@ export default function ExecutiveDashboardLayout({
 
   const sections: SidebarSection[] = executiveSidebarConfig[role] || [];
   const displayRole = roleLabels[role as AppRole] || role.toUpperCase();
+
+  /**
+   * Per-section open state for collapsible groups (e.g. COO → Reports).
+   * Initialised from the section's `defaultOpen`, but auto-opened when the
+   * current route matches one of its items so the active page is visible.
+   */
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    const init: Record<string, boolean> = {};
+    sections.forEach((s) => {
+      if (s.collapsible) init[s.title] = s.defaultOpen ?? false;
+    });
+    return init;
+  });
+
+  // When the URL changes, force-open the group containing the active route.
+  useEffect(() => {
+    setOpenGroups((prev) => {
+      const next = { ...prev };
+      sections.forEach((s) => {
+        if (!s.collapsible) return;
+        const hasActive = s.items.some((it) =>
+          it.route
+            ? location.pathname === it.route || location.pathname.startsWith(it.route + '/')
+            : activeTab === it.id,
+        );
+        if (hasActive) next[s.title] = true;
+        else if (next[s.title] === undefined) next[s.title] = s.defaultOpen ?? false;
+      });
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, activeTab, role]);
 
   /**
    * Sync ?tab=<id> from the URL → activeTab state. This means a deep link like
@@ -129,36 +161,66 @@ export default function ExecutiveDashboardLayout({
 
   const SidebarContent = ({ onItemClick }: { onItemClick?: () => void }) => (
     <nav className="flex-1 overflow-y-auto py-4 space-y-5" style={{ touchAction: 'manipulation' }}>
-      {sections.map((section) => (
-        <div key={section.title}>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 px-4">
-            {section.title}
-          </p>
-          <div className="space-y-0.5 px-2">
-            {section.items.map((item) => (
+      {sections.map((section) => {
+        const isOpen = section.collapsible ? !!openGroups[section.title] : true;
+        const SectionIcon = section.icon;
+        return (
+          <div key={section.title}>
+            {section.collapsible ? (
               <button
-                key={item.id}
                 type="button"
-                onClick={() => {
-                  handleItemClick(item);
-                  onItemClick?.();
-                }}
-                className={cn(
-                  'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors select-none',
-                  'active:scale-[0.98] active:bg-primary/15',
-                  isItemActive(item)
-                    ? 'bg-primary/10 text-primary font-semibold'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                )}
+                onClick={() =>
+                  setOpenGroups((prev) => ({ ...prev, [section.title]: !prev[section.title] }))
+                }
+                className="w-full flex items-center justify-between gap-2 px-4 mb-2 group"
+                aria-expanded={isOpen}
                 style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
               >
-                <item.icon className="h-4 w-4 shrink-0" />
-                <span className="truncate">{item.label}</span>
+                <span className="flex items-center gap-2">
+                  {SectionIcon && <SectionIcon className="h-3.5 w-3.5 text-muted-foreground" />}
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors">
+                    {section.title}
+                  </span>
+                </span>
+                {isOpen ? (
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                )}
               </button>
-            ))}
+            ) : (
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 px-4">
+                {section.title}
+              </p>
+            )}
+            {isOpen && (
+              <div className="space-y-0.5 px-2">
+                {section.items.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      handleItemClick(item);
+                      onItemClick?.();
+                    }}
+                    className={cn(
+                      'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors select-none',
+                      'active:scale-[0.98] active:bg-primary/15',
+                      isItemActive(item)
+                        ? 'bg-primary/10 text-primary font-semibold'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                    )}
+                    style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    <item.icon className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       <div className="px-2 pt-4 border-t border-border mx-2">
         <button
