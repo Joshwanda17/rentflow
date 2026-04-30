@@ -608,12 +608,29 @@ export function TenantOpsDashboard() {
           p.source_table || '',
         ];
       });
-      rows.push(['', '', '', 'TOTAL', total, '']);
-      downloadCsv(
-        `repayments-collected_${windowSuffix(from, to)}.csv`,
-        ['payment_date', 'tenant_name', 'tenant_phone', 'agent_name', 'amount_ugx', 'source'],
-        rows,
-      );
+      const blob = generateTenantOpsExtractPdf({
+        title: 'Repayments Collected',
+        subtitle: 'Every tenant repayment posted to the ledger in this period.',
+        range: { from, to },
+        kpis: [
+          { label: 'Total Collected', value: `UGX ${Math.round(total).toLocaleString()}`, color: [22, 163, 74] },
+          { label: 'Payments', value: payments.length.toLocaleString(), color: [15, 23, 42] },
+          { label: 'Unique Tenants', value: new Set(payments.map((p: any) => resolveTenant(p)).filter(Boolean)).size.toLocaleString(), color: [37, 99, 235] },
+        ],
+        columns: [
+          { label: '#',              width: 8,  align: 'left' },
+          { label: 'Date',           width: 26, format: 'datetime' },
+          { label: 'Tenant',         width: 40, format: 'text' },
+          { label: 'Phone',          width: 24, format: 'text' },
+          { label: 'Agent',          width: 36, format: 'text' },
+          { label: 'Amount (UGX)',   width: 26, format: 'ugx' },
+          { label: 'Source',         width: 22, format: 'text' },
+        ],
+        rows: rows.map((r, i) => [i + 1, r[0], r[1], r[2], r[3], r[4], r[5]]),
+        totals: ['', '', '', '', 'TOTAL', total, ''],
+        footerNote: 'Source = ledger source table (rent_requests, agent_collections, etc.). Reconciles with the Tenant Payments PDF for the same period.',
+      });
+      downloadPdfBlob(blob, `repayments-collected_${windowSuffix(from, to)}.pdf`);
       toast.success(`Collected: UGX ${Math.round(total).toLocaleString()} across ${payments.length} payments`);
     } catch (err: any) {
       toast.error(err.message || 'Extract failed');
