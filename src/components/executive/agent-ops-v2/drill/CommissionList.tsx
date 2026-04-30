@@ -49,9 +49,11 @@ export function CommissionList({ range }: { range: DateRange }) {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['agent-ops-drill', 'commission', 'by-agent', range],
     queryFn: async () => {
+      // Source of truth = commission_accrual_ledger (live).
+      // `agent_earnings` was a legacy materialised cache that stopped writing in early April.
       const { data: earnings, error } = await supabase
-        .from('agent_earnings')
-        .select('id, created_at, amount, earning_type, description, agent_id')
+        .from('commission_accrual_ledger')
+        .select('id, created_at, amount, event_type, source_type, commission_role, description, agent_id, status')
         .gte('created_at', rangeStart)
         .order('created_at', { ascending: false })
         .limit(PAGE_SIZE);
@@ -69,7 +71,7 @@ export function CommissionList({ range }: { range: DateRange }) {
         id: e.id,
         created_at: e.created_at,
         amount: Number(e.amount ?? 0),
-        earning_type: e.earning_type,
+        earning_type: e.event_type || e.source_type || e.commission_role || null,
         description: e.description,
         agent_id: e.agent_id,
         agent_name: e.agent_id ? nameMap.get(e.agent_id) ?? null : null,
@@ -83,7 +85,7 @@ export function CommissionList({ range }: { range: DateRange }) {
       .channel(`drill-commission-${range}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'agent_earnings' },
+        { event: 'INSERT', schema: 'public', table: 'commission_accrual_ledger' },
         async (payload) => {
           const e = payload.new as any;
           if (new Date(e.created_at) < new Date(rangeStart)) return;
@@ -100,7 +102,7 @@ export function CommissionList({ range }: { range: DateRange }) {
             id: e.id,
             created_at: e.created_at,
             amount: Number(e.amount ?? 0),
-            earning_type: e.earning_type,
+            earning_type: e.event_type || e.source_type || e.commission_role || null,
             description: e.description,
             agent_id: e.agent_id,
             agent_name: agentName,

@@ -187,7 +187,7 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
   useEffect(() => {
     const channel = supabase
       .channel('agent-ops-home-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'agent_earnings' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'commission_accrual_ledger' }, () => {
         queryClient.invalidateQueries({ queryKey: ['agent-ops-home'] });
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'rent_requests' }, () => {
@@ -228,9 +228,11 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
           .select('id', { count: 'exact', head: true })
           .gte('created_at', prevRangeStart)
           .lt('created_at', rangeStart),
-        supabase.from('agent_earnings').select('amount, created_at').gte('created_at', rangeStart),
+        // Source of truth: commission_accrual_ledger (live).
+        // Legacy `agent_earnings` cache stopped writing in early April.
+        supabase.from('commission_accrual_ledger').select('amount, created_at').gte('created_at', rangeStart),
         supabase
-          .from('agent_earnings')
+          .from('commission_accrual_ledger')
           .select('amount')
           .gte('created_at', prevRangeStart)
           .lt('created_at', rangeStart),
