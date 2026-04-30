@@ -163,6 +163,17 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     mustChoosePurpose ? '' : (defaultPurpose ?? '')
   );
   const [showPurposeGrid, setShowPurposeGrid] = useState<boolean>(!lockPurpose);
+  /**
+   * Closure-bypass override for the silent-recovery path. When the user
+   * clicks Confirm with an empty `depositPurpose` but `defaultPurpose +
+   * lockPurpose` are set, we want to submit immediately without waiting
+   * for React to flush `setDepositPurpose(...)`. Functions called from
+   * the same tick still see the OLD `depositPurpose` via closure, so
+   * `validateForm`/`computeBlockReason`/`handleSubmit` all consult this
+   * ref first and treat its value as the effective purpose for one
+   * submit. Cleared right after the submit is consumed.
+   */
+  const purposeOverrideRef = useRef<DepositPurpose | null>(null);
   const [bankSlipFile, setBankSlipFile] = useState<File | null>(null);
   // Object URL for the local slip preview thumbnail. Revoked on cleanup
   // so we don't leak blob memory across multiple re-uploads.
@@ -637,6 +648,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
    * that's what kills the "the button does nothing" perception.
    */
   const computeBlockReason = (): { message: string; fieldId: string } | null => {
+    const effectiveDepositPurpose = (purposeOverrideRef.current || depositPurpose) as DepositPurpose | '';
     const amt = parseFloat(amount);
     if (!amount || !Number.isFinite(amt) || amt <= 0) {
       return { message: 'Enter a valid amount', fieldId: 'deposit-amount' };
@@ -682,19 +694,19 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     if (!transactionTime) {
       return { message: 'Enter the transaction time', fieldId: 'deposit-time' };
     }
-    if (!depositPurpose) {
+    if (!effectiveDepositPurpose) {
       return { message: 'Select the deposit purpose', fieldId: 'deposit-purpose' };
     }
-    if (depositPurpose === 'other' && !reason.trim()) {
+    if (effectiveDepositPurpose === 'other' && !reason.trim()) {
       return { message: 'Enter the reason for this deposit', fieldId: 'deposit-reason' };
     }
-    if (depositPurpose === 'operational_float' && breakdownChoice === 'pending' && (parseFloat(amount) || 0) > 0) {
+    if (effectiveDepositPurpose === 'operational_float' && breakdownChoice === 'pending' && (parseFloat(amount) || 0) > 0) {
       return {
         message: 'Choose: deposit with or without a tenant breakdown',
         fieldId: 'deposit-breakdown-choice',
       };
     }
-    if (depositPurpose === 'operational_float' && breakdownChoice === 'yes' && tenantAllocations.length > 0) {
+    if (effectiveDepositPurpose === 'operational_float' && breakdownChoice === 'yes' && tenantAllocations.length > 0) {
       const sum = tenantAllocations.reduce((s, a) => s + (a.amount || 0), 0);
       const total = parseFloat(amount);
       if (tenantAllocations.some((a) => !a.amount || a.amount <= 0)) {
@@ -752,16 +764,20 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       // braces: recompute, validate against the enum allowlist, and abort
       // cleanly with a friendly toast if anything is off.
       const effectivePurpose: DepositPurpose | '' =
-        (depositPurpose ||
+        (purposeOverrideRef.current ||
+          depositPurpose ||
           defaultPurpose ||
           (isAgent ? 'operational_float' : '')) as DepositPurpose | '';
       if (!ALLOWED_DEPOSIT_PURPOSES.includes(effectivePurpose as DepositPurpose)) {
         toast.error('Pick a deposit purpose before continuing');
         setStep(mustChoosePurpose ? 'purpose' : 'channel');
         setIsSubmitting(false);
+        purposeOverrideRef.current = null;
         return;
       }
       const safePurpose = effectivePurpose as DepositPurpose;
+      // Override consumed; clear so subsequent submits use real state.
+      purposeOverrideRef.current = null;
       // Only flip into the submitting state AFTER the auth check passes —
       // otherwise an unauthed user gets the spinner stuck forever (root
       // cause of the "Confirm deposit button is dead" complaint when a
@@ -913,6 +929,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   const handleClose = () => {
     setStep(mustChoosePurpose ? 'purpose' : 'channel');
     setIsSubmitting(false);
+    purposeOverrideRef.current = null;
     setChannel('momo');
     setMomoProvider('mtn');
     setAmount('');
@@ -1939,13 +1956,18 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 lockPurpose &&
                 ALLOWED_DEPOSIT_PURPOSES.includes(defaultPurpose)
               ) {
+                // Bypass the React-async closure race: stamp the override
+                // ref so the very next computeBlockReason/handleSubmit
+                // call sees the chosen purpose even before state flushes.
+                purposeOverrideRef.current = defaultPurpose;
                 setDepositPurpose(defaultPurpose);
                 const purposeLabel = DEPOSIT_PURPOSES.find(p => p.id === defaultPurpose)?.label;
                 if (purposeLabel && defaultPurpose !== 'other') setReason(purposeLabel);
                 setPurposeChosenAt(new Date().toISOString());
                 setPurposeEntryPoint('default');
-                // Defer submit by one tick so the new state is applied.
-                setTimeout(() => handleSubmit(), 0);
+                // Submit immediately — the ref guarantees validation
+                // sees the right purpose without waiting for React.
+                handleSubmit();
                 return;
               }
               console.warn('[DepositFlow] submit blocked:', blockReason);
