@@ -757,7 +757,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       // notes as a structured tail. Financial Ops parses this and shows a
       // tenant-by-tenant table at approval time.
       const notes =
-        depositPurpose === 'operational_float' && tenantAllocations.length > 0
+        depositPurpose === 'operational_float' && breakdownChoice === 'yes' && tenantAllocations.length > 0
           ? encodeAllocationsNote(baseNotes, tenantAllocations)
           : baseNotes;
 
