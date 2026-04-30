@@ -163,6 +163,18 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   const [tenantAllocations, setTenantAllocations] = useState<TenantAllocation[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   /**
+   * Agent's explicit choice for Operational Float drops:
+   *   • 'pending' — haven't picked yet, show the chooser card.
+   *   • 'no'      — bulk float drop, no per-tenant breakdown.
+   *   • 'yes'     — wants to tag each tenant individually.
+   *
+   * Many field agents don't see/understand the per-tenant allocator,
+   * so we surface a clear binary choice instead of dropping them
+   * straight into the allocator. Auto-set to 'yes' when allocations
+   * already exist (edit mode, matcher prefill).
+   */
+  const [breakdownChoice, setBreakdownChoice] = useState<'pending' | 'no' | 'yes'>('pending');
+  /**
    * Edit-mode snapshot of the per-tenant breakdown as it was when the
    * dialog opened. Used purely for the in-form "Original vs Updated"
    * diff panel so the agent can eyeball every change before saving.
@@ -399,7 +411,10 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     setPurposeChosenAt(new Date().toISOString());
     setPurposeEntryPoint('default');
     if (m.amount > 0) setAmount(String(m.amount));
-    if (m.allocations?.length) setTenantAllocations(m.allocations);
+    if (m.allocations?.length) {
+      setTenantAllocations(m.allocations);
+      setBreakdownChoice('yes');
+    }
     if (m.providerHint === 'mtn' || m.providerHint === 'airtel') {
       setChannel('momo');
       setMomoProvider(m.providerHint);
@@ -516,6 +531,12 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           // Snapshot — must be a deep copy so later edits don't mutate
           // the "original" reference and quietly hide the diff.
           setOriginalAllocations(decoded.map((a) => ({ ...a })));
+          setBreakdownChoice('yes');
+        } else {
+          // Editing a deposit that was submitted as a bulk drop — keep
+          // the agent on the same path instead of forcing them back to
+          // the chooser.
+          setBreakdownChoice('no');
         }
         setOriginalAmount(Number(data.amount ?? 0));
         if (cleanNote) {
@@ -644,7 +665,13 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     if (depositPurpose === 'other' && !reason.trim()) {
       return { message: 'Enter the reason for this deposit', fieldId: 'deposit-reason' };
     }
-    if (depositPurpose === 'operational_float' && tenantAllocations.length > 0) {
+    if (depositPurpose === 'operational_float' && breakdownChoice === 'pending' && (parseFloat(amount) || 0) > 0) {
+      return {
+        message: 'Choose: deposit with or without a tenant breakdown',
+        fieldId: 'deposit-breakdown-choice',
+      };
+    }
+    if (depositPurpose === 'operational_float' && breakdownChoice === 'yes' && tenantAllocations.length > 0) {
       const sum = tenantAllocations.reduce((s, a) => s + (a.amount || 0), 0);
       const total = parseFloat(amount);
       if (tenantAllocations.some((a) => !a.amount || a.amount <= 0)) {
@@ -730,7 +757,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       // notes as a structured tail. Financial Ops parses this and shows a
       // tenant-by-tenant table at approval time.
       const notes =
-        depositPurpose === 'operational_float' && tenantAllocations.length > 0
+        depositPurpose === 'operational_float' && breakdownChoice === 'yes' && tenantAllocations.length > 0
           ? encodeAllocationsNote(baseNotes, tenantAllocations)
           : baseNotes;
 
@@ -852,6 +879,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     setOriginalAmount(null);
     setMatchedEditId(null);
     setEditStatus(null);
+    setBreakdownChoice('pending');
     onOpenChange(false);
   };
 
@@ -1592,7 +1620,64 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
               )}
               {depositPurpose === 'operational_float' && currentUserId && (
                 <>
-                  {!isEditMode && (
+                  {/* === Breakdown choice card === */}
+                  <div id="deposit-breakdown-choice" className="space-y-2 scroll-mt-4">
+                    <Label className="text-sm font-semibold">
+                      How are you depositing this float?
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Pick one. You can change your mind below.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBreakdownChoice('no');
+                          setTenantAllocations([]);
+                        }}
+                        className={`text-left rounded-xl border-2 p-3 transition-all ${
+                          breakdownChoice === 'no'
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border hover:border-primary/50 hover:bg-primary/5'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Banknote className="h-4 w-4 text-primary" />
+                          <span className="font-semibold text-sm">Just deposit (no breakdown)</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Drop the lump sum into your float. No tenant tagging.
+                        </p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBreakdownChoice('yes')}
+                        className={`text-left rounded-xl border-2 p-3 transition-all ${
+                          breakdownChoice === 'yes'
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border hover:border-primary/50 hover:bg-primary/5'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Receipt className="h-4 w-4 text-primary" />
+                          <span className="font-semibold text-sm">Deposit with tenant breakdown</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Tag each tenant who paid so they get credited instantly.
+                        </p>
+                      </button>
+                    </div>
+                    {breakdownChoice === 'no' && (
+                      <div className="flex items-start gap-2 p-2 bg-muted/40 rounded-lg border border-border">
+                        <AlertCircle className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                        <p className="text-xs text-muted-foreground">
+                          No tenant breakdown — this will be recorded as a bulk float drop. You can allocate to tenants later from your wallet history.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {breakdownChoice === 'yes' && !isEditMode && (
                     <DepositReferenceMatcher
                       agentId={currentUserId}
                       currentAmount={parseFloat(amount) || 0}
@@ -1637,7 +1722,10 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                         // collections → prefill the form with the sum,
                         // the allocations, and the pasted reference.
                         if (m.amount > 0) setAmount(String(m.amount));
-                        if (m.allocations.length) setTenantAllocations(m.allocations);
+                        if (m.allocations.length) {
+                          setTenantAllocations(m.allocations);
+                          setBreakdownChoice('yes');
+                        }
                         if (m.reference) {
                           if (channel === 'momo') {
                             setTransactionId(m.reference);
@@ -1658,14 +1746,16 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                       }}
                     />
                   )}
-                  <div id="deposit-tenant-allocator" className="scroll-mt-4">
-                    <OperationalFloatTenantAllocator
-                      agentId={currentUserId}
-                      totalAmount={parseFloat(amount) || 0}
-                      allocations={tenantAllocations}
-                      onChange={setTenantAllocations}
-                    />
-                  </div>
+                  {breakdownChoice === 'yes' && (
+                    <div id="deposit-tenant-allocator" className="scroll-mt-4">
+                      <OperationalFloatTenantAllocator
+                        agentId={currentUserId}
+                        totalAmount={parseFloat(amount) || 0}
+                        allocations={tenantAllocations}
+                        onChange={setTenantAllocations}
+                      />
+                    </div>
+                  )}
                   {/*
                     Edit-mode diff panel — surfaces the original
                     per-tenant amounts (as captured when the dialog
@@ -1673,7 +1763,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                     can eyeball every change before saving. Hidden for
                     fresh deposits and when nothing has actually moved.
                   */}
-                  {isEditMode && (
+                  {breakdownChoice === 'yes' && isEditMode && (
                     <AllocationEditDiffPanel
                       original={originalAllocations}
                       updated={tenantAllocations}
@@ -1681,7 +1771,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                       updatedAmount={parseFloat(amount) || 0}
                     />
                   )}
-                  {(() => {
+                  {breakdownChoice === 'yes' && (() => {
                     const total = parseFloat(amount) || 0;
                     const sum = tenantAllocations.reduce((s, a) => s + (a.amount || 0), 0);
                     const diff = total - sum;
