@@ -398,7 +398,41 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           }
           />
         ) : (
-          <WalletHeroSkeleton />
+          // Wallet still loading — show the skeleton AND a tappable Deposit
+          // strip so the agent never feels like the dashboard is "frozen".
+          // Without this, the hero Deposit button doesn't exist for the
+          // first ~1–3s after the dashboard mounts and taps appear to do
+          // nothing, which is the most common "deposit button is broken"
+          // complaint.
+          <div className="space-y-3">
+            <WalletHeroSkeleton />
+            <div className="flex items-center gap-2.5 px-1">
+              <button
+                onClick={() => { hapticTap(); setShowQuickDeposit(true); }}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-border bg-muted/40 hover:bg-muted active:scale-95 transition-all min-h-[44px]"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                <ArrowDownToLine className="h-4 w-4 text-muted-foreground" />
+                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Deposit</span>
+              </button>
+              <button
+                onClick={() => { hapticTap(); setShowQuickWithdraw(true); }}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-border bg-muted/40 hover:bg-muted active:scale-95 transition-all min-h-[44px]"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                <ArrowUpFromLine className="h-4 w-4 text-muted-foreground" />
+                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Withdraw</span>
+              </button>
+              <button
+                onClick={() => { hapticTap(); setShowQuickTransfer(true); }}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-border bg-muted/40 hover:bg-muted active:scale-95 transition-all min-h-[44px]"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
+                <ArrowLeftRight className="h-4 w-4 text-muted-foreground" />
+                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Transfer</span>
+              </button>
+            </div>
+          </div>
         )}
 
         {/* Tab Navigation — sticky so it stays under the header and never collides with the fixed bottom role switcher */}
