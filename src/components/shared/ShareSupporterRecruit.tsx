@@ -22,8 +22,8 @@ export function ShareSupporterRecruit() {
   });
 
   const { shortUrl, isLoading } = useShortLink({
-    targetPath: '/auth',
-    targetParams: { role: 'supporter', ref: userId || '' },
+    targetPath: '/funder-onboarding',
+    targetParams: { ref: userId || '' },
     enabled: open && !!userId,
   });
 
