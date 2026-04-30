@@ -187,12 +187,18 @@ function ManagedUserDetail({ user, agentId, onBack, onReleased }: { user: Manage
   const { data: wallet } = useQuery({
     queryKey: ['managed-user-wallet', user.id],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('wallets')
-        .select('balance, withdrawable_balance, float_balance, advance_balance')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      return data;
+      // Strict ledger-derived view — never read the wallets cache from a
+      // user-facing surface. Cache is operator-only (CFO/FinOps).
+      const { data } = await supabase.rpc('get_user_wallet_view', {
+        p_user_id: user.id,
+      });
+      const r = (data ?? {}) as Record<string, number | string>;
+      return {
+        balance: Number(r.total_visible ?? 0),
+        withdrawable_balance: Number(r.withdrawable ?? 0),
+        float_balance: Number(r.float_balance ?? 0),
+        advance_balance: Number(r.advance_balance ?? 0),
+      };
     },
   });
 

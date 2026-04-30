@@ -32,6 +32,41 @@ const FORBIDDEN = [
   { re: /\bvalidateBalance\s*\(/, label: "validateBalance(" },
 ];
 
+// User-facing wallet surfaces MUST NOT read the wallets.* cache. They read
+// the strict ledger-derived `get_user_wallet_view` RPC (or a hook that
+// wraps it). Operator dashboards (CFO, FinOps, CEO, COO, CTO, HR, Manager,
+// Executive) keep using the cache for reconciliation work.
+const USER_FACING_PATH_PREFIXES = [
+  'components/wallet/',
+  'components/payments/',
+  'components/agent/',
+  'components/supporter/',
+  'components/tenant/',
+  'components/landlord/',
+  'components/dashboards/',
+  'pages/agent/',
+  'pages/supporter/',
+  'pages/tenant/',
+  'pages/landlord/',
+];
+const OPERATOR_PATH_HINTS = [
+  'cfo', 'financial-ops', 'manager', 'executive', 'admin',
+  'ceo', 'coo', 'cto', 'hr', 'crm', 'cmo', 'reconcile',
+];
+const WALLET_CACHE_SELECT_RE = /\.from\(\s*['"]wallets['"]\s*\)\s*\.select\s*\(\s*['"][^'"]*\b(balance|withdrawable_balance|float_balance|advance_balance)\b/;
+const WALLET_CACHE_ALLOW_FILES = new Set([
+  // Hooks intentionally exposing the cache to authorized operator surfaces:
+  'hooks/useWallet.ts',
+]);
+
+function isUserFacing(rel) {
+  const hasPrefix = USER_FACING_PATH_PREFIXES.some((p) => rel.startsWith(p));
+  if (!hasPrefix) return false;
+  const lower = rel.toLowerCase();
+  if (OPERATOR_PATH_HINTS.some((h) => lower.includes(h))) return false;
+  return true;
+}
+
 // Allowlist: file path → reason. Bootstrapping a wallet row with balance 0 is
 // inert — it cannot create drift. Both call sites guard against re-creation.
 const ALLOWED_INSERTS = new Map([
@@ -66,6 +101,17 @@ for (const file of walk(ROOT)) {
     if (WALLETS_INSERT_RE.test(line) && !ALLOWED_INSERTS.has(rel)) {
       violations.push({
         file: rel, line: idx + 1, label: "wallets.insert(",
+        code: line.trim(),
+      });
+    }
+    if (
+      WALLET_CACHE_SELECT_RE.test(line)
+      && isUserFacing(rel)
+      && !WALLET_CACHE_ALLOW_FILES.has(rel)
+    ) {
+      violations.push({
+        file: rel, line: idx + 1,
+        label: "user-facing wallets cache read (use get_user_wallet_view RPC)",
         code: line.trim(),
       });
     }
