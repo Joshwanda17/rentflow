@@ -531,6 +531,12 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           // Snapshot — must be a deep copy so later edits don't mutate
           // the "original" reference and quietly hide the diff.
           setOriginalAllocations(decoded.map((a) => ({ ...a })));
+          setBreakdownChoice('yes');
+        } else {
+          // Editing a deposit that was submitted as a bulk drop — keep
+          // the agent on the same path instead of forcing them back to
+          // the chooser.
+          setBreakdownChoice('no');
         }
         setOriginalAmount(Number(data.amount ?? 0));
         if (cleanNote) {
