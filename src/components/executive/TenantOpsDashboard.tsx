@@ -684,12 +684,31 @@ export function TenantOpsDashboard() {
           outstanding,
         ];
       });
-      rows.push(['', '', 'TOTAL', '', '', totalExpected, '', '', totalOutstanding]);
-      downloadCsv(
-        `repayments-expected_${windowSuffix(from, to)}.csv`,
-        ['request_id', 'tenant_name', 'tenant_phone', 'daily_repayment_ugx', 'days_in_window', 'expected_in_window_ugx', 'total_repayment_ugx', 'amount_repaid_ugx', 'outstanding_ugx'],
-        rows,
-      );
+      const blob = generateTenantOpsExtractPdf({
+        title: 'Repayments Expected',
+        subtitle: 'Daily-repayment × days-in-window for every active rent plan, plus lifetime outstanding.',
+        range: { from, to },
+        kpis: [
+          { label: 'Active Plans', value: active.length.toLocaleString(), color: [37, 99, 235] },
+          { label: 'Expected (window)', value: `UGX ${Math.round(totalExpected).toLocaleString()}`, color: [22, 163, 74] },
+          { label: 'Outstanding (lifetime)', value: `UGX ${Math.round(totalOutstanding).toLocaleString()}`, color: [220, 38, 38] },
+        ],
+        columns: [
+          { label: '#',              width: 8,  align: 'left' },
+          { label: 'Tenant',         width: 40, format: 'text' },
+          { label: 'Phone',          width: 24, format: 'text' },
+          { label: 'Daily (UGX)',    width: 22, format: 'ugx' },
+          { label: 'Days',           width: 14, format: 'number' },
+          { label: 'Expected (UGX)', width: 28, format: 'ugx' },
+          { label: 'Total Repay',    width: 26, format: 'ugx' },
+          { label: 'Repaid',         width: 24, format: 'ugx' },
+          { label: 'Outstanding',    width: 28, format: 'ugx' },
+        ],
+        rows: rows.map((r, i) => [i + 1, r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8]]),
+        totals: ['', 'TOTAL', '', '', '', totalExpected, '', '', totalOutstanding],
+        footerNote: 'Expected (window) = daily_repayment × days the plan overlaps the selected period. Outstanding = total_repayment − amount_repaid (lifetime).',
+      });
+      downloadPdfBlob(blob, `repayments-expected_${windowSuffix(from, to)}.pdf`);
       toast.success(`Expected (window): UGX ${Math.round(totalExpected).toLocaleString()} • Outstanding: UGX ${Math.round(totalOutstanding).toLocaleString()}`);
     } catch (err: any) {
       toast.error(err.message || 'Extract failed');
