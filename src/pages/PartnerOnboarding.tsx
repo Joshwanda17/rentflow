@@ -396,6 +396,56 @@ export default function FunderOnboarding() {
         </CardContent>
       </Card>
 
+      {/* Per-share analytics */}
+      {shareStats && shareStats.length > 0 && (
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Link2 className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-bold">Top sharers — funder onboarding link</h3>
+              <span className="ml-auto text-[10px] text-muted-foreground">
+                Clicks &amp; converted signups by sharer
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs">Sharer</TableHead>
+                    <TableHead className="text-xs text-right">
+                      <span className="inline-flex items-center gap-1">
+                        <MousePointerClick className="h-3 w-3" /> Clicks
+                      </span>
+                    </TableHead>
+                    <TableHead className="text-xs text-right">
+                      <span className="inline-flex items-center gap-1">
+                        <UserCheck className="h-3 w-3" /> Signups
+                      </span>
+                    </TableHead>
+                    <TableHead className="text-xs text-right">Conv.</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {shareStats.map((s) => {
+                    const conv = s.clicks > 0 ? Math.round((s.signups / s.clicks) * 100) : 0;
+                    return (
+                      <TableRow key={s.user_id}>
+                        <TableCell className="text-xs font-medium">{s.full_name}</TableCell>
+                        <TableCell className="text-xs text-right">{s.clicks.toLocaleString()}</TableCell>
+                        <TableCell className="text-xs text-right font-semibold">{s.signups}</TableCell>
+                        <TableCell className="text-xs text-right text-muted-foreground">
+                          {s.clicks > 0 ? `${conv}%` : '—'}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Pagination */}
       {total > PAGE_SIZE && (
         <div className="flex items-center justify-between gap-2 pt-1">
