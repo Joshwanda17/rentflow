@@ -1419,7 +1419,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                       setTransactionId(val);
                       if (channel === 'momo') validateTid(val);
                     }}
-                    className={`font-mono text-sm pr-9 ${channel === 'momo' && tidError ? 'border-destructive focus:ring-destructive' : channel === 'momo' && transactionId.trim() && !tidError ? 'border-emerald-500 focus:ring-emerald-500' : ''}`}
+                    className={`font-mono text-sm pr-9 ${errClass('deposit-tid')} ${channel === 'momo' && tidError ? 'border-destructive focus:ring-destructive' : channel === 'momo' && transactionId.trim() && !tidError ? 'border-emerald-500 focus:ring-emerald-500' : ''}`}
                   />
                   {transactionId.trim() && (
                     <button
@@ -1464,7 +1464,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                       placeholder="e.g. WEL-00001 or leave blank for auto"
                       value={receiptNumber}
                       onChange={(e) => setReceiptNumber(e.target.value)}
-                      className="font-mono border-0 focus:ring-0 rounded-l-none text-sm"
+                      className={`font-mono border-0 focus:ring-0 rounded-l-none text-sm ${errClass('deposit-receipt')}`}
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
