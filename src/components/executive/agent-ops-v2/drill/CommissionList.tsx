@@ -60,8 +60,8 @@ export function CommissionList({ range }: { range: DateRange }) {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['agent-ops-drill', 'commission', 'by-agent', range],
     queryFn: async () => {
-      // Source of truth = commission_accrual_ledger (live).
-      // `agent_earnings` was a legacy materialised cache that stopped writing in early April.
+      // Source of truth = wallet-scoped general ledger commission credits.
+      // Accrual/cache tables can lag the actual wallet earnings route.
       const { data: earnings, error } = await supabase
         .from('general_ledger')
         .select('id, created_at, transaction_date, amount, category, source_table, description, user_id')
