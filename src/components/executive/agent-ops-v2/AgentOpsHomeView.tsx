@@ -39,6 +39,17 @@ const RANGE_OPTIONS: { key: DateRange; label: string }[] = [
   { key: '1m', label: '1M' },
 ];
 
+const COMMISSION_LEDGER_CATEGORIES = [
+  'agent_commission_earned',
+  'agent_commission',
+  'agent_bonus',
+  'agent_investment_commission',
+  'proxy_investment_commission',
+  'partner_commission',
+];
+
+const COMMISSION_CREDIT_DIRECTIONS = ['cash_in', 'credit'];
+
 function getRangeStart(range: DateRange): Date {
   switch (range) {
     case '24h':
@@ -187,7 +198,7 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
   useEffect(() => {
     const channel = supabase
       .channel('agent-ops-home-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'commission_accrual_ledger' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'general_ledger' }, () => {
         queryClient.invalidateQueries({ queryKey: ['agent-ops-home'] });
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'rent_requests' }, () => {
@@ -228,12 +239,21 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
           .select('id', { count: 'exact', head: true })
           .gte('created_at', prevRangeStart)
           .lt('created_at', rangeStart),
-        // Source of truth: commission_accrual_ledger (live).
-        // Legacy `agent_earnings` cache stopped writing in early April.
-        supabase.from('commission_accrual_ledger').select('amount, created_at').gte('created_at', rangeStart),
+        // Source of truth: wallet-scoped general ledger commission credits.
+        // `commission_accrual_ledger` and `agent_earnings` are legacy/accrual views and can lag real wallet earnings.
         supabase
-          .from('commission_accrual_ledger')
+          .from('general_ledger')
+          .select('amount, created_at, transaction_date')
+          .eq('ledger_scope', 'wallet')
+          .in('category', COMMISSION_LEDGER_CATEGORIES)
+          .in('direction', COMMISSION_CREDIT_DIRECTIONS)
+          .gte('created_at', rangeStart),
+        supabase
+          .from('general_ledger')
           .select('amount')
+          .eq('ledger_scope', 'wallet')
+          .in('category', COMMISSION_LEDGER_CATEGORIES)
+          .in('direction', COMMISSION_CREDIT_DIRECTIONS)
           .gte('created_at', prevRangeStart)
           .lt('created_at', rangeStart),
         supabase
@@ -267,7 +287,7 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
         if (rentByBucket.has(k)) rentByBucket.set(k, (rentByBucket.get(k) || 0) + 1);
       });
       (earningsCurr.data ?? []).forEach((r: any) => {
-        const k = bucketKey(new Date(r.created_at), range);
+        const k = bucketKey(new Date(r.transaction_date || r.created_at), range);
         if (earningsByBucket.has(k))
           earningsByBucket.set(k, (earningsByBucket.get(k) || 0) + Number(r.amount ?? 0));
       });
