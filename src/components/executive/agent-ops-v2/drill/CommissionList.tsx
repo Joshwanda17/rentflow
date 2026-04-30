@@ -10,6 +10,17 @@ import type { DateRange } from '../AgentOpsHomeView';
 
 const PAGE_SIZE = 500; // aggregate-per-agent — pull a wider window
 
+const COMMISSION_LEDGER_CATEGORIES = [
+  'agent_commission_earned',
+  'agent_commission',
+  'agent_bonus',
+  'agent_investment_commission',
+  'proxy_investment_commission',
+  'partner_commission',
+];
+
+const COMMISSION_CREDIT_DIRECTIONS = ['cash_in', 'credit'];
+
 function getRangeStart(range: DateRange): Date {
   if (range === '24h') return subHours(new Date(), 24);
   if (range === '7d') return subDays(new Date(), 7);
@@ -52,13 +63,16 @@ export function CommissionList({ range }: { range: DateRange }) {
       // Source of truth = commission_accrual_ledger (live).
       // `agent_earnings` was a legacy materialised cache that stopped writing in early April.
       const { data: earnings, error } = await supabase
-        .from('commission_accrual_ledger')
-        .select('id, created_at, amount, event_type, source_type, commission_role, description, agent_id, status')
+        .from('general_ledger')
+        .select('id, created_at, transaction_date, amount, category, source_table, description, user_id')
+        .eq('ledger_scope', 'wallet')
+        .in('category', COMMISSION_LEDGER_CATEGORIES)
+        .in('direction', COMMISSION_CREDIT_DIRECTIONS)
         .gte('created_at', rangeStart)
         .order('created_at', { ascending: false })
         .limit(PAGE_SIZE);
       if (error) throw error;
-      const ids = Array.from(new Set((earnings ?? []).map((e: any) => e.agent_id).filter(Boolean)));
+      const ids = Array.from(new Set((earnings ?? []).map((e: any) => e.user_id).filter(Boolean)));
       const nameMap = new Map<string, string>();
       if (ids.length > 0) {
         const { data: profs } = await supabase
@@ -69,12 +83,12 @@ export function CommissionList({ range }: { range: DateRange }) {
       }
       const rows: EarningRow[] = (earnings ?? []).map((e: any) => ({
         id: e.id,
-        created_at: e.created_at,
+        created_at: e.transaction_date || e.created_at,
         amount: Number(e.amount ?? 0),
-        earning_type: e.event_type || e.source_type || e.commission_role || null,
+        earning_type: e.category || e.source_table || null,
         description: e.description,
-        agent_id: e.agent_id,
-        agent_name: e.agent_id ? nameMap.get(e.agent_id) ?? null : null,
+        agent_id: e.user_id,
+        agent_name: e.user_id ? nameMap.get(e.user_id) ?? null : null,
       }));
       return { rows, hasMore: rows.length === PAGE_SIZE };
     },
@@ -85,26 +99,29 @@ export function CommissionList({ range }: { range: DateRange }) {
       .channel(`drill-commission-${range}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'commission_accrual_ledger' },
+        { event: 'INSERT', schema: 'public', table: 'general_ledger' },
         async (payload) => {
           const e = payload.new as any;
+          if (e.ledger_scope !== 'wallet') return;
+          if (!COMMISSION_LEDGER_CATEGORIES.includes(e.category)) return;
+          if (!COMMISSION_CREDIT_DIRECTIONS.includes(e.direction)) return;
           if (new Date(e.created_at) < new Date(rangeStart)) return;
           let agentName: string | null = null;
-          if (e.agent_id) {
+          if (e.user_id) {
             const { data: p } = await supabase
               .from('profiles')
               .select('full_name')
-              .eq('id', e.agent_id)
+              .eq('id', e.user_id)
               .maybeSingle();
             agentName = (p as any)?.full_name ?? null;
           }
           const row: EarningRow = {
             id: e.id,
-            created_at: e.created_at,
+            created_at: e.transaction_date || e.created_at,
             amount: Number(e.amount ?? 0),
-            earning_type: e.event_type || e.source_type || e.commission_role || null,
+            earning_type: e.category || e.source_table || null,
             description: e.description,
-            agent_id: e.agent_id,
+            agent_id: e.user_id,
             agent_name: agentName,
           };
           setLiveRows((prev) => [row, ...prev.filter((x) => x.id !== row.id)]);
