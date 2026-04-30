@@ -50,6 +50,15 @@ const COMMISSION_LEDGER_CATEGORIES = [
 
 const COMMISSION_CREDIT_DIRECTIONS = ['cash_in', 'credit'];
 
+interface TimestampRow {
+  created_at: string | null;
+}
+
+interface CommissionLedgerRow extends TimestampRow {
+  transaction_date?: string | null;
+  amount?: number | string | null;
+}
+
 function getRangeStart(range: DateRange): Date {
   switch (range) {
     case '24h':
@@ -267,9 +276,11 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
           .lt('last_active_at', rangeStart),
       ]);
 
+      const currentCommissionRows = (earningsCurr.data ?? []) as CommissionLedgerRow[];
+      const previousCommissionRows = (earningsPrev.data ?? []) as CommissionLedgerRow[];
       const newAgentsCurrCount = (newAgentsCurr.data ?? []).length;
-      const earningsCurrTotal = (earningsCurr.data ?? []).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
-      const earningsPrevTotal = (earningsPrev.data ?? []).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+      const earningsCurrTotal = currentCommissionRows.reduce((s, r) => s + Number(r.amount ?? 0), 0);
+      const earningsPrevTotal = previousCommissionRows.reduce((s, r) => s + Number(r.amount ?? 0), 0);
       const rentCurrCount = (rentRequestsCurr.data ?? []).length;
 
       // Build buckets
@@ -278,15 +289,15 @@ export function AgentOpsHomeView({ range, onRangeChange, onOpenSection }: AgentO
       const rentByBucket = new Map(buckets.map((b) => [bucketKey(b.date, range), 0]));
       const earningsByBucket = new Map(buckets.map((b) => [bucketKey(b.date, range), 0]));
 
-      (newAgentsCurr.data ?? []).forEach((r: any) => {
+      ((newAgentsCurr.data ?? []) as TimestampRow[]).forEach((r) => {
         const k = bucketKey(new Date(r.created_at), range);
         if (newAgentsByBucket.has(k)) newAgentsByBucket.set(k, (newAgentsByBucket.get(k) || 0) + 1);
       });
-      (rentRequestsCurr.data ?? []).forEach((r: any) => {
+      ((rentRequestsCurr.data ?? []) as TimestampRow[]).forEach((r) => {
         const k = bucketKey(new Date(r.created_at), range);
         if (rentByBucket.has(k)) rentByBucket.set(k, (rentByBucket.get(k) || 0) + 1);
       });
-      (earningsCurr.data ?? []).forEach((r: any) => {
+      currentCommissionRows.forEach((r) => {
         const k = bucketKey(new Date(r.transaction_date || r.created_at), range);
         if (earningsByBucket.has(k))
           earningsByBucket.set(k, (earningsByBucket.get(k) || 0) + Number(r.amount ?? 0));
