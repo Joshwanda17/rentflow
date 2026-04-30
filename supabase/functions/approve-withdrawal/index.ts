@@ -211,6 +211,15 @@ Deno.serve(async (req) => {
       );
       if (rpcErr) throw rpcErr;
       ledgerAvailable = Number(rpcVal ?? 0);
+      // The RPC subtracts ALL pending withdrawals (including the one we are
+      // currently approving) as holds. That self-subtraction caused
+      // "Insufficient withdrawable balance" errors when the user's only
+      // available money was earmarked by this very request. Add the
+      // current request's amount back so the gate compares apples-to-apples
+      // with the requested payout.
+      if (["pending", "requested", "manager_approved", "processing"].includes(wr.status)) {
+        ledgerAvailable = ledgerAvailable + amount;
+      }
     } catch (e) {
       console.warn(
         "[approve-withdrawal] get_user_available_balance failed; falling back to inline ledger compute",
