@@ -748,6 +748,23 @@ export default function FunderOnboarding() {
   const [apiError, setApiError] = useState('');
   const TOTAL = 3;
 
+  // Capture ?ref=<uuid> from the URL once on mount and persist it across the
+  // email-confirmation round-trip via sessionStorage. The handle_new_user
+  // trigger reads `referrer_id` from raw_user_meta_data at signup time.
+  const [referrerId, setReferrerId] = useState<string>('');
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const fromUrl = (params.get('ref') || '').trim();
+      const stored = sessionStorage.getItem('welile.funder.referrer_id') || '';
+      const candidate = fromUrl || stored;
+      if (candidate && /^[0-9a-fA-F-]{32,36}$/.test(candidate)) {
+        setReferrerId(candidate);
+        sessionStorage.setItem('welile.funder.referrer_id', candidate);
+      }
+    } catch { /* non-fatal */ }
+  }, []);
+
   const [form, setForm] = useState<FormState>({
     understoodRole: false,
     investPath: null,
@@ -803,6 +820,7 @@ export default function FunderOnboarding() {
           lastName: cleanLast,
           phone: cleanPhone,
           role: definedRole || 'FUNDER',
+          referrerId: referrerId || undefined,
         });
 
         // Fire-and-forget the partner_account_created email — don't block the
