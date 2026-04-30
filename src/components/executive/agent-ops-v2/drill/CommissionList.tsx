@@ -162,7 +162,7 @@ export function CommissionList({ range }: { range: DateRange }) {
       return n;
     });
 
-  if (isLoading && page === 0) {
+  if (isLoading) {
     return (
       <div className="space-y-2 overflow-y-auto h-full pr-1">
         {Array.from({ length: 5 }).map((_, i) => (
