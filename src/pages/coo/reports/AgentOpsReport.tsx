@@ -1,75 +1,64 @@
 import ExecutiveDashboardLayout from '@/components/layout/ExecutiveDashboardLayout';
 import COOReportPage from '@/components/coo/COOReportPage';
+import { useAgentOpsReportData } from '@/components/coo/useCOOReportData';
 import { usePersistedActiveTab } from '@/hooks/usePersistedActiveTab';
-import { Users, UserPlus, Clock, Wallet, Banknote, TrendingUp, FileWarning, ShieldCheck } from 'lucide-react';
+import { Users, Clock, Wallet, Banknote, TrendingUp, ShieldCheck } from 'lucide-react';
+
+const ugx = (n: number) => `UGX ${new Intl.NumberFormat('en-UG').format(Math.round(n || 0))}`;
 
 /**
  * COO → Reports → Agent Ops
- *
- * Wire `activities` to: agent_collections, wallets (agent), pending_wallet_operations,
- * agent_advance_requests, user_roles (agent).
+ * Live data from `agent_collections` + `agent_advance_requests` + `wallet_deposits`.
  */
 export default function AgentOpsReportPage() {
   const [, setActiveTab] = usePersistedActiveTab('coo');
+  const { data, isLoading, refetch } = useAgentOpsReportData();
 
-  const activities = [
-    { id: 'AGT-2210', type: 'New agent',         person: 'Patrick S.',  amount: null,        status: 'Pending approval', statusKind: 'warning' as const, date: new Date(Date.now() - 2*3600e3).toISOString(),  staff: 'Sarah M.', reference: 'REG-2210', details: { department: 'Agent Ops', region: 'Kampala' } },
-    { id: 'AGT-2209', type: 'Float deposit',     person: 'Joseph N.',   amount: 8_000_000,   status: 'Pending',          statusKind: 'warning' as const, date: new Date(Date.now() - 5*3600e3).toISOString(),  staff: 'Sarah M.', reference: 'FLT-1108', details: { department: 'Agent Ops', region: 'Wakiso' } },
-    { id: 'AGT-2208', type: 'Personal deposit',  person: 'Joseph N.',   amount: 1_200_000,   status: 'Approved',         statusKind: 'success' as const, date: new Date(Date.now() - 8*3600e3).toISOString(),  staff: 'Brian O.', reference: 'WAL-9942', details: { department: 'Financial Ops' } },
-    { id: 'AGT-2207', type: 'Commission paid',   person: 'Esther A.',   amount: 350_000,     status: 'Approved',         statusKind: 'success' as const, date: new Date(Date.now() - 24*3600e3).toISOString(), staff: 'System',   reference: 'COM-7710', details: { department: 'Financial Ops', tenants_paid: 7 } },
-    { id: 'AGT-2206', type: 'KYC submission',    person: 'Patrick S.',  amount: null,        status: 'Missing docs',     statusKind: 'destructive' as const, date: new Date(Date.now() - 48*3600e3).toISOString(), staff: 'Sarah M.', reference: 'KYC-3320', details: { department: 'Agent Ops', missing: 'AI ID photo' } },
-    { id: 'AGT-2205', type: 'Sub-agent added',   person: 'Esther A.',   amount: null,        status: 'Approved',         statusKind: 'success' as const, date: new Date(Date.now() - 70*3600e3).toISOString(), staff: 'Esther A.', reference: 'SUB-1180', details: { department: 'Agent Ops', sub_agent: 'Henry W.' } },
-  ];
+  const k = data?.kpis ?? { collectionsCount: 0, collectionsTotal: 0, depositsCount: 0, depositsTotal: 0, advancesPending: 0, advancesApproved: 0, uniqueAgents: 0 };
+  const activities = data?.activities ?? [];
+  const trend = data?.trend ?? [];
+  const topAgents = data?.topAgents ?? [];
 
   return (
     <ExecutiveDashboardLayout role="coo" activeTab="reports-agent-ops" onTabChange={setActiveTab}>
       <COOReportPage
         title="Agent Ops Report"
-        description="Track agent registrations, float and personal deposits, commissions, wallet movements, and field performance."
+        description="Live agent activity: rent collections, wallet deposits, and credit advance requests across the last 30 days."
         icon={Users}
-        statusOptions={['Pending approval', 'Pending', 'Approved', 'Rejected', 'Missing docs']}
-        activityTypeOptions={['New agent', 'Float deposit', 'Personal deposit', 'Commission paid', 'KYC submission', 'Sub-agent added']}
-        departmentOptions={['Agent Ops', 'Financial Ops']}
-        staffOptions={['Sarah M.', 'Brian O.', 'Esther A.', 'System']}
+        loading={isLoading}
+        onGenerate={async () => { await refetch(); }}
+        statusOptions={['Recorded', 'pending', 'approved', 'rejected']}
+        activityTypeOptions={['Rent collection', 'Wallet deposit', 'Advance request']}
+        departmentOptions={['Agent Ops']}
         kpis={[
-          { label: 'Active agents',          value: '342', sub: '+9 this week',         icon: Users,       severity: 'info' },
-          { label: 'Pending approvals',      value: '7',   sub: 'Median wait 18h',      icon: Clock,       severity: 'warning', urgent: true },
-          { label: 'Float deposits (7d)',    value: 'UGX 142M', sub: '23 transactions', icon: Wallet,      severity: 'success' },
-          { label: 'Personal deposits (7d)', value: 'UGX 28M',  sub: '64 transactions', icon: Wallet,      severity: 'neutral' },
-          { label: 'Commissions (30d)',     value: 'UGX 18.4M', sub: 'Avg UGX 53K/agent', icon: Banknote,  severity: 'success' },
-          { label: 'Pending agent deposits', value: '4',   sub: 'UGX 6.1M to verify',  icon: Wallet,      severity: 'warning' },
-          { label: 'KYC incomplete',        value: '11',   sub: 'Out of 342 active',   icon: FileWarning, severity: 'destructive' },
-          { label: 'Top performer',         value: 'Esther A.', sub: '47 collections this week', icon: TrendingUp, severity: 'success' },
+          { label: 'Active agents (30d)',   value: String(k.uniqueAgents),     sub: 'Recorded a collection',  icon: Users,        severity: 'info' },
+          { label: 'Rent collections',      value: String(k.collectionsCount), sub: 'Last 30 days',            icon: TrendingUp,   severity: 'success' },
+          { label: 'Collected volume',      value: ugx(k.collectionsTotal),    sub: 'Total rent collected',    icon: Banknote,     severity: 'success' },
+          { label: 'Wallet deposits',       value: String(k.depositsCount),    sub: ugx(k.depositsTotal),      icon: Wallet,       severity: 'neutral' },
+          { label: 'Advances pending',      value: String(k.advancesPending),  sub: 'Awaiting Agent Ops',      icon: Clock,        severity: 'warning', urgent: k.advancesPending > 0 },
+          { label: 'Advances approved',     value: String(k.advancesApproved), sub: 'Last 30 days',            icon: ShieldCheck,  severity: 'success' },
+          { label: 'Avg per active agent',  value: k.uniqueAgents ? ugx(k.collectionsTotal / k.uniqueAgents) : 'UGX 0', sub: 'Collection avg.', icon: Banknote, severity: 'info' },
+          { label: 'Trust signals',         value: String(k.collectionsCount + k.depositsCount), sub: 'Field actions emitted', icon: ShieldCheck, severity: 'success' },
         ]}
         charts={[
           {
             kind: 'bar',
-            title: 'Agent activity volume (last 7 days)',
-            seriesKeys: ['collections', 'deposits'],
-            data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => ({
-              label: d,
-              collections: Math.round(40 + Math.random() * 80),
-              deposits:    Math.round(15 + Math.random() * 35),
-            })),
+            title: 'Daily rent collections (last 14 days)',
+            seriesKeys: ['count'],
+            data: trend,
           },
-          {
-            kind: 'pie',
-            title: 'Agents by region',
-            data: [
-              { label: 'Kampala', value: 142 },
-              { label: 'Wakiso',  value: 87 },
-              { label: 'Mukono',  value: 41 },
-              { label: 'Jinja',   value: 38 },
-              { label: 'Other',   value: 34 },
-            ],
-          },
+          ...(topAgents.length > 0 ? [{
+            kind: 'pie' as const,
+            title: 'Top agents by collected volume',
+            data: topAgents,
+          }] : []),
         ]}
         activities={activities}
         insights={[
-          { kind: 'priority',   title: '7 agents waiting approval over 24h', body: 'Field team is blocked on cash collections. Approve or escalate today.' },
-          { kind: 'trend',      title: 'Float deposits trending up 18% w/w', body: 'Driven by Wakiso & Mukono regions — consider moving more inventory there.' },
-          { kind: 'bottleneck', title: 'KYC rejections concentrated on AI ID photo', body: 'Most KYC fails are blurry AI ID uploads. Add an in-app camera quality hint.' },
-          { kind: 'action',     title: 'Promote Esther A. to Senior Agent', body: 'Top of the leaderboard 3 weeks running with zero collection disputes.' },
+          { kind: k.advancesPending > 0 ? 'pending' : 'trend', title: `${k.advancesPending} advance requests pending approval`, body: 'Agent Ops must triage these before they block field operations. SLA target is 4h.' },
+          { kind: 'trend', title: `${k.collectionsCount} collections recorded`, body: `Total volume ${ugx(k.collectionsTotal)} across ${k.uniqueAgents} active agents.` },
+          { kind: 'action', title: 'Compare top performers', body: topAgents.length > 0 ? `Lead: ${topAgents[0].label} (${ugx(topAgents[0].value)} collected).` : 'Not enough data in window.' },
+          { kind: 'trend', title: `${k.depositsCount} wallet deposits facilitated`, body: `Field deposits totalling ${ugx(k.depositsTotal)}. Confirm float coverage before tomorrow's runs.` },
         ]}
       />
     </ExecutiveDashboardLayout>
