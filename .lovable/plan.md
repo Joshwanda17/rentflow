@@ -1,63 +1,45 @@
-# LOLEM FIRICILA — wallet investigation
+# Tenant Ops — quick report extracts
 
-## What the screen shows
-- Withdrawable: **UGX 1,897,133**
-- Float (owed): **UGX 602,406**
-- Cached `wallets.balance`: 2,499,539 (= withdrawable + float)
+Add four CSV-export buttons to the Tenant Ops dashboard, alongside the existing "Print Report" PDF, sharing the same From/To date pickers that are already there:
 
-## What the ledger says (truth)
-Running `get_user_available_balance(user)` (the strict rule + post-anchor window) returns:
+1. **Tenants Applied** — every `rent_requests` row created in the window.
+2. **Tenants Approved** — every `rent_requests` row with `approved_at` in the window (status = approved/funded/disbursed/active/etc., excluding rejected).
+3. **Repayments Collected** — sum + per-tenant breakdown of `general_ledger` entries with category in (`tenant_repayment`, `rent_repayment`), `direction='cash_in'`, `transaction_date` in window. Same source as the existing PDF, so the totals match.
+4. **Expected Repayments** — for every active rent plan whose tenancy overlaps the window, the daily‑repayment × overlap‑days expected, minus repaid → outstanding. Sums across the portfolio.
 
-- **Strict available: UGX 313,500**
+Each button downloads a CSV (`/mnt/documents/`-style local download — actually a browser download via `Blob`, no server file needed) using the existing `csvExport` helper (`src/lib/csvExport.ts`).
 
-So the card is overstating withdrawable by **~UGX 1,583,633**.
+## UI placement
 
-The user has a fresh-start anchor row (created 2026-04-29 from the system-wide hybrid backfill) with `pre_anchor_ledger_net = -4,533,078`. The ledger window is therefore narrowed to entries on/after `2026-04-28 21:00 UTC`. Inside that window the wallet-scope production net is small (≈ 313K), which is exactly what the strict RPC returns.
+In the same toolbar row that already contains `From`, `To`, `Clear`, and `Print Report`, add a single new **"Extract"** dropdown (shadcn `DropdownMenu`) with the four items. This keeps the row from getting noisy and works on mobile (one extra control instead of four extra buttons). Each item shows a tiny spinner while its CSV is being prepared.
 
-The cached `withdrawable_balance = 1,897,133` was carried over from before the anchor and was never reconciled against the post-anchor ledger. Per the "Wallet Withdrawable Strict Rule", any withdrawal attempt is already gated to 313,500 — so the user **cannot actually withdraw** the 1.9M they see, and (good news) the approval edge function will not pay it out either.
+## Data sources & SQL
 
-## Recent withdrawal activity (sanity)
-Last 20 requests are all small (20K–100K). Only one cancelled (313K, 2026-04-29) and many rejected. No oversized payouts ever cleared. So the cache drift is purely **display drift**, not a financial loss.
+| Report | Table / scope | Filter |
+|---|---|---|
+| Applied | `rent_requests` | `created_at` between From and To |
+| Approved | `rent_requests` | `approved_at` between From and To AND `status NOT IN ('rejected','cancelled')` |
+| Collected | `general_ledger` | `category IN ('tenant_repayment','rent_repayment')` AND `direction='cash_in'` AND `transaction_date` in window |
+| Expected | `rent_requests` | active plans (`status IN ('approved','funded','disbursed','active','repaying')` AND `tenancy_status` not ended), expected = `daily_repayment × overlap_days(window, plan_start, plan_end)`; outstanding = `total_repayment − amount_repaid` |
 
-## Root cause
-1. Pre-anchor era, this agent accumulated heavy negative drag (-4.5M) from `agent_repayment`, `agent_float_settlement`, `wallet_deduction`, `agent_float_used_for_rent`, etc.
-2. The 2026-04-29 fresh-start anchor neutralized that drag for *ledger window* purposes, but the **cached `wallets.withdrawable_balance` was not reset** — it still reflects the pre-anchor optimistic cache.
-3. The split wallet card (`UnifiedWalletHeroCard` agent layout) reads cached buckets directly for "Withdrawable" and "Float (owed)", instead of clamping to `get_user_available_balance` like the non-split headline does.
+For Collected, reuse the same tenant‑resolution logic as `handlePrintReport` (resolve agent‑legged payments back to the true tenant via `rent_requests.tenant_id` / `agent_collections.tenant_id`) so the figures reconcile with the PDF.
 
-So two distinct bugs combine:
+## CSV columns
 
-- **A. Display bug** (UI): the agent split layout's "Withdrawable" cell does not honor the strict rule. It should clamp to `get_user_available_balance` exactly like the unified headline already does (per `mem://architecture/wallet-card-strict-headline`).
-- **B. Cache drift** (data): for anchored agents, `wallets.withdrawable_balance` was never reseeded against the post-anchor window. There may be other agents in the same state (the 2026-04-29 backfill anchored 34 agents).
+- **Applied**: `request_id, tenant_name, tenant_phone, landlord_name, rent_amount, daily_repayment, duration_days, status, applied_at`
+- **Approved**: `request_id, tenant_name, tenant_phone, rent_amount, total_repayment, daily_repayment, approved_at, approved_by_name, status`
+- **Collected**: `payment_date, tenant_name, tenant_phone, agent_name, amount, source` + a final TOTAL row
+- **Expected**: `request_id, tenant_name, tenant_phone, daily_repayment, days_in_window, expected_in_window, total_repayment, amount_repaid, outstanding` + a final TOTAL row
 
-## Proposed plan
+## Defaults & guardrails
 
-### Step 1 — UI: clamp the agent split "Withdrawable" cell
-In `UnifiedWalletHeroCard.tsx` (and any caller using the split layout, e.g. agent dashboards via `useAgentBalances`), display:
+- If the user has not picked a From/To, default to **last 30 days** for Applied/Approved/Collected; Expected defaults to **today → end of longest active plan** (so the user always sees a meaningful number on first click).
+- Toast a clear message and skip download if the result is empty.
+- Each CSV filename: `tenants-applied_<from>_<to>.csv`, etc., matching the existing PDF naming.
 
-```
-displayedWithdrawable = min(cachedWithdrawable, strictAvailable)
-```
+## Files to touch
 
-where `strictAvailable` comes from `useAvailableBalance` (already wired). When `cachedWithdrawable > strictAvailable`, show a small amber "Pending reconciliation — actual withdrawable: UGX X" sub-line, mirroring the existing pending-withdrawal pattern. This guarantees the screen never promises money the system won't pay out.
+- `src/components/executive/TenantOpsDashboard.tsx` — add the dropdown, four handlers, and reuse the existing date state.
+- (No new shared lib file — extraction logic lives next to the existing `handlePrintReport` to keep the change local. If it grows we can move it later.)
 
-### Step 2 — Diagnostics: enumerate every drifted agent
-Add a CFO-side query (extend `wallet_strict_drift_view` or surface in the existing `PhantomDriftPanel`) that lists agents where `wallets.withdrawable_balance − get_user_available_balance(user) > threshold` AND a `wallet_fresh_start_anchors` row exists. Today this user (and likely most of the 34 anchored agents) will appear there.
-
-### Step 3 — Data: CFO-driven reseed (no silent writes)
-Provide a CFO-only edge function `reseed-anchored-withdrawable` that, for an explicitly chosen user, posts a single ledger-balanced `system_balance_correction` entry to bring `wallets.withdrawable_balance` down to `get_user_available_balance`. The over-cached delta is logged into `wallet_historical_drift_review` (already used by the 2026-04-29 backfill) so the CFO can release or write down the difference per-agent.
-
-For LOLEM FIRICILA specifically: post `1,897,133 − 313,500 = 1,583,633` as a `system_balance_correction` cash_out on the wallet leg (matching cash_in on `wallet_phantom_writedown` on the platform leg) — only after CFO clicks "Reconcile" in the panel.
-
-### Step 4 — Memory
-Update `mem://architecture/wallet-card-strict-headline` to record that the agent split layout now also honors the strict rule (today only the non-split headline does), and add a note to `mem://architecture/wallet-baseline-anchor` that anchored agents need cached-bucket reconciliation as a follow-up.
-
-## What I will NOT do without your sign-off
-- I will not silently rewrite this user's `wallets.withdrawable_balance` to 313,500. The 1.58M delta needs an explicit CFO decision (release / writedown).
-- I will not auto-reconcile the other 33 anchored agents. The diagnostic panel surfaces them; CFO chooses one-by-one.
-
-## Technical notes
-- Strict RPC: `get_user_available_balance('e4f07815-7991-422f-946f-7f351b38e954')` → **313,500**
-- Anchor: `2026-04-28 21:00 UTC`, `pre_anchor_ledger_net = -4,533,078`
-- Cached buckets: `withdrawable_balance = 1,897,133`, `float_balance = 602,406`, `balance = 2,499,539`
-- No oversized payout ever cleared — financial integrity intact; this is a display + cache hygiene issue only.
-- Files to touch: `src/components/wallet/UnifiedWalletHeroCard.tsx`, `src/hooks/useAgentBalances.ts`, new edge function `supabase/functions/reseed-anchored-withdrawable/index.ts`, CFO panel (`PhantomDriftPanel` or sibling).
+No new tables, no new RPCs, no migration. Permissions are already enforced by the dashboard's role gate (Tenant Ops / COO / CFO / super_admin).
