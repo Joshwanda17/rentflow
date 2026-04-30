@@ -14297,6 +14297,17 @@ export type Database = {
         }
         Relationships: []
       }
+      v_user_wallet_strict: {
+        Row: {
+          advance_balance: number | null
+          float_balance: number | null
+          pending_holds: number | null
+          total_visible: number | null
+          user_id: string | null
+          withdrawable: number | null
+        }
+        Relationships: []
+      }
       vw_agent_ops_directory: {
         Row: {
           active_capability_count: number | null
@@ -15138,6 +15149,7 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"]
       }
       get_user_trust_profile: { Args: { p_ai_id: string }; Returns: Json }
+      get_user_wallet_view: { Args: { p_user_id: string }; Returns: Json }
       get_wallet_ops_stats: { Args: { p_period?: string }; Returns: Json }
       get_wallet_reconciliation: {
         Args: never
