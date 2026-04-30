@@ -1474,7 +1474,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 {channel === 'agent_cash' && (
                   <div className="space-y-1.5">
                     <Label className="text-xs">Agent Name *</Label>
-                    <Input id="deposit-agent-name" placeholder="Name of the agent who received cash" value={agentName} onChange={(e) => setAgentName(e.target.value)} className="h-10 text-sm" />
+                    <Input id="deposit-agent-name" placeholder="Name of the agent who received cash" value={agentName} onChange={(e) => setAgentName(e.target.value)} className={`h-10 text-sm ${errClass('deposit-agent-name')}`} />
                   </div>
                 )}
               </>
@@ -1554,11 +1554,11 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center gap-1"><Calendar className="h-3.5 w-3.5" /> Date</Label>
-                <Input id="deposit-date" type="date" value={transactionDate} onChange={(e) => setTransactionDate(e.target.value)} min={sevenDaysAgo} max={today} className="h-10 text-xs" />
+                <Input id="deposit-date" type="date" value={transactionDate} onChange={(e) => setTransactionDate(e.target.value)} min={sevenDaysAgo} max={today} className={`h-10 text-xs ${errClass('deposit-date')}`} />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> Time</Label>
-                <Input id="deposit-time" type="time" value={transactionTime} onChange={(e) => setTransactionTime(e.target.value)} className="h-10 text-xs" />
+                <Input id="deposit-time" type="time" value={transactionTime} onChange={(e) => setTransactionTime(e.target.value)} className={`h-10 text-xs ${errClass('deposit-time')}`} />
               </div>
             </div>
 
@@ -1873,7 +1873,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 </>
               )}
               {depositPurpose === 'other' && (
-                <Input id="deposit-reason" placeholder="Specify your reason..." value={reason} onChange={(e) => setReason(e.target.value)} className="h-10 text-sm" />
+                <Input id="deposit-reason" placeholder="Specify your reason..." value={reason} onChange={(e) => setReason(e.target.value)} className={`h-10 text-sm ${errClass('deposit-reason')}`} />
               )}
             </div>
 
