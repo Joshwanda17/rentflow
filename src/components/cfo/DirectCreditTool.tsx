@@ -362,6 +362,7 @@ export function DirectCreditTool() {
     setOperation(op);
     setSelectedCategoryId('');
     setSelectedSubCategoryId('');
+    setRecipientType('');
     setAutomateEnabled(false);
   };
 
@@ -377,9 +378,14 @@ export function DirectCreditTool() {
   // enforcement trigger rejects with INVALID_ROUTING.
   useEffect(() => {
     if (!selectedCategory) return;
-    if (selectedCategory.recipientLock === 'either') return; // CFO chooses
+    if (selectedCategory.recipientLock === 'either') {
+      // 'either' categories let the CFO choose — clear any stale lock from a
+      // previous category so the radio doesn't carry over a wrong selection.
+      setRecipientType('');
+      return;
+    }
     setRecipientType(selectedCategory.recipientLock);
-  }, [selectedCategory]);
+  }, [selectedCategory, operation]);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -389,7 +395,19 @@ export function DirectCreditTool() {
       if (!selectedUser) throw new Error('Select a user');
       if (!selectedCategory) throw new Error('Select a payout category');
       if (hasSubCategories && !selectedSubCategoryId) throw new Error('Select a subcategory');
-      if (!recipientType) throw new Error('Select a Recipient type (User or Operational Wallet)');
+
+      // Wallet Routing v2: when the category has a hard recipient lock, that
+      // lock is the single source of truth at submit time. This protects
+      // against any stale `recipientType` state (e.g. radio carried over from
+      // a previously-selected operational category) that would otherwise be
+      // rejected by the edge function with INVALID_ROUTING.
+      const effectiveRecipient: RecipientType | '' =
+        selectedCategory.recipientLock !== 'either'
+          ? selectedCategory.recipientLock
+          : recipientType;
+      if (!effectiveRecipient) {
+        throw new Error('Select a Recipient type (User or Operational Wallet)');
+      }
 
       const categoryLabel = selectedSubCategory
         ? `${selectedCategory.label} → ${selectedSubCategory.label}`
@@ -406,7 +424,7 @@ export function DirectCreditTool() {
           financial_impact: selectedCategory.impact,
           category_label: categoryLabel,
           sub_category: selectedSubCategoryId || null,
-          recipient_type: recipientType,
+          recipient_type: effectiveRecipient,
         },
       });
       if (error) {
