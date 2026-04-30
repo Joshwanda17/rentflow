@@ -21,9 +21,18 @@ const registerUser = async (payload: {
   lastName: string;
   phone: string;
   role: string;
+  referrerId?: string;
 }): Promise<{ status: string; data: { access_token: string; user: any } }> => {
   const fullName = `${payload.firstName} ${payload.lastName}`.trim();
-  const { error } = await signUp(payload.email, payload.password, fullName, payload.phone, 'supporter', 'funder-onboarding');
+  const { error } = await signUp(
+    payload.email,
+    payload.password,
+    fullName,
+    payload.phone,
+    'supporter',
+    'funder-onboarding',
+    payload.referrerId,
+  );
   if (error) throw error;
   // The auth state listener in useRealAuth will pick up the session automatically.
   // Pull the freshly-created user (id needed for the deterministic partner reference).
@@ -739,6 +748,23 @@ export default function FunderOnboarding() {
   const [apiError, setApiError] = useState('');
   const TOTAL = 3;
 
+  // Capture ?ref=<uuid> from the URL once on mount and persist it across the
+  // email-confirmation round-trip via sessionStorage. The handle_new_user
+  // trigger reads `referrer_id` from raw_user_meta_data at signup time.
+  const [referrerId, setReferrerId] = useState<string>('');
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const fromUrl = (params.get('ref') || '').trim();
+      const stored = sessionStorage.getItem('welile.funder.referrer_id') || '';
+      const candidate = fromUrl || stored;
+      if (candidate && /^[0-9a-fA-F-]{32,36}$/.test(candidate)) {
+        setReferrerId(candidate);
+        sessionStorage.setItem('welile.funder.referrer_id', candidate);
+      }
+    } catch { /* non-fatal */ }
+  }, []);
+
   const [form, setForm] = useState<FormState>({
     understoodRole: false,
     investPath: null,
@@ -794,6 +820,7 @@ export default function FunderOnboarding() {
           lastName: cleanLast,
           phone: cleanPhone,
           role: definedRole || 'FUNDER',
+          referrerId: referrerId || undefined,
         });
 
         // Fire-and-forget the partner_account_created email — don't block the
@@ -891,6 +918,14 @@ export default function FunderOnboarding() {
             </p>
             <div className="w-8" />
           </div>
+          {referrerId && (
+            <div className="px-6 lg:px-[18px] pb-2 flex justify-center">
+              <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-[#6c11d4] bg-[#F3F0FF] border border-[#E0D2FA] rounded-full px-2.5 py-1">
+                <BadgeCheck size={11} strokeWidth={2.5} />
+                Referred signup
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-8 lg:px-[18px]">

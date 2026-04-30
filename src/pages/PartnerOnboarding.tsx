@@ -7,7 +7,7 @@ import { roleToSlug } from '@/lib/roleRoutes';
 import { format } from 'date-fns';
 import {
   Loader2, Phone, Search, Users, Calendar, ShieldCheck, ShieldAlert, CheckCircle2, XCircle, Clock,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Link2, MousePointerClick, UserCheck,
 } from 'lucide-react';
 import COODetailLayout, { KPICard } from '@/components/coo/COODetailLayout';
 import { Card, CardContent } from '@/components/ui/card';
@@ -37,9 +37,12 @@ interface FunderProfileRow {
   funder_verified_at: string | null;
   funder_rejected_at: string | null;
   funder_rejection_reason: string | null;
+  referrer_id: string | null;
 }
 
 const PAGE_SIZE = 50;
+
+type SourceFilter = 'all' | 'referred' | 'direct';
 
 export default function FunderOnboarding() {
   const { user, roles, loading, role } = useAuth();
@@ -49,13 +52,14 @@ export default function FunderOnboarding() {
 
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
   const [selected, setSelected] = useState<FunderProfileRow | null>(null);
   const [actionMode, setActionMode] = useState<null | 'approve' | 'reject'>(null);
   const [actionReason, setActionReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Reset to first page whenever search term changes
-  useEffect(() => { setPage(0); }, [search]);
+  // Reset to first page whenever search term or source filter changes
+  useEffect(() => { setPage(0); }, [search, sourceFilter]);
 
   // Gate: managers only
   useEffect(() => {
@@ -68,13 +72,16 @@ export default function FunderOnboarding() {
   const trimmedSearch = search.trim();
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['funder-onboarding-self-registered', page, trimmedSearch],
+    queryKey: ['funder-onboarding-self-registered', page, trimmedSearch, sourceFilter],
     enabled: !!user && roles.includes('manager'),
     queryFn: async () => {
       let query = supabase
         .from('profiles')
-        .select('id, full_name, phone, email, created_at, frozen_at, verified, funder_verified_at, funder_rejected_at, funder_rejection_reason', { count: 'exact' })
+        .select('id, full_name, phone, email, created_at, frozen_at, verified, funder_verified_at, funder_rejected_at, funder_rejection_reason, referrer_id', { count: 'exact' })
         .eq('signup_source', 'funder-onboarding');
+
+      if (sourceFilter === 'referred') query = query.not('referrer_id', 'is', null);
+      if (sourceFilter === 'direct') query = query.is('referrer_id', null);
 
       if (trimmedSearch) {
         const q = trimmedSearch.replace(/[%,]/g, '');
@@ -101,13 +108,21 @@ export default function FunderOnboarding() {
     queryKey: ['funder-onboarding-kpis'],
     enabled: !!user && roles.includes('manager'),
     queryFn: async () => {
-      const [{ count: total }, { count: pending }, { count: verified }, { count: rejected }] = await Promise.all([
+      const [
+        { count: total }, { count: pending }, { count: verified }, { count: rejected },
+        { count: referred }, { count: direct },
+      ] = await Promise.all([
         supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('signup_source', 'funder-onboarding'),
         supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('signup_source', 'funder-onboarding').is('funder_verified_at', null).is('funder_rejected_at', null),
         supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('signup_source', 'funder-onboarding').not('funder_verified_at', 'is', null),
         supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('signup_source', 'funder-onboarding').not('funder_rejected_at', 'is', null),
+        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('signup_source', 'funder-onboarding').not('referrer_id', 'is', null),
+        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('signup_source', 'funder-onboarding').is('referrer_id', null),
       ]);
-      return { total: total || 0, pending: pending || 0, verified: verified || 0, rejected: rejected || 0 };
+      return {
+        total: total || 0, pending: pending || 0, verified: verified || 0, rejected: rejected || 0,
+        referred: referred || 0, direct: direct || 0,
+      };
     },
     staleTime: 60_000,
   });
@@ -115,6 +130,64 @@ export default function FunderOnboarding() {
   const rows = data?.rows || [];
   const total = data?.total || 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  // Batch-resolve referrer names for the current page
+  const referrerIds = Array.from(new Set(rows.map(r => r.referrer_id).filter(Boolean) as string[]));
+  const { data: referrerMap } = useQuery({
+    queryKey: ['funder-onboarding-referrers', referrerIds.sort().join(',')],
+    enabled: referrerIds.length > 0,
+    queryFn: async () => {
+      const { data: profs } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', referrerIds);
+      const map = new Map<string, string>();
+      (profs || []).forEach(p => map.set(p.id, p.full_name || '—'));
+      return map;
+    },
+    staleTime: 60_000,
+  });
+
+  // Per-share analytics: top sharers by clicks + converted signups
+  const { data: shareStats } = useQuery({
+    queryKey: ['funder-onboarding-share-stats'],
+    enabled: !!user && roles.includes('manager'),
+    queryFn: async () => {
+      const { data: links } = await supabase
+        .from('short_links')
+        .select('user_id, click_count')
+        .eq('target_path', '/funder-onboarding');
+      const agg = new Map<string, { clicks: number }>();
+      (links || []).forEach((l: any) => {
+        const cur = agg.get(l.user_id) || { clicks: 0 };
+        cur.clicks += l.click_count || 0;
+        agg.set(l.user_id, cur);
+      });
+      const userIds = Array.from(agg.keys());
+      if (userIds.length === 0) return [] as Array<{ user_id: string; full_name: string; clicks: number; signups: number }>;
+      const [{ data: profs }, { data: signups }] = await Promise.all([
+        supabase.from('profiles').select('id, full_name').in('id', userIds),
+        supabase.from('profiles').select('referrer_id').eq('signup_source', 'funder-onboarding').in('referrer_id', userIds),
+      ]);
+      const nameMap = new Map<string, string>();
+      (profs || []).forEach(p => nameMap.set(p.id, p.full_name || '—'));
+      const signupAgg = new Map<string, number>();
+      (signups || []).forEach((s: any) => {
+        if (!s.referrer_id) return;
+        signupAgg.set(s.referrer_id, (signupAgg.get(s.referrer_id) || 0) + 1);
+      });
+      const out = userIds.map(uid => ({
+        user_id: uid,
+        full_name: nameMap.get(uid) || uid.slice(0, 8),
+        clicks: agg.get(uid)!.clicks,
+        signups: signupAgg.get(uid) || 0,
+      }));
+      // Sort by signups desc, then clicks desc
+      out.sort((a, b) => (b.signups - a.signups) || (b.clicks - a.clicks));
+      return out.slice(0, 10);
+    },
+    staleTime: 60_000,
+  });
 
   if (loading || !user) {
     return (
@@ -166,11 +239,31 @@ export default function FunderOnboarding() {
       status={headerStatus}
     >
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <KPICard label="Total Funders" value={kpis?.total ?? '—'} status="green" sub="Via funder-onboarding" />
         <KPICard label="Pending Review" value={kpis?.pending ?? '—'} status={(kpis?.pending || 0) > 0 ? 'yellow' : 'green'} />
         <KPICard label="Verified" value={kpis?.verified ?? '—'} status="green" />
         <KPICard label="Rejected" value={kpis?.rejected ?? '—'} status={(kpis?.rejected || 0) > 0 ? 'red' : 'green'} />
+        <KPICard label="Referred" value={kpis?.referred ?? '—'} status="green" sub="Via shared link" />
+        <KPICard label="Direct" value={kpis?.direct ?? '—'} status="green" sub="Typed URL" />
+      </div>
+
+      {/* Source filter tabs */}
+      <div className="inline-flex items-center gap-1 rounded-lg border border-border bg-muted/40 p-1 text-xs">
+        {(['all', 'referred', 'direct'] as SourceFilter[]).map((f) => (
+          <button
+            key={f}
+            onClick={() => setSourceFilter(f)}
+            className={cn(
+              'px-3 py-1.5 rounded-md font-semibold capitalize transition-colors',
+              sourceFilter === f
+                ? 'bg-background shadow-sm text-foreground'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {f === 'all' ? 'All sources' : f}
+          </button>
+        ))}
       </div>
 
       {/* Search */}
@@ -210,6 +303,7 @@ export default function FunderOnboarding() {
                     <TableHead className="text-xs hidden lg:table-cell">Reference</TableHead>
                     <TableHead className="text-xs hidden sm:table-cell">Phone</TableHead>
                     <TableHead className="text-xs hidden md:table-cell">Email</TableHead>
+                    <TableHead className="text-xs hidden md:table-cell">Source</TableHead>
                     <TableHead className="text-xs">Status</TableHead>
                     <TableHead className="text-xs hidden md:table-cell">Joined</TableHead>
                     <TableHead className="text-xs text-right">Action</TableHead>
@@ -250,6 +344,18 @@ export default function FunderOnboarding() {
                         <TableCell className="hidden md:table-cell text-xs truncate max-w-[180px]">
                           {r.email || '—'}
                         </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          {r.referrer_id ? (
+                            <Badge variant="outline" className="text-[10px] gap-1 bg-primary/10 text-primary border-primary/30">
+                              <UserCheck className="h-2.5 w-2.5" />
+                              {referrerMap?.get(r.referrer_id) || 'Referred'}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                              Direct
+                            </Badge>
+                          )}
+                        </TableCell>
                         <TableCell>
                           {verState === 'verified' && (
                             <Badge variant="outline" className="text-[10px] gap-1 bg-success/15 text-success border-success/30">
@@ -289,6 +395,56 @@ export default function FunderOnboarding() {
           )}
         </CardContent>
       </Card>
+
+      {/* Per-share analytics */}
+      {shareStats && shareStats.length > 0 && (
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Link2 className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-bold">Top sharers — funder onboarding link</h3>
+              <span className="ml-auto text-[10px] text-muted-foreground">
+                Clicks &amp; converted signups by sharer
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs">Sharer</TableHead>
+                    <TableHead className="text-xs text-right">
+                      <span className="inline-flex items-center gap-1">
+                        <MousePointerClick className="h-3 w-3" /> Clicks
+                      </span>
+                    </TableHead>
+                    <TableHead className="text-xs text-right">
+                      <span className="inline-flex items-center gap-1">
+                        <UserCheck className="h-3 w-3" /> Signups
+                      </span>
+                    </TableHead>
+                    <TableHead className="text-xs text-right">Conv.</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {shareStats.map((s) => {
+                    const conv = s.clicks > 0 ? Math.round((s.signups / s.clicks) * 100) : 0;
+                    return (
+                      <TableRow key={s.user_id}>
+                        <TableCell className="text-xs font-medium">{s.full_name}</TableCell>
+                        <TableCell className="text-xs text-right">{s.clicks.toLocaleString()}</TableCell>
+                        <TableCell className="text-xs text-right font-semibold">{s.signups}</TableCell>
+                        <TableCell className="text-xs text-right text-muted-foreground">
+                          {s.clicks > 0 ? `${conv}%` : '—'}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Pagination */}
       {total > PAGE_SIZE && (
@@ -370,6 +526,11 @@ export default function FunderOnboarding() {
                   {selected.funder_rejected_at && (
                     <Row label="Rejected reason">{selected.funder_rejection_reason || '—'}</Row>
                   )}
+                  <Row label="Source">
+                    {selected.referrer_id
+                      ? `Referred by ${referrerMap?.get(selected.referrer_id) || selected.referrer_id.slice(0, 8)}`
+                      : 'Direct signup'}
+                  </Row>
                 </div>
 
                 {actionMode && (
