@@ -3,7 +3,7 @@ import {
   TrendingUp, Users, Home, Building2, Handshake, Activity, Megaphone, Target, Share2,
   MessageSquare, HeadphonesIcon, AlertTriangle, Scale, UserCheck, FileText, Wallet,
   Crown, LayoutDashboard, Globe, DollarSign, UserCog, Truck, Layers, MinusCircle, Receipt,
-  ShieldCheck, GraduationCap, Mail
+  ShieldCheck, GraduationCap, Mail, FolderOpen
 } from 'lucide-react';
 import type { AppRole } from '@/hooks/auth/types';
 
@@ -17,6 +17,15 @@ export interface SidebarItem {
 export interface SidebarSection {
   title: string;
   items: SidebarItem[];
+  /**
+   * When true, renders this section as a collapsible group with a chevron
+   * toggle. Defaults to false (always-expanded section header).
+   */
+  collapsible?: boolean;
+  /** Default open state when `collapsible` is true. */
+  defaultOpen?: boolean;
+  /** Optional icon shown next to the section title when collapsible. */
+  icon?: typeof BarChart3;
 }
 
 export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
@@ -119,6 +128,18 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
         { label: 'Partner Top-ups', icon: TrendingUp, id: 'partner-topups' },
         { label: 'Staff Performance', icon: UserCheck, id: 'staff-performance' },
         { label: 'Internship Applications', icon: GraduationCap, id: 'internships' },
+      ],
+    },
+    {
+      title: 'Reports',
+      icon: FolderOpen,
+      collapsible: true,
+      defaultOpen: false,
+      items: [
+        { label: 'Partner Ops',   icon: Handshake,     id: 'reports-partner-ops',   route: '/coo/reports/partner-ops' },
+        { label: 'Agent Ops',     icon: Users,         id: 'reports-agent-ops',     route: '/coo/reports/agent-ops' },
+        { label: 'Tenant Ops',    icon: Home,          id: 'reports-tenant-ops',    route: '/coo/reports/tenant-ops' },
+        { label: 'Financial Ops', icon: Wallet,        id: 'reports-financial-ops', route: '/coo/reports/financial-ops' },
       ],
     },
   ],
