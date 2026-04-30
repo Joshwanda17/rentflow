@@ -40,6 +40,21 @@ function extractTidFromText(raw: string): string | null {
 type DepositChannel = 'momo' | 'bank' | 'agent_cash' | 'cash';
 type DepositPurpose = 'operational_float' | 'personal_deposit' | 'partnership_deposit' | 'personal_rent_repayment' | 'other';
 
+/**
+ * Allowlist that mirrors the Postgres `deposit_purpose` enum exactly.
+ * Used as the FINAL gate in handleSubmit so an empty string or any
+ * stale/legacy value can never reach the database (which would otherwise
+ * raise the cryptic `invalid input value for enum deposit_purpose: ""`
+ * error and leave the agent staring at a dead Confirm button).
+ */
+const ALLOWED_DEPOSIT_PURPOSES: readonly DepositPurpose[] = [
+  'operational_float',
+  'personal_deposit',
+  'partnership_deposit',
+  'personal_rent_repayment',
+  'other',
+] as const;
+
 interface DepositFlowProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
