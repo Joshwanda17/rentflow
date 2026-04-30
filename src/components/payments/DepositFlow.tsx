@@ -1884,11 +1884,19 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           // of the "Confirm deposit does nothing" complaint — FIX-46).
           const blockReason = computeBlockReason();
           const blocked = isSubmitting || !!blockReason;
+          // Auto-clear the red ring once the offending field is fixed —
+          // either because the user corrected it, or because a different
+          // field is now the blocker.
+          if (errorFieldId && (!blockReason || blockReason.fieldId !== errorFieldId)) {
+            // schedule outside render to avoid setState-in-render warning
+            queueMicrotask(() => setErrorFieldId(null));
+          }
           const handleAttempt = () => {
             if (isSubmitting) return;
             if (blockReason) {
               console.warn('[DepositFlow] submit blocked:', blockReason);
               toast.error(blockReason.message);
+              setErrorFieldId(blockReason.fieldId);
               const el = document.getElementById(blockReason.fieldId);
               if (el) {
                 el.scrollIntoView({ block: 'center', behavior: 'smooth' });
