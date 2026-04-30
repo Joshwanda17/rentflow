@@ -126,26 +126,55 @@ Deno.serve(async (req) => {
     }
     const strictAvailable = Number(strictData ?? 0);
 
-    if (amount > strictAvailable) {
+    // Defence-in-depth: the RPC has been observed to return the cached
+    // withdrawable when the baseline anchor lags behind reality, allowing
+    // requests through that the ledger trigger will then reject with
+    // "Insufficient ledger balance". Compute the same all-entries ledger net
+    // the trigger uses (`enforce_wallet_solvency`) and floor the cap by it.
+    const { data: ledgerRows, error: ledgerNetErr } = await adminClient
+      .from('general_ledger')
+      .select('amount, direction')
+      .eq('user_id', target_user_id)
+      .eq('ledger_scope', 'wallet');
+    if (ledgerNetErr) {
+      console.error('[wallet-deduction] ledger net read failed:', ledgerNetErr.message);
+      return new Response(JSON.stringify({ error: `Could not verify ledger balance: ${ledgerNetErr.message}` }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const ledgerNet = (ledgerRows || []).reduce((acc: number, r: any) => {
+      const amt = Number(r.amount) || 0;
+      if (r.direction === 'cash_in') return acc + amt;
+      if (r.direction === 'cash_out') return acc - amt;
+      return acc;
+    }, 0);
+    const trueAvailable = Math.max(0, Math.min(strictAvailable, ledgerNet));
+
+    if (amount > trueAvailable) {
       // Diagnostic log — record the drift between strict and cache so the CFO
       // Reconcile tab can pick it up.
       console.error("[wallet-deduction] rejected", {
         user_id: target_user_id,
         requested: amount,
         strict_available: strictAvailable,
+        ledger_net: ledgerNet,
+        true_available: trueAvailable,
         cache_withdrawable: cacheWithdrawable,
         cache_float: cacheFloat,
       });
-      if (cacheWithdrawable > strictAvailable) {
+      if (cacheWithdrawable > trueAvailable) {
         try {
           await adminClient.from('wallet_overdraw_events').insert({
             user_id: target_user_id,
             attempted_amount: amount,
-            available_amount: strictAvailable,
+            available_amount: trueAvailable,
             context: {
               source: 'wallet-deduction',
               cache_withdrawable: cacheWithdrawable,
               cache_float: cacheFloat,
+              strict_rpc: strictAvailable,
+              ledger_net: ledgerNet,
               actor_id: user.id,
             },
           });
@@ -153,7 +182,7 @@ Deno.serve(async (req) => {
       }
       return new Response(
         JSON.stringify({
-          error: `Maximum deductible: UGX ${strictAvailable.toLocaleString()} (requested UGX ${amount.toLocaleString()}). Float (UGX ${cacheFloat.toLocaleString()}) is company liability and cannot be deducted from this tool.`,
+          error: `Maximum deductible: UGX ${trueAvailable.toLocaleString()} (requested UGX ${amount.toLocaleString()}). Cached wallet shows UGX ${cacheWithdrawable.toLocaleString()} but the ledger only supports UGX ${ledgerNet.toLocaleString()}. Float (UGX ${cacheFloat.toLocaleString()}) is company liability and cannot be deducted from this tool.`,
         }),
         {
           status: 400,
