@@ -1746,14 +1746,16 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                       }}
                     />
                   )}
-                  <div id="deposit-tenant-allocator" className="scroll-mt-4">
-                    <OperationalFloatTenantAllocator
-                      agentId={currentUserId}
-                      totalAmount={parseFloat(amount) || 0}
-                      allocations={tenantAllocations}
-                      onChange={setTenantAllocations}
-                    />
-                  </div>
+                  {breakdownChoice === 'yes' && (
+                    <div id="deposit-tenant-allocator" className="scroll-mt-4">
+                      <OperationalFloatTenantAllocator
+                        agentId={currentUserId}
+                        totalAmount={parseFloat(amount) || 0}
+                        allocations={tenantAllocations}
+                        onChange={setTenantAllocations}
+                      />
+                    </div>
+                  )}
                   {/*
                     Edit-mode diff panel — surfaces the original
                     per-tenant amounts (as captured when the dialog
@@ -1761,7 +1763,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                     can eyeball every change before saving. Hidden for
                     fresh deposits and when nothing has actually moved.
                   */}
-                  {isEditMode && (
+                  {breakdownChoice === 'yes' && isEditMode && (
                     <AllocationEditDiffPanel
                       original={originalAllocations}
                       updated={tenantAllocations}
@@ -1769,7 +1771,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                       updatedAmount={parseFloat(amount) || 0}
                     />
                   )}
-                  {(() => {
+                  {breakdownChoice === 'yes' && (() => {
                     const total = parseFloat(amount) || 0;
                     const sum = tenantAllocations.reduce((s, a) => s + (a.amount || 0), 0);
                     const diff = total - sum;
