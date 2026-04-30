@@ -1,153 +1,142 @@
-# Flutter Rebuild Workflow — Codex-Ready Specification
+## Diagnosis (confirmed in Postgres logs)
 
-## Goal
-
-Produce a single importable workflow package at `/mnt/documents/welile-flutter-workflow/` that Codex (and a human Flutter engineer) can follow to rebuild the Welile app natively in Flutter while matching the **exact look and feel, theme, and data flow** of the current web application.
-
-The output is **documentation + machine-readable specs only** — no Flutter code is added to this repo.
-
----
-
-## What gets generated
+The actual error from the database is:
 
 ```text
-/mnt/documents/welile-flutter-workflow/
-├── README.md                          Entry point + how Codex should consume this
-├── 00-codex-workflow.yaml             Step-by-step guided workflow Codex executes
-├── 01-architecture.md                 Layered architecture (UI → Repo → API → Supabase)
-├── 02-design-system.md                Colors, typography, spacing, radii, shadows, motion
-├── 03-theme/
-│   ├── theme_tokens.json              Machine-readable design tokens (light + dark)
-│   ├── app_theme.dart                 Drop-in ThemeData (Material 3) for both modes
-│   └── color_swatches.md              Visual reference of every semantic color
-├── 04-component-mapping.md            Web component → Flutter widget equivalence table
-├── 05-api/
-│   ├── base.md                        Base URL, headers, auth contract, errors, CORS
-│   ├── auth.md                        Email/password, Google, Apple, OTP, password reset
-│   ├── endpoints.md                   All 137 Edge Functions grouped by domain
-│   ├── catalog.json                   Copied from existing /mnt/documents/welile-api-docs
-│   └── dart-client/
-│       ├── welile_api_client.dart     Reference Dart client skeleton (Dio + Supabase)
-│       └── auth_repository.dart       Reference auth repository
-├── 06-data-models.md                  Core domain models (Profile, Wallet, Ledger, etc.)
-├── 07-screens.md                      Screen inventory mapped to web routes & roles
-├── 08-state-management.md             Riverpod structure, offline cache, realtime
-├── 09-security-and-compliance.md      RLS rules, role gating, UGX, audit, trust score
-└── 10-acceptance-checklist.md         Per-feature done criteria for Codex self-verify
+invalid input value for enum deposit_purpose: ""
 ```
 
----
+So `DepositFlow` is sending an **empty string** for `deposit_purpose` to `deposit_requests`. The Postgres enum only accepts: `operational_float`, `personal_deposit`, `partnership_deposit`, `personal_rent_repayment`, `other`.
 
-## Workflow sections (high level)
+`validateForm()` already has a guard:
 
-### 1. Codex workflow file (`00-codex-workflow.yaml`)
-A guided, step-ordered YAML Codex can iterate through. Each step has: `id`, `title`, `inputs`, `outputs`, `acceptance`, `references` (links to the other docs). Phases:
+```ts
+if (!depositPurpose) {
+  return { message: 'Select the deposit purpose', fieldId: 'deposit-purpose' };
+}
+```
 
-1. Project bootstrap (Flutter 3.x, packages: `supabase_flutter`, `flutter_riverpod`, `go_router`, `dio`, `freezed`, `flutter_secure_storage`, `google_sign_in`, `sign_in_with_apple`, `intl`, `cached_network_image`).
-2. Apply theme + tokens from `03-theme/`.
-3. Implement auth flows from `05-api/auth.md`.
-4. Implement repositories per domain (wallet, rent, agent, supporter, executive).
-5. Build screens in role order (tenant → landlord → agent → supporter → staff → executive).
-6. Wire offline cache + realtime channels.
-7. Run acceptance checklist.
+…but the empty-string is still reaching the `INSERT`. Two real defects allow this:
 
-### 2. API integration spec (`05-api/`)
-Sourced from the existing `/mnt/documents/welile-api-docs/` (137 endpoints already documented) and re-shaped for Flutter consumers:
+1. **The submit payload is not defensive.** The handler passes `depositPurpose` directly into the insert; if state is briefly empty (race between the prefill `useEffect`, the agent-default `useEffect`, and the user tapping the sticky footer button), an empty string is sent. The DB is the only thing catching it.
+2. **The `agent-default` `useEffect` (line 366) only fires when `defaultPurpose` is absent.** When the dialog opens for an agent with `defaultPurpose='operational_float'`, the value is set by the line-385 branch — but if `useAuth().roles` resolves later (or the dialog opens and closes quickly enough that `handleClose` runs), `setDepositPurpose('')` from `handleClose` (line 874) wins via `(defaultPurpose ?? '')` when `defaultPurpose` is briefly stale.
 
-- **Base URL**: `https://wirntoujqoyjobfhyelc.functions.supabase.co`
-- **Supabase URL**: `https://wirntoujqoyjobfhyelc.supabase.co`
-- **Anon key** (publishable, safe to ship): the `VITE_SUPABASE_PUBLISHABLE_KEY` value from `.env`
-- **Project ref**: `wirntoujqoyjobfhyelc`
-- **Headers**: `apikey: <ANON_KEY>`, `Authorization: Bearer <USER_JWT>`, `Content-Type: application/json`
-- **Auth flows**: email/password (signUp/signIn), Google OAuth, Apple OAuth, phone OTP (via `sms-otp` + `otp-login` edge functions), password reset (`resetPasswordForEmail` → `/update-password`), WhatsApp magic link (`whatsapp-login-link`).
-- **Endpoint catalog**: full list of 137 functions grouped into 14 domains (Auth, Wallet & Ledger, Rent, Agent, Supporter, Tenant, Landlord, Partner Ops, Financial Ops, Executive, HR, Notifications, AI, Utility). Each entry: method, path, required role, request shape, response shape, sample `curl`, sample Dart call.
-- **Realtime channels**: `wallets`, `notifications`, `system_events` — Flutter equivalents using `supabase.channel(...).on(...)`.
-- **RPCs to call from Flutter**: `get_user_available_balance`, `has_role`, `capture_trust_signal`, `create_ledger_transaction` (via edge functions only — never direct).
+Postgres logs also show a parallel, unrelated error spamming the project (~30 / hour):
 
-### 3. Theme & design system (`02-design-system.md` + `03-theme/`)
-Extracted verbatim from `src/critical.css` and `tailwind.config.ts`:
+```text
+column reference "rejection_reason" is ambiguous
+```
 
-**Brand color** (Welile purple): `hsl(271 81% 56%)` → `#8B3DD9`
-
-| Token | Light | Dark |
-|---|---|---|
-| primary | `271 81% 56%` `#8B3DD9` | `271 81% 65%` `#A968E3` |
-| background | `210 20% 98%` `#F8F9FB` | `222 47% 8%` `#0B1020` |
-| foreground | `222 47% 11%` `#0F172A` | `210 20% 98%` `#F8F9FB` |
-| card | `#FFFFFF` | `#141A2E` |
-| success | `142 71% 45%` `#1FAD52` | `142 71% 50%` `#23C75D` |
-| warning | `38 92% 50%` `#F5A105` | `38 92% 55%` `#F7AE26` |
-| destructive | `0 72% 51%` `#DC2A2A` | same |
-| border | `220 13% 91%` `#E3E6EC` | `222 30% 18%` `#1F2740` |
-| header-bg | primary | `271 81% 35%` `#5C2092` |
-| gradient | 271 81% 56% → 271 81% 45% | 65% → 50% |
-
-Radius: `0.75rem` (12px) base, sm 8, md 10, lg 12, xl 16, 2xl 20.
-Shadows: soft `0 1px 2px rgba(0,0,0,.04)`, card `0 1px 3px + 0 4px 12px`, glow `0 0 20px hsl(primary/.25)`.
-Typography: **Plus Jakarta Sans** (display + body), **JetBrains Mono** (numbers/balances). Numeric values use `fontFeatures: [FontFeature.tabularFigures()]`.
-Motion: 150 ms standard, easing `Curves.easeOutCubic`, press scale `0.98`, hover lift `-1px`.
-Mobile patterns to preserve: WhatsApp-style sticky purple header, list items with left icon + title + trailing meta, FAB at bottom-right (above bottom-nav), bottom sheets for actions, pull-to-refresh, skeleton loaders.
-
-Deliverable: `app_theme.dart` exporting `lightTheme` and `darkTheme` `ThemeData` (Material 3, `useMaterial3: true`, `colorScheme.fromSeed(seedColor: Color(0xFF8B3DD9))` overridden with the tokens above) plus `WelileColors`, `WelileSpacing`, `WelileRadii`, `WelileTextStyles` constant classes.
-
-### 4. Component mapping (`04-component-mapping.md`)
-Side-by-side table, e.g.:
-
-| Web (shadcn/Tailwind) | Flutter |
-|---|---|
-| `<Card>` `.elevated-card` | `Card(elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), surfaceTintColor: Colors.transparent)` wrapped in `Material` with the card shadow |
-| `<Button variant="default">` | `FilledButton` with primary color |
-| `<Button variant="outline">` | `OutlinedButton` |
-| `.wa-header` | `AppBar` with `backgroundColor: WelileColors.headerBg`, white foreground |
-| `.wa-fab` | `FloatingActionButton.extended` |
-| `<Sheet>` | `showModalBottomSheet` with rounded top |
-| Sonner toast | `flutter_toastification` or `ScaffoldMessenger` snackbar styled to match |
-| `<Tabs>` | `TabBar` + `TabBarView` |
-| `<Dialog>` | `showDialog` + `AlertDialog` |
-| Skeleton | `shimmer` package with muted color |
-| `lucide-react` icons | `lucide_icons` Flutter package |
-
-### 5. Screens & roles (`07-screens.md`)
-Mapped from `src/pages/` and `src/components/dashboards/`. Lists every route, the role(s) that see it, the data sources (queries + edge functions), and the Flutter screen filename to create. The 15 roles from memory are honored (Tenant, Landlord, Agent, Lending Agent, Supporter, Partner, Funder, Tenant Ops, Landlord Ops, Partner Ops, Financial Ops, HR, COO, CFO, CEO, CMO, CTO, Manager).
-
-### 6. State, offline, realtime (`08-state-management.md`)
-- **Riverpod** for DI + state.
-- **`supabase_flutter`** for auth, realtime, storage.
-- **`hive` + `flutter_secure_storage`** for offline cache (non-financial data only — financial data is network-first per `SYSTEM_ARCHITECTURE.md`).
-- Background sync queue for offline agent collections (mirrors `src/lib/offlineCollectionDrafts.ts`).
-- Realtime: subscribe to `wallets` and `notifications` only; never trust cached financial values — refetch on transition.
-
-### 7. Security & compliance (`09-security-and-compliance.md`)
-- UGX-only formatting helper.
-- Role check via `has_role` RPC, never client-side flags.
-- Trust score signals (`capture_trust_signal`) emitted on every observable user action.
-- Withdrawal gate strictly through `get_user_available_balance`.
-- Mandatory ≥10-char reason on privileged actions.
-- Terminology: "Rent Plan", "Supporter", "Returns" (no "Loan", "Lender", "ROI" in UI).
-
-### 8. Acceptance checklist (`10-acceptance-checklist.md`)
-Per-screen and per-flow Done criteria Codex can self-verify (e.g. "Login with Google succeeds and routes to role-correct dashboard", "Wallet headline equals `get_user_available_balance` to the shilling", "Dark theme matches token table within ΔE < 2").
+This is `get_funder_approval_status` failing. It blocks the Supporter approval gate from ever returning a clean status. Worth fixing in the same migration since the user reported "ensure all pages work and data integrity".
 
 ---
 
-## Technical execution
+## Plan
 
-A Python generator script at `/tmp/gen_flutter_workflow.py` will:
+### Step 1 — Make the submit handler refuse empty / unknown purposes (frontend)
 
-1. Read `src/critical.css`, `tailwind.config.ts`, `src/index.css` → emit `theme_tokens.json` + `app_theme.dart` + `02-design-system.md`.
-2. Read `/mnt/documents/welile-api-docs/catalog.json` + 137 markdown files → emit `05-api/endpoints.md` and copy `catalog.json`.
-3. Walk `src/pages/` and `src/components/dashboards/` → emit `07-screens.md` route table.
-4. Emit static templated files for the architecture, component mapping, state, security, acceptance, and the Codex YAML workflow.
-5. QA pass: re-open every generated `.md`, assert non-empty + minimum section count; print a summary.
+`src/components/payments/DepositFlow.tsx`
 
-Final deliverables surfaced as `<lov-artifact>` tags so the user can download:
-- `welile-flutter-workflow.zip` (whole bundle)
-- `00-codex-workflow.yaml`
-- `app_theme.dart`
-- `theme_tokens.json`
+- Add a constant allowlist `ALLOWED_DEPOSIT_PURPOSES = ['operational_float','personal_deposit','partnership_deposit','personal_rent_repayment','other']`.
+- At the top of `handleSubmit`, before any DB call, recompute the effective purpose:
+
+  ```ts
+  const effectivePurpose =
+    depositPurpose ||
+    defaultPurpose ||
+    (isAgent ? 'operational_float' : '');
+
+  if (!ALLOWED_DEPOSIT_PURPOSES.includes(effectivePurpose as any)) {
+    toast.error('Pick a deposit purpose before continuing');
+    setStep('purpose');
+    setIsSubmitting(false);
+    return;
+  }
+  ```
+
+- Use `effectivePurpose` in BOTH the INSERT and the UPDATE/RPC payloads (replace every `deposit_purpose: depositPurpose` and `chosen_purpose: depositPurpose` write at lines 780, 800, 802, 831, 833).
+- Remove the silent fallback `(defaultPurpose ?? '')` in `handleClose` — instead reset to `defaultPurpose ?? null` only when `mustChoosePurpose`, otherwise keep the locked default.
+
+This guarantees no empty value can ever reach the DB, regardless of state-update races, prefill ordering, or stale `isAgent`.
+
+### Step 2 — Surface the backend error properly (frontend)
+
+The current catch block toasts `error?.message`, which for Postgres enum errors is unreadable to a field agent. Map the known database error codes to a friendly toast:
+
+```ts
+} catch (error: any) {
+  const msg = error?.message ?? '';
+  let friendly = 'Please try again or contact support.';
+  if (msg.includes('invalid input value for enum deposit_purpose')) {
+    friendly = 'Deposit purpose was missing — please pick a purpose and try again.';
+  } else if (msg.includes('agent_personal_deposit_requires_confirmation')) {
+    friendly = 'Confirm this is your personal money before submitting a Personal Deposit.';
+  } else if (error?.code === '23505') {
+    friendly = 'This transaction reference has already been used.';
+  } else if (msg) {
+    friendly = msg;
+  }
+  toast.error('Failed to submit deposit', { description: friendly });
+  setStep('form');
+}
+```
+
+### Step 3 — Migration: fix `get_funder_approval_status` ambiguous column
+
+The function body has both a CTE column named `rejection_reason` AND a return-table column with the same name, causing every call to throw. Aliasing the CTE columns fixes it without changing the public signature.
+
+```sql
+CREATE OR REPLACE FUNCTION public.get_funder_approval_status(_user_id uuid)
+RETURNS TABLE (status text, rejection_reason text, approved_at timestamptz)
+LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN QUERY
+  WITH ranked AS (
+    SELECT
+      paa.approval_status   AS r_status,
+      paa.rejection_reason  AS r_reason,
+      paa.approved_at       AS r_approved_at,
+      paa.is_active         AS r_active,
+      CASE
+        WHEN paa.approval_status = 'approved' AND paa.is_active = true THEN 1
+        WHEN paa.approval_status = 'pending'  THEN 2
+        WHEN paa.approval_status = 'rejected' THEN 3
+        ELSE 4
+      END AS rank
+    FROM public.proxy_agent_assignments paa
+    WHERE paa.beneficiary_id = _user_id
+      AND paa.beneficiary_role = 'supporter'
+    ORDER BY rank ASC, paa.created_at DESC
+    LIMIT 1
+  )
+  SELECT
+    COALESCE(
+      CASE WHEN r_status = 'approved' AND r_active THEN 'approved' ELSE r_status END,
+      'none'
+    )::text,
+    r_reason::text,
+    r_approved_at
+  FROM ranked
+  UNION ALL
+  SELECT 'none'::text, NULL::text, NULL::timestamptz
+  WHERE NOT EXISTS (SELECT 1 FROM ranked)
+  LIMIT 1;
+END;
+$$;
+```
+
+### Step 4 — Verify
+
+- Reopen the Deposit to wallet flow on Agent dashboard, allocate to Muhindo Brian, tap **Deposit UGX 55,000** → expect a successful "Deposit submitted for verification" toast and a row in `deposit_requests` with `deposit_purpose='operational_float'`.
+- If the user lands on Step 2 with state still empty for any reason, the new client-side guard now shows "Pick a deposit purpose before continuing" and routes them back to the purpose step instead of throwing the cryptic enum error.
+- `select * from get_funder_approval_status('cb798acb-…')` returns one row with `status='none'`, no error.
+
+---
 
 ## Out of scope
 
-- Writing actual Flutter screens or compiling a Flutter project.
-- Modifying any file in this web codebase.
-- Re-deriving API contracts from scratch — we reuse the existing 137-endpoint docs already in `/mnt/documents/welile-api-docs/`.
+- No edge-function changes (the failing path is a direct PostgREST `INSERT` from the client, not the `agent-deposit` function).
+- No enum change to `deposit_purpose` — the existing values are correct; the bug is sending an empty string.
+- No UI redesign of the allocator screen — only the submit handler hardening.
