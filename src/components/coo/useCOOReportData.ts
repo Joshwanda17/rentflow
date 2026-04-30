@@ -64,7 +64,7 @@ export function usePartnerOpsReportData() {
           .limit(MAX_ROWS),
         supabase
           .from('investment_withdrawal_requests')
-          .select('id, amount, status, created_at, investor_id, portfolio_id, rejection_reason')
+          .select('id, amount, status, created_at, user_id, rejection_reason')
           .gte('created_at', since)
           .order('created_at', { ascending: false })
           .limit(MAX_ROWS),
@@ -77,7 +77,7 @@ export function usePartnerOpsReportData() {
         new Set(
           [
             ...portfolios.map((p: any) => p.investor_id).filter(Boolean),
-            ...withdrawals.map((w: any) => w.investor_id).filter(Boolean),
+            ...withdrawals.map((w: any) => w.user_id).filter(Boolean),
           ] as string[],
         ),
       );
@@ -109,14 +109,14 @@ export function usePartnerOpsReportData() {
         ...withdrawals.map((w: any) => ({
           id: `WIT-${w.id.slice(0, 8)}`,
           type: 'Withdrawal request',
-          person: nameOf(profilesMap[w.investor_id]),
+          person: nameOf(profilesMap[w.user_id]),
           amount: Number(w.amount ?? 0),
           status: (w.status ?? 'pending').replace(/_/g, ' '),
           statusKind: statusKindFor(w.status ?? 'pending'),
           date: w.created_at,
           staff: 'Financial Ops',
           reference: w.id.slice(0, 8),
-          details: { department: 'Financial Ops', portfolio_id: w.portfolio_id ?? '—', rejection: w.rejection_reason ?? null },
+          details: { department: 'Financial Ops', rejection: w.rejection_reason ?? null },
         } as ReportActivity)),
       ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
