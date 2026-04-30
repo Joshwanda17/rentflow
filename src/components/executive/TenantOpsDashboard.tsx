@@ -34,7 +34,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { downloadCsv } from '@/lib/csvExport';
+import { generateTenantOpsExtractPdf, downloadPdfBlob } from '@/lib/generateTenantOpsExtractPdf';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
