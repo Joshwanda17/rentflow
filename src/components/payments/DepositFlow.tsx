@@ -873,6 +873,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     setOriginalAmount(null);
     setMatchedEditId(null);
     setEditStatus(null);
+    setBreakdownChoice('pending');
     onOpenChange(false);
   };
 
