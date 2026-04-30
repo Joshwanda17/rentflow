@@ -443,11 +443,29 @@ export function TenantOpsDashboard() {
           r.created_at,
         ];
       });
-      downloadCsv(
-        `tenants-applied_${windowSuffix(from, to)}.csv`,
-        ['request_id', 'tenant_name', 'tenant_phone', 'landlord_name', 'rent_amount_ugx', 'daily_repayment_ugx', 'duration_days', 'status', 'applied_at'],
-        rows,
-      );
+      const blob = generateTenantOpsExtractPdf({
+        title: 'Tenants Applied',
+        subtitle: 'Every rent application created in this period.',
+        range: { from, to },
+        kpis: [
+          { label: 'Applications', value: rows.length.toLocaleString(), color: [37, 99, 235] },
+          { label: 'Rent Requested', value: `UGX ${Math.round(rows.reduce((s, r: any) => s + Number(r[4] || 0), 0)).toLocaleString()}`, color: [15, 23, 42] },
+        ],
+        columns: [
+          { label: '#',                   width: 8,  align: 'left' },
+          { label: 'Tenant',              width: 40, format: 'text' },
+          { label: 'Phone',               width: 24, format: 'text' },
+          { label: 'Landlord',            width: 36, format: 'text' },
+          { label: 'Rent (UGX)',          width: 24, format: 'ugx' },
+          { label: 'Daily (UGX)',         width: 22, format: 'ugx' },
+          { label: 'Days',                width: 12, format: 'number' },
+          { label: 'Status',              width: 22, format: 'text' },
+          { label: 'Applied',             width: 28, format: 'datetime' },
+        ],
+        rows: rows.map((r, i) => [i + 1, r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8]]),
+        footerNote: 'One row per rent application created in the selected period. Status reflects current pipeline state.',
+      });
+      downloadPdfBlob(blob, `tenants-applied_${windowSuffix(from, to)}.pdf`);
       toast.success(`Extracted ${rows.length} applications`);
     } catch (err: any) {
       toast.error(err.message || 'Extract failed');
