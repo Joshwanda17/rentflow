@@ -110,7 +110,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
     {
       title: 'Governance',
       items: [
-        { label: 'Reports', icon: FileText, id: 'reports' },
+        { label: 'FinancialReports', icon: FileText, id: 'reports' },
         { label: 'Alerts', icon: AlertTriangle, id: 'alerts' },
         { label: 'Withdrawal Approvals', icon: Banknote, id: 'withdrawals' },
         { label: 'ROI Return Approvals', icon: ShieldCheck, id: 'roi-approvals' },

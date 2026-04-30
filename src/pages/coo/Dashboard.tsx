@@ -52,7 +52,7 @@ const quickNavItems: QuickNavItem[] = [
   { id: 'analytics', label: 'Analytics', icon: BarChart3, color: 'bg-teal-500/10 text-teal-600 border-teal-500/20', description: 'Payment modes' },
   { id: 'partners', label: 'Partners', icon: Handshake, color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20', description: 'Manage partners' },
   { id: 'partner-onboarding', label: 'Partner Onboarding', icon: UserPlus, color: 'bg-fuchsia-500/10 text-fuchsia-600 border-fuchsia-500/20', description: 'Approve / reject', route: '/partner-onboarding' },
-  { id: 'reports', label: 'Reports', icon: FileText, color: 'bg-sky-500/10 text-sky-600 border-sky-500/20', description: 'Financial reports' },
+  { id: 'reports', label: 'FinancialReports', icon: FileText, color: 'bg-sky-500/10 text-sky-600 border-sky-500/20', description: 'Financial reports' },
   { id: 'alerts', label: 'Alerts', icon: AlertTriangle, color: 'bg-orange-500/10 text-orange-600 border-orange-500/20', description: 'Risk & flags' },
   { id: 'partner-topups', label: 'Partner Top-ups', icon: TrendingUp, color: 'bg-green-500/10 text-green-600 border-green-500/20', description: 'Pending top-ups' },
   { id: 'partner-finance', label: 'Partner Finance', icon: Receipt, color: 'bg-violet-500/10 text-violet-600 border-violet-500/20', description: 'All activity' },
