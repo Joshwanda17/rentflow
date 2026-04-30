@@ -1018,19 +1018,21 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         ) : step === 'submitting' ? (
           <div className="py-12 text-center space-y-4">
             <Loader2 className="h-10 w-10 animate-spin mx-auto text-primary" />
-            <p className="text-muted-foreground">{isEditMode ? 'Saving changes…' : 'Submitting...'}</p>
+            <p className="text-muted-foreground">
+              {isEditMode ? 'Saving changes… please wait' : 'Sending your deposit… please wait'}
+            </p>
           </div>
         ) : step === 'purpose' ? (
-          /* ─── Mandatory Purpose Choice (agents) ─── */
+          /* ─── Mandatory Purpose Choice (agents) ───
+           * Smartphone-first, plain-language gate. We DON'T frame this as a
+           * scary warning anymore — most agents bounced off the original
+           * banner and assumed the deposit button was broken. */
           <div className="space-y-3">
-            <div className="flex items-start gap-2 p-3 bg-warning/10 rounded-lg border border-warning/30">
-              <ShieldAlert className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-              <div className="space-y-0.5">
-                <p className="text-xs font-semibold text-foreground">Choose what this deposit is for</p>
-                <p className="text-xs text-muted-foreground">
-                  Operational Float (company cash) and Personal Deposit (your own money) land in different wallet buckets and follow different rules. Pick carefully — you cannot change this after submission.
-                </p>
-              </div>
+            <div className="space-y-1 px-1">
+              <p className="text-base font-semibold text-foreground">What is this money for?</p>
+              <p className="text-xs text-muted-foreground">
+                Tap one to continue. You can change it on the next screen if you pick the wrong one.
+              </p>
             </div>
             <div className="grid gap-2.5">
               {DEPOSIT_PURPOSES
@@ -1048,9 +1050,9 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                       setPurposeEntryPoint('gate');
                       setStep('channel');
                     }}
-                    className="flex items-center gap-3 p-4 min-h-[76px] rounded-2xl border-2 border-border text-left transition-all hover:border-primary hover:bg-primary/5 active:scale-[0.98] touch-manipulation"
+                    className="flex items-center gap-3 p-4 min-h-[88px] rounded-2xl border-2 border-border text-left transition-all hover:border-primary hover:bg-primary/5 active:scale-[0.98] touch-manipulation"
                   >
-                    <span className="text-3xl shrink-0">{p.emoji}</span>
+                    <span className="text-4xl shrink-0">{p.emoji}</span>
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold text-base leading-tight">{p.label}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">{p.desc}</p>
@@ -1872,10 +1874,10 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 aria-disabled={blocked}
               >
                 {isSubmitting
-                  ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> {isEditMode ? 'Saving…' : 'Submitting…'}</>
+                  ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> {isEditMode ? 'Saving…' : 'Sending…'}</>
                   : isEditMode
                     ? 'Save changes'
-                    : 'Confirm deposit'}
+                    : (total > 0 ? `Deposit ${formatCurrency(total)}` : 'Deposit')}
               </Button>
               {total > 0 && !blocked && (
                 <p className="text-center text-xs text-muted-foreground mt-1.5">
