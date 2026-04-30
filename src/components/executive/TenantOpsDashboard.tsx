@@ -1080,6 +1080,31 @@ export function TenantOpsDashboard() {
                   Clear
                 </Button>
               )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1.5" disabled={!!extracting}>
+                    {extracting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                    Extract
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64 bg-popover">
+                  <DropdownMenuLabel className="text-xs">Tenants</DropdownMenuLabel>
+                  <DropdownMenuItem disabled={!!extracting} onClick={handleExtractApplied}>
+                    <ClipboardList className="h-4 w-4 mr-2" /> How many applied (CSV)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled={!!extracting} onClick={handleExtractApproved}>
+                    <CheckCircle2 className="h-4 w-4 mr-2" /> How many approved (CSV)
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-xs">Repayments</DropdownMenuLabel>
+                  <DropdownMenuItem disabled={!!extracting} onClick={handleExtractCollected}>
+                    <Banknote className="h-4 w-4 mr-2" /> How much collected (CSV)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled={!!extracting} onClick={handleExtractExpected}>
+                    <CalendarCheck className="h-4 w-4 mr-2" /> How much expected (CSV)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button
                 variant="outline"
                 size="sm"
