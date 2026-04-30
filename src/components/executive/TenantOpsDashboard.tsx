@@ -75,7 +75,7 @@ export function TenantOpsDashboard() {
   const [printingPdf, setPrintingPdf] = useState(false);
   const [reportFrom, setReportFrom] = useState<Date | undefined>(undefined);
   const [reportTo, setReportTo] = useState<Date | undefined>(undefined);
-  const [extracting, setExtracting] = useState<null | 'applied' | 'approved' | 'collected' | 'expected'>(null);
+  const [extracting, setExtracting] = useState<null | 'applied' | 'approved' | 'funded' | 'collected' | 'expected'>(null);
 
   const handlePrintReport = async () => {
     setPrintingPdf(true);
