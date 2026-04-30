@@ -476,6 +476,11 @@ export default function FunderOnboarding() {
                   {selected.funder_rejected_at && (
                     <Row label="Rejected reason">{selected.funder_rejection_reason || '—'}</Row>
                   )}
+                  <Row label="Source">
+                    {selected.referrer_id
+                      ? `Referred by ${referrerMap?.get(selected.referrer_id) || selected.referrer_id.slice(0, 8)}`
+                      : 'Direct signup'}
+                  </Row>
                 </div>
 
                 {actionMode && (
