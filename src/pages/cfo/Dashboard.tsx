@@ -109,6 +109,7 @@ export default function CFODashboardPage() {
         return (
           <div className="space-y-6">
             <WithdrawableDriftAlertsPanel />
+            <AnchoredCacheDriftPanel />
             <PhantomDriftPanel />
             <HistoricalDriftReviewPanel />
             <WalletReconciliationAuditPanel />
