@@ -1,14 +1,14 @@
 /**
  * useAvailableBalance — UI truth for "what can the user actually move".
  *
- * The cached `wallets.balance` column can drift above a user's true ledger
- * position (debt, pending obligations, phantom drift). Showing the cached
- * figure on the wallet card causes confusing "Insufficient ledger balance"
- * errors at withdrawal time.
+ * Sources strictly from `get_user_wallet_view`, which derives every bucket
+ * live from `general_ledger`. The cached `wallets.*` columns are operator-
+ * only (CFO/FinOps reconciliation) and are never read here.
  *
- * This hook calls `get_user_available_balance` which returns the LESSER of
- * (cached balance, ledger net) — exactly what the wallet-deduction edge
- * function enforces server-side. The UI uses this number as the headline.
+ * `walletCached` is retained for API compatibility; it now equals
+ * `available + pendingHolds` (the pre-hold strict figure) so callers that
+ * previously rendered "Wallet total" still get a sensible number that can
+ * never exceed what the user is allowed to move.
  */
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,45 +31,20 @@ export function useAvailableBalance(userId?: string) {
     if (!targetId) return;
     setLoading(true);
     try {
-      const { data: row, error } = await supabase.rpc(
-        'get_user_available_balance',
-        { p_user_id: targetId },
-      );
+      const { data: row, error } = await supabase.rpc('get_user_wallet_view', {
+        p_user_id: targetId,
+      });
       if (error) throw error;
-      // The RPC returns a scalar `numeric` (the available amount). Older
-      // versions returned a row; we tolerate both shapes for safety.
-      let available = 0;
-      let walletCached = 0;
-      let ledgerNet = 0;
-      let hasDrift = false;
-      if (row !== null && typeof row === 'object') {
-        const r = row as Record<string, unknown>;
-        available = Number(r.available ?? 0);
-        walletCached = Number(r.wallet_cached ?? 0);
-        ledgerNet = Number(r.ledger_net ?? 0);
-        hasDrift = Boolean(r.has_drift);
-      } else {
-        available = Number(row ?? 0);
-      }
-      // Pull cached wallet balance separately so the card can show "Total"
-      // alongside the strict available figure.
-      if (walletCached === 0) {
-        const { data: walletRow } = await supabase
-          .from('wallets')
-          .select('balance, withdrawable_balance')
-          .eq('user_id', targetId)
-          .maybeSingle();
-        walletCached = Number(
-          (walletRow as { withdrawable_balance?: number; balance?: number } | null)?.withdrawable_balance
-          ?? (walletRow as { balance?: number } | null)?.balance
-          ?? 0,
-        );
-      }
+      const r = (row ?? {}) as Record<string, unknown>;
+      const available = Number((r.withdrawable as number | string | undefined) ?? 0);
+      const pendingHolds = Number((r.pending_holds as number | string | undefined) ?? 0);
+      const walletCached = available + pendingHolds; // pre-hold strict figure
+      const ledgerNet = walletCached;
       setData({
         available,
         walletCached,
         ledgerNet,
-        hasDrift: hasDrift || walletCached > available,
+        hasDrift: pendingHolds > 0,
       });
     } catch {
       // Soft-fail: leave previous value in place. We never want this hook
