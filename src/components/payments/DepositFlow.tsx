@@ -1563,7 +1563,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             </div>
 
             {/* ─── Deposit Purpose ─── */}
-            <div id="deposit-purpose" className="space-y-2 scroll-mt-4">
+            <div id="deposit-purpose" className={`space-y-2 scroll-mt-4 rounded-md ${errorFieldId === 'deposit-purpose' ? 'ring-2 ring-destructive/40 p-2 -m-2 border border-destructive/40' : ''}`}>
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <Label className="text-xs flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" /> Deposit Purpose *</Label>
                 {lockPurpose && depositPurpose && (
