@@ -1620,7 +1620,64 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
               )}
               {depositPurpose === 'operational_float' && currentUserId && (
                 <>
-                  {!isEditMode && (
+                  {/* === Breakdown choice card === */}
+                  <div id="deposit-breakdown-choice" className="space-y-2 scroll-mt-4">
+                    <Label className="text-sm font-semibold">
+                      How are you depositing this float?
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Pick one. You can change your mind below.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBreakdownChoice('no');
+                          setTenantAllocations([]);
+                        }}
+                        className={`text-left rounded-xl border-2 p-3 transition-all ${
+                          breakdownChoice === 'no'
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border hover:border-primary/50 hover:bg-primary/5'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Banknote className="h-4 w-4 text-primary" />
+                          <span className="font-semibold text-sm">Just deposit (no breakdown)</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Drop the lump sum into your float. No tenant tagging.
+                        </p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBreakdownChoice('yes')}
+                        className={`text-left rounded-xl border-2 p-3 transition-all ${
+                          breakdownChoice === 'yes'
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border hover:border-primary/50 hover:bg-primary/5'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Receipt className="h-4 w-4 text-primary" />
+                          <span className="font-semibold text-sm">Deposit with tenant breakdown</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Tag each tenant who paid so they get credited instantly.
+                        </p>
+                      </button>
+                    </div>
+                    {breakdownChoice === 'no' && (
+                      <div className="flex items-start gap-2 p-2 bg-muted/40 rounded-lg border border-border">
+                        <AlertCircle className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                        <p className="text-xs text-muted-foreground">
+                          No tenant breakdown — this will be recorded as a bulk float drop. You can allocate to tenants later from your wallet history.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {breakdownChoice === 'yes' && !isEditMode && (
                     <DepositReferenceMatcher
                       agentId={currentUserId}
                       currentAmount={parseFloat(amount) || 0}
