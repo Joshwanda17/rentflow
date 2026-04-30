@@ -1587,7 +1587,24 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   </div>
                 </div>
               )}
-              {(showPurposeGrid || !lockPurpose) && (
+              {/* Defensive visibility: if depositPurpose is empty for any
+                  reason (state-update race after handleClose, prefill effect
+                  hasn't run yet, etc.) ALWAYS show the picker — otherwise
+                  the user gets a "pick a purpose" toast with no purpose
+                  field on screen to pick from. */}
+              {(showPurposeGrid || !lockPurpose || !depositPurpose) && (
+                <>
+                {!depositPurpose && (
+                  <p
+                    className={`text-xs ${
+                      errorFieldId === 'deposit-purpose'
+                        ? 'text-destructive font-medium'
+                        : 'text-muted-foreground'
+                    }`}
+                  >
+                    Pick what this money is for to continue.
+                  </p>
+                )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {DEPOSIT_PURPOSES.filter(p => !allowedPurposes || allowedPurposes.includes(p.id)).map((p) => (
                   <button
@@ -1631,6 +1648,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   </button>
                 ))}
               </div>
+                </>
               )}
               {isAgent && pendingPersonalChoice && (
                 <div className="rounded-xl border-2 border-warning bg-warning/10 p-3 space-y-2.5">
