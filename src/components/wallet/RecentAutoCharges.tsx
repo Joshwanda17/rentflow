@@ -49,6 +49,9 @@ export function RecentAutoCharges() {
         .eq('user_id', user.id)
         .eq('direction', 'cash_out')
         .gte('transaction_date', since)
+        // Hide admin/CFO reconciliation legs from end users.
+        .neq('classification', 'admin_correction')
+        .neq('category', 'system_balance_correction')
         .order('transaction_date', { ascending: false })
         .limit(5);
 
