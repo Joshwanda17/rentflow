@@ -46,6 +46,24 @@ interface AgentGroup {
   rows: EarningRow[];
 }
 
+interface CommissionLedgerRow {
+  id: string;
+  created_at: string | null;
+  transaction_date?: string | null;
+  amount?: number | string | null;
+  category?: string | null;
+  source_table?: string | null;
+  description?: string | null;
+  user_id?: string | null;
+  ledger_scope?: string | null;
+  direction?: string | null;
+}
+
+interface ProfileNameRow {
+  id: string;
+  full_name: string | null;
+}
+
 export function CommissionList({ range }: { range: DateRange }) {
   const rangeStart = useMemo(() => getRangeStart(range).toISOString(), [range]);
   const [liveRows, setLiveRows] = useState<EarningRow[]>([]);
@@ -72,16 +90,17 @@ export function CommissionList({ range }: { range: DateRange }) {
         .order('created_at', { ascending: false })
         .limit(PAGE_SIZE);
       if (error) throw error;
-      const ids = Array.from(new Set((earnings ?? []).map((e: any) => e.user_id).filter(Boolean)));
+      const ledgerRows = (earnings ?? []) as CommissionLedgerRow[];
+      const ids = Array.from(new Set(ledgerRows.map((e) => e.user_id).filter(Boolean))) as string[];
       const nameMap = new Map<string, string>();
       if (ids.length > 0) {
         const { data: profs } = await supabase
           .from('profiles')
           .select('id, full_name')
           .in('id', ids);
-        (profs ?? []).forEach((p: any) => nameMap.set(p.id, p.full_name));
+        ((profs ?? []) as ProfileNameRow[]).forEach((p) => nameMap.set(p.id, p.full_name ?? 'Unknown agent'));
       }
-      const rows: EarningRow[] = (earnings ?? []).map((e: any) => ({
+      const rows: EarningRow[] = ledgerRows.map((e) => ({
         id: e.id,
         created_at: e.transaction_date || e.created_at,
         amount: Number(e.amount ?? 0),
@@ -101,7 +120,7 @@ export function CommissionList({ range }: { range: DateRange }) {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'general_ledger' },
         async (payload) => {
-          const e = payload.new as any;
+          const e = payload.new as CommissionLedgerRow;
           if (e.ledger_scope !== 'wallet') return;
           if (!COMMISSION_LEDGER_CATEGORIES.includes(e.category)) return;
           if (!COMMISSION_CREDIT_DIRECTIONS.includes(e.direction)) return;
@@ -113,7 +132,7 @@ export function CommissionList({ range }: { range: DateRange }) {
               .select('full_name')
               .eq('id', e.user_id)
               .maybeSingle();
-            agentName = (p as any)?.full_name ?? null;
+            agentName = (p as ProfileNameRow | null)?.full_name ?? null;
           }
           const row: EarningRow = {
             id: e.id,
