@@ -758,9 +758,15 @@ export default function FunderOnboarding() {
       const fromUrl = (params.get('ref') || '').trim();
       const stored = sessionStorage.getItem('welile.funder.referrer_id') || '';
       const candidate = fromUrl || stored;
-      if (candidate && /^[0-9a-fA-F-]{32,36}$/.test(candidate)) {
-        setReferrerId(candidate);
-        sessionStorage.setItem('welile.funder.referrer_id', candidate);
+      // Strict RFC-4122 UUID v1–v8
+      const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (candidate && UUID_RE.test(candidate)) {
+        const normalized = candidate.toLowerCase();
+        setReferrerId(normalized);
+        sessionStorage.setItem('welile.funder.referrer_id', normalized);
+      } else if (candidate) {
+        // Tampered or stale ref — wipe so it doesn't poison later submissions.
+        sessionStorage.removeItem('welile.funder.referrer_id');
       }
     } catch { /* non-fatal */ }
   }, []);

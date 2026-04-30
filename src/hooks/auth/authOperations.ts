@@ -24,11 +24,18 @@ export async function signUp(
     console.log('[signUp] attribution →', { signup_source: trimmedSource, role });
   }
   const trimmedReferrer = (referrerId ?? '').trim();
-  // Basic UUID shape check — handle_new_user trigger NULLIFs invalid input.
-  if (trimmedReferrer && /^[0-9a-fA-F-]{32,36}$/.test(trimmedReferrer)) {
-    data.referrer_id = trimmedReferrer;
+  // Strict RFC-4122 UUID v1–v8 (lowercase or upper). The DB trigger does a
+  // second-layer existence + self-ref + frozen check before accepting it,
+  // but we still drop obviously-malformed input client-side so it never
+  // reaches the auth metadata in the first place.
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (trimmedReferrer && UUID_RE.test(trimmedReferrer)) {
+    data.referrer_id = trimmedReferrer.toLowerCase();
     // eslint-disable-next-line no-console
-    console.log('[signUp] referrer →', trimmedReferrer);
+    console.log('[signUp] referrer →', data.referrer_id);
+  } else if (trimmedReferrer) {
+    // eslint-disable-next-line no-console
+    console.warn('[signUp] referrer dropped — not a valid UUID:', trimmedReferrer);
   }
   const { error } = await supabase.auth.signUp({
     email,
