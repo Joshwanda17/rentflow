@@ -17,6 +17,7 @@ import {
   createClaim,
   getActiveClaim,
   cancelClaim,
+  buildShareUrl,
   type BreadClaim,
 } from '@/lib/welileBreadClaims';
 
@@ -273,17 +274,20 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
       claim.freeBreads > 0
         ? `${claim.freeBreads}× FREE bread 🍞`
         : `bread for only ${formatUGX(claim.payableForNext)} (was ${formatUGX(grossAmount)})`;
+    const url = buildShareUrl(claim);
     const message =
       `🎁 I'm sending you bread on Welile!\n\n` +
       `Pick it up at: ${claim.sellerName}\n` +
       `Show this code at the till: ${claim.code}\n` +
       `You get: ${priceLine}\n\n` +
+      `Open the link to view the code & store:\n${url}\n\n` +
       `Code expires in 30 minutes. No account needed — just walk in.`;
     try {
       if (typeof navigator !== 'undefined' && (navigator as any).share) {
         await (navigator as any).share({
           title: 'Free bread from Welile',
           text: message,
+          url,
         });
         toast.success('Shared');
         return;
