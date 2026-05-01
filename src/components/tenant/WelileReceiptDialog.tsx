@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { BadgePercent, CheckCircle2, Hash, Wallet, X, WifiOff, ArrowLeft } from 'lucide-react';
+import { BadgePercent, CheckCircle2, Hash, Wallet, X, WifiOff, ArrowLeft, Gift } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { toast } from 'sonner';
 
@@ -84,14 +84,33 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
   }, []);
 
   const grossAmount = WELILE_BREAD_PRICE; // single bread reference price
-  const rawDiscount = applied
+  // Total redeemable credit from this receipt (5%). When credit ≥ one bread
+  // price, the user earns whole free breads and any remainder rolls over to
+  // the next bread they buy.
+  const totalCredit = applied
     ? Math.round(applied.amount * WELILE_BREAD_DISCOUNT_RATE)
     : 0;
-  const discountAmount = useMemo(
-    () => Math.min(rawDiscount, Math.max(0, grossAmount - WELILE_BREAD_MIN_PAYABLE)),
-    [rawDiscount, grossAmount],
-  );
-  const reducedPrice = Math.max(WELILE_BREAD_MIN_PAYABLE, grossAmount - discountAmount);
+  const rollover = useMemo(() => {
+    const freeBreads = Math.floor(totalCredit / grossAmount);
+    const remainderCredit = totalCredit - freeBreads * grossAmount;
+    // Remainder applied to the next bread, but never below the floor price.
+    const nextBreadDiscount = Math.min(
+      remainderCredit,
+      Math.max(0, grossAmount - WELILE_BREAD_MIN_PAYABLE),
+    );
+    const nextBreadPrice = Math.max(
+      WELILE_BREAD_MIN_PAYABLE,
+      grossAmount - nextBreadDiscount,
+    );
+    return { freeBreads, remainderCredit, nextBreadDiscount, nextBreadPrice };
+  }, [totalCredit, grossAmount]);
+  // Back-compat for the existing single-bread headline.
+  const discountAmount = rollover.freeBreads > 0
+    ? grossAmount - WELILE_BREAD_MIN_PAYABLE === 0
+      ? grossAmount
+      : grossAmount - WELILE_BREAD_MIN_PAYABLE + 0 // not used when free breads exist
+    : rollover.nextBreadDiscount;
+  const reducedPrice = rollover.freeBreads > 0 ? 0 : rollover.nextBreadPrice;
 
   // Step 1 — validate inputs, then move to the confirmation panel.
   const reviewBeforeApply = () => {
@@ -123,10 +142,19 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
     } catch {
       /* offline-safe: discount still applies in-memory */
     }
-    toast.success('Receipt applied', {
-      description: `5% of ${formatUGX(amt)} = ${formatUGX(Math.round(amt * WELILE_BREAD_DISCOUNT_RATE))} off`,
-      duration: 4000,
-    });
+    const credit = Math.round(amt * WELILE_BREAD_DISCOUNT_RATE);
+    const free = Math.floor(credit / WELILE_BREAD_PRICE);
+    const remainder = credit - free * WELILE_BREAD_PRICE;
+    toast.success(
+      free > 0 ? `${free}× free bread${free > 1 ? 's' : ''} earned` : 'Receipt applied',
+      {
+        description:
+          free > 0
+            ? `5% of ${formatUGX(amt)} = ${formatUGX(credit)} credit · ${formatUGX(remainder)} rolls to next bread`
+            : `5% of ${formatUGX(amt)} = ${formatUGX(credit)} off`,
+        duration: 4500,
+      },
+    );
   };
 
   const remove = () => {
@@ -174,7 +202,19 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
               Today's Bread
             </p>
             <div className="mt-1 flex items-baseline gap-3 flex-wrap">
-              {discountAmount > 0 ? (
+              {rollover.freeBreads > 0 ? (
+                <>
+                  <span className="text-3xl font-extrabold text-emerald-700 dark:text-emerald-400 tabular-nums">
+                    FREE
+                  </span>
+                  <span className="text-sm line-through text-muted-foreground tabular-nums">
+                    {formatUGX(grossAmount)}
+                  </span>
+                  <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/40 rounded-full px-2 py-0.5">
+                    {rollover.freeBreads}× free bread
+                  </span>
+                </>
+              ) : discountAmount > 0 ? (
                 <>
                   <span className="text-3xl font-extrabold text-emerald-700 dark:text-emerald-400 tabular-nums">
                     {formatUGX(reducedPrice)}
@@ -192,22 +232,37 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
                 </span>
               )}
             </div>
+            {rollover.freeBreads > 0 && rollover.nextBreadDiscount > 0 && (
+              <p className="mt-2 text-[11px] text-emerald-800 dark:text-emerald-300">
+                Plus {formatUGX(rollover.nextBreadDiscount)} rolls over to your next bread
+                ({formatUGX(rollover.nextBreadPrice)} instead of {formatUGX(grossAmount)}).
+              </p>
+            )}
           </div>
 
           {/* Applied receipt card OR confirmation panel OR input form */}
           {applied ? (
             <div className="rounded-2xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 p-4 space-y-3">
               <div className="flex items-start gap-3">
-                <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                {rollover.freeBreads > 0 ? (
+                  <Gift className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                ) : (
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                )}
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold text-emerald-900 dark:text-emerald-100">
-                    Receipt applied
+                    {rollover.freeBreads > 0
+                      ? `${rollover.freeBreads}× free bread${rollover.freeBreads > 1 ? 's' : ''} earned`
+                      : 'Receipt applied'}
                   </p>
                   <p className="font-mono text-sm font-bold text-emerald-950 dark:text-emerald-50 truncate">
                     {applied.number}
                   </p>
                   <p className="text-[11px] text-emerald-800/80 dark:text-emerald-200/80 mt-0.5">
-                    {formatUGX(applied.amount)} receipt · 5% = {formatUGX(rawDiscount)} off
+                    {formatUGX(applied.amount)} receipt · 5% = {formatUGX(totalCredit)} credit
+                    {rollover.freeBreads > 0 && rollover.remainderCredit > 0 && (
+                      <> · {formatUGX(rollover.remainderCredit)} rolls to next bread</>
+                    )}
                   </p>
                 </div>
                 <button
@@ -226,18 +281,25 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
                 size="lg"
               >
                 <Wallet className="h-4 w-4" />
-                Done — pay {formatUGX(reducedPrice)}
+                {rollover.freeBreads > 0
+                  ? `Done — claim ${rollover.freeBreads}× free bread`
+                  : `Done — pay ${formatUGX(reducedPrice)}`}
               </Button>
             </div>
           ) : pendingConfirm ? (
             (() => {
-              const previewDiscount = Math.min(
-                Math.round(pendingConfirm.amount * WELILE_BREAD_DISCOUNT_RATE),
+              const previewCredit = Math.round(
+                pendingConfirm.amount * WELILE_BREAD_DISCOUNT_RATE,
+              );
+              const previewFree = Math.floor(previewCredit / grossAmount);
+              const previewRemainder = previewCredit - previewFree * grossAmount;
+              const previewNextDiscount = Math.min(
+                previewRemainder,
                 Math.max(0, grossAmount - WELILE_BREAD_MIN_PAYABLE),
               );
-              const previewPrice = Math.max(
+              const previewNextPrice = Math.max(
                 WELILE_BREAD_MIN_PAYABLE,
-                grossAmount - previewDiscount,
+                grossAmount - previewNextDiscount,
               );
               return (
                 <div className="rounded-2xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/20 p-4 space-y-4">
@@ -246,7 +308,7 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
                       Confirm your receipt
                     </p>
                     <p className="text-xs text-emerald-900/80 dark:text-emerald-100/80 mt-0.5">
-                      Please double-check before we apply your 5% discount.
+                      Please double-check before we apply your 5% credit.
                     </p>
                   </div>
 
@@ -264,15 +326,33 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
                       </dd>
                     </div>
                     <div className="flex items-center justify-between gap-3">
-                      <dt className="text-muted-foreground">Discount (5%)</dt>
+                      <dt className="text-muted-foreground">Total credit (5%)</dt>
                       <dd className="font-semibold text-emerald-700 dark:text-emerald-400 tabular-nums">
-                        −{formatUGX(previewDiscount)}
+                        {formatUGX(previewCredit)}
                       </dd>
                     </div>
+                    {previewFree > 0 && (
+                      <div className="flex items-center justify-between gap-3">
+                        <dt className="text-muted-foreground">Free breads</dt>
+                        <dd className="font-semibold text-emerald-700 dark:text-emerald-400 tabular-nums">
+                          {previewFree}× free
+                        </dd>
+                      </div>
+                    )}
+                    {previewNextDiscount > 0 && (
+                      <div className="flex items-center justify-between gap-3">
+                        <dt className="text-muted-foreground">Rolls to next bread</dt>
+                        <dd className="font-semibold text-emerald-700 dark:text-emerald-400 tabular-nums">
+                          −{formatUGX(previewNextDiscount)}
+                        </dd>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between gap-3 pt-2 border-t border-emerald-200 dark:border-emerald-800">
-                      <dt className="font-semibold text-foreground">You'll pay</dt>
+                      <dt className="font-semibold text-foreground">
+                        {previewFree > 0 ? 'Next bread you pay' : "You'll pay"}
+                      </dt>
                       <dd className="text-lg font-extrabold text-emerald-700 dark:text-emerald-400 tabular-nums">
-                        {formatUGX(previewPrice)}
+                        {formatUGX(previewNextPrice)}
                       </dd>
                     </div>
                   </dl>
