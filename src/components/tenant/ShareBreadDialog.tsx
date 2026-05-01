@@ -25,6 +25,12 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   availableBalance?: number;
+  /**
+   * Invoked when the user taps the "Top up" CTA on the zero-balance banner.
+   * The dialog will close itself first so the parent can route to whatever
+   * top-up surface it owns (e.g. the wallet sheet's Deposit flow).
+   */
+  onTopUp?: () => void;
 }
 
 interface ResolvedRecipient {
@@ -41,7 +47,7 @@ type LookupState =
   | { status: 'self' }
   | { status: 'too_short' };
 
-export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props) {
+export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp }: Props) {
   const { user } = useAuth();
   const { profile } = useProfile();
   // Always derive a live, ledger-backed withdrawable inside the dialog so the
