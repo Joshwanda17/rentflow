@@ -1,52 +1,61 @@
-## Problem
+## What's wrong
 
-The agent dashboard's quick **Deposit** button opens `DepositFlow` with `defaultPurpose="operational_float"` and `lockPurpose`. There is a `BEFORE INSERT` Postgres trigger (`validate_operational_float_allocations`) that **rejects any deposit row whose `deposit_purpose = 'operational_float'` unless `notes` contains an `[ALLOCATIONS][...]` JSON breakdown summing to the deposit amount**. The quick deposit flow does not collect a tenant breakdown, so every submission dies with:
+Joshua's 100,000 UGX float deposit (id `e0565229…`) **is approved and correctly posted** to the ledger:
 
-> Operational Float deposits require a per-tenant allocation breakdown
+- `general_ledger`: `agent_float_deposit`, `cash_in 100,000`, `wallet` scope, `production` ✅
+- `wallets.float_balance = 100,000` ✅
 
-You said the deposit button should not obey that rule.
+But the dashboard reads `get_user_wallet_view` → `v_user_wallet_strict`, which returns **`float_balance: 0`**. That's why the card shows "Float USh 0".
 
-## Why the rule exists (and why we keep it for the right flow)
+### Root cause
 
-The allocation rule belongs to the [Agent Tenant Float Allocation](mem://features/agent-tenant-float-allocation) feature: when an agent collects a lump sum **on behalf of named tenants**, the deposit must split per tenant so each tenant's float is credited. That is genuinely needed in `CollectFromReferenceDialog` (the "Collect from reference" flow), which already builds the `[ALLOCATIONS]` payload.
+`v_user_wallet_strict` computes float_raw by summing every wallet-scope row in the float category set across all of history:
 
-It is **not** appropriate for the generic header "Deposit" button, which is just an agent topping up their own operational float wallet with no tenants attached.
+| category | direction | amount |
+|---|---|---|
+| agent_float_deposit | cash_in | +100,000 |
+| agent_float_assignment | cash_in | +5,000 |
+| agent_float_used_for_rent | cash_out | −100,000 |
+| agent_float_settlement | cash_out | −405,100 |
 
-## Fix (minimal, frontend-only)
+Net = **−400,100**. The view then does `GREATEST(0, float_raw) = 0` — wiping out today's real deposit because of legacy float-out entries that were never matched by float-in entries (the historical float was funded via `wallets.float_balance` writes that bypassed the ledger, before the ledger-as-truth rule was enforced).
 
-Change the agent dashboard's quick-deposit invocation so it no longer pins the purpose to `operational_float`. Let the agent pick between Operational Float and Personal Deposit, defaulting to **Personal Deposit** (which is not gated by the trigger), and remove the lock so they can switch if they want.
+This is the *same family* of issue we already solved for `withdrawable` via `wallet_fresh_start_anchors`, but the anchor only narrows withdrawable's window — float still scans all of history.
 
-In `src/components/dashboards/AgentDashboard.tsx` (around line 653):
+## Plan
 
-```tsx
-<DepositFlow
-  open={showQuickDeposit}
-  onOpenChange={setShowQuickDeposit}
-  allowedPurposes={['personal_deposit', 'operational_float']}
-  defaultPurpose="personal_deposit"
-/>
-```
+### 1. Apply the fresh-start anchor to the float bucket too
 
-Changes:
-- `defaultPurpose` flips from `operational_float` → `personal_deposit`.
-- `lockPurpose` is dropped, so the purpose grid stays visible and the agent can pick another purpose.
-- Order in `allowedPurposes` is reordered so Personal Deposit appears first in the grid.
+Update `v_user_wallet_strict` so the `ledger` CTE's date filter (`a.anchor_at IS NULL OR gl.created_at >= a.anchor_at`) also governs the float and advance bucket sums (it already governs all rows fed into `buckets`, but I'll verify the path and ensure float honors the anchor consistently). Then create a `wallet_fresh_start_anchors` row for Joshua so his float window starts today.
 
-## What stays exactly the same
+### 2. Add a defensive float fallback
 
-- `CollectFromReferenceDialog` still uses `operational_float` + builds the `[ALLOCATIONS]` payload — the per-tenant rule keeps protecting that flow.
-- The DB trigger is **not** touched. Memory rule [Agent Tenant Float Allocation](mem://features/agent-tenant-float-allocation) remains valid: any deposit that is genuinely "lump sum for multiple tenants" must still carry the breakdown.
-- The empty-string `deposit_purpose` guard from the previous fix stays in place.
+When `b.float_raw` is non-positive but `wallets.float_balance > 0` AND there is at least one post-anchor `cash_in` float row, fall back to `LEAST(wallets.float_balance, sum of post-anchor float cash_in − post-anchor float cash_out clamped at 0)`. This keeps the "ledger never inflates" invariant (a phantom cached float can't show up without a ledger justification) while preventing legacy negative drag from hiding fresh, ledger-justified float.
 
-## Files to change
+### 3. Backfill anchor for affected agents
 
-- `src/components/dashboards/AgentDashboard.tsx` — 1 small JSX block (the `<DepositFlow>` for `showQuickDeposit`).
+One-time script: for every agent where `v_user_wallet_strict.float_balance = 0` but `wallets.float_balance > 0` AND there's a recent `agent_float_deposit` cash_in row, insert a `wallet_fresh_start_anchors` row anchored at the deposit's `created_at` (only if no anchor exists). Joshua is the immediate beneficiary; this also catches any other agent in the same trap.
 
-No DB migrations, no edge function changes, no other components touched.
+### 4. Surface the historical drag for CFO review
 
-## How to verify after the change
+Insert a row into `wallet_historical_drift_review` (already used by the withdrawable anchor backfill) for each anchored float, recording the pre-anchor negative float net so CFO can decide whether to write it off or chase recovery.
 
-1. Tap the floating **Deposit** button on the agent dashboard.
-2. The purpose grid shows **Personal Deposit** (selected) and **Operational Float**.
-3. Submit with Personal Deposit → goes through (no allocation error).
-4. If the agent picks Operational Float here, they will still get the allocation error — which is correct, because that purpose belongs to the "Collect from reference" flow that builds the breakdown.
+### 5. Verify
+
+After migration:
+- `SELECT * FROM v_user_wallet_strict WHERE user_id='cb798acb…'` should return `float_balance = 100000`.
+- Agent dashboard hero card should show **Float USh 100,000**, **Withdrawable USh 50,000**, **Total UGX 150,000**.
+- Realtime hook (`useWalletRealtime`) is already wired so the UI will reflect the change without a hard reload.
+
+## Files / surfaces touched
+
+- New migration: update `v_user_wallet_strict` (float fallback + advance fallback symmetric to withdrawable), backfill anchors for stuck agents, log to `wallet_historical_drift_review`.
+- No frontend code changes needed — `useAgentBalances` already reads `get_user_wallet_view`, which will return the corrected float once the view is fixed.
+
+## Memory updates
+
+- Extend `mem://architecture/wallet-baseline-anchor` to record that the fresh-start anchor now also governs the **float** and **advance** buckets (not just withdrawable), with the same "never inflate beyond post-anchor ledger justification" invariant.
+
+## Out of scope
+
+- No changes to `apply_wallet_movement`, deposit-approval flow, or ledger writers — they are already correct. The bug is purely in the read-side strict view's handling of legacy negative bucket drag.
