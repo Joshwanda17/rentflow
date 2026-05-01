@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { BadgePercent, CheckCircle2, Hash, Wallet, X, WifiOff } from 'lucide-react';
+import { BadgePercent, CheckCircle2, Hash, Wallet, X, WifiOff, ArrowLeft } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { toast } from 'sonner';
 
@@ -45,6 +45,12 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
   const [receiptAmountInput, setReceiptAmountInput] = useState('');
   const [applied, setApplied] = useState<BreadReceipt | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // When non-null, the user has validated their entries and is being asked
+  // to confirm before we persist + apply the 5% discount.
+  const [pendingConfirm, setPendingConfirm] = useState<{
+    number: string;
+    amount: number;
+  } | null>(null);
   const [online, setOnline] = useState<boolean>(
     typeof navigator === 'undefined' ? true : navigator.onLine,
   );
@@ -53,6 +59,7 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
   useEffect(() => {
     if (!open) return;
     setError(null);
+    setPendingConfirm(null);
     try {
       const raw = localStorage.getItem(RECEIPT_STORAGE_KEY);
       if (!raw) return;
@@ -86,7 +93,8 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
   );
   const reducedPrice = Math.max(WELILE_BREAD_MIN_PAYABLE, grossAmount - discountAmount);
 
-  const submit = () => {
+  // Step 1 — validate inputs, then move to the confirmation panel.
+  const reviewBeforeApply = () => {
     setError(null);
     const num = receiptNumber.trim();
     const amt = Number(receiptAmountInput.replace(/[,\s]/g, ''));
@@ -98,10 +106,18 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
       setError('Enter a valid receipt amount');
       return;
     }
+    setPendingConfirm({ number: num, amount: amt });
+  };
+
+  // Step 2 — persist & apply once the user confirms.
+  const confirmApply = () => {
+    if (!pendingConfirm) return;
+    const { number: num, amount: amt } = pendingConfirm;
     const next: BreadReceipt = { number: num, amount: amt, savedAt: Date.now() };
     setApplied(next);
     setReceiptNumber('');
     setReceiptAmountInput('');
+    setPendingConfirm(null);
     try {
       localStorage.setItem(RECEIPT_STORAGE_KEY, JSON.stringify(next));
     } catch {
