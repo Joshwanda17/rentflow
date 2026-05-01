@@ -15162,6 +15162,7 @@ export type Database = {
         }[]
       }
       get_wallet_totals: { Args: never; Returns: Json }
+      get_wallet_totals_strict: { Args: never; Returns: Json }
       get_withdrawable_total: { Args: { p_user_id: string }; Returns: number }
       has_agent_capability: {
         Args: { _agent_id: string; _capability: string }
