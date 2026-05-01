@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Loader2, Broom, AlertTriangle } from 'lucide-react';
+import { Loader2, Sparkles, AlertTriangle } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 
@@ -105,7 +105,7 @@ export default function CacheSweepPanel() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Broom className="h-5 w-5 text-primary" />
+          <Sparkles className="h-5 w-5 text-primary" />
           Cache Sweep — Reduce phantom wallet balances
         </CardTitle>
         <p className="text-xs text-muted-foreground mt-1">
