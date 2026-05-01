@@ -115,6 +115,69 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
     prevBalanceRef.current = effectiveBalance;
   }, [open, effectiveBalance]);
 
+  // Inline "Recent wallet changes" — last few cash-in entries (top-ups,
+  // commissions, transfers in) so the user can see exactly which credit
+  // lifted them out of zero balance. Re-fetched when the dialog opens and
+  // whenever the live withdrawable changes (which already debounces against
+  // wallet/ledger realtime events).
+  type RecentCredit = {
+    id: string;
+    amount: number;
+    category: string;
+    description: string | null;
+    transaction_date: string;
+  };
+  const [recentCredits, setRecentCredits] = useState<RecentCredit[]>([]);
+  useEffect(() => {
+    if (!open || !user) {
+      if (!open) setRecentCredits([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data } = await supabase
+        .from('general_ledger')
+        .select('id, amount, category, description, transaction_date')
+        .eq('user_id', user.id)
+        .eq('direction', 'cash_in')
+        // Hide admin/CFO reconciliation legs from end users.
+        .neq('classification', 'admin_correction')
+        .neq('category', 'system_balance_correction')
+        .gte('transaction_date', since)
+        .order('transaction_date', { ascending: false })
+        .limit(3);
+      if (cancelled) return;
+      setRecentCredits((data ?? []) as RecentCredit[]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, user, effectiveBalance]);
+
+  const formatRecentTime = (iso: string): string => {
+    const d = new Date(iso);
+    const diffMs = Date.now() - d.getTime();
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return d.toLocaleDateString();
+  };
+  const creditLabel = (c: RecentCredit): string => {
+    const map: Record<string, string> = {
+      wallet_deposit: 'Top-up',
+      wallet_transfer: 'Bread received',
+      welile_bread: 'Bread received',
+      agent_commission: 'Commission',
+      agent_commission_payout: 'Commission',
+      referral_bonus: 'Referral bonus',
+      roi_wallet_credit: 'Returns',
+    };
+    return map[c.category] || (c.description ? c.description : 'Wallet credit');
+  };
+
   const reset = () => {
     setStep('pick');
     setPhone('');
