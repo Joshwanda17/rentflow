@@ -198,14 +198,34 @@ Deno.serve(async (req) => {
       // If email already exists, look up the existing user and proceed
       if (authError.message?.includes('already been registered') || (authError as any).code === 'email_exists') {
         console.log("[activate-supporter] Email exists, looking up existing user for:", finalEmail);
-        const { data: listData, error: listError } = await adminClient.auth.admin.listUsers();
-        if (listError) {
-          console.error("[activate-supporter] Failed to list users:", listError);
-          return new Response(JSON.stringify({ error: "Failed to find existing account" }), {
-            status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
+        // listUsers() is paginated (default 50 per page) — scan pages until we find the email.
+        // Without pagination we got false 404s for any user past page 1.
+        let existingUser: any = null;
+        const PER_PAGE = 1000; // max allowed by GoTrue
+        for (let page = 1; page <= 50 && !existingUser; page++) {
+          const { data: listData, error: listError } = await adminClient.auth.admin.listUsers({ page, perPage: PER_PAGE });
+          if (listError) {
+            console.error("[activate-supporter] Failed to list users (page", page, "):", listError);
+            return new Response(JSON.stringify({ error: "Failed to find existing account" }), {
+              status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          existingUser = listData.users.find((u: any) => (u.email || '').toLowerCase() === finalEmail.toLowerCase());
+          if (existingUser) break;
+          if (!listData.users || listData.users.length < PER_PAGE) break; // last page
         }
-        const existingUser = listData.users.find((u: any) => u.email === finalEmail);
+        // Fallback: look up by email in profiles table (in case auth lookup still misses)
+        if (!existingUser) {
+          const { data: profileMatch } = await adminClient
+            .from("profiles")
+            .select("id")
+            .ilike("email", finalEmail)
+            .maybeSingle();
+          if (profileMatch?.id) {
+            const { data: byId } = await adminClient.auth.admin.getUserById(profileMatch.id);
+            if (byId?.user) existingUser = byId.user;
+          }
+        }
         if (!existingUser) {
           return new Response(JSON.stringify({ error: "Email registered but user not found" }), {
             status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
