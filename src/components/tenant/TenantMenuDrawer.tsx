@@ -24,6 +24,7 @@ import {
 import { cn } from '@/lib/utils';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
 import { Separator } from '@/components/ui/separator';
+import type { ReactNode } from 'react';
 
 interface TenantMenuDrawerProps {
   open: boolean;
@@ -33,6 +34,7 @@ interface TenantMenuDrawerProps {
   onRepaymentSchedule: () => void;
   onRentCalculator: () => void;
   onBrowseHouses?: () => void;
+  extraContent?: ReactNode;
 }
 
 interface MenuSection {
@@ -58,6 +60,7 @@ export function TenantMenuDrawer({
   onRepaymentSchedule,
   onRentCalculator,
   onBrowseHouses,
+  extraContent,
 }: TenantMenuDrawerProps) {
   const navigate = useNavigate();
 
@@ -265,6 +268,11 @@ export function TenantMenuDrawer({
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto overscroll-contain">
               <div className="p-4 space-y-6">
+                {extraContent && (
+                  <div className="space-y-4 pb-2">
+                    {extraContent}
+                  </div>
+                )}
                 {menuSections.map((section, sectionIndex) => (
                   <div key={section.title}>
                     <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1">
