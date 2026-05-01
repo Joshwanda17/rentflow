@@ -87,7 +87,15 @@ export default function SupporterDashboard({
 }: SupporterDashboardProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { profile } = useProfile();
+  const { profile, loading: profileLoading } = useProfile();
+  // Fallback chain while profile fetch is in flight (or RLS briefly hides
+  // the row right after signup): use the auth user_metadata that the
+  // signup form just wrote, then email local-part. Only show the generic
+  // "Supporter" placeholder if we truly have nothing.
+  const metaFullName = (user?.user_metadata?.full_name as string | undefined)?.trim() || '';
+  const emailLocal = (user?.email || '').split('@')[0] || '';
+  const displayFullName = profile?.full_name?.trim() || metaFullName || emailLocal;
+  const displayFirstName = displayFullName ? displayFullName.split(' ')[0] : (profileLoading ? '' : 'Supporter');
   const { isOnline } = useOffline();
   const [loading, setLoading] = useState(false);
   const [hasCachedData, setHasCachedData] = useState(() => {
