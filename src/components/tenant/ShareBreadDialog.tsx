@@ -146,11 +146,11 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
     }
     // Hard zero-balance gate: a user with zero (or unknown-but-non-positive)
     // withdrawable balance is never allowed to send a Welile Bread.
-    if (typeof availableBalance === 'number' && availableBalance <= 0) {
+    if (typeof effectiveBalance === 'number' && effectiveBalance <= 0) {
       toast.error("You can't send a Welile Bread with zero withdrawable balance. Top up your wallet first.");
       return;
     }
-    if (typeof availableBalance === 'number' && availableBalance < totalAmount) {
+    if (typeof effectiveBalance === 'number' && effectiveBalance < totalAmount) {
       toast.error(`Insufficient balance. You need ${formatUGX(totalAmount)}`);
       return;
     }
@@ -213,11 +213,11 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
   // user out if the parent never passed it). Once we know it's <= 0, ALL
   // sending paths are blocked.
   const zeroBalance =
-    typeof availableBalance === 'number' && availableBalance <= 0;
+    typeof effectiveBalance === 'number' && effectiveBalance <= 0;
   const insufficient =
-    typeof availableBalance === 'number' && availableBalance < totalAmount;
+    typeof effectiveBalance === 'number' && effectiveBalance < totalAmount;
   const balanceAfter =
-    typeof availableBalance === 'number' ? availableBalance - totalAmount : null;
+    typeof effectiveBalance === 'number' ? effectiveBalance - totalAmount : null;
 
   const decQty = () => setQty((q) => Math.max(1, q - 1));
   const incQty = () => setQty((q) => Math.min(WELILE_BREAD_MAX_QTY, q + 1));
@@ -503,10 +503,10 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
                 </div>
               </div>
             ) : (
-              typeof availableBalance === 'number' && (
+              typeof effectiveBalance === 'number' && (
                 <p className="text-xs text-muted-foreground">
                   Your withdrawable balance:{' '}
-                  <span className="font-semibold text-foreground">{formatUGX(availableBalance)}</span>
+                  <span className="font-semibold text-foreground">{formatUGX(effectiveBalance)}</span>
                 </p>
               )
             )}
@@ -593,7 +593,7 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Withdrawable now</span>
                 <span className="font-semibold text-foreground">
-                  {typeof availableBalance === 'number' ? formatUGX(availableBalance) : '—'}
+                  {typeof effectiveBalance === 'number' ? formatUGX(effectiveBalance) : '—'}
                 </span>
               </div>
               <div className="flex items-center justify-between text-sm">
