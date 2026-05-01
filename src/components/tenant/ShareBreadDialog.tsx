@@ -54,7 +54,7 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
   // zero-balance gate stays accurate even if the parent's prop is stale
   // (e.g. after a top-up that posted to the ledger while this dialog was
   // mounted). Falls back to the prop on first paint.
-  const { available: liveAvailable, refresh: refreshAvailable } = useAvailableBalance();
+  const { available: liveAvailable, refresh: refreshAvailable, loading: balanceLoading } = useAvailableBalance();
   const effectiveBalance =
     typeof liveAvailable === 'number' ? liveAvailable : availableBalance;
   const myLast9 = (profile?.phone ?? '').replace(/\D/g, '').slice(-9);
@@ -148,6 +148,13 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
     // Final belt-and-suspenders self-check using the resolved recipient id.
     if (lookup.recipient.id === user.id) {
       toast.error("You can't send a Welile Bread to your own wallet.");
+      return;
+    }
+    // Refusing to send while we're still verifying the live withdrawable
+    // prevents a stale zero-balance check from letting through (or blocking)
+    // a transfer based on an outdated cached value.
+    if (balanceLoading) {
+      toast.error('Still verifying your wallet balance — try again in a moment.');
       return;
     }
     // Hard zero-balance gate: a user with zero (or unknown-but-non-positive)
@@ -539,11 +546,20 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
 
             <Button
               onClick={() => setStep('review')}
-              disabled={lookup.status !== 'found' || zeroBalance}
+              disabled={lookup.status !== 'found' || zeroBalance || balanceLoading}
               className="w-full h-12 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold gap-2"
             >
-              Continue to review
-              <ArrowRight className="h-4 w-4" />
+              {balanceLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Checking balance…
+                </>
+              ) : (
+                <>
+                  Continue to review
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
             </Button>
           </div>
         ) : (
@@ -665,13 +681,18 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
               </Button>
               <Button
                 onClick={handleSend}
-                disabled={!canSend || insufficient || zeroBalance}
+                disabled={!canSend || insufficient || zeroBalance || balanceLoading}
                 className="flex-[2] h-12 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold gap-2"
               >
                 {sending ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Sending…
+                  </>
+                ) : balanceLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Checking balance…
                   </>
                 ) : (
                   <>
