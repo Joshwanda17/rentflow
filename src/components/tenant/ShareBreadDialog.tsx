@@ -375,7 +375,9 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
           // sender and receiver wallet statements stay consistent.
           transfer_kind: 'welile_bread',
           bread_qty: qty,
-          description: `Welile Bread x${qty} (${formatUGX(totalAmount)})`,
+          description: appliedReceipt && discountAmount > 0
+            ? `Welile Bread x${qty} (${formatUGX(totalAmount)}) · receipt ${appliedReceipt.number} −${formatUGX(discountAmount)}`
+            : `Welile Bread x${qty} (${formatUGX(totalAmount)})`,
         },
       });
       if (error) throw error;
