@@ -60,6 +60,10 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
   } | null>(null);
   // Seller chosen for the claim code (mall / bakery / supermarket).
   const [sellerId, setSellerId] = useState<string>(PARTNER_SELLERS[0].id);
+  // Step gate: tenant must pick where the receipt is from BEFORE entering it.
+  const [sellerLocked, setSellerLocked] = useState<boolean>(false);
+  // Free-text search to make picking from a long partner list painless.
+  const [sellerSearch, setSellerSearch] = useState('');
   // Active one-time claim code, if any.
   const [claim, setClaim] = useState<BreadClaim | null>(null);
   const [online, setOnline] = useState<boolean>(
@@ -71,6 +75,7 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
     if (!open) return;
     setError(null);
     setPendingConfirm(null);
+    setSellerSearch('');
     try {
       const raw = localStorage.getItem(RECEIPT_STORAGE_KEY);
       if (!raw) return;
@@ -82,7 +87,15 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
       /* ignore */
     }
     // Surface any still-active claim so the user can re-show the code.
-    setClaim(getActiveClaim());
+    const active = getActiveClaim();
+    setClaim(active);
+    // If a claim is already active, keep its seller locked in.
+    if (active) {
+      setSellerId(active.sellerId);
+      setSellerLocked(true);
+    } else {
+      setSellerLocked(false);
+    }
   }, [open]);
 
   // Track connectivity for the offline badge.
@@ -495,8 +508,117 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
                 </div>
               );
             })()
+          ) : !sellerLocked ? (
+            (() => {
+              const q = sellerSearch.trim().toLowerCase();
+              const list = q
+                ? PARTNER_SELLERS.filter(
+                    (s) =>
+                      s.name.toLowerCase().includes(q) ||
+                      s.city.toLowerCase().includes(q) ||
+                      s.type.toLowerCase().includes(q),
+                  )
+                : PARTNER_SELLERS;
+              return (
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold text-foreground inline-flex items-center gap-1.5">
+                      <Store className="h-3.5 w-3.5" />
+                      Where is your receipt from?
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Pick the mall, supermarket or bakery first — then we'll ask
+                      for the receipt number.
+                    </p>
+                  </div>
+                  <Input
+                    value={sellerSearch}
+                    onChange={(e) => setSellerSearch(e.target.value)}
+                    placeholder="Search Victoria Mall, S&S, bakery…"
+                    className="h-11 text-base"
+                    inputMode="search"
+                  />
+                  <ul className="max-h-64 overflow-y-auto rounded-xl border border-border divide-y divide-border bg-card">
+                    {list.length === 0 && (
+                      <li className="px-4 py-6 text-center text-xs text-muted-foreground">
+                        No partner found. Try another name.
+                      </li>
+                    )}
+                    {list.map((s) => {
+                      const active = s.id === sellerId;
+                      return (
+                        <li key={s.id}>
+                          <button
+                            type="button"
+                            onClick={() => setSellerId(s.id)}
+                            className={
+                              'w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors ' +
+                              (active
+                                ? 'bg-emerald-50 dark:bg-emerald-950/40'
+                                : 'hover:bg-muted/50')
+                            }
+                            aria-pressed={active}
+                          >
+                            <div className="min-w-0">
+                              <p className="font-semibold text-sm truncate">
+                                {s.name}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground capitalize">
+                                {s.type} · {s.city}
+                              </p>
+                            </div>
+                            {active && (
+                              <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                            )}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <Button
+                    type="button"
+                    onClick={() => setSellerLocked(true)}
+                    disabled={!sellerId}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                    size="lg"
+                  >
+                    Continue with this seller
+                  </Button>
+                  <p className="text-[11px] text-center text-muted-foreground">
+                    Step 1 of 2 · Pick seller, then enter receipt
+                  </p>
+                </div>
+              );
+            })()
           ) : (
             <div className="space-y-3">
+              {/* Locked-in seller pill, with a tap-to-change action. */}
+              {(() => {
+                const seller = PARTNER_SELLERS.find((s) => s.id === sellerId);
+                if (!seller) return null;
+                return (
+                  <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/20 px-3 py-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Store className="h-4 w-4 text-emerald-700 dark:text-emerald-300 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-[10px] uppercase tracking-wider font-semibold text-emerald-700 dark:text-emerald-300">
+                          Receipt from
+                        </p>
+                        <p className="text-sm font-semibold truncate">
+                          {seller.name} — {seller.city}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSellerLocked(false)}
+                      className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 underline underline-offset-2"
+                    >
+                      Change
+                    </button>
+                  </div>
+                );
+              })()}
               <div className="space-y-1.5">
                 <Label
                   htmlFor="welile-receipt-number"
