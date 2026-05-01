@@ -16,6 +16,11 @@ import OperationalFloatTenantAllocator, {
 } from './OperationalFloatTenantAllocator';
 import DepositReferenceMatcher, { type MatchResult } from './DepositReferenceMatcher';
 import AllocationEditDiffPanel from './AllocationEditDiffPanel';
+import {
+  safeDepositPurpose,
+  ALLOWED_DEPOSIT_PURPOSES as SHARED_ALLOWED_DEPOSIT_PURPOSES,
+  type DepositPurpose as SharedDepositPurpose,
+} from '@/lib/depositPurposeGuard';
 
 /**
  * Extract a Mobile Money / bank reference from arbitrary SMS text.
@@ -38,7 +43,7 @@ function extractTidFromText(raw: string): string | null {
 }
 
 type DepositChannel = 'momo' | 'bank' | 'agent_cash' | 'cash';
-type DepositPurpose = 'operational_float' | 'personal_deposit' | 'partnership_deposit' | 'personal_rent_repayment' | 'other';
+type DepositPurpose = SharedDepositPurpose;
 
 /**
  * Allowlist that mirrors the Postgres `deposit_purpose` enum exactly.
@@ -47,13 +52,7 @@ type DepositPurpose = 'operational_float' | 'personal_deposit' | 'partnership_de
  * raise the cryptic `invalid input value for enum deposit_purpose: ""`
  * error and leave the agent staring at a dead Confirm button).
  */
-const ALLOWED_DEPOSIT_PURPOSES: readonly DepositPurpose[] = [
-  'operational_float',
-  'personal_deposit',
-  'partnership_deposit',
-  'personal_rent_repayment',
-  'other',
-] as const;
+const ALLOWED_DEPOSIT_PURPOSES: readonly DepositPurpose[] = SHARED_ALLOWED_DEPOSIT_PURPOSES;
 
 interface DepositFlowProps {
   open: boolean;
