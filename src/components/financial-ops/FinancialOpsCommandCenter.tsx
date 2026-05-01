@@ -199,6 +199,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
       <WalletOverviewCard
         onOpenDeductions={() => openTool('deductions')}
         onViewActiveWallets={() => openTool('deductions', { withBalance: true })}
+        onOpenReconciliation={() => openTool('recon')}
       />
       <FinancialOpsPulseStrip />
 
