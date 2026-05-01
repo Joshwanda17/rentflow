@@ -511,20 +511,32 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
 
             {/* Recipient row */}
             {lookup.status === 'found' && (
-              <div className="rounded-xl border border-border bg-card p-3">
+              <div className="rounded-xl border border-border bg-card p-3 sm:p-4">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
                   Recipient
                 </p>
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-success/15 flex items-center justify-center shrink-0">
-                    <UserCheck className="h-5 w-5 text-success" />
+                <div className="flex items-start gap-3">
+                  <div className="h-11 w-11 rounded-full bg-success/15 flex items-center justify-center shrink-0 relative">
+                    <span className="text-base font-bold text-success">
+                      {recipientInitial}
+                    </span>
+                    <span className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-success flex items-center justify-center ring-2 ring-card">
+                      <UserCheck className="h-2.5 w-2.5 text-success-foreground" />
+                    </span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground truncate">
-                      {lookup.recipient.full_name?.trim() || 'Welile user'}
+                    {/* First name takes the spotlight; full name (if longer) is shown as a small hint and is the only text allowed to truncate. */}
+                    <p className="text-base font-bold text-foreground leading-tight">
+                      {recipientFirstName}
                     </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {lookup.recipient.phone || phone}
+                    {recipientFullName && recipientFullName !== recipientFirstName && (
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {recipientFullName}
+                      </p>
+                    )}
+                    {/* Full phone — never truncated; wraps on narrow screens. */}
+                    <p className="text-sm font-mono font-medium text-foreground mt-1 break-all">
+                      {recipientPhoneFormatted || phone}
                     </p>
                   </div>
                 </div>
