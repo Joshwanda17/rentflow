@@ -418,7 +418,16 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
   };
 
   const canSend = lookup.status === 'found' && !sending;
-  const totalAmount = WELILE_BREAD_PRICE * qty;
+  const grossAmount = WELILE_BREAD_PRICE * qty;
+  const rawDiscount = appliedReceipt
+    ? Math.round(appliedReceipt.amount * WELILE_BREAD_DISCOUNT_RATE)
+    : 0;
+  // Cap the discount so the user always pays at least the floor.
+  const discountAmount = Math.min(
+    rawDiscount,
+    Math.max(0, grossAmount - WELILE_BREAD_MIN_PAYABLE),
+  );
+  const totalAmount = Math.max(WELILE_BREAD_MIN_PAYABLE, grossAmount - discountAmount);
   // Hard zero-balance gate. Treat unknown balance as not-zero (don't lock the
   // user out if the parent never passed it). Once we know it's <= 0, ALL
   // sending paths are blocked.
