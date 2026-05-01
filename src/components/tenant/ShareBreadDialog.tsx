@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Send, Wheat, CheckCircle2, UserCheck, AlertCircle, Search, ArrowLeft, ArrowRight, Wallet } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
 import { formatUGX } from '@/lib/rentCalculations';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
@@ -40,6 +41,8 @@ type LookupState =
 
 export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props) {
   const { user } = useAuth();
+  const { profile } = useProfile();
+  const myLast9 = (profile?.phone ?? '').replace(/\D/g, '').slice(-9);
   const [step, setStep] = useState<'pick' | 'review'>('pick');
   const [phone, setPhone] = useState('');
   const [sending, setSending] = useState(false);
@@ -67,6 +70,12 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
     }
 
     const last9 = cleaned.slice(-9);
+    // Instant self-check — block before hitting the DB so the user gets
+    // immediate feedback even on slow networks.
+    if (myLast9 && last9 === myLast9) {
+      setLookup({ status: 'self' });
+      return;
+    }
     setLookup({ status: 'searching' });
     let cancelled = false;
     const handle = window.setTimeout(async () => {
@@ -92,15 +101,27 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
       cancelled = true;
       window.clearTimeout(handle);
     };
-  }, [phone, user]);
+  }, [phone, user, myLast9]);
 
   const handleSend = async () => {
+    // Defensive guard — should be unreachable because the Send button is
+    // disabled in the 'self' state, but if a user races the picker we
+    // still refuse the transfer locally before the edge function runs.
+    if (lookup.status === 'self') {
+      toast.error("You can't send a Welile Bread to your own wallet.");
+      return;
+    }
     if (lookup.status !== 'found') {
       toast.error('Pick a valid Welile recipient first');
       return;
     }
     if (!user) {
       toast.error('Please sign in');
+      return;
+    }
+    // Final belt-and-suspenders self-check using the resolved recipient id.
+    if (lookup.recipient.id === user.id) {
+      toast.error("You can't send a Welile Bread to your own wallet.");
       return;
     }
     if (typeof availableBalance === 'number' && availableBalance < WELILE_BREAD_PRICE) {
@@ -241,7 +262,9 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
                 {lookup.status === 'self' && (
                   <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-warning-foreground">
                     <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                    <span>That's your own number. Pick a different recipient.</span>
+                    <span>
+                      That's your own phone number. You can't send a Welile Bread to yourself — pick a different recipient.
+                    </span>
                   </div>
                 )}
                 {lookup.status === 'found' && (
