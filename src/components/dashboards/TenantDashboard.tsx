@@ -287,7 +287,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           <button
             type="button"
             onClick={handleOpenMenu}
-            className="relative w-full rounded-3xl overflow-hidden border border-border/50 shadow-lg group active:scale-[0.99] transition-transform bg-[#fdf6e3] flex items-center justify-center p-3 sm:p-4"
+            className="relative w-full rounded-3xl overflow-hidden border border-border shadow-lg group active:scale-[0.99] transition-transform bg-amber-50 dark:bg-muted flex items-center justify-center p-3 sm:p-4"
             style={{ height: 'min(58vh, 70vw, 520px)', minHeight: '220px' }}
             aria-label="Open menu"
           >
@@ -305,13 +305,13 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             {/* Shimmer placeholder while bread loads */}
             {!breadLoaded && (
               <div className="absolute inset-0 overflow-hidden rounded-3xl" aria-hidden="true">
-                <div className="absolute inset-0 bg-[#fdf6e3]" />
-                <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+                <div className="absolute inset-0 bg-amber-50 dark:bg-muted" />
+                <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-foreground/10 to-transparent" />
               </div>
             )}
 
             {/* Welile branding badge — top-left */}
-            <div className="absolute top-3 left-3 flex flex-col items-center gap-1 rounded-2xl bg-background/85 backdrop-blur-sm px-2.5 py-2 shadow-sm border border-border/40">
+            <div className="absolute top-3 left-3 flex flex-col items-center gap-1 rounded-2xl bg-card/90 backdrop-blur-sm px-2.5 py-2 shadow-sm border border-border">
               <img
                 src={welileLogo}
                 alt="Welile"
@@ -319,7 +319,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                 width={28}
                 height={28}
               />
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-foreground/80 leading-none">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-foreground leading-none">
                 Bread
               </span>
             </div>
