@@ -293,19 +293,39 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             aria-label="Open dashboard menu — Welile Bread"
             aria-describedby="bread-card-desc"
           >
-            <img
-              src={breadHero}
-              alt=""
-              role="presentation"
-              className={`h-full w-full object-contain select-none pointer-events-none transition-opacity duration-500 ${breadLoaded ? 'opacity-100' : 'opacity-0'}`}
-              width={1024}
-              height={1024}
-              loading="lazy"
-              decoding="async"
-              onLoad={() => setBreadLoaded(true)}
-            />
+            {!breadError && (
+              <img
+                src={breadHero}
+                alt=""
+                role="presentation"
+                className={`h-full w-full object-contain select-none pointer-events-none transition-opacity duration-500 ${breadLoaded ? 'opacity-100' : 'opacity-0'}`}
+                width={1024}
+                height={1024}
+                loading="lazy"
+                decoding="async"
+                onLoad={() => setBreadLoaded(true)}
+                onError={() => {
+                  setBreadError(true);
+                  setBreadLoaded(true);
+                }}
+              />
+            )}
+
+            {/* Error fallback — emoji + label, badge stays visible */}
+            {breadError && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center px-6" aria-hidden="true">
+                <span className="text-6xl sm:text-7xl" role="img" aria-label="bread">🍞</span>
+                <p className="text-sm font-medium text-foreground/70">Daily Bread</p>
+                <p className="text-xs text-muted-foreground">Tap to open menu</p>
+              </div>
+            )}
+
             <span id="bread-card-desc" className="sr-only">
-              {breadLoaded ? 'Fresh loaf of bread illustration. Tap to open the dashboard menu.' : 'Bread image is loading. Tap to open the dashboard menu.'}
+              {breadError
+                ? 'Bread image unavailable. Tap to open the dashboard menu.'
+                : breadLoaded
+                ? 'Fresh loaf of bread illustration. Tap to open the dashboard menu.'
+                : 'Bread image is loading. Tap to open the dashboard menu.'}
             </span>
 
             {/* Shimmer placeholder while bread loads */}
