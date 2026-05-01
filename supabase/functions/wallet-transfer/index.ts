@@ -49,11 +49,12 @@ Deno.serve(async (req) => {
 
     const senderId = user.id;
     const body = await req.json().catch(() => ({}));
-    const { recipient_id, recipient_phone, amount, description } = body as { 
-      recipient_id?: string; 
+    const { recipient_id, recipient_phone, amount, description, transfer_kind } = body as {
+      recipient_id?: string;
       recipient_phone?: string;
-      amount?: number; 
-      description?: string 
+      amount?: number;
+      description?: string;
+      transfer_kind?: string;
     };
 
     const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -115,6 +116,19 @@ Deno.serve(async (req) => {
 
     const safeDescription = typeof description === 'string' ? description.trim().slice(0, 500) : 'Wallet transfer';
 
+    // === Canonical descriptions per transfer kind ===
+    // For Welile Bread transfers we OVERRIDE the client-supplied description on
+    // BOTH legs so that sender and receiver wallet statements stay perfectly
+    // consistent regardless of what the client sent.
+    const isWelileBread = transfer_kind === 'welile_bread';
+    const formattedAmount = `UGX ${Number(amount).toLocaleString('en-US')}`;
+    const senderDescription = isWelileBread
+      ? `You have sent a Welile bread of ${formattedAmount}`
+      : `Transfer to user: ${safeDescription}`;
+    const recipientDescription = isWelileBread
+      ? `You have received a Welile bread of ${formattedAmount}`
+      : `Transfer from user: ${safeDescription}`;
+
     // Debug log removed for cost optimization
 
     if (senderId === resolvedRecipientId) {
@@ -170,7 +184,7 @@ Deno.serve(async (req) => {
           category: 'wallet_transfer',
           ledger_scope: 'wallet',
           source_table: 'wallet_transactions',
-          description: `Transfer to user: ${safeDescription}`,
+          description: senderDescription,
           currency: 'UGX',
           transaction_date: new Date().toISOString(),
         },
@@ -181,7 +195,7 @@ Deno.serve(async (req) => {
           category: 'wallet_transfer',
           ledger_scope: 'wallet',
           source_table: 'wallet_transactions',
-          description: `Transfer from user: ${safeDescription}`,
+          description: recipientDescription,
           currency: 'UGX',
           transaction_date: new Date().toISOString(),
         },
