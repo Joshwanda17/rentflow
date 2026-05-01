@@ -1,0 +1,134 @@
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+
+export interface AgentRejectedRequest {
+  id: string;
+  rent_amount: number;
+  duration_days: number;
+  number_of_payments: number | null;
+  daily_repayment: number;
+  total_repayment: number;
+  access_fee: number;
+  request_fee: number;
+  status: string;
+  created_at: string;
+  rejected_at: string | null;
+  rejected_at_stage: string | null;
+  rejected_reason: string | null;
+  reopen_count: number;
+  tenant_id: string;
+  landlord_id: string;
+  tenant_water_meter: string | null;
+  tenant_electricity_meter: string | null;
+  request_latitude: number | null;
+  request_longitude: number | null;
+  // Reviewer columns we resolve to a name
+  tenant_ops_reviewed_by: string | null;
+  tenant_ops_reviewed_at: string | null;
+  agent_verified_by: string | null;
+  agent_verified_at: string | null;
+  landlord_ops_reviewed_by: string | null;
+  landlord_ops_reviewed_at: string | null;
+  coo_reviewed_by: string | null;
+  coo_reviewed_at: string | null;
+  cfo_reviewed_by: string | null;
+  cfo_reviewed_at: string | null;
+  // Enriched
+  tenant_name?: string;
+  tenant_phone?: string;
+  landlord_name?: string;
+  landlord_address?: string;
+  reviewer_name?: string;
+  reviewer_at?: string | null;
+  stage_label?: string;
+}
+
+export const STAGE_LABEL: Record<string, string> = {
+  pending: 'Tenant Ops',
+  tenant_ops_approved: 'Agent Ops',
+  agent_verified: 'Landlord Ops',
+  landlord_ops_approved: 'COO',
+  coo_approved: 'CFO',
+};
+
+function reviewerForStage(r: any): { id: string | null; at: string | null; label: string } {
+  const stage = r.rejected_at_stage ?? 'pending';
+  switch (stage) {
+    case 'pending':
+      return { id: r.tenant_ops_reviewed_by, at: r.tenant_ops_reviewed_at, label: STAGE_LABEL.pending };
+    case 'tenant_ops_approved':
+      return { id: r.agent_verified_by, at: r.agent_verified_at, label: STAGE_LABEL.tenant_ops_approved };
+    case 'agent_verified':
+      return { id: r.landlord_ops_reviewed_by, at: r.landlord_ops_reviewed_at, label: STAGE_LABEL.agent_verified };
+    case 'landlord_ops_approved':
+      return { id: r.coo_reviewed_by, at: r.coo_reviewed_at, label: STAGE_LABEL.landlord_ops_approved };
+    case 'coo_approved':
+      return { id: r.cfo_reviewed_by, at: r.cfo_reviewed_at, label: STAGE_LABEL.coo_approved };
+    default:
+      return { id: null, at: null, label: stage };
+  }
+}
+
+export function useAgentRejectedRequests() {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ['agent-rejected-rent-requests', user?.id],
+    enabled: !!user,
+    queryFn: async (): Promise<AgentRejectedRequest[]> => {
+      const { data, error } = await supabase
+        .from('rent_requests')
+        .select(
+          'id, rent_amount, duration_days, number_of_payments, daily_repayment, total_repayment, access_fee, request_fee, status, created_at, rejected_at, rejected_at_stage, rejected_reason, reopen_count, tenant_id, landlord_id, tenant_water_meter, tenant_electricity_meter, request_latitude, request_longitude, tenant_ops_reviewed_by, tenant_ops_reviewed_at, agent_verified_by, agent_verified_at, landlord_ops_reviewed_by, landlord_ops_reviewed_at, coo_reviewed_by, coo_reviewed_at, cfo_reviewed_by, cfo_reviewed_at',
+        )
+        .eq('agent_id', user!.id)
+        .eq('status', 'rejected')
+        .order('rejected_at', { ascending: false, nullsFirst: false })
+        .limit(100);
+
+      if (error) throw error;
+      const rows = (data ?? []) as any[];
+      if (rows.length === 0) return [];
+
+      const tenantIds = [...new Set(rows.map((r) => r.tenant_id).filter(Boolean))];
+      const landlordIds = [...new Set(rows.map((r) => r.landlord_id).filter(Boolean))];
+      const reviewerIds = [
+        ...new Set(rows.map((r) => reviewerForStage(r).id).filter(Boolean) as string[]),
+      ];
+      const profileIds = [...new Set([...tenantIds, ...reviewerIds])];
+
+      const [{ data: profiles }, { data: landlords }] = await Promise.all([
+        profileIds.length
+          ? supabase.from('profiles').select('id, full_name, phone').in('id', profileIds)
+          : Promise.resolve({ data: [] as any[] }),
+        landlordIds.length
+          ? supabase
+              .from('landlords')
+              .select('id, name, property_address')
+              .in('id', landlordIds)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+
+      const pmap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
+      const lmap = new Map((landlords ?? []).map((l: any) => [l.id, l]));
+
+      return rows.map((r) => {
+        const reviewer = reviewerForStage(r);
+        const reviewerProfile = reviewer.id ? pmap.get(reviewer.id) : null;
+        const tenantProfile = pmap.get(r.tenant_id);
+        const landlord = lmap.get(r.landlord_id);
+        return {
+          ...r,
+          tenant_name: tenantProfile?.full_name ?? 'Unknown tenant',
+          tenant_phone: tenantProfile?.phone ?? '',
+          landlord_name: landlord?.name ?? 'Unknown landlord',
+          landlord_address: landlord?.property_address ?? '',
+          reviewer_name: reviewerProfile?.full_name ?? 'Reviewer',
+          reviewer_at: reviewer.at,
+          stage_label: reviewer.label,
+        } as AgentRejectedRequest;
+      });
+    },
+  });
+}

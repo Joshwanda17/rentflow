@@ -19,6 +19,7 @@ import { hapticTap } from '@/lib/haptics';
 import { motion, AnimatePresence } from 'framer-motion';
 import { downloadRepaymentPdf, shareRepaymentPdfWhatsApp } from '@/lib/repaymentSchedulePdf';
 import { useToast } from '@/hooks/use-toast';
+import { AgentRejectedRequestsSection } from './AgentRejectedRequestsSection';
 
 interface AgentRentRequest {
   id: string;
@@ -90,6 +91,7 @@ export function AgentMyRentRequestsSheet({ open, onOpenChange }: AgentMyRentRequ
       .from('rent_requests')
       .select('id, rent_amount, total_repayment, duration_days, daily_repayment, status, created_at, tenant_id, landlord_id, agent_verified, manager_verified, request_latitude, request_longitude, request_city, request_country')
       .or(`agent_id.eq.${user.id},agent_verified_by.eq.${user.id}`)
+      .neq('status', 'deleted_by_agent')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -199,6 +201,9 @@ export function AgentMyRentRequestsSheet({ open, onOpenChange }: AgentMyRentRequ
         </SheetHeader>
 
         <ScrollArea className="flex-1 px-4 py-3">
+          <div className="mb-4">
+            <AgentRejectedRequestsSection />
+          </div>
           {loading ? (
             <div className="space-y-3">
               {[1, 2, 3].map(i => <Skeleton key={i} className="h-48 w-full rounded-xl" />)}
