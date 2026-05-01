@@ -434,11 +434,11 @@ export default function SupporterDashboard({
           {/* ═══ INLINE GREETING BAR ═══ */}
           <div className="flex flex-col items-center gap-2 py-2">
             <button onClick={() => navigate('/settings')} className="shrink-0 min-h-[44px] min-w-[44px]">
-              <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="lg" />
+              <UserAvatar avatarUrl={profile?.avatar_url} fullName={displayFullName} size="lg" />
             </button>
             <div className="flex flex-col items-center gap-0.5">
               <h1 className="font-bold text-lg leading-tight flex items-center gap-1.5">
-                <span className="break-words">{profile?.full_name?.split(' ')[0] || 'Supporter'}</span>
+                <span className="break-words">{displayFirstName}</span>
                 {profile?.verified ? (
                   <BadgeCheck className="h-4 w-4 text-primary fill-primary/20 shrink-0" />
                 ) : (
