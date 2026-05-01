@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
       'agent_commission_earned', 'agent_commission', 'agent_bonus',
       'partner_commission', 'referral_bonus',
       'proxy_investment_commission', 'agent_investment_commission',
-      'system_balance_correction', 'wallet_transfer', 'manager_credit',
+      'wallet_transfer', 'manager_credit',
       'marketing_expense', 'general_admin_expense', 'research_development_expense',
       'tax_expense', 'interest_expense', 'equipment_expense',
     ]);
