@@ -239,7 +239,7 @@ export function UnifiedWalletHeroCard({
             <Sparkles className="h-3.5 w-3.5 text-amber-300 mt-0.5 shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-[10px] uppercase tracking-[0.12em] font-semibold text-amber-200/90">
-                Payroll growing · {(payrollGrowth.dailyRate * 100).toFixed(1)}% / day
+                Balance growing · {(payrollGrowth.dailyRate * 100).toFixed(1)}% / day
               </p>
               <p className="text-[10px] text-primary-foreground/70 mt-0.5">
                 <span className="font-bold text-primary-foreground">{formatAmount(displayedParked)}</span>
