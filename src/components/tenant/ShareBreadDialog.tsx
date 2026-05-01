@@ -76,22 +76,41 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
   // Detect a withdrawable increase while the dialog is open (e.g. a top-up
   // landed in the ledger) and surface a receipt-style toast so the user
   // knows the zero-balance gate has been lifted in real time.
+  //
+  // Guards (so a single top-up never fires more than one toast):
+  //  1. `prevBalanceRef` — last balance we observed; only `>` triggers.
+  //  2. `lastToastBalanceRef` — the exact balance we last toasted for, so
+  //     repeated re-renders with the same number stay silent even if the
+  //     baseline ref gets perturbed.
+  //  3. `lastToastAtRef` — short 1.5s cooldown that absorbs back-to-back
+  //     ledger inserts belonging to the same top-up batch.
   const prevBalanceRef = useRef<number | null>(null);
+  const lastToastBalanceRef = useRef<number | null>(null);
+  const lastToastAtRef = useRef<number>(0);
   useEffect(() => {
     if (!open) {
-      // Reset baseline whenever the dialog closes so the next open compares
-      // against a fresh starting point instead of a stale value.
+      // Reset all baselines whenever the dialog closes so the next open
+      // starts from a clean slate.
       prevBalanceRef.current = null;
+      lastToastBalanceRef.current = null;
+      lastToastAtRef.current = 0;
       return;
     }
     if (typeof effectiveBalance !== 'number') return;
     const prev = prevBalanceRef.current;
     if (prev !== null && effectiveBalance > prev) {
-      const delta = effectiveBalance - prev;
-      toast.success('Wallet topped up', {
-        description: `+${formatUGX(delta)} · New withdrawable: ${formatUGX(effectiveBalance)}`,
-        duration: 5000,
-      });
+      const now = Date.now();
+      const sameAsLastToast = lastToastBalanceRef.current === effectiveBalance;
+      const withinCooldown = now - lastToastAtRef.current < 1500;
+      if (!sameAsLastToast && !withinCooldown) {
+        const delta = effectiveBalance - prev;
+        toast.success('Wallet topped up', {
+          description: `+${formatUGX(delta)} · New withdrawable: ${formatUGX(effectiveBalance)}`,
+          duration: 5000,
+        });
+        lastToastBalanceRef.current = effectiveBalance;
+        lastToastAtRef.current = now;
+      }
     }
     prevBalanceRef.current = effectiveBalance;
   }, [open, effectiveBalance]);
