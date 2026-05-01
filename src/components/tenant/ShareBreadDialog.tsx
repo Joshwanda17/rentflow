@@ -128,9 +128,18 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
     transaction_date: string;
   };
   const [recentCredits, setRecentCredits] = useState<RecentCredit[]>([]);
+  // Signature of the last fetched row set (sorted ledger ids joined). Used
+  // to skip state updates when a rapid balance refresh returns the same
+  // ledger rows we already have — prevents render churn and ensures no
+  // duplicate visual flicker even if multiple realtime events fire in the
+  // same tick.
+  const lastCreditsSigRef = useRef<string>('');
   useEffect(() => {
     if (!open || !user) {
-      if (!open) setRecentCredits([]);
+      if (!open) {
+        setRecentCredits([]);
+        lastCreditsSigRef.current = '';
+      }
       return;
     }
     let cancelled = false;
@@ -148,7 +157,18 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
         .order('transaction_date', { ascending: false })
         .limit(3);
       if (cancelled) return;
-      setRecentCredits((data ?? []) as RecentCredit[]);
+      const next = (data ?? []) as RecentCredit[];
+      // Compare against the previous fetch by ledger-id signature. If the
+      // exact same rows came back (rapid back-to-back refreshes around a
+      // single top-up batch), skip the setState entirely.
+      const sig = next
+        .map((r) => r.id)
+        .slice()
+        .sort()
+        .join('|');
+      if (sig === lastCreditsSigRef.current) return;
+      lastCreditsSigRef.current = sig;
+      setRecentCredits(next);
     })();
     return () => {
       cancelled = true;
