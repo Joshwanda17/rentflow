@@ -22,6 +22,7 @@ import WalletReconciliationAuditPanel from '@/components/cfo/WalletReconciliatio
 import WithdrawableDriftAlertsPanel from '@/components/cfo/WithdrawableDriftAlertsPanel';
 import HistoricalDriftReviewPanel from '@/components/cfo/HistoricalDriftReviewPanel';
 import AnchoredCacheDriftPanel from '@/components/cfo/AnchoredCacheDriftPanel';
+import CacheSweepPanel from '@/components/cfo/CacheSweepPanel';
 import LedgerReconciliationPanel from '@/components/cfo/LedgerReconciliationPanel';
 
 import { CFOPartnerPayoutProcessing } from '@/components/cfo/CFOPartnerPayoutProcessing';
@@ -112,6 +113,7 @@ export default function CFODashboardPage() {
             <LedgerReconciliationPanel />
             <WithdrawableDriftAlertsPanel />
             <AnchoredCacheDriftPanel />
+            <CacheSweepPanel />
             <PhantomDriftPanel />
             <HistoricalDriftReviewPanel />
             <WalletReconciliationAuditPanel />
