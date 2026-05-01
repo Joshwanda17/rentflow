@@ -423,6 +423,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         open={shareBreadOpen}
         onOpenChange={setShareBreadOpen}
         availableBalance={withdrawableAvailable}
+        onTopUp={() => setShowWallet(true)}
       />
 
       {/* Menu Drawer */}
