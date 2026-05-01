@@ -87,7 +87,15 @@ export default function SupporterDashboard({
 }: SupporterDashboardProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { profile } = useProfile();
+  const { profile, loading: profileLoading } = useProfile();
+  // Fallback chain while profile fetch is in flight (or RLS briefly hides
+  // the row right after signup): use the auth user_metadata that the
+  // signup form just wrote, then email local-part. Only show the generic
+  // "Supporter" placeholder if we truly have nothing.
+  const metaFullName = (user?.user_metadata?.full_name as string | undefined)?.trim() || '';
+  const emailLocal = (user?.email || '').split('@')[0] || '';
+  const displayFullName = profile?.full_name?.trim() || metaFullName || emailLocal;
+  const displayFirstName = displayFullName ? displayFullName.split(' ')[0] : (profileLoading ? '' : 'Supporter');
   const { isOnline } = useOffline();
   const [loading, setLoading] = useState(false);
   const [hasCachedData, setHasCachedData] = useState(() => {
@@ -426,11 +434,11 @@ export default function SupporterDashboard({
           {/* ═══ INLINE GREETING BAR ═══ */}
           <div className="flex flex-col items-center gap-2 py-2">
             <button onClick={() => navigate('/settings')} className="shrink-0 min-h-[44px] min-w-[44px]">
-              <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="lg" />
+              <UserAvatar avatarUrl={profile?.avatar_url} fullName={displayFullName} size="lg" />
             </button>
             <div className="flex flex-col items-center gap-0.5">
               <h1 className="font-bold text-lg leading-tight flex items-center gap-1.5">
-                <span className="break-words">{profile?.full_name?.split(' ')[0] || 'Supporter'}</span>
+                <span className="break-words">{displayFirstName}</span>
                 {profile?.verified ? (
                   <BadgeCheck className="h-4 w-4 text-primary fill-primary/20 shrink-0" />
                 ) : (
