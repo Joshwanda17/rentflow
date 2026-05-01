@@ -90,15 +90,16 @@ export default function SellerPortal() {
   const release = () => {
     if (!lookup || !store) return;
     const result = fulfillClaim(lookup.code, { id: store.id, name: `${store.name} — ${store.city}` });
-    if (!result.ok) {
+    if (result.ok === false) {
       setError(result.reason);
       return;
     }
+    const rec = result.record;
     toast.success('Bread released', {
       description:
-        result.record.freeBreads > 0
-          ? `${result.record.freeBreads}× free bread · charged UGX 0`
-          : `Charged ${formatUGX(result.record.payableCharged)}`,
+        rec.freeBreads > 0
+          ? `${rec.freeBreads}× free bread · charged UGX 0`
+          : `Charged ${formatUGX(rec.payableCharged)}`,
     });
     setHistory(listRedemptions());
     setLookup(null);
