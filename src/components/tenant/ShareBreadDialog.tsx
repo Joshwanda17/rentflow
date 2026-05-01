@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Send, Wheat, CheckCircle2, UserCheck, AlertCircle, Search, ArrowLeft, ArrowRight, Wallet, Copy, Hash } from 'lucide-react';
+import { Loader2, Send, Wheat, CheckCircle2, UserCheck, AlertCircle, Search, ArrowLeft, ArrowRight, Wallet, Copy, Hash, Minus, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 
 export const WELILE_BREAD_PRICE = 6500;
+export const WELILE_BREAD_MAX_QTY = 50;
 
 interface Props {
   open: boolean;
@@ -45,6 +46,7 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
   const myLast9 = (profile?.phone ?? '').replace(/\D/g, '').slice(-9);
   const [step, setStep] = useState<'pick' | 'review'>('pick');
   const [phone, setPhone] = useState('');
+  const [qty, setQty] = useState(1);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [lookup, setLookup] = useState<LookupState>({ status: 'idle' });
@@ -53,6 +55,7 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
   const reset = () => {
     setStep('pick');
     setPhone('');
+    setQty(1);
     setSending(false);
     setSent(false);
     setLookup({ status: 'idle' });
@@ -126,8 +129,8 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
       toast.error("You can't send a Welile Bread to your own wallet.");
       return;
     }
-    if (typeof availableBalance === 'number' && availableBalance < WELILE_BREAD_PRICE) {
-      toast.error(`Insufficient balance. You need ${formatUGX(WELILE_BREAD_PRICE)}`);
+    if (typeof availableBalance === 'number' && availableBalance < totalAmount) {
+      toast.error(`Insufficient balance. You need ${formatUGX(totalAmount)}`);
       return;
     }
 
@@ -136,11 +139,12 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
       const { data, error } = await supabase.functions.invoke('wallet-transfer', {
         body: {
           recipient_id: lookup.recipient.id,
-          amount: WELILE_BREAD_PRICE,
+          amount: totalAmount,
           // Canonical descriptions are set server-side for both legs so the
           // sender and receiver wallet statements stay consistent.
           transfer_kind: 'welile_bread',
-          description: `Welile Bread (${formatUGX(WELILE_BREAD_PRICE)})`,
+          bread_qty: qty,
+          description: `Welile Bread x${qty} (${formatUGX(totalAmount)})`,
         },
       });
       if (error) throw error;
@@ -157,9 +161,9 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
       const name = lookup.recipient.full_name?.trim() || 'recipient';
       const shortRef = ref.slice(0, 8).toUpperCase();
       // Receipt-style toast
-      toast.success(`🍞 Welile Bread delivered`, {
+      toast.success(`🍞 ${qty > 1 ? `${qty} Welile Breads` : 'Welile Bread'} delivered`, {
         description:
-          `${formatUGX(WELILE_BREAD_PRICE)} → ${name}\n` +
+          `${formatUGX(totalAmount)} → ${name}\n` +
           `Ref: ${shortRef}`,
         duration: 6000,
         action: {
@@ -174,7 +178,7 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
       const msg = err instanceof Error ? err.message : 'Failed to send Welile Bread';
       // Receipt-style failure toast
       toast.error('Welile Bread failed', {
-        description: `${formatUGX(WELILE_BREAD_PRICE)} · ${msg}`,
+        description: `${formatUGX(totalAmount)} · ${msg}`,
         duration: 7000,
       });
     } finally {
@@ -183,10 +187,14 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
   };
 
   const canSend = lookup.status === 'found' && !sending;
+  const totalAmount = WELILE_BREAD_PRICE * qty;
   const insufficient =
-    typeof availableBalance === 'number' && availableBalance < WELILE_BREAD_PRICE;
+    typeof availableBalance === 'number' && availableBalance < totalAmount;
   const balanceAfter =
-    typeof availableBalance === 'number' ? availableBalance - WELILE_BREAD_PRICE : null;
+    typeof availableBalance === 'number' ? availableBalance - totalAmount : null;
+
+  const decQty = () => setQty((q) => Math.max(1, q - 1));
+  const incQty = () => setQty((q) => Math.min(WELILE_BREAD_MAX_QTY, q + 1));
 
   return (
     <Dialog
@@ -217,7 +225,7 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
               ? 'Your Welile Bread is on its way.'
               : step === 'review'
               ? 'Review the details below. This action is final once you tap Send.'
-              : `Send a fresh ${formatUGX(WELILE_BREAD_PRICE)} Welile Bread to any Welile user.`}
+              : `Send fresh Welile Bread (${formatUGX(WELILE_BREAD_PRICE)} each) to any Welile user.`}
           </DialogDescription>
         </DialogHeader>
 
@@ -230,7 +238,10 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
             <CheckCircle2 className="h-14 w-14 text-success" />
             <p className="font-semibold">Welile Bread delivered</p>
             <p className="text-sm text-muted-foreground text-center">
-              {formatUGX(WELILE_BREAD_PRICE)} has been credited to the recipient's wallet.
+              {qty > 1
+                ? `${qty} Welile Breads (${formatUGX(totalAmount)})`
+                : formatUGX(totalAmount)}{' '}
+              has been credited to the recipient's wallet.
             </p>
             {reference && (
               <div className="w-full mt-2 rounded-xl border border-border bg-muted/40 px-3 py-2.5">
@@ -281,10 +292,63 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wider">Welile Bread</p>
                   <p className="text-2xl font-bold text-amber-700 dark:text-amber-400">
-                    {formatUGX(WELILE_BREAD_PRICE)}
+                    {formatUGX(totalAmount)}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {qty} × {formatUGX(WELILE_BREAD_PRICE)}
                   </p>
                 </div>
                 <span className="text-4xl" role="img" aria-label="bread">🍞</span>
+              </div>
+            </div>
+
+            {/* Quantity stepper */}
+            <div className="flex items-center justify-between rounded-xl border border-border bg-card p-3">
+              <div>
+                <p className="text-sm font-semibold text-foreground">How many breads?</p>
+                <p className="text-[11px] text-muted-foreground">Up to {WELILE_BREAD_MAX_QTY} per send</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-9 w-9"
+                  onClick={decQty}
+                  disabled={qty <= 1 || sending}
+                  aria-label="Decrease quantity"
+                >
+                  <Minus className="h-4 w-4" />
+                </Button>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={WELILE_BREAD_MAX_QTY}
+                  value={qty}
+                  onChange={(e) => {
+                    const n = parseInt(e.target.value, 10);
+                    if (Number.isNaN(n)) {
+                      setQty(1);
+                      return;
+                    }
+                    setQty(Math.min(WELILE_BREAD_MAX_QTY, Math.max(1, n)));
+                  }}
+                  disabled={sending}
+                  className="h-9 w-14 text-center font-semibold"
+                  aria-label="Number of breads"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-9 w-9"
+                  onClick={incQty}
+                  disabled={qty >= WELILE_BREAD_MAX_QTY || sending}
+                  aria-label="Increase quantity"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
               </div>
             </div>
 
@@ -384,11 +448,16 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
                 <span className="text-3xl" role="img" aria-label="bread">🍞</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                    Welile Bread · Fresh today
+                    {qty > 1 ? `${qty} Welile Breads` : 'Welile Bread'} · Fresh today
                   </p>
                   <p className="text-xl font-extrabold text-amber-700 dark:text-amber-400">
-                    {formatUGX(WELILE_BREAD_PRICE)}
+                    {formatUGX(totalAmount)}
                   </p>
+                  {qty > 1 && (
+                    <p className="text-[11px] text-muted-foreground">
+                      {qty} × {formatUGX(WELILE_BREAD_PRICE)}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -430,9 +499,11 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
                 </span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Welile Bread cost</span>
+                <span className="text-muted-foreground">
+                  {qty > 1 ? `${qty} Welile Breads` : 'Welile Bread'} cost
+                </span>
                 <span className="font-semibold text-destructive">
-                  − {formatUGX(WELILE_BREAD_PRICE)}
+                  − {formatUGX(totalAmount)}
                 </span>
               </div>
               <div className="border-t border-border my-1" />

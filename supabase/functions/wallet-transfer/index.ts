@@ -122,11 +122,25 @@ Deno.serve(async (req) => {
     // consistent regardless of what the client sent.
     const isWelileBread = transfer_kind === 'welile_bread';
     const formattedAmount = `UGX ${Number(amount).toLocaleString('en-US')}`;
+    // Optional Welile Bread quantity. Server trusts amount for the actual
+    // value moved, but uses qty (when provided & valid) to render the
+    // canonical statement description ("4 Welile breads of UGX 26,000").
+    const breadQtyRaw = (body as { bread_qty?: number }).bread_qty;
+    const breadQty =
+      isWelileBread &&
+      typeof breadQtyRaw === 'number' &&
+      Number.isFinite(breadQtyRaw) &&
+      breadQtyRaw >= 1 &&
+      breadQtyRaw <= 100
+        ? Math.floor(breadQtyRaw)
+        : 1;
+    const breadNoun = breadQty === 1 ? 'Welile bread' : `Welile breads`;
+    const breadPrefix = isWelileBread && breadQty > 1 ? `${breadQty} ` : '';
     const senderDescription = isWelileBread
-      ? `You have sent a Welile bread of ${formattedAmount}`
+      ? `You have sent ${breadPrefix}${breadNoun} of ${formattedAmount}`
       : `Transfer to user: ${safeDescription}`;
     const recipientDescription = isWelileBread
-      ? `You have received a Welile bread of ${formattedAmount}`
+      ? `You have received ${breadPrefix}${breadNoun} of ${formattedAmount}`
       : `Transfer from user: ${safeDescription}`;
 
     // Debug log removed for cost optimization
