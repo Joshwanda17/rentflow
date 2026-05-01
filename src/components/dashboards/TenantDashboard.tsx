@@ -127,6 +127,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [breadLoaded, setBreadLoaded] = useState(false);
+  const [breadError, setBreadError] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
   const [housesOpen, setHousesOpen] = useState(false);
 
