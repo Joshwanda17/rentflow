@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { BadgePercent, CheckCircle2, Hash, Wallet, X, WifiOff } from 'lucide-react';
+import { BadgePercent, CheckCircle2, Hash, Wallet, X, WifiOff, ArrowLeft } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { toast } from 'sonner';
 
@@ -45,6 +45,12 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
   const [receiptAmountInput, setReceiptAmountInput] = useState('');
   const [applied, setApplied] = useState<BreadReceipt | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // When non-null, the user has validated their entries and is being asked
+  // to confirm before we persist + apply the 5% discount.
+  const [pendingConfirm, setPendingConfirm] = useState<{
+    number: string;
+    amount: number;
+  } | null>(null);
   const [online, setOnline] = useState<boolean>(
     typeof navigator === 'undefined' ? true : navigator.onLine,
   );
@@ -53,6 +59,7 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
   useEffect(() => {
     if (!open) return;
     setError(null);
+    setPendingConfirm(null);
     try {
       const raw = localStorage.getItem(RECEIPT_STORAGE_KEY);
       if (!raw) return;
@@ -86,7 +93,8 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
   );
   const reducedPrice = Math.max(WELILE_BREAD_MIN_PAYABLE, grossAmount - discountAmount);
 
-  const submit = () => {
+  // Step 1 — validate inputs, then move to the confirmation panel.
+  const reviewBeforeApply = () => {
     setError(null);
     const num = receiptNumber.trim();
     const amt = Number(receiptAmountInput.replace(/[,\s]/g, ''));
@@ -98,10 +106,18 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
       setError('Enter a valid receipt amount');
       return;
     }
+    setPendingConfirm({ number: num, amount: amt });
+  };
+
+  // Step 2 — persist & apply once the user confirms.
+  const confirmApply = () => {
+    if (!pendingConfirm) return;
+    const { number: num, amount: amt } = pendingConfirm;
     const next: BreadReceipt = { number: num, amount: amt, savedAt: Date.now() };
     setApplied(next);
     setReceiptNumber('');
     setReceiptAmountInput('');
+    setPendingConfirm(null);
     try {
       localStorage.setItem(RECEIPT_STORAGE_KEY, JSON.stringify(next));
     } catch {
@@ -178,7 +194,7 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
             </div>
           </div>
 
-          {/* Applied receipt card OR input form */}
+          {/* Applied receipt card OR confirmation panel OR input form */}
           {applied ? (
             <div className="rounded-2xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 p-4 space-y-3">
               <div className="flex items-start gap-3">
@@ -213,6 +229,77 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
                 Done — pay {formatUGX(reducedPrice)}
               </Button>
             </div>
+          ) : pendingConfirm ? (
+            (() => {
+              const previewDiscount = Math.min(
+                Math.round(pendingConfirm.amount * WELILE_BREAD_DISCOUNT_RATE),
+                Math.max(0, grossAmount - WELILE_BREAD_MIN_PAYABLE),
+              );
+              const previewPrice = Math.max(
+                WELILE_BREAD_MIN_PAYABLE,
+                grossAmount - previewDiscount,
+              );
+              return (
+                <div className="rounded-2xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-950/20 p-4 space-y-4">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                      Confirm your receipt
+                    </p>
+                    <p className="text-xs text-emerald-900/80 dark:text-emerald-100/80 mt-0.5">
+                      Please double-check before we apply your 5% discount.
+                    </p>
+                  </div>
+
+                  <dl className="space-y-2 text-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <dt className="text-muted-foreground">Receipt number</dt>
+                      <dd className="font-mono font-semibold text-foreground text-right break-all">
+                        {pendingConfirm.number}
+                      </dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-muted-foreground">Receipt amount</dt>
+                      <dd className="font-semibold text-foreground tabular-nums">
+                        {formatUGX(pendingConfirm.amount)}
+                      </dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-muted-foreground">Discount (5%)</dt>
+                      <dd className="font-semibold text-emerald-700 dark:text-emerald-400 tabular-nums">
+                        −{formatUGX(previewDiscount)}
+                      </dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 pt-2 border-t border-emerald-200 dark:border-emerald-800">
+                      <dt className="font-semibold text-foreground">You'll pay</dt>
+                      <dd className="text-lg font-extrabold text-emerald-700 dark:text-emerald-400 tabular-nums">
+                        {formatUGX(previewPrice)}
+                      </dd>
+                    </div>
+                  </dl>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setPendingConfirm(null)}
+                      size="lg"
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                      Edit
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={confirmApply}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                      size="lg"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      Confirm
+                    </Button>
+                  </div>
+                </div>
+              );
+            })()
           ) : (
             <div className="space-y-3">
               <div className="space-y-1.5">
@@ -264,13 +351,13 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
 
               <Button
                 type="button"
-                onClick={submit}
+                onClick={reviewBeforeApply}
                 disabled={!receiptNumber.trim() || !receiptAmountInput.trim()}
                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
                 size="lg"
               >
                 <BadgePercent className="h-4 w-4" />
-                Apply 5% discount
+                Review discount
               </Button>
 
               <p className="text-[11px] text-center text-muted-foreground">
