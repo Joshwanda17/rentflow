@@ -1,67 +1,109 @@
-## What you're seeing
+# Rejected rent requests on the agent dashboard
 
-On Joshua Wanda's row in the CFO Wallet Deduction list:
+Today, when a request is rejected somewhere in the Tenant Ops → Agent Ops → Landlord Ops → COO → CFO chain, the agent who created it can see it in **My Rent Requests** but only as a generic red "Rejected" badge. The rejection reason and the reviewer who rejected it are invisible, and the agent has no way to act on it.
 
-- **Withdrawable: USh 0** (strict)
-- **Float (owed): USh 100,000** (correct, real)
-- Amber warning: **"Cache shows USh 50,000 — pending CFO reconciliation"**
+This plan brings rejected requests back to the agent with full context and two clear actions: **Edit & Resubmit** or **Delete**.
 
-The warning is correct — there really is a 50,000 mismatch — but in this case the 50,000 is a **real, approved deposit**, not a phantom. The system is just refusing to count it because of where today's fresh-start anchor was placed.
+## What the agent will see
 
-## Root cause
+In `AgentMyRentRequestsSheet` (the "My Rent Requests" sheet opened from the agent wallet/dashboard):
 
-Today (2026-05-01) Joshua had two real, approved deposits:
+1. A new **"Needs your attention"** section pinned to the top, listing every request with `status = 'rejected'` that the agent created (`agent_id = me`).
+2. Each rejected card shows:
+   - Tenant name, rent amount, landlord, created date
+   - A bold red **Rejected at: <Stage>** chip (Tenant Ops / Agent Ops / Landlord Ops / COO / CFO), derived from `rejected_at_stage`
+   - Rejecting officer's name + timestamp (resolved from the matching `*_reviewed_by` / `*_reviewed_at` columns for that stage)
+   - A highlighted red banner: **"Reviewer comment"** with `rejected_reason` shown in full (no clamping)
+   - If `reopen_count > 0`, a small "Reopened N times" note
+3. Two action buttons on each card:
+   - **Edit & Resubmit** (primary) — opens an edit drawer
+   - **Delete** (destructive, with confirm dialog)
 
-| Time     | Type                 | Amount   | Bucket it should hit |
-|----------|----------------------|----------|----------------------|
-| 11:54:38 | `wallet_deposit`     | 50,000   | Withdrawable         |
-| 12:04:32 | `agent_float_deposit`| 100,000  | Float                |
+The existing approved/pending list stays as is, just below this new section.
 
-To fix the earlier "Float showing 0" issue, we placed a fresh-start anchor at **12:04:31** (1 second before the float deposit). That successfully made the 100,000 float visible — but it also pushed the **11:54 wallet deposit into the pre-anchor window**, so the strict withdrawable view stops counting it. Meanwhile `apply_wallet_movement` already credited `wallets.withdrawable_balance = 50,000` when the deposit posted.
+## Edit & Resubmit flow
 
-Result: cache (50K) > strict (0). The CFO panel correctly flags the gap, but the "right" answer is that the 50K is real and the strict view should include it — not that the cache should be wiped.
+A new `AgentEditRentRequestDialog` opens with the existing request pre-filled. Agent can change:
 
-## Fix
+- Rent amount, duration (days), number of payments
+- Tenant water meter / electricity meter
+- Property GPS (re-capture if needed)
+- House photos (replace/add)
+- Landlord contact / address corrections (only if landlord is unverified)
 
-1. **Re-anchor Joshua earlier.** Move his `wallet_fresh_start_anchors.anchor_at` from `2026-05-01 12:04:31` to `2026-05-01 11:54:37` (1 second before the wallet_deposit). This includes both today's legitimate deposits (50K withdrawable + 100K float) while still excluding all the pre-May-1 negative drag.
-2. **Recompute `pre_anchor_ledger_net`** off the new anchor time and update the existing `wallet_historical_drift_review` row so CFO reporting stays accurate.
-3. **Update anchor reason note** to explain the adjustment ("anchor moved earlier on 2026-05-01 to include same-day approved wallet_deposit that was orphaned by the prior float-only anchor").
-4. **Verify**: after the migration, `get_user_available_balance(joshua) = 50,000`, `v_user_wallet_strict.float = 100,000`, and the amber drift warning disappears (cache 50K == strict 50K).
+Submit calls a new RPC `agent_resubmit_rent_request(p_request_id, p_patch jsonb, p_agent_note text)` which:
 
-This is a one-user data correction — no schema change, no logic change, no impact on any other agent.
+- Validates the caller is the request's `agent_id`
+- Validates current `status = 'rejected'`
+- Applies the whitelisted column patch
+- Recomputes `access_fee`, `total_repayment`, `daily_repayment` using the existing rent formula
+- Resets `status` back to the stage that rejected it (mirrors the existing `reopen_rent_request` behaviour: pending → tenant_ops_approved → agent_verified → landlord_ops_approved → coo_approved)
+- Increments `reopen_count`, sets `reopened_at = now()`, `reopened_by = auth.uid()`, `reopen_reason = p_agent_note`
+- Clears `rejected_reason`, `rejected_at`, `rejected_at_stage`
+- Regenerates the repayment schedule (deletes old `repayment_schedule` rows for the request, inserts new ones via the existing schedule generator pattern)
+- Emits a `system_event` of type `rent_request.resubmitted_by_agent`
+- Captures a trust signal via `capture_trust_signal` (per the Trust Mission core rule)
 
-## Why not just clear the cache?
+The 3-reopen cap from `RejectedRequestsQueue` is preserved: if `reopen_count >= 3`, the **Edit & Resubmit** button is disabled and the agent sees "Contact a manager to reopen further."
 
-Clearing `wallets.withdrawable_balance` to 0 would erase a real approved 50,000 deposit that the user is owed. The cache is right; the anchor is what needs adjusting.
+## Delete flow
 
-## Technical detail
+Confirm dialog: "Delete this rejected request? This cannot be undone."
 
-```sql
--- Single-user data correction (run via supabase--insert / migration)
-UPDATE public.wallet_fresh_start_anchors
-SET anchor_at = '2026-05-01 11:54:37+00',
-    pre_anchor_ledger_net = (
-      SELECT COALESCE(SUM(CASE WHEN direction='cash_in' THEN amount ELSE -amount END), 0)
-      FROM public.general_ledger
-      WHERE user_id = 'cb798acb-68bc-4b4e-a414-a3d374e030b6'
-        AND ledger_scope = 'wallet'
-        AND classification = 'production'
-        AND created_at < '2026-05-01 11:54:37+00'
-    ),
-    notes = notes || E'\n2026-05-01: Anchor moved 10 min earlier to include the same-day approved 50,000 UGX wallet_deposit that was orphaned by the float-only anchor placement.'
-WHERE user_id = 'cb798acb-68bc-4b4e-a414-a3d374e030b6';
+A new RPC `agent_delete_rejected_rent_request(p_request_id, p_reason)`:
 
--- Refresh the historical drift review row to match
-UPDATE public.wallet_historical_drift_review
-SET pre_anchor_ledger_net = (... same subquery ...)
-WHERE user_id = 'cb798acb-68bc-4b4e-a414-a3d374e030b6'
-  AND status = 'pending_review';
+- Validates caller is `agent_id`
+- Validates `status = 'rejected'`
+- Soft-deletes by setting `status = 'deleted_by_agent'` (avoids cascade pain on `repayment_schedule`, `general_ledger`, etc.; matches the project's preference for state transitions over hard deletes)
+- Writes an `audit_logs` row (`action_type = 'rent_request_deleted_by_agent'`, `table_name = 'rent_requests'`, `record_id = p_request_id`, `reason = p_reason` — must be ≥10 chars per audit governance rule)
+- Emits `system_event` `rent_request.deleted_by_agent`
+
+`AgentMyRentRequestsSheet`'s query is updated to exclude `status = 'deleted_by_agent'`.
+
+## RLS additions
+
+Add a single update policy and a single delete-via-status policy so the new RPCs run as the calling agent:
+
+- `Agents can resubmit own rejected requests` — UPDATE on `rent_requests`, USING/CHECK: `auth.uid() = agent_id AND status IN ('rejected', /* new staged status */)`
+- The RPCs are `SECURITY DEFINER` with `SET search_path = public`, so the policy is mainly defence-in-depth.
+
+## Files to add
+
+- `src/components/agent/AgentRejectedRequestsSection.tsx` — new "Needs your attention" list block
+- `src/components/agent/AgentEditRentRequestDialog.tsx` — edit & resubmit drawer (mobile sheet on small viewports, dialog on desktop)
+- `src/hooks/useAgentRejectedRequests.ts` — react-query hook returning rejected rows + reviewer name lookup
+- `supabase/migrations/<ts>_agent_rejected_rent_requests.sql` — adds the two RPCs, the RLS policy, and the `deleted_by_agent` status allowance
+
+## Files to edit
+
+- `src/components/agent/AgentMyRentRequestsSheet.tsx` — mount `<AgentRejectedRequestsSection />` above the existing list; exclude `deleted_by_agent` from the main query
+- `src/components/wallet/AgentRentRequestsWalletSection.tsx` — add a small red badge "N rejected — needs review" linking to the sheet
+- `src/lib/rentCalculations.ts` — export the recompute helper used by the resubmit RPC payload validation (already exists; no logic change, just confirming the contract)
+
+## Diagram
+
+```text
+Rejected (any stage)
+        |
+        v
+Agent dashboard ── "Needs your attention"
+        |
+   +----+----+
+   |         |
+ Edit &    Delete
+ Resubmit  (soft, audited)
+   |
+   v
+agent_resubmit_rent_request RPC
+   |
+   +-- patch row, recompute fees, regen schedule
+   +-- status -> rejecting stage (reopen semantics)
+   +-- reopen_count++, clear rejection fields
+   +-- emit system_event + trust signal
 ```
-
-Then `SELECT public.get_user_available_balance('cb798acb-...')` should return **50000**, and `wallet_anchored_drift_view` should no longer list Joshua.
 
 ## Out of scope
 
-- The float bucket logic and anchor extension shipped earlier today stay as-is.
-- The CFO Wallet Deduction strict-withdrawable rule stays as-is (float remains non-deductible).
-- No changes to other 33 anchored agents.
+- Changing the multi-stage approval chain itself
+- Touching the executive `RejectedRequestsQueue` (it keeps working with the same columns)
+- Hard-deleting rejected rows (we soft-delete to preserve audit + ledger integrity)
