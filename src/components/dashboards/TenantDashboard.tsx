@@ -59,6 +59,7 @@ import { TrustBoostBanner } from '@/components/ai-id/TrustBoostBanner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import breadHero from '@/assets/tenant-bread-hero.jpg';
 
 interface TenantDashboardProps {
   user: User;
@@ -224,7 +225,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
 
       {/* Scrollable content area */}
       <div className="flex-1 overflow-y-auto pb-16 md:pb-4">
-        <main className="px-4 py-5 space-y-5 animate-fade-in max-w-lg mx-auto">
+        <main className="px-4 py-5 space-y-5 animate-fade-in max-w-lg mx-auto flex flex-col min-h-full">
           {/* Offline Notice */}
           <AnimatePresence>
             {!isOnline && (
@@ -242,9 +243,6 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
 
           {/* Terms Acceptance Notice */}
           <TenantAgreementNotice onAcceptClick={() => setShowAgreementModal(true)} />
-
-          {/* Welile Trust Score nudge */}
-          <TrustBoostBanner />
 
           {/* Profile Row */}
           <motion.div
@@ -269,135 +267,53 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             <AiIdButton variant="compact" />
           </motion.div>
 
-          {/* Wallet Hero Card */}
+          {/* Compact Wallet Hero Card */}
           {wallet ? (
-            <UnifiedWalletHeroCard
-              balance={wallet?.balance ?? 0}
-              role="tenant"
-              secondaryLabel="Used for Rent"
-              secondaryValue={formatUGX(rentRequests.find(r => ['approved', 'funded', 'disbursed', 'repaying'].includes(r.status))?.rent_amount ?? 0)}
-            />
+            <div className="origin-top scale-[0.88] -mb-2">
+              <UnifiedWalletHeroCard
+                balance={wallet?.balance ?? 0}
+                role="tenant"
+                secondaryLabel="Used for Rent"
+                secondaryValue={formatUGX(rentRequests.find(r => ['approved', 'funded', 'disbursed', 'repaying'].includes(r.status))?.rent_amount ?? 0)}
+              />
+            </div>
           ) : (
             <WalletHeroSkeleton />
           )}
-          
 
-          {/* Verification Checklist */}
-          <VerificationChecklist userId={user.id} highlightRole="tenant" compact />
-
-          {/* Subscription Status */}
-          <SubscriptionStatusCard userId={user.id} />
-
-          {/* Credit Access Limit */}
-          <CreditAccessCard userId={user.id} compact />
-
-          {/* Record Rent History — prominent attention-grabbing CTA */}
-          <RentHistoryRecordCTA />
-
-          {/* Action Buttons — Clean & Minimal */}
-          <div className="space-y-2">
-            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider px-0.5">Actions</p>
-            
-            {/* Request Rent */}
-            <LockedActionTooltip isLocked={!hasAcceptedTerms && !agreementLoading}>
-              <RentRequestButton userId={user.id} onSuccess={fetchData} />
-            </LockedActionTooltip>
-
-            {/* Find a House — Hero CTA */}
-            <FindAHouseCTA onClick={() => { hapticTap(); setHousesOpen(true); }} />
-
-            {/* Menu */}
-            <button
-              onClick={handleOpenMenu}
-              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border border-border/60 bg-card hover:bg-muted/40 transition-colors touch-manipulation"
-            >
-              <Menu className="h-5 w-5 text-foreground/70 shrink-0" />
-              <div className="flex-1 text-left">
-                <p className="font-medium text-sm">Menu</p>
-                <p className="text-xs text-muted-foreground">Payments, tools & more</p>
-              </div>
-              <span className="text-xs text-muted-foreground">→</span>
-            </button>
-          </div>
-
-          {/* Suggested Houses — matched to tenant */}
-          <SuggestedHousesCard userId={user.id} onViewAll={() => setHousesOpen(true)} />
-
-          {/* Nearby Houses — auto-detected */}
-          <NearbyHousesPreview onViewAll={() => setHousesOpen(true)} />
-
-          {/* Rent Process Tracker - Show for active requests */}
-          {rentRequests.length > 0 && (
-            <RentProcessTracker
-              requestStatus={rentRequests[0].status}
-              agentVerified={true}
-              managerApproved={['approved', 'funded', 'disbursed', 'completed'].includes(rentRequests[0].status)}
-              supporterFunded={['funded', 'disbursed', 'completed'].includes(rentRequests[0].status)}
-              fundRecipientType={(rentRequests[0] as any).fund_recipient_type}
-              fundRecipientName={(rentRequests[0] as any).fund_recipient_name}
-              fundRoutedAt={(rentRequests[0] as any).fund_routed_at}
+          {/* Big appetizing bread hero — fills remaining space */}
+          <button
+            type="button"
+            onClick={handleOpenMenu}
+            className="relative flex-1 min-h-[260px] w-full rounded-3xl overflow-hidden border border-border/50 shadow-lg group active:scale-[0.99] transition-transform"
+            aria-label="Open menu"
+          >
+            <img
+              src={breadHero}
+              alt="Fresh artisan loaf of bread"
+              className="absolute inset-0 h-full w-full object-cover"
+              width={1024}
+              height={1024}
             />
-          )}
-
-          {/* Repayment Summary — always visible for active/completed requests */}
-          {rentRequests.some(r => ['disbursed', 'completed', 'funded', 'repaying'].includes(r.status)) && (
-            <RepaymentSection
-              userId={user.id}
-              activeRequest={rentRequests.find(r => ['disbursed', 'repaying'].includes(r.status))}
-              repayments={repayments}
-              onRepaymentSuccess={fetchData}
-            />
-          )}
-
-          {/* Rent Calculator - Only when triggered from menu */}
-          {showCalculator && (
-            <div className="animate-fade-in">
-              <RentCalculator 
-                onProceed={() => {
-                  setShowCalculator(false);
-                  setShowRequestForm(true);
-                }}
-              />
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-background/95 via-background/60 to-transparent p-4 pt-12 text-left">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-primary">Daily Bread</p>
+              <p className="text-base font-bold leading-tight">Tap menu for everything else</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Rent, houses, payments, history & tools</p>
             </div>
-          )}
+          </button>
 
-          {/* Request Form - Only when triggered */}
-          {showRequestForm && (
-            <div className="animate-fade-in">
-              <RentRequestForm 
-                userId={user.id}
-                onSuccess={() => {
-                  setShowRequestForm(false);
-                  fetchData();
-                  toast({
-                    title: 'Request Submitted',
-                    description: 'Your rent request has been submitted for approval'
-                  });
-                }}
-                onCancel={() => setShowRequestForm(false)}
-              />
+          {/* Single Menu button */}
+          <button
+            onClick={handleOpenMenu}
+            className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border border-border/60 bg-card hover:bg-muted/40 transition-colors touch-manipulation"
+          >
+            <Menu className="h-5 w-5 text-foreground/70 shrink-0" />
+            <div className="flex-1 text-left">
+              <p className="font-medium text-sm">Menu</p>
+              <p className="text-xs text-muted-foreground">Payments, houses, tools & more</p>
             </div>
-          )}
-
-          {/* Repayment Schedule - Only when toggled from menu */}
-          {showRepaymentSchedule && (
-            <div className="animate-fade-in">
-              <RepaymentSection 
-                userId={user.id}
-                activeRequest={rentRequests.find(r => r.status === 'disbursed')}
-                repayments={repayments}
-                onRepaymentSuccess={fetchData}
-              />
-            </div>
-          )}
-
-          {/* Business Advances (1% daily compounding) */}
-          <TenantBusinessAdvancesPanel />
-
-          {/* Invite & Earn */}
-          <InviteAndEarnCard variant="tenant" />
-
-          <WalletDisclaimer />
+            <span className="text-xs text-muted-foreground">→</span>
+          </button>
         </main>
       </div>
 
@@ -413,6 +329,82 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         onRepaymentSchedule={() => setShowRepaymentSchedule(prev => !prev)}
         onRentCalculator={() => setShowCalculator(true)}
         onBrowseHouses={() => { setMenuOpen(false); setHousesOpen(true); }}
+        extraContent={
+          <div className="space-y-4">
+            <TrustBoostBanner />
+            <VerificationChecklist userId={user.id} highlightRole="tenant" compact />
+            <SubscriptionStatusCard userId={user.id} />
+            <CreditAccessCard userId={user.id} compact />
+            <RentHistoryRecordCTA />
+            <div className="space-y-2">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider px-0.5">Actions</p>
+              <LockedActionTooltip isLocked={!hasAcceptedTerms && !agreementLoading}>
+                <RentRequestButton userId={user.id} onSuccess={fetchData} />
+              </LockedActionTooltip>
+              <FindAHouseCTA onClick={() => { hapticTap(); setMenuOpen(false); setHousesOpen(true); }} />
+            </div>
+            <SuggestedHousesCard userId={user.id} onViewAll={() => { setMenuOpen(false); setHousesOpen(true); }} />
+            <NearbyHousesPreview onViewAll={() => { setMenuOpen(false); setHousesOpen(true); }} />
+            {rentRequests.length > 0 && (
+              <RentProcessTracker
+                requestStatus={rentRequests[0].status}
+                agentVerified={true}
+                managerApproved={['approved', 'funded', 'disbursed', 'completed'].includes(rentRequests[0].status)}
+                supporterFunded={['funded', 'disbursed', 'completed'].includes(rentRequests[0].status)}
+                fundRecipientType={(rentRequests[0] as any).fund_recipient_type}
+                fundRecipientName={(rentRequests[0] as any).fund_recipient_name}
+                fundRoutedAt={(rentRequests[0] as any).fund_routed_at}
+              />
+            )}
+            {rentRequests.some(r => ['disbursed', 'completed', 'funded', 'repaying'].includes(r.status)) && (
+              <RepaymentSection
+                userId={user.id}
+                activeRequest={rentRequests.find(r => ['disbursed', 'repaying'].includes(r.status))}
+                repayments={repayments}
+                onRepaymentSuccess={fetchData}
+              />
+            )}
+            {showCalculator && (
+              <div className="animate-fade-in">
+                <RentCalculator
+                  onProceed={() => {
+                    setShowCalculator(false);
+                    setShowRequestForm(true);
+                  }}
+                />
+              </div>
+            )}
+            {showRequestForm && (
+              <div className="animate-fade-in">
+                <RentRequestForm
+                  userId={user.id}
+                  onSuccess={() => {
+                    setShowRequestForm(false);
+                    fetchData();
+                    toast({
+                      title: 'Request Submitted',
+                      description: 'Your rent request has been submitted for approval'
+                    });
+                  }}
+                  onCancel={() => setShowRequestForm(false)}
+                />
+              </div>
+            )}
+            {showRepaymentSchedule && (
+              <div className="animate-fade-in">
+                <RepaymentSection
+                  userId={user.id}
+                  activeRequest={rentRequests.find(r => r.status === 'disbursed')}
+                  repayments={repayments}
+                  onRepaymentSuccess={fetchData}
+                />
+              </div>
+            )}
+            <TenantBusinessAdvancesPanel />
+            <InviteAndEarnCard variant="tenant" />
+            <WalletDisclaimer />
+          </div>
+        }
       />
 
       {/* Dialogs */}
