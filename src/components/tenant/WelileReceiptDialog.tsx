@@ -142,10 +142,19 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
     } catch {
       /* offline-safe: discount still applies in-memory */
     }
-    toast.success('Receipt applied', {
-      description: `5% of ${formatUGX(amt)} = ${formatUGX(Math.round(amt * WELILE_BREAD_DISCOUNT_RATE))} off`,
-      duration: 4000,
-    });
+    const credit = Math.round(amt * WELILE_BREAD_DISCOUNT_RATE);
+    const free = Math.floor(credit / WELILE_BREAD_PRICE);
+    const remainder = credit - free * WELILE_BREAD_PRICE;
+    toast.success(
+      free > 0 ? `${free}× free bread${free > 1 ? 's' : ''} earned` : 'Receipt applied',
+      {
+        description:
+          free > 0
+            ? `5% of ${formatUGX(amt)} = ${formatUGX(credit)} credit · ${formatUGX(remainder)} rolls to next bread`
+            : `5% of ${formatUGX(amt)} = ${formatUGX(credit)} off`,
+        duration: 4500,
+      },
+    );
   };
 
   const remove = () => {
