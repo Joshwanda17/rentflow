@@ -262,7 +262,9 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
                 {lookup.status === 'self' && (
                   <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-warning-foreground">
                     <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                    <span>That's your own number. Pick a different recipient.</span>
+                    <span>
+                      That's your own phone number. You can't send a Welile Bread to yourself — pick a different recipient.
+                    </span>
                   </div>
                 )}
                 {lookup.status === 'found' && (
