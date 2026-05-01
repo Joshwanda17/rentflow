@@ -133,6 +133,8 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const [breadError, setBreadError] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
   const [housesOpen, setHousesOpen] = useState(false);
+  const [shareBreadOpen, setShareBreadOpen] = useState(false);
+  const { available: withdrawableAvailable } = useAvailableBalance();
 
   const handleAcceptAgreement = async () => {
     setIsAcceptingAgreement(true);
