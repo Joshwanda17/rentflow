@@ -16,6 +16,7 @@ type: feature
 **Database surface.**
 - View: `public.v_user_wallet_strict(user_id, withdrawable, float_balance, advance_balance, pending_holds, total_visible)` — derives every bucket live from `general_ledger`, excludes admin corrections (`category <> 'system_balance_correction'`) and float-bucket categories from withdrawable, honors `wallet_fresh_start_anchors`, subtracts pending withdrawal holds, clamps each bucket at 0.
 - RPC: `public.get_user_wallet_view(p_user_id uuid) RETURNS jsonb` — `SECURITY DEFINER`, `search_path = public`, granted to `authenticated, anon, service_role`. Returns the row as a JSON object so the frontend gets all four numbers in one round-trip.
+- RPC: `public.get_wallet_totals_strict() RETURNS json` — `SECURITY DEFINER`, `search_path = public`, granted to `authenticated, service_role`. Operator-facing companion to `get_wallet_totals()`. Returns `{ strict_total, drifted_wallets, total_drift }` across all non-system wallets (excludes `06b14430-…`). `strict_total = SUM(strict withdrawable + strict float)` from `v_user_wallet_strict` for apples-to-apples comparison with cached `wallets.balance`. `drifted_wallets` counts wallets where `cached − strict > 100 UGX` (matches reconciliation tolerance). `total_drift = SUM(GREATEST(cached − strict, 0))` — the cache-excess sweep target. Used by Fin Ops `WalletOverviewCard` to surface drift under the cached headline; clicking it opens the Reconciliation tool.
 
 **In scope (already migrated 2026-04-30):**
 - `src/lib/computeLedgerAvailable.ts` — calls RPC, no cache reads.
