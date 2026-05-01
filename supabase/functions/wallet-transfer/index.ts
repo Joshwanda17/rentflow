@@ -143,6 +143,18 @@ Deno.serve(async (req) => {
       ? `You have received ${breadPrefix}${breadNoun} of ${formattedAmount}`
       : `Transfer from user: ${safeDescription}`;
 
+    // === Stable, human-readable transfer reference ===
+    // Persisted on BOTH ledger legs (reference_id) and returned to the
+    // client so receipts, audits and customer support all share the same
+    // identifier. Format:
+    //   WB-XXXXXXXX  — Welile Bread
+    //   WT-XXXXXXXX  — Generic wallet transfer
+    // The 8-char suffix is a base32 crockford-style slice of a random UUID
+    // so it's URL-safe and easy to read on a phone screen.
+    const refPrefix = isWelileBread ? 'WB' : 'WT';
+    const refSuffix = crypto.randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase();
+    const transferReference = `${refPrefix}-${refSuffix}`;
+
     // Debug log removed for cost optimization
 
     if (senderId === resolvedRecipientId) {
@@ -161,6 +173,20 @@ Deno.serve(async (req) => {
       runShadowAudit('wallet-transfer', { senderId, resolvedRecipientId, amount },
         true, () => shadowValidateWalletTransfer({ senderId, recipientId: resolvedRecipientId, amount, description: safeDescription }), adminClient);
     }
+
+    // Look up counterparty names so each leg's `linked_party` shows the
+    // OTHER side of the transfer in the wallet statement (matching how
+    // every other wallet transfer is presented in the ledger).
+    const { data: parties } = await adminClient
+      .from('profiles')
+      .select('id, full_name, phone')
+      .in('id', [senderId, resolvedRecipientId]);
+    const senderProfile = parties?.find((p) => p.id === senderId);
+    const recipientProfile = parties?.find((p) => p.id === resolvedRecipientId);
+    const senderLabel =
+      senderProfile?.full_name?.trim() || senderProfile?.phone || 'Welile user';
+    const recipientLabel =
+      recipientProfile?.full_name?.trim() || recipientProfile?.phone || 'Welile user';
 
     // Pre-check sender balance
     const { data: senderWallet, error: senderError } = await adminClient
@@ -201,6 +227,8 @@ Deno.serve(async (req) => {
           description: senderDescription,
           currency: 'UGX',
           transaction_date: new Date().toISOString(),
+          reference_id: transferReference,
+          linked_party: recipientLabel,
         },
         {
           user_id: resolvedRecipientId,
@@ -212,8 +240,11 @@ Deno.serve(async (req) => {
           description: recipientDescription,
           currency: 'UGX',
           transaction_date: new Date().toISOString(),
+          reference_id: transferReference,
+          linked_party: senderLabel,
         },
       ],
+      idempotency_key: transferReference,
     });
 
     if (ledgerError) {
@@ -243,7 +274,12 @@ Deno.serve(async (req) => {
     // Success logged via system event only
 
     // Log system event
-    logSystemEvent(adminClient, 'wallet_transfer', senderId, 'wallets', txGroupId, { amount, recipient_id: resolvedRecipientId });
+    logSystemEvent(adminClient, 'wallet_transfer', senderId, 'wallets', txGroupId, {
+      amount,
+      recipient_id: resolvedRecipientId,
+      transfer_reference: transferReference,
+      transfer_kind: isWelileBread ? 'welile_bread' : 'wallet_transfer',
+    });
 
 
     // Notify managers (fire-and-forget)
@@ -273,7 +309,13 @@ Deno.serve(async (req) => {
 
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Transfer completed successfully', transfer_reference: txGroupId, reference: txGroupId }),
+      JSON.stringify({
+        success: true,
+        message: 'Transfer completed successfully',
+        transfer_reference: transferReference,
+        reference: transferReference,
+        transaction_group_id: txGroupId,
+      }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
