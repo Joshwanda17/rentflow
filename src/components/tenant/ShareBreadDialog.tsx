@@ -137,7 +137,10 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
         body: {
           recipient_id: lookup.recipient.id,
           amount: WELILE_BREAD_PRICE,
-          description: `You have received a Welile bread of ${formatUGX(WELILE_BREAD_PRICE)}`,
+          // Canonical descriptions are set server-side for both legs so the
+          // sender and receiver wallet statements stay consistent.
+          transfer_kind: 'welile_bread',
+          description: `Welile Bread (${formatUGX(WELILE_BREAD_PRICE)})`,
         },
       });
       if (error) throw error;
