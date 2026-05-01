@@ -62,6 +62,7 @@ import { Button } from '@/components/ui/button';
 import breadHero from '@/assets/tenant-bread-hero.jpg';
 import welileLogo from '@/assets/welile-logo.png';
 import { ShareBreadDialog, WELILE_BREAD_PRICE } from '@/components/tenant/ShareBreadDialog';
+import { WelileReceiptDialog } from '@/components/tenant/WelileReceiptDialog';
 import { Share2 } from 'lucide-react';
 import { useAvailableBalance } from '@/hooks/useAvailableBalance';
 
@@ -134,6 +135,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const [depositOpen, setDepositOpen] = useState(false);
   const [housesOpen, setHousesOpen] = useState(false);
   const [shareBreadOpen, setShareBreadOpen] = useState(false);
+  const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
   const { available: withdrawableAvailable } = useAvailableBalance();
 
   const handleAcceptAgreement = async () => {
@@ -292,10 +294,13 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           {/* Big appetizing bread hero — fills remaining space */}
           <button
             type="button"
-            onClick={handleOpenMenu}
+            onClick={() => {
+              hapticTap();
+              setReceiptDialogOpen(true);
+            }}
             className="relative w-full rounded-3xl overflow-hidden border border-border shadow-lg group active:scale-[0.99] transition-transform bg-amber-50 dark:bg-muted flex items-center justify-center p-3 sm:p-4"
             style={{ height: 'min(58vh, 70vw, 520px)', minHeight: '220px' }}
-            aria-label="Open dashboard menu — Welile Bread"
+            aria-label="Welile Bread — tap to enter a Welile receipt and save 5%"
             aria-describedby="bread-card-desc"
           >
             {!breadError && (
@@ -327,10 +332,10 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
 
             <span id="bread-card-desc" className="sr-only">
               {breadError
-                ? 'Bread image unavailable. Tap to open the dashboard menu.'
+                ? 'Bread image unavailable. Tap to enter a Welile receipt and save 5% on your bread.'
                 : breadLoaded
-                ? 'Fresh loaf of bread illustration. Tap to open the dashboard menu.'
-                : 'Bread image is loading. Tap to open the dashboard menu.'}
+                ? 'Fresh loaf of bread illustration. Tap to enter a Welile receipt and save 5% on your bread.'
+                : 'Bread image is loading. Tap to enter a Welile receipt and save 5% on your bread.'}
             </span>
 
             {/* Shimmer placeholder while bread loads */}
@@ -424,6 +429,12 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         onOpenChange={setShareBreadOpen}
         availableBalance={withdrawableAvailable}
         onTopUp={() => setShowWallet(true)}
+      />
+
+      {/* Welile Receipt — primary bread tap action (5% discount, works offline) */}
+      <WelileReceiptDialog
+        open={receiptDialogOpen}
+        onOpenChange={setReceiptDialogOpen}
       />
 
       {/* Menu Drawer */}
