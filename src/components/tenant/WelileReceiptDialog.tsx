@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { BadgePercent, CheckCircle2, Hash, Wallet, X, WifiOff, ArrowLeft, Gift, Store, Copy, Ticket } from 'lucide-react';
+import { BadgePercent, CheckCircle2, Hash, Wallet, X, WifiOff, ArrowLeft, Gift, Store, Copy, Ticket, Share2 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { toast } from 'sonner';
 import {
@@ -261,6 +261,40 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
     toast.message('Claim code cancelled');
   };
 
+  /**
+   * Share the active claim with anyone (friend, family, neighbour) so
+   * they can pick up the discounted/free bread at the chosen partner
+   * store. Uses the native share sheet (WhatsApp, SMS, etc.) with a
+   * clipboard fallback.
+   */
+  const shareClaim = async () => {
+    if (!claim) return;
+    const priceLine =
+      claim.freeBreads > 0
+        ? `${claim.freeBreads}× FREE bread 🍞`
+        : `bread for only ${formatUGX(claim.payableForNext)} (was ${formatUGX(grossAmount)})`;
+    const message =
+      `🎁 I'm sending you bread on Welile!\n\n` +
+      `Pick it up at: ${claim.sellerName}\n` +
+      `Show this code at the till: ${claim.code}\n` +
+      `You get: ${priceLine}\n\n` +
+      `Code expires in 30 minutes. No account needed — just walk in.`;
+    try {
+      if (typeof navigator !== 'undefined' && (navigator as any).share) {
+        await (navigator as any).share({
+          title: 'Free bread from Welile',
+          text: message,
+        });
+        toast.success('Shared');
+        return;
+      }
+      await navigator.clipboard.writeText(message);
+      toast.success('Message copied — paste it to anyone');
+    } catch {
+      /* user dismissed share sheet — no error */
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md p-0 overflow-hidden gap-0">
@@ -390,10 +424,22 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
                       ? `Cashier charges ${formatUGX(0)} — ${claim.freeBreads}× free bread`
                       : `Cashier charges ${formatUGX(claim.payableForNext)} (was ${formatUGX(grossAmount)})`}
                   </div>
+                  <Button
+                    type="button"
+                    size="lg"
+                    onClick={shareClaim}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >
+                    <Share2 className="h-4 w-4" />
+                    Send this bread to someone
+                  </Button>
+                  <p className="text-[11px] text-center text-muted-foreground -mt-1">
+                    They show the code at {claim.sellerName} — no account needed
+                  </p>
                   <div className="grid grid-cols-2 gap-2">
                     <Button type="button" variant="outline" size="lg" onClick={copyCode}>
                       <Copy className="h-4 w-4" />
-                      Copy
+                      Copy code
                     </Button>
                     <Button
                       type="button"
@@ -402,7 +448,7 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
                       onClick={cancelActiveClaim}
                     >
                       <X className="h-4 w-4" />
-                      Cancel code
+                      Cancel
                     </Button>
                   </div>
                 </div>
