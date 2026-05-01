@@ -313,6 +313,7 @@ function AppRoutes() {
           <Route path="/categories" element={<Categories />} />
           <Route path="/seller/:sellerId" element={<SellerProfile />} />
           <Route path="/seller-portal" element={<SellerPortal />} />
+          <Route path="/bread/:code" element={<SharedBreadClaim />} />
           <Route path="/my-receipts" element={<MyReceipts />} />
           <Route path="/my-loans" element={<MyLoans />} />
           <Route path="/payment-schedule" element={<PaymentSchedule />} />
