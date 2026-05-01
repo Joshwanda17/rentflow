@@ -9,7 +9,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Send, Wheat, CheckCircle2, UserCheck, AlertCircle, Search, ArrowLeft, ArrowRight, Wallet, Copy, Hash, Minus, Plus, ArrowDownRight, Ticket, X, BadgePercent } from 'lucide-react';
+import { Loader2, Send, Wheat, CheckCircle2, UserCheck, AlertCircle, Search, ArrowLeft, ArrowRight, Wallet, Copy, Hash, Minus, Plus, ArrowDownRight, Ticket, X, BadgePercent, Info } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
@@ -617,6 +618,48 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
                     One-shot: 5% of the receipt comes off your whole order, no matter how many breads.
                   </p>
                 </div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="How the discount is calculated"
+                      className="h-7 w-7 rounded-full flex items-center justify-center text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 shrink-0"
+                    >
+                      <Info className="h-4 w-4" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    side="bottom"
+                    align="end"
+                    className="w-[280px] text-xs leading-relaxed space-y-2 border-emerald-300 dark:border-emerald-800"
+                  >
+                    <p className="font-bold text-sm text-emerald-900 dark:text-emerald-100">
+                      How the 5% discount works
+                    </p>
+                    <ol className="list-decimal pl-4 space-y-1 text-foreground/90">
+                      <li>
+                        We take <span className="font-semibold">5%</span> of the receipt amount you entered.
+                        E.g. {formatUGX(10000)} receipt → {formatUGX(500)} off.
+                      </li>
+                      <li>
+                        That UGX amount is a <span className="font-semibold">one-shot</span> discount on the
+                        whole order — it does <span className="italic">not</span> multiply by quantity.
+                      </li>
+                      <li>
+                        So your <span className="font-semibold">effective per-bread price</span> =
+                        (gross − discount) ÷ quantity. More breads spread the same discount over more units,
+                        making each one cheaper.
+                      </li>
+                      <li>
+                        Order total can never drop below {formatUGX(WELILE_BREAD_MIN_PAYABLE)}; any extra
+                        discount is capped.
+                      </li>
+                    </ol>
+                    <p className="text-[11px] text-muted-foreground pt-1 border-t border-border">
+                      One receipt per order. Remove it any time with the ✕ button.
+                    </p>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               {appliedReceipt ? (
@@ -659,7 +702,40 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
                       <span>{formatUGX(totalAmount)}</span>
                     </div>
                     <div className="flex items-center justify-between text-[10px] text-emerald-800/80 dark:text-emerald-200/80 pt-0.5">
-                      <span>Effective per bread</span>
+                      <span className="flex items-center gap-1">
+                        Effective per bread
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              aria-label="Why per-bread price changes with quantity"
+                              className="h-3.5 w-3.5 rounded-full flex items-center justify-center text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 dark:hover:text-emerald-100"
+                            >
+                              <Info className="h-3 w-3" />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            side="top"
+                            align="start"
+                            className="w-[260px] text-xs leading-relaxed space-y-1.5 border-emerald-300 dark:border-emerald-800"
+                          >
+                            <p className="font-semibold text-emerald-900 dark:text-emerald-100">
+                              Why this changes with quantity
+                            </p>
+                            <p className="text-foreground/90">
+                              The {formatUGX(discountAmount)} discount is shared across all{' '}
+                              <span className="font-semibold">{qty}</span> bread{qty > 1 ? 's' : ''}:
+                            </p>
+                            <p className="font-mono text-[11px] tabular-nums text-foreground bg-muted/60 rounded px-2 py-1">
+                              ({formatUGX(grossAmount)} − {formatUGX(discountAmount)}) ÷ {qty} ={' '}
+                              {formatUGX(Math.round(totalAmount / qty))}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">
+                              Add more breads → same flat discount → lower price each.
+                            </p>
+                          </PopoverContent>
+                        </Popover>
+                      </span>
                       <span>
                         {formatUGX(Math.round(totalAmount / qty))}
                         {qty > 1 && (
