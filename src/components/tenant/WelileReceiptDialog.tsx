@@ -9,9 +9,16 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { BadgePercent, CheckCircle2, Hash, Wallet, X, WifiOff, ArrowLeft, Gift } from 'lucide-react';
+import { BadgePercent, CheckCircle2, Hash, Wallet, X, WifiOff, ArrowLeft, Gift, Store, Copy, Ticket } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { toast } from 'sonner';
+import {
+  PARTNER_SELLERS,
+  createClaim,
+  getActiveClaim,
+  cancelClaim,
+  type BreadClaim,
+} from '@/lib/welileBreadClaims';
 
 /**
  * WelileReceiptDialog
@@ -51,6 +58,10 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
     number: string;
     amount: number;
   } | null>(null);
+  // Seller chosen for the claim code (mall / bakery / supermarket).
+  const [sellerId, setSellerId] = useState<string>(PARTNER_SELLERS[0].id);
+  // Active one-time claim code, if any.
+  const [claim, setClaim] = useState<BreadClaim | null>(null);
   const [online, setOnline] = useState<boolean>(
     typeof navigator === 'undefined' ? true : navigator.onLine,
   );
@@ -70,6 +81,8 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
     } catch {
       /* ignore */
     }
+    // Surface any still-active claim so the user can re-show the code.
+    setClaim(getActiveClaim());
   }, [open]);
 
   // Track connectivity for the offline badge.
@@ -165,6 +178,44 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
     } catch {
       /* noop */
     }
+    if (claim) {
+      cancelClaim(claim.code);
+      setClaim(null);
+    }
+  };
+
+  const issueClaimCode = () => {
+    if (!applied) return;
+    try {
+      const next = createClaim({
+        receiptNumber: applied.number,
+        receiptAmount: applied.amount,
+        sellerId,
+      });
+      setClaim(next);
+      toast.success('Claim code ready', {
+        description: `Show ${next.code} at ${next.sellerName}`,
+      });
+    } catch (e) {
+      toast.error('Could not create claim code');
+    }
+  };
+
+  const copyCode = async () => {
+    if (!claim) return;
+    try {
+      await navigator.clipboard.writeText(claim.code);
+      toast.success('Code copied');
+    } catch {
+      /* noop */
+    }
+  };
+
+  const cancelActiveClaim = () => {
+    if (!claim) return;
+    cancelClaim(claim.code);
+    setClaim(null);
+    toast.message('Claim code cancelled');
   };
 
   return (
