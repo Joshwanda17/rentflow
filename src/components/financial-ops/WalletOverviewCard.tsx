@@ -56,7 +56,7 @@ export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets, onOp
   const { data: strict, isLoading: strictLoading } = useQuery({
     queryKey: ['finops-wallet-overview-strict'],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_wallet_totals_strict' as any);
+      const { data, error } = await supabase.rpc('get_wallet_totals_strict');
       if (error) throw error;
       const d = data as any;
       return {
