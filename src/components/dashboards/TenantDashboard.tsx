@@ -332,10 +332,10 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
 
             <span id="bread-card-desc" className="sr-only">
               {breadError
-                ? 'Bread image unavailable. Tap to open the dashboard menu.'
+                ? 'Bread image unavailable. Tap to enter a Welile receipt and save 5% on your bread.'
                 : breadLoaded
-                ? 'Fresh loaf of bread illustration. Tap to open the dashboard menu.'
-                : 'Bread image is loading. Tap to open the dashboard menu.'}
+                ? 'Fresh loaf of bread illustration. Tap to enter a Welile receipt and save 5% on your bread.'
+                : 'Bread image is loading. Tap to enter a Welile receipt and save 5% on your bread.'}
             </span>
 
             {/* Shimmer placeholder while bread loads */}
