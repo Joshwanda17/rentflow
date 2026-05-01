@@ -60,6 +60,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import breadHero from '@/assets/tenant-bread-hero.jpg';
+import welileLogo from '@/assets/welile-logo.png';
 
 interface TenantDashboardProps {
   user: User;
@@ -285,20 +286,29 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           <button
             type="button"
             onClick={handleOpenMenu}
-            className="relative flex-1 min-h-[260px] w-full rounded-3xl overflow-hidden border border-border/50 shadow-lg group active:scale-[0.99] transition-transform"
+            className="relative w-full aspect-square max-h-[60vh] rounded-3xl overflow-hidden border border-border/50 shadow-lg group active:scale-[0.99] transition-transform bg-[#fdf6e3]"
             aria-label="Open menu"
           >
             <img
               src={breadHero}
               alt="Fresh artisan loaf of bread"
-              className="absolute inset-0 h-full w-full object-cover"
+              className="absolute inset-0 h-full w-full object-contain"
               width={1024}
               height={1024}
             />
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-background/95 via-background/60 to-transparent p-4 pt-12 text-left">
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-primary">Daily Bread</p>
-              <p className="text-base font-bold leading-tight">Tap menu for everything else</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Rent, houses, payments, history & tools</p>
+
+            {/* Welile branding badge — top-left */}
+            <div className="absolute top-3 left-3 flex flex-col items-center gap-1 rounded-2xl bg-background/85 backdrop-blur-sm px-2.5 py-2 shadow-sm border border-border/40">
+              <img
+                src={welileLogo}
+                alt="Welile"
+                className="h-7 w-7 rounded-md"
+                width={28}
+                height={28}
+              />
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-foreground/80 leading-none">
+                Bread
+              </span>
             </div>
           </button>
 
