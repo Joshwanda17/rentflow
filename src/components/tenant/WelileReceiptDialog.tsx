@@ -424,10 +424,22 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
                       ? `Cashier charges ${formatUGX(0)} — ${claim.freeBreads}× free bread`
                       : `Cashier charges ${formatUGX(claim.payableForNext)} (was ${formatUGX(grossAmount)})`}
                   </div>
+                  <Button
+                    type="button"
+                    size="lg"
+                    onClick={shareClaim}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >
+                    <Share2 className="h-4 w-4" />
+                    Send this bread to someone
+                  </Button>
+                  <p className="text-[11px] text-center text-muted-foreground -mt-1">
+                    They show the code at {claim.sellerName} — no account needed
+                  </p>
                   <div className="grid grid-cols-2 gap-2">
                     <Button type="button" variant="outline" size="lg" onClick={copyCode}>
                       <Copy className="h-4 w-4" />
-                      Copy
+                      Copy code
                     </Button>
                     <Button
                       type="button"
@@ -436,7 +448,7 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
                       onClick={cancelActiveClaim}
                     >
                       <X className="h-4 w-4" />
-                      Cancel code
+                      Cancel
                     </Button>
                   </div>
                 </div>
