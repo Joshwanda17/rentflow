@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Send, Wheat, CheckCircle2, UserCheck, AlertCircle, Search, ArrowLeft, ArrowRight, Wallet, Copy, Hash } from 'lucide-react';
+import { Loader2, Send, Wheat, CheckCircle2, UserCheck, AlertCircle, Search, ArrowLeft, ArrowRight, Wallet, Copy, Hash, Minus, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 
 export const WELILE_BREAD_PRICE = 6500;
+export const WELILE_BREAD_MAX_QTY = 50;
 
 interface Props {
   open: boolean;
@@ -45,6 +46,7 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
   const myLast9 = (profile?.phone ?? '').replace(/\D/g, '').slice(-9);
   const [step, setStep] = useState<'pick' | 'review'>('pick');
   const [phone, setPhone] = useState('');
+  const [qty, setQty] = useState(1);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [lookup, setLookup] = useState<LookupState>({ status: 'idle' });
@@ -53,6 +55,7 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
   const reset = () => {
     setStep('pick');
     setPhone('');
+    setQty(1);
     setSending(false);
     setSent(false);
     setLookup({ status: 'idle' });
@@ -126,8 +129,8 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
       toast.error("You can't send a Welile Bread to your own wallet.");
       return;
     }
-    if (typeof availableBalance === 'number' && availableBalance < WELILE_BREAD_PRICE) {
-      toast.error(`Insufficient balance. You need ${formatUGX(WELILE_BREAD_PRICE)}`);
+    if (typeof availableBalance === 'number' && availableBalance < totalAmount) {
+      toast.error(`Insufficient balance. You need ${formatUGX(totalAmount)}`);
       return;
     }
 
@@ -136,11 +139,12 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
       const { data, error } = await supabase.functions.invoke('wallet-transfer', {
         body: {
           recipient_id: lookup.recipient.id,
-          amount: WELILE_BREAD_PRICE,
+          amount: totalAmount,
           // Canonical descriptions are set server-side for both legs so the
           // sender and receiver wallet statements stay consistent.
           transfer_kind: 'welile_bread',
-          description: `Welile Bread (${formatUGX(WELILE_BREAD_PRICE)})`,
+          bread_qty: qty,
+          description: `Welile Bread x${qty} (${formatUGX(totalAmount)})`,
         },
       });
       if (error) throw error;
@@ -157,9 +161,9 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
       const name = lookup.recipient.full_name?.trim() || 'recipient';
       const shortRef = ref.slice(0, 8).toUpperCase();
       // Receipt-style toast
-      toast.success(`🍞 Welile Bread delivered`, {
+      toast.success(`🍞 ${qty > 1 ? `${qty} Welile Breads` : 'Welile Bread'} delivered`, {
         description:
-          `${formatUGX(WELILE_BREAD_PRICE)} → ${name}\n` +
+          `${formatUGX(totalAmount)} → ${name}\n` +
           `Ref: ${shortRef}`,
         duration: 6000,
         action: {
@@ -174,7 +178,7 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
       const msg = err instanceof Error ? err.message : 'Failed to send Welile Bread';
       // Receipt-style failure toast
       toast.error('Welile Bread failed', {
-        description: `${formatUGX(WELILE_BREAD_PRICE)} · ${msg}`,
+        description: `${formatUGX(totalAmount)} · ${msg}`,
         duration: 7000,
       });
     } finally {
@@ -183,10 +187,14 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
   };
 
   const canSend = lookup.status === 'found' && !sending;
+  const totalAmount = WELILE_BREAD_PRICE * qty;
   const insufficient =
-    typeof availableBalance === 'number' && availableBalance < WELILE_BREAD_PRICE;
+    typeof availableBalance === 'number' && availableBalance < totalAmount;
   const balanceAfter =
-    typeof availableBalance === 'number' ? availableBalance - WELILE_BREAD_PRICE : null;
+    typeof availableBalance === 'number' ? availableBalance - totalAmount : null;
+
+  const decQty = () => setQty((q) => Math.max(1, q - 1));
+  const incQty = () => setQty((q) => Math.min(WELILE_BREAD_MAX_QTY, q + 1));
 
   return (
     <Dialog
