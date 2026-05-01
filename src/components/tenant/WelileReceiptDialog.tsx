@@ -325,17 +325,81 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
                   <X className="h-4 w-4" />
                 </button>
               </div>
-              <Button
-                type="button"
-                onClick={() => onOpenChange(false)}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-                size="lg"
-              >
-                <Wallet className="h-4 w-4" />
-                {rollover.freeBreads > 0
-                  ? `Done — claim ${rollover.freeBreads}× free bread`
-                  : `Done — pay ${formatUGX(reducedPrice)}`}
-              </Button>
+
+              {/* Claim-code section: pick where to redeem, then show the
+                  one-time 6-digit code the seller will enter. */}
+              {claim ? (
+                <div className="rounded-xl bg-white dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-800 p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                    <Ticket className="h-3.5 w-3.5" />
+                    Show this code at the till
+                  </div>
+                  <div className="text-center select-all">
+                    <div className="text-4xl font-extrabold tracking-[0.4em] text-emerald-700 dark:text-emerald-300 tabular-nums">
+                      {claim.code}
+                    </div>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {claim.sellerName} · expires in 30 min
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-emerald-100/60 dark:bg-emerald-900/40 p-2.5 text-[11px] text-emerald-900 dark:text-emerald-100 leading-snug text-center">
+                    {claim.freeBreads > 0
+                      ? `Cashier charges ${formatUGX(0)} — ${claim.freeBreads}× free bread`
+                      : `Cashier charges ${formatUGX(claim.payableForNext)} (was ${formatUGX(grossAmount)})`}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button type="button" variant="outline" size="lg" onClick={copyCode}>
+                      <Copy className="h-4 w-4" />
+                      Copy
+                    </Button>
+                    <Button
+                      type="button"
+                      size="lg"
+                      variant="outline"
+                      onClick={cancelActiveClaim}
+                    >
+                      <X className="h-4 w-4" />
+                      Cancel code
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="welile-bread-seller"
+                    className="text-xs font-semibold text-foreground inline-flex items-center gap-1.5"
+                  >
+                    <Store className="h-3.5 w-3.5" />
+                    Where will you claim it?
+                  </Label>
+                  <select
+                    id="welile-bread-seller"
+                    value={sellerId}
+                    onChange={(e) => setSellerId(e.target.value)}
+                    className="w-full h-11 rounded-lg border border-input bg-background px-3 text-base"
+                  >
+                    {PARTNER_SELLERS.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} — {s.city}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    type="button"
+                    onClick={issueClaimCode}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                    size="lg"
+                  >
+                    <Ticket className="h-4 w-4" />
+                    {rollover.freeBreads > 0
+                      ? `Get claim code — ${rollover.freeBreads}× free bread`
+                      : `Get claim code — pay ${formatUGX(reducedPrice)}`}
+                  </Button>
+                  <p className="text-[11px] text-center text-muted-foreground">
+                    A one-time 6-digit code · works offline
+                  </p>
+                </div>
+              )}
             </div>
           ) : pendingConfirm ? (
             (() => {
