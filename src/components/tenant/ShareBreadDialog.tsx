@@ -196,6 +196,42 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
   const decQty = () => setQty((q) => Math.max(1, q - 1));
   const incQty = () => setQty((q) => Math.min(WELILE_BREAD_MAX_QTY, q + 1));
 
+  // === Recipient display helpers ===
+  // Keep these pure & self-contained so the same formatting is used in both
+  // the picker card and the review card.
+  const recipientFullName =
+    lookup.status === 'found' ? lookup.recipient.full_name?.trim() || '' : '';
+  const recipientFirstName =
+    recipientFullName.split(/\s+/)[0] || 'Welile user';
+  const recipientInitial = (recipientFirstName[0] || 'W').toUpperCase();
+
+  // Format a Ugandan-style phone number into readable groups without ever
+  // dropping digits. Falls back to the raw value if it doesn't look like a
+  // 9–13 digit number so we never silently mangle international formats.
+  const formatPhone = (raw?: string | null): string => {
+    if (!raw) return '';
+    const trimmed = raw.trim();
+    const digits = trimmed.replace(/\D/g, '');
+    if (digits.length < 9 || digits.length > 13) return trimmed;
+    // Local 0XXXXXXXXX (10) → 0XXX XXX XXX
+    if (digits.length === 10 && digits.startsWith('0')) {
+      return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
+    }
+    // International 256XXXXXXXXX (12) → +256 XXX XXX XXX
+    if (digits.length === 12 && digits.startsWith('256')) {
+      return `+256 ${digits.slice(3, 6)} ${digits.slice(6, 9)} ${digits.slice(9)}`;
+    }
+    // Generic last-9 grouping → … XXX XXX XXX
+    const last9 = digits.slice(-9);
+    const prefix = digits.slice(0, digits.length - 9);
+    const grouped = `${last9.slice(0, 3)} ${last9.slice(3, 6)} ${last9.slice(6)}`;
+    return prefix ? `+${prefix} ${grouped}` : grouped;
+  };
+  const recipientPhoneFormatted =
+    lookup.status === 'found'
+      ? formatPhone(lookup.recipient.phone) || formatPhone(phone)
+      : '';
+
   return (
     <Dialog
       open={open}
@@ -401,17 +437,28 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
                   <motion.div
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center gap-3 rounded-xl border border-success/40 bg-success/5 px-3 py-2.5"
+                    className="flex items-start gap-3 rounded-xl border border-success/40 bg-success/5 px-3 py-2.5"
                   >
-                    <div className="h-9 w-9 rounded-full bg-success/15 flex items-center justify-center shrink-0">
-                      <UserCheck className="h-4 w-4 text-success" />
+                    <div className="h-10 w-10 rounded-full bg-success/15 flex items-center justify-center shrink-0 relative">
+                      <span className="text-sm font-bold text-success">
+                        {recipientInitial}
+                      </span>
+                      <span className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-success flex items-center justify-center ring-2 ring-background">
+                        <UserCheck className="h-2.5 w-2.5 text-success-foreground" />
+                      </span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-foreground truncate">
-                        {lookup.recipient.full_name?.trim() || 'Welile user'}
+                      <p className="text-sm font-semibold text-foreground leading-tight">
+                        Sending to{' '}
+                        <span className="text-success">{recipientFirstName}</span>
                       </p>
-                      <p className="text-[11px] text-muted-foreground truncate">
-                        {lookup.recipient.phone || 'Verified Welile account'}
+                      {recipientFullName && recipientFullName !== recipientFirstName && (
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {recipientFullName}
+                        </p>
+                      )}
+                      <p className="text-xs font-mono font-medium text-foreground mt-0.5 break-all">
+                        {recipientPhoneFormatted || 'Verified Welile account'}
                       </p>
                     </div>
                   </motion.div>
@@ -464,20 +511,32 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
 
             {/* Recipient row */}
             {lookup.status === 'found' && (
-              <div className="rounded-xl border border-border bg-card p-3">
+              <div className="rounded-xl border border-border bg-card p-3 sm:p-4">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
                   Recipient
                 </p>
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-success/15 flex items-center justify-center shrink-0">
-                    <UserCheck className="h-5 w-5 text-success" />
+                <div className="flex items-start gap-3">
+                  <div className="h-11 w-11 rounded-full bg-success/15 flex items-center justify-center shrink-0 relative">
+                    <span className="text-base font-bold text-success">
+                      {recipientInitial}
+                    </span>
+                    <span className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-success flex items-center justify-center ring-2 ring-card">
+                      <UserCheck className="h-2.5 w-2.5 text-success-foreground" />
+                    </span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground truncate">
-                      {lookup.recipient.full_name?.trim() || 'Welile user'}
+                    {/* First name takes the spotlight; full name (if longer) is shown as a small hint and is the only text allowed to truncate. */}
+                    <p className="text-base font-bold text-foreground leading-tight">
+                      {recipientFirstName}
                     </p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {lookup.recipient.phone || phone}
+                    {recipientFullName && recipientFullName !== recipientFirstName && (
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {recipientFullName}
+                      </p>
+                    )}
+                    {/* Full phone — never truncated; wraps on narrow screens. */}
+                    <p className="text-sm font-mono font-medium text-foreground mt-1 break-all">
+                      {recipientPhoneFormatted || phone}
                     </p>
                   </div>
                 </div>
