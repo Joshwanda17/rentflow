@@ -767,14 +767,12 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           depositPurpose ||
           defaultPurpose ||
           (isAgent ? 'operational_float' : '')) as DepositPurpose | '';
-      if (!ALLOWED_DEPOSIT_PURPOSES.includes(effectivePurpose as DepositPurpose)) {
-        toast.error('Pick a deposit purpose before continuing');
-        setStep(mustChoosePurpose ? 'purpose' : 'channel');
-        setIsSubmitting(false);
-        purposeOverrideRef.current = null;
-        return;
-      }
-      const safePurpose = effectivePurpose as DepositPurpose;
+      // Coerce to a guaranteed-valid enum value. If the caller / state
+      // race somehow produced an empty/invalid purpose, we fall back to
+      // 'other' instead of aborting — the agent's tap is never lost,
+      // and Postgres never sees `''` (which would raise
+      // `invalid input value for enum deposit_purpose: ""`).
+      const safePurpose: DepositPurpose = safeDepositPurpose(effectivePurpose);
       // Override consumed; clear so subsequent submits use real state.
       purposeOverrideRef.current = null;
       // Only flip into the submitting state AFTER the auth check passes —
