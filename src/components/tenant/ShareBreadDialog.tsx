@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Send, Wheat, CheckCircle2, UserCheck, AlertCircle, Search, ArrowLeft, ArrowRight, Wallet } from 'lucide-react';
+import { Loader2, Send, Wheat, CheckCircle2, UserCheck, AlertCircle, Search, ArrowLeft, ArrowRight, Wallet, Copy, Hash } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
@@ -48,6 +48,7 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [lookup, setLookup] = useState<LookupState>({ status: 'idle' });
+  const [reference, setReference] = useState<string | null>(null);
 
   const reset = () => {
     setStep('pick');
@@ -55,6 +56,7 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
     setSending(false);
     setSent(false);
     setLookup({ status: 'idle' });
+    setReference(null);
   };
 
   // Debounced recipient lookup by phone (last 9 digits)
@@ -139,19 +141,39 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
         },
       });
       if (error) throw error;
-      const errMsg = (data as { error?: string } | null)?.error;
-      if (errMsg) throw new Error(errMsg);
+      const payload = (data ?? {}) as { error?: string; transfer_reference?: string; reference?: string };
+      if (payload.error) throw new Error(payload.error);
 
+      const ref =
+        payload.transfer_reference ||
+        payload.reference ||
+        `WB-${Date.now().toString(36).toUpperCase()}`;
+      setReference(ref);
       setSent(true);
+
       const name = lookup.recipient.full_name?.trim() || 'recipient';
-      toast.success(`🍞 Welile Bread delivered to ${name}`);
-      setTimeout(() => {
-        onOpenChange(false);
-        setTimeout(reset, 300);
-      }, 1600);
+      const shortRef = ref.slice(0, 8).toUpperCase();
+      // Receipt-style toast
+      toast.success(`🍞 Welile Bread delivered`, {
+        description:
+          `${formatUGX(WELILE_BREAD_PRICE)} → ${name}\n` +
+          `Ref: ${shortRef}`,
+        duration: 6000,
+        action: {
+          label: 'Copy ref',
+          onClick: () => {
+            navigator.clipboard?.writeText(ref).catch(() => {});
+            toast.success('Reference copied');
+          },
+        },
+      });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to send Welile Bread';
-      toast.error(msg);
+      // Receipt-style failure toast
+      toast.error('Welile Bread failed', {
+        description: `${formatUGX(WELILE_BREAD_PRICE)} · ${msg}`,
+        duration: 7000,
+      });
     } finally {
       setSending(false);
     }
@@ -207,6 +229,47 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
             <p className="text-sm text-muted-foreground text-center">
               {formatUGX(WELILE_BREAD_PRICE)} has been credited to the recipient's wallet.
             </p>
+            {reference && (
+              <div className="w-full mt-2 rounded-xl border border-border bg-muted/40 px-3 py-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Hash className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        Transfer reference
+                      </p>
+                      <p className="text-xs font-mono font-semibold text-foreground truncate">
+                        {reference}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 shrink-0"
+                    onClick={() => {
+                      navigator.clipboard?.writeText(reference).catch(() => {});
+                      toast.success('Reference copied');
+                    }}
+                  >
+                    <Copy className="h-3.5 w-3.5 mr-1" />
+                    Copy
+                  </Button>
+                </div>
+              </div>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-2"
+              onClick={() => {
+                onOpenChange(false);
+                setTimeout(reset, 300);
+              }}
+            >
+              Done
+            </Button>
           </motion.div>
         ) : step === 'pick' ? (
           <div className="space-y-4 pt-2">
