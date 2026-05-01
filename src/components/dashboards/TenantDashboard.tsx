@@ -286,15 +286,18 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           <button
             type="button"
             onClick={handleOpenMenu}
-            className="relative w-full aspect-square max-h-[60vh] rounded-3xl overflow-hidden border border-border/50 shadow-lg group active:scale-[0.99] transition-transform bg-[#fdf6e3]"
+            className="relative w-full rounded-3xl overflow-hidden border border-border/50 shadow-lg group active:scale-[0.99] transition-transform bg-[#fdf6e3] flex items-center justify-center p-3 sm:p-4"
+            style={{ height: 'min(58vh, 70vw, 520px)', minHeight: '220px' }}
             aria-label="Open menu"
           >
             <img
               src={breadHero}
               alt="Fresh artisan loaf of bread"
-              className="absolute inset-0 h-full w-full object-contain"
+              className="h-full w-full object-contain select-none pointer-events-none"
               width={1024}
               height={1024}
+              loading="lazy"
+              decoding="async"
             />
 
             {/* Welile branding badge — top-left */}
