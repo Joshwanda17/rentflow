@@ -294,12 +294,21 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             <img
               src={breadHero}
               alt="Fresh artisan loaf of bread"
-              className="h-full w-full object-contain select-none pointer-events-none"
+              className={`h-full w-full object-contain select-none pointer-events-none transition-opacity duration-500 ${breadLoaded ? 'opacity-100' : 'opacity-0'}`}
               width={1024}
               height={1024}
               loading="lazy"
               decoding="async"
+              onLoad={() => setBreadLoaded(true)}
             />
+
+            {/* Shimmer placeholder while bread loads */}
+            {!breadLoaded && (
+              <div className="absolute inset-0 overflow-hidden rounded-3xl" aria-hidden="true">
+                <div className="absolute inset-0 bg-[#fdf6e3]" />
+                <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+              </div>
+            )}
 
             {/* Welile branding badge — top-left */}
             <div className="absolute top-3 left-3 flex flex-col items-center gap-1 rounded-2xl bg-background/85 backdrop-blur-sm px-2.5 py-2 shadow-sm border border-border/40">
