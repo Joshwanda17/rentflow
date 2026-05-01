@@ -55,16 +55,29 @@ export async function fetchUserRoles(
       setRoles(userRoles);
       setCachedRoles(userRoles);
       
-      // Check user's preferred default role first, then last-used role
+      // Highest priority: admin-set forced_default_role on the profile (follows user across devices)
+      let forcedDefault: AppRole | null = null;
+      try {
+        const { data: profileRow } = await supabase
+          .from('profiles')
+          .select('forced_default_role')
+          .eq('id', userId)
+          .maybeSingle();
+        const forced = (profileRow as any)?.forced_default_role as AppRole | undefined;
+        if (forced && userRoles.includes(forced)) forcedDefault = forced;
+      } catch {/* non-blocking */}
+
+      // Then check user's device preference, then last-used role, then intended role
       const preferred = getPreferredDefaultRole();
       const intendedRole = authUser?.user_metadata?.intended_role as AppRole | undefined;
       let lastUsedRole: AppRole | null = null;
       try { lastUsedRole = localStorage.getItem('welile_last_role') as AppRole | null; } catch {}
-      const defaultForUser = 
-        (preferred !== 'auto' && userRoles.includes(preferred as AppRole)) ? preferred as AppRole
+      const defaultForUser =
+        forcedDefault
+        ?? ((preferred !== 'auto' && userRoles.includes(preferred as AppRole)) ? preferred as AppRole
         : (lastUsedRole && userRoles.includes(lastUsedRole)) ? lastUsedRole
         : (intendedRole && userRoles.includes(intendedRole)) ? intendedRole
-        : userRoles[0];
+        : userRoles[0]);
       if (!currentRole || !userRoles.includes(currentRole)) {
         setRole(defaultForUser);
       }
