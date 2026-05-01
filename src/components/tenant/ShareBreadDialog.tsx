@@ -129,6 +129,12 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
       toast.error("You can't send a Welile Bread to your own wallet.");
       return;
     }
+    // Hard zero-balance gate: a user with zero (or unknown-but-non-positive)
+    // withdrawable balance is never allowed to send a Welile Bread.
+    if (typeof availableBalance === 'number' && availableBalance <= 0) {
+      toast.error("You can't send a Welile Bread with zero withdrawable balance. Top up your wallet first.");
+      return;
+    }
     if (typeof availableBalance === 'number' && availableBalance < totalAmount) {
       toast.error(`Insufficient balance. You need ${formatUGX(totalAmount)}`);
       return;
@@ -188,6 +194,11 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
 
   const canSend = lookup.status === 'found' && !sending;
   const totalAmount = WELILE_BREAD_PRICE * qty;
+  // Hard zero-balance gate. Treat unknown balance as not-zero (don't lock the
+  // user out if the parent never passed it). Once we know it's <= 0, ALL
+  // sending paths are blocked.
+  const zeroBalance =
+    typeof availableBalance === 'number' && availableBalance <= 0;
   const insufficient =
     typeof availableBalance === 'number' && availableBalance < totalAmount;
   const balanceAfter =
@@ -466,15 +477,28 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
               </div>
             </div>
 
-            {typeof availableBalance === 'number' && (
-              <p className="text-xs text-muted-foreground">
-                Your withdrawable balance: <span className="font-semibold text-foreground">{formatUGX(availableBalance)}</span>
-              </p>
+            {zeroBalance ? (
+              <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-xs text-destructive">
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-semibold">Your withdrawable balance is UGX 0</p>
+                  <p className="opacity-80">
+                    Top up your wallet to send a Welile Bread.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              typeof availableBalance === 'number' && (
+                <p className="text-xs text-muted-foreground">
+                  Your withdrawable balance:{' '}
+                  <span className="font-semibold text-foreground">{formatUGX(availableBalance)}</span>
+                </p>
+              )
             )}
 
             <Button
               onClick={() => setStep('review')}
-              disabled={lookup.status !== 'found'}
+              disabled={lookup.status !== 'found' || zeroBalance}
               className="w-full h-12 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold gap-2"
             >
               Continue to review
@@ -600,7 +624,7 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
               </Button>
               <Button
                 onClick={handleSend}
-                disabled={!canSend || insufficient}
+                disabled={!canSend || insufficient || zeroBalance}
                 className="flex-[2] h-12 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold gap-2"
               >
                 {sending ? (
