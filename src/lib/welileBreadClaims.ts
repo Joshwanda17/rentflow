@@ -276,3 +276,66 @@ export function setActiveStore(id: string) {
     /* noop */
   }
 }
+
+// ---------- Shareable claim URL (offline-safe, no server needed) ----------
+
+/**
+ * Public payload encoded into the share URL. The recipient opens the link
+ * and sees everything needed to walk into the partner store and pick up
+ * the bread — no account, no network round-trip.
+ */
+export interface SharedClaimPayload {
+  code: string;
+  sellerId: string;
+  sellerName: string;
+  freeBreads: number;
+  payableForNext: number;
+  expiresAt: number;
+  /** Optional sender display name. */
+  from?: string;
+}
+
+function base64UrlEncode(input: string): string {
+  // btoa works on binary strings; encode to UTF-8 first.
+  const b64 = btoa(unescape(encodeURIComponent(input)));
+  return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function base64UrlDecode(input: string): string {
+  const b64 = input.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((input.length + 3) % 4);
+  return decodeURIComponent(escape(atob(b64)));
+}
+
+export function encodeSharedClaim(payload: SharedClaimPayload): string {
+  return base64UrlEncode(JSON.stringify(payload));
+}
+
+export function decodeSharedClaim(token: string): SharedClaimPayload | null {
+  try {
+    const raw = base64UrlDecode(token);
+    const parsed = JSON.parse(raw) as SharedClaimPayload;
+    if (!parsed?.code || !parsed?.sellerName) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/** Build a fully-qualified shareable URL for a given claim. */
+export function buildShareUrl(claim: BreadClaim, opts?: { from?: string }): string {
+  const payload: SharedClaimPayload = {
+    code: claim.code,
+    sellerId: claim.sellerId,
+    sellerName: claim.sellerName,
+    freeBreads: claim.freeBreads,
+    payableForNext: claim.payableForNext,
+    expiresAt: claim.expiresAt,
+    from: opts?.from,
+  };
+  const token = encodeSharedClaim(payload);
+  const origin =
+    typeof window !== 'undefined' && window.location?.origin
+      ? window.location.origin
+      : 'https://welilereceipts.com';
+  return `${origin}/bread/${claim.code}#${token}`;
+}
