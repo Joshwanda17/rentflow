@@ -490,11 +490,11 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
             <div className="rounded-xl border border-amber-200 dark:border-amber-900/50 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Welile Bread</p>
-                  <p className="text-2xl font-bold text-amber-700 dark:text-amber-400">
+                  <p className="text-xs font-semibold text-amber-900/80 dark:text-amber-200/90 uppercase tracking-wider">Welile Bread</p>
+                  <p className="text-2xl sm:text-3xl font-extrabold text-amber-950 dark:text-amber-100 tabular-nums leading-tight drop-shadow-sm">
                     {formatUGX(totalAmount)}
                   </p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                  <p className="text-xs font-medium text-amber-900/80 dark:text-amber-200/80 mt-0.5 tabular-nums">
                     {qty} × {formatUGX(WELILE_BREAD_PRICE)}
                   </p>
                 </div>
@@ -736,11 +736,11 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                     {qty > 1 ? `${qty} Welile Breads` : 'Welile Bread'} · Fresh today
                   </p>
-                  <p className="text-xl font-extrabold text-amber-700 dark:text-amber-400">
+                  <p className="text-xl sm:text-2xl font-extrabold text-amber-950 dark:text-amber-100 tabular-nums leading-tight">
                     {formatUGX(totalAmount)}
                   </p>
                   {qty > 1 && (
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-xs font-medium text-amber-900/80 dark:text-amber-200/80 tabular-nums">
                       {qty} × {formatUGX(WELILE_BREAD_PRICE)}
                     </p>
                   )}
