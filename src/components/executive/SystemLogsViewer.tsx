@@ -142,6 +142,7 @@ export function SystemLogsViewer() {
   const [actionFilter, setActionFilter] = useState<string>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [defaultRoleOnly, setDefaultRoleOnly] = useState(false);
+  const [defaultRoleValue, setDefaultRoleValue] = useState<string>('all');
   const [targetUser, setTargetUser] = useState('');
   const [fromDate, setFromDate] = useState<Date | undefined>();
   const [toDate, setToDate] = useState<Date | undefined>();
@@ -182,6 +183,19 @@ export function SystemLogsViewer() {
     if (defaultRoleOnly && !DEFAULT_ROLE_ACTIONS.includes(log.action_type)) return false;
     if (actionFilter !== 'all' && log.action_type !== actionFilter) return false;
 
+    if (defaultRoleValue !== 'all') {
+      if (!DEFAULT_ROLE_ACTIONS.includes(log.action_type)) return false;
+      const meta = (log.metadata && typeof log.metadata === 'object' && !Array.isArray(log.metadata))
+        ? log.metadata as Record<string, unknown>
+        : {};
+      const roleVal = meta.forced_default_role;
+      if (defaultRoleValue === 'cleared') {
+        if (log.action_type !== 'forced_default_role_cleared' && roleVal !== null) return false;
+      } else if (roleVal !== defaultRoleValue) {
+        return false;
+      }
+    }
+
     if (fromDate && log.created_at && new Date(log.created_at) < fromDate) return false;
     if (toDate) {
       const end = new Date(toDate);
@@ -219,13 +233,14 @@ export function SystemLogsViewer() {
 
   const clearAll = () => {
     setDefaultRoleOnly(false);
+    setDefaultRoleValue('all');
     setTargetUser('');
     setFromDate(undefined);
     setToDate(undefined);
     setActionFilter('all');
     setSearchTerm('');
   };
-  const anyFilter = defaultRoleOnly || !!targetUser || !!fromDate || !!toDate || actionFilter !== 'all' || !!searchTerm;
+  const anyFilter = defaultRoleOnly || defaultRoleValue !== 'all' || !!targetUser || !!fromDate || !!toDate || actionFilter !== 'all' || !!searchTerm;
 
   return (
     <div className="space-y-4">
@@ -281,6 +296,19 @@ export function SystemLogsViewer() {
           Default Role Events
           <Badge variant="secondary" className="ml-1 px-1.5 text-[10px]">{defaultRoleCount}</Badge>
         </Button>
+        <Select value={defaultRoleValue} onValueChange={setDefaultRoleValue}>
+          <SelectTrigger className="w-[170px]">
+            <SelectValue placeholder="Any default role" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Any default role</SelectItem>
+            <SelectItem value="tenant">🏠 Tenant</SelectItem>
+            <SelectItem value="agent">💼 Agent</SelectItem>
+            <SelectItem value="landlord">🏢 Landlord</SelectItem>
+            <SelectItem value="supporter">💰 Funder</SelectItem>
+            <SelectItem value="cleared">↩️ Cleared</SelectItem>
+          </SelectContent>
+        </Select>
         <Input
           placeholder="Target user (name or ID)..."
           value={targetUser}
