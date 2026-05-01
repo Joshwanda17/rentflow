@@ -62,6 +62,7 @@ import { Button } from '@/components/ui/button';
 import breadHero from '@/assets/tenant-bread-hero.jpg';
 import welileLogo from '@/assets/welile-logo.png';
 import { ShareBreadDialog, WELILE_BREAD_PRICE } from '@/components/tenant/ShareBreadDialog';
+import { WelileReceiptDialog } from '@/components/tenant/WelileReceiptDialog';
 import { Share2 } from 'lucide-react';
 import { useAvailableBalance } from '@/hooks/useAvailableBalance';
 
