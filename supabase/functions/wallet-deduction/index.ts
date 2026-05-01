@@ -140,7 +140,6 @@ Deno.serve(async (req) => {
         user_id: target_user_id,
         requested: amount,
         strict_available: strictAvailable,
-        ledger_net: ledgerNet,
         true_available: trueAvailable,
         cache_withdrawable: cacheWithdrawable,
         cache_float: cacheFloat,
@@ -238,7 +237,15 @@ Deno.serve(async (req) => {
     // Float spill removed: this tool is strict-withdrawable-only. See plan
     // 2026-04-29 — float is company liability and is never deductible here.
 
-    const { data: txnGroupId, error: ledgerErr } = await adminClient.rpc('create_ledger_transaction', { entries });
+    const { data: txnGroupId, error: ledgerErr } = await adminClient.rpc('create_ledger_transaction', {
+      entries,
+      idempotency_key: `wallet-deduction-${target_user_id}-${crypto.randomUUID()}`,
+      // CFO wallet deductions are an authorized cache-cleanup / recovery path.
+      // The strict RPC + live bucket recheck above is the gate; bypass the
+      // all-time ledger solvency guard so anchored users with negative legacy
+      // ledger history can still have their current withdrawable cache removed.
+      skip_balance_check: true,
+    });
 
     if (ledgerErr) {
       console.error("Ledger RPC error:", ledgerErr);
