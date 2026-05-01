@@ -702,7 +702,40 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
                       <span>{formatUGX(totalAmount)}</span>
                     </div>
                     <div className="flex items-center justify-between text-[10px] text-emerald-800/80 dark:text-emerald-200/80 pt-0.5">
-                      <span>Effective per bread</span>
+                      <span className="flex items-center gap-1">
+                        Effective per bread
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              aria-label="Why per-bread price changes with quantity"
+                              className="h-3.5 w-3.5 rounded-full flex items-center justify-center text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 dark:hover:text-emerald-100"
+                            >
+                              <Info className="h-3 w-3" />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            side="top"
+                            align="start"
+                            className="w-[260px] text-xs leading-relaxed space-y-1.5 border-emerald-300 dark:border-emerald-800"
+                          >
+                            <p className="font-semibold text-emerald-900 dark:text-emerald-100">
+                              Why this changes with quantity
+                            </p>
+                            <p className="text-foreground/90">
+                              The {formatUGX(discountAmount)} discount is shared across all{' '}
+                              <span className="font-semibold">{qty}</span> bread{qty > 1 ? 's' : ''}:
+                            </p>
+                            <p className="font-mono text-[11px] tabular-nums text-foreground bg-muted/60 rounded px-2 py-1">
+                              ({formatUGX(grossAmount)} − {formatUGX(discountAmount)}) ÷ {qty} ={' '}
+                              {formatUGX(Math.round(totalAmount / qty))}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">
+                              Add more breads → same flat discount → lower price each.
+                            </p>
+                          </PopoverContent>
+                        </Popover>
+                      </span>
                       <span>
                         {formatUGX(Math.round(totalAmount / qty))}
                         {qty > 1 && (
