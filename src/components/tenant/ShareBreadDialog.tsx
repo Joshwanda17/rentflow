@@ -614,37 +614,76 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
                     Got a Welile receipt? Save 5%
                   </p>
                   <p className="text-[11px] text-emerald-900/80 dark:text-emerald-200/80 leading-tight">
-                    From any seller. 5% of the receipt cuts your bread price.
+                    One-shot: 5% of the receipt comes off your whole order, no matter how many breads.
                   </p>
                 </div>
               </div>
 
               {appliedReceipt ? (
-                <div className="rounded-lg bg-white/70 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700 px-3 py-2.5 flex items-center gap-2">
-                  <Ticket className="h-4 w-4 text-emerald-700 dark:text-emerald-300 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-mono font-semibold text-emerald-950 dark:text-emerald-100 truncate">
-                      {appliedReceipt.number}
-                    </p>
-                    <p className="text-[11px] text-emerald-800 dark:text-emerald-200 tabular-nums">
-                      {formatUGX(appliedReceipt.amount)} · −{formatUGX(rawDiscount)} off
-                      {discountAmount < rawDiscount && (
-                        <span className="ml-1 text-amber-700 dark:text-amber-300">
-                          (capped at floor)
-                        </span>
-                      )}
-                    </p>
+                <div className="rounded-lg bg-white/80 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700 px-3 py-2.5 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Ticket className="h-4 w-4 text-emerald-700 dark:text-emerald-300 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-mono font-semibold text-emerald-950 dark:text-emerald-100 truncate">
+                        {appliedReceipt.number}
+                      </p>
+                      <p className="text-[11px] text-emerald-800 dark:text-emerald-200 tabular-nums">
+                        Receipt {formatUGX(appliedReceipt.amount)} · 5% = {formatUGX(rawDiscount)}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="icon-sm"
+                      variant="ghost"
+                      onClick={clearReceipt}
+                      aria-label="Remove receipt"
+                      className="text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <Button
-                    type="button"
-                    size="icon-sm"
-                    variant="ghost"
-                    onClick={clearReceipt}
-                    aria-label="Remove receipt"
-                    className="text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+
+                  {/* How the discount lands on the current quantity */}
+                  <div className="rounded-md bg-emerald-100/70 dark:bg-emerald-900/40 px-2.5 py-2 text-[11px] tabular-nums space-y-1">
+                    <div className="flex items-center justify-between text-emerald-900 dark:text-emerald-100">
+                      <span>{qty} × {formatUGX(WELILE_BREAD_PRICE)}</span>
+                      <span className="font-semibold">{formatUGX(grossAmount)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-emerald-800 dark:text-emerald-200">
+                      <span>Receipt discount (one-shot)</span>
+                      <span className="font-semibold">−{formatUGX(discountAmount)}</span>
+                    </div>
+                    <div className="border-t border-emerald-300/70 dark:border-emerald-700/70 my-0.5" />
+                    <div className="flex items-center justify-between text-emerald-950 dark:text-emerald-50 font-bold">
+                      <span>You pay</span>
+                      <span>{formatUGX(totalAmount)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-emerald-800/80 dark:text-emerald-200/80 pt-0.5">
+                      <span>Effective per bread</span>
+                      <span>
+                        {formatUGX(Math.round(totalAmount / qty))}
+                        {qty > 1 && (
+                          <span className="text-emerald-700/70 dark:text-emerald-300/70">
+                            {' '}(was {formatUGX(WELILE_BREAD_PRICE)})
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+
+                  {discountAmount < rawDiscount ? (
+                    <p className="text-[11px] font-medium text-amber-800 dark:text-amber-300 flex items-start gap-1 leading-snug">
+                      <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
+                      <span>
+                        Discount capped — order can't go below {formatUGX(WELILE_BREAD_MIN_PAYABLE)}.
+                        {qty < WELILE_BREAD_MAX_QTY && ' Add more breads to use the full 5%.'}
+                      </span>
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-emerald-800/90 dark:text-emerald-200/90 leading-snug">
+                      Same {formatUGX(discountAmount)} off whether you send 1 or {WELILE_BREAD_MAX_QTY} breads — more breads, bigger per-bread saving.
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-2">
