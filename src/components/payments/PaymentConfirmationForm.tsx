@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { validateFormPayload, DEPOSIT_REQUEST_CONTRACT } from '@/lib/formContracts';
 import { format, subDays, isAfter, isBefore, startOfDay } from 'date-fns';
+import { safeDepositPurpose } from '@/lib/depositPurposeGuard';
 
 interface PaymentConfirmationFormProps {
   dashboardType: 'tenant' | 'supporter';
@@ -121,7 +122,9 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
         transaction_date: transactionDateTime.toISOString(),
         provider: partner || null,
         notes: reason.trim(),
-        deposit_purpose: dashboardType === 'supporter' ? 'partnership_deposit' : 'other',
+        deposit_purpose: safeDepositPurpose(
+          dashboardType === 'supporter' ? 'partnership_deposit' : 'other',
+        ),
       };
 
       // Contract-driven pre-submit validation
