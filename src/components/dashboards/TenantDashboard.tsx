@@ -418,6 +418,13 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
       {/* Full-screen wallet sheet */}
       <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />
 
+      {/* Share Welile Bread dialog */}
+      <ShareBreadDialog
+        open={shareBreadOpen}
+        onOpenChange={setShareBreadOpen}
+        availableBalance={withdrawableAvailable}
+      />
+
       {/* Menu Drawer */}
       <TenantMenuDrawer
         open={menuOpen}
