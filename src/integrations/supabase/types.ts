@@ -9553,6 +9553,9 @@ export type Database = {
           email: string
           evicted_at: string | null
           evicted_from_landlord_id: string | null
+          forced_default_role: string | null
+          forced_default_role_set_at: string | null
+          forced_default_role_set_by: string | null
           frozen_at: string | null
           frozen_reason: string | null
           full_name: string
@@ -9607,6 +9610,9 @@ export type Database = {
           email: string
           evicted_at?: string | null
           evicted_from_landlord_id?: string | null
+          forced_default_role?: string | null
+          forced_default_role_set_at?: string | null
+          forced_default_role_set_by?: string | null
           frozen_at?: string | null
           frozen_reason?: string | null
           full_name: string
@@ -9661,6 +9667,9 @@ export type Database = {
           email?: string
           evicted_at?: string | null
           evicted_from_landlord_id?: string | null
+          forced_default_role?: string | null
+          forced_default_role_set_at?: string | null
+          forced_default_role_set_by?: string | null
           frozen_at?: string | null
           frozen_reason?: string | null
           full_name?: string

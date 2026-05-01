@@ -17,6 +17,7 @@ import BulkAssignRoleDialog from '@/components/manager/BulkAssignRoleDialog';
 import BulkRemoveRoleDialog from '@/components/manager/BulkRemoveRoleDialog';
 import BulkWhatsAppDialog from '@/components/manager/BulkWhatsAppDialog';
 import InactiveUsersReachOutDialog from '@/components/manager/InactiveUsersReachOutDialog';
+import BulkSetDefaultRoleDialog from '@/components/manager/BulkSetDefaultRoleDialog';
 import { CreateUserInviteDialog } from '@/components/manager/CreateUserInviteDialog';
 import { CompactUserStats, StatFilter } from '@/components/manager/CompactUserStats';
 import { exportToCSV, formatDateForExport } from '@/lib/exportUtils';
@@ -102,6 +103,7 @@ export default function UserManagement() {
   const [bulkAssignRoleOpen, setBulkAssignRoleOpen] = useState(false);
   const [bulkRemoveRoleOpen, setBulkRemoveRoleOpen] = useState(false);
   const [bulkWhatsAppOpen, setBulkWhatsAppOpen] = useState(false);
+  const [bulkSetDefaultRoleOpen, setBulkSetDefaultRoleOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [statFilter, setStatFilter] = useState<StatFilter>('all');
   const [addUserOpen, setAddUserOpen] = useState(false);
@@ -586,6 +588,9 @@ Just click the link and enter your password to get started!`;
                 <DropdownMenuItem onClick={handleExportCSV} className="gap-2">Export CSV</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setBulkAssignRoleOpen(true)} disabled={selectedUserIds.size === 0} className="gap-2 disabled:opacity-40">Assign Role</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setBulkRemoveRoleOpen(true)} disabled={selectedUserIds.size === 0} className="gap-2 disabled:opacity-40">Remove Role</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setBulkSetDefaultRoleOpen(true)} disabled={selectedUserIds.size === 0} className="gap-2 disabled:opacity-40">
+                  Set Default Role {selectedUserIds.size > 0 && `(${selectedUserIds.size})`}
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setReachOutInactiveOpen(true)} className="gap-2">Reach Inactive</DropdownMenuItem>
                 <DropdownMenuItem onClick={toggleSelectAll}>{selectedUserIds.size === users.length ? 'Deselect All' : 'Select All'}</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setShowFilters(true)}>Filters & Sort</DropdownMenuItem>
@@ -938,6 +943,7 @@ Just click the link and enter your password to get started!`;
       
       <BulkAssignRoleDialog open={bulkAssignRoleOpen} onOpenChange={setBulkAssignRoleOpen} selectedUserIds={Array.from(selectedUserIds)} onSuccess={() => { clearSelection(); handleRefresh(); }} />
       <BulkRemoveRoleDialog open={bulkRemoveRoleOpen} onOpenChange={setBulkRemoveRoleOpen} selectedUserIds={Array.from(selectedUserIds)} onSuccess={() => { clearSelection(); handleRefresh(); }} />
+      <BulkSetDefaultRoleDialog open={bulkSetDefaultRoleOpen} onOpenChange={setBulkSetDefaultRoleOpen} selectedUserIds={Array.from(selectedUserIds)} onSuccess={() => { clearSelection(); handleRefresh(); }} />
       <BulkWhatsAppDialog open={bulkWhatsAppOpen} onOpenChange={setBulkWhatsAppOpen} selectedUsers={getSelectedUsers().map(u => ({ id: u.id, full_name: u.full_name, phone: u.phone, avatar_url: u.avatar_url }))} />
       <CreateUserInviteDialog open={addUserOpen} onOpenChange={setAddUserOpen} />
       <InactiveUsersReachOutDialog open={reachOutInactiveOpen} onOpenChange={setReachOutInactiveOpen} inactiveUsers={getSelectedUsers().filter(u => isUserInactive(u.last_active_at)).map(u => ({ id: u.id, full_name: u.full_name, phone: u.phone, avatar_url: u.avatar_url, last_active_at: u.last_active_at }))} />
