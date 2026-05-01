@@ -431,6 +431,12 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         onTopUp={() => setShowWallet(true)}
       />
 
+      {/* Welile Receipt — primary bread tap action (5% discount, works offline) */}
+      <WelileReceiptDialog
+        open={receiptDialogOpen}
+        onOpenChange={setReceiptDialogOpen}
+      />
+
       {/* Menu Drawer */}
       <TenantMenuDrawer
         open={menuOpen}
