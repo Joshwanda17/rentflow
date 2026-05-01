@@ -25,6 +25,12 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   availableBalance?: number;
+  /**
+   * Invoked when the user taps the "Top up" CTA on the zero-balance banner.
+   * The dialog will close itself first so the parent can route to whatever
+   * top-up surface it owns (e.g. the wallet sheet's Deposit flow).
+   */
+  onTopUp?: () => void;
 }
 
 interface ResolvedRecipient {
@@ -41,7 +47,7 @@ type LookupState =
   | { status: 'self' }
   | { status: 'too_short' };
 
-export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props) {
+export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp }: Props) {
   const { user } = useAuth();
   const { profile } = useProfile();
   // Always derive a live, ledger-backed withdrawable inside the dialog so the
@@ -493,14 +499,34 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
             </div>
 
             {zeroBalance ? (
-              <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-xs text-destructive">
-                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-                <div>
-                  <p className="font-semibold">Your withdrawable balance is UGX 0</p>
-                  <p className="opacity-80">
-                    Top up your wallet to send a Welile Bread.
-                  </p>
+              <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-xs text-destructive">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold">Your withdrawable balance is UGX 0</p>
+                    <p className="opacity-80">
+                      Top up your wallet to send a Welile Bread.
+                    </p>
+                  </div>
                 </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="destructive"
+                  className="mt-2.5 w-full h-9 gap-1.5"
+                  onClick={() => {
+                    // Close this dialog first, then hand off to the parent so
+                    // the wallet/top-up surface owns the next step.
+                    onOpenChange(false);
+                    setTimeout(() => {
+                      if (onTopUp) onTopUp();
+                      else window.dispatchEvent(new CustomEvent('open-wallet-topup'));
+                    }, 200);
+                  }}
+                >
+                  <Wallet className="h-3.5 w-3.5" />
+                  Top up wallet
+                </Button>
               </div>
             ) : (
               typeof effectiveBalance === 'number' && (
