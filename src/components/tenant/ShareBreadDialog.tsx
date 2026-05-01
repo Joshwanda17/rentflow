@@ -618,6 +618,48 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
                     One-shot: 5% of the receipt comes off your whole order, no matter how many breads.
                   </p>
                 </div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="How the discount is calculated"
+                      className="h-7 w-7 rounded-full flex items-center justify-center text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 shrink-0"
+                    >
+                      <Info className="h-4 w-4" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    side="bottom"
+                    align="end"
+                    className="w-[280px] text-xs leading-relaxed space-y-2 border-emerald-300 dark:border-emerald-800"
+                  >
+                    <p className="font-bold text-sm text-emerald-900 dark:text-emerald-100">
+                      How the 5% discount works
+                    </p>
+                    <ol className="list-decimal pl-4 space-y-1 text-foreground/90">
+                      <li>
+                        We take <span className="font-semibold">5%</span> of the receipt amount you entered.
+                        E.g. {formatUGX(10000)} receipt → {formatUGX(500)} off.
+                      </li>
+                      <li>
+                        That UGX amount is a <span className="font-semibold">one-shot</span> discount on the
+                        whole order — it does <span className="italic">not</span> multiply by quantity.
+                      </li>
+                      <li>
+                        So your <span className="font-semibold">effective per-bread price</span> =
+                        (gross − discount) ÷ quantity. More breads spread the same discount over more units,
+                        making each one cheaper.
+                      </li>
+                      <li>
+                        Order total can never drop below {formatUGX(WELILE_BREAD_MIN_PAYABLE)}; any extra
+                        discount is capped.
+                      </li>
+                    </ol>
+                    <p className="text-[11px] text-muted-foreground pt-1 border-t border-border">
+                      One receipt per order. Remove it any time with the ✕ button.
+                    </p>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               {appliedReceipt ? (
