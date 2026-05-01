@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Send, Wheat, CheckCircle2, UserCheck, AlertCircle, Search, ArrowLeft, ArrowRight, Wallet, Copy, Hash, Minus, Plus, ArrowDownRight } from 'lucide-react';
+import { Loader2, Send, Wheat, CheckCircle2, UserCheck, AlertCircle, Search, ArrowLeft, ArrowRight, Wallet, Copy, Hash, Minus, Plus, ArrowDownRight, Ticket, X, BadgePercent } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
@@ -20,6 +20,17 @@ import { motion } from 'framer-motion';
 
 export const WELILE_BREAD_PRICE = 6500;
 export const WELILE_BREAD_MAX_QTY = 50;
+// 5% of any Welile receipt amount can be redeemed as a discount on the bread.
+export const WELILE_BREAD_DISCOUNT_RATE = 0.05;
+// We never let the bread go below this floor — keeps the transfer meaningful.
+export const WELILE_BREAD_MIN_PAYABLE = 500;
+const RECEIPT_STORAGE_KEY = 'welile.bread.receipt.v1';
+
+interface BreadReceipt {
+  number: string;
+  amount: number;
+  savedAt: number;
+}
 
 interface Props {
   open: boolean;
@@ -65,6 +76,67 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
   const [sent, setSent] = useState(false);
   const [lookup, setLookup] = useState<LookupState>({ status: 'idle' });
   const [reference, setReference] = useState<string | null>(null);
+
+  // ===== Welile-Receipt discount (works offline) =====
+  // The user can paste any Welile receipt number + amount they hold; 5% of
+  // that amount is applied as a one-shot discount on the bread price. The
+  // entry is cached in localStorage so it survives reloads / offline use.
+  const [receiptNumber, setReceiptNumber] = useState('');
+  const [receiptAmountInput, setReceiptAmountInput] = useState('');
+  const [appliedReceipt, setAppliedReceipt] = useState<BreadReceipt | null>(null);
+  const [receiptError, setReceiptError] = useState<string | null>(null);
+
+  // Hydrate any previously-applied receipt when the dialog opens.
+  useEffect(() => {
+    if (!open) return;
+    try {
+      const raw = localStorage.getItem(RECEIPT_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as BreadReceipt;
+      if (parsed?.number && typeof parsed.amount === 'number' && parsed.amount > 0) {
+        setAppliedReceipt(parsed);
+      }
+    } catch {
+      /* ignore corrupt cache */
+    }
+  }, [open]);
+
+  const applyReceipt = () => {
+    setReceiptError(null);
+    const num = receiptNumber.trim();
+    const amt = Number(receiptAmountInput.replace(/[,\s]/g, ''));
+    if (num.length < 3) {
+      setReceiptError('Enter the full receipt number');
+      return;
+    }
+    if (!Number.isFinite(amt) || amt <= 0) {
+      setReceiptError('Enter a valid receipt amount');
+      return;
+    }
+    const next: BreadReceipt = { number: num, amount: amt, savedAt: Date.now() };
+    setAppliedReceipt(next);
+    setReceiptNumber('');
+    setReceiptAmountInput('');
+    try {
+      localStorage.setItem(RECEIPT_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      /* storage unavailable — discount still applies in-memory */
+    }
+    toast.success('Receipt applied', {
+      description: `5% of ${formatUGX(amt)} = ${formatUGX(Math.round(amt * WELILE_BREAD_DISCOUNT_RATE))} off`,
+      duration: 4000,
+    });
+  };
+
+  const clearReceipt = () => {
+    setAppliedReceipt(null);
+    setReceiptError(null);
+    try {
+      localStorage.removeItem(RECEIPT_STORAGE_KEY);
+    } catch {
+      /* noop */
+    }
+  };
 
   // Force a fresh withdrawable read every time the dialog opens. The hook
   // also live-subscribes to wallet/ledger changes, so a top-up that posts
@@ -303,7 +375,9 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
           // sender and receiver wallet statements stay consistent.
           transfer_kind: 'welile_bread',
           bread_qty: qty,
-          description: `Welile Bread x${qty} (${formatUGX(totalAmount)})`,
+          description: appliedReceipt && discountAmount > 0
+            ? `Welile Bread x${qty} (${formatUGX(totalAmount)}) · receipt ${appliedReceipt.number} −${formatUGX(discountAmount)}`
+            : `Welile Bread x${qty} (${formatUGX(totalAmount)})`,
         },
       });
       if (error) throw error;
@@ -346,7 +420,16 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
   };
 
   const canSend = lookup.status === 'found' && !sending;
-  const totalAmount = WELILE_BREAD_PRICE * qty;
+  const grossAmount = WELILE_BREAD_PRICE * qty;
+  const rawDiscount = appliedReceipt
+    ? Math.round(appliedReceipt.amount * WELILE_BREAD_DISCOUNT_RATE)
+    : 0;
+  // Cap the discount so the user always pays at least the floor.
+  const discountAmount = Math.min(
+    rawDiscount,
+    Math.max(0, grossAmount - WELILE_BREAD_MIN_PAYABLE),
+  );
+  const totalAmount = Math.max(WELILE_BREAD_MIN_PAYABLE, grossAmount - discountAmount);
   // Hard zero-balance gate. Treat unknown balance as not-zero (don't lock the
   // user out if the parent never passed it). Once we know it's <= 0, ALL
   // sending paths are blocked.
@@ -491,15 +574,131 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-semibold text-amber-900/80 dark:text-amber-200/90 uppercase tracking-wider">Welile Bread</p>
-                  <p className="text-2xl sm:text-3xl font-extrabold text-amber-950 dark:text-amber-100 tabular-nums leading-tight drop-shadow-sm">
-                    {formatUGX(totalAmount)}
-                  </p>
-                  <p className="text-xs font-medium text-amber-900/80 dark:text-amber-200/80 mt-0.5 tabular-nums">
-                    {qty} × {formatUGX(WELILE_BREAD_PRICE)}
-                  </p>
+                  {discountAmount > 0 ? (
+                    <>
+                      <div className="flex items-baseline gap-2">
+                        <p className="text-2xl sm:text-3xl font-extrabold text-emerald-700 dark:text-emerald-300 tabular-nums leading-tight drop-shadow-sm">
+                          {formatUGX(totalAmount)}
+                        </p>
+                        <p className="text-sm font-semibold text-amber-900/60 dark:text-amber-200/60 line-through tabular-nums">
+                          {formatUGX(grossAmount)}
+                        </p>
+                      </div>
+                      <p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 mt-0.5 tabular-nums">
+                        Receipt discount −{formatUGX(discountAmount)}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-2xl sm:text-3xl font-extrabold text-amber-950 dark:text-amber-100 tabular-nums leading-tight drop-shadow-sm">
+                        {formatUGX(totalAmount)}
+                      </p>
+                      <p className="text-xs font-medium text-amber-900/80 dark:text-amber-200/80 mt-0.5 tabular-nums">
+                        {qty} × {formatUGX(WELILE_BREAD_PRICE)}
+                      </p>
+                    </>
+                  )}
                 </div>
                 <span className="text-4xl" role="img" aria-label="bread">🍞</span>
               </div>
+            </div>
+
+            {/* === Welile Receipt → 5% bread discount (works offline) === */}
+            <div className="rounded-xl border-2 border-emerald-300 dark:border-emerald-800 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 p-3.5 shadow-sm">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="h-7 w-7 rounded-lg bg-emerald-600 flex items-center justify-center shrink-0">
+                  <BadgePercent className="h-4 w-4 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-emerald-950 dark:text-emerald-100 leading-tight">
+                    Got a Welile receipt? Save 5%
+                  </p>
+                  <p className="text-[11px] text-emerald-900/80 dark:text-emerald-200/80 leading-tight">
+                    From any seller. 5% of the receipt cuts your bread price.
+                  </p>
+                </div>
+              </div>
+
+              {appliedReceipt ? (
+                <div className="rounded-lg bg-white/70 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700 px-3 py-2.5 flex items-center gap-2">
+                  <Ticket className="h-4 w-4 text-emerald-700 dark:text-emerald-300 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-mono font-semibold text-emerald-950 dark:text-emerald-100 truncate">
+                      {appliedReceipt.number}
+                    </p>
+                    <p className="text-[11px] text-emerald-800 dark:text-emerald-200 tabular-nums">
+                      {formatUGX(appliedReceipt.amount)} · −{formatUGX(rawDiscount)} off
+                      {discountAmount < rawDiscount && (
+                        <span className="ml-1 text-amber-700 dark:text-amber-300">
+                          (capped at floor)
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    onClick={clearReceipt}
+                    aria-label="Remove receipt"
+                    className="text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label htmlFor="bread-receipt-num" className="text-[11px] font-semibold text-emerald-900 dark:text-emerald-200">
+                        Receipt number
+                      </Label>
+                      <Input
+                        id="bread-receipt-num"
+                        type="text"
+                        inputMode="text"
+                        autoComplete="off"
+                        placeholder="e.g. RCT-9821"
+                        value={receiptNumber}
+                        onChange={(e) => setReceiptNumber(e.target.value)}
+                        className="h-9 mt-1 bg-white dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700"
+                        disabled={sending}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="bread-receipt-amt" className="text-[11px] font-semibold text-emerald-900 dark:text-emerald-200">
+                        Receipt amount (UGX)
+                      </Label>
+                      <Input
+                        id="bread-receipt-amt"
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        placeholder="e.g. 10000"
+                        value={receiptAmountInput}
+                        onChange={(e) => setReceiptAmountInput(e.target.value)}
+                        className="h-9 mt-1 bg-white dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 tabular-nums"
+                        disabled={sending}
+                      />
+                    </div>
+                  </div>
+                  {receiptError && (
+                    <p className="text-[11px] font-medium text-destructive flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {receiptError}
+                    </p>
+                  )}
+                  <Button
+                    type="button"
+                    onClick={applyReceipt}
+                    disabled={sending || !receiptNumber.trim() || !receiptAmountInput.trim()}
+                    className="w-full h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                  >
+                    <BadgePercent className="h-4 w-4" />
+                    Apply 5% discount
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Quantity stepper */}
@@ -736,12 +935,24 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                     {qty > 1 ? `${qty} Welile Breads` : 'Welile Bread'} · Fresh today
                   </p>
-                  <p className="text-xl sm:text-2xl font-extrabold text-amber-950 dark:text-amber-100 tabular-nums leading-tight">
-                    {formatUGX(totalAmount)}
-                  </p>
+                  <div className="flex items-baseline gap-2">
+                    <p className={`text-xl sm:text-2xl font-extrabold tabular-nums leading-tight ${discountAmount > 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-950 dark:text-amber-100'}`}>
+                      {formatUGX(totalAmount)}
+                    </p>
+                    {discountAmount > 0 && (
+                      <p className="text-xs font-semibold text-amber-900/60 dark:text-amber-200/60 line-through tabular-nums">
+                        {formatUGX(grossAmount)}
+                      </p>
+                    )}
+                  </div>
                   {qty > 1 && (
                     <p className="text-xs font-medium text-amber-900/80 dark:text-amber-200/80 tabular-nums">
                       {qty} × {formatUGX(WELILE_BREAD_PRICE)}
+                    </p>
+                  )}
+                  {discountAmount > 0 && appliedReceipt && (
+                    <p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 tabular-nums mt-0.5">
+                      Receipt {appliedReceipt.number} −{formatUGX(discountAmount)}
                     </p>
                   )}
                 </div>
