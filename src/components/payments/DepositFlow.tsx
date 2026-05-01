@@ -16,6 +16,11 @@ import OperationalFloatTenantAllocator, {
 } from './OperationalFloatTenantAllocator';
 import DepositReferenceMatcher, { type MatchResult } from './DepositReferenceMatcher';
 import AllocationEditDiffPanel from './AllocationEditDiffPanel';
+import {
+  safeDepositPurpose,
+  ALLOWED_DEPOSIT_PURPOSES as SHARED_ALLOWED_DEPOSIT_PURPOSES,
+  type DepositPurpose as SharedDepositPurpose,
+} from '@/lib/depositPurposeGuard';
 
 /**
  * Extract a Mobile Money / bank reference from arbitrary SMS text.
@@ -38,7 +43,7 @@ function extractTidFromText(raw: string): string | null {
 }
 
 type DepositChannel = 'momo' | 'bank' | 'agent_cash' | 'cash';
-type DepositPurpose = 'operational_float' | 'personal_deposit' | 'partnership_deposit' | 'personal_rent_repayment' | 'other';
+type DepositPurpose = SharedDepositPurpose;
 
 /**
  * Allowlist that mirrors the Postgres `deposit_purpose` enum exactly.
@@ -47,13 +52,7 @@ type DepositPurpose = 'operational_float' | 'personal_deposit' | 'partnership_de
  * raise the cryptic `invalid input value for enum deposit_purpose: ""`
  * error and leave the agent staring at a dead Confirm button).
  */
-const ALLOWED_DEPOSIT_PURPOSES: readonly DepositPurpose[] = [
-  'operational_float',
-  'personal_deposit',
-  'partnership_deposit',
-  'personal_rent_repayment',
-  'other',
-] as const;
+const ALLOWED_DEPOSIT_PURPOSES: readonly DepositPurpose[] = SHARED_ALLOWED_DEPOSIT_PURPOSES;
 
 interface DepositFlowProps {
   open: boolean;
@@ -768,14 +767,12 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           depositPurpose ||
           defaultPurpose ||
           (isAgent ? 'operational_float' : '')) as DepositPurpose | '';
-      if (!ALLOWED_DEPOSIT_PURPOSES.includes(effectivePurpose as DepositPurpose)) {
-        toast.error('Pick a deposit purpose before continuing');
-        setStep(mustChoosePurpose ? 'purpose' : 'channel');
-        setIsSubmitting(false);
-        purposeOverrideRef.current = null;
-        return;
-      }
-      const safePurpose = effectivePurpose as DepositPurpose;
+      // Coerce to a guaranteed-valid enum value. If the caller / state
+      // race somehow produced an empty/invalid purpose, we fall back to
+      // 'other' instead of aborting — the agent's tap is never lost,
+      // and Postgres never sees `''` (which would raise
+      // `invalid input value for enum deposit_purpose: ""`).
+      const safePurpose: DepositPurpose = safeDepositPurpose(effectivePurpose);
       // Override consumed; clear so subsequent submits use real state.
       purposeOverrideRef.current = null;
       // Only flip into the submitting state AFTER the auth check passes —

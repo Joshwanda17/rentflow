@@ -11,6 +11,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { Loader2, ArrowDownCircle, Smartphone, AlertCircle, Calendar, Clock, Info, Banknote, Send } from 'lucide-react';
 import { QuickRegisterTenantDialog } from './QuickRegisterTenantDialog';
 import { GlossaryTip } from '@/components/shared/GlossaryTip';
+import { safeDepositPurpose } from '@/lib/depositPurposeGuard';
 
 interface AgentDepositDialogProps {
   open: boolean;
@@ -160,6 +161,11 @@ export function AgentDepositDialog({ open, onOpenChange, onSuccess, prefillPhone
         transaction_date: txnDateStr,
         notes: narration.trim(),
         status: 'pending',
+        // Explicit guard: never let Postgres receive an empty string for
+        // the `deposit_purpose` enum. AgentDepositDialog has no purpose
+        // selector, so all rows here default to 'other' via the shared
+        // sanitiser (kept central so any future enum change is one edit).
+        deposit_purpose: safeDepositPurpose(null),
       });
 
     if (insertError) {
