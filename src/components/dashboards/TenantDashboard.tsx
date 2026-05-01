@@ -362,6 +362,42 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                 Bread
               </span>
             </div>
+
+            {/* Premium price badge — top-right */}
+            <div
+              className="absolute top-3 right-3 flex flex-col items-end gap-0.5 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white px-3 py-1.5 shadow-lg ring-1 ring-amber-300/40"
+              aria-label={`Welile Bread price ${formatUGX(WELILE_BREAD_PRICE)}`}
+            >
+              <span className="text-[9px] font-semibold uppercase tracking-[0.18em] leading-none opacity-90">
+                Fresh today
+              </span>
+              <span className="text-base sm:text-lg font-extrabold leading-none">
+                {formatUGX(WELILE_BREAD_PRICE)}
+              </span>
+            </div>
+
+            {/* Share Bread CTA — bottom-right */}
+            <span
+              role="button"
+              tabIndex={0}
+              aria-label={`Share a Welile Bread (${formatUGX(WELILE_BREAD_PRICE)}) with another user`}
+              onClick={(e) => {
+                e.stopPropagation();
+                hapticTap();
+                setShareBreadOpen(true);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setShareBreadOpen(true);
+                }
+              }}
+              className="absolute bottom-3 right-3 inline-flex items-center gap-2 rounded-full bg-foreground text-background px-4 py-2.5 shadow-xl ring-1 ring-background/20 cursor-pointer select-none hover:scale-105 active:scale-95 transition-transform font-semibold text-sm"
+            >
+              <Share2 className="h-4 w-4" />
+              Share Bread
+            </span>
           </button>
 
           {/* Single Menu button */}
