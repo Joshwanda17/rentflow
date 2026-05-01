@@ -1,15 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
-import { 
-  cacheWallet, 
-  getCachedWallet, 
-  cacheTransactions, 
+import {
+  cacheWallet,
+  getCachedWallet,
+  cacheTransactions,
   getCachedTransactions,
-  addToSyncQueue 
 } from '@/lib/offlineDataStorage';
 import { useServiceValidation } from '@/core/services/useServiceValidation';
-import { computeLedgerAvailable } from '@/lib/computeLedgerAvailable';
 
 interface WalletTransaction {
   id: string;
@@ -38,8 +36,9 @@ let walletCache: { data: Wallet | null; userId: string; timestamp: number } | nu
 const WALLET_CACHE_TTL = 5_000; // 5 seconds
 // Bump this whenever the wallet shape or invalidation logic changes — old
 // localStorage entries from previous releases will be discarded on next load.
-// v3: balances are now ledger-true (overlay from get_user_available_balance).
-const WALLET_LS_VERSION = 'v3';
+// v4 (2026-05-01): wallet.balance is now STRICT ledger-derived from
+// get_user_wallet_view. The cached wallets.* columns are never read here.
+const WALLET_LS_VERSION = 'v4';
 const lsKey = (uid?: string) => `wallet_${WALLET_LS_VERSION}_${uid}`;
 
 export function useWallet() {
@@ -98,60 +97,40 @@ export function useWallet() {
     if (!navigator.onLine) return;
 
     try {
-      const { data, error } = await supabase
-        .from('wallets')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error('Error fetching wallet:', error);
+      // STRICT-BY-CONSTRUCTION: end users only ever see ledger-derived
+      // balances. The wallets.* cache is operator-only (CFO / FinOps
+      // reconciliation) and is never read here. `get_user_wallet_view`
+      // returns withdrawable / float / advance computed live from
+      // general_ledger with admin corrections excluded and pending holds
+      // subtracted. We surface the SUM as `balance` so existing call-sites
+      // (`wallet?.balance`) keep working without churn.
+      const { data: viewRow, error: viewErr } = await supabase.rpc(
+        'get_user_wallet_view',
+        { p_user_id: user.id },
+      );
+      if (viewErr) {
+        console.warn('[useWallet] strict view error:', viewErr);
         return;
       }
-
-      if (!data) {
-        const { data: newWallet, error: createError } = await supabase
-          .from('wallets')
-          .insert({ user_id: user.id, balance: 0 })
-          .select()
-          .single();
-
-        if (createError) {
-          console.error('Error creating wallet:', createError);
-          return;
-        }
-        setWallet(newWallet);
-        setIsOfflineData(false);
-        setLastSyncedAt(new Date());
-        walletCache = { data: newWallet, userId: user.id, timestamp: Date.now() };
-        try { localStorage.setItem(lsKey(user.id), JSON.stringify(newWallet)); } catch {}
-        await cacheWallet(newWallet);
-      } else {
-        // Overlay with ledger-true withdrawable so the user can never see a
-        // stale cached number that exceeds their actual withdrawable position.
-        // Computed inline from the ledger because get_user_available_balance
-        // RPC has historically been broken (returned 0 for everyone).
-        let displayed: Wallet = data;
-        try {
-          const ledger = await computeLedgerAvailable(user.id);
-          // For the generic wallet card we display TOTAL balance, but clamp
-          // it down so it never exceeds ledger-true funds.
-          displayed = {
-            ...data,
-            balance: Math.min(Number(data.balance), Math.max(ledger.available, ledger.ledgerNet)),
-          };
-        } catch (e) {
-          console.warn('[useWallet] ledger overlay failed; using cached', e);
-        }
-        setWallet(displayed);
-        setIsOfflineData(false);
-        setLastSyncedAt(new Date());
-        walletCache = { data: displayed, userId: user.id, timestamp: Date.now() };
-        try { localStorage.setItem(lsKey(user.id), JSON.stringify(displayed)); } catch {}
-        await cacheWallet(displayed);
-      }
+      const v = (viewRow ?? {}) as Record<string, unknown>;
+      const withdrawable = Number((v.withdrawable as number | string | undefined) ?? 0);
+      const floatBalance = Number((v.float_balance as number | string | undefined) ?? 0);
+      // advance is a liability, not spendable — exclude from displayed balance.
+      const displayed: Wallet = {
+        id: `strict-${user.id}`,
+        user_id: user.id,
+        balance: withdrawable + floatBalance,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      setWallet(displayed);
+      setIsOfflineData(false);
+      setLastSyncedAt(new Date());
+      walletCache = { data: displayed, userId: user.id, timestamp: Date.now() };
+      try { localStorage.setItem(lsKey(user.id), JSON.stringify(displayed)); } catch {}
+      await cacheWallet(displayed);
     } catch (e) {
-      console.warn('[useWallet] Failed to fetch wallet:', e);
+      console.warn('[useWallet] Failed to fetch strict wallet view:', e);
     }
   }, [user]);
 
