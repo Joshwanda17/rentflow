@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Wallet, Users, ShieldCheck, Banknote, Pause, Play, MinusCircle, ChevronRight } from 'lucide-react';
+import { Wallet, Users, ShieldCheck, Banknote, Pause, Play, MinusCircle, ChevronRight, Scale, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useFinOpsAutoRefresh, setFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
 import { Switch } from '@/components/ui/switch';
@@ -18,9 +18,15 @@ interface WalletOverviewCardProps {
    * into every wallet currently holding money.
    */
   onViewActiveWallets?: () => void;
+  /**
+   * Tapping the "Cache drift" line opens the Reconciliation tool so the
+   * operator can investigate / sweep the excess. Optional — when omitted
+   * the drift line is informational only.
+   */
+  onOpenReconciliation?: () => void;
 }
 
-export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets }: WalletOverviewCardProps = {}) {
+export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets, onOpenReconciliation }: WalletOverviewCardProps = {}) {
   // Operators reviewing a deposit don't want the screen reshuffling under
   // their cursor. The shared toggle gates polling on this card AND on the
   // Verify Deposits hub at the same time.
@@ -37,6 +43,26 @@ export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets }: Wa
         totalBalance: Number(d.total_balance ?? 0),
         walletCount: Number(d.total_wallets ?? 0),
         activeWallets: Number(d.active_wallets ?? 0),
+      };
+    },
+    staleTime: 60_000,
+    refetchInterval: autoRefresh ? 60_000 : false,
+  });
+
+  // Strict ledger companion to the cached headline above. Surfaces the
+  // true ledger position so Fin Ops sees, side-by-side, how much phantom
+  // cache is sitting above the real liability. This query is independent —
+  // if it fails or is slow the cached headline is never blocked.
+  const { data: strict, isLoading: strictLoading } = useQuery({
+    queryKey: ['finops-wallet-overview-strict'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_wallet_totals_strict' as any);
+      if (error) throw error;
+      const d = data as any;
+      return {
+        strictTotal: Number(d?.strict_total ?? 0),
+        driftedWallets: Number(d?.drifted_wallets ?? 0),
+        totalDrift: Number(d?.total_drift ?? 0),
       };
     },
     staleTime: 60_000,
@@ -84,6 +110,11 @@ export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets }: Wa
       handleOpen();
     }
   };
+
+  // Drift > 100 UGX is the same tolerance the SQL function uses to count
+  // a wallet as "drifted". Below that we treat it as reconciled noise.
+  const driftIsMaterial = (strict?.totalDrift ?? 0) > 100 || (strict?.driftedWallets ?? 0) > 0;
+  const driftClickable = driftIsMaterial && !!onOpenReconciliation;
 
   return (
     <div
@@ -169,6 +200,54 @@ export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets }: Wa
           <span className="text-primary font-medium">
             {isLoading ? '—' : data?.activeWallets?.toLocaleString()} with balance
           </span>
+        )}
+      </div>
+
+      {/* ─── Strict ledger truth row (operator transparency) ───
+          The headline above is the cache total Fin Ops works from. This
+          row shows what the ledger actually says so the operator can see,
+          at a glance, whether the cache is drifting and by how much. */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="mt-3 pt-3 border-t border-primary/15 space-y-1.5"
+      >
+        <div className="flex items-center justify-between gap-2 text-[11px]">
+          <span className="flex items-center gap-1.5 text-muted-foreground">
+            <Scale className="h-3 w-3" />
+            <span className="uppercase tracking-wider font-semibold">Strict ledger total</span>
+          </span>
+          <span className="font-mono tabular-nums font-semibold text-foreground">
+            {strictLoading ? '———' : formatUGX(strict?.strictTotal ?? 0)}
+          </span>
+        </div>
+
+        {strictLoading ? (
+          <p className="text-[10px] text-muted-foreground">Computing cache drift…</p>
+        ) : driftIsMaterial ? (
+          driftClickable ? (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onOpenReconciliation?.(); }}
+              className="w-full flex items-center justify-between gap-2 text-[11px] rounded-md px-1.5 py-1 -mx-1.5 text-warning hover:bg-warning/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-warning"
+              aria-label="Open reconciliation to review cache drift"
+            >
+              <span className="flex items-center gap-1.5 font-medium">
+                <AlertTriangle className="h-3 w-3" />
+                Cache excess: +{formatUGX(strict?.totalDrift ?? 0)} across {strict?.driftedWallets ?? 0} wallet{strict?.driftedWallets === 1 ? '' : 's'}
+              </span>
+              <ChevronRight className="h-3 w-3" />
+            </button>
+          ) : (
+            <p className="flex items-center gap-1.5 text-[11px] text-warning font-medium">
+              <AlertTriangle className="h-3 w-3" />
+              Cache excess: +{formatUGX(strict?.totalDrift ?? 0)} across {strict?.driftedWallets ?? 0} wallet{strict?.driftedWallets === 1 ? '' : 's'}
+            </p>
+          )
+        ) : (
+          <p className="flex items-center gap-1.5 text-[11px] text-emerald-600 font-medium">
+            <CheckCircle2 className="h-3 w-3" />
+            Cache reconciled with ledger
+          </p>
         )}
       </div>
 
