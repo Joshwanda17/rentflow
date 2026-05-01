@@ -45,18 +45,59 @@ for (const file of walk(ROOT)) {
   if (!src.includes('deposit_purpose')) continue;
 
   const lines = src.split('\n');
+  // Track which line ranges are inside a `.from('deposit_requests')`
+  // insert/update payload. We only police `deposit_purpose:` writes
+  // INSIDE those ranges — local JS object literals (review-screen
+  // result rows in TidVerification etc.) are read-paths, not writes,
+  // and never reach Postgres.
+  let depth = 0; // nested-brace depth inside an insert/update payload
+  let inWritePayload = false;
+  let pendingArm = false; // saw `.insert(` / `.update(` on a recent line, waiting for `{`
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    // Match `deposit_purpose:` assignments (object property in an insert/update payload)
+
+    // Arm when we see `.from('deposit_requests') ... .insert(` or `.update(`.
+    // We use a simple rolling window of the last 3 lines because Supabase
+    // chains are typically multi-line.
+    const window = lines.slice(Math.max(0, i - 3), i + 1).join(' ');
+    if (
+      /\.from\(\s*['"]deposit_requests['"]\s*\)/.test(window) &&
+      /\.(insert|update|upsert)\s*\(/.test(line)
+    ) {
+      pendingArm = true;
+    }
+
+    // Count braces on this line to track payload depth.
+    for (const ch of line) {
+      if (ch === '{') {
+        if (pendingArm && !inWritePayload) {
+          inWritePayload = true;
+          depth = 1;
+          pendingArm = false;
+        } else if (inWritePayload) {
+          depth++;
+        }
+      } else if (ch === '}') {
+        if (inWritePayload) {
+          depth--;
+          if (depth <= 0) {
+            inWritePayload = false;
+            depth = 0;
+          }
+        }
+      }
+    }
+
+    if (!inWritePayload) continue;
+
     const m = line.match(/^\s*deposit_purpose\s*:\s*(.+?),?\s*$/);
     if (!m) continue;
     const value = m[1];
     // Allowed: explicit call to safeDepositPurpose(...)
     if (/safeDepositPurpose\s*\(/.test(value)) continue;
-    // Allowed: type-only context (e.g. inside an interface or `as { ... }`)
-    // Detect by looking at the surrounding line — TS type members usually
-    // end with `;` or use `?` markers, e.g. `deposit_purpose?: string;`.
-    if (/[?:]\s*[A-Za-z_<][\w<>\[\]| ]*\s*;?\s*$/.test(line) && !line.includes(',')) continue;
+    // Allowed: identifier `safePurpose` (already coerced one line above
+    // via safeDepositPurpose — DepositFlow.tsx pattern).
+    if (/^safePurpose$/.test(value.trim())) continue;
 
     violations.push(`${rel}:${i + 1}  ${line.trim()}`);
   }
