@@ -13,6 +13,7 @@ import { Loader2, Send, Wheat, CheckCircle2, UserCheck, AlertCircle, Search, Arr
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
+import { useAvailableBalance } from '@/hooks/useAvailableBalance';
 import { formatUGX } from '@/lib/rentCalculations';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
@@ -43,6 +44,13 @@ type LookupState =
 export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props) {
   const { user } = useAuth();
   const { profile } = useProfile();
+  // Always derive a live, ledger-backed withdrawable inside the dialog so the
+  // zero-balance gate stays accurate even if the parent's prop is stale
+  // (e.g. after a top-up that posted to the ledger while this dialog was
+  // mounted). Falls back to the prop on first paint.
+  const { available: liveAvailable, refresh: refreshAvailable } = useAvailableBalance();
+  const effectiveBalance =
+    typeof liveAvailable === 'number' ? liveAvailable : availableBalance;
   const myLast9 = (profile?.phone ?? '').replace(/\D/g, '').slice(-9);
   const [step, setStep] = useState<'pick' | 'review'>('pick');
   const [phone, setPhone] = useState('');
@@ -51,6 +59,13 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
   const [sent, setSent] = useState(false);
   const [lookup, setLookup] = useState<LookupState>({ status: 'idle' });
   const [reference, setReference] = useState<string | null>(null);
+
+  // Force a fresh withdrawable read every time the dialog opens. The hook
+  // also live-subscribes to wallet/ledger changes, so a top-up that posts
+  // while the dialog is open will automatically lift the zero-balance gate.
+  useEffect(() => {
+    if (open) void refreshAvailable();
+  }, [open, refreshAvailable]);
 
   const reset = () => {
     setStep('pick');
