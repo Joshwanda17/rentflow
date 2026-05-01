@@ -129,6 +129,12 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
       toast.error("You can't send a Welile Bread to your own wallet.");
       return;
     }
+    // Hard zero-balance gate: a user with zero (or unknown-but-non-positive)
+    // withdrawable balance is never allowed to send a Welile Bread.
+    if (typeof availableBalance === 'number' && availableBalance <= 0) {
+      toast.error("You can't send a Welile Bread with zero withdrawable balance. Top up your wallet first.");
+      return;
+    }
     if (typeof availableBalance === 'number' && availableBalance < totalAmount) {
       toast.error(`Insufficient balance. You need ${formatUGX(totalAmount)}`);
       return;
