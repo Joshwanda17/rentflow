@@ -574,15 +574,131 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-semibold text-amber-900/80 dark:text-amber-200/90 uppercase tracking-wider">Welile Bread</p>
-                  <p className="text-2xl sm:text-3xl font-extrabold text-amber-950 dark:text-amber-100 tabular-nums leading-tight drop-shadow-sm">
-                    {formatUGX(totalAmount)}
-                  </p>
-                  <p className="text-xs font-medium text-amber-900/80 dark:text-amber-200/80 mt-0.5 tabular-nums">
-                    {qty} × {formatUGX(WELILE_BREAD_PRICE)}
-                  </p>
+                  {discountAmount > 0 ? (
+                    <>
+                      <div className="flex items-baseline gap-2">
+                        <p className="text-2xl sm:text-3xl font-extrabold text-emerald-700 dark:text-emerald-300 tabular-nums leading-tight drop-shadow-sm">
+                          {formatUGX(totalAmount)}
+                        </p>
+                        <p className="text-sm font-semibold text-amber-900/60 dark:text-amber-200/60 line-through tabular-nums">
+                          {formatUGX(grossAmount)}
+                        </p>
+                      </div>
+                      <p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 mt-0.5 tabular-nums">
+                        Receipt discount −{formatUGX(discountAmount)}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-2xl sm:text-3xl font-extrabold text-amber-950 dark:text-amber-100 tabular-nums leading-tight drop-shadow-sm">
+                        {formatUGX(totalAmount)}
+                      </p>
+                      <p className="text-xs font-medium text-amber-900/80 dark:text-amber-200/80 mt-0.5 tabular-nums">
+                        {qty} × {formatUGX(WELILE_BREAD_PRICE)}
+                      </p>
+                    </>
+                  )}
                 </div>
                 <span className="text-4xl" role="img" aria-label="bread">🍞</span>
               </div>
+            </div>
+
+            {/* === Welile Receipt → 5% bread discount (works offline) === */}
+            <div className="rounded-xl border-2 border-emerald-300 dark:border-emerald-800 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 p-3.5 shadow-sm">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="h-7 w-7 rounded-lg bg-emerald-600 flex items-center justify-center shrink-0">
+                  <BadgePercent className="h-4 w-4 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-emerald-950 dark:text-emerald-100 leading-tight">
+                    Got a Welile receipt? Save 5%
+                  </p>
+                  <p className="text-[11px] text-emerald-900/80 dark:text-emerald-200/80 leading-tight">
+                    From any seller. 5% of the receipt cuts your bread price.
+                  </p>
+                </div>
+              </div>
+
+              {appliedReceipt ? (
+                <div className="rounded-lg bg-white/70 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700 px-3 py-2.5 flex items-center gap-2">
+                  <Ticket className="h-4 w-4 text-emerald-700 dark:text-emerald-300 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-mono font-semibold text-emerald-950 dark:text-emerald-100 truncate">
+                      {appliedReceipt.number}
+                    </p>
+                    <p className="text-[11px] text-emerald-800 dark:text-emerald-200 tabular-nums">
+                      {formatUGX(appliedReceipt.amount)} · −{formatUGX(rawDiscount)} off
+                      {discountAmount < rawDiscount && (
+                        <span className="ml-1 text-amber-700 dark:text-amber-300">
+                          (capped at floor)
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    onClick={clearReceipt}
+                    aria-label="Remove receipt"
+                    className="text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label htmlFor="bread-receipt-num" className="text-[11px] font-semibold text-emerald-900 dark:text-emerald-200">
+                        Receipt number
+                      </Label>
+                      <Input
+                        id="bread-receipt-num"
+                        type="text"
+                        inputMode="text"
+                        autoComplete="off"
+                        placeholder="e.g. RCT-9821"
+                        value={receiptNumber}
+                        onChange={(e) => setReceiptNumber(e.target.value)}
+                        className="h-9 mt-1 bg-white dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700"
+                        disabled={sending}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="bread-receipt-amt" className="text-[11px] font-semibold text-emerald-900 dark:text-emerald-200">
+                        Receipt amount (UGX)
+                      </Label>
+                      <Input
+                        id="bread-receipt-amt"
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        placeholder="e.g. 10000"
+                        value={receiptAmountInput}
+                        onChange={(e) => setReceiptAmountInput(e.target.value)}
+                        className="h-9 mt-1 bg-white dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 tabular-nums"
+                        disabled={sending}
+                      />
+                    </div>
+                  </div>
+                  {receiptError && (
+                    <p className="text-[11px] font-medium text-destructive flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {receiptError}
+                    </p>
+                  )}
+                  <Button
+                    type="button"
+                    onClick={applyReceipt}
+                    disabled={sending || !receiptNumber.trim() || !receiptAmountInput.trim()}
+                    className="w-full h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                  >
+                    <BadgePercent className="h-4 w-4" />
+                    Apply 5% discount
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Quantity stepper */}
