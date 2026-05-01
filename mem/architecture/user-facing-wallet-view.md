@@ -23,6 +23,9 @@ type: feature
 - `src/hooks/useAgentBalances.ts` — calls RPC for buckets, ledger query for commission display only.
 - `src/components/agent/AgentManagedUsersSheet.tsx` — calls RPC.
 - `src/components/dashboards/SupporterDashboard.tsx` — uses `useAvailableBalance` for the empty-wallet nag trigger.
+- `src/hooks/useWallet.ts` — **migrated 2026-05-01**: now strict-by-construction. Reads `get_user_wallet_view` and surfaces `withdrawable + float` as `wallet.balance` for back-compat. Never touches the `wallets` table. localStorage version bumped to `v4` so prior cached snapshots are evicted on next load.
 
-**Explicitly out of scope (cache reads remain correct):**
-- `src/components/executive/AgentDetailDialog.tsx`, `src/components/financial-ops/WalletDeductionPanel.tsx`, `src/pages/cfo/MoneyFlowTrace.tsx`, `LedgerHealthPanel`, `AnchoredCacheDriftPanel`, `PhantomDriftPanel`, `WalletReconciliationAuditPanel`, `LedgerReconciliationPanel`, `useWallet` hook (used by both ops and end-user surfaces — the ops consumers display the raw cache for reconciliation; end-user consumers must NOT use `wallet.balance` for headline figures, only for non-financial UI signals).
+**Explicitly out of scope (cache reads remain correct — operator dashboards):**
+- `src/components/executive/AgentDetailDialog.tsx`, `src/components/financial-ops/WalletDeductionPanel.tsx`, `src/pages/cfo/MoneyFlowTrace.tsx`, `LedgerHealthPanel`, `AnchoredCacheDriftPanel`, `PhantomDriftPanel`, `WalletReconciliationAuditPanel`, `LedgerReconciliationPanel`, `CacheSweepPanel` — operator surfaces that intentionally display the raw cache for reconciliation.
+
+**Cache cleanup path.** When the cache sits above the strict ledger position, the only audited way to reduce it is the **`wallet-cache-sweep`** edge function, surfaced in CFO → Reconciliation → `CacheSweepPanel`. It hard-caps the deduction at `cached − strict` (so it can never touch real customer-owed money), posts a balanced ledger pair under `classification='admin_correction'` / `category='system_balance_correction'` (filtered out of every end-user view), writes `audit_logs` (`action_type='cache_sweep'`, mandatory reason), and emits `wallet.cache_sweep.applied` to `system_events`.
