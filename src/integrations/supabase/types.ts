@@ -14415,6 +14415,10 @@ export type Database = {
         }
         Returns: Json
       }
+      agent_delete_rejected_rent_request: {
+        Args: { p_reason: string; p_request_id: string }
+        Returns: string
+      }
       agent_deposit_to_partner: {
         Args: {
           p_agent_id: string
@@ -14423,6 +14427,10 @@ export type Database = {
           p_partner_id: string
         }
         Returns: Json
+      }
+      agent_resubmit_rent_request: {
+        Args: { p_agent_note: string; p_patch: Json; p_request_id: string }
+        Returns: string
       }
       agent_reverse_tenant_allocation: {
         Args: { p_collection_id: string; p_reason: string }
