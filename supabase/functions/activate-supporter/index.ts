@@ -44,6 +44,11 @@ function validatePassword(password: unknown): string | null {
   return cleaned;
 }
 
+/** Canonical email normalization: trim whitespace + lowercase. Used everywhere we compare or persist emails. */
+function normalizeEmail(email: unknown): string {
+  return typeof email === 'string' ? email.trim().toLowerCase() : '';
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -146,10 +151,11 @@ Deno.serve(async (req) => {
       }
     }
     
-    // Use user-provided email if available, otherwise use invite email (with validation)
-    let finalEmail = invite.email;
+    // Use user-provided email if available, otherwise use invite email.
+    // Always normalize (trim + lowercase) — both sides — to prevent casing/whitespace mismatches downstream.
+    let finalEmail = normalizeEmail(invite.email);
     if (typeof userEmail === 'string') {
-      const cleaned = userEmail.trim().toLowerCase();
+      const cleaned = normalizeEmail(userEmail);
       if (cleaned.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleaned) && !cleaned.endsWith('@welile.user')) {
         finalEmail = cleaned;
       }
@@ -210,7 +216,7 @@ Deno.serve(async (req) => {
               status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
           }
-          existingUser = listData.users.find((u: any) => (u.email || '').toLowerCase() === finalEmail.toLowerCase());
+          existingUser = listData.users.find((u: any) => normalizeEmail(u.email) === finalEmail);
           if (existingUser) break;
           if (!listData.users || listData.users.length < PER_PAGE) break; // last page
         }
@@ -219,7 +225,7 @@ Deno.serve(async (req) => {
           const { data: profileMatch } = await adminClient
             .from("profiles")
             .select("id")
-            .ilike("email", finalEmail)
+            .ilike("email", finalEmail) // ilike already case-insensitive; finalEmail is also normalized
             .maybeSingle();
           if (profileMatch?.id) {
             const { data: byId } = await adminClient.auth.admin.getUserById(profileMatch.id);
