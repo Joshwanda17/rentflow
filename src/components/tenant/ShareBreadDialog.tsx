@@ -437,17 +437,28 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
                   <motion.div
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center gap-3 rounded-xl border border-success/40 bg-success/5 px-3 py-2.5"
+                    className="flex items-start gap-3 rounded-xl border border-success/40 bg-success/5 px-3 py-2.5"
                   >
-                    <div className="h-9 w-9 rounded-full bg-success/15 flex items-center justify-center shrink-0">
-                      <UserCheck className="h-4 w-4 text-success" />
+                    <div className="h-10 w-10 rounded-full bg-success/15 flex items-center justify-center shrink-0 relative">
+                      <span className="text-sm font-bold text-success">
+                        {recipientInitial}
+                      </span>
+                      <span className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-success flex items-center justify-center ring-2 ring-background">
+                        <UserCheck className="h-2.5 w-2.5 text-success-foreground" />
+                      </span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-foreground truncate">
-                        {lookup.recipient.full_name?.trim() || 'Welile user'}
+                      <p className="text-sm font-semibold text-foreground leading-tight">
+                        Sending to{' '}
+                        <span className="text-success">{recipientFirstName}</span>
                       </p>
-                      <p className="text-[11px] text-muted-foreground truncate">
-                        {lookup.recipient.phone || 'Verified Welile account'}
+                      {recipientFullName && recipientFullName !== recipientFirstName && (
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {recipientFullName}
+                        </p>
+                      )}
+                      <p className="text-xs font-mono font-medium text-foreground mt-0.5 break-all">
+                        {recipientPhoneFormatted || 'Verified Welile account'}
                       </p>
                     </div>
                   </motion.div>
