@@ -194,6 +194,11 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
 
   const canSend = lookup.status === 'found' && !sending;
   const totalAmount = WELILE_BREAD_PRICE * qty;
+  // Hard zero-balance gate. Treat unknown balance as not-zero (don't lock the
+  // user out if the parent never passed it). Once we know it's <= 0, ALL
+  // sending paths are blocked.
+  const zeroBalance =
+    typeof availableBalance === 'number' && availableBalance <= 0;
   const insufficient =
     typeof availableBalance === 'number' && availableBalance < totalAmount;
   const balanceAfter =
