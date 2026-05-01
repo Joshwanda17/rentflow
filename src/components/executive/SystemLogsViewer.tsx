@@ -296,6 +296,19 @@ export function SystemLogsViewer() {
           Default Role Events
           <Badge variant="secondary" className="ml-1 px-1.5 text-[10px]">{defaultRoleCount}</Badge>
         </Button>
+        <Select value={defaultRoleValue} onValueChange={setDefaultRoleValue}>
+          <SelectTrigger className="w-[170px]">
+            <SelectValue placeholder="Any default role" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Any default role</SelectItem>
+            <SelectItem value="tenant">🏠 Tenant</SelectItem>
+            <SelectItem value="agent">💼 Agent</SelectItem>
+            <SelectItem value="landlord">🏢 Landlord</SelectItem>
+            <SelectItem value="supporter">💰 Funder</SelectItem>
+            <SelectItem value="cleared">↩️ Cleared</SelectItem>
+          </SelectContent>
+        </Select>
         <Input
           placeholder="Target user (name or ID)..."
           value={targetUser}
