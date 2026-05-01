@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Send, Wheat, CheckCircle2, UserCheck, AlertCircle, Search, ArrowLeft, ArrowRight, Wallet, Copy, Hash, Minus, Plus } from 'lucide-react';
+import { Loader2, Send, Wheat, CheckCircle2, UserCheck, AlertCircle, Search, ArrowLeft, ArrowRight, Wallet, Copy, Hash, Minus, Plus, ArrowDownRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
@@ -114,6 +114,69 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
     }
     prevBalanceRef.current = effectiveBalance;
   }, [open, effectiveBalance]);
+
+  // Inline "Recent wallet changes" — last few cash-in entries (top-ups,
+  // commissions, transfers in) so the user can see exactly which credit
+  // lifted them out of zero balance. Re-fetched when the dialog opens and
+  // whenever the live withdrawable changes (which already debounces against
+  // wallet/ledger realtime events).
+  type RecentCredit = {
+    id: string;
+    amount: number;
+    category: string;
+    description: string | null;
+    transaction_date: string;
+  };
+  const [recentCredits, setRecentCredits] = useState<RecentCredit[]>([]);
+  useEffect(() => {
+    if (!open || !user) {
+      if (!open) setRecentCredits([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data } = await supabase
+        .from('general_ledger')
+        .select('id, amount, category, description, transaction_date')
+        .eq('user_id', user.id)
+        .eq('direction', 'cash_in')
+        // Hide admin/CFO reconciliation legs from end users.
+        .neq('classification', 'admin_correction')
+        .neq('category', 'system_balance_correction')
+        .gte('transaction_date', since)
+        .order('transaction_date', { ascending: false })
+        .limit(3);
+      if (cancelled) return;
+      setRecentCredits((data ?? []) as RecentCredit[]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, user, effectiveBalance]);
+
+  const formatRecentTime = (iso: string): string => {
+    const d = new Date(iso);
+    const diffMs = Date.now() - d.getTime();
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return d.toLocaleDateString();
+  };
+  const creditLabel = (c: RecentCredit): string => {
+    const map: Record<string, string> = {
+      wallet_deposit: 'Top-up',
+      wallet_transfer: 'Bread received',
+      welile_bread: 'Bread received',
+      agent_commission: 'Commission',
+      agent_commission_payout: 'Commission',
+      referral_bonus: 'Referral bonus',
+      roi_wallet_credit: 'Returns',
+    };
+    return map[c.category] || (c.description ? c.description : 'Wallet credit');
+  };
 
   const reset = () => {
     setStep('pick');
@@ -584,6 +647,39 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
                   <span className="font-semibold text-foreground">{formatUGX(effectiveBalance)}</span>
                 </p>
               )
+            )}
+
+            {/* Recent wallet changes — last cash-in legs from the ledger so
+                the user can see what credited their wallet most recently
+                (top-up, commission, bread received). Hidden when there is
+                nothing to show, to keep the dialog compact. */}
+            {recentCredits.length > 0 && (
+              <div className="rounded-xl border border-border bg-muted/40 px-3 py-2.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                  Recent wallet changes
+                </p>
+                <ul className="space-y-1">
+                  {recentCredits.map((c) => (
+                    <li
+                      key={c.id}
+                      className="flex items-center justify-between gap-2 text-xs"
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <ArrowDownRight className="h-3.5 w-3.5 text-success shrink-0" />
+                        <span className="text-foreground font-medium truncate">
+                          {creditLabel(c)}
+                        </span>
+                        <span className="text-muted-foreground shrink-0">
+                          · {formatRecentTime(c.transaction_date)}
+                        </span>
+                      </div>
+                      <span className="font-semibold text-success shrink-0">
+                        +{formatUGX(Number(c.amount) || 0)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
 
             <Button
