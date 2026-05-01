@@ -196,6 +196,42 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
   const decQty = () => setQty((q) => Math.max(1, q - 1));
   const incQty = () => setQty((q) => Math.min(WELILE_BREAD_MAX_QTY, q + 1));
 
+  // === Recipient display helpers ===
+  // Keep these pure & self-contained so the same formatting is used in both
+  // the picker card and the review card.
+  const recipientFullName =
+    lookup.status === 'found' ? lookup.recipient.full_name?.trim() || '' : '';
+  const recipientFirstName =
+    recipientFullName.split(/\s+/)[0] || 'Welile user';
+  const recipientInitial = (recipientFirstName[0] || 'W').toUpperCase();
+
+  // Format a Ugandan-style phone number into readable groups without ever
+  // dropping digits. Falls back to the raw value if it doesn't look like a
+  // 9–13 digit number so we never silently mangle international formats.
+  const formatPhone = (raw?: string | null): string => {
+    if (!raw) return '';
+    const trimmed = raw.trim();
+    const digits = trimmed.replace(/\D/g, '');
+    if (digits.length < 9 || digits.length > 13) return trimmed;
+    // Local 0XXXXXXXXX (10) → 0XXX XXX XXX
+    if (digits.length === 10 && digits.startsWith('0')) {
+      return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
+    }
+    // International 256XXXXXXXXX (12) → +256 XXX XXX XXX
+    if (digits.length === 12 && digits.startsWith('256')) {
+      return `+256 ${digits.slice(3, 6)} ${digits.slice(6, 9)} ${digits.slice(9)}`;
+    }
+    // Generic last-9 grouping → … XXX XXX XXX
+    const last9 = digits.slice(-9);
+    const prefix = digits.slice(0, digits.length - 9);
+    const grouped = `${last9.slice(0, 3)} ${last9.slice(3, 6)} ${last9.slice(6)}`;
+    return prefix ? `+${prefix} ${grouped}` : grouped;
+  };
+  const recipientPhoneFormatted =
+    lookup.status === 'found'
+      ? formatPhone(lookup.recipient.phone) || formatPhone(phone)
+      : '';
+
   return (
     <Dialog
       open={open}
