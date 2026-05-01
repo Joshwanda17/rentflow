@@ -1,61 +1,67 @@
-## What's wrong
+## What you're seeing
 
-Joshua's 100,000 UGX float deposit (id `e0565229…`) **is approved and correctly posted** to the ledger:
+On Joshua Wanda's row in the CFO Wallet Deduction list:
 
-- `general_ledger`: `agent_float_deposit`, `cash_in 100,000`, `wallet` scope, `production` ✅
-- `wallets.float_balance = 100,000` ✅
+- **Withdrawable: USh 0** (strict)
+- **Float (owed): USh 100,000** (correct, real)
+- Amber warning: **"Cache shows USh 50,000 — pending CFO reconciliation"**
 
-But the dashboard reads `get_user_wallet_view` → `v_user_wallet_strict`, which returns **`float_balance: 0`**. That's why the card shows "Float USh 0".
+The warning is correct — there really is a 50,000 mismatch — but in this case the 50,000 is a **real, approved deposit**, not a phantom. The system is just refusing to count it because of where today's fresh-start anchor was placed.
 
-### Root cause
+## Root cause
 
-`v_user_wallet_strict` computes float_raw by summing every wallet-scope row in the float category set across all of history:
+Today (2026-05-01) Joshua had two real, approved deposits:
 
-| category | direction | amount |
-|---|---|---|
-| agent_float_deposit | cash_in | +100,000 |
-| agent_float_assignment | cash_in | +5,000 |
-| agent_float_used_for_rent | cash_out | −100,000 |
-| agent_float_settlement | cash_out | −405,100 |
+| Time     | Type                 | Amount   | Bucket it should hit |
+|----------|----------------------|----------|----------------------|
+| 11:54:38 | `wallet_deposit`     | 50,000   | Withdrawable         |
+| 12:04:32 | `agent_float_deposit`| 100,000  | Float                |
 
-Net = **−400,100**. The view then does `GREATEST(0, float_raw) = 0` — wiping out today's real deposit because of legacy float-out entries that were never matched by float-in entries (the historical float was funded via `wallets.float_balance` writes that bypassed the ledger, before the ledger-as-truth rule was enforced).
+To fix the earlier "Float showing 0" issue, we placed a fresh-start anchor at **12:04:31** (1 second before the float deposit). That successfully made the 100,000 float visible — but it also pushed the **11:54 wallet deposit into the pre-anchor window**, so the strict withdrawable view stops counting it. Meanwhile `apply_wallet_movement` already credited `wallets.withdrawable_balance = 50,000` when the deposit posted.
 
-This is the *same family* of issue we already solved for `withdrawable` via `wallet_fresh_start_anchors`, but the anchor only narrows withdrawable's window — float still scans all of history.
+Result: cache (50K) > strict (0). The CFO panel correctly flags the gap, but the "right" answer is that the 50K is real and the strict view should include it — not that the cache should be wiped.
 
-## Plan
+## Fix
 
-### 1. Apply the fresh-start anchor to the float bucket too
+1. **Re-anchor Joshua earlier.** Move his `wallet_fresh_start_anchors.anchor_at` from `2026-05-01 12:04:31` to `2026-05-01 11:54:37` (1 second before the wallet_deposit). This includes both today's legitimate deposits (50K withdrawable + 100K float) while still excluding all the pre-May-1 negative drag.
+2. **Recompute `pre_anchor_ledger_net`** off the new anchor time and update the existing `wallet_historical_drift_review` row so CFO reporting stays accurate.
+3. **Update anchor reason note** to explain the adjustment ("anchor moved earlier on 2026-05-01 to include same-day approved wallet_deposit that was orphaned by the prior float-only anchor").
+4. **Verify**: after the migration, `get_user_available_balance(joshua) = 50,000`, `v_user_wallet_strict.float = 100,000`, and the amber drift warning disappears (cache 50K == strict 50K).
 
-Update `v_user_wallet_strict` so the `ledger` CTE's date filter (`a.anchor_at IS NULL OR gl.created_at >= a.anchor_at`) also governs the float and advance bucket sums (it already governs all rows fed into `buckets`, but I'll verify the path and ensure float honors the anchor consistently). Then create a `wallet_fresh_start_anchors` row for Joshua so his float window starts today.
+This is a one-user data correction — no schema change, no logic change, no impact on any other agent.
 
-### 2. Add a defensive float fallback
+## Why not just clear the cache?
 
-When `b.float_raw` is non-positive but `wallets.float_balance > 0` AND there is at least one post-anchor `cash_in` float row, fall back to `LEAST(wallets.float_balance, sum of post-anchor float cash_in − post-anchor float cash_out clamped at 0)`. This keeps the "ledger never inflates" invariant (a phantom cached float can't show up without a ledger justification) while preventing legacy negative drag from hiding fresh, ledger-justified float.
+Clearing `wallets.withdrawable_balance` to 0 would erase a real approved 50,000 deposit that the user is owed. The cache is right; the anchor is what needs adjusting.
 
-### 3. Backfill anchor for affected agents
+## Technical detail
 
-One-time script: for every agent where `v_user_wallet_strict.float_balance = 0` but `wallets.float_balance > 0` AND there's a recent `agent_float_deposit` cash_in row, insert a `wallet_fresh_start_anchors` row anchored at the deposit's `created_at` (only if no anchor exists). Joshua is the immediate beneficiary; this also catches any other agent in the same trap.
+```sql
+-- Single-user data correction (run via supabase--insert / migration)
+UPDATE public.wallet_fresh_start_anchors
+SET anchor_at = '2026-05-01 11:54:37+00',
+    pre_anchor_ledger_net = (
+      SELECT COALESCE(SUM(CASE WHEN direction='cash_in' THEN amount ELSE -amount END), 0)
+      FROM public.general_ledger
+      WHERE user_id = 'cb798acb-68bc-4b4e-a414-a3d374e030b6'
+        AND ledger_scope = 'wallet'
+        AND classification = 'production'
+        AND created_at < '2026-05-01 11:54:37+00'
+    ),
+    notes = notes || E'\n2026-05-01: Anchor moved 10 min earlier to include the same-day approved 50,000 UGX wallet_deposit that was orphaned by the float-only anchor placement.'
+WHERE user_id = 'cb798acb-68bc-4b4e-a414-a3d374e030b6';
 
-### 4. Surface the historical drag for CFO review
+-- Refresh the historical drift review row to match
+UPDATE public.wallet_historical_drift_review
+SET pre_anchor_ledger_net = (... same subquery ...)
+WHERE user_id = 'cb798acb-68bc-4b4e-a414-a3d374e030b6'
+  AND status = 'pending_review';
+```
 
-Insert a row into `wallet_historical_drift_review` (already used by the withdrawable anchor backfill) for each anchored float, recording the pre-anchor negative float net so CFO can decide whether to write it off or chase recovery.
-
-### 5. Verify
-
-After migration:
-- `SELECT * FROM v_user_wallet_strict WHERE user_id='cb798acb…'` should return `float_balance = 100000`.
-- Agent dashboard hero card should show **Float USh 100,000**, **Withdrawable USh 50,000**, **Total UGX 150,000**.
-- Realtime hook (`useWalletRealtime`) is already wired so the UI will reflect the change without a hard reload.
-
-## Files / surfaces touched
-
-- New migration: update `v_user_wallet_strict` (float fallback + advance fallback symmetric to withdrawable), backfill anchors for stuck agents, log to `wallet_historical_drift_review`.
-- No frontend code changes needed — `useAgentBalances` already reads `get_user_wallet_view`, which will return the corrected float once the view is fixed.
-
-## Memory updates
-
-- Extend `mem://architecture/wallet-baseline-anchor` to record that the fresh-start anchor now also governs the **float** and **advance** buckets (not just withdrawable), with the same "never inflate beyond post-anchor ledger justification" invariant.
+Then `SELECT public.get_user_available_balance('cb798acb-...')` should return **50000**, and `wallet_anchored_drift_view` should no longer list Joshua.
 
 ## Out of scope
 
-- No changes to `apply_wallet_movement`, deposit-approval flow, or ledger writers — they are already correct. The bug is purely in the read-side strict view's handling of legacy negative bucket drag.
+- The float bucket logic and anchor extension shipped earlier today stay as-is.
+- The CFO Wallet Deduction strict-withdrawable rule stays as-is (float remains non-deductible).
+- No changes to other 33 anchored agents.
