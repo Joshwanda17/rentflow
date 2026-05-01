@@ -245,7 +245,7 @@ Deno.serve(async (req) => {
 
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Transfer completed successfully' }),
+      JSON.stringify({ success: true, message: 'Transfer completed successfully', transfer_reference: txGroupId, reference: txGroupId }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
