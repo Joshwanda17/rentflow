@@ -77,6 +77,67 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
   const [lookup, setLookup] = useState<LookupState>({ status: 'idle' });
   const [reference, setReference] = useState<string | null>(null);
 
+  // ===== Welile-Receipt discount (works offline) =====
+  // The user can paste any Welile receipt number + amount they hold; 5% of
+  // that amount is applied as a one-shot discount on the bread price. The
+  // entry is cached in localStorage so it survives reloads / offline use.
+  const [receiptNumber, setReceiptNumber] = useState('');
+  const [receiptAmountInput, setReceiptAmountInput] = useState('');
+  const [appliedReceipt, setAppliedReceipt] = useState<BreadReceipt | null>(null);
+  const [receiptError, setReceiptError] = useState<string | null>(null);
+
+  // Hydrate any previously-applied receipt when the dialog opens.
+  useEffect(() => {
+    if (!open) return;
+    try {
+      const raw = localStorage.getItem(RECEIPT_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as BreadReceipt;
+      if (parsed?.number && typeof parsed.amount === 'number' && parsed.amount > 0) {
+        setAppliedReceipt(parsed);
+      }
+    } catch {
+      /* ignore corrupt cache */
+    }
+  }, [open]);
+
+  const applyReceipt = () => {
+    setReceiptError(null);
+    const num = receiptNumber.trim();
+    const amt = Number(receiptAmountInput.replace(/[,\s]/g, ''));
+    if (num.length < 3) {
+      setReceiptError('Enter the full receipt number');
+      return;
+    }
+    if (!Number.isFinite(amt) || amt <= 0) {
+      setReceiptError('Enter a valid receipt amount');
+      return;
+    }
+    const next: BreadReceipt = { number: num, amount: amt, savedAt: Date.now() };
+    setAppliedReceipt(next);
+    setReceiptNumber('');
+    setReceiptAmountInput('');
+    try {
+      localStorage.setItem(RECEIPT_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      /* storage unavailable — discount still applies in-memory */
+    }
+    toast.success('Receipt applied', {
+      description: `5% of ${formatUGX(amt)} = ${formatUGX(Math.round(amt * WELILE_BREAD_DISCOUNT_RATE))} off`,
+      duration: 4000,
+    });
+  };
+
+  const clearReceipt = () => {
+    setAppliedReceipt(null);
+    setReceiptError(null);
+    try {
+      localStorage.removeItem(RECEIPT_STORAGE_KEY);
+    } catch {
+      /* noop */
+    }
+  };
+
   // Force a fresh withdrawable read every time the dialog opens. The hook
   // also live-subscribes to wallet/ledger changes, so a top-up that posts
   // while the dialog is open will automatically lift the zero-balance gate.
