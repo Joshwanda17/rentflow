@@ -55,8 +55,8 @@ const OPERATOR_PATH_HINTS = [
 ];
 const WALLET_CACHE_SELECT_RE = /\.from\(\s*['"]wallets['"]\s*\)\s*\.select\s*\(\s*['"][^'"]*\b(balance|withdrawable_balance|float_balance|advance_balance)\b/;
 const WALLET_CACHE_ALLOW_FILES = new Set([
-  // Hooks intentionally exposing the cache to authorized operator surfaces:
-  'hooks/useWallet.ts',
+  // No exceptions. useWallet now reads strictly from get_user_wallet_view
+  // (2026-05-01). Operator surfaces live under operator-allowlisted paths.
 ]);
 
 function isUserFacing(rel) {
