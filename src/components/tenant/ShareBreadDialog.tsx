@@ -477,15 +477,28 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance }: Props
               </div>
             </div>
 
-            {typeof availableBalance === 'number' && (
-              <p className="text-xs text-muted-foreground">
-                Your withdrawable balance: <span className="font-semibold text-foreground">{formatUGX(availableBalance)}</span>
-              </p>
+            {zeroBalance ? (
+              <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-xs text-destructive">
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-semibold">Your withdrawable balance is UGX 0</p>
+                  <p className="opacity-80">
+                    Top up your wallet to send a Welile Bread.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              typeof availableBalance === 'number' && (
+                <p className="text-xs text-muted-foreground">
+                  Your withdrawable balance:{' '}
+                  <span className="font-semibold text-foreground">{formatUGX(availableBalance)}</span>
+                </p>
+              )
             )}
 
             <Button
               onClick={() => setStep('review')}
-              disabled={lookup.status !== 'found'}
+              disabled={lookup.status !== 'found' || zeroBalance}
               className="w-full h-12 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold gap-2"
             >
               Continue to review
