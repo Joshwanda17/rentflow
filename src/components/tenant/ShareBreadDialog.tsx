@@ -649,6 +649,39 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
               )
             )}
 
+            {/* Recent wallet changes — last cash-in legs from the ledger so
+                the user can see what credited their wallet most recently
+                (top-up, commission, bread received). Hidden when there is
+                nothing to show, to keep the dialog compact. */}
+            {recentCredits.length > 0 && (
+              <div className="rounded-xl border border-border bg-muted/40 px-3 py-2.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                  Recent wallet changes
+                </p>
+                <ul className="space-y-1">
+                  {recentCredits.map((c) => (
+                    <li
+                      key={c.id}
+                      className="flex items-center justify-between gap-2 text-xs"
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <ArrowDownRight className="h-3.5 w-3.5 text-success shrink-0" />
+                        <span className="text-foreground font-medium truncate">
+                          {creditLabel(c)}
+                        </span>
+                        <span className="text-muted-foreground shrink-0">
+                          · {formatRecentTime(c.transaction_date)}
+                        </span>
+                      </div>
+                      <span className="font-semibold text-success shrink-0">
+                        +{formatUGX(Number(c.amount) || 0)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             <Button
               onClick={() => setStep('review')}
               disabled={lookup.status !== 'found' || zeroBalance || balanceLoading}
