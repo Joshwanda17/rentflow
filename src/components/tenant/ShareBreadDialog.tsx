@@ -935,12 +935,24 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                     {qty > 1 ? `${qty} Welile Breads` : 'Welile Bread'} · Fresh today
                   </p>
-                  <p className="text-xl sm:text-2xl font-extrabold text-amber-950 dark:text-amber-100 tabular-nums leading-tight">
-                    {formatUGX(totalAmount)}
-                  </p>
+                  <div className="flex items-baseline gap-2">
+                    <p className={`text-xl sm:text-2xl font-extrabold tabular-nums leading-tight ${discountAmount > 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-950 dark:text-amber-100'}`}>
+                      {formatUGX(totalAmount)}
+                    </p>
+                    {discountAmount > 0 && (
+                      <p className="text-xs font-semibold text-amber-900/60 dark:text-amber-200/60 line-through tabular-nums">
+                        {formatUGX(grossAmount)}
+                      </p>
+                    )}
+                  </div>
                   {qty > 1 && (
                     <p className="text-xs font-medium text-amber-900/80 dark:text-amber-200/80 tabular-nums">
                       {qty} × {formatUGX(WELILE_BREAD_PRICE)}
+                    </p>
+                  )}
+                  {discountAmount > 0 && appliedReceipt && (
+                    <p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 tabular-nums mt-0.5">
+                      Receipt {appliedReceipt.number} −{formatUGX(discountAmount)}
                     </p>
                   )}
                 </div>
