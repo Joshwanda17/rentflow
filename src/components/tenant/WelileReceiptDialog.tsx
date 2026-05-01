@@ -60,6 +60,10 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
   } | null>(null);
   // Seller chosen for the claim code (mall / bakery / supermarket).
   const [sellerId, setSellerId] = useState<string>(PARTNER_SELLERS[0].id);
+  // Step gate: tenant must pick where the receipt is from BEFORE entering it.
+  const [sellerLocked, setSellerLocked] = useState<boolean>(false);
+  // Free-text search to make picking from a long partner list painless.
+  const [sellerSearch, setSellerSearch] = useState('');
   // Active one-time claim code, if any.
   const [claim, setClaim] = useState<BreadClaim | null>(null);
   const [online, setOnline] = useState<boolean>(
@@ -71,6 +75,7 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
     if (!open) return;
     setError(null);
     setPendingConfirm(null);
+    setSellerSearch('');
     try {
       const raw = localStorage.getItem(RECEIPT_STORAGE_KEY);
       if (!raw) return;
@@ -82,7 +87,15 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
       /* ignore */
     }
     // Surface any still-active claim so the user can re-show the code.
-    setClaim(getActiveClaim());
+    const active = getActiveClaim();
+    setClaim(active);
+    // If a claim is already active, keep its seller locked in.
+    if (active) {
+      setSellerId(active.sellerId);
+      setSellerLocked(true);
+    } else {
+      setSellerLocked(false);
+    }
   }, [open]);
 
   // Track connectivity for the offline badge.
