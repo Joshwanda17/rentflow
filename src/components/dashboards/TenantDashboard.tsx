@@ -289,11 +289,13 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             onClick={handleOpenMenu}
             className="relative w-full rounded-3xl overflow-hidden border border-border shadow-lg group active:scale-[0.99] transition-transform bg-amber-50 dark:bg-muted flex items-center justify-center p-3 sm:p-4"
             style={{ height: 'min(58vh, 70vw, 520px)', minHeight: '220px' }}
-            aria-label="Open menu"
+            aria-label="Open dashboard menu — Welile Bread"
+            aria-describedby="bread-card-desc"
           >
             <img
               src={breadHero}
-              alt="Fresh artisan loaf of bread"
+              alt=""
+              role="presentation"
               className={`h-full w-full object-contain select-none pointer-events-none transition-opacity duration-500 ${breadLoaded ? 'opacity-100' : 'opacity-0'}`}
               width={1024}
               height={1024}
@@ -301,25 +303,36 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               decoding="async"
               onLoad={() => setBreadLoaded(true)}
             />
+            <span id="bread-card-desc" className="sr-only">
+              {breadLoaded ? 'Fresh loaf of bread illustration. Tap to open the dashboard menu.' : 'Bread image is loading. Tap to open the dashboard menu.'}
+            </span>
 
             {/* Shimmer placeholder while bread loads */}
             {!breadLoaded && (
-              <div className="absolute inset-0 overflow-hidden rounded-3xl" aria-hidden="true">
+              <div className="absolute inset-0 overflow-hidden rounded-3xl" aria-hidden="true" role="status">
                 <div className="absolute inset-0 bg-amber-50 dark:bg-muted" />
                 <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-foreground/10 to-transparent" />
               </div>
             )}
 
             {/* Welile branding badge — top-left */}
-            <div className="absolute top-3 left-3 flex flex-col items-center gap-1 rounded-2xl bg-card/90 backdrop-blur-sm px-2.5 py-2 shadow-sm border border-border">
+            <div
+              className="absolute top-3 left-3 flex flex-col items-center gap-1 rounded-2xl bg-background/95 dark:bg-card/95 backdrop-blur-md px-2.5 py-2 shadow-md border border-border ring-1 ring-foreground/5"
+              role="img"
+              aria-label="Welile Bread"
+            >
               <img
                 src={welileLogo}
-                alt="Welile"
+                alt=""
+                aria-hidden="true"
                 className="h-7 w-7 rounded-md"
                 width={28}
                 height={28}
               />
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-foreground leading-none">
+              <span
+                aria-hidden="true"
+                className="text-[10px] font-bold uppercase tracking-widest text-foreground leading-none"
+              >
                 Bread
               </span>
             </div>
