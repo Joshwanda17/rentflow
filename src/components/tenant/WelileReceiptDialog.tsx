@@ -35,6 +35,7 @@ export const WELILE_BREAD_PRICE = 6500;
 export const WELILE_BREAD_DISCOUNT_RATE = 0.05;
 export const WELILE_BREAD_MIN_PAYABLE = 500;
 const RECEIPT_STORAGE_KEY = 'welile.bread.receipt.v1';
+const LAST_SELLER_STORAGE_KEY = 'welile.bread.lastSeller.v1';
 
 interface BreadReceipt {
   number: string;
@@ -59,7 +60,16 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
     amount: number;
   } | null>(null);
   // Seller chosen for the claim code (mall / bakery / supermarket).
-  const [sellerId, setSellerId] = useState<string>(PARTNER_SELLERS[0].id);
+  const [sellerId, setSellerId] = useState<string>(() => {
+    if (typeof window === 'undefined') return PARTNER_SELLERS[0].id;
+    try {
+      const saved = localStorage.getItem(LAST_SELLER_STORAGE_KEY);
+      if (saved && PARTNER_SELLERS.some((s) => s.id === saved)) return saved;
+    } catch {
+      /* ignore */
+    }
+    return PARTNER_SELLERS[0].id;
+  });
   // Step gate: tenant must pick where the receipt is from BEFORE entering it.
   const [sellerLocked, setSellerLocked] = useState<boolean>(false);
   // Free-text search to make picking from a long partner list painless.
@@ -94,9 +104,29 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
       setSellerId(active.sellerId);
       setSellerLocked(true);
     } else {
+      // Pre-fill last selected seller (if any) but keep the picker step
+      // visible so the tenant can confirm or change it.
+      try {
+        const saved = localStorage.getItem(LAST_SELLER_STORAGE_KEY);
+        if (saved && PARTNER_SELLERS.some((s) => s.id === saved)) {
+          setSellerId(saved);
+        }
+      } catch {
+        /* ignore */
+      }
       setSellerLocked(false);
     }
   }, [open]);
+
+  // Remember the seller whenever the tenant changes the selection.
+  useEffect(() => {
+    if (!sellerId) return;
+    try {
+      localStorage.setItem(LAST_SELLER_STORAGE_KEY, sellerId);
+    } catch {
+      /* ignore */
+    }
+  }, [sellerId]);
 
   // Track connectivity for the offline badge.
   useEffect(() => {
