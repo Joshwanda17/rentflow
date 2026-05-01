@@ -122,7 +122,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'general_admin_expense',
     platformCategory: 'general_admin_expense',
     allowedOps: ['credit'],
-    recipientLock: 'operational_wallet',
+    recipientLock: 'user',
     subCategories: [
       { id: 'salaries', label: 'Salaries' },
       { id: 'transport', label: 'Transport' },
