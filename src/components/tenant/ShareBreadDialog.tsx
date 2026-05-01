@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -72,6 +72,29 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
   useEffect(() => {
     if (open) void refreshAvailable();
   }, [open, refreshAvailable]);
+
+  // Detect a withdrawable increase while the dialog is open (e.g. a top-up
+  // landed in the ledger) and surface a receipt-style toast so the user
+  // knows the zero-balance gate has been lifted in real time.
+  const prevBalanceRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!open) {
+      // Reset baseline whenever the dialog closes so the next open compares
+      // against a fresh starting point instead of a stale value.
+      prevBalanceRef.current = null;
+      return;
+    }
+    if (typeof effectiveBalance !== 'number') return;
+    const prev = prevBalanceRef.current;
+    if (prev !== null && effectiveBalance > prev) {
+      const delta = effectiveBalance - prev;
+      toast.success('Wallet topped up', {
+        description: `+${formatUGX(delta)} · New withdrawable: ${formatUGX(effectiveBalance)}`,
+        duration: 5000,
+      });
+    }
+    prevBalanceRef.current = effectiveBalance;
+  }, [open, effectiveBalance]);
 
   const reset = () => {
     setStep('pick');
