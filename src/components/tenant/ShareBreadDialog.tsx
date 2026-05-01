@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Send, Wheat, CheckCircle2, UserCheck, AlertCircle, Search, ArrowLeft, ArrowRight, Wallet, Copy, Hash, Minus, Plus, ArrowDownRight } from 'lucide-react';
+import { Loader2, Send, Wheat, CheckCircle2, UserCheck, AlertCircle, Search, ArrowLeft, ArrowRight, Wallet, Copy, Hash, Minus, Plus, ArrowDownRight, Ticket, X, BadgePercent } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
@@ -20,6 +20,17 @@ import { motion } from 'framer-motion';
 
 export const WELILE_BREAD_PRICE = 6500;
 export const WELILE_BREAD_MAX_QTY = 50;
+// 5% of any Welile receipt amount can be redeemed as a discount on the bread.
+export const WELILE_BREAD_DISCOUNT_RATE = 0.05;
+// We never let the bread go below this floor — keeps the transfer meaningful.
+export const WELILE_BREAD_MIN_PAYABLE = 500;
+const RECEIPT_STORAGE_KEY = 'welile.bread.receipt.v1';
+
+interface BreadReceipt {
+  number: string;
+  amount: number;
+  savedAt: number;
+}
 
 interface Props {
   open: boolean;
