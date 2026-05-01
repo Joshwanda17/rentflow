@@ -135,7 +135,15 @@ Deno.serve(async (req) => {
       .from('general_ledger')
       .select('amount, direction')
       .eq('user_id', target_user_id)
-      .eq('ledger_scope', 'wallet');
+      .eq('ledger_scope', 'wallet')
+      // Exclude admin_correction sweeps + system_balance_correction noise so this
+      // matches `wallet_ledger_truth_view` and the user-facing balance filter
+      // (memory: user-facing-ledger-filter, anchored-cache-drift). Otherwise an
+      // historical CFO correction can phantom-shrink the deductible cap below
+      // the cache that the rest of the system trusts, and bulk reconcile —
+      // which uses the truth view — sees the wallet as already in sync.
+      .neq('classification', 'admin_correction')
+      .neq('category', 'system_balance_correction');
     if (ledgerNetErr) {
       console.error('[wallet-deduction] ledger net read failed:', ledgerNetErr.message);
       return new Response(JSON.stringify({ error: `Could not verify ledger balance: ${ledgerNetErr.message}` }), {
