@@ -126,38 +126,12 @@ Deno.serve(async (req) => {
     }
     const strictAvailable = Number(strictData ?? 0);
 
-    // Defence-in-depth: the RPC has been observed to return the cached
-    // withdrawable when the baseline anchor lags behind reality, allowing
-    // requests through that the ledger trigger will then reject with
-    // "Insufficient ledger balance". Compute the same all-entries ledger net
-    // the trigger uses (`enforce_wallet_solvency`) and floor the cap by it.
-    const { data: ledgerRows, error: ledgerNetErr } = await adminClient
-      .from('general_ledger')
-      .select('amount, direction')
-      .eq('user_id', target_user_id)
-      .eq('ledger_scope', 'wallet')
-      // Exclude admin_correction sweeps + system_balance_correction noise so this
-      // matches `wallet_ledger_truth_view` and the user-facing balance filter
-      // (memory: user-facing-ledger-filter, anchored-cache-drift). Otherwise an
-      // historical CFO correction can phantom-shrink the deductible cap below
-      // the cache that the rest of the system trusts, and bulk reconcile —
-      // which uses the truth view — sees the wallet as already in sync.
-      .neq('classification', 'admin_correction')
-      .neq('category', 'system_balance_correction');
-    if (ledgerNetErr) {
-      console.error('[wallet-deduction] ledger net read failed:', ledgerNetErr.message);
-      return new Response(JSON.stringify({ error: `Could not verify ledger balance: ${ledgerNetErr.message}` }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-    const ledgerNet = (ledgerRows || []).reduce((acc: number, r: any) => {
-      const amt = Number(r.amount) || 0;
-      if (r.direction === 'cash_in') return acc + amt;
-      if (r.direction === 'cash_out') return acc - amt;
-      return acc;
-    }, 0);
-    const trueAvailable = Math.max(0, Math.min(strictAvailable, ledgerNet));
+    // get_user_available_balance is the authoritative CFO cap. It already
+    // handles anchored wallet baselines, pending holds, and the withdrawable
+    // bucket. Do NOT add a second raw all-time ledger cap here: older users can
+    // have negative historical ledger positions while still having a valid
+    // anchored withdrawable balance that Finance must be allowed to sweep.
+    const trueAvailable = Math.max(0, strictAvailable);
 
     if (amount > trueAvailable) {
       // Diagnostic log — record the drift between strict and cache so the CFO
@@ -182,7 +156,6 @@ Deno.serve(async (req) => {
               cache_withdrawable: cacheWithdrawable,
               cache_float: cacheFloat,
               strict_rpc: strictAvailable,
-              ledger_net: ledgerNet,
               actor_id: user.id,
             },
           });
@@ -190,7 +163,7 @@ Deno.serve(async (req) => {
       }
       return new Response(
         JSON.stringify({
-          error: `Maximum deductible: UGX ${trueAvailable.toLocaleString()} (requested UGX ${amount.toLocaleString()}). Cached wallet shows UGX ${cacheWithdrawable.toLocaleString()} but the ledger only supports UGX ${ledgerNet.toLocaleString()}. Float (UGX ${cacheFloat.toLocaleString()}) is company liability and cannot be deducted from this tool.`,
+          error: `Maximum deductible: UGX ${trueAvailable.toLocaleString()} (requested UGX ${amount.toLocaleString()}). Cached withdrawable shows UGX ${cacheWithdrawable.toLocaleString()}. Float (UGX ${cacheFloat.toLocaleString()}) is company liability and cannot be deducted from this tool.`,
         }),
         {
           status: 400,
