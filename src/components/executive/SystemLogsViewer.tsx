@@ -2,13 +2,16 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { Shield, LogIn, Key, UserCog, Trash2, RefreshCw, ChevronDown, ChevronRight, Edit, PlusCircle, CheckCircle, XCircle, Eye, DollarSign } from 'lucide-react';
+import { Shield, LogIn, Key, UserCog, Trash2, RefreshCw, ChevronDown, ChevronRight, Edit, PlusCircle, CheckCircle, XCircle, Eye, DollarSign, Compass, CalendarIcon, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
 import { Json } from '@/integrations/supabase/types';
 
 type AuditLog = {
@@ -35,6 +38,8 @@ const ACTION_ICONS: Record<string, typeof Shield> = {
   reject: XCircle,
   view: Eye,
   deposit: DollarSign,
+  forced_default_role_set: Compass,
+  forced_default_role_cleared: Compass,
 };
 
 const ACTION_COLORS: Record<string, string> = {
@@ -48,7 +53,11 @@ const ACTION_COLORS: Record<string, string> = {
   update: 'bg-sky-500/10 text-sky-700 border-sky-200',
   approve: 'bg-green-500/10 text-green-700 border-green-200',
   reject: 'bg-red-500/10 text-red-700 border-red-200',
+  forced_default_role_set: 'bg-indigo-500/10 text-indigo-700 border-indigo-200',
+  forced_default_role_cleared: 'bg-indigo-500/10 text-indigo-700 border-indigo-200',
 };
+
+const DEFAULT_ROLE_ACTIONS = ['forced_default_role_set', 'forced_default_role_cleared'];
 
 function formatActionLabel(action: string): string {
   return action.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -132,6 +141,10 @@ export function SystemLogsViewer() {
   const [searchTerm, setSearchTerm] = useState('');
   const [actionFilter, setActionFilter] = useState<string>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [defaultRoleOnly, setDefaultRoleOnly] = useState(false);
+  const [targetUser, setTargetUser] = useState('');
+  const [fromDate, setFromDate] = useState<Date | undefined>();
+  const [toDate, setToDate] = useState<Date | undefined>();
 
   const { data: logs, isLoading, refetch } = useQuery({
     queryKey: ['system-audit-logs'],
@@ -145,16 +158,19 @@ export function SystemLogsViewer() {
       if (!data) return [];
 
       const userIds = [...new Set(data.map(l => l.user_id).filter(Boolean))] as string[];
+      const recordIds = [...new Set(data.map(l => l.record_id).filter(Boolean))] as string[];
+      const allIds = [...new Set([...userIds, ...recordIds])];
       const { data: profiles } = await supabase
         .from('profiles')
         .select('id, full_name')
-        .in('id', userIds);
+        .in('id', allIds);
 
       const nameMap = new Map(profiles?.map(p => [p.id, p.full_name]) || []);
 
       return data.map(log => ({
         ...log,
         user_name: log.user_id ? nameMap.get(log.user_id) || 'Unknown' : 'System',
+        target_name: log.record_id ? nameMap.get(log.record_id) || null : null,
       })) as AuditLog[];
     },
     staleTime: 30000,
@@ -163,7 +179,25 @@ export function SystemLogsViewer() {
   const actionTypes = [...new Set(logs?.map(l => l.action_type) || [])].sort();
 
   const filtered = (logs || []).filter(log => {
+    if (defaultRoleOnly && !DEFAULT_ROLE_ACTIONS.includes(log.action_type)) return false;
     if (actionFilter !== 'all' && log.action_type !== actionFilter) return false;
+
+    if (fromDate && log.created_at && new Date(log.created_at) < fromDate) return false;
+    if (toDate) {
+      const end = new Date(toDate);
+      end.setHours(23, 59, 59, 999);
+      if (log.created_at && new Date(log.created_at) > end) return false;
+    }
+
+    if (targetUser.trim()) {
+      const t = targetUser.trim().toLowerCase();
+      const tn = ((log as any).target_name || '').toLowerCase();
+      const rid = (log.record_id || '').toLowerCase();
+      const uid = (log.user_id || '').toLowerCase();
+      const un = (log.user_name || '').toLowerCase();
+      if (!tn.includes(t) && !rid.includes(t) && !uid.includes(t) && !un.includes(t)) return false;
+    }
+
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       const meta = log.metadata as Record<string, unknown> | null;
@@ -181,6 +215,17 @@ export function SystemLogsViewer() {
   const loginCount = (logs || []).filter(l => l.action_type.includes('login')).length;
   const passwordEvents = (logs || []).filter(l => l.action_type.includes('password')).length;
   const totalLogs = (logs || []).length;
+  const defaultRoleCount = (logs || []).filter(l => DEFAULT_ROLE_ACTIONS.includes(l.action_type)).length;
+
+  const clearAll = () => {
+    setDefaultRoleOnly(false);
+    setTargetUser('');
+    setFromDate(undefined);
+    setToDate(undefined);
+    setActionFilter('all');
+    setSearchTerm('');
+  };
+  const anyFilter = defaultRoleOnly || !!targetUser || !!fromDate || !!toDate || actionFilter !== 'all' || !!searchTerm;
 
   return (
     <div className="space-y-4">
@@ -208,7 +253,7 @@ export function SystemLogsViewer() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2 items-center">
         <Input
           placeholder="Search logs..."
           value={searchTerm}
@@ -226,6 +271,49 @@ export function SystemLogsViewer() {
             ))}
           </SelectContent>
         </Select>
+        <Button
+          variant={defaultRoleOnly ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setDefaultRoleOnly(v => !v)}
+          className="gap-1.5"
+        >
+          <Compass className="w-3.5 h-3.5" />
+          Default Role Events
+          <Badge variant="secondary" className="ml-1 px-1.5 text-[10px]">{defaultRoleCount}</Badge>
+        </Button>
+        <Input
+          placeholder="Target user (name or ID)..."
+          value={targetUser}
+          onChange={(e) => setTargetUser(e.target.value)}
+          className="max-w-[220px]"
+        />
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className={cn('gap-1.5', !fromDate && 'text-muted-foreground')}>
+              <CalendarIcon className="w-3.5 h-3.5" />
+              {fromDate ? format(fromDate, 'dd MMM yy') : 'From'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar mode="single" selected={fromDate} onSelect={setFromDate} initialFocus className={cn('p-3 pointer-events-auto')} />
+          </PopoverContent>
+        </Popover>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className={cn('gap-1.5', !toDate && 'text-muted-foreground')}>
+              <CalendarIcon className="w-3.5 h-3.5" />
+              {toDate ? format(toDate, 'dd MMM yy') : 'To'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar mode="single" selected={toDate} onSelect={setToDate} initialFocus className={cn('p-3 pointer-events-auto')} />
+          </PopoverContent>
+        </Popover>
+        {anyFilter && (
+          <Button variant="ghost" size="sm" onClick={clearAll} className="gap-1.5 text-muted-foreground">
+            <X className="w-3.5 h-3.5" /> Clear
+          </Button>
+        )}
       </div>
 
       {/* Table */}
