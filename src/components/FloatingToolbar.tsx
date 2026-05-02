@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Share2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -152,6 +152,30 @@ export default function FloatingToolbar() {
   const navigate = useNavigate();
   const { language } = useLanguage();
   const { currency } = useCurrency();
+
+  // Hide the floating FABs whenever a Radix Dialog/Sheet/AlertDialog is open
+  // so they can never overlap a modal's sticky footer (e.g. the Deposit
+  // dialog's "Deposit UGX X" button).
+  const [modalOpen, setModalOpen] = useState(false);
+  useEffect(() => {
+    const check = () => {
+      const open = document.querySelector(
+        '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]',
+      );
+      setModalOpen(Boolean(open));
+    };
+    check();
+    const observer = new MutationObserver(check);
+    observer.observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ['data-state'],
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  if (modalOpen) return <WelileAIChatDrawer open={aiOpen} onOpenChange={setAiOpen} />;
 
   return (
     <>
