@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
       await admin.from("field_deposit_batch_audit").insert({
         batch_id: batchId,
         event: "proof_submitted", // reuse closest existing event for re-review
-        actor_user_id: user.id,
+        actor_id: user.id,
         actor_role: "financial_ops",
         details: {
           reopened: true,
