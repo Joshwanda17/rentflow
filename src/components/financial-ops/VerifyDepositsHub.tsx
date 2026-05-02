@@ -252,15 +252,21 @@ export function VerifyDepositsHub() {
         .from('field_deposit_batches')
         .select('id', { count: 'exact', head: true })
         .eq('status', 'pending_finops_verification');
-      const rejectedRes = await supabase
-        .from('field_deposit_batches')
-        .select('id', { count: 'exact', head: true })
-        .eq('status', 'rejected');
+      const [rejectedFieldRes, rejectedUserRes] = await Promise.all([
+        supabase
+          .from('field_deposit_batches')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'rejected'),
+        supabase
+          .from('deposit_requests')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'rejected'),
+      ]);
       if (cancelled) return;
       setCounts({
         user: userRes.count ?? 0,
         field: fieldRes.count ?? 0,
-        rejected: rejectedRes.count ?? 0,
+        rejected: (rejectedFieldRes.count ?? 0) + (rejectedUserRes.count ?? 0),
       });
     };
     load();
