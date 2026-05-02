@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ShieldCheck, Wallet, User, Filter, X, Loader2 } from 'lucide-react';
+import { ShieldCheck, Wallet, User, Filter, X, Loader2, XCircle } from 'lucide-react';
 import { CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -19,6 +19,7 @@ import { format } from 'date-fns';
 import { TidVerification } from './TidVerification';
 import { FieldDepositVerificationQueue } from './FieldDepositVerificationQueue';
 import { RecentlyVerifiedList } from './RecentlyVerifiedList';
+import { RejectedFieldDepositsList } from './RejectedFieldDepositsList';
 import { supabase } from '@/integrations/supabase/client';
 import type { DepositChannel } from '@/lib/fieldDepositBatches';
 import { cn } from '@/lib/utils';
@@ -35,8 +36,8 @@ import { useFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
  * fuller first.
  */
 export function VerifyDepositsHub() {
-  const [tab, setTab] = useState<'user' | 'field'>('user');
-  const [counts, setCounts] = useState<{ user: number; field: number }>({ user: 0, field: 0 });
+  const [tab, setTab] = useState<'user' | 'field' | 'rejected'>('user');
+  const [counts, setCounts] = useState<{ user: number; field: number; rejected: number }>({ user: 0, field: 0, rejected: 0 });
   // Honor the shared Financial Ops auto-refresh toggle. When the operator
   // pauses on the Wallet card, the badges here freeze too — no surprise
   // count changes mid-review.
@@ -251,10 +252,15 @@ export function VerifyDepositsHub() {
         .from('field_deposit_batches')
         .select('id', { count: 'exact', head: true })
         .eq('status', 'pending_finops_verification');
+      const rejectedRes = await supabase
+        .from('field_deposit_batches')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'rejected');
       if (cancelled) return;
       setCounts({
         user: userRes.count ?? 0,
         field: fieldRes.count ?? 0,
+        rejected: rejectedRes.count ?? 0,
       });
     };
     load();
@@ -280,8 +286,8 @@ export function VerifyDepositsHub() {
 
       {/* Tabs first — operators told us the queue switcher is the most-used
           control, so it now sits at the top instead of below the filters. */}
-      <Tabs value={tab} onValueChange={(v) => setTab(v as 'user' | 'field')}>
-        <TabsList className="grid grid-cols-2 w-full h-auto p-1.5 gap-1.5">
+      <Tabs value={tab} onValueChange={(v) => setTab(v as 'user' | 'field' | 'rejected')}>
+        <TabsList className="grid grid-cols-3 w-full h-auto p-1.5 gap-1.5">
           <TabsTrigger value="user" className="flex flex-col items-center gap-1 py-3 sm:py-3.5">
             <div className="flex items-center gap-2">
               <User className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -308,6 +314,20 @@ export function VerifyDepositsHub() {
             </div>
             <span className="text-[11px] sm:text-xs text-muted-foreground font-normal">
               Agent cash → float
+            </span>
+          </TabsTrigger>
+          <TabsTrigger value="rejected" className="flex flex-col items-center gap-1 py-3 sm:py-3.5">
+            <div className="flex items-center gap-2">
+              <XCircle className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="font-semibold text-sm sm:text-base">Rejected</span>
+              {counts.rejected > 0 && (
+                <Badge variant="destructive" className="h-5 min-w-5 px-1.5 text-[11px]">
+                  {counts.rejected}
+                </Badge>
+              )}
+            </div>
+            <span className="text-[11px] sm:text-xs text-muted-foreground font-normal">
+              Re-review &amp; approve
             </span>
           </TabsTrigger>
         </TabsList>
@@ -344,6 +364,10 @@ export function VerifyDepositsHub() {
             exportFromIso={exportFromIso}
             exportToIso={exportToIso}
           />
+        </TabsContent>
+
+        <TabsContent value="rejected" className="mt-5 space-y-3">
+          <RejectedFieldDepositsList />
         </TabsContent>
       </Tabs>
 
