@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { Loader2, RefreshCw, Inbox, RotateCcw, XCircle } from 'lucide-react';
+import { Loader2, RefreshCw, Inbox, RotateCcw, XCircle, User, Wallet } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import {
   channelLabel,
@@ -31,18 +31,32 @@ import { useFinOpsAutoRefresh } from '@/hooks/useFinOpsAutoRefresh';
  * batches flip back to `pending_finops_verification` and re-appear in the
  * Field Deposits tab where they can be approved (or rejected again).
  */
-interface RejectedRow {
-  id: string;
-  agent_id: string;
-  agent_name: string | null;
-  channel: DepositChannel;
-  declared_total: number;
-  proof_reference: string | null;
-  rejection_reason: string | null;
-  finops_verified_by: string | null;
-  rejected_by_name: string | null;
-  finops_verified_at: string | null;
-}
+type RejectedRow =
+  | {
+      kind: 'field';
+      id: string;
+      agent_id: string;
+      agent_name: string | null;
+      channel: DepositChannel;
+      amount: number;
+      proof_reference: string | null;
+      rejection_reason: string | null;
+      rejected_by_name: string | null;
+      rejected_at: string | null;
+    }
+  | {
+      kind: 'user';
+      id: string;
+      user_id: string;
+      user_name: string | null;
+      channel: string | null; // payment_method e.g. 'mtn','airtel','bank'
+      amount: number;
+      proof_reference: string | null; // tid
+      rejection_reason: string | null;
+      rejected_by_name: string | null;
+      rejected_at: string | null;
+      deposit_purpose: string | null;
+    };
 
 export function RejectedFieldDepositsList() {
   const autoRefresh = useFinOpsAutoRefresh();
@@ -56,20 +70,34 @@ export function RejectedFieldDepositsList() {
   const load = useCallback(async (silent = false) => {
     if (!silent) setRefreshing(true);
     try {
-      const { data, error } = await supabase
-        .from('field_deposit_batches')
-        .select(
-          'id, agent_id, channel, declared_total, proof_reference, rejection_reason, finops_verified_by, finops_verified_at',
-        )
-        .eq('status', 'rejected')
-        .order('finops_verified_at', { ascending: false })
-        .limit(100);
-      if (error) throw error;
-      const list = (data ?? []) as any[];
+      const [batchRes, userRes] = await Promise.all([
+        supabase
+          .from('field_deposit_batches')
+          .select(
+            'id, agent_id, channel, declared_total, proof_reference, rejection_reason, finops_verified_by, finops_verified_at',
+          )
+          .eq('status', 'rejected')
+          .order('finops_verified_at', { ascending: false })
+          .limit(100),
+        supabase
+          .from('deposit_requests')
+          .select(
+            'id, user_id, amount, payment_method, transaction_id, rejection_reason, processed_by, rejected_at, deposit_purpose',
+          )
+          .eq('status', 'rejected')
+          .order('rejected_at', { ascending: false })
+          .limit(100),
+      ]);
+      if (batchRes.error) throw batchRes.error;
+      if (userRes.error) throw userRes.error;
+      const batchList = (batchRes.data ?? []) as any[];
+      const userList = (userRes.data ?? []) as any[];
       const ids = Array.from(
         new Set([
-          ...list.map((r) => r.agent_id).filter(Boolean),
-          ...list.map((r) => r.finops_verified_by).filter(Boolean),
+          ...batchList.map((r) => r.agent_id).filter(Boolean),
+          ...batchList.map((r) => r.finops_verified_by).filter(Boolean),
+          ...userList.map((r) => r.user_id).filter(Boolean),
+          ...userList.map((r) => r.processed_by).filter(Boolean),
         ]),
       );
       const nameMap = new Map<string, string | null>();
@@ -80,20 +108,37 @@ export function RejectedFieldDepositsList() {
           .in('id', ids);
         for (const p of (profs ?? []) as any[]) nameMap.set(p.id, p.full_name ?? null);
       }
-      setRows(
-        list.map((r) => ({
-          id: r.id,
-          agent_id: r.agent_id,
-          agent_name: nameMap.get(r.agent_id) ?? null,
-          channel: r.channel as DepositChannel,
-          declared_total: Number(r.declared_total ?? 0),
-          proof_reference: r.proof_reference ?? null,
-          rejection_reason: r.rejection_reason ?? null,
-          finops_verified_by: r.finops_verified_by ?? null,
-          rejected_by_name: r.finops_verified_by ? (nameMap.get(r.finops_verified_by) ?? null) : null,
-          finops_verified_at: r.finops_verified_at ?? null,
-        })),
-      );
+      const fieldRows: RejectedRow[] = batchList.map((r) => ({
+        kind: 'field' as const,
+        id: r.id,
+        agent_id: r.agent_id,
+        agent_name: nameMap.get(r.agent_id) ?? null,
+        channel: r.channel as DepositChannel,
+        amount: Number(r.declared_total ?? 0),
+        proof_reference: r.proof_reference ?? null,
+        rejection_reason: r.rejection_reason ?? null,
+        rejected_by_name: r.finops_verified_by ? (nameMap.get(r.finops_verified_by) ?? null) : null,
+        rejected_at: r.finops_verified_at ?? null,
+      }));
+      const userRows: RejectedRow[] = userList.map((r) => ({
+        kind: 'user' as const,
+        id: r.id,
+        user_id: r.user_id,
+        user_name: nameMap.get(r.user_id) ?? null,
+        channel: r.payment_method ?? null,
+        amount: Number(r.amount ?? 0),
+        proof_reference: r.transaction_id ?? null,
+        rejection_reason: r.rejection_reason ?? null,
+        rejected_by_name: r.processed_by ? (nameMap.get(r.processed_by) ?? null) : null,
+        rejected_at: r.rejected_at ?? null,
+        deposit_purpose: r.deposit_purpose ?? null,
+      }));
+      const merged = [...fieldRows, ...userRows].sort((a, b) => {
+        const ta = a.rejected_at ? new Date(a.rejected_at).getTime() : 0;
+        const tb = b.rejected_at ? new Date(b.rejected_at).getTime() : 0;
+        return tb - ta;
+      });
+      setRows(merged);
     } catch (e: any) {
       if (!silent) toast.error(e?.message ?? 'Failed to load rejected deposits');
     } finally {
@@ -113,8 +158,21 @@ export function RejectedFieldDepositsList() {
     if (!confirmRow) return;
     setBusy(true);
     try {
-      await reopenBatchAsFinOps(confirmRow.id, note.trim());
-      toast.success('Reopened — batch is back in the Field Deposits queue.');
+      if (confirmRow.kind === 'field') {
+        await reopenBatchAsFinOps(confirmRow.id, note.trim());
+        toast.success('Reopened — batch is back in the Field Deposits queue.');
+      } else {
+        const { data, error } = await supabase.functions.invoke('approve-deposit', {
+          body: {
+            deposit_request_id: confirmRow.id,
+            action: 'reopen',
+            rejection_reason: note.trim() || 'Reopened for re-review',
+          },
+        });
+        if (error) throw error;
+        if (data && (data as any).error) throw new Error((data as any).error);
+        toast.success('Reopened — deposit is back in the User Deposits queue.');
+      }
       setConfirmRow(null);
       setNote('');
       load(true);
@@ -159,25 +217,42 @@ export function RejectedFieldDepositsList() {
       ) : (
         <div className="space-y-2">
           {rows.map((r) => (
-            <Card key={r.id} className="border-destructive/20">
+            <Card key={`${r.kind}:${r.id}`} className="border-destructive/20">
               <CardContent className="p-3 sm:p-4 space-y-2.5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-sm truncate">
-                        {r.agent_name ?? r.agent_id.slice(0, 8)}
+                        {r.kind === 'field'
+                          ? (r.agent_name ?? r.agent_id.slice(0, 8))
+                          : (r.user_name ?? r.user_id.slice(0, 8))}
                       </span>
-                      <Badge variant="outline" className="text-[10px]">{channelLabel(r.channel)}</Badge>
+                      <Badge variant="outline" className="text-[10px] gap-1">
+                        {r.kind === 'field' ? <Wallet className="h-3 w-3" /> : <User className="h-3 w-3" />}
+                        {r.kind === 'field' ? 'Field deposit' : 'User deposit'}
+                      </Badge>
+                      {r.channel && (
+                        <Badge variant="outline" className="text-[10px]">
+                          {r.kind === 'field'
+                            ? channelLabel(r.channel as DepositChannel)
+                            : (r.channel ?? '').toUpperCase()}
+                        </Badge>
+                      )}
                       <Badge variant="destructive" className="text-[10px] gap-1">
                         <XCircle className="h-3 w-3" /> Rejected
                       </Badge>
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5 font-mono">
-                      Ref: {r.proof_reference ?? '—'}
+                      {r.kind === 'field' ? 'Ref' : 'TID'}: {r.proof_reference ?? '—'}
                     </div>
+                    {r.kind === 'user' && r.deposit_purpose && (
+                      <div className="text-[11px] text-muted-foreground mt-0.5">
+                        Purpose: <span className="text-foreground">{r.deposit_purpose.replace(/_/g, ' ')}</span>
+                      </div>
+                    )}
                   </div>
                   <div className="font-mono font-semibold text-sm whitespace-nowrap">
-                    {formatUGX(r.declared_total)}
+                    {formatUGX(r.amount)}
                   </div>
                 </div>
 
@@ -193,7 +268,7 @@ export function RejectedFieldDepositsList() {
                 <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
                   <span>
                     Rejected by {r.rejected_by_name ?? '—'}
-                    {r.finops_verified_at ? ` · ${format(new Date(r.finops_verified_at), 'MMM d, HH:mm')}` : ''}
+                    {r.rejected_at ? ` · ${format(new Date(r.rejected_at), 'MMM d, HH:mm')}` : ''}
                   </span>
                   <Button
                     size="sm"
@@ -214,11 +289,15 @@ export function RejectedFieldDepositsList() {
       <AlertDialog open={confirmRow !== null} onOpenChange={(o) => { if (!o && !busy) setConfirmRow(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Reopen this rejected batch?</AlertDialogTitle>
+            <AlertDialogTitle>
+              Reopen this rejected {confirmRow?.kind === 'field' ? 'batch' : 'deposit'}?
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              The batch will move back to <span className="font-semibold">Pending Finance review</span>{' '}
-              in the Field Deposits queue. You can then approve it (which will credit
-              the agent&apos;s float and post commission) or reject it again.
+              {confirmRow?.kind === 'field' ? (
+                <>The batch will move back to <span className="font-semibold">Pending Finance review</span> in the Field Deposits queue. You can then approve it (which will credit the agent&apos;s float and post commission) or reject it again.</>
+              ) : (
+                <>The deposit will move back to <span className="font-semibold">Pending</span> in the User Deposits queue, where you can re-verify the TID and approve (crediting the user&apos;s wallet) or reject again.</>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-1.5">

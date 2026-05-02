@@ -109,9 +109,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!action || !["approve", "reject"].includes(action)) {
+    if (!action || !["approve", "reject", "reopen"].includes(action)) {
       return new Response(
-        JSON.stringify({ error: "Invalid action. Must be 'approve' or 'reject'" }),
+        JSON.stringify({ error: "Invalid action. Must be 'approve', 'reject', or 'reopen'" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -157,6 +157,68 @@ Deno.serve(async (req) => {
     }
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+    // ── Reopen flow ──────────────────────────────────────────────────
+    // Financial Ops can put a previously-rejected user deposit back into
+    // the `pending` queue so the TID search / User Deposits tab surfaces
+    // it again for re-review and possible approval. Manager-only — the
+    // same role that can approve/reject in the first place.
+    if (action === 'reopen') {
+      const { data: isMgr } = await supabaseAdmin
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'manager')
+        .maybeSingle();
+      if (!isMgr) {
+        return new Response(
+          JSON.stringify({ error: 'Only managers can reopen rejected deposits' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+      const { data: rejected, error: rejErr } = await supabaseAdmin
+        .from('deposit_requests')
+        .select('id, status, user_id, amount')
+        .in('id', idsToProcess)
+        .eq('status', 'rejected');
+      if (rejErr || !rejected || rejected.length === 0) {
+        return new Response(
+          JSON.stringify({ error: 'No rejected deposit requests found to reopen' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+      const reopenNote = (typeof rejection_reason === 'string' ? rejection_reason : '').trim().slice(0, 1000);
+      const reopened: Array<{ id: string; user_id: string; amount: number }> = [];
+      for (const r of rejected) {
+        const { error: updErr } = await supabaseAdmin
+          .from('deposit_requests')
+          .update({
+            status: 'pending',
+            rejection_reason: null,
+            rejected_at: null,
+            processed_by: null,
+          })
+          .eq('id', r.id)
+          .eq('status', 'rejected');
+        if (updErr) {
+          console.error('[approve-deposit] reopen update failed', r.id, updErr);
+          continue;
+        }
+        await supabaseAdmin.from('audit_logs').insert({
+          user_id: user.id,
+          action_type: 'reopen',
+          table_name: 'deposit_requests',
+          record_id: r.id,
+          old_values: { status: 'rejected' },
+          new_values: { status: 'pending', reopen_note: reopenNote || 'Reopened for re-review' },
+        });
+        reopened.push({ id: r.id, user_id: r.user_id, amount: Number(r.amount) });
+      }
+      return new Response(
+        JSON.stringify({ success: true, action: 'reopened', count: reopened.length, results: reopened }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
 
     // Treasury guard: block credits when paused (deposits credit user wallets)
     const guardBlock = await checkTreasuryGuard(supabaseAdmin, "credit");
