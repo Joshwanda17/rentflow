@@ -82,7 +82,7 @@ export function RejectedFieldDepositsList() {
         supabase
           .from('deposit_requests')
           .select(
-            'id, user_id, amount, payment_method, transaction_id, rejection_reason, processed_by, rejected_at, deposit_purpose',
+            'id, user_id, amount, provider, transaction_id, rejection_reason, processed_by, rejected_at, deposit_purpose',
           )
           .eq('status', 'rejected')
           .order('rejected_at', { ascending: false })
@@ -125,7 +125,7 @@ export function RejectedFieldDepositsList() {
         id: r.id,
         user_id: r.user_id,
         user_name: nameMap.get(r.user_id) ?? null,
-        channel: r.payment_method ?? null,
+        channel: r.provider ?? null,
         amount: Number(r.amount ?? 0),
         proof_reference: r.transaction_id ?? null,
         rejection_reason: r.rejection_reason ?? null,
