@@ -109,9 +109,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!action || !["approve", "reject"].includes(action)) {
+    if (!action || !["approve", "reject", "reopen"].includes(action)) {
       return new Response(
-        JSON.stringify({ error: "Invalid action. Must be 'approve' or 'reject'" }),
+        JSON.stringify({ error: "Invalid action. Must be 'approve', 'reject', or 'reopen'" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
