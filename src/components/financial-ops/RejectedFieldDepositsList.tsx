@@ -125,8 +125,7 @@ export function RejectedFieldDepositsList() {
         id: r.id,
         user_id: r.user_id,
         user_name: nameMap.get(r.user_id) ?? null,
-        channel: r.payment_method ?? null,
-        // payment provider (mtn/airtel/bank/cash)
+        channel: r.provider ?? null,
         amount: Number(r.amount ?? 0),
         proof_reference: r.transaction_id ?? null,
         rejection_reason: r.rejection_reason ?? null,
