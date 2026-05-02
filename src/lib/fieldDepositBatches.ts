@@ -294,6 +294,21 @@ export async function rejectBatchAsFinOps(batchId: string, reason: string) {
 }
 
 /**
+ * Re-open a previously-rejected batch so Financial Ops can re-review and
+ * potentially approve it. The batch flips back to `pending_finops_verification`
+ * and re-appears in the standard verification queue. Verified batches cannot
+ * be reopened — their ledger entries are immutable.
+ */
+export async function reopenBatchAsFinOps(batchId: string, note?: string) {
+  const { data, error } = await supabase.functions.invoke('verify-field-deposit', {
+    body: { action: 'reopen', batch_id: batchId, reason: note ?? '' },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
+/**
  * Fallback commission rate used ONLY when stored config cannot be loaded.
  * The authoritative rate lives in `field_deposit_commission_config` and is
  * fetched via `getFieldDepositCommissionConfig()`. The UI must display a
