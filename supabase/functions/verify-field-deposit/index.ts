@@ -104,6 +104,51 @@ Deno.serve(async (req) => {
       return json(200, { success: true, action: "rejected" });
     }
 
+    if (action === "reopen") {
+      // Re-open a previously-rejected batch so Financial Ops can re-review and
+      // potentially approve it. Only `rejected` batches are eligible — verified
+      // ones already wrote ledger entries and must not be touched here.
+      // We re-load the batch without the earlier status guard.
+      const { data: rejBatch, error: rejErr } = await admin
+        .from("field_deposit_batches")
+        .select("id, status")
+        .eq("id", batchId)
+        .single();
+      if (rejErr || !rejBatch) return json(404, { error: "Batch not found" });
+      if (rejBatch.status !== "rejected") {
+        return json(400, {
+          error: `Only rejected batches can be reopened (current: ${rejBatch.status})`,
+        });
+      }
+      const reopenNote = String(body.reason ?? "").trim();
+      const { error: updErr } = await admin
+        .from("field_deposit_batches")
+        .update({
+          status: "pending_finops_verification",
+          rejection_reason: null,
+          finops_verified_by: null,
+          finops_verified_at: null,
+        })
+        .eq("id", batchId);
+      if (updErr) {
+        console.error("reopen update error", updErr);
+        return json(500, { error: updErr.message });
+      }
+      // Best-effort audit trail entry — table name follows existing helper
+      // `listBatchAuditTrail` source (`field_deposit_batch_audit`).
+      await admin.from("field_deposit_batch_audit").insert({
+        batch_id: batchId,
+        event: "proof_submitted", // reuse closest existing event for re-review
+        actor_user_id: user.id,
+        actor_role: "financial_ops",
+        details: {
+          reopened: true,
+          note: reopenNote || "Reopened for re-review",
+        },
+      });
+      return json(200, { success: true, action: "reopened" });
+    }
+
     return json(400, { error: "Unknown action. Use 'verify' or 'reject'." });
   } catch (err) {
     console.error("verify-field-deposit unexpected", err);
