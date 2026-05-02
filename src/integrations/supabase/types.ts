@@ -14414,16 +14414,26 @@ export type Database = {
           test_name: string
         }[]
       }
-      agent_allocate_tenant_payment: {
-        Args: {
-          p_agent_id: string
-          p_amount: number
-          p_notes?: string
-          p_rent_request_id: string
-          p_tenant_id: string
-        }
-        Returns: Json
-      }
+      agent_allocate_tenant_payment:
+        | {
+            Args: {
+              p_agent_id: string
+              p_amount: number
+              p_description?: string
+              p_rent_request_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_agent_id: string
+              p_amount: number
+              p_notes?: string
+              p_rent_request_id: string
+              p_tenant_id: string
+            }
+            Returns: Json
+          }
       agent_delete_rejected_rent_request: {
         Args: { p_reason: string; p_request_id: string }
         Returns: string
