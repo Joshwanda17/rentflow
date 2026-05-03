@@ -282,8 +282,8 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               hapticTap();
               setReceiptDialogOpen(true);
             }}
-            className="relative w-full rounded-3xl overflow-hidden border border-border shadow-lg group active:scale-[0.99] transition-transform bg-amber-50 dark:bg-muted flex items-center justify-center p-3 sm:p-4"
-            style={{ height: 'min(58vh, 70vw, 520px)', minHeight: '220px' }}
+            className="relative w-full rounded-3xl overflow-hidden border border-border shadow-lg group active:scale-[0.99] transition-transform bg-amber-50 dark:bg-muted flex items-center justify-center p-1.5 sm:p-3"
+            style={{ height: 'min(68vh, 92vw, 560px)', minHeight: '320px' }}
             aria-label="Welile Bread — tap to enter a Welile receipt and save 5%"
             aria-describedby="bread-card-desc"
           >
