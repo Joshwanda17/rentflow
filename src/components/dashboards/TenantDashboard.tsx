@@ -403,7 +403,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           </button>
 
           {/* Invite & Earn — kept on home for growth */}
-          <InviteAndEarnCard variant="tenant" />
+          <InviteAndEarnCard variant="tenant" compact />
         </main>
       </div>
 
