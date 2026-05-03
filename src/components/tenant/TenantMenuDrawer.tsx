@@ -24,6 +24,7 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
+import { cn } from '@/lib/utils';
 import type { ReactNode } from 'react';
 import { formatUGX } from '@/lib/rentCalculations';
 
