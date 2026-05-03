@@ -14,7 +14,7 @@ const BROADCAST_CHANNEL_NAME = 'welile-bread-price';
 const REALTIME_CHANNEL_NAME = 'welile-bread-price-global';
 const REALTIME_EVENT = 'bread-price-changed';
 
-function broadcastChange() {
+export function broadcastBreadPriceChange() {
   if (typeof window === 'undefined') return;
   try {
     window.dispatchEvent(new Event(BREAD_RECEIPT_EVENT));
