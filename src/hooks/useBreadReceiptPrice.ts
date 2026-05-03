@@ -18,6 +18,7 @@ export interface BreadPriceState {
   freeBreads: number;
   hasReceipt: boolean;
   receiptAmount: number;
+  savedAt: number | null;
 }
 
 function compute(): BreadPriceState {
@@ -27,6 +28,7 @@ function compute(): BreadPriceState {
     freeBreads: 0,
     hasReceipt: false,
     receiptAmount: 0,
+    savedAt: null,
   };
   if (typeof window === 'undefined') return base;
   try {
@@ -45,6 +47,7 @@ function compute(): BreadPriceState {
       freeBreads,
       hasReceipt: true,
       receiptAmount: parsed.amount,
+      savedAt: typeof parsed.savedAt === 'number' ? parsed.savedAt : null,
     };
   } catch {
     return base;
