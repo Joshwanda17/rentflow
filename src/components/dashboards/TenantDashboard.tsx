@@ -400,6 +400,17 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                   {formatUGX(breadPrice.basePrice)}
                 </span>
               )}
+              {breadPrice.hasReceipt && (
+                <div className="mt-1.5 pt-1.5 border-t border-white/25 w-full flex flex-col items-end gap-0.5 text-[9px] leading-tight font-medium opacity-95">
+                  <span>Receipt: {formatUGX(breadPrice.receiptAmount)}</span>
+                  {breadPrice.freeBreads > 0 && (
+                    <span>Free breads: {breadPrice.freeBreads}×</span>
+                  )}
+                  <span>
+                    Now: {breadPrice.reducedPrice === 0 ? 'FREE' : formatUGX(breadPrice.reducedPrice)}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Add Welile Receipt CTA — directly below price badge */}
