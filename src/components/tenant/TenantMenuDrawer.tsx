@@ -20,11 +20,14 @@ import {
   PiggyBank,
   FileText,
   Search,
+  Wallet,
+  ArrowUpRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
 import { Separator } from '@/components/ui/separator';
 import type { ReactNode } from 'react';
+import { formatUGX } from '@/lib/rentCalculations';
 
 interface TenantMenuDrawerProps {
   open: boolean;
@@ -35,6 +38,8 @@ interface TenantMenuDrawerProps {
   onRentCalculator: () => void;
   onBrowseHouses?: () => void;
   extraContent?: ReactNode;
+  walletBalance?: number;
+  onOpenWallet?: () => void;
 }
 
 interface MenuSection {
@@ -61,6 +66,8 @@ export function TenantMenuDrawer({
   onRentCalculator,
   onBrowseHouses,
   extraContent,
+  walletBalance = 0,
+  onOpenWallet,
 }: TenantMenuDrawerProps) {
   const navigate = useNavigate();
 
@@ -81,20 +88,7 @@ export function TenantMenuDrawer({
 
   const menuSections: MenuSection[] = [
     {
-      title: 'Find a Home',
-      items: [
-        ...(onBrowseHouses ? [{ 
-          icon: Search, 
-          label: 'Available Houses — Daily Rent', 
-          description: 'Browse affordable houses, pay daily',
-          onClick: onBrowseHouses,
-          color: 'text-success',
-          badge: 'New'
-        } as MenuItem] : []),
-      ]
-    },
-    {
-      title: 'Payments',
+      title: 'Money',
       items: [
         { 
           icon: Calendar, 
@@ -118,66 +112,12 @@ export function TenantMenuDrawer({
           onClick: onPayWelile,
           color: 'text-amber-500'
         },
-      ]
-    },
-    {
-      title: 'Tools',
-      items: [
-        { 
-          icon: Receipt, 
-          label: 'Post Shopping Receipt', 
-          description: 'Earn loan limits & rent discounts',
-          path: '/my-receipts',
-          color: 'text-teal-500',
-          badge: 'Earn benefits'
-        },
-        { 
-          icon: Calculator, 
-          label: 'Rent Calculator', 
-          description: 'Calculate daily repayment',
-          onClick: onRentCalculator,
-          color: 'text-indigo-500'
-        },
         { 
           icon: Banknote, 
           label: 'My Loans', 
           description: 'View & manage loans',
           path: '/my-loans',
           color: 'text-green-500'
-        },
-        { 
-          icon: ShoppingBag, 
-          label: 'Marketplace', 
-          description: 'Shop & earn loan access',
-          path: '/marketplace',
-          color: 'text-orange-500',
-          badge: 'Loans up to 30M'
-        },
-      ]
-    },
-    {
-      title: 'Growth',
-      items: [
-        { 
-          icon: PiggyBank, 
-          label: 'Welile Homes', 
-          description: 'Turn rent into future home',
-          path: '/welile-homes',
-          color: 'text-emerald-500'
-        },
-        { 
-          icon: Users, 
-          label: 'My Referrals', 
-          description: 'People you invited',
-          path: '/referrals',
-          color: 'text-purple-500'
-        },
-        { 
-          icon: Share2, 
-          label: 'Share & Earn', 
-          description: 'Invite friends for rewards',
-          path: '/benefits',
-          color: 'text-pink-500'
         },
         { 
           icon: History, 
@@ -193,11 +133,66 @@ export function TenantMenuDrawer({
           path: '/financial-statement',
           color: 'text-indigo-500'
         },
+        { 
+          icon: Receipt, 
+          label: 'My Receipts', 
+          description: 'Earn rewards & rent discounts',
+          path: '/my-receipts',
+          color: 'text-teal-500',
+        },
       ]
     },
     {
-      title: 'More',
+      title: 'Home',
       items: [
+        ...(onBrowseHouses ? [{ 
+          icon: Search, 
+          label: 'Available Houses — Daily Rent', 
+          description: 'Browse affordable houses, pay daily',
+          onClick: onBrowseHouses,
+          color: 'text-success',
+          badge: 'New'
+        } as MenuItem] : []),
+        { 
+          icon: PiggyBank, 
+          label: 'Welile Homes', 
+          description: 'Turn rent into a future home',
+          path: '/welile-homes',
+          color: 'text-emerald-500'
+        },
+        { 
+          icon: Calculator, 
+          label: 'Rent Calculator', 
+          description: 'Estimate your daily plan',
+          onClick: onRentCalculator,
+          color: 'text-indigo-500'
+        },
+        { 
+          icon: ShoppingBag, 
+          label: 'Marketplace', 
+          description: 'Shop daily essentials',
+          path: '/marketplace',
+          color: 'text-orange-500',
+        },
+      ]
+    },
+    {
+      title: 'Profile',
+      items: [
+        { 
+          icon: Users, 
+          label: 'My Referrals', 
+          description: 'People you have invited',
+          path: '/referrals',
+          color: 'text-purple-500'
+        },
+        { 
+          icon: Share2, 
+          label: 'Share & Earn', 
+          description: 'Invite friends for rewards',
+          path: '/benefits',
+          color: 'text-pink-500'
+        },
         { 
           icon: ScrollText, 
           label: 'Tenant Agreement', 
@@ -206,18 +201,23 @@ export function TenantMenuDrawer({
           color: 'text-muted-foreground'
         },
         { 
-          icon: Download, 
-          label: 'Share App', 
-          description: 'Invite friends to Welile',
-          path: '/install',
-          color: 'text-primary'
-        },
-        { 
           icon: Settings, 
           label: 'Settings', 
           description: 'Account preferences',
           path: '/settings',
           color: 'text-muted-foreground'
+        },
+      ]
+    },
+    {
+      title: 'Support',
+      items: [
+        { 
+          icon: Download, 
+          label: 'Share App', 
+          description: 'Invite friends to Welile',
+          path: '/install',
+          color: 'text-primary'
         },
         { 
           icon: HelpCircle, 
@@ -268,6 +268,29 @@ export function TenantMenuDrawer({
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto overscroll-contain">
               <div className="p-4 space-y-6">
+                {/* Wallet hero — always at the very top, easily visible */}
+                {onOpenWallet && (
+                  <button
+                    onClick={() => { hapticSuccess(); onOpenWallet(); }}
+                    className="w-full text-left rounded-2xl p-4 bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg active:scale-[0.99] transition-transform"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="h-11 w-11 rounded-xl bg-primary-foreground/15 flex items-center justify-center">
+                          <Wallet className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="text-[11px] uppercase tracking-widest opacity-80 font-semibold">My Wallet</p>
+                          <p className="text-xl font-extrabold leading-tight">{formatUGX(walletBalance)}</p>
+                        </div>
+                      </div>
+                      <div className="h-9 w-9 rounded-full bg-primary-foreground/15 flex items-center justify-center shrink-0">
+                        <ArrowUpRight className="h-4 w-4" />
+                      </div>
+                    </div>
+                  </button>
+                )}
+
                 {extraContent && (
                   <div className="space-y-4 pb-2">
                     {extraContent}
