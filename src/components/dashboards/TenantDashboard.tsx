@@ -4,7 +4,6 @@ import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useOffline } from '@/contexts/OfflineContext';
 import { 
-  Wallet,
   FileText,
   Menu,
   WifiOff,
@@ -21,14 +20,13 @@ import DashboardHeader from '@/components/DashboardHeader';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { TenantDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
-import { WalletHeroSkeleton, ListSectionSkeleton } from '@/components/skeletons/SectionSkeletons';
+import { ListSectionSkeleton } from '@/components/skeletons/SectionSkeletons';
 import { PayLandlordDialog } from '@/components/wallet/PayLandlordDialog';
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
 import { WalletDisclaimer } from '@/components/wallet/WalletDisclaimer';
 import { useWallet } from '@/hooks/useWallet';
 import { hapticTap } from '@/lib/haptics';
 import AiIdButton from '@/components/ai-id/AiIdButton';
-import { UnifiedWalletHeroCard } from '@/components/wallet/UnifiedWalletHeroCard';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
 import { InviteAndEarnCard } from '@/components/shared/InviteAndEarnCard';
 import { SubscriptionStatusCard } from '@/components/tenant/SubscriptionStatusCard';
@@ -277,20 +275,6 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             <AiIdButton variant="compact" />
           </motion.div>
 
-          {/* Compact Wallet Hero Card */}
-          {wallet ? (
-            <div className="origin-top scale-[0.88] -mb-2">
-              <UnifiedWalletHeroCard
-                balance={wallet?.balance ?? 0}
-                role="tenant"
-                secondaryLabel="Used for Rent"
-                secondaryValue={formatUGX(rentRequests.find(r => ['approved', 'funded', 'disbursed', 'repaying'].includes(r.status))?.rent_amount ?? 0)}
-              />
-            </div>
-          ) : (
-            <WalletHeroSkeleton />
-          )}
-
           {/* Big appetizing bread hero — fills remaining space */}
           <button
             type="button"
@@ -417,6 +401,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             </div>
             <span className="text-xs text-muted-foreground">→</span>
           </button>
+
+          {/* Invite & Earn — kept on home for growth */}
+          <InviteAndEarnCard variant="tenant" />
         </main>
       </div>
 
@@ -441,6 +428,8 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
       <TenantMenuDrawer
         open={menuOpen}
         onOpenChange={setMenuOpen}
+        walletBalance={wallet?.balance ?? 0}
+        onOpenWallet={() => { setMenuOpen(false); setShowWallet(true); }}
         onPayLandlord={() => hasAcceptedTerms ? setShowPayLandlord(true) : setShowAgreementModal(true)}
         onPayWelile={() => hasAcceptedTerms ? setShowPaymentPartners(true) : setShowAgreementModal(true)}
         onRepaymentSchedule={() => setShowRepaymentSchedule(prev => !prev)}
