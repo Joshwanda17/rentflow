@@ -281,6 +281,15 @@ export default function MyReceipts() {
       </header>
 
       <main className="container mx-auto px-4 py-6 pb-24 space-y-6">
+        {!isOnline && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-warning/10 border border-warning/20 text-xs text-warning">
+            <WifiOff className="h-3.5 w-3.5 shrink-0" />
+            <span className="flex-1">
+              You're offline — showing last saved receipts
+              {cachedAt ? ` from ${format(new Date(cachedAt), 'MMM dd, HH:mm')}` : ''}. Submitting a new receipt requires connection.
+            </span>
+          </div>
+        )}
         {/* Stats Overview - Horizontal scroll on mobile */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <motion.div
