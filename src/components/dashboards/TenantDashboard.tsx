@@ -71,7 +71,7 @@ import {
 } from '@/hooks/useBreadReceiptPrice';
 import { WelileReceiptDialog } from '@/components/tenant/WelileReceiptDialog';
 import { ClaimBreadDialog } from '@/components/tenant/ClaimBreadDialog';
-import { AddMonthlyRentDialog } from '@/components/tenant/AddMonthlyRentDialog';
+import { AddMonthlyRentDialog, getStoredMonthlyRent } from '@/components/tenant/AddMonthlyRentDialog';
 import { RentDiscountCarousel } from '@/components/tenant/RentDiscountCarousel';
 import { Share2, Plus, Info, Store } from 'lucide-react';
 import { useAvailableBalance } from '@/hooks/useAvailableBalance';
@@ -182,6 +182,14 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
   const [claimBreadOpen, setClaimBreadOpen] = useState(false);
   const [addRentOpen, setAddRentOpen] = useState(false);
+  const [savedMonthlyRent, setSavedMonthlyRent] = useState<number | null>(() => getStoredMonthlyRent());
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'welile.tenant.monthlyRent') setSavedMonthlyRent(getStoredMonthlyRent());
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
   const { available: withdrawableAvailable } = useAvailableBalance();
   const breadPrice = useBreadReceiptPrice();
   const [freeBreadsInfoOpen, setFreeBreadsInfoOpen] = useState(false);
@@ -470,13 +478,19 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               aria-label={`Welile Rent Fees price ${formatUGX(breadPrice.reducedPrice)}. Tap to add your monthly rent.`}
             >
               <span className="text-[9px] font-semibold uppercase tracking-[0.18em] leading-none opacity-90">
-                {breadPrice.freeBreads > 0
-                  ? 'Free today'
-                  : breadPrice.reducedPrice < breadPrice.basePrice
-                    ? 'Receipt applied'
-                    : 'Fresh today'}
+                {savedMonthlyRent
+                  ? 'Your monthly rent'
+                  : breadPrice.freeBreads > 0
+                    ? 'Free today'
+                    : breadPrice.reducedPrice < breadPrice.basePrice
+                      ? 'Receipt applied'
+                      : 'Tap to add rent'}
               </span>
-              {breadPrice.freeBreads > 0 ? (
+              {savedMonthlyRent ? (
+                <span className="text-base sm:text-lg font-extrabold leading-none">
+                  {formatUGX(savedMonthlyRent)}
+                </span>
+              ) : breadPrice.freeBreads > 0 ? (
                 <span className="flex items-baseline gap-1.5">
                   <span className="text-base sm:text-lg font-extrabold leading-none">FREE</span>
                   <span className="text-[10px] line-through opacity-80 leading-none">
@@ -746,6 +760,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             ? Math.max(0, (breadPrice.basePrice - breadPrice.reducedPrice) / breadPrice.basePrice)
             : 0
         }
+        onSaved={(rent) => setSavedMonthlyRent(rent)}
       />
 
       {/* Menu Drawer */}
