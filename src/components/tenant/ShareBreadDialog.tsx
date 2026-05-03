@@ -18,6 +18,7 @@ import { useAvailableBalance } from '@/hooks/useAvailableBalance';
 import { formatUGX } from '@/lib/rentCalculations';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { broadcastBreadPriceChange } from '@/hooks/useBreadReceiptPrice';
 
 export const WELILE_BREAD_PRICE = 6500;
 export const WELILE_BREAD_MAX_QTY = 50;
@@ -123,6 +124,7 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
     } catch {
       /* storage unavailable — discount still applies in-memory */
     }
+    broadcastBreadPriceChange();
     toast.success('Receipt applied', {
       description: `5% of ${formatUGX(amt)} = ${formatUGX(Math.round(amt * WELILE_BREAD_DISCOUNT_RATE))} off`,
       duration: 4000,
@@ -137,6 +139,7 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
     } catch {
       /* noop */
     }
+    broadcastBreadPriceChange();
   };
 
   // Force a fresh withdrawable read every time the dialog opens. The hook
