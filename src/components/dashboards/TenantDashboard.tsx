@@ -62,7 +62,7 @@ import welileLogo from '@/assets/welile-logo.png';
 import { ShareBreadDialog, WELILE_BREAD_PRICE } from '@/components/tenant/ShareBreadDialog';
 import { useBreadReceiptPrice } from '@/hooks/useBreadReceiptPrice';
 import { WelileReceiptDialog } from '@/components/tenant/WelileReceiptDialog';
-import { Share2, Plus } from 'lucide-react';
+import { Share2, Plus, Info } from 'lucide-react';
 import { useAvailableBalance } from '@/hooks/useAvailableBalance';
 
 interface TenantDashboardProps {
@@ -137,6 +137,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
   const { available: withdrawableAvailable } = useAvailableBalance();
   const breadPrice = useBreadReceiptPrice();
+  const [freeBreadsInfoOpen, setFreeBreadsInfoOpen] = useState(false);
 
   const handleAcceptAgreement = async () => {
     setIsAcceptingAgreement(true);
@@ -404,11 +405,45 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                 <div className="mt-1.5 pt-1.5 border-t border-white/25 w-full flex flex-col items-end gap-0.5 text-[9px] leading-tight font-medium opacity-95">
                   <span>Receipt: {formatUGX(breadPrice.receiptAmount)}</span>
                   {breadPrice.freeBreads > 0 && (
-                    <span>Free breads: {breadPrice.freeBreads}×</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        hapticTap();
+                        setFreeBreadsInfoOpen((v) => !v);
+                      }}
+                      aria-expanded={freeBreadsInfoOpen}
+                      aria-label="What does Free breads mean?"
+                      className="inline-flex items-center gap-1 rounded-full bg-white/15 hover:bg-white/25 px-1.5 py-0.5 -mr-0.5 transition-colors"
+                    >
+                      <span>Free breads: {breadPrice.freeBreads}×</span>
+                      <Info className="h-2.5 w-2.5 opacity-90" />
+                    </button>
                   )}
                   <span>
                     Now: {breadPrice.reducedPrice === 0 ? 'FREE' : formatUGX(breadPrice.reducedPrice)}
                   </span>
+                  {freeBreadsInfoOpen && breadPrice.freeBreads > 0 && (
+                    <div
+                      role="tooltip"
+                      className="mt-1.5 w-[180px] rounded-lg bg-foreground/95 text-background p-2 text-[9px] leading-snug font-medium text-left shadow-xl ring-1 ring-white/10"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <p className="font-bold mb-1">How free breads work</p>
+                      <p className="opacity-90">
+                        You earn 5% of your receipt as bread credit.
+                      </p>
+                      <p className="mt-1 opacity-90">
+                        {formatUGX(breadPrice.receiptAmount)} × 5% ={' '}
+                        {formatUGX(Math.round(breadPrice.receiptAmount * 0.05))} credit.
+                      </p>
+                      <p className="mt-1 opacity-90">
+                        Each {formatUGX(breadPrice.basePrice)} of credit ={' '}
+                        1 free bread → {breadPrice.freeBreads}× free.
+                      </p>
+                      <p className="mt-1 opacity-70">Tap again to close.</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
