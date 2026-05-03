@@ -7,6 +7,7 @@ import { hapticTap } from '@/lib/haptics';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { SellerMapPreview, type MapSeller } from './SellerMapPreview';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
 
 interface ClaimBreadDialogProps {
   open: boolean;
@@ -53,6 +54,7 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [pinDetailsId, setPinDetailsId] = useState<string | null>(null);
   const rowRefs = useRef<Record<string, HTMLLIElement | null>>({});
 
   useEffect(() => {
@@ -160,15 +162,27 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
     [sortedSellers],
   );
 
-  const handleMapSelect = (id: string) => {
+  const handleMapPinTap = (id: string) => {
     hapticTap();
     setSelectedId(id);
+    setPinDetailsId(id);
+  };
+
+  const handleSelectFromDrawer = (id: string) => {
+    hapticTap();
+    setSelectedId(id);
+    setPinDetailsId(null);
     setView('list');
     setTimeout(() => {
       const el = rowRefs.current[id];
       el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 50);
   };
+
+  const pinSeller = useMemo(
+    () => (pinDetailsId ? sellers.find((s) => s.id === pinDetailsId) ?? null : null),
+    [pinDetailsId, sellers],
+  );
 
   const requestLocation = () => {
     if (!('geolocation' in navigator)) {
@@ -322,7 +336,7 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
               sellers={mappableSellers}
               userCoords={coords}
               selectedId={selectedId}
-              onSelect={handleMapSelect}
+              onSelect={handleMapPinTap}
             />
           )
         ) : (
