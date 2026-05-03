@@ -102,10 +102,8 @@ export function TenantMenuDrawer({
     });
   };
 
-  const setAllCollapsed = (value: boolean) => {
+  const setAllCollapsed = (titles: string[], value: boolean) => {
     hapticSelection();
-    // Use the currently filtered sections set so the action matches what's visible
-    const titles = (filteredSectionsRef.current ?? []).map((s) => s.title);
     setCollapsed((prev) => {
       const next = { ...prev };
       titles.forEach((t) => { next[t] = value; });
