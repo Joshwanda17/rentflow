@@ -623,13 +623,15 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           </button>
 
           {/* Apply your bread discount to rent — horizontally scrollable rentals */}
-          <RentDiscountCarousel
-            discountPct={
-              breadPrice.basePrice > 0
-                ? Math.max(0, (breadPrice.basePrice - breadPrice.reducedPrice) / breadPrice.basePrice)
-                : 0
-            }
-          />
+          <div ref={rentCarouselRef} id="rent-discount-carousel">
+            <RentDiscountCarousel
+              discountPct={
+                breadPrice.basePrice > 0
+                  ? Math.max(0, (breadPrice.basePrice - breadPrice.reducedPrice) / breadPrice.basePrice)
+                  : 0
+              }
+            />
+          </div>
 
           {/* Mini receipt history — last 5 receipts that affected bread price */}
           {breadHistory.length > 0 && (
