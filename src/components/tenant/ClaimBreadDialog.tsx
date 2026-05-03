@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { MapPin, Navigation, Store, Phone, CheckCircle2, Loader2 } from 'lucide-react';
+import { MapPin, Navigation, Store, Phone, CheckCircle2, Loader2, List, Map as MapIcon } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap } from '@/lib/haptics';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { SellerMapPreview, type MapSeller } from './SellerMapPreview';
 
 interface ClaimBreadDialogProps {
   open: boolean;
@@ -22,7 +23,20 @@ interface NearbySeller {
   distanceKm: number | null;
   address: string | null;
   phone: string | null;
+  latitude: number | null;
+  longitude: number | null;
   inStock: boolean;
+}
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
 }
 
 export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, freeBreads, hasReceipt }: ClaimBreadDialogProps) {
@@ -34,11 +48,16 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
   const [sellers, setSellers] = useState<NearbySeller[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useState<'list' | 'map'>('list');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const rowRefs = useRef<Record<string, HTMLLIElement | null>>({});
 
   useEffect(() => {
     if (!open) {
       setClaimedId(null);
       setClaimingId(null);
+      setSelectedId(null);
+      setView('list');
       return;
     }
     let cancelled = false;
@@ -47,7 +66,7 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
     (async () => {
       const { data, error: dbError } = await supabase
         .from('vendors')
-        .select('id, name, location, phone')
+        .select('id, name, location, phone, latitude, longitude')
         .eq('active', true)
         .order('name', { ascending: true })
         .limit(50);
@@ -57,12 +76,14 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
         setSellers([]);
       } else {
         setSellers(
-          (data ?? []).map((v) => ({
+          (data ?? []).map((v: any) => ({
             id: v.id,
             name: v.name,
             address: v.location ?? null,
             phone: v.phone ?? null,
             distanceKm: null,
+            latitude: v.latitude ?? null,
+            longitude: v.longitude ?? null,
             inStock: true,
           })),
         );
@@ -74,7 +95,46 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
     };
   }, [open]);
 
-  const sortedSellers = useMemo(() => sellers, [sellers]);
+  const sortedSellers = useMemo(() => {
+    if (!coords) {
+      return [...sellers].sort((a, b) => a.name.localeCompare(b.name));
+    }
+    const withDistance = sellers.map((s) => {
+      if (s.latitude == null || s.longitude == null) return s;
+      return { ...s, distanceKm: haversineKm(coords.lat, coords.lng, s.latitude, s.longitude) };
+    });
+    return withDistance.sort((a, b) => {
+      if (a.distanceKm == null && b.distanceKm == null) return a.name.localeCompare(b.name);
+      if (a.distanceKm == null) return 1;
+      if (b.distanceKm == null) return -1;
+      return a.distanceKm - b.distanceKm;
+    });
+  }, [sellers, coords]);
+
+  const mappableSellers = useMemo<MapSeller[]>(
+    () =>
+      sortedSellers
+        .filter((s) => s.latitude != null && s.longitude != null)
+        .map((s) => ({
+          id: s.id,
+          name: s.name,
+          latitude: s.latitude as number,
+          longitude: s.longitude as number,
+          distanceKm: s.distanceKm,
+          address: s.address,
+        })),
+    [sortedSellers],
+  );
+
+  const handleMapSelect = (id: string) => {
+    hapticTap();
+    setSelectedId(id);
+    setView('list');
+    setTimeout(() => {
+      const el = rowRefs.current[id];
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
+  };
 
   const requestLocation = () => {
     if (!('geolocation' in navigator)) {
@@ -132,18 +192,53 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
         </DialogHeader>
 
         <div className="px-5 py-3 border-b border-border flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
-            <MapPin className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">
-              {coords ? `Near ${coords.lat.toFixed(3)}, ${coords.lng.toFixed(3)}` : 'Showing nearby sellers'}
-            </span>
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="inline-flex rounded-full border border-border bg-muted/40 p-0.5">
+              <button
+                type="button"
+                onClick={() => setView('list')}
+                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${view === 'list' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}
+                aria-pressed={view === 'list'}
+              >
+                <List className="h-3 w-3" /> List
+              </button>
+              <button
+                type="button"
+                onClick={() => setView('map')}
+                disabled={mappableSellers.length === 0}
+                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${view === 'map' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'} disabled:opacity-40`}
+                aria-pressed={view === 'map'}
+              >
+                <MapIcon className="h-3 w-3" /> Map
+              </button>
+            </div>
+            <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-muted-foreground min-w-0">
+              <MapPin className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">
+                {coords ? `Near ${coords.lat.toFixed(3)}, ${coords.lng.toFixed(3)}` : 'Nearby'}
+              </span>
+            </div>
           </div>
           <Button size="sm" variant="outline" className="h-7 text-[11px]" onClick={requestLocation} disabled={locating}>
             {locating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Navigation className="h-3 w-3" />}
-            <span className="ml-1">Use my location</span>
+            <span className="ml-1">My location</span>
           </Button>
         </div>
 
+        {view === 'map' ? (
+          mappableSellers.length === 0 ? (
+            <div className="px-5 py-10 text-center text-xs text-muted-foreground">
+              No sellers have map coordinates yet.
+            </div>
+          ) : (
+            <SellerMapPreview
+              sellers={mappableSellers}
+              userCoords={coords}
+              selectedId={selectedId}
+              onSelect={handleMapSelect}
+            />
+          )
+        ) : (
         <ul className="max-h-[55vh] overflow-y-auto divide-y divide-border">
           {loading && (
             <li className="px-5 py-6 flex items-center justify-center text-xs text-muted-foreground">
@@ -161,8 +256,15 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
           {sortedSellers.map((seller) => {
             const isClaiming = claimingId === seller.id;
             const isClaimed = claimedId === seller.id;
+            const isSelected = selectedId === seller.id;
             return (
-              <li key={seller.id} className="px-5 py-3 flex items-center justify-between gap-3">
+              <li
+                key={seller.id}
+                ref={(el) => {
+                  rowRefs.current[seller.id] = el;
+                }}
+                className={`px-5 py-3 flex items-center justify-between gap-3 transition-colors ${isSelected ? 'bg-emerald-50 dark:bg-emerald-950/30' : ''}`}
+              >
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold text-sm text-foreground truncate">{seller.name}</p>
                   {seller.address && (
@@ -210,6 +312,7 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
             );
           })}
         </ul>
+        )}
 
         <div className="px-5 py-3 border-t border-border bg-muted/30">
           <p className="text-[10px] text-muted-foreground text-center">
