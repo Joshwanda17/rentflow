@@ -196,6 +196,23 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const breadPrice = useBreadReceiptPrice();
   const [freeBreadsInfoOpen, setFreeBreadsInfoOpen] = useState(false);
   const breadHistory = useBreadReceiptHistory();
+  // "Updated" indicator: re-renders every 30s so relative time stays fresh.
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNowTick(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+  const breadPriceUpdatedAt = breadPrice.savedAt ?? nowTick;
+  const formatRelativeTime = (ts: number) => {
+    const diffSec = Math.max(0, Math.round((nowTick - ts) / 1000));
+    if (diffSec < 60) return 'just now';
+    const m = Math.floor(diffSec / 60);
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    const d = Math.floor(h / 24);
+    return `${d}d ago`;
+  };
 
   const handleAcceptAgreement = async () => {
     setIsAcceptingAgreement(true);
@@ -527,6 +544,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                   {formatUGX(breadPrice.basePrice)}
                 </span>
               )}
+              <span className="mt-0.5 text-[8.5px] font-medium leading-none opacity-80">
+                Updated {formatRelativeTime(breadPriceUpdatedAt)}
+              </span>
               {breadPrice.hasReceipt && (
                 <div className="mt-1.5 pt-1.5 border-t border-white/25 w-full flex flex-col items-end gap-0.5 text-[9px] leading-tight font-medium opacity-95">
                   <span>Receipt: {formatUGX(breadPrice.receiptAmount)}</span>
