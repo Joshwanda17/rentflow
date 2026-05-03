@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
+import { toast as sonnerToast } from 'sonner';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useOffline } from '@/contexts/OfflineContext';
@@ -199,7 +199,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const wasSyncingRef = useRef(false);
   useEffect(() => {
     if (wasSyncingRef.current && !breadPrice.syncing) {
-      toast.success('Bread price updated', { duration: 1800 });
+      sonnerToast.success('Bread price updated', { duration: 1800 });
     }
     wasSyncingRef.current = breadPrice.syncing;
   }, [breadPrice.syncing]);
