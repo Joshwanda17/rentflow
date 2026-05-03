@@ -239,7 +239,7 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
       setClaimingId(null);
       setClaimedId(seller.id);
       toast({
-        title: 'Bread reserved',
+        title: 'Rent Fees reserved',
         description: `Show this confirmation at ${seller.name} to collect.`,
       });
     }, 700);
@@ -470,7 +470,7 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
 
         <div className="px-5 py-3 border-t border-border bg-muted/30">
           <p className="text-[10px] text-muted-foreground text-center">
-            Reservations hold your bread for 2 hours. Show this screen at pickup.
+            Reservations hold your Rent Fees for 2 hours. Show this screen at pickup.
           </p>
         </div>
       </DialogContent>

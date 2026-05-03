@@ -334,7 +334,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               setReceiptDialogOpen(true);
             }}
             className="relative overflow-hidden shadow-lg group active:scale-[0.99] transition-transform bg-amber-50 dark:bg-muted flex-1 -mx-4 min-h-[80vh] rounded-none border-0 sm:flex-none sm:mx-0 sm:w-full sm:rounded-3xl sm:border sm:border-border sm:min-h-[340px] sm:max-h-[600px] block p-0"
-            aria-label="Welile Bread — tap to enter a Welile receipt and save 5%. Swipe to view rental options."
+            aria-label="Welile Rent Fees — tap to enter a Welile receipt and save 5%. Swipe to view rental options."
             aria-describedby="bread-card-desc"
           >
             {!breadError && (
@@ -401,17 +401,17 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             {breadError && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center px-6" aria-hidden="true">
                 <span className="text-6xl sm:text-7xl" role="img" aria-label="bread">🍞</span>
-                <p className="text-sm font-medium text-foreground/70">Daily Bread</p>
+                <p className="text-sm font-medium text-foreground/70">Daily Rent Fees</p>
                 <p className="text-xs text-muted-foreground">Tap to open menu</p>
               </div>
             )}
 
             <span id="bread-card-desc" className="sr-only">
               {breadError
-                ? 'Bread image unavailable. Tap to enter a Welile receipt and save 5% on your bread.'
+                ? 'Rent Fees image unavailable. Tap to enter a Welile receipt and save 5% on your Rent Fees.'
                 : breadLoaded
-                ? 'Fresh loaf of bread illustration. Tap to enter a Welile receipt and save 5% on your bread.'
-                : 'Bread image is loading. Tap to enter a Welile receipt and save 5% on your bread.'}
+                ? 'Fresh loaf of bread illustration. Tap to enter a Welile receipt and save 5% on your Rent Fees.'
+                : 'Rent Fees image is loading. Tap to enter a Welile receipt and save 5% on your Rent Fees.'}
             </span>
 
             {/* Shimmer placeholder while bread loads */}
@@ -467,7 +467,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                 top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)',
                 right: 'calc(env(safe-area-inset-right, 0px) + 0.75rem)',
               }}
-              aria-label={`Welile Bread price ${formatUGX(breadPrice.reducedPrice)}. Tap to add your monthly rent.`}
+              aria-label={`Welile Rent Fees price ${formatUGX(breadPrice.reducedPrice)}. Tap to add your monthly rent.`}
             >
               <span className="text-[9px] font-semibold uppercase tracking-[0.18em] leading-none opacity-90">
                 {breadPrice.freeBreads > 0
@@ -520,10 +520,10 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                         setFreeBreadsInfoOpen((v) => !v);
                       }}
                       aria-expanded={freeBreadsInfoOpen}
-                      aria-label="What does Free breads mean?"
+                      aria-label="What does Free Rent Fees mean?"
                       className="inline-flex items-center gap-1 rounded-full bg-white/15 hover:bg-white/25 px-1.5 py-0.5 -mr-0.5 transition-colors"
                     >
-                      <span>Free breads: {breadPrice.freeBreads}×</span>
+                      <span>Free Rent Fees: {breadPrice.freeBreads}×</span>
                       <Info className="h-2.5 w-2.5 opacity-90" />
                     </button>
                   )}
@@ -542,7 +542,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                       className="mt-1.5 w-[180px] rounded-lg bg-foreground/95 text-background p-2 text-[9px] leading-snug font-medium text-left shadow-xl ring-1 ring-white/10"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <p className="font-bold mb-1">How free breads work</p>
+                      <p className="font-bold mb-1">How free Rent Fees work</p>
                       <p className="opacity-90">
                         You earn 5% of your receipt as bread credit.
                       </p>
@@ -552,7 +552,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                       </p>
                       <p className="mt-1 opacity-90">
                         Each {formatUGX(breadPrice.basePrice)} of credit ={' '}
-                        1 free bread → {breadPrice.freeBreads}× free.
+                        1 free Rent Fees → {breadPrice.freeBreads}× free.
                       </p>
                       <p className="mt-1 opacity-70">Tap again to close.</p>
                     </div>
@@ -592,7 +592,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                       className="group flex-[1.6] inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white px-3 py-2.5 shadow-md ring-1 ring-emerald-300/40 active:scale-[0.97] transition-transform font-bold text-sm min-h-[44px]"
                     >
                       <Store className="h-4 w-4" />
-                      <span className="leading-tight">{onRental ? 'Claim Rent Discount' : 'Claim Bread'}</span>
+                      <span className="leading-tight">{onRental ? 'Claim Rent Discount' : 'Claim Rent Fees'}</span>
                     </button>
                   );
                 })()}
@@ -620,7 +620,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                     hapticTap();
                     setShareBreadOpen(true);
                   }}
-                  aria-label={`Share a Welile Bread (${formatUGX(WELILE_BREAD_PRICE)}) with another user`}
+                  aria-label={`Share a Welile Rent Fees (${formatUGX(WELILE_BREAD_PRICE)}) with another user`}
                   className="flex-1 inline-flex flex-col items-center justify-center gap-0.5 rounded-xl bg-foreground/5 hover:bg-foreground/10 text-foreground px-2 py-1.5 active:scale-[0.97] transition-transform min-h-[44px]"
                 >
                   <Share2 className="h-4 w-4" />
@@ -630,7 +630,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             </div>
           </button>
 
-          {/* Apply your bread discount to rent — horizontally scrollable rentals */}
+          {/* Apply your Rent Fees discount to rent — horizontally scrollable rentals */}
           <div ref={rentCarouselRef} id="rent-discount-carousel">
             <RentDiscountCarousel
               discountPct={
@@ -713,7 +713,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
       {/* Full-screen wallet sheet */}
       <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />
 
-      {/* Share Welile Bread dialog */}
+      {/* Share Welile Rent Fees dialog */}
       <ShareBreadDialog
         open={shareBreadOpen}
         onOpenChange={setShareBreadOpen}

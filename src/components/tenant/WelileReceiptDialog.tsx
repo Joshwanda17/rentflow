@@ -152,7 +152,7 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
 
   const grossAmount = WELILE_BREAD_PRICE; // single bread reference price
   // Total redeemable credit from this receipt (5%). When credit ≥ one bread
-  // price, the user earns whole free breads and any remainder rolls over to
+  // price, the user earns whole free Rent Fees and any remainder rolls over to
   // the next bread they buy.
   const totalCredit = applied
     ? Math.round(applied.amount * WELILE_BREAD_DISCOUNT_RATE)
@@ -175,7 +175,7 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
   const discountAmount = rollover.freeBreads > 0
     ? grossAmount - WELILE_BREAD_MIN_PAYABLE === 0
       ? grossAmount
-      : grossAmount - WELILE_BREAD_MIN_PAYABLE + 0 // not used when free breads exist
+      : grossAmount - WELILE_BREAD_MIN_PAYABLE + 0 // not used when free Rent Fees exist
     : rollover.nextBreadDiscount;
   const reducedPrice = rollover.freeBreads > 0 ? 0 : rollover.nextBreadPrice;
 
@@ -215,7 +215,7 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
     const free = Math.floor(credit / WELILE_BREAD_PRICE);
     const remainder = credit - free * WELILE_BREAD_PRICE;
     toast.success(
-      free > 0 ? `${free}× free bread${free > 1 ? 's' : ''} earned` : 'Receipt applied',
+      free > 0 ? `${free}× free Rent Fees${free > 1 ? 's' : ''} earned` : 'Receipt applied',
       {
         description:
           free > 0
@@ -277,7 +277,7 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
 
   /**
    * Share the active claim with anyone (friend, family, neighbour) so
-   * they can pick up the discounted/free bread at the chosen partner
+   * they can pick up the discounted/free Rent Fees at the chosen partner
    * store. Uses the native share sheet (WhatsApp, SMS, etc.) with a
    * clipboard fallback.
    */
@@ -326,7 +326,7 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
                 Welile Receipt
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground leading-snug">
-                Save 5% on your bread with any receipt
+                Save 5% on your Rent Fees with any receipt
               </DialogDescription>
             </div>
             {!online && (
@@ -356,7 +356,7 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
                     {formatUGX(grossAmount)}
                   </span>
                   <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/40 rounded-full px-2 py-0.5">
-                    {rollover.freeBreads}× free bread
+                    {rollover.freeBreads}× free Rent Fees
                   </span>
                 </>
               ) : discountAmount > 0 ? (
@@ -397,7 +397,7 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold text-emerald-900 dark:text-emerald-100">
                     {rollover.freeBreads > 0
-                      ? `${rollover.freeBreads}× free bread${rollover.freeBreads > 1 ? 's' : ''} earned`
+                      ? `${rollover.freeBreads}× free Rent Fees${rollover.freeBreads > 1 ? 's' : ''} earned`
                       : 'Receipt applied'}
                   </p>
                   <p className="font-mono text-sm font-bold text-emerald-950 dark:text-emerald-50 truncate">
@@ -438,7 +438,7 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
                   </div>
                   <div className="rounded-lg bg-emerald-100/60 dark:bg-emerald-900/40 p-2.5 text-[11px] text-emerald-900 dark:text-emerald-100 leading-snug text-center">
                     {claim.freeBreads > 0
-                      ? `Cashier charges ${formatUGX(0)} — ${claim.freeBreads}× free bread`
+                      ? `Cashier charges ${formatUGX(0)} — ${claim.freeBreads}× free Rent Fees`
                       : `Cashier charges ${formatUGX(claim.payableForNext)} (was ${formatUGX(grossAmount)})`}
                   </div>
                   <Button
@@ -498,7 +498,7 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
                   >
                     <Ticket className="h-4 w-4" />
                     {rollover.freeBreads > 0
-                      ? `Get claim code — ${rollover.freeBreads}× free bread`
+                      ? `Get claim code — ${rollover.freeBreads}× free Rent Fees`
                       : `Get claim code — pay ${formatUGX(reducedPrice)}`}
                   </Button>
                   <p className="text-[11px] text-center text-muted-foreground">
@@ -554,7 +554,7 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
                     </div>
                     {previewFree > 0 && (
                       <div className="flex items-center justify-between gap-3">
-                        <dt className="text-muted-foreground">Free breads</dt>
+                        <dt className="text-muted-foreground">Free Rent Fees</dt>
                         <dd className="font-semibold text-emerald-700 dark:text-emerald-400 tabular-nums">
                           {previewFree}× free
                         </dd>
@@ -749,7 +749,7 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
                   inputMode="numeric"
                 />
                 <p className="text-[11px] text-muted-foreground">
-                  We take 5% of this as a discount on your bread.
+                  We take 5% of this as a discount on your Rent Fees.
                 </p>
               </div>
 
