@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { MapPin, Navigation, Store, Phone, CheckCircle2, Loader2, List, Map as MapIcon, Filter } from 'lucide-react';
+import { MapPin, Navigation, Store, Phone, CheckCircle2, Loader2, List, Map as MapIcon, Filter, Search, X } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap } from '@/lib/haptics';
 import { useToast } from '@/hooks/use-toast';
@@ -52,6 +52,7 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
   const [view, setView] = useState<'list' | 'map'>('list');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const rowRefs = useRef<Record<string, HTMLLIElement | null>>({});
 
   useEffect(() => {
@@ -107,10 +108,19 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
   }, [sellers]);
 
   const filteredSellers = useMemo(() => {
-    if (categoryFilter === 'all') return sellers;
-    if (categoryFilter === 'uncategorized') return sellers.filter((s) => !s.category);
-    return sellers.filter((s) => s.category === categoryFilter);
-  }, [sellers, categoryFilter]);
+    let list = sellers;
+    if (categoryFilter === 'uncategorized') list = list.filter((s) => !s.category);
+    else if (categoryFilter !== 'all') list = list.filter((s) => s.category === categoryFilter);
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      list = list.filter(
+        (s) =>
+          s.name.toLowerCase().includes(q) ||
+          (s.address ?? '').toLowerCase().includes(q),
+      );
+    }
+    return list;
+  }, [sellers, categoryFilter, searchQuery]);
 
   const sortedSellers = useMemo(() => {
     if (!coords) {
@@ -127,6 +137,13 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
       return a.distanceKm - b.distanceKm;
     });
   }, [filteredSellers, coords]);
+
+  // Auto-focus map on first matching seller while typing
+  useEffect(() => {
+    if (!searchQuery.trim()) return;
+    const first = sortedSellers.find((s) => s.latitude != null && s.longitude != null);
+    if (first) setSelectedId(first.id);
+  }, [searchQuery, sortedSellers]);
 
   const mappableSellers = useMemo<MapSeller[]>(
     () =>
@@ -240,6 +257,29 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
             {locating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Navigation className="h-3 w-3" />}
             <span className="ml-1">My location</span>
           </Button>
+        </div>
+
+        <div className="px-5 py-2 border-b border-border">
+          <div className="relative">
+            <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search sellers by name or area…"
+              className="w-full h-8 pl-8 pr-8 rounded-full border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="Clear search"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
         </div>
 
         {(categories.length > 0 || sellers.some((s) => !s.category)) && (
