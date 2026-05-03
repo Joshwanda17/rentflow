@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
@@ -23,11 +23,17 @@ import {
   Search,
   Wallet,
   ArrowUpRight,
+  Copy,
+  Info,
+  Link2,
 } from 'lucide-react';
-import { hapticTap, hapticSuccess, hapticImpact, hapticSelection } from '@/lib/haptics';
+import { hapticTap, hapticSuccess, hapticImpact, hapticSelection, haptic } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import type { ReactNode } from 'react';
 import { formatUGX } from '@/lib/rentCalculations';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { useToast } from '@/hooks/use-toast';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
 
 interface TenantMenuDrawerProps {
   open: boolean;
@@ -72,6 +78,78 @@ export function TenantMenuDrawer({
   const navigate = useNavigate();
   const location = useLocation();
   const [query, setQuery] = useState('');
+  const { toast } = useToast();
+  const [quickAction, setQuickAction] = useState<MenuItem | null>(null);
+  const longPressTimer = useRef<number | null>(null);
+  const longPressFired = useRef(false);
+
+  const startLongPress = (item: MenuItem) => {
+    longPressFired.current = false;
+    if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
+    longPressTimer.current = window.setTimeout(() => {
+      longPressFired.current = true;
+      haptic('heavy');
+      setQuickAction(item);
+    }, 500);
+  };
+
+  const cancelLongPress = () => {
+    if (longPressTimer.current) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const buildItemUrl = (item: MenuItem): string | null => {
+    if (!item.path) return null;
+    const origin = getPublicOrigin?.() || (typeof window !== 'undefined' ? window.location.origin : '');
+    return `${origin}${item.path}`;
+  };
+
+  const handleCopyLink = async (item: MenuItem) => {
+    const url = buildItemUrl(item);
+    if (!url) {
+      toast({ title: 'No link available', description: 'This action has no shareable link.' });
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      hapticSuccess();
+      toast({ title: 'Link copied', description: item.label });
+    } catch {
+      toast({ title: 'Copy failed', description: 'Please try again.', variant: 'destructive' });
+    }
+    setQuickAction(null);
+  };
+
+  const handleShare = async (item: MenuItem) => {
+    const url = buildItemUrl(item);
+    const shareData: ShareData = {
+      title: item.label,
+      text: item.description || item.label,
+      ...(url ? { url } : {}),
+    };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        hapticSuccess();
+      } else if (url) {
+        await navigator.clipboard.writeText(url);
+        hapticSuccess();
+        toast({ title: 'Link copied', description: 'Sharing is not supported on this device.' });
+      } else {
+        toast({ title: 'Nothing to share' });
+      }
+    } catch {
+      // user dismissed
+    }
+    setQuickAction(null);
+  };
+
+  const handleDetails = (item: MenuItem) => {
+    setQuickAction(null);
+    handleItemClick(item);
+  };
 
   const handleClose = () => {
     hapticTap();
@@ -80,6 +158,11 @@ export function TenantMenuDrawer({
   };
 
   const handleItemClick = (item: MenuItem) => {
+    if (longPressFired.current) {
+      // long-press handled — do not navigate on the trailing click
+      longPressFired.current = false;
+      return;
+    }
     hapticImpact();
     setQuery('');
     onOpenChange(false);
@@ -368,7 +451,11 @@ export function TenantMenuDrawer({
                           <li key={item.label}>
                             <button
                               type="button"
-                              onPointerDown={() => hapticSelection()}
+                              onPointerDown={() => { hapticSelection(); startLongPress(item); }}
+                              onPointerUp={cancelLongPress}
+                              onPointerLeave={cancelLongPress}
+                              onPointerCancel={cancelLongPress}
+                              onContextMenu={(e) => { e.preventDefault(); }}
                               onClick={() => handleItemClick(item)}
                               aria-current={isActive ? 'page' : undefined}
                               aria-label={ariaLabel}
@@ -427,6 +514,58 @@ export function TenantMenuDrawer({
               </p>
             </div>
           </motion.div>
+
+          {/* Long-press quick actions */}
+          <Sheet open={!!quickAction} onOpenChange={(o) => !o && setQuickAction(null)}>
+            <SheetContent side="bottom" className="z-[110] rounded-t-2xl px-0 pb-6 pt-3 max-h-[70vh]">
+              <div aria-hidden="true" className="mx-auto h-1 w-10 rounded-full bg-muted mb-3" />
+              {quickAction && (
+                <>
+                  <SheetHeader className="px-5 text-left">
+                    <SheetTitle className="text-[16px] font-semibold leading-tight">{quickAction.label}</SheetTitle>
+                    {quickAction.description && (
+                      <SheetDescription className="text-[12px]">{quickAction.description}</SheetDescription>
+                    )}
+                  </SheetHeader>
+                  <div className="mt-3">
+                    <button
+                      type="button"
+                      onPointerDown={() => hapticSelection()}
+                      onClick={() => handleCopyLink(quickAction)}
+                      className="w-full min-h-[52px] flex items-center gap-3 px-5 py-3 hover:bg-muted/50 active:bg-muted/80 transition-colors text-left"
+                    >
+                      <div aria-hidden="true" className="h-9 w-9 rounded-full bg-muted flex items-center justify-center">
+                        <Link2 className="h-[18px] w-[18px] text-foreground/80" />
+                      </div>
+                      <span className="text-[14px] font-medium">Copy link</span>
+                    </button>
+                    <button
+                      type="button"
+                      onPointerDown={() => hapticSelection()}
+                      onClick={() => handleShare(quickAction)}
+                      className="w-full min-h-[52px] flex items-center gap-3 px-5 py-3 hover:bg-muted/50 active:bg-muted/80 transition-colors text-left"
+                    >
+                      <div aria-hidden="true" className="h-9 w-9 rounded-full bg-muted flex items-center justify-center">
+                        <Share2 className="h-[18px] w-[18px] text-foreground/80" />
+                      </div>
+                      <span className="text-[14px] font-medium">Share</span>
+                    </button>
+                    <button
+                      type="button"
+                      onPointerDown={() => hapticSelection()}
+                      onClick={() => handleDetails(quickAction)}
+                      className="w-full min-h-[52px] flex items-center gap-3 px-5 py-3 hover:bg-muted/50 active:bg-muted/80 transition-colors text-left"
+                    >
+                      <div aria-hidden="true" className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Info className="h-[18px] w-[18px] text-primary" />
+                      </div>
+                      <span className="text-[14px] font-medium text-primary">Open details</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </SheetContent>
+          </Sheet>
         </>
       )}
     </AnimatePresence>
