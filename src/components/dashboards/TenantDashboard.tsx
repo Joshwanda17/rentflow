@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -142,6 +142,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const [breadLoaded, setBreadLoaded] = useState(false);
   const [breadError, setBreadError] = useState(false);
   const [rentalsLoaded, setRentalsLoaded] = useState<Record<string, boolean>>({});
+  const [heroSlideIndex, setHeroSlideIndex] = useState(0);
+  const heroScrollerRef = useRef<HTMLDivElement | null>(null);
+  const rentCarouselRef = useRef<HTMLDivElement | null>(null);
 
   // Preload + decode rental hero images so horizontal swipe is instant on mobile.
   useEffect(() => {
@@ -334,9 +337,16 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           >
             {!breadError && (
               <div
+                ref={heroScrollerRef}
                 className="h-full w-full overflow-x-auto overflow-y-hidden snap-x snap-mandatory flex no-scrollbar"
                 onClick={(e) => e.stopPropagation()}
                 aria-label="Swipe to switch between bread and rental images"
+                onScroll={(e) => {
+                  const el = e.currentTarget;
+                  const w = el.clientWidth || 1;
+                  const idx = Math.round(el.scrollLeft / w);
+                  if (idx !== heroSlideIndex) setHeroSlideIndex(idx);
+                }}
               >
                 {[
                   { src: breadHero, alt: 'Fresh loaf of Welile bread' },
@@ -555,20 +565,29 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               <div className="pointer-events-none absolute inset-x-0 -top-16 h-24 bg-gradient-to-t from-black/45 to-transparent" aria-hidden="true" />
 
               <div className="relative pointer-events-auto flex items-stretch gap-2 rounded-2xl bg-background/85 dark:bg-card/80 backdrop-blur-xl border border-white/30 dark:border-white/10 shadow-[0_8px_30px_-6px_rgba(0,0,0,0.35)] p-1.5">
-                {/* Primary: Claim */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    hapticTap();
-                    setClaimBreadOpen(true);
-                  }}
-                  aria-label="Claim your discounted bread at a nearby seller"
-                  className="group flex-[1.6] inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white px-3 py-2.5 shadow-md ring-1 ring-emerald-300/40 active:scale-[0.97] transition-transform font-bold text-sm min-h-[44px]"
-                >
-                  <Store className="h-4 w-4" />
-                  <span className="leading-tight">Claim Bread</span>
-                </button>
+                {/* Primary: Claim — switches to "Claim Rent Discount" when viewing a rental slide */}
+                {(() => {
+                  const onRental = heroSlideIndex > 0;
+                  return (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        hapticTap();
+                        if (onRental) {
+                          rentCarouselRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        } else {
+                          setClaimBreadOpen(true);
+                        }
+                      }}
+                      aria-label={onRental ? 'Claim your rent discount' : 'Claim your discounted bread at a nearby seller'}
+                      className="group flex-[1.6] inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white px-3 py-2.5 shadow-md ring-1 ring-emerald-300/40 active:scale-[0.97] transition-transform font-bold text-sm min-h-[44px]"
+                    >
+                      <Store className="h-4 w-4" />
+                      <span className="leading-tight">{onRental ? 'Claim Rent Discount' : 'Claim Bread'}</span>
+                    </button>
+                  );
+                })()}
 
                 {/* Secondary: Add receipt */}
                 <button
@@ -604,13 +623,15 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           </button>
 
           {/* Apply your bread discount to rent — horizontally scrollable rentals */}
-          <RentDiscountCarousel
-            discountPct={
-              breadPrice.basePrice > 0
-                ? Math.max(0, (breadPrice.basePrice - breadPrice.reducedPrice) / breadPrice.basePrice)
-                : 0
-            }
-          />
+          <div ref={rentCarouselRef} id="rent-discount-carousel">
+            <RentDiscountCarousel
+              discountPct={
+                breadPrice.basePrice > 0
+                  ? Math.max(0, (breadPrice.basePrice - breadPrice.reducedPrice) / breadPrice.basePrice)
+                  : 0
+              }
+            />
+          </div>
 
           {/* Mini receipt history — last 5 receipts that affected bread price */}
           {breadHistory.length > 0 && (
