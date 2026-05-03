@@ -50,7 +50,19 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
   const [sellers, setSellers] = useState<NearbySeller[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<'list' | 'map'>('list');
+  const [view, setView] = useState<'list' | 'map'>(() => {
+    if (typeof window === 'undefined') return 'list';
+    const v = window.localStorage.getItem('claim-bread:view');
+    return v === 'map' ? 'map' : 'list';
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('claim-bread:view', view);
+    } catch {
+      /* ignore */
+    }
+  }, [view]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -62,7 +74,6 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
       setClaimedId(null);
       setClaimingId(null);
       setSelectedId(null);
-      setView('list');
       return;
     }
     let cancelled = false;
