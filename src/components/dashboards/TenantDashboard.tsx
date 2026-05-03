@@ -737,6 +737,17 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         hasReceipt={breadPrice.hasReceipt}
       />
 
+      {/* Add monthly rent — applies the same bread discount to rent */}
+      <AddMonthlyRentDialog
+        open={addRentOpen}
+        onOpenChange={setAddRentOpen}
+        discountPct={
+          breadPrice.basePrice > 0
+            ? Math.max(0, (breadPrice.basePrice - breadPrice.reducedPrice) / breadPrice.basePrice)
+            : 0
+        }
+      />
+
       {/* Menu Drawer */}
       <TenantMenuDrawer
         open={menuOpen}
