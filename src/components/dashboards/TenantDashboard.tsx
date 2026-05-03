@@ -499,12 +499,12 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                   setReceiptDialogOpen(true);
                 }
               }}
-              className={`absolute flex flex-col items-end gap-0.5 rounded-2xl text-white px-3 py-1.5 shadow-lg ring-1 active:scale-[0.97] transition-transform text-left ${
+              className={`absolute flex flex-col items-end gap-0.5 rounded-2xl text-white px-3 py-1.5 shadow-xl ring-1 backdrop-blur-sm active:scale-[0.97] transition-transform text-left drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)] ${
                 breadPrice.freeBreads > 0
-                  ? 'bg-gradient-to-br from-emerald-500 to-emerald-700 ring-emerald-300/40'
+                  ? 'bg-gradient-to-br from-emerald-600 to-emerald-800 ring-white/30'
                   : breadPrice.reducedPrice < breadPrice.basePrice
-                    ? 'bg-gradient-to-br from-emerald-500 to-emerald-700 ring-emerald-300/40'
-                    : 'bg-gradient-to-br from-amber-500 to-orange-600 ring-amber-300/40'
+                    ? 'bg-gradient-to-br from-emerald-600 to-emerald-800 ring-white/30'
+                    : 'bg-gradient-to-br from-orange-600 to-rose-700 ring-white/30'
               }`}
               style={{
                 top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)',
