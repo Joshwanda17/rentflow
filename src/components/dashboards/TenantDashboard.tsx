@@ -430,7 +430,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                 left: 'calc(env(safe-area-inset-left, 0px) + 0.75rem)',
               }}
               role="img"
-              aria-label="Welile Bread"
+              aria-label="Welile Rent Fees"
             >
               <img
                 src={welileLogo}
@@ -444,7 +444,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                 aria-hidden="true"
                 className="text-[10px] font-bold uppercase tracking-widest text-foreground leading-none"
               >
-                Bread
+                Rent Fees
               </span>
             </div>
 
