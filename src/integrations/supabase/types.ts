@@ -12964,6 +12964,7 @@ export type Database = {
       vendors: {
         Row: {
           active: boolean
+          category: string | null
           created_at: string
           created_by: string
           id: string
@@ -12977,6 +12978,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          category?: string | null
           created_at?: string
           created_by: string
           id?: string
@@ -12990,6 +12992,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          category?: string | null
           created_at?: string
           created_by?: string
           id?: string
