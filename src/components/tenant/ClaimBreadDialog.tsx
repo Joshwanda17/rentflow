@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { MapPin, Navigation, Store, Phone, CheckCircle2, Loader2 } from 'lucide-react';
@@ -22,7 +22,20 @@ interface NearbySeller {
   distanceKm: number | null;
   address: string | null;
   phone: string | null;
+  latitude: number | null;
+  longitude: number | null;
   inStock: boolean;
+}
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
 }
 
 export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, freeBreads, hasReceipt }: ClaimBreadDialogProps) {
@@ -47,7 +60,7 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
     (async () => {
       const { data, error: dbError } = await supabase
         .from('vendors')
-        .select('id, name, location, phone')
+        .select('id, name, location, phone, latitude, longitude')
         .eq('active', true)
         .order('name', { ascending: true })
         .limit(50);
@@ -57,12 +70,14 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
         setSellers([]);
       } else {
         setSellers(
-          (data ?? []).map((v) => ({
+          (data ?? []).map((v: any) => ({
             id: v.id,
             name: v.name,
             address: v.location ?? null,
             phone: v.phone ?? null,
             distanceKm: null,
+            latitude: v.latitude ?? null,
+            longitude: v.longitude ?? null,
             inStock: true,
           })),
         );
@@ -74,7 +89,21 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
     };
   }, [open]);
 
-  const sortedSellers = useMemo(() => sellers, [sellers]);
+  const sortedSellers = useMemo(() => {
+    if (!coords) {
+      return [...sellers].sort((a, b) => a.name.localeCompare(b.name));
+    }
+    const withDistance = sellers.map((s) => {
+      if (s.latitude == null || s.longitude == null) return s;
+      return { ...s, distanceKm: haversineKm(coords.lat, coords.lng, s.latitude, s.longitude) };
+    });
+    return withDistance.sort((a, b) => {
+      if (a.distanceKm == null && b.distanceKm == null) return a.name.localeCompare(b.name);
+      if (a.distanceKm == null) return 1;
+      if (b.distanceKm == null) return -1;
+      return a.distanceKm - b.distanceKm;
+    });
+  }, [sellers, coords]);
 
   const requestLocation = () => {
     if (!('geolocation' in navigator)) {
