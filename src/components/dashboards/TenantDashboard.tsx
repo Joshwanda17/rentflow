@@ -337,9 +337,16 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           >
             {!breadError && (
               <div
+                ref={heroScrollerRef}
                 className="h-full w-full overflow-x-auto overflow-y-hidden snap-x snap-mandatory flex no-scrollbar"
                 onClick={(e) => e.stopPropagation()}
                 aria-label="Swipe to switch between bread and rental images"
+                onScroll={(e) => {
+                  const el = e.currentTarget;
+                  const w = el.clientWidth || 1;
+                  const idx = Math.round(el.scrollLeft / w);
+                  if (idx !== heroSlideIndex) setHeroSlideIndex(idx);
+                }}
               >
                 {[
                   { src: breadHero, alt: 'Fresh loaf of Welile bread' },
