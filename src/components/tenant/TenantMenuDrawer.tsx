@@ -652,6 +652,7 @@ export function TenantMenuDrawer({
                   );
                 })}
                 </nav>
+                </>
               )}
 
               <p className="text-center text-[11px] text-muted-foreground/60 pt-6 pb-6 font-medium tracking-wide">
