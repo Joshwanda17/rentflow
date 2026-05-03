@@ -89,11 +89,22 @@ function compute(): BreadPriceState {
   }
 }
 
-export function useBreadReceiptPrice(): BreadPriceState {
+export interface BreadPriceWithSync extends BreadPriceState {
+  syncing: boolean;
+}
+
+export function useBreadReceiptPrice(): BreadPriceWithSync {
   const [state, setState] = useState<BreadPriceState>(() => compute());
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
-    const refresh = () => setState(compute());
+    let clearId: number | undefined;
+    const refresh = () => {
+      setSyncing(true);
+      setState(compute());
+      if (clearId) window.clearTimeout(clearId);
+      clearId = window.setTimeout(() => setSyncing(false), 600);
+    };
     window.addEventListener(BREAD_RECEIPT_EVENT, refresh);
     window.addEventListener('storage', refresh);
     let bc: BroadcastChannel | null = null;
@@ -110,10 +121,11 @@ export function useBreadReceiptPrice(): BreadPriceState {
       window.removeEventListener('storage', refresh);
       if (bc) bc.close();
       supabase.removeChannel(channel);
+      if (clearId) window.clearTimeout(clearId);
     };
   }, []);
 
-  return state;
+  return { ...state, syncing };
 }
 
 function readHistory(): BreadReceiptHistoryEntry[] {

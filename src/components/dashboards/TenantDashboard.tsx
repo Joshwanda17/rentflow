@@ -544,8 +544,15 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                   {formatUGX(breadPrice.basePrice)}
                 </span>
               )}
-              <span className="mt-0.5 text-[8.5px] font-medium leading-none opacity-80">
-                Updated {formatRelativeTime(breadPriceUpdatedAt)}
+              <span className="mt-0.5 inline-flex items-center gap-1 text-[8.5px] font-medium leading-none opacity-80">
+                {breadPrice.syncing ? (
+                  <>
+                    <span className="h-1.5 w-1.5 rounded-full bg-white/90 animate-pulse" />
+                    Updating…
+                  </>
+                ) : (
+                  <>Updated {formatRelativeTime(breadPriceUpdatedAt)}</>
+                )}
               </span>
               {breadPrice.hasReceipt && (
                 <div className="mt-1.5 pt-1.5 border-t border-white/25 w-full flex flex-col items-end gap-0.5 text-[9px] leading-tight font-medium opacity-95">
