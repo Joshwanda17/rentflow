@@ -60,6 +60,7 @@ import { Button } from '@/components/ui/button';
 import breadHero from '@/assets/tenant-bread-hero.jpg';
 import welileLogo from '@/assets/welile-logo.png';
 import { ShareBreadDialog, WELILE_BREAD_PRICE } from '@/components/tenant/ShareBreadDialog';
+import { useBreadReceiptPrice } from '@/hooks/useBreadReceiptPrice';
 import { WelileReceiptDialog } from '@/components/tenant/WelileReceiptDialog';
 import { Share2, Plus } from 'lucide-react';
 import { useAvailableBalance } from '@/hooks/useAvailableBalance';
@@ -135,6 +136,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const [shareBreadOpen, setShareBreadOpen] = useState(false);
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
   const { available: withdrawableAvailable } = useAvailableBalance();
+  const breadPrice = useBreadReceiptPrice();
 
   const handleAcceptAgreement = async () => {
     setIsAcceptingAgreement(true);
@@ -357,19 +359,47 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
 
             {/* Premium price badge — top-right */}
             <div
-              className="absolute flex flex-col items-end gap-0.5 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white px-3 py-1.5 shadow-lg ring-1 ring-amber-300/40"
+              className={`absolute flex flex-col items-end gap-0.5 rounded-2xl text-white px-3 py-1.5 shadow-lg ring-1 ${
+                breadPrice.freeBreads > 0
+                  ? 'bg-gradient-to-br from-emerald-500 to-emerald-700 ring-emerald-300/40'
+                  : breadPrice.reducedPrice < breadPrice.basePrice
+                    ? 'bg-gradient-to-br from-emerald-500 to-emerald-700 ring-emerald-300/40'
+                    : 'bg-gradient-to-br from-amber-500 to-orange-600 ring-amber-300/40'
+              }`}
               style={{
                 top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)',
                 right: 'calc(env(safe-area-inset-right, 0px) + 0.75rem)',
               }}
-              aria-label={`Welile Bread price ${formatUGX(WELILE_BREAD_PRICE)}`}
+              aria-label={`Welile Bread price ${formatUGX(breadPrice.reducedPrice)}`}
             >
               <span className="text-[9px] font-semibold uppercase tracking-[0.18em] leading-none opacity-90">
-                Fresh today
+                {breadPrice.freeBreads > 0
+                  ? 'Free today'
+                  : breadPrice.reducedPrice < breadPrice.basePrice
+                    ? 'Receipt applied'
+                    : 'Fresh today'}
               </span>
-              <span className="text-base sm:text-lg font-extrabold leading-none">
-                {formatUGX(WELILE_BREAD_PRICE)}
-              </span>
+              {breadPrice.freeBreads > 0 ? (
+                <span className="flex items-baseline gap-1.5">
+                  <span className="text-base sm:text-lg font-extrabold leading-none">FREE</span>
+                  <span className="text-[10px] line-through opacity-80 leading-none">
+                    {formatUGX(breadPrice.basePrice)}
+                  </span>
+                </span>
+              ) : breadPrice.reducedPrice < breadPrice.basePrice ? (
+                <span className="flex items-baseline gap-1.5">
+                  <span className="text-base sm:text-lg font-extrabold leading-none">
+                    {formatUGX(breadPrice.reducedPrice)}
+                  </span>
+                  <span className="text-[10px] line-through opacity-80 leading-none">
+                    {formatUGX(breadPrice.basePrice)}
+                  </span>
+                </span>
+              ) : (
+                <span className="text-base sm:text-lg font-extrabold leading-none">
+                  {formatUGX(breadPrice.basePrice)}
+                </span>
+              )}
             </div>
 
             {/* Add Welile Receipt CTA — directly below price badge */}

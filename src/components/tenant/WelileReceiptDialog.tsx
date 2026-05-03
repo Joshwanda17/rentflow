@@ -37,6 +37,15 @@ export const WELILE_BREAD_DISCOUNT_RATE = 0.05;
 export const WELILE_BREAD_MIN_PAYABLE = 500;
 const RECEIPT_STORAGE_KEY = 'welile.bread.receipt.v1';
 const LAST_SELLER_STORAGE_KEY = 'welile.bread.lastSeller.v1';
+const BREAD_RECEIPT_EVENT = 'welile-bread-receipt-changed';
+
+function emitReceiptChange() {
+  try {
+    window.dispatchEvent(new Event(BREAD_RECEIPT_EVENT));
+  } catch {
+    /* noop */
+  }
+}
 
 interface BreadReceipt {
   number: string;
@@ -199,6 +208,7 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
     } catch {
       /* offline-safe: discount still applies in-memory */
     }
+    emitReceiptChange();
     const credit = Math.round(amt * WELILE_BREAD_DISCOUNT_RATE);
     const free = Math.floor(credit / WELILE_BREAD_PRICE);
     const remainder = credit - free * WELILE_BREAD_PRICE;
@@ -222,6 +232,7 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
     } catch {
       /* noop */
     }
+    emitReceiptChange();
     if (claim) {
       cancelClaim(claim.code);
       setClaim(null);
