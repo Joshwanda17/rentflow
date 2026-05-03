@@ -282,8 +282,8 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               hapticTap();
               setReceiptDialogOpen(true);
             }}
-            className="relative w-full rounded-3xl overflow-hidden border border-border shadow-lg group active:scale-[0.99] transition-transform bg-amber-50 dark:bg-muted flex items-center justify-center p-1.5 sm:p-3"
-            style={{ height: 'min(68vh, 92vw, 560px)', minHeight: '320px' }}
+            className="relative w-full rounded-3xl overflow-hidden border border-border shadow-lg group active:scale-[0.99] transition-transform bg-amber-50 dark:bg-muted flex items-center justify-center"
+            style={{ height: 'min(68vh, 110vw, 600px)', minHeight: '340px' }}
             aria-label="Welile Bread — tap to enter a Welile receipt and save 5%"
             aria-describedby="bread-card-desc"
           >
@@ -292,7 +292,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                 src={breadHero}
                 alt=""
                 role="presentation"
-                className={`h-full w-full object-contain select-none pointer-events-none transition-opacity duration-500 ${breadLoaded ? 'opacity-100' : 'opacity-0'}`}
+                className={`h-full w-full object-cover object-center select-none pointer-events-none transition-opacity duration-500 [transform:scale(1.05)] ${breadLoaded ? 'opacity-100' : 'opacity-0'}`}
                 width={1024}
                 height={1024}
                 loading="lazy"
