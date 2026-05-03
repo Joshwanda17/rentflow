@@ -320,8 +320,10 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                     className={`h-full w-full shrink-0 snap-center object-cover object-center select-none transition-opacity duration-500 ${breadLoaded ? 'opacity-100' : 'opacity-0'}`}
                     width={1024}
                     height={1024}
-                    loading={i === 0 ? 'eager' : 'lazy'}
+                    loading="eager"
                     decoding="async"
+                    // @ts-expect-error fetchpriority is a valid HTML attr
+                    fetchpriority={i === 0 ? 'high' : 'low'}
                     draggable={false}
                     onLoad={i === 0 ? () => setBreadLoaded(true) : undefined}
                     onError={i === 0 ? () => { setBreadError(true); setBreadLoaded(true); } : undefined}
