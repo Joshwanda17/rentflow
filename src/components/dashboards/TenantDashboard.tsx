@@ -71,6 +71,7 @@ import {
 } from '@/hooks/useBreadReceiptPrice';
 import { WelileReceiptDialog } from '@/components/tenant/WelileReceiptDialog';
 import { ClaimBreadDialog } from '@/components/tenant/ClaimBreadDialog';
+import { AddMonthlyRentDialog } from '@/components/tenant/AddMonthlyRentDialog';
 import { RentDiscountCarousel } from '@/components/tenant/RentDiscountCarousel';
 import { Share2, Plus, Info, Store } from 'lucide-react';
 import { useAvailableBalance } from '@/hooks/useAvailableBalance';
@@ -180,6 +181,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const [shareBreadOpen, setShareBreadOpen] = useState(false);
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
   const [claimBreadOpen, setClaimBreadOpen] = useState(false);
+  const [addRentOpen, setAddRentOpen] = useState(false);
   const { available: withdrawableAvailable } = useAvailableBalance();
   const breadPrice = useBreadReceiptPrice();
   const [freeBreadsInfoOpen, setFreeBreadsInfoOpen] = useState(false);
@@ -446,9 +448,15 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               </span>
             </div>
 
-            {/* Premium price badge — top-right */}
-            <div
-              className={`absolute flex flex-col items-end gap-0.5 rounded-2xl text-white px-3 py-1.5 shadow-lg ring-1 ${
+            {/* Premium price badge — tap to add monthly rent */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                hapticTap();
+                setAddRentOpen(true);
+              }}
+              className={`absolute flex flex-col items-end gap-0.5 rounded-2xl text-white px-3 py-1.5 shadow-lg ring-1 active:scale-[0.97] transition-transform text-left ${
                 breadPrice.freeBreads > 0
                   ? 'bg-gradient-to-br from-emerald-500 to-emerald-700 ring-emerald-300/40'
                   : breadPrice.reducedPrice < breadPrice.basePrice
@@ -459,7 +467,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                 top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)',
                 right: 'calc(env(safe-area-inset-right, 0px) + 0.75rem)',
               }}
-              aria-label={`Welile Bread price ${formatUGX(breadPrice.reducedPrice)}`}
+              aria-label={`Welile Bread price ${formatUGX(breadPrice.reducedPrice)}. Tap to add your monthly rent.`}
             >
               <span className="text-[9px] font-semibold uppercase tracking-[0.18em] leading-none opacity-90">
                 {breadPrice.freeBreads > 0
@@ -551,7 +559,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                   )}
                 </div>
               )}
-            </div>
+            </button>
 
             {/* Action dock — organized bottom bar with primary Claim CTA + secondary actions */}
             <div
@@ -727,6 +735,17 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         basePrice={breadPrice.basePrice}
         freeBreads={breadPrice.freeBreads}
         hasReceipt={breadPrice.hasReceipt}
+      />
+
+      {/* Add monthly rent — applies the same bread discount to rent */}
+      <AddMonthlyRentDialog
+        open={addRentOpen}
+        onOpenChange={setAddRentOpen}
+        discountPct={
+          breadPrice.basePrice > 0
+            ? Math.max(0, (breadPrice.basePrice - breadPrice.reducedPrice) / breadPrice.basePrice)
+            : 0
+        }
       />
 
       {/* Menu Drawer */}
