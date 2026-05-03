@@ -67,7 +67,8 @@ import {
   useBreadReceiptHistory,
 } from '@/hooks/useBreadReceiptPrice';
 import { WelileReceiptDialog } from '@/components/tenant/WelileReceiptDialog';
-import { Share2, Plus, Info } from 'lucide-react';
+import { ClaimBreadDialog } from '@/components/tenant/ClaimBreadDialog';
+import { Share2, Plus, Info, Store } from 'lucide-react';
 import { useAvailableBalance } from '@/hooks/useAvailableBalance';
 
 interface TenantDashboardProps {
