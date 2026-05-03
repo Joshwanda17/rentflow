@@ -24,7 +24,7 @@ import {
   Wallet,
   ArrowUpRight,
 } from 'lucide-react';
-import { hapticTap, hapticSuccess } from '@/lib/haptics';
+import { hapticTap, hapticSuccess, hapticImpact, hapticSelection } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import type { ReactNode } from 'react';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -80,7 +80,7 @@ export function TenantMenuDrawer({
   };
 
   const handleItemClick = (item: MenuItem) => {
-    hapticSuccess();
+    hapticImpact();
     setQuery('');
     onOpenChange(false);
     if (item.onClick) {
@@ -316,8 +316,9 @@ export function TenantMenuDrawer({
               {/* Wallet hero (profile-row equivalent) */}
               {onOpenWallet && (
                 <button
+                  onPointerDown={() => hapticImpact()}
                   onClick={() => { hapticSuccess(); onOpenWallet(); }}
-                  className="w-full flex items-center gap-3 px-4 py-4 border-b border-border/60 hover:bg-muted/40 active:bg-muted/60 transition-colors text-left"
+                  className="w-full flex items-center gap-3 px-4 py-4 border-b border-border/60 hover:bg-muted/40 active:bg-primary/10 active:scale-[0.985] transition-all duration-100 text-left touch-manipulation select-none"
                 >
                   <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center shrink-0 shadow-sm">
                     <Wallet className="h-5 w-5 text-primary-foreground" />
@@ -353,13 +354,14 @@ export function TenantMenuDrawer({
                           return (
                             <button
                               key={item.label}
+                              onPointerDown={() => hapticSelection()}
                               onClick={() => handleItemClick(item)}
                               aria-current={isActive ? 'page' : undefined}
                               className={cn(
-                                "relative w-full flex items-center gap-3.5 px-4 py-2.5 transition-colors text-left",
+                                "relative w-full flex items-center gap-3.5 px-4 py-2.5 transition-all duration-100 text-left touch-manipulation select-none active:scale-[0.985]",
                                 isActive
-                                  ? "bg-primary/10 hover:bg-primary/15"
-                                  : "hover:bg-muted/40 active:bg-muted/60",
+                                  ? "bg-primary/10 hover:bg-primary/15 active:bg-primary/20"
+                                  : "hover:bg-muted/40 active:bg-muted/80",
                               )}
                             >
                               {isActive && (
