@@ -451,7 +451,11 @@ export function TenantMenuDrawer({
                           <li key={item.label}>
                             <button
                               type="button"
-                              onPointerDown={() => hapticSelection()}
+                              onPointerDown={() => { hapticSelection(); startLongPress(item); }}
+                              onPointerUp={cancelLongPress}
+                              onPointerLeave={cancelLongPress}
+                              onPointerCancel={cancelLongPress}
+                              onContextMenu={(e) => { e.preventDefault(); }}
                               onClick={() => handleItemClick(item)}
                               aria-current={isActive ? 'page' : undefined}
                               aria-label={ariaLabel}
