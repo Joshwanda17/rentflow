@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
@@ -82,6 +82,70 @@ export function TenantMenuDrawer({
   const [quickAction, setQuickAction] = useState<MenuItem | null>(null);
   const longPressTimer = useRef<number | null>(null);
   const longPressFired = useRef(false);
+  const drawerRef = useRef<HTMLDivElement | null>(null);
+  const previouslyFocused = useRef<HTMLElement | null>(null);
+
+  // ESC to close + focus trap + restore focus
+  useEffect(() => {
+    if (!open) return;
+
+    previouslyFocused.current = (document.activeElement as HTMLElement) || null;
+
+    // Focus the first focusable element inside the drawer
+    const focusFirst = () => {
+      const root = drawerRef.current;
+      if (!root) return;
+      const focusables = root.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      (focusables[0] || root).focus();
+    };
+    const t = window.setTimeout(focusFirst, 50);
+
+    const onKey = (e: KeyboardEvent) => {
+      if (quickAction) return; // sheet has its own handling
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleClose();
+        return;
+      }
+      if (e.key === 'Tab') {
+        const root = drawerRef.current;
+        if (!root) return;
+        const focusables = Array.from(
+          root.querySelectorAll<HTMLElement>(
+            'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter((el) => el.offsetParent !== null || el === document.activeElement);
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement as HTMLElement | null;
+        if (e.shiftKey) {
+          if (active === first || !root.contains(active)) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (active === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      window.clearTimeout(t);
+      // Restore focus to the element that opened the drawer
+      const prev = previouslyFocused.current;
+      if (prev && typeof prev.focus === 'function') {
+        try { prev.focus(); } catch { /* noop */ }
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const startLongPress = (item: MenuItem) => {
     longPressFired.current = false;
@@ -350,6 +414,8 @@ export function TenantMenuDrawer({
             role="dialog"
             aria-modal="true"
             aria-label="Tenant menu"
+            ref={drawerRef}
+            tabIndex={-1}
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
