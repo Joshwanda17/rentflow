@@ -95,24 +95,26 @@ export function InviteAndEarnCard({ variant = 'default', compact = false }: Invi
     return (
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
         <Card className="overflow-hidden border border-border/60 bg-card shadow-sm">
-          <CardContent className="p-2.5 flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-              <Gift className="h-4 w-4 text-primary" />
+          <CardContent className="p-2 sm:p-2.5 flex items-center gap-2 sm:gap-2.5">
+            <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Gift className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-[13px] leading-tight text-foreground">Invite & Earn</p>
-              <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+              <p className="font-semibold text-[12px] sm:text-[13px] leading-tight text-foreground truncate">
+                Invite & Earn
+              </p>
+              <p className="text-[10px] sm:text-[11px] text-muted-foreground leading-tight mt-0.5 truncate">
                 {referralCount > 0
-                  ? `${referralCount} joined · ${formatUGX(totalEarned)} earned`
-                  : 'Earn UGX 500 per friend'}
+                  ? `${referralCount} joined · ${formatUGX(totalEarned)}`
+                  : 'UGX 500 per friend'}
               </p>
             </div>
             <Button
               onClick={handleWhatsAppShare}
               size="sm"
-              className="bg-[#25D366] hover:bg-[#20BD5A] text-white gap-1 font-semibold text-xs rounded-lg h-8 px-3 shrink-0"
+              className="bg-[#25D366] hover:bg-[#20BD5A] text-white gap-1 font-semibold text-[11px] sm:text-xs rounded-lg h-7 sm:h-8 px-2.5 sm:px-3 shrink-0"
             >
-              <MessageCircle className="h-3.5 w-3.5" />
+              <MessageCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
               Share
             </Button>
           </CardContent>
