@@ -181,6 +181,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const [shareBreadOpen, setShareBreadOpen] = useState(false);
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
   const [claimBreadOpen, setClaimBreadOpen] = useState(false);
+  const [addRentOpen, setAddRentOpen] = useState(false);
   const { available: withdrawableAvailable } = useAvailableBalance();
   const breadPrice = useBreadReceiptPrice();
   const [freeBreadsInfoOpen, setFreeBreadsInfoOpen] = useState(false);
