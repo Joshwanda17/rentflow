@@ -261,8 +261,8 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
   const creditLabel = (c: RecentCredit): string => {
     const map: Record<string, string> = {
       wallet_deposit: 'Top-up',
-      wallet_transfer: 'Bread received',
-      welile_bread: 'Bread received',
+      wallet_transfer: 'Rent Fees received',
+      welile_bread: 'Rent Fees received',
       agent_commission: 'Commission',
       agent_commission_payout: 'Commission',
       referral_bonus: 'Referral bonus',
@@ -332,7 +332,7 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
     // disabled in the 'self' state, but if a user races the picker we
     // still refuse the transfer locally before the edge function runs.
     if (lookup.status === 'self') {
-      toast.error("You can't send a Welile Bread to your own wallet.");
+      toast.error("You can't send a Welile Rent Fees to your own wallet.");
       return;
     }
     if (lookup.status !== 'found') {
@@ -345,7 +345,7 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
     }
     // Final belt-and-suspenders self-check using the resolved recipient id.
     if (lookup.recipient.id === user.id) {
-      toast.error("You can't send a Welile Bread to your own wallet.");
+      toast.error("You can't send a Welile Rent Fees to your own wallet.");
       return;
     }
     // Refusing to send while we're still verifying the live withdrawable
@@ -356,9 +356,9 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
       return;
     }
     // Hard zero-balance gate: a user with zero (or unknown-but-non-positive)
-    // withdrawable balance is never allowed to send a Welile Bread.
+    // withdrawable balance is never allowed to send a Welile Rent Fees.
     if (typeof effectiveBalance === 'number' && effectiveBalance <= 0) {
-      toast.error("You can't send a Welile Bread with zero withdrawable balance. Top up your wallet first.");
+      toast.error("You can't send a Welile Rent Fees with zero withdrawable balance. Top up your wallet first.");
       return;
     }
     if (typeof effectiveBalance === 'number' && effectiveBalance < totalAmount) {
@@ -377,8 +377,8 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
           transfer_kind: 'welile_bread',
           bread_qty: qty,
           description: appliedReceipt && discountAmount > 0
-            ? `Welile Bread x${qty} (${formatUGX(totalAmount)}) · receipt ${appliedReceipt.number} −${formatUGX(discountAmount)}`
-            : `Welile Bread x${qty} (${formatUGX(totalAmount)})`,
+            ? `Welile Rent Fees x${qty} (${formatUGX(totalAmount)}) · receipt ${appliedReceipt.number} −${formatUGX(discountAmount)}`
+            : `Welile Rent Fees x${qty} (${formatUGX(totalAmount)})`,
         },
       });
       if (error) throw error;
@@ -395,7 +395,7 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
       const name = lookup.recipient.full_name?.trim() || 'recipient';
       const shortRef = ref.slice(0, 8).toUpperCase();
       // Receipt-style toast
-      toast.success(`🍞 ${qty > 1 ? `${qty} Welile Breads` : 'Welile Bread'} delivered`, {
+      toast.success(`🍞 ${qty > 1 ? `${qty} Welile Rent Fees` : 'Welile Rent Fees'} delivered`, {
         description:
           `${formatUGX(totalAmount)} → ${name}\n` +
           `Ref: ${shortRef}`,
@@ -409,9 +409,9 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
         },
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to send Welile Bread';
+      const msg = err instanceof Error ? err.message : 'Failed to send Welile Rent Fees';
       // Receipt-style failure toast
-      toast.error('Welile Bread failed', {
+      toast.error('Welile Rent Fees failed', {
         description: `${formatUGX(totalAmount)} · ${msg}`,
         duration: 7000,
       });
@@ -502,14 +502,14 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
               </button>
             )}
             <Wheat className="h-5 w-5 text-amber-600" />
-            {sent ? 'Welile Bread sent' : step === 'review' ? 'Confirm & Send' : 'Share Welile Bread'}
+            {sent ? 'Welile Rent Fees sent' : step === 'review' ? 'Confirm & Send' : 'Share Welile Rent Fees'}
           </DialogTitle>
           <DialogDescription>
             {sent
-              ? 'Your Welile Bread is on its way.'
+              ? 'Your Welile Rent Fees is on its way.'
               : step === 'review'
               ? 'Review the details below. This action is final once you tap Send.'
-              : `Send fresh Welile Bread (${formatUGX(WELILE_BREAD_PRICE)} each) to any Welile user.`}
+              : `Send fresh Welile Rent Fees (${formatUGX(WELILE_BREAD_PRICE)} each) to any Welile user.`}
           </DialogDescription>
         </DialogHeader>
 
@@ -520,10 +520,10 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
             className="flex flex-col items-center gap-3 py-6"
           >
             <CheckCircle2 className="h-14 w-14 text-success" />
-            <p className="font-semibold">Welile Bread delivered</p>
+            <p className="font-semibold">Welile Rent Fees delivered</p>
             <p className="text-sm text-muted-foreground text-center">
               {qty > 1
-                ? `${qty} Welile Breads (${formatUGX(totalAmount)})`
+                ? `${qty} Welile Rent Fees (${formatUGX(totalAmount)})`
                 : formatUGX(totalAmount)}{' '}
               has been credited to the recipient's wallet.
             </p>
@@ -574,7 +574,7 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
             <div className="rounded-xl border border-amber-200 dark:border-amber-900/50 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-semibold text-amber-900/80 dark:text-amber-200/90 uppercase tracking-wider">Welile Bread</p>
+                  <p className="text-xs font-semibold text-amber-900/80 dark:text-amber-200/90 uppercase tracking-wider">Welile Rent Fees</p>
                   {discountAmount > 0 ? (
                     <>
                       <div className="flex items-baseline gap-2">
@@ -907,7 +907,7 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
                   <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-warning-foreground">
                     <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                     <span>
-                      That's your own phone number. You can't send a Welile Bread to yourself — pick a different recipient.
+                      That's your own phone number. You can't send a Welile Rent Fees to yourself — pick a different recipient.
                     </span>
                   </div>
                 )}
@@ -951,7 +951,7 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold">Your withdrawable balance is UGX 0</p>
                     <p className="opacity-80">
-                      Top up your wallet to send a Welile Bread.
+                      Top up your wallet to send a Welile Rent Fees.
                     </p>
                   </div>
                 </div>
@@ -1048,7 +1048,7 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
                 <span className="text-3xl" role="img" aria-label="bread">🍞</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                    {qty > 1 ? `${qty} Welile Breads` : 'Welile Bread'} · Fresh today
+                    {qty > 1 ? `${qty} Welile Rent Fees` : 'Welile Rent Fees'} · Fresh today
                   </p>
                   <div className="flex items-baseline gap-2">
                     <p className={`text-xl sm:text-2xl font-extrabold tabular-nums leading-tight ${discountAmount > 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-950 dark:text-amber-100'}`}>
@@ -1124,7 +1124,7 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">
-                  {qty > 1 ? `${qty} Welile Breads` : 'Welile Bread'} cost
+                  {qty > 1 ? `${qty} Welile Rent Fees` : 'Welile Rent Fees'} cost
                 </span>
                 <span className="font-semibold text-destructive">
                   − {formatUGX(totalAmount)}
@@ -1147,7 +1147,7 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
               <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
                 <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                 <span>
-                  Not enough withdrawable balance. Top up your wallet to send a Welile Bread.
+                  Not enough withdrawable balance. Top up your wallet to send a Welile Rent Fees.
                 </span>
               </div>
             )}
