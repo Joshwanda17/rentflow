@@ -102,6 +102,18 @@ export function TenantMenuDrawer({
     });
   };
 
+  const setAllCollapsed = (value: boolean) => {
+    hapticSelection();
+    // Use the currently filtered sections set so the action matches what's visible
+    const titles = (filteredSectionsRef.current ?? []).map((s) => s.title);
+    setCollapsed((prev) => {
+      const next = { ...prev };
+      titles.forEach((t) => { next[t] = value; });
+      try { window.localStorage.setItem('tenant-menu-collapsed', JSON.stringify(next)); } catch { /* noop */ }
+      return next;
+    });
+  };
+
   // ESC to close + focus trap + restore focus
   useEffect(() => {
     if (!open) return;
