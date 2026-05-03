@@ -141,6 +141,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const [menuOpen, setMenuOpen] = useState(false);
   const [breadLoaded, setBreadLoaded] = useState(false);
   const [breadError, setBreadError] = useState(false);
+  const [rentalsLoaded, setRentalsLoaded] = useState<Record<string, boolean>>({});
 
   // Preload + decode rental hero images so horizontal swipe is instant on mobile.
   useEffect(() => {
@@ -157,8 +158,15 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         img.decoding = 'async';
         (img as any).fetchPriority = 'low';
         img.src = src;
+        const markLoaded = () => {
+          if (cancelled) return;
+          setRentalsLoaded((prev) => (prev[src] ? prev : { ...prev, [src]: true }));
+        };
         if (typeof img.decode === 'function') {
-          img.decode().catch(() => {});
+          img.decode().then(markLoaded).catch(markLoaded);
+        } else {
+          img.onload = markLoaded;
+          img.onerror = markLoaded;
         }
       });
     });
