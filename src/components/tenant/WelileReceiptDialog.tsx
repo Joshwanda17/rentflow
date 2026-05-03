@@ -20,6 +20,7 @@ import {
   buildShareUrl,
   type BreadClaim,
 } from '@/lib/welileBreadClaims';
+import { appendBreadReceiptHistory } from '@/hooks/useBreadReceiptPrice';
 
 /**
  * WelileReceiptDialog
@@ -208,6 +209,7 @@ export function WelileReceiptDialog({ open, onOpenChange }: Props) {
     } catch {
       /* offline-safe: discount still applies in-memory */
     }
+    appendBreadReceiptHistory(next);
     emitReceiptChange();
     const credit = Math.round(amt * WELILE_BREAD_DISCOUNT_RATE);
     const free = Math.floor(credit / WELILE_BREAD_PRICE);
