@@ -526,36 +526,38 @@ export function TenantMenuDrawer({
                               aria-current={isActive ? 'page' : undefined}
                               aria-label={ariaLabel}
                               className={cn(
-                                "relative w-full min-h-[56px] flex items-center gap-3.5 px-4 py-3 transition-all duration-100 text-left touch-manipulation select-none active:scale-[0.985]",
+                                "relative w-full min-h-[48px] flex items-center gap-4 pl-4 pr-3 py-2.5 transition-colors duration-100 text-left touch-manipulation select-none",
                                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-inset",
                                 isActive
-                                  ? "bg-primary/10 hover:bg-primary/15 active:bg-primary/20"
-                                  : "hover:bg-muted/40 active:bg-muted/80",
+                                  ? "bg-muted/70 hover:bg-muted/80 active:bg-muted"
+                                  : "hover:bg-muted/40 active:bg-muted/70",
                               )}
                             >
                               {isActive && (
-                                <span aria-hidden="true" className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full bg-primary" />
+                                <span aria-hidden="true" className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-foreground" />
                               )}
-                              <div aria-hidden="true" className={cn(
-                                "h-10 w-10 rounded-full flex items-center justify-center shrink-0",
-                                isActive ? "bg-primary/15 ring-1 ring-primary/30" : "bg-muted/60",
-                              )}>
-                                <item.icon className={cn("h-[19px] w-[19px]", isActive ? "text-primary" : (item.color || "text-foreground/70"))} />
-                              </div>
-                              <div className="flex-1 min-w-0 border-b border-border/40 py-1.5"
+                              <item.icon
+                                aria-hidden="true"
+                                strokeWidth={1.75}
+                                className={cn(
+                                  "h-[20px] w-[20px] shrink-0",
+                                  isActive ? "text-foreground" : "text-foreground/80",
+                                )}
+                              />
+                              <div className="flex-1 min-w-0 border-b border-border/50 py-2"
                                    style={itemIndex === section.items.length - 1 ? { borderBottom: 'none' } : undefined}>
                                 <div className="flex items-center gap-1.5">
                                   <p className={cn(
-                                    "text-[15px] truncate leading-tight",
-                                    isActive ? "font-semibold text-primary" : "font-medium text-foreground",
+                                    "text-[15px] truncate leading-tight text-foreground",
+                                    isActive ? "font-semibold" : "font-normal",
                                   )}>{item.label}</p>
                                   {isActive && (
-                                    <span className="px-1.5 py-px text-[9px] font-bold bg-primary text-primary-foreground rounded-full uppercase tracking-wide whitespace-nowrap">
+                                    <span className="px-1.5 py-px text-[9px] font-bold bg-foreground text-background rounded-full uppercase tracking-wide whitespace-nowrap">
                                       Current
                                     </span>
                                   )}
                                   {!isActive && item.badge && (
-                                    <span className="px-1.5 py-px text-[9px] font-bold bg-primary/10 text-primary rounded-full uppercase tracking-wide whitespace-nowrap">
+                                    <span className="px-1.5 py-px text-[9px] font-bold border border-border text-foreground/70 rounded-full uppercase tracking-wide whitespace-nowrap">
                                       {item.badge}
                                     </span>
                                   )}
