@@ -19,6 +19,9 @@ import {
 } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { exportToCSV } from '@/lib/exportUtils';
+import { saveViewCache, loadViewCache } from '@/lib/offlineViewCache';
+import { useOffline } from '@/contexts/OfflineContext';
+import { WifiOff } from 'lucide-react';
 
 interface StatementEntry {
   id: string;
@@ -34,8 +37,10 @@ interface StatementEntry {
 export default function FinancialStatement() {
   const navigate = useNavigate();
   const { user, loading: authLoading, role } = useAuth();
+  const { isOnline } = useOffline();
   const [entries, setEntries] = useState<StatementEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cachedAt, setCachedAt] = useState<number | null>(null);
   const [startDate, setStartDate] = useState<Date | undefined>(
     new Date(new Date().getFullYear(), new Date().getMonth(), 1) // First day of current month
   );
@@ -52,6 +57,24 @@ export default function FinancialStatement() {
 
   const fetchAllTransactions = useCallback(async () => {
     if (!user) return;
+    // If offline, hydrate purely from cache and bail out of network calls.
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      const cached = loadViewCache<{
+        entries: StatementEntry[];
+        walletBalance: number;
+        userName: string;
+        userPhone: string;
+      }>('financial_statement', user.id);
+      if (cached) {
+        setEntries(cached.data.entries);
+        setWalletBalance(cached.data.walletBalance);
+        setUserName(cached.data.userName);
+        setUserPhone(cached.data.userPhone);
+        setCachedAt(cached.ts);
+      }
+      setLoading(false);
+      return;
+    }
     setLoading(true);
 
     try {
@@ -164,9 +187,32 @@ export default function FinancialStatement() {
       });
 
       setEntries(withBalance);
+      saveViewCache('financial_statement', user.id, {
+        entries: withBalance,
+        walletBalance: walletRes.data?.balance || 0,
+        userName: profileRes.data?.full_name || '',
+        userPhone: profileRes.data?.phone || '',
+      });
+      setCachedAt(Date.now());
     } catch (err) {
       console.error('Error fetching statement:', err);
-      toast.error('Failed to load financial statement');
+      // Fall back to cache on transient network error.
+      const cached = loadViewCache<{
+        entries: StatementEntry[];
+        walletBalance: number;
+        userName: string;
+        userPhone: string;
+      }>('financial_statement', user.id);
+      if (cached) {
+        setEntries(cached.data.entries);
+        setWalletBalance(cached.data.walletBalance);
+        setUserName(cached.data.userName);
+        setUserPhone(cached.data.userPhone);
+        setCachedAt(cached.ts);
+        toast.message('Showing last saved statement (offline)');
+      } else {
+        toast.error('Failed to load financial statement');
+      }
     } finally {
       setLoading(false);
     }
@@ -216,7 +262,7 @@ export default function FinancialStatement() {
     }
   };
 
-  if (authLoading || loading) {
+  if (authLoading || (loading && entries.length === 0)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -247,6 +293,17 @@ export default function FinancialStatement() {
             </Button>
           </div>
         </div>
+
+        {/* Offline / stale-data banner */}
+        {(!isOnline || cachedAt) && !isOnline && (
+          <div className="mb-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-warning/10 border border-warning/20 text-xs text-warning">
+            <WifiOff className="h-3.5 w-3.5 shrink-0" />
+            <span className="flex-1">
+              You're offline — showing last saved statement
+              {cachedAt ? ` from ${format(new Date(cachedAt), 'MMM dd, HH:mm')}` : ''}
+            </span>
+          </div>
+        )}
 
         {/* Date Range Filter */}
         <Card className="mb-4">
