@@ -72,6 +72,7 @@ import {
 import { WelileReceiptDialog } from '@/components/tenant/WelileReceiptDialog';
 import { ClaimBreadDialog } from '@/components/tenant/ClaimBreadDialog';
 import { AddMonthlyRentDialog } from '@/components/tenant/AddMonthlyRentDialog';
+import { getStoredMonthlyRent } from '@/components/tenant/AddMonthlyRentDialog';
 import { RentDiscountCarousel } from '@/components/tenant/RentDiscountCarousel';
 import { Share2, Plus, Info, Store } from 'lucide-react';
 import { useAvailableBalance } from '@/hooks/useAvailableBalance';
@@ -182,6 +183,14 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
   const [claimBreadOpen, setClaimBreadOpen] = useState(false);
   const [addRentOpen, setAddRentOpen] = useState(false);
+  const [savedMonthlyRent, setSavedMonthlyRent] = useState<number | null>(() => getStoredMonthlyRent());
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'welile.tenant.monthlyRent') setSavedMonthlyRent(getStoredMonthlyRent());
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
   const { available: withdrawableAvailable } = useAvailableBalance();
   const breadPrice = useBreadReceiptPrice();
   const [freeBreadsInfoOpen, setFreeBreadsInfoOpen] = useState(false);
