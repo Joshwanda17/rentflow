@@ -319,6 +319,31 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
           </div>
         </div>
 
+        {coords && (
+          <div className="px-5 py-2 border-b border-border bg-muted/10">
+            <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="h-3 w-3" /> Within
+              </span>
+              <span className="font-semibold text-foreground">{radiusKm} km</span>
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={50}
+              step={1}
+              value={radiusKm}
+              onChange={(e) => setRadiusKm(Number(e.target.value))}
+              className="w-full accent-emerald-600 h-1"
+              aria-label="Distance radius in kilometers"
+            />
+            <div className="flex justify-between text-[9px] text-muted-foreground mt-0.5">
+              <span>1 km</span>
+              <span>50 km</span>
+            </div>
+          </div>
+        )}
+
         {(categories.length > 0 || sellers.some((s) => !s.category)) && (
           <div className="px-5 py-2 border-b border-border bg-muted/20">
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
