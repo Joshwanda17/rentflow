@@ -270,7 +270,7 @@ export function TenantMenuDrawer({
             transition={{ type: 'spring', damping: 28, stiffness: 320 }}
             className="fixed right-0 top-0 bottom-0 w-[86%] max-w-sm bg-background z-[101] shadow-2xl overflow-hidden flex flex-col"
           >
-            {/* Header */}
+            {/* Header (title only) */}
             <div className="border-b border-border/60 bg-background/80 backdrop-blur">
               <div className="flex items-center justify-between px-4 py-3">
                 <div>
@@ -285,7 +285,12 @@ export function TenantMenuDrawer({
                   <X className="h-4 w-4" />
                 </button>
               </div>
-              <div className="px-3 pb-3">
+            </div>
+
+            {/* Scrollable Content — WhatsApp-style settings list */}
+            <div className="flex-1 overflow-y-auto overscroll-contain bg-background">
+              {/* Sticky WhatsApp-style search */}
+              <div className="sticky top-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border/50 px-3 py-2.5">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                   <input
@@ -294,7 +299,7 @@ export function TenantMenuDrawer({
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder="Search menu…"
-                    className="w-full h-10 pl-9 pr-9 rounded-xl bg-muted/60 border border-border/50 text-[13px] placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:bg-background transition-all"
+                    className="w-full h-10 pl-9 pr-9 rounded-full bg-muted/70 border border-transparent text-[13px] placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:bg-background focus:border-border transition-all"
                   />
                   {query && (
                     <button
@@ -307,10 +312,7 @@ export function TenantMenuDrawer({
                   )}
                 </div>
               </div>
-            </div>
 
-            {/* Scrollable Content — WhatsApp-style settings list */}
-            <div className="flex-1 overflow-y-auto overscroll-contain bg-background">
               {/* Wallet hero (profile-row equivalent) */}
               {onOpenWallet && (
                 <button
