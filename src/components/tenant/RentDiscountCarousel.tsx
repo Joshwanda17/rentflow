@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Home, BadgePercent, CheckCircle2 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap } from '@/lib/haptics';
@@ -26,9 +26,28 @@ interface RentDiscountCarouselProps {
   discountPct: number;
 }
 
+const STORAGE_KEY = 'welile.tenant.rentDiscount.appliedId';
+
 export function RentDiscountCarousel({ discountPct }: RentDiscountCarouselProps) {
   const { toast } = useToast();
-  const [appliedId, setAppliedId] = useState<string | null>(null);
+  const [appliedId, setAppliedId] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const v = window.localStorage.getItem(STORAGE_KEY);
+      return v && RENTALS.some((r) => r.id === v) ? v : null;
+    } catch {
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      if (appliedId) window.localStorage.setItem(STORAGE_KEY, appliedId);
+      else window.localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+  }, [appliedId]);
   const pct = useMemo(() => Math.max(0, Math.min(0.5, discountPct)), [discountPct]);
   const pctLabel = `${Math.round(pct * 100)}%`;
 
