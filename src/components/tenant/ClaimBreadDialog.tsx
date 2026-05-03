@@ -67,6 +67,14 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [pinDetailsId, setPinDetailsId] = useState<string | null>(null);
+  const [radiusKm, setRadiusKm] = useState<number>(() => {
+    if (typeof window === 'undefined') return 25;
+    const v = Number(window.localStorage.getItem('claim-bread:radius'));
+    return v > 0 ? v : 25;
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem('claim-bread:radius', String(radiusKm)); } catch { /* */ }
+  }, [radiusKm]);
   const rowRefs = useRef<Record<string, HTMLLIElement | null>>({});
 
   useEffect(() => {
@@ -143,13 +151,16 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
       if (s.latitude == null || s.longitude == null) return s;
       return { ...s, distanceKm: haversineKm(coords.lat, coords.lng, s.latitude, s.longitude) };
     });
-    return withDistance.sort((a, b) => {
+    const withinRadius = withDistance.filter(
+      (s) => s.distanceKm == null || s.distanceKm <= radiusKm,
+    );
+    return withinRadius.sort((a, b) => {
       if (a.distanceKm == null && b.distanceKm == null) return a.name.localeCompare(b.name);
       if (a.distanceKm == null) return 1;
       if (b.distanceKm == null) return -1;
       return a.distanceKm - b.distanceKm;
     });
-  }, [filteredSellers, coords]);
+  }, [filteredSellers, coords, radiusKm]);
 
   // Auto-focus map on first matching seller while typing
   useEffect(() => {
@@ -307,6 +318,31 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
             )}
           </div>
         </div>
+
+        {coords && (
+          <div className="px-5 py-2 border-b border-border bg-muted/10">
+            <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="h-3 w-3" /> Within
+              </span>
+              <span className="font-semibold text-foreground">{radiusKm} km</span>
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={50}
+              step={1}
+              value={radiusKm}
+              onChange={(e) => setRadiusKm(Number(e.target.value))}
+              className="w-full accent-emerald-600 h-1"
+              aria-label="Distance radius in kilometers"
+            />
+            <div className="flex justify-between text-[9px] text-muted-foreground mt-0.5">
+              <span>1 km</span>
+              <span>50 km</span>
+            </div>
+          </div>
+        )}
 
         {(categories.length > 0 || sellers.some((s) => !s.category)) && (
           <div className="px-5 py-2 border-b border-border bg-muted/20">
