@@ -422,5 +422,63 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
         </div>
       </DialogContent>
     </Dialog>
+    <Drawer open={!!pinSeller} onOpenChange={(o) => !o && setPinDetailsId(null)}>
+      <DrawerContent className="max-w-md mx-auto">
+        {pinSeller && (
+          <>
+            <DrawerHeader className="text-left">
+              <div className="flex items-start gap-3">
+                <div className="h-10 w-10 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shrink-0">
+                  <Store className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <DrawerTitle className="text-base truncate">{pinSeller.name}</DrawerTitle>
+                  <DrawerDescription className="text-xs">
+                    {pinSeller.category ? <span className="capitalize">{pinSeller.category}</span> : 'Seller'}
+                    {pinSeller.distanceKm != null && <> · {pinSeller.distanceKm.toFixed(1)} km away</>}
+                  </DrawerDescription>
+                </div>
+              </div>
+            </DrawerHeader>
+            <div className="px-4 pb-2 space-y-2 text-xs">
+              {pinSeller.address && (
+                <div className="flex items-start gap-2">
+                  <MapPin className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
+                  <span className="text-foreground">{pinSeller.address}</span>
+                </div>
+              )}
+              {pinSeller.phone && (
+                <div className="flex items-center gap-2">
+                  <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <a href={`tel:${pinSeller.phone}`} className="text-primary hover:underline">{pinSeller.phone}</a>
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                  {pinSeller.inStock ? 'In stock today' : 'Out of stock'}
+                </span>
+              </div>
+              <div className="rounded-lg bg-muted/40 px-3 py-2 mt-2">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Your price</p>
+                <p className="text-sm font-bold text-foreground">{priceLabel}</p>
+              </div>
+            </div>
+            <DrawerFooter className="pt-3">
+              <Button
+                onClick={() => handleSelectFromDrawer(pinSeller.id)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                <CheckCircle2 className="h-4 w-4 mr-1.5" /> Select seller
+              </Button>
+              <DrawerClose asChild>
+                <Button variant="outline">Close</Button>
+              </DrawerClose>
+            </DrawerFooter>
+          </>
+        )}
+      </DrawerContent>
+    </Drawer>
+    </>
   );
 }
