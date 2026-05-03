@@ -516,12 +516,33 @@ export function TenantMenuDrawer({
                 <nav aria-label="Tenant menu navigation">
                 {filteredSections.map((section) => {
                   const sectionId = `tenant-menu-section-${section.title.toLowerCase().replace(/\s+/g, '-')}`;
+                  const listId = `${sectionId}-list`;
+                  // Force-expand while searching so matches are visible
+                  const isCollapsed = !query.trim() && !!collapsed[section.title];
                   return (
                   <section key={section.title} className="py-1" aria-labelledby={sectionId}>
-                    <h3 id={sectionId} className="text-[11px] font-semibold text-muted-foreground px-4 pt-4 pb-1 tracking-wide uppercase">
-                      {section.title}
+                    <h3 id={sectionId} className="px-2 pt-3 pb-0.5">
+                      <button
+                        type="button"
+                        onClick={() => toggleSection(section.title)}
+                        aria-expanded={!isCollapsed}
+                        aria-controls={listId}
+                        className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-md text-[11px] font-semibold text-muted-foreground tracking-wide uppercase hover:bg-muted/40 active:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          {section.title}
+                          <span className="text-[10px] font-medium text-muted-foreground/60 normal-case tracking-normal">({section.items.length})</span>
+                        </span>
+                        <ChevronDown
+                          aria-hidden="true"
+                          className={cn(
+                            "h-3.5 w-3.5 text-muted-foreground/70 transition-transform duration-200",
+                            isCollapsed ? "-rotate-90" : "rotate-0",
+                          )}
+                        />
+                      </button>
                     </h3>
-                    <ul role="list" className="m-0 p-0 list-none">
+                    <ul id={listId} role="list" hidden={isCollapsed} className="m-0 p-0 list-none">
                       {section.items.map((item, itemIndex) => {
                         const isActive = !!item.path && (location.pathname === item.path || location.pathname.startsWith(item.path + '/'));
                         const ariaLabel = [
