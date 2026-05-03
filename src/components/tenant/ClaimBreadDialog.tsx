@@ -67,6 +67,14 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [pinDetailsId, setPinDetailsId] = useState<string | null>(null);
+  const [radiusKm, setRadiusKm] = useState<number>(() => {
+    if (typeof window === 'undefined') return 25;
+    const v = Number(window.localStorage.getItem('claim-bread:radius'));
+    return v > 0 ? v : 25;
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem('claim-bread:radius', String(radiusKm)); } catch { /* */ }
+  }, [radiusKm]);
   const rowRefs = useRef<Record<string, HTMLLIElement | null>>({});
 
   useEffect(() => {
@@ -143,13 +151,16 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
       if (s.latitude == null || s.longitude == null) return s;
       return { ...s, distanceKm: haversineKm(coords.lat, coords.lng, s.latitude, s.longitude) };
     });
-    return withDistance.sort((a, b) => {
+    const withinRadius = withDistance.filter(
+      (s) => s.distanceKm == null || s.distanceKm <= radiusKm,
+    );
+    return withinRadius.sort((a, b) => {
       if (a.distanceKm == null && b.distanceKm == null) return a.name.localeCompare(b.name);
       if (a.distanceKm == null) return 1;
       if (b.distanceKm == null) return -1;
       return a.distanceKm - b.distanceKm;
     });
-  }, [filteredSellers, coords]);
+  }, [filteredSellers, coords, radiusKm]);
 
   // Auto-focus map on first matching seller while typing
   useEffect(() => {
