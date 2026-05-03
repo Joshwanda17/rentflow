@@ -152,7 +152,7 @@ export function appendBreadReceiptHistory(receipt: { number: string; amount: num
   const next = [entry, ...filtered].slice(0, MAX_HISTORY);
   try {
     localStorage.setItem(RECEIPT_HISTORY_KEY, JSON.stringify(next));
-    broadcastChange();
+    broadcastBreadPriceChange();
   } catch {
     /* noop */
   }
