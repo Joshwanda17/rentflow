@@ -613,6 +613,21 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                   );
                 })()}
 
+                {/* Secondary primary: always-available Rent Discount claim */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    hapticTap();
+                    setClaimRentDiscountOpen(true);
+                  }}
+                  aria-label="Claim your Welile rent discount with a subscribed landlord"
+                  className="flex-1 inline-flex flex-col items-center justify-center gap-0.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-950/60 px-2 py-1.5 active:scale-[0.97] transition-transform min-h-[44px]"
+                >
+                  <Store className="h-4 w-4" />
+                  <span className="text-[10px] font-semibold uppercase tracking-wide leading-none text-center">Rent Disc.</span>
+                </button>
+
                 {/* Secondary: Add receipt */}
                 <button
                   type="button"
