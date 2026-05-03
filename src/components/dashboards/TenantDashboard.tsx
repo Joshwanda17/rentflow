@@ -448,9 +448,15 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               </span>
             </div>
 
-            {/* Premium price badge — top-right */}
-            <div
-              className={`absolute flex flex-col items-end gap-0.5 rounded-2xl text-white px-3 py-1.5 shadow-lg ring-1 ${
+            {/* Premium price badge — tap to add monthly rent */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                hapticTap();
+                setAddRentOpen(true);
+              }}
+              className={`absolute flex flex-col items-end gap-0.5 rounded-2xl text-white px-3 py-1.5 shadow-lg ring-1 active:scale-[0.97] transition-transform text-left ${
                 breadPrice.freeBreads > 0
                   ? 'bg-gradient-to-br from-emerald-500 to-emerald-700 ring-emerald-300/40'
                   : breadPrice.reducedPrice < breadPrice.basePrice
@@ -461,7 +467,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                 top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)',
                 right: 'calc(env(safe-area-inset-right, 0px) + 0.75rem)',
               }}
-              aria-label={`Welile Bread price ${formatUGX(breadPrice.reducedPrice)}`}
+              aria-label={`Welile Bread price ${formatUGX(breadPrice.reducedPrice)}. Tap to add your monthly rent.`}
             >
               <span className="text-[9px] font-semibold uppercase tracking-[0.18em] leading-none opacity-90">
                 {breadPrice.freeBreads > 0
