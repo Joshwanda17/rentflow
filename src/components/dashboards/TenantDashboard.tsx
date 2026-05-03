@@ -64,6 +64,7 @@ import {
   useBreadReceiptPrice,
   WELILE_BREAD_DISCOUNT_RATE,
   WELILE_BREAD_MIN_PAYABLE,
+  useBreadReceiptHistory,
 } from '@/hooks/useBreadReceiptPrice';
 import { WelileReceiptDialog } from '@/components/tenant/WelileReceiptDialog';
 import { Share2, Plus, Info } from 'lucide-react';
@@ -142,6 +143,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const { available: withdrawableAvailable } = useAvailableBalance();
   const breadPrice = useBreadReceiptPrice();
   const [freeBreadsInfoOpen, setFreeBreadsInfoOpen] = useState(false);
+  const breadHistory = useBreadReceiptHistory();
 
   const handleAcceptAgreement = async () => {
     setIsAcceptingAgreement(true);
@@ -515,6 +517,57 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               Share Bread
             </span>
           </button>
+
+          {/* Mini receipt history — last 5 receipts that affected bread price */}
+          {breadHistory.length > 0 && (
+            <div className="rounded-xl border border-border/60 bg-card/80 backdrop-blur px-3 py-2.5">
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Recent receipts
+                </p>
+                <span className="text-[10px] text-muted-foreground">
+                  Last {breadHistory.length}
+                </span>
+              </div>
+              <ul className="divide-y divide-border/50">
+                {breadHistory.map((entry) => (
+                  <li
+                    key={`${entry.number}-${entry.savedAt}`}
+                    className="flex items-center justify-between gap-2 py-1.5 text-[11px]"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="font-mono text-[11px] font-semibold text-foreground truncate">
+                        {entry.number}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {formatUGX(entry.amount)} ·{' '}
+                        {new Date(entry.savedAt).toLocaleString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                        })}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      {entry.freeBreads > 0 ? (
+                        <span className="inline-flex items-center rounded-full bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 text-[10px] font-bold">
+                          {entry.freeBreads}× FREE
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 text-[10px] font-bold">
+                          {formatUGX(entry.reducedPrice)}
+                        </span>
+                      )}
+                      <p className="text-[9px] text-muted-foreground mt-0.5">
+                        +{formatUGX(entry.credit)} credit
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* Single Menu button */}
           <button
