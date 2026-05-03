@@ -565,20 +565,29 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               <div className="pointer-events-none absolute inset-x-0 -top-16 h-24 bg-gradient-to-t from-black/45 to-transparent" aria-hidden="true" />
 
               <div className="relative pointer-events-auto flex items-stretch gap-2 rounded-2xl bg-background/85 dark:bg-card/80 backdrop-blur-xl border border-white/30 dark:border-white/10 shadow-[0_8px_30px_-6px_rgba(0,0,0,0.35)] p-1.5">
-                {/* Primary: Claim */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    hapticTap();
-                    setClaimBreadOpen(true);
-                  }}
-                  aria-label="Claim your discounted bread at a nearby seller"
-                  className="group flex-[1.6] inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white px-3 py-2.5 shadow-md ring-1 ring-emerald-300/40 active:scale-[0.97] transition-transform font-bold text-sm min-h-[44px]"
-                >
-                  <Store className="h-4 w-4" />
-                  <span className="leading-tight">Claim Bread</span>
-                </button>
+                {/* Primary: Claim — switches to "Claim Rent Discount" when viewing a rental slide */}
+                {(() => {
+                  const onRental = heroSlideIndex > 0;
+                  return (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        hapticTap();
+                        if (onRental) {
+                          rentCarouselRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        } else {
+                          setClaimBreadOpen(true);
+                        }
+                      }}
+                      aria-label={onRental ? 'Claim your rent discount' : 'Claim your discounted bread at a nearby seller'}
+                      className="group flex-[1.6] inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white px-3 py-2.5 shadow-md ring-1 ring-emerald-300/40 active:scale-[0.97] transition-transform font-bold text-sm min-h-[44px]"
+                    >
+                      <Store className="h-4 w-4" />
+                      <span className="leading-tight">{onRental ? 'Claim Rent Discount' : 'Claim Bread'}</span>
+                    </button>
+                  );
+                })()}
 
                 {/* Secondary: Add receipt */}
                 <button
