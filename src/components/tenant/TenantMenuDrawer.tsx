@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
@@ -69,14 +70,17 @@ export function TenantMenuDrawer({
   onOpenWallet,
 }: TenantMenuDrawerProps) {
   const navigate = useNavigate();
+  const [query, setQuery] = useState('');
 
   const handleClose = () => {
     hapticTap();
+    setQuery('');
     onOpenChange(false);
   };
 
   const handleItemClick = (item: MenuItem) => {
     hapticSuccess();
+    setQuery('');
     onOpenChange(false);
     if (item.onClick) {
       item.onClick();
@@ -229,6 +233,21 @@ export function TenantMenuDrawer({
     },
   ];
 
+  const filteredSections = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return menuSections;
+    return menuSections
+      .map((s) => ({
+        ...s,
+        items: s.items.filter(
+          (i) =>
+            i.label.toLowerCase().includes(q) ||
+            (i.description?.toLowerCase().includes(q) ?? false),
+        ),
+      }))
+      .filter((s) => s.items.length > 0);
+  }, [query, menuSections]);
+
   return (
     <AnimatePresence>
       {open && (
@@ -251,18 +270,42 @@ export function TenantMenuDrawer({
             className="fixed right-0 top-0 bottom-0 w-[86%] max-w-sm bg-background z-[101] shadow-2xl overflow-hidden flex flex-col"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/60 bg-background/80 backdrop-blur">
-              <div>
-                <h2 className="font-bold text-[17px] tracking-tight leading-tight">Menu</h2>
-                <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">Everything in one place</p>
+            <div className="border-b border-border/60 bg-background/80 backdrop-blur">
+              <div className="flex items-center justify-between px-4 py-3">
+                <div>
+                  <h2 className="font-bold text-[17px] tracking-tight leading-tight">Menu</h2>
+                  <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">Everything in one place</p>
+                </div>
+                <button
+                  onClick={handleClose}
+                  aria-label="Close menu"
+                  className="h-9 w-9 rounded-full bg-muted/70 hover:bg-muted active:scale-95 transition-all flex items-center justify-center"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
-              <button
-                onClick={handleClose}
-                aria-label="Close menu"
-                className="h-9 w-9 rounded-full bg-muted/70 hover:bg-muted active:scale-95 transition-all flex items-center justify-center"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <div className="px-3 pb-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <input
+                    type="text"
+                    inputMode="search"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search menu…"
+                    className="w-full h-10 pl-9 pr-9 rounded-xl bg-muted/60 border border-border/50 text-[13px] placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:bg-background transition-all"
+                  />
+                  {query && (
+                    <button
+                      onClick={() => setQuery('')}
+                      aria-label="Clear search"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-muted hover:bg-muted-foreground/20 flex items-center justify-center"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Scrollable Content */}
@@ -300,7 +343,12 @@ export function TenantMenuDrawer({
 
                 {/* Sections as grouped cards */}
                 <div className="space-y-5">
-                  {menuSections.map((section, sectionIndex) => (
+                  {filteredSections.length === 0 && (
+                    <div className="text-center py-8 text-[13px] text-muted-foreground">
+                      No results for “{query}”.
+                    </div>
+                  )}
+                  {filteredSections.map((section, sectionIndex) => (
                     <section key={section.title}>
                       <h3 className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-[0.16em] mb-2 px-2">
                         {section.title}
