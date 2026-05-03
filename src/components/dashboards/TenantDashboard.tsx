@@ -473,78 +473,64 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               )}
             </div>
 
-            {/* Add Welile Receipt CTA — directly below price badge */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                hapticTap();
-                setReceiptDialogOpen(true);
-              }}
-              aria-label="Add a Welile receipt to reduce bread price"
-              className="absolute inline-flex items-center gap-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 shadow-lg ring-1 ring-emerald-300/40 text-[11px] font-bold uppercase tracking-wide active:scale-95 transition-transform"
-              style={{
-                top: 'calc(env(safe-area-inset-top, 0px) + 4.25rem)',
-                right: 'calc(env(safe-area-inset-right, 0px) + 0.75rem)',
-              }}
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Add Welile receipt to reduce bread price
-            </button>
-
-            {/* Share Bread CTA — bottom-right */}
-            <span
-              role="button"
-              tabIndex={0}
-              aria-label={`Share a Welile Bread (${formatUGX(WELILE_BREAD_PRICE)}) with another user`}
-              onClick={(e) => {
-                e.stopPropagation();
-                hapticTap();
-                setShareBreadOpen(true);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setShareBreadOpen(true);
-                }
-              }}
-              className="absolute inline-flex items-center gap-2 rounded-full bg-foreground text-background px-4 py-2.5 shadow-xl ring-1 ring-background/20 cursor-pointer select-none hover:scale-105 active:scale-95 transition-transform font-semibold text-sm"
+            {/* Action dock — organized bottom bar with primary Claim CTA + secondary actions */}
+            <div
+              className="absolute left-0 right-0 px-3 pointer-events-none"
               style={{
                 bottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.75rem)',
-                right: 'calc(env(safe-area-inset-right, 0px) + 0.75rem)',
               }}
+              onClick={(e) => e.stopPropagation()}
             >
-              <Share2 className="h-4 w-4" />
-              Share Bread
-            </span>
+              {/* Subtle gradient scrim for legibility over photo */}
+              <div className="pointer-events-none absolute inset-x-0 -top-16 h-24 bg-gradient-to-t from-black/45 to-transparent" aria-hidden="true" />
 
-            {/* Claim discounted bread CTA — bottom-left */}
-            <span
-              role="button"
-              tabIndex={0}
-              aria-label="Claim your discounted bread at a nearby seller"
-              onClick={(e) => {
-                e.stopPropagation();
-                hapticTap();
-                setClaimBreadOpen(true);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setClaimBreadOpen(true);
-                }
-              }}
-              className="absolute inline-flex items-center gap-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 shadow-xl ring-1 ring-emerald-300/40 cursor-pointer select-none hover:scale-105 active:scale-95 transition-transform font-semibold text-sm"
-              style={{
-                bottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.75rem)',
-                left: 'calc(env(safe-area-inset-left, 0px) + 0.75rem)',
-              }}
-            >
-              <Store className="h-4 w-4" />
-              Claim Bread
-            </span>
+              <div className="relative pointer-events-auto flex items-stretch gap-2 rounded-2xl bg-background/85 dark:bg-card/80 backdrop-blur-xl border border-white/30 dark:border-white/10 shadow-[0_8px_30px_-6px_rgba(0,0,0,0.35)] p-1.5">
+                {/* Primary: Claim */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    hapticTap();
+                    setClaimBreadOpen(true);
+                  }}
+                  aria-label="Claim your discounted bread at a nearby seller"
+                  className="group flex-[1.6] inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white px-3 py-2.5 shadow-md ring-1 ring-emerald-300/40 active:scale-[0.97] transition-transform font-bold text-sm min-h-[44px]"
+                >
+                  <Store className="h-4 w-4" />
+                  <span className="leading-tight">Claim Bread</span>
+                </button>
+
+                {/* Secondary: Add receipt */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    hapticTap();
+                    setReceiptDialogOpen(true);
+                  }}
+                  aria-label="Add a Welile receipt to reduce bread price"
+                  className="flex-1 inline-flex flex-col items-center justify-center gap-0.5 rounded-xl bg-foreground/5 hover:bg-foreground/10 text-foreground px-2 py-1.5 active:scale-[0.97] transition-transform min-h-[44px]"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span className="text-[10px] font-semibold uppercase tracking-wide leading-none">Receipt</span>
+                </button>
+
+                {/* Secondary: Share */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    hapticTap();
+                    setShareBreadOpen(true);
+                  }}
+                  aria-label={`Share a Welile Bread (${formatUGX(WELILE_BREAD_PRICE)}) with another user`}
+                  className="flex-1 inline-flex flex-col items-center justify-center gap-0.5 rounded-xl bg-foreground/5 hover:bg-foreground/10 text-foreground px-2 py-1.5 active:scale-[0.97] transition-transform min-h-[44px]"
+                >
+                  <Share2 className="h-4 w-4" />
+                  <span className="text-[10px] font-semibold uppercase tracking-wide leading-none">Share</span>
+                </button>
+              </div>
+            </div>
           </button>
 
           {/* Mini receipt history — last 5 receipts that affected bread price */}
