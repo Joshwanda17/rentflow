@@ -290,33 +290,45 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             <AiIdButton variant="compact" />
           </motion.div>
 
-          {/* Big appetizing bread hero — fills the full screen on mobile */}
+          {/* Big appetizing hero — swipe horizontally between bread and rental houses */}
           <button
             type="button"
             onClick={() => {
               hapticTap();
               setReceiptDialogOpen(true);
             }}
-            className="relative overflow-hidden shadow-lg group active:scale-[0.99] transition-transform bg-amber-50 dark:bg-muted flex items-center justify-center flex-1 -mx-4 min-h-[80vh] rounded-none border-0 sm:flex-none sm:mx-0 sm:w-full sm:rounded-3xl sm:border sm:border-border sm:min-h-[340px] sm:max-h-[600px]"
-            aria-label="Welile Bread — tap to enter a Welile receipt and save 5%"
+            className="relative overflow-hidden shadow-lg group active:scale-[0.99] transition-transform bg-amber-50 dark:bg-muted flex-1 -mx-4 min-h-[80vh] rounded-none border-0 sm:flex-none sm:mx-0 sm:w-full sm:rounded-3xl sm:border sm:border-border sm:min-h-[340px] sm:max-h-[600px] block p-0"
+            aria-label="Welile Bread — tap to enter a Welile receipt and save 5%. Swipe to view rental options."
             aria-describedby="bread-card-desc"
           >
             {!breadError && (
-              <img
-                src={breadHero}
-                alt=""
-                role="presentation"
-                className={`h-full w-full object-cover object-center select-none pointer-events-none transition-opacity duration-500 [transform:scale(1.05)] ${breadLoaded ? 'opacity-100' : 'opacity-0'}`}
-                width={1024}
-                height={1024}
-                loading="lazy"
-                decoding="async"
-                onLoad={() => setBreadLoaded(true)}
-                onError={() => {
-                  setBreadError(true);
-                  setBreadLoaded(true);
-                }}
-              />
+              <div
+                className="h-full w-full overflow-x-auto overflow-y-hidden snap-x snap-mandatory flex no-scrollbar"
+                onClick={(e) => e.stopPropagation()}
+                aria-label="Swipe to switch between bread and rental images"
+              >
+                {[
+                  { src: breadHero, alt: 'Fresh loaf of Welile bread' },
+                  { src: rental1, alt: 'Modern apartments rental' },
+                  { src: rental2, alt: 'Family house rental' },
+                  { src: rental3, alt: 'City studio rental' },
+                ].map((slide, i) => (
+                  <img
+                    key={i}
+                    src={slide.src}
+                    alt={slide.alt}
+                    className={`h-full w-full shrink-0 snap-center object-cover object-center select-none transition-opacity duration-500 ${breadLoaded ? 'opacity-100' : 'opacity-0'}`}
+                    width={1024}
+                    height={1024}
+                    loading={i === 0 ? 'eager' : 'lazy'}
+                    decoding="async"
+                    draggable={false}
+                    onLoad={i === 0 ? () => setBreadLoaded(true) : undefined}
+                    onError={i === 0 ? () => { setBreadError(true); setBreadLoaded(true); } : undefined}
+                    onClick={() => { hapticTap(); setReceiptDialogOpen(true); }}
+                  />
+                ))}
+              </div>
             )}
 
             {/* Error fallback — emoji + label, badge stays visible */}
