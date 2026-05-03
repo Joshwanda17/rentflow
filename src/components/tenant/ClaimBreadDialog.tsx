@@ -221,6 +221,7 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
   const priceLabel = freeBreads > 0 ? 'FREE' : formatUGX(reducedPrice);
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md p-0 overflow-hidden">
         <DialogHeader className="px-5 pt-5 pb-3 bg-gradient-to-br from-emerald-500 to-emerald-700 text-white">
