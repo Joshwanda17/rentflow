@@ -71,8 +71,7 @@ import {
 } from '@/hooks/useBreadReceiptPrice';
 import { WelileReceiptDialog } from '@/components/tenant/WelileReceiptDialog';
 import { ClaimBreadDialog } from '@/components/tenant/ClaimBreadDialog';
-import { AddMonthlyRentDialog } from '@/components/tenant/AddMonthlyRentDialog';
-import { getStoredMonthlyRent } from '@/components/tenant/AddMonthlyRentDialog';
+import { AddMonthlyRentDialog, getStoredMonthlyRent } from '@/components/tenant/AddMonthlyRentDialog';
 import { RentDiscountCarousel } from '@/components/tenant/RentDiscountCarousel';
 import { Share2, Plus, Info, Store } from 'lucide-react';
 import { useAvailableBalance } from '@/hooks/useAvailableBalance';
