@@ -478,13 +478,19 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               aria-label={`Welile Rent Fees price ${formatUGX(breadPrice.reducedPrice)}. Tap to add your monthly rent.`}
             >
               <span className="text-[9px] font-semibold uppercase tracking-[0.18em] leading-none opacity-90">
-                {breadPrice.freeBreads > 0
-                  ? 'Free today'
-                  : breadPrice.reducedPrice < breadPrice.basePrice
-                    ? 'Receipt applied'
-                    : 'Fresh today'}
+                {savedMonthlyRent
+                  ? 'Your monthly rent'
+                  : breadPrice.freeBreads > 0
+                    ? 'Free today'
+                    : breadPrice.reducedPrice < breadPrice.basePrice
+                      ? 'Receipt applied'
+                      : 'Tap to add rent'}
               </span>
-              {breadPrice.freeBreads > 0 ? (
+              {savedMonthlyRent ? (
+                <span className="text-base sm:text-lg font-extrabold leading-none">
+                  {formatUGX(savedMonthlyRent)}
+                </span>
+              ) : breadPrice.freeBreads > 0 ? (
                 <span className="flex items-baseline gap-1.5">
                   <span className="text-base sm:text-lg font-extrabold leading-none">FREE</span>
                   <span className="text-[10px] line-through opacity-80 leading-none">
