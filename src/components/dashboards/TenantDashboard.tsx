@@ -527,6 +527,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                   {formatUGX(breadPrice.basePrice)}
                 </span>
               )}
+              <span className="mt-0.5 text-[8.5px] font-medium leading-none opacity-80">
+                Updated {formatRelativeTime(breadPrice.savedAt ?? breadPriceMountedAt)}
+              </span>
               {breadPrice.hasReceipt && (
                 <div className="mt-1.5 pt-1.5 border-t border-white/25 w-full flex flex-col items-end gap-0.5 text-[9px] leading-tight font-medium opacity-95">
                   <span>Receipt: {formatUGX(breadPrice.receiptAmount)}</span>
