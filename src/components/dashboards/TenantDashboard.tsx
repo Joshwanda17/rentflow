@@ -401,6 +401,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             </div>
             <span className="text-xs text-muted-foreground">→</span>
           </button>
+
+          {/* Invite & Earn — kept on home for growth */}
+          <InviteAndEarnCard variant="tenant" />
         </main>
       </div>
 
