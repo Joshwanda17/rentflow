@@ -760,6 +760,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             ? Math.max(0, (breadPrice.basePrice - breadPrice.reducedPrice) / breadPrice.basePrice)
             : 0
         }
+        onSaved={(rent) => setSavedMonthlyRent(rent)}
       />
 
       {/* Menu Drawer */}
