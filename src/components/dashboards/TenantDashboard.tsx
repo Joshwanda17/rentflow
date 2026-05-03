@@ -58,6 +58,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import breadHero from '@/assets/tenant-bread-hero.jpg';
+import rental1 from '@/assets/rental-1.jpg';
+import rental2 from '@/assets/rental-2.jpg';
+import rental3 from '@/assets/rental-3.jpg';
 import welileLogo from '@/assets/welile-logo.png';
 import { ShareBreadDialog, WELILE_BREAD_PRICE } from '@/components/tenant/ShareBreadDialog';
 import {
