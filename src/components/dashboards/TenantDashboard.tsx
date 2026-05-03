@@ -500,13 +500,11 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               ) : (
                 <>
               <span className="text-[9px] font-semibold uppercase tracking-[0.18em] leading-none opacity-90">
-                {savedMonthlyRent
-                  ? 'Your monthly rent'
-                  : breadPrice.freeBreads > 0
-                    ? 'Free today'
-                    : breadPrice.reducedPrice < breadPrice.basePrice
-                      ? 'Receipt applied'
-                      : 'Freshly baked'}
+                {breadPrice.freeBreads > 0
+                  ? 'Free today'
+                  : breadPrice.reducedPrice < breadPrice.basePrice
+                    ? 'Receipt applied'
+                    : 'Freshly baked'}
               </span>
               {breadPrice.freeBreads > 0 ? (
                 <span className="flex items-baseline gap-1.5">
