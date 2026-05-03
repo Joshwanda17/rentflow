@@ -66,6 +66,11 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(searchQuery), 250);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
   const [pinDetailsId, setPinDetailsId] = useState<string | null>(null);
   const [radiusKm, setRadiusKm] = useState<number>(() => {
     if (typeof window === 'undefined') return 25;
@@ -132,7 +137,7 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
     let list = sellers;
     if (categoryFilter === 'uncategorized') list = list.filter((s) => !s.category);
     else if (categoryFilter !== 'all') list = list.filter((s) => s.category === categoryFilter);
-    const q = searchQuery.trim().toLowerCase();
+    const q = debouncedQuery.trim().toLowerCase();
     if (q) {
       list = list.filter(
         (s) =>
@@ -141,7 +146,7 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
       );
     }
     return list;
-  }, [sellers, categoryFilter, searchQuery]);
+  }, [sellers, categoryFilter, debouncedQuery]);
 
   const sortedSellers = useMemo(() => {
     if (!coords) {
@@ -162,12 +167,12 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
     });
   }, [filteredSellers, coords, radiusKm]);
 
-  // Auto-focus map on first matching seller while typing
+  // Auto-focus map on first matching seller (after debounce)
   useEffect(() => {
-    if (!searchQuery.trim()) return;
+    if (!debouncedQuery.trim()) return;
     const first = sortedSellers.find((s) => s.latitude != null && s.longitude != null);
     if (first) setSelectedId(first.id);
-  }, [searchQuery, sortedSellers]);
+  }, [debouncedQuery, sortedSellers]);
 
   const mappableSellers = useMemo<MapSeller[]>(
     () =>
