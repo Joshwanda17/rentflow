@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { MapPin, Navigation, Store, Phone, CheckCircle2, Loader2, List, Map as MapIcon } from 'lucide-react';
+import { MapPin, Navigation, Store, Phone, CheckCircle2, Loader2, List, Map as MapIcon, Filter } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap } from '@/lib/haptics';
 import { useToast } from '@/hooks/use-toast';
@@ -26,6 +26,7 @@ interface NearbySeller {
   latitude: number | null;
   longitude: number | null;
   inStock: boolean;
+  category: string | null;
 }
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -50,6 +51,7 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<'list' | 'map'>('list');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const rowRefs = useRef<Record<string, HTMLLIElement | null>>({});
 
   useEffect(() => {
@@ -66,7 +68,7 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
     (async () => {
       const { data, error: dbError } = await supabase
         .from('vendors')
-        .select('id, name, location, phone, latitude, longitude')
+        .select('id, name, location, phone, latitude, longitude, category')
         .eq('active', true)
         .order('name', { ascending: true })
         .limit(50);
@@ -85,6 +87,7 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
             latitude: v.latitude ?? null,
             longitude: v.longitude ?? null,
             inStock: true,
+            category: v.category ?? null,
           })),
         );
       }
@@ -95,11 +98,25 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
     };
   }, [open]);
 
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    sellers.forEach((s) => {
+      if (s.category && s.category.trim()) set.add(s.category.trim());
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [sellers]);
+
+  const filteredSellers = useMemo(() => {
+    if (categoryFilter === 'all') return sellers;
+    if (categoryFilter === 'uncategorized') return sellers.filter((s) => !s.category);
+    return sellers.filter((s) => s.category === categoryFilter);
+  }, [sellers, categoryFilter]);
+
   const sortedSellers = useMemo(() => {
     if (!coords) {
-      return [...sellers].sort((a, b) => a.name.localeCompare(b.name));
+      return [...filteredSellers].sort((a, b) => a.name.localeCompare(b.name));
     }
-    const withDistance = sellers.map((s) => {
+    const withDistance = filteredSellers.map((s) => {
       if (s.latitude == null || s.longitude == null) return s;
       return { ...s, distanceKm: haversineKm(coords.lat, coords.lng, s.latitude, s.longitude) };
     });
@@ -109,7 +126,7 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
       if (b.distanceKm == null) return -1;
       return a.distanceKm - b.distanceKm;
     });
-  }, [sellers, coords]);
+  }, [filteredSellers, coords]);
 
   const mappableSellers = useMemo<MapSeller[]>(
     () =>
@@ -224,6 +241,36 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
             <span className="ml-1">My location</span>
           </Button>
         </div>
+
+        {(categories.length > 0 || sellers.some((s) => !s.category)) && (
+          <div className="px-5 py-2 border-b border-border bg-muted/20">
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+              <Filter className="h-3 w-3 text-muted-foreground shrink-0" />
+              {(['all', ...categories, ...(sellers.some((s) => !s.category) ? ['uncategorized'] : [])] as string[]).map((cat) => {
+                const active = categoryFilter === cat;
+                const label = cat === 'all' ? 'All' : cat === 'uncategorized' ? 'Other' : cat;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => {
+                      hapticTap();
+                      setCategoryFilter(cat);
+                    }}
+                    className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium border transition-colors capitalize ${
+                      active
+                        ? 'bg-emerald-600 text-white border-emerald-600'
+                        : 'bg-background text-muted-foreground border-border hover:bg-muted'
+                    }`}
+                    aria-pressed={active}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {view === 'map' ? (
           mappableSellers.length === 0 ? (
