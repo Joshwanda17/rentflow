@@ -633,6 +633,16 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         onOpenChange={setReceiptDialogOpen}
       />
 
+      {/* Claim discounted bread at a nearby seller */}
+      <ClaimBreadDialog
+        open={claimBreadOpen}
+        onOpenChange={setClaimBreadOpen}
+        reducedPrice={breadPrice.reducedPrice}
+        basePrice={breadPrice.basePrice}
+        freeBreads={breadPrice.freeBreads}
+        hasReceipt={breadPrice.hasReceipt}
+      />
+
       {/* Menu Drawer */}
       <TenantMenuDrawer
         open={menuOpen}
