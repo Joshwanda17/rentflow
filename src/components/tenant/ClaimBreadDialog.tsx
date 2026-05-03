@@ -7,6 +7,7 @@ import { hapticTap } from '@/lib/haptics';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { SellerMapPreview, type MapSeller } from './SellerMapPreview';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose } from '@/components/ui/drawer';
 
 interface ClaimBreadDialogProps {
   open: boolean;
@@ -53,6 +54,7 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [pinDetailsId, setPinDetailsId] = useState<string | null>(null);
   const rowRefs = useRef<Record<string, HTMLLIElement | null>>({});
 
   useEffect(() => {
@@ -160,15 +162,27 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
     [sortedSellers],
   );
 
-  const handleMapSelect = (id: string) => {
+  const handleMapPinTap = (id: string) => {
     hapticTap();
     setSelectedId(id);
+    setPinDetailsId(id);
+  };
+
+  const handleSelectFromDrawer = (id: string) => {
+    hapticTap();
+    setSelectedId(id);
+    setPinDetailsId(null);
     setView('list');
     setTimeout(() => {
       const el = rowRefs.current[id];
       el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 50);
   };
+
+  const pinSeller = useMemo(
+    () => (pinDetailsId ? sellers.find((s) => s.id === pinDetailsId) ?? null : null),
+    [pinDetailsId, sellers],
+  );
 
   const requestLocation = () => {
     if (!('geolocation' in navigator)) {
@@ -207,6 +221,7 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
   const priceLabel = freeBreads > 0 ? 'FREE' : formatUGX(reducedPrice);
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md p-0 overflow-hidden">
         <DialogHeader className="px-5 pt-5 pb-3 bg-gradient-to-br from-emerald-500 to-emerald-700 text-white">
@@ -322,7 +337,7 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
               sellers={mappableSellers}
               userCoords={coords}
               selectedId={selectedId}
-              onSelect={handleMapSelect}
+              onSelect={handleMapPinTap}
             />
           )
         ) : (
@@ -408,5 +423,63 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
         </div>
       </DialogContent>
     </Dialog>
+    <Drawer open={!!pinSeller} onOpenChange={(o) => !o && setPinDetailsId(null)}>
+      <DrawerContent className="max-w-md mx-auto">
+        {pinSeller && (
+          <>
+            <DrawerHeader className="text-left">
+              <div className="flex items-start gap-3">
+                <div className="h-10 w-10 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shrink-0">
+                  <Store className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <DrawerTitle className="text-base truncate">{pinSeller.name}</DrawerTitle>
+                  <DrawerDescription className="text-xs">
+                    {pinSeller.category ? <span className="capitalize">{pinSeller.category}</span> : 'Seller'}
+                    {pinSeller.distanceKm != null && <> · {pinSeller.distanceKm.toFixed(1)} km away</>}
+                  </DrawerDescription>
+                </div>
+              </div>
+            </DrawerHeader>
+            <div className="px-4 pb-2 space-y-2 text-xs">
+              {pinSeller.address && (
+                <div className="flex items-start gap-2">
+                  <MapPin className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
+                  <span className="text-foreground">{pinSeller.address}</span>
+                </div>
+              )}
+              {pinSeller.phone && (
+                <div className="flex items-center gap-2">
+                  <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <a href={`tel:${pinSeller.phone}`} className="text-primary hover:underline">{pinSeller.phone}</a>
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                  {pinSeller.inStock ? 'In stock today' : 'Out of stock'}
+                </span>
+              </div>
+              <div className="rounded-lg bg-muted/40 px-3 py-2 mt-2">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Your price</p>
+                <p className="text-sm font-bold text-foreground">{priceLabel}</p>
+              </div>
+            </div>
+            <DrawerFooter className="pt-3">
+              <Button
+                onClick={() => handleSelectFromDrawer(pinSeller.id)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                <CheckCircle2 className="h-4 w-4 mr-1.5" /> Select seller
+              </Button>
+              <DrawerClose asChild>
+                <Button variant="outline">Close</Button>
+              </DrawerClose>
+            </DrawerFooter>
+          </>
+        )}
+      </DrawerContent>
+    </Drawer>
+    </>
   );
 }
