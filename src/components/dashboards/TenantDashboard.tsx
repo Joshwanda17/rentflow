@@ -142,6 +142,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const [breadLoaded, setBreadLoaded] = useState(false);
   const [breadError, setBreadError] = useState(false);
   const [rentalsLoaded, setRentalsLoaded] = useState<Record<string, boolean>>({});
+  const [heroSlideIndex, setHeroSlideIndex] = useState(0);
+  const heroScrollerRef = useRef<HTMLDivElement | null>(null);
+  const rentCarouselRef = useRef<HTMLDivElement | null>(null);
 
   // Preload + decode rental hero images so horizontal swipe is instant on mobile.
   useEffect(() => {
