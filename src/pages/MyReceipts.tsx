@@ -23,6 +23,10 @@ import { QRScanner } from '@/components/receipts/QRScanner';
 import { useConfetti } from '@/components/Confetti';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ReceiptsSkeleton } from '@/components/skeletons/DashboardSkeletons';
+import { saveViewCache, loadViewCache } from '@/lib/offlineViewCache';
+import { useOffline } from '@/contexts/OfflineContext';
+import { WifiOff } from 'lucide-react';
+import { format } from 'date-fns';
 
 interface UserReceipt {
   id: string;
@@ -67,11 +71,13 @@ export default function MyReceipts() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const { fireSuccess: fireConfetti } = useConfetti();
+  const { isOnline } = useOffline();
   
   const [receipts, setReceipts] = useState<UserReceipt[]>([]);
   const [loanLimit, setLoanLimit] = useState<LoanLimit | null>(null);
   const [loans, setLoans] = useState<UserLoan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cachedAt, setCachedAt] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [expandedReceipt, setExpandedReceipt] = useState<string | null>(null);
   
@@ -97,7 +103,34 @@ export default function MyReceipts() {
 
   const fetchData = async () => {
     if (!user) return;
-    setLoading(true);
+
+    // Hydrate from cache first for instant paint / offline support.
+    const cached = loadViewCache<{
+      receipts: UserReceipt[];
+      loanLimit: LoanLimit | null;
+      loans: UserLoan[];
+      monthlyReceipts: number;
+      rentDiscount: number;
+      monthlyReceiptCount: number;
+    }>('my_receipts', user.id);
+    if (cached) {
+      setReceipts(cached.data.receipts);
+      setLoanLimit(cached.data.loanLimit);
+      setLoans(cached.data.loans);
+      setMonthlyReceipts(cached.data.monthlyReceipts);
+      setRentDiscount(cached.data.rentDiscount);
+      setMonthlyReceiptCount(cached.data.monthlyReceiptCount);
+      setCachedAt(cached.ts);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
+    // Skip network entirely when offline — cache (or empty state) is what we show.
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setLoading(false);
+      return;
+    }
 
     // Get current month boundaries
     const now = new Date();
@@ -120,6 +153,17 @@ export default function MyReceipts() {
     setLoanLimit(loanLimitRes.data);
     setLoans(loansWithLenders);
     setLoading(false);
+
+    // Persist for offline view-only access.
+    saveViewCache('my_receipts', user.id, {
+      receipts: receiptsRes.data || [],
+      loanLimit: loanLimitRes.data,
+      loans: loansWithLenders,
+      monthlyReceipts: monthlyTotal,
+      rentDiscount: Math.round(monthlyTotal * 0.01),
+      monthlyReceiptCount: monthlyReceiptsRes.data?.length || 0,
+    });
+    setCachedAt(Date.now());
   };
 
   const handleSubmitReceipt = async (e: React.FormEvent) => {
@@ -202,7 +246,7 @@ export default function MyReceipts() {
     setSubmitting(false);
   };
 
-  if (authLoading || loading) {
+  if (authLoading || (loading && receipts.length === 0 && !cachedAt)) {
     return <ReceiptsSkeleton />;
   }
 
