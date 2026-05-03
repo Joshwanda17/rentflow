@@ -23,9 +23,7 @@ import {
   Wallet,
   ArrowUpRight,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
-import { Separator } from '@/components/ui/separator';
 import type { ReactNode } from 'react';
 import { formatUGX } from '@/lib/rentCalculations';
 
@@ -248,43 +246,45 @@ export function TenantMenuDrawer({
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed right-0 top-0 bottom-0 w-[85%] max-w-sm bg-background z-[101] shadow-2xl overflow-hidden flex flex-col"
+            transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+            className="fixed right-0 top-0 bottom-0 w-[86%] max-w-sm bg-background z-[101] shadow-2xl overflow-hidden flex flex-col"
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-border bg-card">
+            <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/60 bg-background/80 backdrop-blur">
               <div>
-                <h2 className="font-bold text-lg">Menu</h2>
-                <p className="text-xs text-muted-foreground">All tenant features</p>
+                <h2 className="font-bold text-[17px] tracking-tight leading-tight">Menu</h2>
+                <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">Everything in one place</p>
               </div>
               <button
                 onClick={handleClose}
-                className="p-2 rounded-full bg-muted hover:bg-muted/80 transition-colors"
+                aria-label="Close menu"
+                className="h-9 w-9 rounded-full bg-muted/70 hover:bg-muted active:scale-95 transition-all flex items-center justify-center"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
             </div>
 
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto overscroll-contain">
-              <div className="p-4 space-y-6">
-                {/* Wallet hero — always at the very top, easily visible */}
+              <div className="px-3 pt-4 pb-2 space-y-5">
+                {/* Wallet hero */}
                 {onOpenWallet && (
                   <button
                     onClick={() => { hapticSuccess(); onOpenWallet(); }}
-                    className="w-full text-left rounded-2xl p-4 bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg active:scale-[0.99] transition-transform"
+                    className="w-full text-left rounded-2xl p-4 bg-gradient-to-br from-primary via-primary to-primary/85 text-primary-foreground shadow-md active:scale-[0.99] transition-transform relative overflow-hidden"
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="h-11 w-11 rounded-xl bg-primary-foreground/15 flex items-center justify-center">
+                    <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-primary-foreground/10 blur-xl" />
+                    <div className="relative flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="h-11 w-11 rounded-xl bg-primary-foreground/15 flex items-center justify-center shrink-0 ring-1 ring-primary-foreground/20">
                           <Wallet className="h-5 w-5" />
                         </div>
-                        <div>
-                          <p className="text-[11px] uppercase tracking-widest opacity-80 font-semibold">My Wallet</p>
-                          <p className="text-xl font-extrabold leading-tight">{formatUGX(walletBalance)}</p>
+                        <div className="min-w-0">
+                          <p className="text-[10px] uppercase tracking-[0.18em] opacity-80 font-semibold">My Wallet</p>
+                          <p className="text-[20px] font-extrabold leading-tight tracking-tight truncate">{formatUGX(walletBalance)}</p>
                         </div>
                       </div>
-                      <div className="h-9 w-9 rounded-full bg-primary-foreground/15 flex items-center justify-center shrink-0">
+                      <div className="h-9 w-9 rounded-full bg-primary-foreground/15 flex items-center justify-center shrink-0 ring-1 ring-primary-foreground/20">
                         <ArrowUpRight className="h-4 w-4" />
                       </div>
                     </div>
@@ -292,57 +292,58 @@ export function TenantMenuDrawer({
                 )}
 
                 {extraContent && (
-                  <div className="space-y-4 pb-2">
+                  <div className="space-y-4">
                     {extraContent}
                   </div>
                 )}
-                {menuSections.map((section, sectionIndex) => (
-                  <div key={section.title}>
-                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1">
-                      {section.title}
-                    </h3>
-                    <div className="space-y-1">
-                      {section.items.map((item, itemIndex) => (
-                        <motion.button
-                          key={item.label}
-                          initial={{ opacity: 0, x: 20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: (sectionIndex * 0.05) + (itemIndex * 0.02) }}
-                          onClick={() => handleItemClick(item)}
-                          className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 active:scale-[0.98] transition-all text-left"
-                        >
-                          <div className={cn(
-                            "p-2 rounded-lg bg-muted/80",
-                            item.color
-                          )}>
-                            <item.icon className="h-5 w-5" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium text-sm truncate">{item.label}</p>
-                              {item.badge && (
-                                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-success/20 text-success rounded-full">
-                                  {item.badge}
-                                </span>
+
+                {/* Sections as grouped cards */}
+                <div className="space-y-5">
+                  {menuSections.map((section, sectionIndex) => (
+                    <section key={section.title}>
+                      <h3 className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-[0.16em] mb-2 px-2">
+                        {section.title}
+                      </h3>
+                      <div className="rounded-2xl bg-card border border-border/60 overflow-hidden divide-y divide-border/50">
+                        {section.items.map((item, itemIndex) => (
+                          <motion.button
+                            key={item.label}
+                            initial={{ opacity: 0, y: 6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: (sectionIndex * 0.04) + (itemIndex * 0.015), duration: 0.18 }}
+                            onClick={() => handleItemClick(item)}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted/40 active:bg-muted/60 transition-colors text-left group"
+                          >
+                            <div className="h-9 w-9 rounded-xl bg-muted/70 group-hover:bg-muted flex items-center justify-center shrink-0 transition-colors">
+                              <item.icon className={cn("h-[18px] w-[18px]", item.color || "text-foreground/70")} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <p className="font-semibold text-[13.5px] text-foreground truncate leading-tight">{item.label}</p>
+                                {item.badge && (
+                                  <span className="px-1.5 py-px text-[9px] font-bold bg-primary/10 text-primary rounded-full uppercase tracking-wide whitespace-nowrap">
+                                    {item.badge}
+                                  </span>
+                                )}
+                              </div>
+                              {item.description && (
+                                <p className="text-[11.5px] text-muted-foreground truncate leading-tight mt-0.5">{item.description}</p>
                               )}
                             </div>
-                            {item.description && (
-                              <p className="text-xs text-muted-foreground truncate">{item.description}</p>
-                            )}
-                          </div>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                        </motion.button>
-                      ))}
-                    </div>
-                    {sectionIndex < menuSections.length - 1 && (
-                      <Separator className="mt-4" />
-                    )}
-                  </div>
-                ))}
+                            <ChevronRight className="h-4 w-4 text-muted-foreground/50 shrink-0 group-hover:text-muted-foreground group-hover:translate-x-0.5 transition-all" />
+                          </motion.button>
+                        ))}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+
+                <p className="text-center text-[10px] text-muted-foreground/60 pt-2 pb-1 font-medium tracking-wide">
+                  Welile · Tenant
+                </p>
               </div>
 
-              {/* Footer Padding */}
-              <div className="h-8" />
+              <div className="h-6" />
             </div>
           </motion.div>
         </>
