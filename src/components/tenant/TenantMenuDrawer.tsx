@@ -308,91 +308,78 @@ export function TenantMenuDrawer({
               </div>
             </div>
 
-            {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto overscroll-contain">
-              <div className="px-3 pt-4 pb-2 space-y-5">
-                {/* Wallet hero */}
-                {onOpenWallet && (
-                  <button
-                    onClick={() => { hapticSuccess(); onOpenWallet(); }}
-                    className="w-full text-left rounded-2xl p-4 bg-gradient-to-br from-primary via-primary to-primary/85 text-primary-foreground shadow-md active:scale-[0.99] transition-transform relative overflow-hidden"
-                  >
-                    <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-primary-foreground/10 blur-xl" />
-                    <div className="relative flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="h-11 w-11 rounded-xl bg-primary-foreground/15 flex items-center justify-center shrink-0 ring-1 ring-primary-foreground/20">
-                          <Wallet className="h-5 w-5" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[10px] uppercase tracking-[0.18em] opacity-80 font-semibold">My Wallet</p>
-                          <p className="text-[20px] font-extrabold leading-tight tracking-tight truncate">{formatUGX(walletBalance)}</p>
-                        </div>
-                      </div>
-                      <div className="h-9 w-9 rounded-full bg-primary-foreground/15 flex items-center justify-center shrink-0 ring-1 ring-primary-foreground/20">
-                        <ArrowUpRight className="h-4 w-4" />
-                      </div>
-                    </div>
-                  </button>
-                )}
-
-                {extraContent && (
-                  <div className="space-y-4">
-                    {extraContent}
+            {/* Scrollable Content — WhatsApp-style settings list */}
+            <div className="flex-1 overflow-y-auto overscroll-contain bg-background">
+              {/* Wallet hero (profile-row equivalent) */}
+              {onOpenWallet && (
+                <button
+                  onClick={() => { hapticSuccess(); onOpenWallet(); }}
+                  className="w-full flex items-center gap-3 px-4 py-4 border-b border-border/60 hover:bg-muted/40 active:bg-muted/60 transition-colors text-left"
+                >
+                  <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center shrink-0 shadow-sm">
+                    <Wallet className="h-5 w-5 text-primary-foreground" />
                   </div>
-                )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-[15px] text-foreground leading-tight truncate">My Wallet</p>
+                    <p className="text-[12px] text-muted-foreground leading-tight mt-0.5 truncate">{formatUGX(walletBalance)} available</p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground/60 shrink-0" />
+                </button>
+              )}
 
-                {/* Sections as grouped cards */}
-                <div className="space-y-5">
-                  {filteredSections.length === 0 && (
-                    <div className="text-center py-8 text-[13px] text-muted-foreground">
-                      No results for “{query}”.
-                    </div>
-                  )}
-                  {filteredSections.map((section, sectionIndex) => (
-                    <section key={section.title}>
-                      <h3 className="text-[10px] font-bold text-muted-foreground/80 uppercase tracking-[0.16em] mb-2 px-2">
-                        {section.title}
-                      </h3>
-                      <div className="rounded-2xl bg-card border border-border/60 overflow-hidden divide-y divide-border/50">
-                        {section.items.map((item, itemIndex) => (
-                          <motion.button
-                            key={item.label}
-                            initial={{ opacity: 0, y: 6 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: (sectionIndex * 0.04) + (itemIndex * 0.015), duration: 0.18 }}
-                            onClick={() => handleItemClick(item)}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted/40 active:bg-muted/60 transition-colors text-left group"
-                          >
-                            <div className="h-9 w-9 rounded-xl bg-muted/70 group-hover:bg-muted flex items-center justify-center shrink-0 transition-colors">
-                              <item.icon className={cn("h-[18px] w-[18px]", item.color || "text-foreground/70")} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5">
-                                <p className="font-semibold text-[13.5px] text-foreground truncate leading-tight">{item.label}</p>
-                                {item.badge && (
-                                  <span className="px-1.5 py-px text-[9px] font-bold bg-primary/10 text-primary rounded-full uppercase tracking-wide whitespace-nowrap">
-                                    {item.badge}
-                                  </span>
-                                )}
-                              </div>
-                              {item.description && (
-                                <p className="text-[11.5px] text-muted-foreground truncate leading-tight mt-0.5">{item.description}</p>
+              {extraContent && (
+                <div className="px-4 py-3 border-b border-border/60 space-y-3">
+                  {extraContent}
+                </div>
+              )}
+
+              {filteredSections.length === 0 ? (
+                <div className="text-center py-12 text-[13px] text-muted-foreground">
+                  No results for “{query}”.
+                </div>
+              ) : (
+                filteredSections.map((section) => (
+                  <section key={section.title} className="py-1">
+                    <h3 className="text-[12px] font-semibold text-primary px-4 pt-3 pb-1.5 tracking-tight">
+                      {section.title}
+                    </h3>
+                    <div>
+                      {section.items.map((item, itemIndex) => (
+                        <button
+                          key={item.label}
+                          onClick={() => handleItemClick(item)}
+                          className="w-full flex items-center gap-3.5 px-4 py-2.5 hover:bg-muted/40 active:bg-muted/60 transition-colors text-left"
+                        >
+                          <div className={cn(
+                            "h-9 w-9 rounded-full flex items-center justify-center shrink-0",
+                            "bg-muted/60",
+                          )}>
+                            <item.icon className={cn("h-[18px] w-[18px]", item.color || "text-foreground/70")} />
+                          </div>
+                          <div className="flex-1 min-w-0 border-b border-border/40 py-1.5"
+                               style={itemIndex === section.items.length - 1 ? { borderBottom: 'none' } : undefined}>
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-medium text-[15px] text-foreground truncate leading-tight">{item.label}</p>
+                              {item.badge && (
+                                <span className="px-1.5 py-px text-[9px] font-bold bg-primary/10 text-primary rounded-full uppercase tracking-wide whitespace-nowrap">
+                                  {item.badge}
+                                </span>
                               )}
                             </div>
-                            <ChevronRight className="h-4 w-4 text-muted-foreground/50 shrink-0 group-hover:text-muted-foreground group-hover:translate-x-0.5 transition-all" />
-                          </motion.button>
-                        ))}
-                      </div>
-                    </section>
-                  ))}
-                </div>
+                            {item.description && (
+                              <p className="text-[12px] text-muted-foreground truncate leading-tight mt-0.5">{item.description}</p>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                ))
+              )}
 
-                <p className="text-center text-[10px] text-muted-foreground/60 pt-2 pb-1 font-medium tracking-wide">
-                  Welile · Tenant
-                </p>
-              </div>
-
-              <div className="h-6" />
+              <p className="text-center text-[11px] text-muted-foreground/60 pt-6 pb-6 font-medium tracking-wide">
+                Welile · Tenant
+              </p>
             </div>
           </motion.div>
         </>
