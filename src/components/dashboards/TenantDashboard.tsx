@@ -506,7 +506,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                     ? 'Free today'
                     : breadPrice.reducedPrice < breadPrice.basePrice
                       ? 'Receipt applied'
-                      : 'Bread price'}
+                      : 'Freshly baked'}
               </span>
               {breadPrice.freeBreads > 0 ? (
                 <span className="flex items-baseline gap-1.5">
