@@ -459,12 +459,19 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             </div>
 
             {/* Premium price badge — tap to add monthly rent */}
+            {(() => {
+              const onRental = heroSlideIndex > 0;
+              return (
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 hapticTap();
-                setAddRentOpen(true);
+                if (onRental) {
+                  setAddRentOpen(true);
+                } else {
+                  setReceiptDialogOpen(true);
+                }
               }}
               className={`absolute flex flex-col items-end gap-0.5 rounded-2xl text-white px-3 py-1.5 shadow-lg ring-1 active:scale-[0.97] transition-transform text-left ${
                 breadPrice.freeBreads > 0
@@ -477,8 +484,21 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                 top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)',
                 right: 'calc(env(safe-area-inset-right, 0px) + 0.75rem)',
               }}
-              aria-label={`Welile Rent Fees price ${formatUGX(breadPrice.reducedPrice)}. Tap to add your monthly rent.`}
+              aria-label={onRental
+                ? `Monthly rent ${savedMonthlyRent ? formatUGX(savedMonthlyRent) : '— tap to add'}`
+                : `Welile bread price ${formatUGX(breadPrice.reducedPrice)}`}
             >
+              {onRental ? (
+                <>
+                  <span className="text-[9px] font-semibold uppercase tracking-[0.18em] leading-none opacity-90">
+                    {savedMonthlyRent ? 'Your monthly rent' : 'Tap to add monthly rent'}
+                  </span>
+                  <span className="text-base sm:text-lg font-extrabold leading-none">
+                    {savedMonthlyRent ? formatUGX(savedMonthlyRent) : 'Add rent'}
+                  </span>
+                </>
+              ) : (
+                <>
               <span className="text-[9px] font-semibold uppercase tracking-[0.18em] leading-none opacity-90">
                 {savedMonthlyRent
                   ? 'Your monthly rent'
@@ -486,13 +506,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                     ? 'Free today'
                     : breadPrice.reducedPrice < breadPrice.basePrice
                       ? 'Receipt applied'
-                      : 'Tap to add rent'}
+                      : 'Bread price'}
               </span>
-              {savedMonthlyRent ? (
-                <span className="text-base sm:text-lg font-extrabold leading-none">
-                  {formatUGX(savedMonthlyRent)}
-                </span>
-              ) : breadPrice.freeBreads > 0 ? (
+              {breadPrice.freeBreads > 0 ? (
                 <span className="flex items-baseline gap-1.5">
                   <span className="text-base sm:text-lg font-extrabold leading-none">FREE</span>
                   <span className="text-[10px] line-through opacity-80 leading-none">
@@ -575,7 +591,11 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                   )}
                 </div>
               )}
+                </>
+              )}
             </button>
+              );
+            })()}
 
             {/* Action dock — organized bottom bar with primary Claim CTA + secondary actions */}
             <div
