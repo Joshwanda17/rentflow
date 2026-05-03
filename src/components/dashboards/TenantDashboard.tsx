@@ -141,6 +141,29 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const [menuOpen, setMenuOpen] = useState(false);
   const [breadLoaded, setBreadLoaded] = useState(false);
   const [breadError, setBreadError] = useState(false);
+
+  // Preload + decode rental hero images so horizontal swipe is instant on mobile.
+  useEffect(() => {
+    let cancelled = false;
+    const sources = [rental1, rental2, rental3];
+    const idle = (cb: () => void) =>
+      typeof (window as any).requestIdleCallback === 'function'
+        ? (window as any).requestIdleCallback(cb, { timeout: 1500 })
+        : window.setTimeout(cb, 200);
+    idle(() => {
+      if (cancelled) return;
+      sources.forEach((src) => {
+        const img = new Image();
+        img.decoding = 'async';
+        (img as any).fetchPriority = 'low';
+        img.src = src;
+        if (typeof img.decode === 'function') {
+          img.decode().catch(() => {});
+        }
+      });
+    });
+    return () => { cancelled = true; };
+  }, []);
   const [depositOpen, setDepositOpen] = useState(false);
   const [housesOpen, setHousesOpen] = useState(false);
   const [shareBreadOpen, setShareBreadOpen] = useState(false);
@@ -320,8 +343,10 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                     className={`h-full w-full shrink-0 snap-center object-cover object-center select-none transition-opacity duration-500 ${breadLoaded ? 'opacity-100' : 'opacity-0'}`}
                     width={1024}
                     height={1024}
-                    loading={i === 0 ? 'eager' : 'lazy'}
+                    loading="eager"
                     decoding="async"
+                    // @ts-expect-error fetchpriority is a valid HTML attr
+                    fetchpriority={i === 0 ? 'high' : 'low'}
                     draggable={false}
                     onLoad={i === 0 ? () => setBreadLoaded(true) : undefined}
                     onError={i === 0 ? () => { setBreadError(true); setBreadLoaded(true); } : undefined}
