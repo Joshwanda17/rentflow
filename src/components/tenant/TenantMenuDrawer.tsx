@@ -501,7 +501,7 @@ export function TenantMenuDrawer({
                   const sectionId = `tenant-menu-section-${section.title.toLowerCase().replace(/\s+/g, '-')}`;
                   return (
                   <section key={section.title} className="py-1" aria-labelledby={sectionId}>
-                    <h3 id={sectionId} className="text-[12px] font-semibold text-primary px-4 pt-3 pb-1.5 tracking-tight">
+                    <h3 id={sectionId} className="text-[11px] font-semibold text-muted-foreground px-4 pt-4 pb-1 tracking-wide uppercase">
                       {section.title}
                     </h3>
                     <ul role="list" className="m-0 p-0 list-none">
