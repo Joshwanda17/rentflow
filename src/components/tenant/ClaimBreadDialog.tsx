@@ -5,6 +5,7 @@ import { MapPin, Navigation, Store, Phone, CheckCircle2, Loader2 } from 'lucide-
 import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap } from '@/lib/haptics';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ClaimBreadDialogProps {
   open: boolean;
@@ -18,18 +19,11 @@ interface ClaimBreadDialogProps {
 interface NearbySeller {
   id: string;
   name: string;
-  distanceKm: number;
-  address: string;
-  phone: string;
+  distanceKm: number | null;
+  address: string | null;
+  phone: string | null;
   inStock: boolean;
 }
-
-const SELLERS: NearbySeller[] = [
-  { id: 's1', name: 'Welile Bakery — Kololo', distanceKm: 0.4, address: 'Plot 22, Acacia Ave', phone: '+256700111222', inStock: true },
-  { id: 's2', name: 'Quick Mart — Ntinda', distanceKm: 1.1, address: 'Ntinda Shopping Complex', phone: '+256700333444', inStock: true },
-  { id: 's3', name: 'Daily Loaf — Bukoto', distanceKm: 1.8, address: 'Bukoto Main St', phone: '+256700555666', inStock: false },
-  { id: 's4', name: 'Fresh Oven — Naguru', distanceKm: 2.6, address: 'Naguru Hill Rd', phone: '+256700777888', inStock: true },
-];
 
 export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, freeBreads, hasReceipt }: ClaimBreadDialogProps) {
   const { toast } = useToast();
@@ -37,15 +31,50 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
   const [claimedId, setClaimedId] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [sellers, setSellers] = useState<NearbySeller[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) {
       setClaimedId(null);
       setClaimingId(null);
+      return;
     }
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    (async () => {
+      const { data, error: dbError } = await supabase
+        .from('vendors')
+        .select('id, name, location, phone')
+        .eq('active', true)
+        .order('name', { ascending: true })
+        .limit(50);
+      if (cancelled) return;
+      if (dbError) {
+        setError('Could not load nearby sellers.');
+        setSellers([]);
+      } else {
+        setSellers(
+          (data ?? []).map((v) => ({
+            id: v.id,
+            name: v.name,
+            address: v.location ?? null,
+            phone: v.phone ?? null,
+            distanceKm: null,
+            inStock: true,
+          })),
+        );
+      }
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [open]);
 
-  const sortedSellers = useMemo(() => [...SELLERS].sort((a, b) => a.distanceKm - b.distanceKm), []);
+  const sortedSellers = useMemo(() => sellers, [sellers]);
 
   const requestLocation = () => {
     if (!('geolocation' in navigator)) {
@@ -116,6 +145,19 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
         </div>
 
         <ul className="max-h-[55vh] overflow-y-auto divide-y divide-border">
+          {loading && (
+            <li className="px-5 py-6 flex items-center justify-center text-xs text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading nearby sellers…
+            </li>
+          )}
+          {!loading && error && (
+            <li className="px-5 py-6 text-center text-xs text-destructive">{error}</li>
+          )}
+          {!loading && !error && sortedSellers.length === 0 && (
+            <li className="px-5 py-6 text-center text-xs text-muted-foreground">
+              No active sellers found near you yet.
+            </li>
+          )}
           {sortedSellers.map((seller) => {
             const isClaiming = claimingId === seller.id;
             const isClaimed = claimedId === seller.id;
@@ -123,23 +165,29 @@ export function ClaimBreadDialog({ open, onOpenChange, reducedPrice, basePrice, 
               <li key={seller.id} className="px-5 py-3 flex items-center justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold text-sm text-foreground truncate">{seller.name}</p>
-                  <p className="text-[11px] text-muted-foreground truncate">{seller.address}</p>
+                  {seller.address && (
+                    <p className="text-[11px] text-muted-foreground truncate">{seller.address}</p>
+                  )}
                   <div className="mt-1 flex items-center gap-2 text-[10px]">
-                    <span className="inline-flex items-center gap-1 text-muted-foreground">
-                      <MapPin className="h-3 w-3" /> {seller.distanceKm.toFixed(1)} km
-                    </span>
+                    {seller.distanceKm != null && (
+                      <span className="inline-flex items-center gap-1 text-muted-foreground">
+                        <MapPin className="h-3 w-3" /> {seller.distanceKm.toFixed(1)} km
+                      </span>
+                    )}
                     {seller.inStock ? (
                       <span className="text-emerald-600 dark:text-emerald-400 font-medium">In stock</span>
                     ) : (
                       <span className="text-amber-600 dark:text-amber-400 font-medium">Out of stock</span>
                     )}
-                    <a
-                      href={`tel:${seller.phone}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="inline-flex items-center gap-1 text-primary hover:underline"
-                    >
-                      <Phone className="h-3 w-3" /> Call
-                    </a>
+                    {seller.phone && (
+                      <a
+                        href={`tel:${seller.phone}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1 text-primary hover:underline"
+                      >
+                        <Phone className="h-3 w-3" /> Call
+                      </a>
+                    )}
                   </div>
                 </div>
                 <Button
