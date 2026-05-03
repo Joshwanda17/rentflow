@@ -440,7 +440,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                 left: 'calc(env(safe-area-inset-left, 0px) + 0.75rem)',
               }}
               role="img"
-              aria-label="Welile Rent Fees"
+              aria-label={heroSlideIndex > 0 ? 'Welile Rent Fees' : 'Welile Bread'}
             >
               <img
                 src={welileLogo}
@@ -454,7 +454,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                 aria-hidden="true"
                 className="text-[10px] font-bold uppercase tracking-widest text-foreground leading-none"
               >
-                Rent Fees
+                {heroSlideIndex > 0 ? 'Rent Fees' : 'Bread'}
               </span>
             </div>
 
@@ -604,29 +604,14 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                           setClaimBreadOpen(true);
                         }
                       }}
-                      aria-label={onRental ? 'Claim your rent discount' : 'Claim your discounted bread at a nearby seller'}
+                      aria-label={onRental ? 'Claim your rent fee discount' : 'Claim your discounted bread at a nearby seller'}
                       className="group flex-[1.6] inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white px-3 py-2.5 shadow-md ring-1 ring-emerald-300/40 active:scale-[0.97] transition-transform font-bold text-sm min-h-[44px]"
                     >
                       <Store className="h-4 w-4" />
-                      <span className="leading-tight">{onRental ? 'Claim Rent Discount' : 'Claim Rent Fees'}</span>
+                      <span className="leading-tight">{onRental ? 'Claim Rent Fee' : 'Claim Bread'}</span>
                     </button>
                   );
                 })()}
-
-                {/* Secondary primary: always-available Rent Discount claim */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    hapticTap();
-                    setClaimRentDiscountOpen(true);
-                  }}
-                  aria-label="Claim your Welile rent discount with a subscribed landlord"
-                  className="flex-1 inline-flex flex-col items-center justify-center gap-0.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-950/60 px-2 py-1.5 active:scale-[0.97] transition-transform min-h-[44px]"
-                >
-                  <Store className="h-4 w-4" />
-                  <span className="text-[10px] font-semibold uppercase tracking-wide leading-none text-center">Rent Disc.</span>
-                </button>
 
                 {/* Secondary: Add receipt */}
                 <button
