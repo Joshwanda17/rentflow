@@ -38,14 +38,10 @@ export const WELILE_BREAD_DISCOUNT_RATE = 0.05;
 export const WELILE_BREAD_MIN_PAYABLE = 500;
 const RECEIPT_STORAGE_KEY = 'welile.bread.receipt.v1';
 const LAST_SELLER_STORAGE_KEY = 'welile.bread.lastSeller.v1';
-const BREAD_RECEIPT_EVENT = 'welile-bread-receipt-changed';
+import { broadcastBreadPriceChange } from '@/hooks/useBreadReceiptPrice';
 
 function emitReceiptChange() {
-  try {
-    window.dispatchEvent(new Event(BREAD_RECEIPT_EVENT));
-  } catch {
-    /* noop */
-  }
+  broadcastBreadPriceChange();
 }
 
 interface BreadReceipt {

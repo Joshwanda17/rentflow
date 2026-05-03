@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 export const WELILE_BREAD_PRICE = 6500;
 export const WELILE_BREAD_DISCOUNT_RATE = 0.05;
@@ -9,6 +10,27 @@ const RECEIPT_STORAGE_KEY = 'welile.bread.receipt.v1';
 const RECEIPT_HISTORY_KEY = 'welile.bread.receipt.history.v1';
 const MAX_HISTORY = 5;
 export const BREAD_RECEIPT_EVENT = 'welile-bread-receipt-changed';
+const BROADCAST_CHANNEL_NAME = 'welile-bread-price';
+const REALTIME_CHANNEL_NAME = 'welile-bread-price-global';
+const REALTIME_EVENT = 'bread-price-changed';
+
+export function broadcastBreadPriceChange() {
+  if (typeof window === 'undefined') return;
+  try {
+    window.dispatchEvent(new Event(BREAD_RECEIPT_EVENT));
+    if ('BroadcastChannel' in window) {
+      const bc = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+      bc.postMessage({ type: 'changed', at: Date.now() });
+      bc.close();
+    }
+    supabase
+      .channel(REALTIME_CHANNEL_NAME)
+      .send({ type: 'broadcast', event: REALTIME_EVENT, payload: { at: Date.now() } })
+      .catch(() => {});
+  } catch {
+    /* noop */
+  }
+}
 
 interface BreadReceipt {
   number: string;
@@ -74,9 +96,20 @@ export function useBreadReceiptPrice(): BreadPriceState {
     const refresh = () => setState(compute());
     window.addEventListener(BREAD_RECEIPT_EVENT, refresh);
     window.addEventListener('storage', refresh);
+    let bc: BroadcastChannel | null = null;
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      bc = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+      bc.onmessage = refresh;
+    }
+    const channel = supabase
+      .channel(REALTIME_CHANNEL_NAME)
+      .on('broadcast', { event: REALTIME_EVENT }, refresh)
+      .subscribe();
     return () => {
       window.removeEventListener(BREAD_RECEIPT_EVENT, refresh);
       window.removeEventListener('storage', refresh);
+      if (bc) bc.close();
+      supabase.removeChannel(channel);
     };
   }, []);
 
@@ -119,7 +152,7 @@ export function appendBreadReceiptHistory(receipt: { number: string; amount: num
   const next = [entry, ...filtered].slice(0, MAX_HISTORY);
   try {
     localStorage.setItem(RECEIPT_HISTORY_KEY, JSON.stringify(next));
-    window.dispatchEvent(new Event(BREAD_RECEIPT_EVENT));
+    broadcastBreadPriceChange();
   } catch {
     /* noop */
   }
