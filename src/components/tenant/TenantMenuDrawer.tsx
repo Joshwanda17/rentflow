@@ -102,6 +102,16 @@ export function TenantMenuDrawer({
     });
   };
 
+  const setAllCollapsed = (titles: string[], value: boolean) => {
+    hapticSelection();
+    setCollapsed((prev) => {
+      const next = { ...prev };
+      titles.forEach((t) => { next[t] = value; });
+      try { window.localStorage.setItem('tenant-menu-collapsed', JSON.stringify(next)); } catch { /* noop */ }
+      return next;
+    });
+  };
+
   // ESC to close + focus trap + restore focus
   useEffect(() => {
     if (!open) return;
@@ -513,6 +523,35 @@ export function TenantMenuDrawer({
                   No results for “{query}”.
                 </div>
               ) : (
+                <>
+                {!query.trim() && filteredSections.length > 1 && (() => {
+                  const titles = filteredSections.map((s) => s.title);
+                  const allCollapsed = titles.every((t) => !!collapsed[t]);
+                  const allExpanded = titles.every((t) => !collapsed[t]);
+                  return (
+                    <div className="flex items-center justify-end gap-1 px-3 pt-2 pb-1">
+                      <button
+                        type="button"
+                        onClick={() => setAllCollapsed(titles, false)}
+                        disabled={allExpanded}
+                        className="text-[11px] font-medium uppercase tracking-wide px-2 py-1 rounded-md text-muted-foreground hover:bg-muted/50 hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                        aria-label="Expand all sections"
+                      >
+                        Expand all
+                      </button>
+                      <span aria-hidden="true" className="text-muted-foreground/40">·</span>
+                      <button
+                        type="button"
+                        onClick={() => setAllCollapsed(titles, true)}
+                        disabled={allCollapsed}
+                        className="text-[11px] font-medium uppercase tracking-wide px-2 py-1 rounded-md text-muted-foreground hover:bg-muted/50 hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                        aria-label="Collapse all sections"
+                      >
+                        Collapse all
+                      </button>
+                    </div>
+                  );
+                })()}
                 <nav aria-label="Tenant menu navigation">
                 {filteredSections.map((section) => {
                   const sectionId = `tenant-menu-section-${section.title.toLowerCase().replace(/\s+/g, '-')}`;
@@ -613,6 +652,7 @@ export function TenantMenuDrawer({
                   );
                 })}
                 </nav>
+                </>
               )}
 
               <p className="text-center text-[11px] text-muted-foreground/60 pt-6 pb-6 font-medium tracking-wide">
