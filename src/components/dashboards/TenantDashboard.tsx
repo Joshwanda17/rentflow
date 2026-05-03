@@ -282,7 +282,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               hapticTap();
               setReceiptDialogOpen(true);
             }}
-            className="relative overflow-hidden shadow-lg group active:scale-[0.99] transition-transform bg-amber-50 dark:bg-muted flex items-center justify-center flex-1 -mx-4 min-h-[80vh] rounded-none border-0 sm:flex-none sm:mx-0 sm:w-full sm:rounded-3xl sm:border sm:border-border sm:min-h-[340px] sm:max-h-[600px]"
+            className="relative overflow-hidden shadow-lg group active:scale-[0.99] transition-transform bg-amber-50 dark:bg-muted flex items-center justify-center flex-1 -mx-4 min-h-[80vh] rounded-none border-0 sm:flex-none sm:mx-0 sm:w-full sm:rounded-3xl sm:border sm:border-border sm:min-h-[340px] sm:max-h-[600px] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] sm:p-0"
             aria-label="Welile Bread — tap to enter a Welile receipt and save 5%"
             aria-describedby="bread-card-desc"
           >
