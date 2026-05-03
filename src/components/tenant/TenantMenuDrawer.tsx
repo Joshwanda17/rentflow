@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -70,6 +70,7 @@ export function TenantMenuDrawer({
   onOpenWallet,
 }: TenantMenuDrawerProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [query, setQuery] = useState('');
 
   const handleClose = () => {
@@ -345,32 +346,54 @@ export function TenantMenuDrawer({
                     </h3>
                     <div>
                       {section.items.map((item, itemIndex) => (
-                        <button
-                          key={item.label}
-                          onClick={() => handleItemClick(item)}
-                          className="w-full flex items-center gap-3.5 px-4 py-2.5 hover:bg-muted/40 active:bg-muted/60 transition-colors text-left"
-                        >
-                          <div className={cn(
-                            "h-9 w-9 rounded-full flex items-center justify-center shrink-0",
-                            "bg-muted/60",
-                          )}>
-                            <item.icon className={cn("h-[18px] w-[18px]", item.color || "text-foreground/70")} />
-                          </div>
-                          <div className="flex-1 min-w-0 border-b border-border/40 py-1.5"
-                               style={itemIndex === section.items.length - 1 ? { borderBottom: 'none' } : undefined}>
-                            <div className="flex items-center gap-1.5">
-                              <p className="font-medium text-[15px] text-foreground truncate leading-tight">{item.label}</p>
-                              {item.badge && (
-                                <span className="px-1.5 py-px text-[9px] font-bold bg-primary/10 text-primary rounded-full uppercase tracking-wide whitespace-nowrap">
-                                  {item.badge}
-                                </span>
+                        (() => {
+                          const isActive = !!item.path && (location.pathname === item.path || location.pathname.startsWith(item.path + '/'));
+                          return (
+                            <button
+                              key={item.label}
+                              onClick={() => handleItemClick(item)}
+                              aria-current={isActive ? 'page' : undefined}
+                              className={cn(
+                                "relative w-full flex items-center gap-3.5 px-4 py-2.5 transition-colors text-left",
+                                isActive
+                                  ? "bg-primary/10 hover:bg-primary/15"
+                                  : "hover:bg-muted/40 active:bg-muted/60",
                               )}
-                            </div>
-                            {item.description && (
-                              <p className="text-[12px] text-muted-foreground truncate leading-tight mt-0.5">{item.description}</p>
-                            )}
-                          </div>
-                        </button>
+                            >
+                              {isActive && (
+                                <span aria-hidden className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full bg-primary" />
+                              )}
+                              <div className={cn(
+                                "h-9 w-9 rounded-full flex items-center justify-center shrink-0",
+                                isActive ? "bg-primary/15 ring-1 ring-primary/30" : "bg-muted/60",
+                              )}>
+                                <item.icon className={cn("h-[18px] w-[18px]", isActive ? "text-primary" : (item.color || "text-foreground/70"))} />
+                              </div>
+                              <div className="flex-1 min-w-0 border-b border-border/40 py-1.5"
+                                   style={itemIndex === section.items.length - 1 ? { borderBottom: 'none' } : undefined}>
+                                <div className="flex items-center gap-1.5">
+                                  <p className={cn(
+                                    "text-[15px] truncate leading-tight",
+                                    isActive ? "font-semibold text-primary" : "font-medium text-foreground",
+                                  )}>{item.label}</p>
+                                  {isActive && (
+                                    <span className="px-1.5 py-px text-[9px] font-bold bg-primary text-primary-foreground rounded-full uppercase tracking-wide whitespace-nowrap">
+                                      Current
+                                    </span>
+                                  )}
+                                  {!isActive && item.badge && (
+                                    <span className="px-1.5 py-px text-[9px] font-bold bg-primary/10 text-primary rounded-full uppercase tracking-wide whitespace-nowrap">
+                                      {item.badge}
+                                    </span>
+                                  )}
+                                </div>
+                                {item.description && (
+                                  <p className="text-[12px] text-muted-foreground truncate leading-tight mt-0.5">{item.description}</p>
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })()
                       ))}
                     </div>
                   </section>
