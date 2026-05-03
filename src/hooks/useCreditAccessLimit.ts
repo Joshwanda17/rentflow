@@ -48,12 +48,43 @@ export const SUPPORTED_DISPLAY_CURRENCIES = Object.keys(EXCHANGE_RATES);
 const limitCache = new Map<string, { data: CreditAccessLimit; timestamp: number }>();
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
+// Persistent localStorage cache so the tenant "bread" (rent access limit)
+// renders from last-known data with no internet. View-only — never trusted
+// for write decisions.
+const LS_VERSION = 'v1';
+const lsKey = (uid: string) => `credit_access_limit_${LS_VERSION}_${uid}`;
+
+function loadFromLS(userId: string): CreditAccessLimit | null {
+  try {
+    const raw = localStorage.getItem(lsKey(userId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { data: CreditAccessLimit; timestamp: number };
+    return parsed?.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function saveToLS(userId: string, data: CreditAccessLimit) {
+  try {
+    localStorage.setItem(lsKey(userId), JSON.stringify({ data, timestamp: Date.now() }));
+  } catch {
+    /* quota / private mode — ignore */
+  }
+}
+
 export function useCreditAccessLimit(userId: string | undefined) {
   const cached = userId ? limitCache.get(userId) : undefined;
+  const persisted = userId ? loadFromLS(userId) : null;
+  // Seed module cache from localStorage on cold load so other instances
+  // mounted in the same render pick up the warm value too.
+  if (userId && persisted && !cached) {
+    limitCache.set(userId, { data: persisted, timestamp: 0 });
+  }
   const [limit, setLimit] = useState<CreditAccessLimit>(
     cached && (Date.now() - cached.timestamp < CACHE_TTL)
     ? cached.data
-    : {
+    : persisted ?? {
           totalLimit: MIN_LIMIT,
           baseLimit: MIN_LIMIT,
           bonusFromRatings: 0,
@@ -64,7 +95,11 @@ export function useCreditAccessLimit(userId: string | undefined) {
           bonusFromPartnersOnboarded: 0,
         }
   );
-  const [loading, setLoading] = useState(!cached || (Date.now() - (cached?.timestamp ?? 0)) >= CACHE_TTL);
+  // If we have ANY cached value (memory or localStorage), don't show a
+  // loading state — show stale data instantly, refresh in the background.
+  const [loading, setLoading] = useState(
+    !cached && !persisted,
+  );
 
   const fetchLimit = useCallback(async () => {
     if (!userId) return;
@@ -73,6 +108,12 @@ export function useCreditAccessLimit(userId: string | undefined) {
     const existing = limitCache.get(userId);
     if (existing && (Date.now() - existing.timestamp < CACHE_TTL)) {
       setLimit(existing.data);
+      setLoading(false);
+      return;
+    }
+
+    // Offline: keep whatever cache we already rendered. Never spin.
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
       setLoading(false);
       return;
     }
@@ -101,6 +142,7 @@ export function useCreditAccessLimit(userId: string | undefined) {
         };
         setLimit(parsed);
         limitCache.set(userId, { data: parsed, timestamp: Date.now() });
+        saveToLS(userId, parsed);
       }
     } catch (err) {
       console.error('[useCreditAccessLimit] Error:', err);
