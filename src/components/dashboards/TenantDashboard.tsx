@@ -71,6 +71,7 @@ import {
 } from '@/hooks/useBreadReceiptPrice';
 import { WelileReceiptDialog } from '@/components/tenant/WelileReceiptDialog';
 import { ClaimBreadDialog } from '@/components/tenant/ClaimBreadDialog';
+import { ClaimRentDiscountDialog } from '@/components/tenant/ClaimRentDiscountDialog';
 import { AddMonthlyRentDialog, getStoredMonthlyRent } from '@/components/tenant/AddMonthlyRentDialog';
 import { RentDiscountCarousel } from '@/components/tenant/RentDiscountCarousel';
 import { Share2, Plus, Info, Store } from 'lucide-react';
@@ -181,6 +182,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const [shareBreadOpen, setShareBreadOpen] = useState(false);
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
   const [claimBreadOpen, setClaimBreadOpen] = useState(false);
+  const [claimRentDiscountOpen, setClaimRentDiscountOpen] = useState(false);
   const [addRentOpen, setAddRentOpen] = useState(false);
   const [savedMonthlyRent, setSavedMonthlyRent] = useState<number | null>(() => getStoredMonthlyRent());
   useEffect(() => {
@@ -597,7 +599,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                         e.stopPropagation();
                         hapticTap();
                         if (onRental) {
-                          rentCarouselRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          setClaimRentDiscountOpen(true);
                         } else {
                           setClaimBreadOpen(true);
                         }
@@ -749,6 +751,18 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         basePrice={breadPrice.basePrice}
         freeBreads={breadPrice.freeBreads}
         hasReceipt={breadPrice.hasReceipt}
+      />
+
+      {/* Claim Welile rent discount with a subscribed landlord or from the Landlord Float */}
+      <ClaimRentDiscountDialog
+        open={claimRentDiscountOpen}
+        onOpenChange={setClaimRentDiscountOpen}
+        monthlyRent={savedMonthlyRent}
+        discountPct={
+          breadPrice.basePrice > 0
+            ? Math.max(0, (breadPrice.basePrice - breadPrice.reducedPrice) / breadPrice.basePrice)
+            : 0
+        }
       />
 
       {/* Add monthly rent — applies the same bread discount to rent */}
