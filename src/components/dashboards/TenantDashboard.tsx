@@ -282,7 +282,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               hapticTap();
               setReceiptDialogOpen(true);
             }}
-            className="relative overflow-hidden shadow-lg group active:scale-[0.99] transition-transform bg-amber-50 dark:bg-muted flex items-center justify-center flex-1 -mx-4 min-h-[80vh] rounded-none border-0 sm:flex-none sm:mx-0 sm:w-full sm:rounded-3xl sm:border sm:border-border sm:min-h-[340px] sm:max-h-[600px] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] sm:p-0"
+            className="relative overflow-hidden shadow-lg group active:scale-[0.99] transition-transform bg-amber-50 dark:bg-muted flex items-center justify-center flex-1 -mx-4 min-h-[80vh] rounded-none border-0 sm:flex-none sm:mx-0 sm:w-full sm:rounded-3xl sm:border sm:border-border sm:min-h-[340px] sm:max-h-[600px]"
             aria-label="Welile Bread — tap to enter a Welile receipt and save 5%"
             aria-describedby="bread-card-desc"
           >
@@ -331,7 +331,11 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
 
             {/* Welile branding badge — top-left */}
             <div
-              className="absolute top-3 left-3 flex flex-col items-center gap-1 rounded-2xl bg-background/95 dark:bg-card/95 backdrop-blur-md px-2.5 py-2 shadow-md border border-border ring-1 ring-foreground/5"
+              className="absolute flex flex-col items-center gap-1 rounded-2xl bg-background/95 dark:bg-card/95 backdrop-blur-md px-2.5 py-2 shadow-md border border-border ring-1 ring-foreground/5"
+              style={{
+                top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)',
+                left: 'calc(env(safe-area-inset-left, 0px) + 0.75rem)',
+              }}
               role="img"
               aria-label="Welile Bread"
             >
@@ -353,7 +357,11 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
 
             {/* Premium price badge — top-right */}
             <div
-              className="absolute top-3 right-3 flex flex-col items-end gap-0.5 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white px-3 py-1.5 shadow-lg ring-1 ring-amber-300/40"
+              className="absolute flex flex-col items-end gap-0.5 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white px-3 py-1.5 shadow-lg ring-1 ring-amber-300/40"
+              style={{
+                top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)',
+                right: 'calc(env(safe-area-inset-right, 0px) + 0.75rem)',
+              }}
               aria-label={`Welile Bread price ${formatUGX(WELILE_BREAD_PRICE)}`}
             >
               <span className="text-[9px] font-semibold uppercase tracking-[0.18em] leading-none opacity-90">
@@ -381,7 +389,11 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                   setShareBreadOpen(true);
                 }
               }}
-              className="absolute bottom-3 right-3 inline-flex items-center gap-2 rounded-full bg-foreground text-background px-4 py-2.5 shadow-xl ring-1 ring-background/20 cursor-pointer select-none hover:scale-105 active:scale-95 transition-transform font-semibold text-sm"
+              className="absolute inline-flex items-center gap-2 rounded-full bg-foreground text-background px-4 py-2.5 shadow-xl ring-1 ring-background/20 cursor-pointer select-none hover:scale-105 active:scale-95 transition-transform font-semibold text-sm"
+              style={{
+                bottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.75rem)',
+                right: 'calc(env(safe-area-inset-right, 0px) + 0.75rem)',
+              }}
             >
               <Share2 className="h-4 w-4" />
               Share Bread
