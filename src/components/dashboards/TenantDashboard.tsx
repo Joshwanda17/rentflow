@@ -68,6 +68,7 @@ import {
 } from '@/hooks/useBreadReceiptPrice';
 import { WelileReceiptDialog } from '@/components/tenant/WelileReceiptDialog';
 import { ClaimBreadDialog } from '@/components/tenant/ClaimBreadDialog';
+import { RentDiscountCarousel } from '@/components/tenant/RentDiscountCarousel';
 import { Share2, Plus, Info, Store } from 'lucide-react';
 import { useAvailableBalance } from '@/hooks/useAvailableBalance';
 
@@ -532,6 +533,15 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               </div>
             </div>
           </button>
+
+          {/* Apply your bread discount to rent — horizontally scrollable rentals */}
+          <RentDiscountCarousel
+            discountPct={
+              breadPrice.basePrice > 0
+                ? Math.max(0, (breadPrice.basePrice - breadPrice.reducedPrice) / breadPrice.basePrice)
+                : 0
+            }
+          />
 
           {/* Mini receipt history — last 5 receipts that affected bread price */}
           {breadHistory.length > 0 && (
