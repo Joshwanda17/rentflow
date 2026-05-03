@@ -581,8 +581,23 @@ export function TenantMenuDrawer({
                         />
                       </button>
                     </h3>
-                    <ul id={listId} role="list" hidden={isCollapsed} className="m-0 p-0 list-none">
-                      {section.items.map((item, itemIndex) => {
+                    <AnimatePresence initial={false}>
+                      {!isCollapsed && (
+                        <motion.ul
+                          id={listId}
+                          role="list"
+                          key="list"
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{
+                            height: { duration: 0.24, ease: [0.32, 0.72, 0, 1] },
+                            opacity: { duration: 0.18, ease: 'easeOut' },
+                          }}
+                          style={{ overflow: 'hidden' }}
+                          className="m-0 p-0 list-none"
+                        >
+                          {section.items.map((item, itemIndex) => {
                         const isActive = !!item.path && (location.pathname === item.path || location.pathname.startsWith(item.path + '/'));
                         const ariaLabel = [
                           item.label,
@@ -591,7 +606,12 @@ export function TenantMenuDrawer({
                           item.badge && !isActive ? `(${item.badge})` : null,
                         ].filter(Boolean).join('. ');
                         return (
-                          <li key={item.label}>
+                          <motion.li
+                            key={item.label}
+                            initial={{ opacity: 0, y: -4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.18, ease: 'easeOut', delay: itemIndex * 0.015 }}
+                          >
                             <button
                               type="button"
                               onPointerDown={() => { hapticSelection(); startLongPress(item); }}
@@ -644,10 +664,12 @@ export function TenantMenuDrawer({
                                 )}
                               </div>
                             </button>
-                          </li>
+                          </motion.li>
                         );
-                      })}
-                    </ul>
+                          })}
+                        </motion.ul>
+                      )}
+                    </AnimatePresence>
                   </section>
                   );
                 })}
