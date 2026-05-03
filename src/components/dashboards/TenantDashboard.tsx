@@ -499,7 +499,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                   setReceiptDialogOpen(true);
                 }
               }}
-              className={`absolute flex flex-col items-end gap-0.5 rounded-2xl text-white px-3 py-1.5 shadow-xl ring-1 backdrop-blur-sm active:scale-[0.97] transition-transform text-left drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)] ${
+              className={`absolute flex flex-col items-end gap-0.5 rounded-2xl text-white px-3 py-1.5 shadow-xl ring-1 backdrop-blur-sm active:scale-[0.97] transition-transform text-left drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)] [text-shadow:0_1px_2px_rgba(0,0,0,0.55),0_0_1px_rgba(0,0,0,0.7)] ${
                 breadPrice.freeBreads > 0
                   ? 'bg-gradient-to-br from-emerald-600 to-emerald-800 ring-white/30'
                   : breadPrice.reducedPrice < breadPrice.basePrice
