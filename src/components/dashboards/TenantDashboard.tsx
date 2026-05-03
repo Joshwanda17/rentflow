@@ -275,15 +275,15 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             <AiIdButton variant="compact" />
           </motion.div>
 
-          {/* Big appetizing bread hero — fills remaining space */}
+          {/* Big appetizing bread hero — fills the full screen on mobile */}
           <button
             type="button"
             onClick={() => {
               hapticTap();
               setReceiptDialogOpen(true);
             }}
-            className="relative w-full rounded-3xl overflow-hidden border border-border shadow-lg group active:scale-[0.99] transition-transform bg-amber-50 dark:bg-muted flex items-center justify-center"
-            style={{ height: 'min(68vh, 110vw, 600px)', minHeight: '340px' }}
+            className="relative w-full overflow-hidden shadow-lg group active:scale-[0.99] transition-transform bg-amber-50 dark:bg-muted flex items-center justify-center flex-1 min-h-[70vh] rounded-none border-0 sm:flex-none sm:rounded-3xl sm:border sm:border-border sm:min-h-[340px]"
+            style={{ height: undefined }}
             aria-label="Welile Bread — tap to enter a Welile receipt and save 5%"
             aria-describedby="bread-card-desc"
           >
