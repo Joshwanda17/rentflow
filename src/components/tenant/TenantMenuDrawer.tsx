@@ -514,6 +514,58 @@ export function TenantMenuDrawer({
               </p>
             </div>
           </motion.div>
+
+          {/* Long-press quick actions */}
+          <Sheet open={!!quickAction} onOpenChange={(o) => !o && setQuickAction(null)}>
+            <SheetContent side="bottom" className="z-[110] rounded-t-2xl px-0 pb-6 pt-3 max-h-[70vh]">
+              <div aria-hidden="true" className="mx-auto h-1 w-10 rounded-full bg-muted mb-3" />
+              {quickAction && (
+                <>
+                  <SheetHeader className="px-5 text-left">
+                    <SheetTitle className="text-[16px] font-semibold leading-tight">{quickAction.label}</SheetTitle>
+                    {quickAction.description && (
+                      <SheetDescription className="text-[12px]">{quickAction.description}</SheetDescription>
+                    )}
+                  </SheetHeader>
+                  <div className="mt-3">
+                    <button
+                      type="button"
+                      onPointerDown={() => hapticSelection()}
+                      onClick={() => handleCopyLink(quickAction)}
+                      className="w-full min-h-[52px] flex items-center gap-3 px-5 py-3 hover:bg-muted/50 active:bg-muted/80 transition-colors text-left"
+                    >
+                      <div aria-hidden="true" className="h-9 w-9 rounded-full bg-muted flex items-center justify-center">
+                        <Link2 className="h-[18px] w-[18px] text-foreground/80" />
+                      </div>
+                      <span className="text-[14px] font-medium">Copy link</span>
+                    </button>
+                    <button
+                      type="button"
+                      onPointerDown={() => hapticSelection()}
+                      onClick={() => handleShare(quickAction)}
+                      className="w-full min-h-[52px] flex items-center gap-3 px-5 py-3 hover:bg-muted/50 active:bg-muted/80 transition-colors text-left"
+                    >
+                      <div aria-hidden="true" className="h-9 w-9 rounded-full bg-muted flex items-center justify-center">
+                        <Share2 className="h-[18px] w-[18px] text-foreground/80" />
+                      </div>
+                      <span className="text-[14px] font-medium">Share</span>
+                    </button>
+                    <button
+                      type="button"
+                      onPointerDown={() => hapticSelection()}
+                      onClick={() => handleDetails(quickAction)}
+                      className="w-full min-h-[52px] flex items-center gap-3 px-5 py-3 hover:bg-muted/50 active:bg-muted/80 transition-colors text-left"
+                    >
+                      <div aria-hidden="true" className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Info className="h-[18px] w-[18px] text-primary" />
+                      </div>
+                      <span className="text-[14px] font-medium text-primary">Open details</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </SheetContent>
+          </Sheet>
         </>
       )}
     </AnimatePresence>
