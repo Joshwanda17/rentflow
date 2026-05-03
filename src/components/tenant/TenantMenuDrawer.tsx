@@ -26,6 +26,7 @@ import {
   Copy,
   Info,
   Link2,
+  ChevronDown,
 } from 'lucide-react';
 import { hapticTap, hapticSuccess, hapticImpact, hapticSelection, haptic } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -84,6 +85,22 @@ export function TenantMenuDrawer({
   const longPressFired = useRef(false);
   const drawerRef = useRef<HTMLDivElement | null>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
+    if (typeof window === 'undefined') return {};
+    try {
+      const raw = window.localStorage.getItem('tenant-menu-collapsed');
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  });
+
+  const toggleSection = (title: string) => {
+    hapticSelection();
+    setCollapsed((prev) => {
+      const next = { ...prev, [title]: !prev[title] };
+      try { window.localStorage.setItem('tenant-menu-collapsed', JSON.stringify(next)); } catch { /* noop */ }
+      return next;
+    });
+  };
 
   // ESC to close + focus trap + restore focus
   useEffect(() => {
