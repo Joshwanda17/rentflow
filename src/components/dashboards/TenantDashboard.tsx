@@ -559,7 +559,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                   )}
                 </div>
               )}
-            </div>
+            </button>
 
             {/* Action dock — organized bottom bar with primary Claim CTA + secondary actions */}
             <div
