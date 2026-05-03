@@ -141,6 +141,29 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const [menuOpen, setMenuOpen] = useState(false);
   const [breadLoaded, setBreadLoaded] = useState(false);
   const [breadError, setBreadError] = useState(false);
+
+  // Preload + decode rental hero images so horizontal swipe is instant on mobile.
+  useEffect(() => {
+    let cancelled = false;
+    const sources = [rental1, rental2, rental3];
+    const idle = (cb: () => void) =>
+      typeof (window as any).requestIdleCallback === 'function'
+        ? (window as any).requestIdleCallback(cb, { timeout: 1500 })
+        : window.setTimeout(cb, 200);
+    idle(() => {
+      if (cancelled) return;
+      sources.forEach((src) => {
+        const img = new Image();
+        img.decoding = 'async';
+        (img as any).fetchPriority = 'low';
+        img.src = src;
+        if (typeof img.decode === 'function') {
+          img.decode().catch(() => {});
+        }
+      });
+    });
+    return () => { cancelled = true; };
+  }, []);
   const [depositOpen, setDepositOpen] = useState(false);
   const [housesOpen, setHousesOpen] = useState(false);
   const [shareBreadOpen, setShareBreadOpen] = useState(false);
