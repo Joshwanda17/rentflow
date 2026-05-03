@@ -4,7 +4,6 @@ import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useOffline } from '@/contexts/OfflineContext';
 import { 
-  Wallet,
   FileText,
   Menu,
   WifiOff,
@@ -21,14 +20,13 @@ import DashboardHeader from '@/components/DashboardHeader';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { TenantDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
-import { WalletHeroSkeleton, ListSectionSkeleton } from '@/components/skeletons/SectionSkeletons';
+import { ListSectionSkeleton } from '@/components/skeletons/SectionSkeletons';
 import { PayLandlordDialog } from '@/components/wallet/PayLandlordDialog';
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
 import { WalletDisclaimer } from '@/components/wallet/WalletDisclaimer';
 import { useWallet } from '@/hooks/useWallet';
 import { hapticTap } from '@/lib/haptics';
 import AiIdButton from '@/components/ai-id/AiIdButton';
-import { UnifiedWalletHeroCard } from '@/components/wallet/UnifiedWalletHeroCard';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
 import { InviteAndEarnCard } from '@/components/shared/InviteAndEarnCard';
 import { SubscriptionStatusCard } from '@/components/tenant/SubscriptionStatusCard';
@@ -276,20 +274,6 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             </div>
             <AiIdButton variant="compact" />
           </motion.div>
-
-          {/* Compact Wallet Hero Card */}
-          {wallet ? (
-            <div className="origin-top scale-[0.88] -mb-2">
-              <UnifiedWalletHeroCard
-                balance={wallet?.balance ?? 0}
-                role="tenant"
-                secondaryLabel="Used for Rent"
-                secondaryValue={formatUGX(rentRequests.find(r => ['approved', 'funded', 'disbursed', 'repaying'].includes(r.status))?.rent_amount ?? 0)}
-              />
-            </div>
-          ) : (
-            <WalletHeroSkeleton />
-          )}
 
           {/* Big appetizing bread hero — fills remaining space */}
           <button
