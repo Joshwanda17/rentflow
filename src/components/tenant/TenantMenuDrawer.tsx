@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
@@ -69,14 +70,17 @@ export function TenantMenuDrawer({
   onOpenWallet,
 }: TenantMenuDrawerProps) {
   const navigate = useNavigate();
+  const [query, setQuery] = useState('');
 
   const handleClose = () => {
     hapticTap();
+    setQuery('');
     onOpenChange(false);
   };
 
   const handleItemClick = (item: MenuItem) => {
     hapticSuccess();
+    setQuery('');
     onOpenChange(false);
     if (item.onClick) {
       item.onClick();
@@ -228,6 +232,21 @@ export function TenantMenuDrawer({
       ]
     },
   ];
+
+  const filteredSections = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return menuSections;
+    return menuSections
+      .map((s) => ({
+        ...s,
+        items: s.items.filter(
+          (i) =>
+            i.label.toLowerCase().includes(q) ||
+            (i.description?.toLowerCase().includes(q) ?? false),
+        ),
+      }))
+      .filter((s) => s.items.length > 0);
+  }, [query, menuSections]);
 
   return (
     <AnimatePresence>
