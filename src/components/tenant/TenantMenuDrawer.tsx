@@ -264,6 +264,9 @@ export function TenantMenuDrawer({
 
           {/* Drawer */}
           <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Tenant menu"
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
@@ -316,18 +319,20 @@ export function TenantMenuDrawer({
               {/* Wallet hero (profile-row equivalent) */}
               {onOpenWallet && (
                 <button
+                  type="button"
                   onPointerDown={() => hapticImpact()}
                   onClick={() => { hapticSuccess(); onOpenWallet(); }}
-                  className="w-full flex items-center gap-3 px-4 py-4 border-b border-border/60 hover:bg-muted/40 active:bg-primary/10 active:scale-[0.985] transition-all duration-100 text-left touch-manipulation select-none"
+                  aria-label={`Open wallet. Available balance ${formatUGX(walletBalance)}`}
+                  className="w-full min-h-[64px] flex items-center gap-3 px-4 py-4 border-b border-border/60 hover:bg-muted/40 active:bg-primary/10 active:scale-[0.985] transition-all duration-100 text-left touch-manipulation select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-inset"
                 >
-                  <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center shrink-0 shadow-sm">
+                  <div aria-hidden="true" className="h-12 w-12 rounded-full bg-primary flex items-center justify-center shrink-0 shadow-sm">
                     <Wallet className="h-5 w-5 text-primary-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-[15px] text-foreground leading-tight truncate">My Wallet</p>
                     <p className="text-[12px] text-muted-foreground leading-tight mt-0.5 truncate">{formatUGX(walletBalance)} available</p>
                   </div>
-                  <ChevronRight className="h-5 w-5 text-muted-foreground/60 shrink-0" />
+                  <ChevronRight aria-hidden="true" className="h-5 w-5 text-muted-foreground/60 shrink-0" />
                 </button>
               )}
 
@@ -342,36 +347,47 @@ export function TenantMenuDrawer({
                   No results for “{query}”.
                 </div>
               ) : (
-                filteredSections.map((section) => (
-                  <section key={section.title} className="py-1">
-                    <h3 className="text-[12px] font-semibold text-primary px-4 pt-3 pb-1.5 tracking-tight">
+                <nav aria-label="Tenant menu navigation">
+                {filteredSections.map((section) => {
+                  const sectionId = `tenant-menu-section-${section.title.toLowerCase().replace(/\s+/g, '-')}`;
+                  return (
+                  <section key={section.title} className="py-1" aria-labelledby={sectionId}>
+                    <h3 id={sectionId} className="text-[12px] font-semibold text-primary px-4 pt-3 pb-1.5 tracking-tight">
                       {section.title}
                     </h3>
-                    <div>
-                      {section.items.map((item, itemIndex) => (
-                        (() => {
-                          const isActive = !!item.path && (location.pathname === item.path || location.pathname.startsWith(item.path + '/'));
-                          return (
+                    <ul role="list" className="m-0 p-0 list-none">
+                      {section.items.map((item, itemIndex) => {
+                        const isActive = !!item.path && (location.pathname === item.path || location.pathname.startsWith(item.path + '/'));
+                        const ariaLabel = [
+                          item.label,
+                          item.description,
+                          isActive ? '(current page)' : null,
+                          item.badge && !isActive ? `(${item.badge})` : null,
+                        ].filter(Boolean).join('. ');
+                        return (
+                          <li key={item.label}>
                             <button
-                              key={item.label}
+                              type="button"
                               onPointerDown={() => hapticSelection()}
                               onClick={() => handleItemClick(item)}
                               aria-current={isActive ? 'page' : undefined}
+                              aria-label={ariaLabel}
                               className={cn(
-                                "relative w-full flex items-center gap-3.5 px-4 py-2.5 transition-all duration-100 text-left touch-manipulation select-none active:scale-[0.985]",
+                                "relative w-full min-h-[56px] flex items-center gap-3.5 px-4 py-3 transition-all duration-100 text-left touch-manipulation select-none active:scale-[0.985]",
+                                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-inset",
                                 isActive
                                   ? "bg-primary/10 hover:bg-primary/15 active:bg-primary/20"
                                   : "hover:bg-muted/40 active:bg-muted/80",
                               )}
                             >
                               {isActive && (
-                                <span aria-hidden className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full bg-primary" />
+                                <span aria-hidden="true" className="absolute left-0 top-1.5 bottom-1.5 w-1 rounded-r-full bg-primary" />
                               )}
-                              <div className={cn(
-                                "h-9 w-9 rounded-full flex items-center justify-center shrink-0",
+                              <div aria-hidden="true" className={cn(
+                                "h-10 w-10 rounded-full flex items-center justify-center shrink-0",
                                 isActive ? "bg-primary/15 ring-1 ring-primary/30" : "bg-muted/60",
                               )}>
-                                <item.icon className={cn("h-[18px] w-[18px]", isActive ? "text-primary" : (item.color || "text-foreground/70"))} />
+                                <item.icon className={cn("h-[19px] w-[19px]", isActive ? "text-primary" : (item.color || "text-foreground/70"))} />
                               </div>
                               <div className="flex-1 min-w-0 border-b border-border/40 py-1.5"
                                    style={itemIndex === section.items.length - 1 ? { borderBottom: 'none' } : undefined}>
@@ -396,12 +412,14 @@ export function TenantMenuDrawer({
                                 )}
                               </div>
                             </button>
-                          );
-                        })()
-                      ))}
-                    </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
                   </section>
-                ))
+                  );
+                })}
+                </nav>
               )}
 
               <p className="text-center text-[11px] text-muted-foreground/60 pt-6 pb-6 font-medium tracking-wide">
