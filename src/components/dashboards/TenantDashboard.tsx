@@ -404,6 +404,17 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               {breadPrice.hasReceipt && (
                 <div className="mt-1.5 pt-1.5 border-t border-white/25 w-full flex flex-col items-end gap-0.5 text-[9px] leading-tight font-medium opacity-95">
                   <span>Receipt: {formatUGX(breadPrice.receiptAmount)}</span>
+                  {breadPrice.savedAt && (
+                    <span className="opacity-80">
+                      Applied:{' '}
+                      {new Date(breadPrice.savedAt).toLocaleString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  )}
                   {breadPrice.freeBreads > 0 && (
                     <button
                       type="button"
