@@ -372,6 +372,25 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               </span>
             </div>
 
+            {/* Add Welile Receipt CTA — directly below price badge */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                hapticTap();
+                setReceiptDialogOpen(true);
+              }}
+              aria-label="Add a Welile receipt to reduce bread price"
+              className="absolute inline-flex items-center gap-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 shadow-lg ring-1 ring-emerald-300/40 text-[11px] font-bold uppercase tracking-wide active:scale-95 transition-transform"
+              style={{
+                top: 'calc(env(safe-area-inset-top, 0px) + 4.25rem)',
+                right: 'calc(env(safe-area-inset-right, 0px) + 0.75rem)',
+              }}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add Welile receipt to reduce bread price
+            </button>
+
             {/* Share Bread CTA — bottom-right */}
             <span
               role="button"
