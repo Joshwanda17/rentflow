@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 
 export const WELILE_BREAD_PRICE = 6500;
-const DISCOUNT_RATE = 0.05;
-const MIN_PAYABLE = 500;
+export const WELILE_BREAD_DISCOUNT_RATE = 0.05;
+export const WELILE_BREAD_MIN_PAYABLE = 500;
+const DISCOUNT_RATE = WELILE_BREAD_DISCOUNT_RATE;
+const MIN_PAYABLE = WELILE_BREAD_MIN_PAYABLE;
 const RECEIPT_STORAGE_KEY = 'welile.bread.receipt.v1';
 export const BREAD_RECEIPT_EVENT = 'welile-bread-receipt-changed';
 

@@ -60,7 +60,11 @@ import { Button } from '@/components/ui/button';
 import breadHero from '@/assets/tenant-bread-hero.jpg';
 import welileLogo from '@/assets/welile-logo.png';
 import { ShareBreadDialog, WELILE_BREAD_PRICE } from '@/components/tenant/ShareBreadDialog';
-import { useBreadReceiptPrice } from '@/hooks/useBreadReceiptPrice';
+import {
+  useBreadReceiptPrice,
+  WELILE_BREAD_DISCOUNT_RATE,
+  WELILE_BREAD_MIN_PAYABLE,
+} from '@/hooks/useBreadReceiptPrice';
 import { WelileReceiptDialog } from '@/components/tenant/WelileReceiptDialog';
 import { Share2, Plus, Info } from 'lucide-react';
 import { useAvailableBalance } from '@/hooks/useAvailableBalance';
@@ -433,6 +437,12 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                   )}
                   <span>
                     Now: {breadPrice.reducedPrice === 0 ? 'FREE' : formatUGX(breadPrice.reducedPrice)}
+                  </span>
+                  <span className="opacity-80 text-right">
+                    How calculated: {Math.round(WELILE_BREAD_DISCOUNT_RATE * 100)}% of{' '}
+                    {formatUGX(breadPrice.receiptAmount)} ={' '}
+                    {formatUGX(Math.round(breadPrice.receiptAmount * WELILE_BREAD_DISCOUNT_RATE))} off ·
+                    min price {formatUGX(WELILE_BREAD_MIN_PAYABLE)}
                   </span>
                   {freeBreadsInfoOpen && breadPrice.freeBreads > 0 && (
                     <div
