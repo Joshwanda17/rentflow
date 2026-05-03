@@ -141,6 +141,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const [menuOpen, setMenuOpen] = useState(false);
   const [breadLoaded, setBreadLoaded] = useState(false);
   const [breadError, setBreadError] = useState(false);
+  const [rentalsLoaded, setRentalsLoaded] = useState<Record<string, boolean>>({});
 
   // Preload + decode rental hero images so horizontal swipe is instant on mobile.
   useEffect(() => {
@@ -157,8 +158,15 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         img.decoding = 'async';
         (img as any).fetchPriority = 'low';
         img.src = src;
+        const markLoaded = () => {
+          if (cancelled) return;
+          setRentalsLoaded((prev) => (prev[src] ? prev : { ...prev, [src]: true }));
+        };
         if (typeof img.decode === 'function') {
-          img.decode().catch(() => {});
+          img.decode().then(markLoaded).catch(markLoaded);
+        } else {
+          img.onload = markLoaded;
+          img.onerror = markLoaded;
         }
       });
     });
@@ -335,24 +343,45 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                   { src: rental1, alt: 'Modern apartments rental' },
                   { src: rental2, alt: 'Family house rental' },
                   { src: rental3, alt: 'City studio rental' },
-                ].map((slide, i) => (
-                  <img
-                    key={i}
-                    src={slide.src}
-                    alt={slide.alt}
-                    className={`h-full w-full shrink-0 snap-center object-cover object-center select-none transition-opacity duration-500 ${breadLoaded ? 'opacity-100' : 'opacity-0'}`}
-                    width={1024}
-                    height={1024}
-                    loading="eager"
-                    decoding="async"
-                    // @ts-expect-error fetchpriority is a valid HTML attr
-                    fetchpriority={i === 0 ? 'high' : 'low'}
-                    draggable={false}
-                    onLoad={i === 0 ? () => setBreadLoaded(true) : undefined}
-                    onError={i === 0 ? () => { setBreadError(true); setBreadLoaded(true); } : undefined}
-                    onClick={() => { hapticTap(); setReceiptDialogOpen(true); }}
-                  />
-                ))}
+                ].map((slide, i) => {
+                  const isBread = i === 0;
+                  const ready = isBread ? breadLoaded : !!rentalsLoaded[slide.src];
+                  return (
+                    <div
+                      key={i}
+                      className="relative h-full w-full shrink-0 snap-center bg-amber-50 dark:bg-muted"
+                    >
+                      {!ready && (
+                        <div
+                          className="absolute inset-0 overflow-hidden"
+                          aria-hidden="true"
+                          role="status"
+                        >
+                          <div className="absolute inset-0 bg-amber-50 dark:bg-muted" />
+                          <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-foreground/10 to-transparent" />
+                        </div>
+                      )}
+                      <img
+                        src={slide.src}
+                        alt={slide.alt}
+                        className={`h-full w-full object-cover object-center select-none transition-opacity duration-500 ${ready ? 'opacity-100' : 'opacity-0'}`}
+                        width={1024}
+                        height={1024}
+                        loading="eager"
+                        decoding="async"
+                        // @ts-expect-error fetchpriority is a valid HTML attr
+                        fetchpriority={isBread ? 'high' : 'low'}
+                        draggable={false}
+                        onLoad={() => {
+                          if (isBread) setBreadLoaded(true);
+                          else setRentalsLoaded((prev) => (prev[slide.src] ? prev : { ...prev, [slide.src]: true }));
+                        }}
+                        onError={isBread ? () => { setBreadError(true); setBreadLoaded(true); } : undefined}
+                        onClick={() => { hapticTap(); setReceiptDialogOpen(true); }}
+                      />
+                    </div>
+                  );
+                })}
               </div>
             )}
 
