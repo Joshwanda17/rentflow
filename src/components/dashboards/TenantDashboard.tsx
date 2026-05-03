@@ -67,7 +67,8 @@ import {
   useBreadReceiptHistory,
 } from '@/hooks/useBreadReceiptPrice';
 import { WelileReceiptDialog } from '@/components/tenant/WelileReceiptDialog';
-import { Share2, Plus, Info } from 'lucide-react';
+import { ClaimBreadDialog } from '@/components/tenant/ClaimBreadDialog';
+import { Share2, Plus, Info, Store } from 'lucide-react';
 import { useAvailableBalance } from '@/hooks/useAvailableBalance';
 
 interface TenantDashboardProps {
@@ -140,6 +141,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const [housesOpen, setHousesOpen] = useState(false);
   const [shareBreadOpen, setShareBreadOpen] = useState(false);
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
+  const [claimBreadOpen, setClaimBreadOpen] = useState(false);
   const { available: withdrawableAvailable } = useAvailableBalance();
   const breadPrice = useBreadReceiptPrice();
   const [freeBreadsInfoOpen, setFreeBreadsInfoOpen] = useState(false);
@@ -516,6 +518,33 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               <Share2 className="h-4 w-4" />
               Share Bread
             </span>
+
+            {/* Claim discounted bread CTA — bottom-left */}
+            <span
+              role="button"
+              tabIndex={0}
+              aria-label="Claim your discounted bread at a nearby seller"
+              onClick={(e) => {
+                e.stopPropagation();
+                hapticTap();
+                setClaimBreadOpen(true);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setClaimBreadOpen(true);
+                }
+              }}
+              className="absolute inline-flex items-center gap-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 shadow-xl ring-1 ring-emerald-300/40 cursor-pointer select-none hover:scale-105 active:scale-95 transition-transform font-semibold text-sm"
+              style={{
+                bottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.75rem)',
+                left: 'calc(env(safe-area-inset-left, 0px) + 0.75rem)',
+              }}
+            >
+              <Store className="h-4 w-4" />
+              Claim Bread
+            </span>
           </button>
 
           {/* Mini receipt history — last 5 receipts that affected bread price */}
@@ -602,6 +631,16 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
       <WelileReceiptDialog
         open={receiptDialogOpen}
         onOpenChange={setReceiptDialogOpen}
+      />
+
+      {/* Claim discounted bread at a nearby seller */}
+      <ClaimBreadDialog
+        open={claimBreadOpen}
+        onOpenChange={setClaimBreadOpen}
+        reducedPrice={breadPrice.reducedPrice}
+        basePrice={breadPrice.basePrice}
+        freeBreads={breadPrice.freeBreads}
+        hasReceipt={breadPrice.hasReceipt}
       />
 
       {/* Menu Drawer */}
