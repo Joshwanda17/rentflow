@@ -950,7 +950,9 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   };
 
   const today = new Date().toISOString().split('T')[0];
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  // Allow generous backdating (up to 90 days) so users can record deposits
+  // they made in the field days/weeks ago. Future dates remain blocked.
+  const sevenDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
   /**
    * Tailwind class snippet to paint a field red when it's the current
