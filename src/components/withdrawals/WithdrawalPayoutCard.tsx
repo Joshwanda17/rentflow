@@ -10,7 +10,6 @@ import {
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
-import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -68,18 +67,42 @@ export function WithdrawalPayoutCard({
     }
     setRejecting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('reject-withdrawal', {
-        body: { withdrawal_ids: [withdrawal.id], reason: composed, withdrawal_type: 'wallet' },
-      });
-      if (error || data?.error) {
-        const msg = await extractEdgeFunctionError({ data, error }, 'Failed to reject');
-        throw new Error(msg);
+      // Merchant Agent reject = RELEASE the claim back into the queue so
+      // another agent (or Financial Ops) can pick it up. We do NOT mark the
+      // withdrawal itself as rejected — that's a Financial Ops decision.
+      // The withdrawal stays in its original status (pending / approved) and
+      // simply returns to the unclaimed pool. We log the release reason for
+      // audit so repeated releases by the same agent can be flagged.
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error: relErr } = await supabase
+        .from('withdrawal_requests')
+        .update({
+          assigned_cashout_agent_id: null,
+          dispatched_at: null,
+        } as any)
+        .eq('id', withdrawal.id);
+      if (relErr) throw relErr;
+
+      // Audit the release (mandatory 10+ char reason already enforced above).
+      try {
+        await supabase.from('audit_logs').insert({
+          user_id: user?.id ?? null,
+          action_type: 'merchant_payout_released',
+          table_name: 'withdrawal_requests',
+          record_id: withdrawal.id,
+          reason: composed.slice(0, 500),
+          metadata: {
+            amount: Number(withdrawal.amount || 0),
+            payout_method: withdrawal.payout_method,
+            previous_status: withdrawal.status,
+            released_at: new Date().toISOString(),
+          },
+        });
+      } catch (auditErr) {
+        console.warn('[withdrawal-release] audit log failed', auditErr);
       }
-      const row = data?.results?.[0];
-      if (row?.status && row.status !== 'rejected') {
-        throw new Error(row.status.replace(/_/g, ' '));
-      }
-      toast.success('Withdrawal rejected · funds restored');
+
+      toast.success('Released back to queue · another agent can pick it up');
       setRejectOpen(false);
       setRejectReason('');
       setRejectNotes('');
@@ -257,7 +280,7 @@ export function WithdrawalPayoutCard({
                   disabled={isCompletePending || rejecting}
                 >
                   <XCircle className="h-3.5 w-3.5" />
-                  Reject this payout
+                  Release back to queue
                 </Button>
               </div>
             )}
@@ -268,9 +291,9 @@ export function WithdrawalPayoutCard({
       <Dialog open={rejectOpen} onOpenChange={(v) => !rejecting && setRejectOpen(v)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Reject payout · {formatUGX(withdrawal.amount)}</DialogTitle>
+            <DialogTitle>Release payout · {formatUGX(withdrawal.amount)}</DialogTitle>
             <DialogDescription>
-              Funds will be restored to <span className="font-semibold">{recipientName}</span>'s wallet. This action is logged.
+              This withdrawal will be returned to the queue so another Merchant Agent (or Financial Ops) can pick it up. The recipient's funds stay on hold — only Financial Ops can fully reject. This action is logged.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -312,7 +335,7 @@ export function WithdrawalPayoutCard({
               }
             >
               {rejecting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <XCircle className="h-4 w-4 mr-1.5" />}
-              Confirm reject
+              Release to queue
             </Button>
           </DialogFooter>
         </DialogContent>
