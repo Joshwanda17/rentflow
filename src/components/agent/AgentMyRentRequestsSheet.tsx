@@ -242,7 +242,7 @@ export function AgentMyRentRequestsSheet({ open, onOpenChange }: AgentMyRentRequ
                               {req.tenant?.full_name || 'Unknown Tenant'}
                             </span>
                           </div>
-                          {getStatusBadge(req.status)}
+                          {getStatusBadgeForRequest(req)}
                         </div>
 
                         {/* Details */}
