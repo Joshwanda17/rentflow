@@ -10575,6 +10575,7 @@ export type Database = {
           outstanding_at_end: number | null
           payout_method: string | null
           payout_transaction_reference: string | null
+          preferred_language: string | null
           registration_type: string
           rejected_at: string | null
           rejected_at_stage: string | null
@@ -10650,6 +10651,7 @@ export type Database = {
           outstanding_at_end?: number | null
           payout_method?: string | null
           payout_transaction_reference?: string | null
+          preferred_language?: string | null
           registration_type?: string
           rejected_at?: string | null
           rejected_at_stage?: string | null
@@ -10725,6 +10727,7 @@ export type Database = {
           outstanding_at_end?: number | null
           payout_method?: string | null
           payout_transaction_reference?: string | null
+          preferred_language?: string | null
           registration_type?: string
           rejected_at?: string | null
           rejected_at_stage?: string | null
