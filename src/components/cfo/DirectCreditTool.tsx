@@ -586,7 +586,7 @@ export function DirectCreditTool() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <Button
             type="button"
             variant={isCredit ? 'default' : 'outline'}
@@ -594,20 +594,40 @@ export function DirectCreditTool() {
             onClick={() => handleOperationChange('credit')}
           >
             <ArrowUpRight className="h-4 w-4 mr-1.5 shrink-0" />
-            <span className="hidden sm:inline">Platform → Wallet</span>
-            <span className="sm:hidden">Credit</span>
+            <span>Credit</span>
           </Button>
           <Button
             type="button"
-            variant={!isCredit ? 'default' : 'outline'}
-            className={!isCredit ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground' : ''}
+            variant={operation === 'debit' ? 'default' : 'outline'}
+            className={operation === 'debit' ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground' : ''}
             onClick={() => handleOperationChange('debit')}
           >
             <ArrowDownLeft className="h-4 w-4 mr-1.5 shrink-0" />
-            <span className="hidden sm:inline">Wallet → Platform</span>
-            <span className="sm:hidden">Debit</span>
+            <span>Debit</span>
+          </Button>
+          <Button
+            type="button"
+            variant={operation === 'withdraw' ? 'default' : 'outline'}
+            className={operation === 'withdraw' ? 'bg-orange-600 hover:bg-orange-700 text-white' : ''}
+            onClick={() => handleOperationChange('withdraw')}
+          >
+            <Banknote className="h-4 w-4 mr-1.5 shrink-0" />
+            <span>Withdraw</span>
           </Button>
         </div>
+
+        {operation === 'withdraw' && (
+          <div className="rounded-lg border border-orange-200 bg-orange-50 p-3 text-[11px] text-orange-800 flex gap-2">
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+            <div>
+              <div className="font-semibold">Expense-Only Withdrawal</div>
+              <div className="opacity-90 mt-0.5">
+                Only categories marked as <strong>Expense</strong> can fund a real outbound payment
+                (Cash, Mobile Money, Bank). Revenue and Neutral categories are blocked.
+              </div>
+            </div>
+          </div>
+        )}
 
         <div>
           <Label htmlFor="payout-category" className="flex items-center gap-1.5 mb-1.5">
