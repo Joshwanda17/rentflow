@@ -1020,6 +1020,13 @@ export function TenantOpsDashboard() {
       icon: Network,
       color: 'bg-indigo-500/10 text-indigo-600 border-indigo-200',
     },
+    {
+      id: 'daily-collections' as ActiveView,
+      label: 'Daily Collections',
+      description: 'Live daily collection monitoring',
+      icon: CalendarCheck,
+      color: 'bg-cyan-500/10 text-cyan-600 border-cyan-200',
+    },
   ];
 
   const goBack = () => {
@@ -1178,6 +1185,8 @@ export function TenantOpsDashboard() {
         );
       case 'agent-allocations':
         return <AgentAllocationReport />;
+      case 'daily-collections':
+        return <DailyCollectionMonitoringDashboard mode="editable" title="Daily Collection Monitoring" />;
       default:
         return null;
     }
