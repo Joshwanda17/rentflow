@@ -189,74 +189,69 @@ Deno.serve(async (req) => {
 
     // Withdrawable = ONLY withdrawable_balance. `advance_balance` is a
     // user liability (debt owed back to Welile) and MUST NEVER fund a
-    // payout — counting it here is what produced unrealistic figures.
-    // Float is operational/company money. For proxy payouts the agent's
-    // float bucket is partner money parked in the wallet and may be drawn.
+    // payout. Float is operational/company money and MUST NEVER fund an
+    // external withdrawal, including proxy payouts.
     const withdrawable = walletWithdrawable;
-    const cachedSpendable = isProxyPayout
-      ? Math.max(walletWithdrawable, walletWithdrawable + walletFloat)
-      : withdrawable;
+    const cachedSpendable = withdrawable;
 
     // STRICT LEDGER-BACKED GATE.
-    // Source of truth is the `get_user_available_balance` RPC. It returns:
-    //   max(0, min(wallets.withdrawable_balance, max(0, wallet_ledger_net)) - pending_holds)
-    // This guarantees the approval gate, the WithdrawFlow modal, and the
-    // wallet card all enforce the SAME rule. Cached wallet buckets cannot
-    // ever ALLOW a payout above the user's true ledger position.
-    let ledgerAvailable = cachedSpendable;
+    // Compute the posting-time cap directly from general_ledger, excluding
+    // this withdrawal request from holds. Do NOT add the request amount back
+    // to the RPC result blindly: when cached float exists but withdrawable is
+    // zero, that turns a true UGX 0 into a false approval and the ledger RPC
+    // correctly rejects it later as a 500.
+    let ledgerAvailable = 0;
     try {
-      const { data: rpcVal, error: rpcErr } = await admin.rpc(
-        "get_user_available_balance",
-        { p_user_id: fundingUserId },
+      const { data: ledgerRows, error: ledgerErr } = await admin
+        .from("general_ledger")
+        .select("amount, direction")
+        .eq("user_id", fundingUserId)
+        .eq("ledger_scope", "wallet")
+        .or("classification.is.null,classification.eq.production");
+      if (ledgerErr) throw ledgerErr;
+
+      const ledgerNet = (ledgerRows || []).reduce((acc: number, r: any) => {
+        const amt = Number(r.amount) || 0;
+        if (r.direction === "cash_in" || r.direction === "credit") return acc + amt;
+        if (r.direction === "cash_out" || r.direction === "debit") return acc - amt;
+        return acc;
+      }, 0);
+
+      const { data: pendingRows, error: pendingErr } = await admin
+        .from("withdrawal_requests")
+        .select("amount")
+        .eq("user_id", fundingUserId)
+        .neq("id", withdrawal_id)
+        .in("status", ["pending", "requested", "manager_approved", "processing"]);
+      if (pendingErr) throw pendingErr;
+
+      const otherPendingHolds = (pendingRows || []).reduce(
+        (sum: number, p: any) => sum + Number(p.amount || 0),
+        0,
       );
-      if (rpcErr) throw rpcErr;
-      ledgerAvailable = Number(rpcVal ?? 0);
-      // The RPC subtracts ALL pending withdrawals (including the one we are
-      // currently approving) as holds. That self-subtraction caused
-      // "Insufficient withdrawable balance" errors when the user's only
-      // available money was earmarked by this very request. Add the
-      // current request's amount back so the gate compares apples-to-apples
-      // with the requested payout.
-      if (["pending", "requested", "manager_approved", "processing"].includes(wr.status)) {
-        ledgerAvailable = ledgerAvailable + amount;
-      }
+
+      ledgerAvailable = Math.max(
+        0,
+        Math.min(cachedSpendable, Math.max(0, ledgerNet)) - otherPendingHolds,
+      );
     } catch (e) {
       console.warn(
-        "[approve-withdrawal] get_user_available_balance failed; falling back to inline ledger compute",
+        "[approve-withdrawal] inline ledger compute failed; falling back to strict RPC",
         (e as Error).message,
       );
       try {
-        const { data: ledgerRows } = await admin
-          .from("general_ledger")
-          .select("amount, direction")
-          .eq("user_id", fundingUserId)
-          .eq("ledger_scope", "wallet")
-          .or("classification.is.null,classification.eq.production");
-        const ledgerNet = (ledgerRows || []).reduce((acc: number, r: any) => {
-          const amt = Number(r.amount) || 0;
-          if (r.direction === "cash_in") return acc + amt;
-          if (r.direction === "cash_out") return acc - amt;
-          return acc;
-        }, 0);
-        const { data: pendingRows } = await admin
-          .from("withdrawal_requests")
-          .select("amount")
-          .eq("user_id", fundingUserId)
-          .neq("id", withdrawal_id)
-          .in("status", ["pending", "requested", "manager_approved", "processing"]);
-        const pendingHolds = (pendingRows || []).reduce(
-          (sum: number, p: any) => sum + Number(p.amount || 0),
-          0,
+        const { data: rpcVal, error: rpcErr } = await admin.rpc(
+          "get_user_available_balance",
+          { p_user_id: fundingUserId },
         );
-        ledgerAvailable = Math.max(
-          0,
-          Math.min(cachedSpendable, Math.max(0, ledgerNet)) - pendingHolds,
-        );
+        if (rpcErr) throw rpcErr;
+        ledgerAvailable = Math.min(cachedSpendable, Number(rpcVal ?? 0));
       } catch (e2) {
         console.warn(
-          "[approve-withdrawal] fallback ledger compute failed; using cached only",
+          "[approve-withdrawal] fallback strict RPC failed; failing closed",
           (e2 as Error).message,
         );
+        ledgerAvailable = 0;
       }
     }
 
@@ -288,22 +283,14 @@ Deno.serve(async (req) => {
 
     // Create balanced ledger entries via RPC.
     //
-    // BUCKET ROUTING: `wallet_withdrawal` only drains the withdrawable bucket.
-    // For proxy payouts the agent's funds may sit in the FLOAT bucket (partner
-    // money parked in the agent wallet). We split the debit so the available
-    // withdrawable portion (which already includes advance-funded balance) is
-    // drained as `wallet_withdrawal`, and any remainder is drained from float
-    // as `agent_float_used_for_rent` (a locked-allowlist category that routes
-    // to the float bucket) — keeping the same total and a single platform
-    // cash_in leg so the transaction is still balanced.
+    // BUCKET ROUTING: external withdrawals only drain the withdrawable bucket.
+    // Float is company/operational money and cannot be paid out via this flow.
     const refUpper = reference.trim().toUpperCase();
     const baseDesc = `${payment_method} ref: ${refUpper}`;
     const nowIso = new Date().toISOString();
 
-    const withdrawablePortion = isProxyPayout
-      ? Math.min(amount, Math.max(walletWithdrawable, 0))
-      : amount;
-    const floatPortion = Math.max(amount - withdrawablePortion, 0);
+    const withdrawablePortion = amount;
+    const floatPortion = 0;
 
     const debitEntries: any[] = [];
     if (withdrawablePortion > 0) {
@@ -358,13 +345,17 @@ Deno.serve(async (req) => {
     if (ledgerErr) {
       console.error("[approve-withdrawal] Ledger RPC error:", ledgerErr);
       const ledgerMessage = ledgerErr.message || "unknown";
-      const isInsufficientBalance = ledgerMessage.includes("wallets_buckets_nonneg");
+      const isInsufficientBalance =
+        ledgerMessage.includes("wallets_buckets_nonneg") ||
+        ledgerMessage.includes("Insufficient ledger balance");
       return new Response(JSON.stringify({
         error: isInsufficientBalance
-          ? `Insufficient withdrawable balance. Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}.`
+          ? `Insufficient withdrawable balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. Cached withdrawable UGX ${Math.round(cachedSpendable).toLocaleString()}, ledger-true UGX ${Math.round(ledgerAvailable).toLocaleString()}. Float and advance buckets cannot fund payouts.`
           : "Failed to record ledger entry: " + ledgerMessage,
         code: isInsufficientBalance ? "INSUFFICIENT_WITHDRAWABLE" : "LEDGER_WRITE_FAILED",
         available: Math.round(totalSpendable),
+        ledger_available: Math.round(ledgerAvailable),
+        cached_available: Math.round(cachedSpendable),
         wallet_total: Math.round(walletBalance),
         requested: amount,
       }), {
