@@ -89,7 +89,7 @@ export function AgentMyRentRequestsSheet({ open, onOpenChange }: AgentMyRentRequ
 
     const { data, error } = await supabase
       .from('rent_requests')
-      .select('id, rent_amount, total_repayment, duration_days, daily_repayment, status, created_at, tenant_id, landlord_id, agent_verified, manager_verified, request_latitude, request_longitude, request_city, request_country')
+      .select('id, rent_amount, total_repayment, amount_repaid, duration_days, daily_repayment, status, created_at, tenant_id, landlord_id, agent_verified, manager_verified, request_latitude, request_longitude, request_city, request_country')
       .or(`agent_id.eq.${user.id},agent_verified_by.eq.${user.id}`)
       .neq('status', 'deleted_by_agent')
       .order('created_at', { ascending: false });
