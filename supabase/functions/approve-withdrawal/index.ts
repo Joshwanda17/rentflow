@@ -443,8 +443,10 @@ Deno.serve(async (req) => {
     const baseDesc = `${payment_method} ref: ${refUpper}`;
     const nowIso = new Date().toISOString();
 
-    const withdrawablePortion = isProxyPayout ? 0 : amount;
-    const floatPortion = isProxyPayout ? amount : 0;
+    const proxyFloatPortion = isProxyPayout ? Math.min(amount, Math.max(0, walletFloat)) : 0;
+    const proxyWithdrawablePortion = isProxyPayout ? amount - proxyFloatPortion : 0;
+    const withdrawablePortion = isProxyPayout ? proxyWithdrawablePortion : amount;
+    const floatPortion = proxyFloatPortion;
 
     const debitEntries: any[] = [];
     if (withdrawablePortion > 0) {
@@ -454,12 +456,14 @@ Deno.serve(async (req) => {
         direction: "cash_out",
         category: "wallet_withdrawal",
         ledger_scope: "wallet",
-        description: `Wallet withdrawal approved – ${baseDesc}`,
+        description: isProxyPayout
+          ? `Proxy partner payout from withdrawable – ${baseDesc}`
+          : `Wallet withdrawal approved – ${baseDesc}`,
         currency: "UGX",
         source_table: "withdrawal_requests",
         source_id: withdrawal_id,
         transaction_date: nowIso,
-        linked_party: user.id,
+        linked_party: isProxyPayout ? (wr.linked_party || beneficiaryUserId) : user.id,
       });
     }
     if (floatPortion > 0) {
@@ -467,9 +471,9 @@ Deno.serve(async (req) => {
         user_id: fundingUserId,
         amount: floatPortion,
         direction: "cash_out",
-        category: "proxy_partner_withdrawal",
+        category: "agent_float_used_for_rent",
         ledger_scope: "wallet",
-        description: `Proxy partner payout delivered – ${baseDesc}`,
+        description: `Proxy partner payout from float – ${baseDesc}`,
         currency: "UGX",
         source_table: "withdrawal_requests",
         source_id: withdrawal_id,
