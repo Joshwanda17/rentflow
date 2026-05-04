@@ -358,6 +358,20 @@ export default function WithdrawFlow({
         //   2. Trigger `prevent_duplicate_pending_withdrawal` fired → the
         //      user already has an identical request waiting. Show a
         //      friendly message and stop, do NOT throw.
+        // Server-side ledger gate (trigger) raised P0001 with a
+        // "Ledger mismatch detected" message — surface as a clear
+        // insufficient-funds toast and stop.
+        const rawMsg = String((requestError as any).message || '');
+        if (rawMsg.includes('Ledger mismatch detected')) {
+          toast.error(
+            'Ledger mismatch detected. Transaction aborted. Refresh your balance and try again.',
+            { duration: 8000 },
+          );
+          // Force a fresh ledger read so the UI reflects truth.
+          await refetchLedger();
+          isSubmittingRef.current = false;
+          return;
+        }
         if ((requestError as any).code === '23505') {
           const msg = String((requestError as any).message || '');
           if (msg.includes('DUPLICATE_PENDING_WITHDRAWAL')) {
