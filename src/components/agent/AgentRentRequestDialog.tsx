@@ -64,6 +64,16 @@ const HOUSE_CATEGORIES = [
   { value: 'commercial', label: 'Commercial Property', emoji: '🏪' },
 ];
 
+const PREFERRED_LANGUAGES = [
+  { value: 'English', label: 'English' },
+  { value: 'Luganda', label: 'Luganda' },
+  { value: 'Runyankole', label: 'Runyankole' },
+  { value: 'Lusoga', label: 'Lusoga' },
+  { value: 'Acholi', label: 'Acholi' },
+  { value: 'Lugbara', label: 'Lugbara' },
+  { value: 'Other', label: 'Other' },
+];
+
 // ===== FIX #1: Ugandan phone validation =====
 const UG_PHONE_REGEX = /^0[3-9][0-9]{8}$/;
 
@@ -99,6 +109,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [tenantName, setTenantName] = useState('');
   const [tenantPhone, setTenantPhone] = useState('');
   const [tenantNationalId, setTenantNationalId] = useState('');
+  const [preferredLanguage, setPreferredLanguage] = useState<string>('');
   
   // Rent details
   const [rentAmount, setRentAmount] = useState('');
@@ -292,6 +303,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       errors.push('National ID is required (10-14 alphanumeric characters)');
     }
 
+    if (!preferredLanguage) errors.push('Preferred language is required');
+
     if (!landlordName.trim()) errors.push('Landlord name is required');
     if (!landlordPhone.trim()) errors.push('Landlord phone is required');
     else if (!isValidUgPhone(cleanLandlordPhone)) errors.push('Landlord phone must be a valid Ugandan number (e.g. 0700 123 456)');
@@ -480,6 +493,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           daily_repayment: fees.dailyRepayment,
           status: 'pending',
           house_category: resolvedHouseCategory,
+          preferred_language: preferredLanguage || null,
           tenant_no_smartphone: isOutstanding ? false : noSmartphone,
           request_latitude: isOutstanding ? null : (gpsLocation?.lat ?? null),
           request_longitude: isOutstanding ? null : (gpsLocation?.lng ?? null),
@@ -861,6 +875,20 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       )}
                     </div>
 
+                    <div className="space-y-1">
+                      <Label className="text-xs">Preferred Language *</Label>
+                      <Select value={preferredLanguage} onValueChange={setPreferredLanguage}>
+                        <SelectTrigger className="h-10">
+                          <SelectValue placeholder="Select tenant language" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PREFERRED_LANGUAGES.map((l) => (
+                            <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     {/* FIX #7: Currency formatting on outstanding balance input */}
                     <div className="space-y-1">
                       <Label className="text-xs font-semibold">Outstanding Balance (UGX) *</Label>
@@ -1117,6 +1145,20 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                   {tenantNationalId.length > 0 && (tenantNationalId.length < 10 || tenantNationalId.length > 14) && (
                     <p className="text-[10px] text-destructive">Must be 10-14 characters</p>
                   )}
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Preferred Language *</Label>
+                  <Select value={preferredLanguage} onValueChange={setPreferredLanguage}>
+                    <SelectTrigger className="h-10">
+                      <SelectValue placeholder="Select tenant language" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PREFERRED_LANGUAGES.map((l) => (
+                        <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
