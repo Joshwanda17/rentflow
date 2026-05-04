@@ -1816,8 +1816,8 @@ export function LandlordOpsDashboard() {
   return (
     <div className="space-y-4">
       {/* Priority actions */}
-      <RentPipelineQueue stage="agent_verified" />
-      <RejectedRequestsQueue stageFilter="agent_verified" title="Rejected at Landlord Ops" />
+      <RentPipelineQueue stage="tenant_ops_approved" />
+      <RejectedRequestsQueue stageFilter="tenant_ops_approved" title="Rejected at Landlord Ops" />
       <LandlordOpsPayoutReview reviewRole="landlord_ops" />
 
       {/* KPIs - compact grid */}
