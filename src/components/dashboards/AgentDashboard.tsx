@@ -881,7 +881,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             </DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4">
-            <FinOpsWithdrawalVerification />
+            <AgentCashPayoutsTab />
           </div>
         </DialogContent>
       </Dialog>
