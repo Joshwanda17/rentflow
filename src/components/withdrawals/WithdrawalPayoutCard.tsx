@@ -281,7 +281,7 @@ export function WithdrawalPayoutCard({
                   disabled={isCompletePending || rejecting}
                 >
                   <XCircle className="h-3.5 w-3.5" />
-                  Reject this payout
+                  Release back to queue
                 </Button>
               </div>
             )}
@@ -292,9 +292,9 @@ export function WithdrawalPayoutCard({
       <Dialog open={rejectOpen} onOpenChange={(v) => !rejecting && setRejectOpen(v)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Reject payout · {formatUGX(withdrawal.amount)}</DialogTitle>
+            <DialogTitle>Release payout · {formatUGX(withdrawal.amount)}</DialogTitle>
             <DialogDescription>
-              Funds will be restored to <span className="font-semibold">{recipientName}</span>'s wallet. This action is logged.
+              This withdrawal will be returned to the queue so another Merchant Agent (or Financial Ops) can pick it up. The recipient's funds stay on hold — only Financial Ops can fully reject. This action is logged.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -336,7 +336,7 @@ export function WithdrawalPayoutCard({
               }
             >
               {rejecting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <XCircle className="h-4 w-4 mr-1.5" />}
-              Confirm reject
+              Release to queue
             </Button>
           </DialogFooter>
         </DialogContent>
