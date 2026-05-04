@@ -570,9 +570,17 @@ export default function WithdrawFlow({
               )}
               {amount > maxAmount && (
                 <p className="text-xs text-destructive text-center font-medium">
-                  Exceeds available balance ({formatCurrency(maxAmount, currency)})
+                  Insufficient funds — exceeds available balance ({formatCurrency(maxAmount, currency)})
                 </p>
               )}
+              {/* Live ledger sync indicator — gates Continue */}
+              <p className="text-[11px] text-center text-muted-foreground">
+                {validating
+                  ? 'Checking live ledger balance…'
+                  : isStale
+                    ? 'Balance may be stale — re-checking…'
+                    : `Verified against live ledger · ${formatCurrency(maxAmount, currency)} available`}
+              </p>
               {/* Zero-fee assurance — Welile wallet has no withdrawal fees,
                   so users see the full amount on the other side. */}
               <div className="flex items-center justify-center gap-2 text-xs font-semibold text-emerald-600 bg-emerald-500/5 border border-emerald-500/20 rounded-lg py-2">
