@@ -882,6 +882,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           </DialogHeader>
           <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4">
             <AgentCashPayoutsTab />
+            <div className="mt-4">
+              <FinOpsWithdrawalVerification />
+            </div>
           </div>
         </DialogContent>
       </Dialog>
