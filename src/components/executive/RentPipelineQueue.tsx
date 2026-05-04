@@ -372,7 +372,7 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
     queryFn: async () => {
       const { data } = await supabase
         .from('rent_requests')
-        .select('id, tenant_id, agent_id, landlord_id, lc1_id, rent_amount, duration_days, access_fee, request_fee, total_repayment, daily_repayment, status, created_at, house_category, request_city, request_latitude, request_longitude, assigned_agent_id, payout_method, payout_transaction_reference, approval_comment, registration_type, initial_outstanding_balance')
+        .select('id, tenant_id, agent_id, landlord_id, lc1_id, rent_amount, duration_days, access_fee, request_fee, total_repayment, daily_repayment, status, created_at, house_category, request_city, request_latitude, request_longitude, assigned_agent_id, payout_method, payout_transaction_reference, approval_comment, agent_ops_comment, tenant_ops_comment, landlord_ops_comment, registration_type, initial_outstanding_balance')
         .eq('status', stage)
         .order('created_at', { ascending: true })
         .limit(100);
@@ -451,7 +451,7 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
 
     // Landlord Ops must complete checklist (skipped for outstanding-balance
     // tenants — they short-circuit to completed via DB trigger).
-    if (stage === 'agent_verified' && !isOutstanding && (!landlordCalled || !landlordAcknowledged)) {
+    if (config.showLandlordChecklist && !isOutstanding && (!landlordCalled || !landlordAcknowledged)) {
       toast({ title: 'Complete the landlord verification checklist first', variant: 'destructive' });
       return;
     }
@@ -481,16 +481,20 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
           status: config.nextStatus,
           [config.reviewerColumn]: user.id,
           [config.reviewerAtColumn]: new Date().toISOString(),
-          approval_comment: comment || null,
           updated_at: new Date().toISOString(),
         };
+
+        // Persist this stage's comment in its dedicated column (visible to next stage)
+        if (config.commentColumn) {
+          updateData[config.commentColumn] = comment.trim() || null;
+        }
 
         if (config.showAgentSelector && !isOutstanding && assignedAgentId) {
           updateData.assigned_agent_id = assignedAgentId;
         }
 
         // Save landlord verification checklist (skipped for outstanding-balance)
-        if (stage === 'agent_verified' && !isOutstanding) {
+        if (config.showLandlordChecklist && !isOutstanding) {
           updateData.landlord_called = landlordCalled;
           updateData.landlord_acknowledged = landlordAcknowledged;
           updateData.landlord_verification_method = landlordVerificationMethod || 'phone_call';
@@ -507,7 +511,7 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
 
       // Trigger landlord verification bonus when Landlord Ops approves
       // (not applicable for outstanding-balance — there is no landlord disbursement)
-      if (stage === 'agent_verified' && !isOutstanding) {
+      if (config.showLandlordChecklist && !isOutstanding) {
         try {
           await supabase.functions.invoke('credit-landlord-verification-bonus', {
             body: { rent_request_id: selectedRequest.id },
@@ -518,7 +522,7 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
       }
 
       toast({
-        title: isOutstanding && stage === 'tenant_ops_approved'
+        title: isOutstanding && stage === 'agent_ops_approved'
           ? 'Outstanding balance recorded'
           : 'Request approved and forwarded',
       });
@@ -542,19 +546,25 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
 
     setProcessing(true);
     try {
+      const updateData: any = {
+        status: 'rejected',
+        rejected_reason: comment.trim(),
+        rejected_at_stage: stage,
+        rejected_at: new Date().toISOString(),
+        [config.reviewerColumn]: user.id,
+        [config.reviewerAtColumn]: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      if (config.commentColumn) {
+        updateData[config.commentColumn] = comment.trim();
+      }
       const { error } = await supabase
         .from('rent_requests')
-        .update({
-          status: 'rejected',
-          rejected_reason: comment.trim(),
-          [config.reviewerColumn]: user.id,
-          [config.reviewerAtColumn]: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', selectedRequest.id);
 
       if (error) throw error;
-      toast({ title: 'Request rejected' });
+      toast({ title: 'Request rejected — sent back to Agent Ops & originating Agent' });
       setSelectedRequest(null);
       setComment('');
       queryClient.invalidateQueries({ queryKey: ['rent-pipeline'] });
