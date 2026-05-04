@@ -120,7 +120,7 @@ export function AgentDetailsDialog({ open, onOpenChange, agent, onAgentUpdated }
       { data: [], error: null } as any,
       supabase
         .from('rent_requests')
-        .select('id, rent_amount, status, created_at, tenant_id')
+        .select('id, rent_amount, status, created_at, tenant_id, amount_repaid, total_repayment')
         .eq('agent_id', agent.id)
         .order('created_at', { ascending: false })
     ]);
