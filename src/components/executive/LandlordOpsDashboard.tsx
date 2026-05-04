@@ -1673,7 +1673,7 @@ export function LandlordOpsDashboard() {
       <div className="space-y-4">
         <BackButton />
         <RentPipelineQueue stage="tenant_ops_approved" />
-        <RejectedRequestsQueue stageFilter="agent_verified" title="Rejected at Landlord Ops" />
+        <RejectedRequestsQueue stageFilter="tenant_ops_approved" title="Rejected at Landlord Ops" />
         <DealPipeline />
       </div>
       {renderDialogs()}
