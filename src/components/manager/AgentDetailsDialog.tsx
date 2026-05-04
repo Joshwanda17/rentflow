@@ -184,6 +184,18 @@ export function AgentDetailsDialog({ open, onOpenChange, agent, onAgentUpdated }
     }
   };
 
+  // Defensive: only show "Completed" when the rent has actually been fully repaid.
+  const getStatusBadgeForRequest = (req: RentRequest) => {
+    if (req.status === 'completed') {
+      const repaid = Number(req.amount_repaid ?? 0);
+      const total = Number(req.total_repayment ?? 0);
+      if (total > 0 && repaid < total) {
+        return <Badge className="bg-primary/20 text-primary"><CheckCircle className="h-3 w-3 mr-1" />Active</Badge>;
+      }
+    }
+    return getStatusBadge(req.status);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh]">
