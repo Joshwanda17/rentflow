@@ -191,7 +191,7 @@ export function AgentCashPayoutsTab() {
     return () => { supabase.removeChannel(channel); };
   }, [isCashoutAgent, qc]);
 
-  // Auto-release stale claims (>10min) — client-side ticker so the UI updates
+  // Auto-release stale claims (>15min) — client-side ticker so the UI updates
   // immediately even between cron runs. Refreshes the list every 30s while open.
   useEffect(() => {
     if (!isCashoutAgent) return;
@@ -305,7 +305,6 @@ export function AgentCashPayoutsTab() {
   const momoWithdrawals = availableWithdrawals.filter((w: any) => getPayoutChannel(w) === 'momo');
   const cashWithdrawals = availableWithdrawals.filter((w: any) => getPayoutChannel(w) === 'cash');
 
-  const myClaimedIds = new Set(myActiveClaims.map((w: any) => w.id));
   const totalPending = availableWithdrawals.length;
 
   return (
