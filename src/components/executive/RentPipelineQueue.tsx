@@ -320,7 +320,7 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
     // For Landlord Ops stage — enforce checklist.
     // Outstanding-balance rows never reach this stage (trigger short-circuits
     // them straight to completed), but guard anyway.
-    if (stage === 'agent_verified' && !isOutstanding) {
+    if (config.showLandlordChecklist && !isOutstanding) {
       if (!landlordCalled || !landlordAcknowledged) {
         toast({ title: 'Complete the landlord verification checklist first', variant: 'destructive' });
         return;
@@ -335,7 +335,7 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
         updated_at: new Date().toISOString(),
       };
 
-      if (stage === 'agent_verified' && !isOutstanding) {
+      if (config.showLandlordChecklist && !isOutstanding) {
         updateData.landlord_called = true;
         updateData.landlord_acknowledged = true;
         updateData.landlord_verification_method = landlordVerificationMethod || 'phone_call';
