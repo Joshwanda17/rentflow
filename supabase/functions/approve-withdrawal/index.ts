@@ -358,12 +358,11 @@ Deno.serve(async (req) => {
           { p_user_id: fundingUserId },
         );
         if (rpcErr) throw rpcErr;
-        // The strict RPC already subtracts pending holds for OTHER requests
-        // (it scopes by user). It does NOT exclude this withdrawal's own
-        // amount, so we add it back to avoid double-counting our own hold.
-        const ownHold = Number(wr.amount || 0);
-        const strictAvailable = Number(rpcVal ?? 0) + ownHold;
-        ledgerAvailable = Math.max(0, strictAvailable - ownHold);
+        // The strict RPC subtracts pending_holds which INCLUDES this
+        // withdrawal (status='pending'/'requested'/etc.), so add the
+        // request amount back to get the pre-hold available figure used
+        // for the `< amount` comparison below.
+        ledgerAvailable = Math.max(0, Number(rpcVal ?? 0) + Number(wr.amount || 0));
       }
     } catch (e) {
       console.warn(
