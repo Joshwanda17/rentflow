@@ -481,7 +481,7 @@ export function AgentRentRequestsManager() {
                           <span className="font-medium text-sm truncate">
                             {request.tenant?.full_name || 'Unknown'}
                           </span>
-                          {getStatusBadge(request.status)}
+                          {getStatusBadgeForRequest(request)}
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
                           {formatUGX(request.rent_amount)} • {request.duration_days} days
