@@ -284,11 +284,10 @@ export function AgentCashPayoutsTab() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  // Capability gate: must hold `process_cash_out` AND have an active cashout_agents row.
-  // Capability is auto-granted by trigger when an active cashout_agents record exists,
-  // and revoked when deactivated — so this is a defense-in-depth check.
-  if (capsLoading) return null;
-  if (!isCashoutAgent || !has('process_cash_out')) return null;
+  if (cashoutAgentLoading) {
+    return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
+  }
+  if (!isCashoutAgent) return null;
 
   // My ACTIVE claims (claimed by me, awaiting my confirmation) — shown separately
   // at the top so I can complete them. They are EXCLUDED from the main queue and
@@ -297,17 +296,14 @@ export function AgentCashPayoutsTab() {
     (w: any) => w.assigned_cashout_agent_id === isCashoutAgent?.id,
   );
 
-  // Available queue: only UNCLAIMED withdrawals. Items claimed by anyone (me or
-  // another agent) are hidden until either confirmed paid (gone forever) or the
-  // 10-minute cron auto-releases them back here.
+  // Available queue: unclaimed withdrawals plus expired claims returning after 15 minutes.
   const availableWithdrawals = allWithdrawals.filter(
-    (w: any) => !w.assigned_cashout_agent_id,
+    (w: any) => !w.assigned_cashout_agent_id || isClaimExpired(w),
   );
 
   // Split by method (queue only)
-  const momoWithdrawals = availableWithdrawals.filter((w: any) => ['mobile_money', 'mtn_mobile_money', 'airtel_money'].includes(w.payout_method));
-  const bankWithdrawals = availableWithdrawals.filter((w: any) => w.payout_method === 'bank_transfer');
-  const cashWithdrawals = availableWithdrawals.filter((w: any) => ['cash', 'cash_pickup'].includes(w.payout_method) || !w.payout_method);
+  const momoWithdrawals = availableWithdrawals.filter((w: any) => getPayoutChannel(w) === 'momo');
+  const cashWithdrawals = availableWithdrawals.filter((w: any) => getPayoutChannel(w) === 'cash');
 
   const myClaimedIds = new Set(myActiveClaims.map((w: any) => w.id));
   const totalPending = availableWithdrawals.length;
@@ -411,7 +407,7 @@ export function AgentCashPayoutsTab() {
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
               <Clock className="h-3.5 w-3.5" />
-              My Active Claims · {myActiveClaims.length} · 10 min to confirm
+              My Active Claims · {myActiveClaims.length} · 15 min to confirm
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -459,13 +455,11 @@ export function AgentCashPayoutsTab() {
                 <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">{emptyMsg}</CardContent></Card>
               ) : (
                 items.map((w: any) => {
-                  const m = w.payout_method || 'cash';
-                  const isMoMo = ['mobile_money', 'mtn_mobile_money', 'airtel_money'].includes(m);
-                  const isBank = m === 'bank_transfer';
-                  const MethodIcon = isBank ? Building2 : isMoMo ? Smartphone : Banknote;
-                  const methodLabel = isBank ? 'Bank' : isMoMo ? 'Mobile Money' : 'Cash';
+                  const isMoMo = getPayoutChannel(w) === 'momo';
+                  const MethodIcon = isMoMo ? Smartphone : Banknote;
+                  const methodLabel = isMoMo ? 'Mobile Money' : 'Cash';
                   const name = w.profiles?.full_name || 'Unknown';
-                  const phone = (isMoMo && w.mobile_money_number) || w.profiles?.phone || '—';
+                  const phone = getRecipientPhone(w);
                   return (
                     <Card key={w.id}>
                       <CardContent className="p-3 space-y-2">
