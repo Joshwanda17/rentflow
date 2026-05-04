@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { RentPipelineQueue } from './RentPipelineQueue';
 import { PromissoryNotesQueue } from './PromissoryNotesQueue';
 import { RejectedRequestsQueue } from './RejectedRequestsQueue';
+import { NewTenantsWithoutRequestPanel } from './NewTenantsWithoutRequestPanel';
 
 function LandlordsPipeline() {
   const [search, setSearch] = useState('');
@@ -209,7 +210,10 @@ export function AgentOpsPipelineHub() {
         </TabsList>
       </div>
 
-      <TabsContent value="tenants"><RentPipelineQueue stage="pending" /></TabsContent>
+      <TabsContent value="tenants" className="space-y-4">
+        <NewTenantsWithoutRequestPanel />
+        <RentPipelineQueue stage="pending" />
+      </TabsContent>
       <TabsContent value="notes"><PromissoryNotesQueue /></TabsContent>
       <TabsContent value="landlords"><LandlordsPipeline /></TabsContent>
       <TabsContent value="rejected">
