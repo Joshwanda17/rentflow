@@ -86,7 +86,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'marketing_expense',
     platformCategory: 'marketing_expense',
     allowedOps: ['credit'],
-    recipientLock: 'operational_wallet',
+    recipientLock: 'either',
     subCategories: [
       { id: 'marketing_materials', label: 'Marketing Materials' },
       { id: 'events_exhibition', label: 'Events & Exhibition' },
@@ -110,7 +110,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'research_development_expense',
     platformCategory: 'research_development_expense',
     allowedOps: ['credit'],
-    recipientLock: 'operational_wallet',
+    recipientLock: 'either',
     subCategories: [
       { id: 'software', label: 'Software' },
       { id: 'welile_dowry', label: 'Welile Dowry' },
@@ -155,7 +155,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'tax_expense',
     platformCategory: 'tax_expense',
     allowedOps: ['credit'],
-    recipientLock: 'operational_wallet',
+    recipientLock: 'either',
   },
   {
     id: 'interest_payment',
@@ -165,7 +165,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'interest_expense',
     platformCategory: 'interest_expense',
     allowedOps: ['credit'],
-    recipientLock: 'operational_wallet',
+    recipientLock: 'either',
   },
   {
     id: 'equipment_purchase',
@@ -175,7 +175,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'equipment_expense',
     platformCategory: 'equipment_expense',
     allowedOps: ['credit'],
-    recipientLock: 'operational_wallet',
+    recipientLock: 'either',
   },
   {
     id: 'correction_credit',
