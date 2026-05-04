@@ -217,6 +217,8 @@ Deno.serve(async (req) => {
     // draw only from that partner-linked float — never from generic float.
     const withdrawable = walletWithdrawable;
     const cachedSpendable = isProxyPayout ? walletFloat : withdrawable;
+    let partnerLinkedFloatAvailable = 0;
+    let partnerLinkedWithdrawableAvailable = 0;
 
     // STRICT LEDGER-BACKED GATE.
     // Compute the posting-time cap directly from general_ledger, excluding
@@ -236,7 +238,7 @@ Deno.serve(async (req) => {
       if (isProxyPayout && wr.linked_party && wr.linked_party !== wr.user_id) {
         const { data: linkedRows, error: linkedErr } = await admin
           .from("general_ledger")
-          .select("amount, direction")
+          .select("amount, direction, category, account")
           .eq("user_id", fundingUserId)
           .eq("ledger_scope", "wallet")
           .eq("linked_party", wr.linked_party)
@@ -244,6 +246,22 @@ Deno.serve(async (req) => {
         if (linkedErr) throw linkedErr;
 
         const partnerLinkedNet = sumLedgerRows(linkedRows || []);
+        const isFloatLinkedRow = (row: any) =>
+          row?.account === "float" ||
+          [
+            "agent_float_deposit",
+            "agent_float_assignment",
+            "agent_float_topup",
+            "agent_float_funding",
+            "agent_float_used_for_rent",
+            "agent_float_used",
+            "agent_float_settlement",
+            "agent_landlord_payout",
+            "rent_disbursement",
+            "rent_float_funding",
+          ].includes(row?.category);
+        partnerLinkedFloatAvailable = Math.max(0, sumLedgerRows((linkedRows || []).filter(isFloatLinkedRow)));
+        partnerLinkedWithdrawableAvailable = Math.max(0, partnerLinkedNet - partnerLinkedFloatAvailable);
         const { data: partnerPendingRows, error: partnerPendingErr } = await admin
           .from("withdrawal_requests")
           .select("amount")
