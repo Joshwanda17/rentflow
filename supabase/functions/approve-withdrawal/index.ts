@@ -305,9 +305,11 @@ Deno.serve(async (req) => {
         );
       } else if (isProxyPayout) {
         // Proxy agent without a linked_party on the withdrawal row: gate
-        // against the agent's overall wallet ledger but allow draining
-        // float (since this IS a proxy delivery — partner identity is
-        // recorded in the reason text, not the linked_party column).
+        // against the agent's overall wallet ledger and allow draining
+        // EITHER float OR withdrawable (since this IS a proxy delivery —
+        // partner identity is recorded in the reason text, not the
+        // linked_party column, and partner-linked credits routinely land
+        // in the withdrawable bucket).
         const { data: ledgerRows, error: ledgerErr } = await admin
           .from("general_ledger")
           .select("amount, direction")
@@ -331,10 +333,15 @@ Deno.serve(async (req) => {
           0,
         );
 
+        // Cap by total physical cash the agent holds, NOT just float —
+        // proxy ROI / partner credits often sit in withdrawable_balance.
+        const physicalCashCap = Math.max(0, Number(wallet?.balance ?? 0));
         ledgerAvailable = Math.max(
           0,
-          Math.min(walletFloat, Math.max(0, ledgerNet)) - otherPendingHolds,
+          Math.min(physicalCashCap, Math.max(0, ledgerNet)) - otherPendingHolds,
         );
+        // Allow the float-first debit path to also dip into withdrawable.
+        partnerLinkedFloatAvailable = physicalCashCap;
       } else {
         const { data: ledgerRows, error: ledgerErr } = await admin
           .from("general_ledger")
