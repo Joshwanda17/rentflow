@@ -10,13 +10,52 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import {
-  Banknote, QrCode, Search, CheckCircle2, Loader2, Building2,
+  Banknote, QrCode, Search, CheckCircle2, Loader2,
   Smartphone, Wallet, Bell, TrendingUp, Clock, Hash, Phone, UserCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { WithdrawalPayoutCard } from '@/components/withdrawals/WithdrawalPayoutCard';
-import { useAgentCapabilities } from '@/hooks/useAgentCapabilities';
+
+const CASHOUT_QUEUE_STATUSES = ['pending', 'requested', 'manager_approved', 'cfo_approved', 'approved', 'fin_ops_approved'];
+const CLAIM_WINDOW_MINUTES = 15;
+const CLAIM_WINDOW_MS = CLAIM_WINDOW_MINUTES * 60 * 1000;
+
+type PayoutChannel = 'momo' | 'cash';
+
+const normalizePayoutMethod = (value?: string | null) =>
+  String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+
+const getPayoutChannel = (withdrawal: any): PayoutChannel => {
+  const method = normalizePayoutMethod(withdrawal?.payout_method);
+  const flatMethod = method.replace(/_/g, '');
+
+  if (['cash', 'cash_pickup', 'cashpickup', 'agent_cash', 'agentcash', 'payout_code', 'payoutcode', 'bank_transfer', 'banktransfer', 'bank', 'bank_account', 'bankaccount'].includes(method) || ['cashpickup', 'agentcash', 'payoutcode', 'banktransfer', 'bankaccount'].includes(flatMethod)) {
+    return 'cash';
+  }
+
+  if (flatMethod.includes('mobilemoney') || flatMethod.includes('momo') || flatMethod.includes('mtn') || flatMethod.includes('airtel')) {
+    return 'momo';
+  }
+
+  if (withdrawal?.mobile_money_number || withdrawal?.mobile_money_provider || withdrawal?.mobile_money_name) {
+    return 'momo';
+  }
+
+  return 'cash';
+};
+
+const isClaimExpired = (withdrawal: any) => {
+  if (!withdrawal?.assigned_cashout_agent_id || !withdrawal?.dispatched_at) return false;
+  return Date.now() - new Date(withdrawal.dispatched_at).getTime() >= CLAIM_WINDOW_MS;
+};
+
+const getRecipientPhone = (withdrawal: any) => {
+  const channel = getPayoutChannel(withdrawal);
+  return channel === 'momo'
+    ? withdrawal.mobile_money_number || withdrawal.profiles?.phone || '—'
+    : withdrawal.profiles?.phone || withdrawal.mobile_money_number || '—';
+};
 
 export function AgentCashPayoutsTab() {
   const { user } = useAuth();
@@ -24,10 +63,9 @@ export function AgentCashPayoutsTab() {
   const [payoutCode, setPayoutCode] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [verifiedPayout, setVerifiedPayout] = useState<any>(null);
-  const { has, isLoading: capsLoading } = useAgentCapabilities();
 
   // Check if this agent is a cashout agent
-  const { data: isCashoutAgent } = useQuery({
+  const { data: isCashoutAgent, isLoading: cashoutAgentLoading } = useQuery({
     queryKey: ['is-cashout-agent', user?.id],
     queryFn: async () => {
       if (!user) return null;
@@ -42,16 +80,31 @@ export function AgentCashPayoutsTab() {
     enabled: !!user,
   });
 
+  const releaseExpiredClaims = async () => {
+    const cutoff = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
+    const { error } = await supabase
+      .from('withdrawal_requests')
+      .update({ assigned_cashout_agent_id: null, dispatched_at: null } as any)
+      .not('assigned_cashout_agent_id', 'is', null)
+      .lt('dispatched_at', cutoff)
+      .in('status', CASHOUT_QUEUE_STATUSES);
+
+    if (error) {
+      console.warn('Failed to release expired merchant payout claims', error);
+    }
+  };
+
   // ALL pending/approved withdrawal requests
   // NOTE: no FK exists between withdrawal_requests.user_id and profiles.id,
   // so we cannot use a PostgREST embed. We fetch profiles separately and join client-side.
   const { data: allWithdrawals = [], isLoading: loadingAll } = useQuery({
     queryKey: ['cashout-agent-all-withdrawals'],
     queryFn: async () => {
+      await releaseExpiredClaims();
       const { data, error } = await supabase
         .from('withdrawal_requests')
         .select('*')
-        .in('status', ['pending', 'requested', 'manager_approved', 'cfo_approved', 'approved', 'fin_ops_approved'])
+        .in('status', CASHOUT_QUEUE_STATUSES)
         .order('created_at', { ascending: true });
       if (error) throw error;
       const rows = data || [];
@@ -138,7 +191,7 @@ export function AgentCashPayoutsTab() {
     return () => { supabase.removeChannel(channel); };
   }, [isCashoutAgent, qc]);
 
-  // Auto-release stale claims (>10min) — client-side ticker so the UI updates
+  // Auto-release stale claims (>15min) — client-side ticker so the UI updates
   // immediately even between cron runs. Refreshes the list every 30s while open.
   useEffect(() => {
     if (!isCashoutAgent) return;
@@ -231,11 +284,10 @@ export function AgentCashPayoutsTab() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  // Capability gate: must hold `process_cash_out` AND have an active cashout_agents row.
-  // Capability is auto-granted by trigger when an active cashout_agents record exists,
-  // and revoked when deactivated — so this is a defense-in-depth check.
-  if (capsLoading) return null;
-  if (!isCashoutAgent || !has('process_cash_out')) return null;
+  if (cashoutAgentLoading) {
+    return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
+  }
+  if (!isCashoutAgent) return null;
 
   // My ACTIVE claims (claimed by me, awaiting my confirmation) — shown separately
   // at the top so I can complete them. They are EXCLUDED from the main queue and
@@ -244,19 +296,15 @@ export function AgentCashPayoutsTab() {
     (w: any) => w.assigned_cashout_agent_id === isCashoutAgent?.id,
   );
 
-  // Available queue: only UNCLAIMED withdrawals. Items claimed by anyone (me or
-  // another agent) are hidden until either confirmed paid (gone forever) or the
-  // 10-minute cron auto-releases them back here.
+  // Available queue: unclaimed withdrawals plus expired claims returning after 15 minutes.
   const availableWithdrawals = allWithdrawals.filter(
-    (w: any) => !w.assigned_cashout_agent_id,
+    (w: any) => !w.assigned_cashout_agent_id || isClaimExpired(w),
   );
 
   // Split by method (queue only)
-  const momoWithdrawals = availableWithdrawals.filter((w: any) => ['mobile_money', 'mtn_mobile_money', 'airtel_money'].includes(w.payout_method));
-  const bankWithdrawals = availableWithdrawals.filter((w: any) => w.payout_method === 'bank_transfer');
-  const cashWithdrawals = availableWithdrawals.filter((w: any) => ['cash', 'cash_pickup'].includes(w.payout_method) || !w.payout_method);
+  const momoWithdrawals = availableWithdrawals.filter((w: any) => getPayoutChannel(w) === 'momo');
+  const cashWithdrawals = availableWithdrawals.filter((w: any) => getPayoutChannel(w) === 'cash');
 
-  const myClaimedIds = new Set(myActiveClaims.map((w: any) => w.id));
   const totalPending = availableWithdrawals.length;
 
   return (
@@ -358,7 +406,7 @@ export function AgentCashPayoutsTab() {
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
               <Clock className="h-3.5 w-3.5" />
-              My Active Claims · {myActiveClaims.length} · 10 min to confirm
+              My Active Claims · {myActiveClaims.length} · 15 min to confirm
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -406,13 +454,11 @@ export function AgentCashPayoutsTab() {
                 <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">{emptyMsg}</CardContent></Card>
               ) : (
                 items.map((w: any) => {
-                  const m = w.payout_method || 'cash';
-                  const isMoMo = ['mobile_money', 'mtn_mobile_money', 'airtel_money'].includes(m);
-                  const isBank = m === 'bank_transfer';
-                  const MethodIcon = isBank ? Building2 : isMoMo ? Smartphone : Banknote;
-                  const methodLabel = isBank ? 'Bank' : isMoMo ? 'Mobile Money' : 'Cash';
+                  const isMoMo = getPayoutChannel(w) === 'momo';
+                  const MethodIcon = isMoMo ? Smartphone : Banknote;
+                  const methodLabel = isMoMo ? 'Mobile Money' : 'Cash';
                   const name = w.profiles?.full_name || 'Unknown';
-                  const phone = (isMoMo && w.mobile_money_number) || w.profiles?.phone || '—';
+                  const phone = getRecipientPhone(w);
                   return (
                     <Card key={w.id}>
                       <CardContent className="p-3 space-y-2">
