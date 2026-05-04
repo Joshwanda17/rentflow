@@ -333,7 +333,16 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
           agent_location: payoutMode === 'cash' ? 'Nearest Agent' : null,
           reason: reason.trim(),
           client_request_id: clientRequestId,
-          ...(linkedParty ? { linked_party: linkedParty } : {}),
+          // For proxy-partner withdrawals, populate BOTH linked_party (audit
+          // trail) AND proxy_partner_id (the column approve-withdrawal uses
+          // to recognize this as a partner-linked payout and gate against
+          // the partner's ledger entitlement instead of the agent's own
+          // withdrawable). Omitting proxy_partner_id makes the row look
+          // like a self-withdrawal and blocks approval whenever the agent's
+          // wallet is empty — even though the partner has unwithdrawn ROI.
+          ...(linkedParty
+            ? { linked_party: linkedParty, proxy_partner_id: linkedParty }
+            : {}),
         } as any);
         if (error) {
           // 23505 = unique_violation. Means a previous attempt already committed
