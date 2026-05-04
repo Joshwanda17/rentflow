@@ -258,9 +258,15 @@ Deno.serve(async (req) => {
           0,
         );
 
+        // For proxy payouts, the partner-linked ledger is the authoritative
+        // earmark — every credit/debit tagged with this partner's id sums to
+        // the float Welile owes the partner. The cached `float_balance`
+        // bucket can drift below this figure (cache lag, missed sync, manual
+        // corrections), but that drift must NOT block a delivery the ledger
+        // explicitly earmarked. Gate on the ledger figure alone.
         ledgerAvailable = Math.max(
           0,
-          Math.min(walletFloat, Math.max(0, partnerLinkedNet)) - partnerPendingHolds,
+          Math.max(0, partnerLinkedNet) - partnerPendingHolds,
         );
       } else if (isProxyPayout) {
         // Proxy agent without a linked_party on the withdrawal row: gate
@@ -344,7 +350,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    const totalSpendable = Math.min(cachedSpendable, ledgerAvailable);
+    // For partner-linked proxy payouts, the partner-linked ledger is the
+    // authoritative figure (see ledgerAvailable computation above). The cached
+    // float bucket can lag — never let it veto a ledger-earmarked delivery.
+    const isPartnerLinkedProxy =
+      isProxyPayout && wr.linked_party && wr.linked_party !== wr.user_id;
+    const totalSpendable = isPartnerLinkedProxy
+      ? ledgerAvailable
+      : Math.min(cachedSpendable, ledgerAvailable);
     const effectiveBalance = totalSpendable;
 
     if (!wallet || totalSpendable < amount) {
