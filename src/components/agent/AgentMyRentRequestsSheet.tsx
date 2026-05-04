@@ -25,6 +25,7 @@ interface AgentRentRequest {
   id: string;
   rent_amount: number;
   total_repayment: number;
+  amount_repaid: number | null;
   duration_days: number;
   daily_repayment: number;
   status: string | null;
