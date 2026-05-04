@@ -187,12 +187,12 @@ Deno.serve(async (req) => {
     const walletFloat = Number((wallet as any)?.float_balance ?? 0);
     const walletAdvance = Number((wallet as any)?.advance_balance ?? 0);
 
-    // Withdrawable = ONLY withdrawable_balance. `advance_balance` is a
-    // user liability (debt owed back to Welile) and MUST NEVER fund a
-    // payout. Float is operational/company money and MUST NEVER fund an
-    // external withdrawal, including proxy payouts.
+    // Normal withdrawals can ONLY draw from withdrawable_balance.
+    // Proxy partner delivery is different: the partner owns the credited
+    // liability, but the assigned agent physically delivers it, so it may
+    // draw only from that partner-linked float — never from generic float.
     const withdrawable = walletWithdrawable;
-    const cachedSpendable = withdrawable;
+    const cachedSpendable = isProxyPayout ? walletFloat : withdrawable;
 
     // STRICT LEDGER-BACKED GATE.
     // Compute the posting-time cap directly from general_ledger, excluding
@@ -202,38 +202,71 @@ Deno.serve(async (req) => {
     // correctly rejects it later as a 500.
     let ledgerAvailable = 0;
     try {
-      const { data: ledgerRows, error: ledgerErr } = await admin
-        .from("general_ledger")
-        .select("amount, direction")
-        .eq("user_id", fundingUserId)
-        .eq("ledger_scope", "wallet")
-        .or("classification.is.null,classification.eq.production");
-      if (ledgerErr) throw ledgerErr;
-
-      const ledgerNet = (ledgerRows || []).reduce((acc: number, r: any) => {
+      const sumLedgerRows = (rows: any[] = []) => rows.reduce((acc: number, r: any) => {
         const amt = Number(r.amount) || 0;
         if (r.direction === "cash_in" || r.direction === "credit") return acc + amt;
         if (r.direction === "cash_out" || r.direction === "debit") return acc - amt;
         return acc;
       }, 0);
 
-      const { data: pendingRows, error: pendingErr } = await admin
-        .from("withdrawal_requests")
-        .select("amount")
-        .eq("user_id", fundingUserId)
-        .neq("id", withdrawal_id)
-        .in("status", ["pending", "requested", "manager_approved", "processing"]);
-      if (pendingErr) throw pendingErr;
+      if (isProxyPayout && beneficiaryUserId) {
+        const { data: linkedRows, error: linkedErr } = await admin
+          .from("general_ledger")
+          .select("amount, direction")
+          .eq("user_id", fundingUserId)
+          .eq("ledger_scope", "wallet")
+          .eq("linked_party", beneficiaryUserId)
+          .or("classification.is.null,classification.eq.production");
+        if (linkedErr) throw linkedErr;
 
-      const otherPendingHolds = (pendingRows || []).reduce(
-        (sum: number, p: any) => sum + Number(p.amount || 0),
-        0,
-      );
+        const partnerLinkedNet = sumLedgerRows(linkedRows || []);
+        const { data: partnerPendingRows, error: partnerPendingErr } = await admin
+          .from("withdrawal_requests")
+          .select("amount")
+          .eq("user_id", fundingUserId)
+          .eq("linked_party", beneficiaryUserId)
+          .neq("id", withdrawal_id)
+          .in("status", ["pending", "requested", "manager_approved", "processing"]);
+        if (partnerPendingErr) throw partnerPendingErr;
 
-      ledgerAvailable = Math.max(
-        0,
-        Math.min(cachedSpendable, Math.max(0, ledgerNet)) - otherPendingHolds,
-      );
+        const partnerPendingHolds = (partnerPendingRows || []).reduce(
+          (sum: number, p: any) => sum + Number(p.amount || 0),
+          0,
+        );
+
+        ledgerAvailable = Math.max(
+          0,
+          Math.min(walletFloat, Math.max(0, partnerLinkedNet)) - partnerPendingHolds,
+        );
+      } else {
+        const { data: ledgerRows, error: ledgerErr } = await admin
+          .from("general_ledger")
+          .select("amount, direction")
+          .eq("user_id", fundingUserId)
+          .eq("ledger_scope", "wallet")
+          .or("classification.is.null,classification.eq.production");
+        if (ledgerErr) throw ledgerErr;
+
+        const ledgerNet = sumLedgerRows(ledgerRows || []);
+
+        const { data: pendingRows, error: pendingErr } = await admin
+          .from("withdrawal_requests")
+          .select("amount")
+          .eq("user_id", fundingUserId)
+          .neq("id", withdrawal_id)
+          .in("status", ["pending", "requested", "manager_approved", "processing"]);
+        if (pendingErr) throw pendingErr;
+
+        const otherPendingHolds = (pendingRows || []).reduce(
+          (sum: number, p: any) => sum + Number(p.amount || 0),
+          0,
+        );
+
+        ledgerAvailable = Math.max(
+          0,
+          Math.min(cachedSpendable, Math.max(0, ledgerNet)) - otherPendingHolds,
+        );
+      }
     } catch (e) {
       console.warn(
         "[approve-withdrawal] inline ledger compute failed; falling back to strict RPC",
