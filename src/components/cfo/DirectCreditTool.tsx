@@ -9,17 +9,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Send, ArrowUpRight, ArrowDownLeft, TrendingUp, TrendingDown, Minus, Info, ChevronDown } from 'lucide-react';
+import { Loader2, Send, ArrowUpRight, ArrowDownLeft, TrendingUp, TrendingDown, Minus, Info, ChevronDown, Banknote, Phone, Building2, AlertTriangle } from 'lucide-react';
 import { UserSearchPicker } from './UserSearchPicker';
 import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 import { RentDisbursementQueue } from './RentDisbursementQueue';
 import { BusinessAdvanceDisbursementQueue } from './BusinessAdvanceDisbursementQueue';
 import { ROIPayoutQueue } from './ROIPayoutQueue';
 import { PayoutAutomationToggle } from './PayoutAutomationToggle';
+import { UGANDA_BANKS } from '@/lib/ugandaBanks';
 
-type Operation = 'credit' | 'debit';
+type Operation = 'credit' | 'debit' | 'withdraw';
 type FinancialImpact = 'expense' | 'revenue' | 'neutral';
 type RecipientType = 'user' | 'operational_wallet';
+type PayoutMethod = 'cash' | 'mobile_money' | 'bank_transfer';
 
 interface SubCategory {
   id: string;
