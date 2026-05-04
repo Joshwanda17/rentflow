@@ -267,18 +267,19 @@ Deno.serve(async (req) => {
         //
         // HOWEVER: physical cash delivery cannot exceed the cash the agent
         // actually holds. The partner may be "owed" UGX 390k on paper, but
-        // if the agent's overall wallet (balance/float) only carries UGX
-        // 280k of real cash, debiting 390k drives the wallet bucket
-        // negative and trips `wallets_balance_check`. Cap by both the
-        // partner-linked entitlement AND the agent's real cached cash
-        // (whichever bucket can fund the float debit).
-        const physicalCashCap = Math.max(
-          0,
-          Math.min(
-            Number(wallet?.balance ?? 0),
-            Number((wallet as any)?.float_balance ?? 0),
-          ),
-        );
+        // if the agent's overall wallet only carries UGX 280k of real
+        // cash, debiting 390k drives wallet.balance negative and trips
+        // `wallets_balance_check`.
+        //
+        // The cap MUST be the TOTAL cash held by the agent
+        // (`wallet.balance`), NOT `min(balance, float_balance)`. Partner-
+        // linked ROI credits land in the **withdrawable** bucket (account=
+        // 'withdrawable'), so float_balance is often 0 even when the
+        // partner is fully funded. Using min() against float zeroed out
+        // legitimate withdrawable-funded proxy payouts. The partner-
+        // linked ledger already enforces the per-partner earmark — we
+        // only need to verify the agent has enough TOTAL cash to deliver.
+        const physicalCashCap = Math.max(0, Number(wallet?.balance ?? 0));
         ledgerAvailable = Math.max(
           0,
           Math.min(
