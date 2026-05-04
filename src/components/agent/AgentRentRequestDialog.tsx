@@ -303,6 +303,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       errors.push('National ID is required (10-14 alphanumeric characters)');
     }
 
+    if (!preferredLanguage) errors.push('Preferred language is required');
+
     if (!landlordName.trim()) errors.push('Landlord name is required');
     if (!landlordPhone.trim()) errors.push('Landlord phone is required');
     else if (!isValidUgPhone(cleanLandlordPhone)) errors.push('Landlord phone must be a valid Ugandan number (e.g. 0700 123 456)');
