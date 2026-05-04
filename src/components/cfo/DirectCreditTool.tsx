@@ -297,6 +297,21 @@ export function DirectCreditTool() {
   const [automateEnabled, setAutomateEnabled] = useState(false);
   const [automateDay, setAutomateDay] = useState(1);
 
+  // ── Expense-Only Withdrawal state ──────────────────────────────────
+  // Used when operation === 'withdraw'. Captures HOW the company is
+  // paying the expense out (Cash / MoMo / Bank) and WHO/WHERE it goes.
+  // These details are folded into the mandatory `reason` so they land
+  // in general_ledger.description and audit_logs for full traceability,
+  // without requiring an edge-function schema change.
+  const [payoutMethod, setPayoutMethod] = useState<PayoutMethod>('mobile_money');
+  const [pickupLocation, setPickupLocation] = useState('');
+  const [momoNumber, setMomoNumber] = useState('');
+  const [momoProvider, setMomoProvider] = useState<'MTN' | 'Airtel'>('MTN');
+  const [momoName, setMomoName] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [bankAccountNumber, setBankAccountNumber] = useState('');
+  const [bankAccountName, setBankAccountName] = useState('');
+
   const { data: rentQueueCount = 0 } = useQuery({
     queryKey: ['rent-disbursement-queue-count'],
     queryFn: async () => {
