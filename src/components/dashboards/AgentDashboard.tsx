@@ -132,6 +132,7 @@ import { GeneratePaymentTokenDialog } from '@/components/agent/GeneratePaymentTo
 import { RecordAgentCollectionDialog } from '@/components/agent/RecordAgentCollectionDialog';
 import { AgentDepositCashDialog } from '@/components/agent/AgentDepositCashDialog';
 import { AgentCashPayoutsTab } from '@/components/agent/AgentCashPayoutsTab';
+import { FinOpsWithdrawalVerification } from '@/components/financial-ops/FinOpsWithdrawalVerification';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface AgentDashboardProps {
@@ -880,7 +881,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             </DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4">
-            <AgentCashPayoutsTab />
+            <FinOpsWithdrawalVerification />
           </div>
         </DialogContent>
       </Dialog>
