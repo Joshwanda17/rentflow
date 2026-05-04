@@ -687,8 +687,61 @@ Deno.serve(async (req) => {
       }),
     }).catch(() => {});
 
-    // Disbursement email is sent at withdrawal-confirm time (client-side, see WithdrawRequestDialog).
-    // Do not re-send here to avoid duplicate partner emails.
+    // ── Returns Disbursement Confirmation email ───────────────────────────
+    // Sent ONLY now (after the merchant agent has actually confirmed payment
+    // and the ledger has been written) so partners are never told their
+    // returns were disbursed for a release/rejected/unconfirmed payout.
+    try {
+      // Beneficiary partner = wr.linked_party for proxy payouts, else self.
+      const partnerId = beneficiaryUserId;
+      const { data: partnerProfile } = await admin
+        .from("profiles")
+        .select("email, full_name")
+        .eq("id", partnerId)
+        .maybeSingle();
+
+      if (partnerProfile?.email) {
+        let agentName: string | undefined;
+        if (isProxyPayout && fundingUserId !== partnerId) {
+          const { data: agentProfile } = await admin
+            .from("profiles")
+            .select("full_name")
+            .eq("id", fundingUserId)
+            .maybeSingle();
+          agentName = agentProfile?.full_name || undefined;
+        }
+
+        const { data: portfolio } = await admin
+          .from("investor_portfolios")
+          .select("portfolio_code")
+          .eq("investor_id", partnerId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const refUpper = reference.trim().toUpperCase();
+        const emailReq = buildReturnsDisbursementRequest({
+          recipientEmail: partnerProfile.email,
+          partnerName: partnerProfile.full_name,
+          partnerId,
+          txGroupId: String(txnGroupId ?? withdrawal_id),
+          amount,
+          transactionId: refUpper,
+          portfolioCode: portfolio?.portfolio_code || undefined,
+          payoutMethod: isProxyPayout
+            ? `${payment_method} — via Proxy Agent`
+            : payment_method,
+          isManagedByAgent: isProxyPayout && fundingUserId !== partnerId,
+          agentName,
+        });
+        dispatchTransactionalEmail(supabaseUrl, serviceKey, emailReq, "approve-withdrawal");
+      }
+    } catch (emailErr) {
+      console.warn(
+        "[approve-withdrawal] returns-disbursement-confirmation enqueue failed:",
+        (emailErr as Error).message,
+      );
+    }
 
     return new Response(
       JSON.stringify({
