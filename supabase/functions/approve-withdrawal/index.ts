@@ -264,9 +264,27 @@ Deno.serve(async (req) => {
         // bucket can drift below this figure (cache lag, missed sync, manual
         // corrections), but that drift must NOT block a delivery the ledger
         // explicitly earmarked. Gate on the ledger figure alone.
+        //
+        // HOWEVER: physical cash delivery cannot exceed the cash the agent
+        // actually holds. The partner may be "owed" UGX 390k on paper, but
+        // if the agent's overall wallet (balance/float) only carries UGX
+        // 280k of real cash, debiting 390k drives the wallet bucket
+        // negative and trips `wallets_balance_check`. Cap by both the
+        // partner-linked entitlement AND the agent's real cached cash
+        // (whichever bucket can fund the float debit).
+        const physicalCashCap = Math.max(
+          0,
+          Math.min(
+            Number(wallet?.balance ?? 0),
+            Number((wallet as any)?.float_balance ?? 0),
+          ),
+        );
         ledgerAvailable = Math.max(
           0,
-          Math.max(0, partnerLinkedNet) - partnerPendingHolds,
+          Math.min(
+            Math.max(0, partnerLinkedNet) - partnerPendingHolds,
+            physicalCashCap,
+          ),
         );
       } else if (isProxyPayout) {
         // Proxy agent without a linked_party on the withdrawal row: gate
