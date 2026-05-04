@@ -3,6 +3,7 @@ import { template as returnsDisbursementTemplate } from './returns-disbursement-
 import { template as partnerWalletDepositTemplate } from './partner-wallet-deposit.tsx'
 import { template as partnershipAgreementTemplate } from './partnership-agreement.tsx'
 import { template as partnershipTopupTemplate } from './partnership-topup.tsx'
+import { template as partnershipSplitAllocationTemplate } from './partnership-split-allocation.tsx'
 import { template as partnerCompoundTemplate } from './partner-compound.tsx'
 import { template as portfolioRenewalTemplate } from './portfolio-renewal.tsx'
 import { template as portfolioMaturityTemplate } from './portfolio-maturity.tsx'
@@ -15,6 +16,7 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'partner-wallet-deposit': partnerWalletDepositTemplate,
   'partnership-agreement': partnershipAgreementTemplate,
   'partnership-topup': partnershipTopupTemplate,
+  'partnership-split-allocation': partnershipSplitAllocationTemplate,
   'partner-compound': partnerCompoundTemplate,
   'portfolio-renewal': portfolioRenewalTemplate,
   'portfolio-maturity': portfolioMaturityTemplate,
