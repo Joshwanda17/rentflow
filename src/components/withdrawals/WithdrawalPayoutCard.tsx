@@ -10,7 +10,6 @@ import {
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
-import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { formatUGX } from '@/lib/rentCalculations';
