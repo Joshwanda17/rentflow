@@ -432,6 +432,32 @@ export function DirectCreditTool() {
       if (!selectedCategory) throw new Error('Select a payout category');
       if (hasSubCategories && !selectedSubCategoryId) throw new Error('Select a subcategory');
 
+      // Expense-Only Withdrawal validation — block any non-expense category
+      // and require complete recipient details for the chosen method.
+      let payoutTag = '';
+      if (operation === 'withdraw') {
+        if (selectedCategory.impact !== 'expense') {
+          throw new Error(
+            `Withdrawal blocked: only Expense categories may be withdrawn. "${selectedCategory.label}" is marked as ${selectedCategory.impact}.`,
+          );
+        }
+        if (payoutMethod === 'cash') {
+          if (pickupLocation.trim().length < 3) {
+            throw new Error('Cash payout requires pickup details (min 3 characters).');
+          }
+          payoutTag = `[PAYOUT: CASH @ ${pickupLocation.trim()}]`;
+        } else if (payoutMethod === 'mobile_money') {
+          if (momoNumber.trim().length < 9) throw new Error('Mobile Money number is required (min 9 digits).');
+          if (momoName.trim().length < 2) throw new Error('Mobile Money account name is required.');
+          payoutTag = `[PAYOUT: MOMO ${momoProvider} ${momoNumber.trim()} (${momoName.trim()})]`;
+        } else if (payoutMethod === 'bank_transfer') {
+          if (!bankName) throw new Error('Bank name is required.');
+          if (bankAccountNumber.trim().length < 5) throw new Error('Bank account number is required.');
+          if (bankAccountName.trim().length < 2) throw new Error('Bank account name is required.');
+          payoutTag = `[PAYOUT: BANK ${bankName} A/C ${bankAccountNumber.trim()} (${bankAccountName.trim()})]`;
+        }
+      }
+
       // Wallet Routing v2: when the category has a hard recipient lock, that
       // lock is the single source of truth at submit time. This protects
       // against any stale `recipientType` state (e.g. radio carried over from
@@ -449,12 +475,23 @@ export function DirectCreditTool() {
         ? `${selectedCategory.label} → ${selectedSubCategory.label}`
         : selectedCategory.label;
 
+      // Withdraw rides the existing `credit` rail — the CFO is paying
+      // the expense out to the recipient via Cash / MoMo / Bank. The
+      // ledger leg, recipient bucket, and audit trail are identical to
+      // a direct credit; the payout details are embedded in `reason`
+      // so they appear in general_ledger.description and audit_logs.
+      const submitOperation: 'credit' | 'debit' =
+        operation === 'withdraw' ? 'credit' : operation;
+      const submitReason = operation === 'withdraw'
+        ? `${payoutTag} ${reason}`.trim()
+        : reason;
+
       const { data, error } = await supabase.functions.invoke('cfo-direct-credit', {
         body: {
           target_user_id: selectedUser.id,
           amount: amt,
-          reason,
-          operation,
+          reason: submitReason,
+          operation: submitOperation,
           wallet_category: selectedCategory.walletCategory,
           platform_category: selectedCategory.platformCategory,
           financial_impact: selectedCategory.impact,
