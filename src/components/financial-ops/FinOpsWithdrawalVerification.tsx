@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   ArrowDownToLine, CheckCircle, XCircle, Loader2, RefreshCw,
-  Smartphone, Clock,
+  Smartphone, Clock, Hand,
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -36,6 +36,10 @@ interface WithdrawalRequest {
   reason: string | null;
   created_at: string;
   fin_ops_reference: string | null;
+  assigned_cashout_agent_id: string | null;
+  claimed_at: string | null;
+  claimed_by: string | null;
+  cashout_agent?: { full_name: string | null; phone: string | null } | null;
   user?: { full_name: string; phone: string; avatar_url: string | null };
 }
 
