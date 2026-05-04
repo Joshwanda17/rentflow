@@ -14682,14 +14682,24 @@ export type Database = {
         }
         Returns: string
       }
-      create_ledger_transaction: {
-        Args: {
-          entries: Json
-          idempotency_key?: string
-          skip_balance_check?: boolean
-        }
-        Returns: string
-      }
+      create_ledger_transaction:
+        | {
+            Args: {
+              entries: Json
+              idempotency_key?: string
+              skip_balance_check?: boolean
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_entries: Json
+              p_idempotency_key?: string
+              p_skip_balance_check?: boolean
+              p_transaction_group_id: string
+            }
+            Returns: string
+          }
       credit_agent_event_bonus:
         | {
             Args: {
