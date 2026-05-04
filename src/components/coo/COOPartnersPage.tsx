@@ -3872,6 +3872,60 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
         },
       });
 
+      // ── Partner Split Allocation email (fire-and-forget; never blocks split) ──
+      try {
+        const recipientEmail = (p.email || '').trim();
+        const isPlaceholder = !recipientEmail || recipientEmail.includes('placeholder');
+        if (!isPlaceholder) {
+          // Fetch portfolio_code + duration_months to mirror exact ledger values.
+          const { data: pf } = await supabase
+            .from('investor_portfolios')
+            .select('portfolio_code, duration_months, next_roi_date, payout_day, created_at')
+            .eq('id', p.portfolioId)
+            .maybeSingle();
+
+          const portfolioName = pf?.portfolio_code || p.portfolioName || 'Portfolio';
+          const portfolioShortId = p.portfolioId.replace(/-/g, '').slice(0, 8).toUpperCase();
+          const durationMonths = Number(pf?.duration_months || 12);
+
+          const fmtDate = (iso: string | Date) => {
+            const d = iso instanceof Date ? iso : new Date(iso);
+            return isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+          };
+
+          const processingDate = fmtDate(new Date());
+          // New maturity date = today + duration_months (compound cycle restart).
+          const maturity = new Date();
+          maturity.setMonth(maturity.getMonth() + durationMonths);
+          const newMaturityDate = fmtDate(maturity);
+
+          await supabase.functions.invoke('send-transactional-email', {
+            body: {
+              templateName: 'partnership-split-allocation',
+              recipientEmail,
+              idempotencyKey: `partnership-split-allocation-${p.investorId}-${refId}`,
+              templateData: {
+                partner_name: p.name || 'Partner',
+                portfolio_name: portfolioName,
+                portfolio_id: portfolioShortId,
+                total_matured_value: roiAmount,
+                withdrawal_amount: cashAmount,
+                compounded_amount: reinvestAmount,
+                processing_date: processingDate,
+                new_maturity_date: newMaturityDate,
+                new_cycle_duration: `${durationMonths} months`,
+                currency: 'UGX',
+                company_name: 'Welile',
+                logo_url: 'https://welilereceipts.com/welile-logo.png',
+                unsubscribe_url: 'https://welile.com/unsubscribe',
+              },
+            },
+          });
+        }
+      } catch (emailErr) {
+        console.warn('[partnership-split-allocation] email dispatch failed (non-blocking):', emailErr);
+      }
+
       // ── Notifications ──
       const reinvestMsg = isKeepReturns
         ? `${formatUGX(reinvestAmount)} kept as earned returns (principal unchanged: ${formatUGX(p.investmentAmount)})`
