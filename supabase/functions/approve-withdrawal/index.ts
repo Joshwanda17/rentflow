@@ -436,7 +436,9 @@ Deno.serve(async (req) => {
     // Create balanced ledger entries via RPC.
     //
     // BUCKET ROUTING: normal external withdrawals drain withdrawable. Verified
-    // proxy partner deliveries drain only the partner-linked float bucket.
+    // proxy partner deliveries use the dedicated proxy category so merchant
+    // agents debit the same wallet bucket that received the partner-linked
+    // credit, and the ledger remains tagged to the beneficiary partner.
     const refUpper = reference.trim().toUpperCase();
     const baseDesc = `${payment_method} ref: ${refUpper}`;
     const nowIso = new Date().toISOString();
@@ -465,14 +467,14 @@ Deno.serve(async (req) => {
         user_id: fundingUserId,
         amount: floatPortion,
         direction: "cash_out",
-        category: "agent_float_used_for_rent",
+        category: "proxy_partner_withdrawal",
         ledger_scope: "wallet",
-        description: `Proxy payout from float – ${baseDesc}`,
+        description: `Proxy partner payout delivered – ${baseDesc}`,
         currency: "UGX",
         source_table: "withdrawal_requests",
         source_id: withdrawal_id,
         transaction_date: nowIso,
-        linked_party: user.id,
+        linked_party: wr.linked_party || beneficiaryUserId,
       });
     }
 
@@ -509,7 +511,7 @@ Deno.serve(async (req) => {
         ledgerMessage.includes("Insufficient ledger balance");
       const failureReason = isInsufficientBalance
         ? isProxyPayout
-          ? `Insufficient proxy partner float (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. This payout can only use float linked to the selected partner.`
+          ? `Insufficient proxy partner balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. This payout can only use funds linked to the selected partner.`
           : `Insufficient withdrawable balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. Cached withdrawable UGX ${Math.round(cachedSpendable).toLocaleString()}, ledger-true UGX ${Math.round(ledgerAvailable).toLocaleString()}. Float and advance buckets cannot fund payouts.`
         : "Failed to record ledger entry: " + ledgerMessage;
       if (isInsufficientBalance) {
