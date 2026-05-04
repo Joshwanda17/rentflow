@@ -645,9 +645,7 @@ Deno.serve(async (req) => {
           }
 
           // ── Step 2: Clear accumulated debt & pre-pay future days ──
-          let debtCleared = 0;
-          let daysPrepaid = 0;
-          let prepaidAmount = 0;
+          // (debtCleared/daysPrepaid/prepaidAmount declared at outer scope above)
           let newNextChargeDate: string | null = null;
 
           const { data: activeSub } = await supabaseAdmin
