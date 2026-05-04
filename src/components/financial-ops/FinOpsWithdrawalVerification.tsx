@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   ArrowDownToLine, CheckCircle, XCircle, Loader2, RefreshCw,
-  Smartphone, Clock,
+  Smartphone, Clock, Hand,
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -36,6 +36,10 @@ interface WithdrawalRequest {
   reason: string | null;
   created_at: string;
   fin_ops_reference: string | null;
+  assigned_cashout_agent_id: string | null;
+  claimed_at: string | null;
+  claimed_by: string | null;
+  cashout_agent?: { full_name: string | null; phone: string | null } | null;
   user?: { full_name: string; phone: string; avatar_url: string | null };
 }
 
@@ -69,7 +73,10 @@ export function FinOpsWithdrawalVerification() {
 
   const fetchProfiles = async (data: any[]) => {
     if (!data.length) return [];
-    const userIds = [...new Set(data.map(r => r.user_id))];
+    const userIds = [...new Set([
+      ...data.map(r => r.user_id),
+      ...data.map(r => r.claimed_by).filter(Boolean),
+    ])];
     const { data: profiles } = await supabase
       .from('profiles')
       .select('id, full_name, phone, avatar_url')
@@ -78,6 +85,7 @@ export function FinOpsWithdrawalVerification() {
     return data.map(r => ({
       ...r,
       user: profileMap.get(r.user_id) || { full_name: 'Unknown', phone: '', avatar_url: null },
+      cashout_agent: r.claimed_by ? (profileMap.get(r.claimed_by) || null) : null,
     }));
   };
 
@@ -413,6 +421,22 @@ export function FinOpsWithdrawalVerification() {
             </div>
           </div>
         </div>
+
+        {req.assigned_cashout_agent_id && (
+          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/40 text-orange-700 dark:text-orange-300">
+            <Hand className="h-3.5 w-3.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-wide">
+                Claimed by Merchant Agent — DO NOT double-pay
+              </p>
+              <p className="text-[11px] font-medium truncate opacity-90">
+                {req.cashout_agent?.full_name || 'Agent'}
+                {req.cashout_agent?.phone ? ` · ${req.cashout_agent.phone}` : ''}
+                {req.claimed_at ? ` · claimed ${formatDistanceToNow(new Date(req.claimed_at), { addSuffix: true })}` : ''}
+              </p>
+            </div>
+          </div>
+        )}
 
         {(req.mobile_money_name || req.bank_account_name) && (
           <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-primary/5 border border-primary/10">
