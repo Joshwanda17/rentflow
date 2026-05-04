@@ -14003,6 +14003,39 @@ export type Database = {
           },
         ]
       }
+      withdrawal_attempt_failures: {
+        Row: {
+          attempted_amount: number
+          client_request_id: string | null
+          created_at: string
+          id: string
+          ledger_available: number
+          metadata: Json | null
+          reason: string
+          user_id: string
+        }
+        Insert: {
+          attempted_amount: number
+          client_request_id?: string | null
+          created_at?: string
+          id?: string
+          ledger_available: number
+          metadata?: Json | null
+          reason: string
+          user_id: string
+        }
+        Update: {
+          attempted_amount?: number
+          client_request_id?: string | null
+          created_at?: string
+          id?: string
+          ledger_available?: number
+          metadata?: Json | null
+          reason?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       withdrawal_requests: {
         Row: {
           agent_id: string | null

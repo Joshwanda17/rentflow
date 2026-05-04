@@ -125,6 +125,14 @@ export default function WithdrawFlow({
   // ONLY figure we trust to gate the withdraw button. Cached
   // wallets.balance can drift above this; we always take the lesser.
   const [ledgerAvailable, setLedgerAvailable] = useState<number | null>(null);
+  // Strict-validation state — gates the Continue/Confirm buttons. The
+  // ledger snapshot expires after STALE_MS so users can't sit on the
+  // amount screen for minutes and submit against an outdated balance.
+  const [validating, setValidating] = useState(false);
+  const [ledgerCheckedAt, setLedgerCheckedAt] = useState<number | null>(null);
+  const STALE_MS = 30_000;
+  const isStale =
+    ledgerCheckedAt === null || Date.now() - ledgerCheckedAt > STALE_MS;
 
   // The "available" source is the LESSER of (caller-supplied wallet
   // available, ledger-true available). Advance bucket is debt — NOT
@@ -133,6 +141,24 @@ export default function WithdrawFlow({
     ? Math.min(availableBalance, ledgerAvailable)
     : availableBalance;
   const maxAmount = source === 'available' ? trueAvailable : roiBalance;
+
+  /** Force-fetch the strict ledger balance from the server, bypassing
+   *  any cached values. Updates `ledgerAvailable` + `ledgerCheckedAt`. */
+  const refetchLedger = async () => {
+    if (!user) return null;
+    setValidating(true);
+    try {
+      const fresh = await computeLedgerAvailable(user.id);
+      setLedgerAvailable(fresh.available);
+      setLedgerCheckedAt(Date.now());
+      return fresh.available;
+    } catch (e) {
+      console.warn('[WithdrawFlow] ledger refetch failed', e);
+      return null;
+    } finally {
+      setValidating(false);
+    }
+  };
 
   useEffect(() => {
     if (!open || !user) return;
@@ -159,9 +185,30 @@ export default function WithdrawFlow({
       setAdvanceBalance(Number(walletRes.data?.advance_balance ?? 0));
       setUserRoles((rolesRes.data ?? []).map((r: any) => r.role));
       if (ledger) setLedgerAvailable(ledger.available);
+      if (ledger) setLedgerCheckedAt(Date.now());
     })();
     return () => { cancelled = true; };
   }, [open, user]);
+
+  // Anti-cache: re-fetch ledger every time the user lands on the
+  // Amount step (1) or the final Verify step (4). The Confirm button
+  // stays disabled until the fresh figure lands.
+  useEffect(() => {
+    if (!open || !user) return;
+    if (currentStep === 1 || currentStep === 4) {
+      refetchLedger();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep, open, user]);
+
+  // Debounced re-validation as the user types a new amount — keeps
+  // the maxAmount and inline error in sync without spamming the API.
+  useEffect(() => {
+    if (!open || !user || currentStep !== 1) return;
+    const t = setTimeout(() => { refetchLedger(); }, 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [amount]);
 
   const handleReset = () => {
     setCurrentStep(0);
@@ -220,7 +267,14 @@ export default function WithdrawFlow({
   const canProceed = () => {
     switch (currentStep) {
       case 0: return true;
-      case 1: return amount >= MIN_WITHDRAWAL && amount <= maxAmount;
+      case 1:
+        return (
+          amount >= MIN_WITHDRAWAL &&
+          amount <= maxAmount &&
+          ledgerAvailable !== null &&
+          !validating &&
+          !isStale
+        );
       case 2: return !!payoutMode;
       case 3: {
         if (payoutMode === 'mobile_money') return momoNumber.trim().length >= 9 && momoName.trim().length >= 2;
@@ -228,7 +282,14 @@ export default function WithdrawFlow({
         if (payoutMode === 'cash') return true;
         return false;
       }
-      case 4: return pin.length === 4;
+      case 4:
+        return (
+          pin.length === 4 &&
+          ledgerAvailable !== null &&
+          !validating &&
+          !isStale &&
+          amount <= maxAmount
+        );
       default: return false;
     }
   };
@@ -254,11 +315,11 @@ export default function WithdrawFlow({
       // FINAL LEDGER GATE — recompute ledger truth right before submission.
       // Cached props may be stale; the ledger is the source of truth.
       try {
-        const fresh = await computeLedgerAvailable(user.id);
-        const freshLedger = Number.isFinite(fresh.available) ? fresh.available : trueAvailable;
+        const freshAvailable = await refetchLedger();
+        const freshLedger = freshAvailable !== null ? freshAvailable : trueAvailable;
         if (source === 'available' && amount > freshLedger) {
           toast.error(
-            `Withdrawal blocked: only UGX ${freshLedger.toLocaleString()} is currently withdrawable (you tried UGX ${amount.toLocaleString()}). Refresh and try again.`,
+            `Insufficient funds. Available: UGX ${freshLedger.toLocaleString()}, requested: UGX ${amount.toLocaleString()}.`,
             { duration: 8000 },
           );
           isSubmittingRef.current = false;
@@ -297,6 +358,20 @@ export default function WithdrawFlow({
         //   2. Trigger `prevent_duplicate_pending_withdrawal` fired → the
         //      user already has an identical request waiting. Show a
         //      friendly message and stop, do NOT throw.
+        // Server-side ledger gate (trigger) raised P0001 with a
+        // "Ledger mismatch detected" message — surface as a clear
+        // insufficient-funds toast and stop.
+        const rawMsg = String((requestError as any).message || '');
+        if (rawMsg.includes('Ledger mismatch detected')) {
+          toast.error(
+            'Ledger mismatch detected. Transaction aborted. Refresh your balance and try again.',
+            { duration: 8000 },
+          );
+          // Force a fresh ledger read so the UI reflects truth.
+          await refetchLedger();
+          isSubmittingRef.current = false;
+          return;
+        }
         if ((requestError as any).code === '23505') {
           const msg = String((requestError as any).message || '');
           if (msg.includes('DUPLICATE_PENDING_WITHDRAWAL')) {
@@ -509,9 +584,17 @@ export default function WithdrawFlow({
               )}
               {amount > maxAmount && (
                 <p className="text-xs text-destructive text-center font-medium">
-                  Exceeds available balance ({formatCurrency(maxAmount, currency)})
+                  Insufficient funds — exceeds available balance ({formatCurrency(maxAmount, currency)})
                 </p>
               )}
+              {/* Live ledger sync indicator — gates Continue */}
+              <p className="text-[11px] text-center text-muted-foreground">
+                {validating
+                  ? 'Checking live ledger balance…'
+                  : isStale
+                    ? 'Balance may be stale — re-checking…'
+                    : `Verified against live ledger · ${formatCurrency(maxAmount, currency)} available`}
+              </p>
               {/* Zero-fee assurance — Welile wallet has no withdrawal fees,
                   so users see the full amount on the other side. */}
               <div className="flex items-center justify-center gap-2 text-xs font-semibold text-emerald-600 bg-emerald-500/5 border border-emerald-500/20 rounded-lg py-2">
