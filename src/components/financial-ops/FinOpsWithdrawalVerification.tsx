@@ -73,7 +73,10 @@ export function FinOpsWithdrawalVerification() {
 
   const fetchProfiles = async (data: any[]) => {
     if (!data.length) return [];
-    const userIds = [...new Set(data.map(r => r.user_id))];
+    const userIds = [...new Set([
+      ...data.map(r => r.user_id),
+      ...data.map(r => r.claimed_by).filter(Boolean),
+    ])];
     const { data: profiles } = await supabase
       .from('profiles')
       .select('id, full_name, phone, avatar_url')
@@ -82,6 +85,7 @@ export function FinOpsWithdrawalVerification() {
     return data.map(r => ({
       ...r,
       user: profileMap.get(r.user_id) || { full_name: 'Unknown', phone: '', avatar_url: null },
+      cashout_agent: r.claimed_by ? (profileMap.get(r.claimed_by) || null) : null,
     }));
   };
 
