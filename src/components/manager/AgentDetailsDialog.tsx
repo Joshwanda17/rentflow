@@ -56,6 +56,8 @@ interface RentRequest {
   status: string;
   created_at: string;
   tenant_name?: string;
+  amount_repaid?: number | null;
+  total_repayment?: number | null;
 }
 
 export function AgentDetailsDialog({ open, onOpenChange, agent, onAgentUpdated }: AgentDetailsDialogProps) {
