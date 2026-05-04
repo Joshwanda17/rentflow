@@ -86,7 +86,7 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     walletCategory: 'marketing_expense',
     platformCategory: 'marketing_expense',
     allowedOps: ['credit'],
-    recipientLock: 'operational_wallet',
+    recipientLock: 'either',
     subCategories: [
       { id: 'marketing_materials', label: 'Marketing Materials' },
       { id: 'events_exhibition', label: 'Events & Exhibition' },
