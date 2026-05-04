@@ -68,18 +68,42 @@ export function WithdrawalPayoutCard({
     }
     setRejecting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('reject-withdrawal', {
-        body: { withdrawal_ids: [withdrawal.id], reason: composed, withdrawal_type: 'wallet' },
-      });
-      if (error || data?.error) {
-        const msg = await extractEdgeFunctionError({ data, error }, 'Failed to reject');
-        throw new Error(msg);
+      // Merchant Agent reject = RELEASE the claim back into the queue so
+      // another agent (or Financial Ops) can pick it up. We do NOT mark the
+      // withdrawal itself as rejected — that's a Financial Ops decision.
+      // The withdrawal stays in its original status (pending / approved) and
+      // simply returns to the unclaimed pool. We log the release reason for
+      // audit so repeated releases by the same agent can be flagged.
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error: relErr } = await supabase
+        .from('withdrawal_requests')
+        .update({
+          assigned_cashout_agent_id: null,
+          dispatched_at: null,
+        } as any)
+        .eq('id', withdrawal.id);
+      if (relErr) throw relErr;
+
+      // Audit the release (mandatory 10+ char reason already enforced above).
+      try {
+        await supabase.from('audit_logs').insert({
+          user_id: user?.id ?? null,
+          action_type: 'merchant_payout_released',
+          table_name: 'withdrawal_requests',
+          record_id: withdrawal.id,
+          reason: composed.slice(0, 500),
+          metadata: {
+            amount: Number(withdrawal.amount || 0),
+            payout_method: withdrawal.payout_method,
+            previous_status: withdrawal.status,
+            released_at: new Date().toISOString(),
+          },
+        });
+      } catch (auditErr) {
+        console.warn('[withdrawal-release] audit log failed', auditErr);
       }
-      const row = data?.results?.[0];
-      if (row?.status && row.status !== 'rejected') {
-        throw new Error(row.status.replace(/_/g, ' '));
-      }
-      toast.success('Withdrawal rejected · funds restored');
+
+      toast.success('Released back to queue · another agent can pick it up');
       setRejectOpen(false);
       setRejectReason('');
       setRejectNotes('');
