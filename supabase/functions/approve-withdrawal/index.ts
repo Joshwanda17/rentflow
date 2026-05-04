@@ -187,12 +187,12 @@ Deno.serve(async (req) => {
     const walletFloat = Number((wallet as any)?.float_balance ?? 0);
     const walletAdvance = Number((wallet as any)?.advance_balance ?? 0);
 
-    // Withdrawable = ONLY withdrawable_balance. `advance_balance` is a
-    // user liability (debt owed back to Welile) and MUST NEVER fund a
-    // payout. Float is operational/company money and MUST NEVER fund an
-    // external withdrawal, including proxy payouts.
+    // Normal withdrawals can ONLY draw from withdrawable_balance.
+    // Proxy partner delivery is different: the partner owns the credited
+    // liability, but the assigned agent physically delivers it, so it may
+    // draw only from that partner-linked float — never from generic float.
     const withdrawable = walletWithdrawable;
-    const cachedSpendable = withdrawable;
+    const cachedSpendable = isProxyPayout ? walletFloat : withdrawable;
 
     // STRICT LEDGER-BACKED GATE.
     // Compute the posting-time cap directly from general_ledger, excluding
@@ -202,38 +202,71 @@ Deno.serve(async (req) => {
     // correctly rejects it later as a 500.
     let ledgerAvailable = 0;
     try {
-      const { data: ledgerRows, error: ledgerErr } = await admin
-        .from("general_ledger")
-        .select("amount, direction")
-        .eq("user_id", fundingUserId)
-        .eq("ledger_scope", "wallet")
-        .or("classification.is.null,classification.eq.production");
-      if (ledgerErr) throw ledgerErr;
-
-      const ledgerNet = (ledgerRows || []).reduce((acc: number, r: any) => {
+      const sumLedgerRows = (rows: any[] = []) => rows.reduce((acc: number, r: any) => {
         const amt = Number(r.amount) || 0;
         if (r.direction === "cash_in" || r.direction === "credit") return acc + amt;
         if (r.direction === "cash_out" || r.direction === "debit") return acc - amt;
         return acc;
       }, 0);
 
-      const { data: pendingRows, error: pendingErr } = await admin
-        .from("withdrawal_requests")
-        .select("amount")
-        .eq("user_id", fundingUserId)
-        .neq("id", withdrawal_id)
-        .in("status", ["pending", "requested", "manager_approved", "processing"]);
-      if (pendingErr) throw pendingErr;
+      if (isProxyPayout && beneficiaryUserId) {
+        const { data: linkedRows, error: linkedErr } = await admin
+          .from("general_ledger")
+          .select("amount, direction")
+          .eq("user_id", fundingUserId)
+          .eq("ledger_scope", "wallet")
+          .eq("linked_party", beneficiaryUserId)
+          .or("classification.is.null,classification.eq.production");
+        if (linkedErr) throw linkedErr;
 
-      const otherPendingHolds = (pendingRows || []).reduce(
-        (sum: number, p: any) => sum + Number(p.amount || 0),
-        0,
-      );
+        const partnerLinkedNet = sumLedgerRows(linkedRows || []);
+        const { data: partnerPendingRows, error: partnerPendingErr } = await admin
+          .from("withdrawal_requests")
+          .select("amount")
+          .eq("user_id", fundingUserId)
+          .eq("linked_party", beneficiaryUserId)
+          .neq("id", withdrawal_id)
+          .in("status", ["pending", "requested", "manager_approved", "processing"]);
+        if (partnerPendingErr) throw partnerPendingErr;
 
-      ledgerAvailable = Math.max(
-        0,
-        Math.min(cachedSpendable, Math.max(0, ledgerNet)) - otherPendingHolds,
-      );
+        const partnerPendingHolds = (partnerPendingRows || []).reduce(
+          (sum: number, p: any) => sum + Number(p.amount || 0),
+          0,
+        );
+
+        ledgerAvailable = Math.max(
+          0,
+          Math.min(walletFloat, Math.max(0, partnerLinkedNet)) - partnerPendingHolds,
+        );
+      } else {
+        const { data: ledgerRows, error: ledgerErr } = await admin
+          .from("general_ledger")
+          .select("amount, direction")
+          .eq("user_id", fundingUserId)
+          .eq("ledger_scope", "wallet")
+          .or("classification.is.null,classification.eq.production");
+        if (ledgerErr) throw ledgerErr;
+
+        const ledgerNet = sumLedgerRows(ledgerRows || []);
+
+        const { data: pendingRows, error: pendingErr } = await admin
+          .from("withdrawal_requests")
+          .select("amount")
+          .eq("user_id", fundingUserId)
+          .neq("id", withdrawal_id)
+          .in("status", ["pending", "requested", "manager_approved", "processing"]);
+        if (pendingErr) throw pendingErr;
+
+        const otherPendingHolds = (pendingRows || []).reduce(
+          (sum: number, p: any) => sum + Number(p.amount || 0),
+          0,
+        );
+
+        ledgerAvailable = Math.max(
+          0,
+          Math.min(cachedSpendable, Math.max(0, ledgerNet)) - otherPendingHolds,
+        );
+      }
     } catch (e) {
       console.warn(
         "[approve-withdrawal] inline ledger compute failed; falling back to strict RPC",
@@ -261,7 +294,9 @@ Deno.serve(async (req) => {
     if (!wallet || totalSpendable < amount) {
       return new Response(
         JSON.stringify({
-          error: `Insufficient withdrawable balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. Cached withdrawable UGX ${Math.round(cachedSpendable).toLocaleString()}, ledger-true UGX ${Math.round(ledgerAvailable).toLocaleString()}. Float and advance buckets cannot fund payouts.`,
+          error: isProxyPayout
+            ? `Insufficient proxy partner float (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. This payout can only use float linked to the selected partner.`
+            : `Insufficient withdrawable balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. Cached withdrawable UGX ${Math.round(cachedSpendable).toLocaleString()}, ledger-true UGX ${Math.round(ledgerAvailable).toLocaleString()}. Float and advance buckets cannot fund payouts.`,
           code: "INSUFFICIENT_WITHDRAWABLE",
           available: Math.round(totalSpendable),
           ledger_available: Math.round(ledgerAvailable),
@@ -283,14 +318,14 @@ Deno.serve(async (req) => {
 
     // Create balanced ledger entries via RPC.
     //
-    // BUCKET ROUTING: external withdrawals only drain the withdrawable bucket.
-    // Float is company/operational money and cannot be paid out via this flow.
+    // BUCKET ROUTING: normal external withdrawals drain withdrawable. Verified
+    // proxy partner deliveries drain only the partner-linked float bucket.
     const refUpper = reference.trim().toUpperCase();
     const baseDesc = `${payment_method} ref: ${refUpper}`;
     const nowIso = new Date().toISOString();
 
-    const withdrawablePortion = amount;
-    const floatPortion = 0;
+    const withdrawablePortion = isProxyPayout ? 0 : amount;
+    const floatPortion = isProxyPayout ? amount : 0;
 
     const debitEntries: any[] = [];
     if (withdrawablePortion > 0) {
@@ -340,6 +375,11 @@ Deno.serve(async (req) => {
           transaction_date: nowIso,
         },
       ],
+      idempotency_key: idempotencyKey,
+      // For proxy partner delivery we already verified partner-linked float
+      // above. The generic ledger guard is user-wide and would reject this
+      // valid float debit when the agent also has unrelated historical debt.
+      skip_balance_check: isProxyPayout,
     });
 
     if (ledgerErr) {
@@ -350,7 +390,9 @@ Deno.serve(async (req) => {
         ledgerMessage.includes("Insufficient ledger balance");
       return new Response(JSON.stringify({
         error: isInsufficientBalance
-          ? `Insufficient withdrawable balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. Cached withdrawable UGX ${Math.round(cachedSpendable).toLocaleString()}, ledger-true UGX ${Math.round(ledgerAvailable).toLocaleString()}. Float and advance buckets cannot fund payouts.`
+          ? isProxyPayout
+            ? `Insufficient proxy partner float (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. This payout can only use float linked to the selected partner.`
+            : `Insufficient withdrawable balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. Cached withdrawable UGX ${Math.round(cachedSpendable).toLocaleString()}, ledger-true UGX ${Math.round(ledgerAvailable).toLocaleString()}. Float and advance buckets cannot fund payouts.`
           : "Failed to record ledger entry: " + ledgerMessage,
         code: isInsufficientBalance ? "INSUFFICIENT_WITHDRAWABLE" : "LEDGER_WRITE_FAILED",
         available: Math.round(totalSpendable),
