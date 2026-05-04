@@ -899,9 +899,27 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                 />
               )}
 
+              {/* Previous-stage comments (read-only context) */}
+              {config.previousCommentColumns && config.previousCommentColumns.some(c => selectedRequest[c.column]) && (
+                <div className="rounded-xl border border-border bg-muted/40 p-3 space-y-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                    <MessageCircle className="h-3 w-3" />
+                    Notes from previous stages
+                  </h4>
+                  <div className="space-y-1.5">
+                    {config.previousCommentColumns.map(c => selectedRequest[c.column] ? (
+                      <div key={c.column} className="text-xs">
+                        <span className="font-semibold text-foreground">{c.label}:</span>{' '}
+                        <span className="text-muted-foreground">{selectedRequest[c.column]}</span>
+                      </div>
+                    ) : null)}
+                  </div>
+                </div>
+              )}
+
               {/* Landlord Verification Checklist - only for Landlord Ops on normal requests
                   (outstanding-balance requests never reach this stage) */}
-              {stage === 'agent_verified' && selectedRequest.registration_type !== 'outstanding_balance' && (
+              {config.showLandlordChecklist && selectedRequest.registration_type !== 'outstanding_balance' && (
                 <div className="space-y-3 rounded-xl border-2 border-purple-500/30 p-3 bg-purple-500/5">
                   <h4 className="text-sm font-bold flex items-center gap-2">
                     <PhoneCall className="h-4 w-4 text-purple-600" />
