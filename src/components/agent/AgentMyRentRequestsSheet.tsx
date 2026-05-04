@@ -173,6 +173,18 @@ export function AgentMyRentRequestsSheet({ open, onOpenChange }: AgentMyRentRequ
     }
   };
 
+  // Defensive: only show "Done" when the rent has actually been fully repaid.
+  const getStatusBadgeForRequest = (req: { status: string | null; amount_repaid?: number | null; total_repayment?: number | null }) => {
+    if (req.status === 'completed') {
+      const repaid = Number(req.amount_repaid ?? 0);
+      const total = Number(req.total_repayment ?? 0);
+      if (total > 0 && repaid < total) {
+        return <Badge variant="outline" className="bg-chart-5/10 text-chart-5 border-chart-5/30 gap-1"><Banknote className="h-3 w-3" />Active</Badge>;
+      }
+    }
+    return getStatusBadge(req.status);
+  };
+
   const openGoogleMaps = (lat: number, lng: number) => {
     window.open(`https://www.google.com/maps?q=${lat},${lng}`, '_blank');
   };
