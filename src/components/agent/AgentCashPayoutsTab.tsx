@@ -10,13 +10,52 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import {
-  Banknote, QrCode, Search, CheckCircle2, Loader2, Building2,
+  Banknote, QrCode, Search, CheckCircle2, Loader2,
   Smartphone, Wallet, Bell, TrendingUp, Clock, Hash, Phone, UserCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { WithdrawalPayoutCard } from '@/components/withdrawals/WithdrawalPayoutCard';
-import { useAgentCapabilities } from '@/hooks/useAgentCapabilities';
+
+const CASHOUT_QUEUE_STATUSES = ['pending', 'requested', 'manager_approved', 'cfo_approved', 'approved', 'fin_ops_approved'];
+const CLAIM_WINDOW_MINUTES = 15;
+const CLAIM_WINDOW_MS = CLAIM_WINDOW_MINUTES * 60 * 1000;
+
+type PayoutChannel = 'momo' | 'cash';
+
+const normalizePayoutMethod = (value?: string | null) =>
+  String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+
+const getPayoutChannel = (withdrawal: any): PayoutChannel => {
+  const method = normalizePayoutMethod(withdrawal?.payout_method);
+  const flatMethod = method.replace(/_/g, '');
+
+  if (['cash', 'cash_pickup', 'cashpickup', 'agent_cash', 'agentcash', 'payout_code', 'payoutcode', 'bank_transfer', 'banktransfer', 'bank', 'bank_account', 'bankaccount'].includes(method) || ['cashpickup', 'agentcash', 'payoutcode', 'banktransfer', 'bankaccount'].includes(flatMethod)) {
+    return 'cash';
+  }
+
+  if (flatMethod.includes('mobilemoney') || flatMethod.includes('momo') || flatMethod.includes('mtn') || flatMethod.includes('airtel')) {
+    return 'momo';
+  }
+
+  if (withdrawal?.mobile_money_number || withdrawal?.mobile_money_provider || withdrawal?.mobile_money_name) {
+    return 'momo';
+  }
+
+  return 'cash';
+};
+
+const isClaimExpired = (withdrawal: any) => {
+  if (!withdrawal?.assigned_cashout_agent_id || !withdrawal?.dispatched_at) return false;
+  return Date.now() - new Date(withdrawal.dispatched_at).getTime() >= CLAIM_WINDOW_MS;
+};
+
+const getRecipientPhone = (withdrawal: any) => {
+  const channel = getPayoutChannel(withdrawal);
+  return channel === 'momo'
+    ? withdrawal.mobile_money_number || withdrawal.profiles?.phone || '—'
+    : withdrawal.profiles?.phone || withdrawal.mobile_money_number || '—';
+};
 
 export function AgentCashPayoutsTab() {
   const { user } = useAuth();
@@ -24,10 +63,9 @@ export function AgentCashPayoutsTab() {
   const [payoutCode, setPayoutCode] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [verifiedPayout, setVerifiedPayout] = useState<any>(null);
-  const { has, isLoading: capsLoading } = useAgentCapabilities();
 
   // Check if this agent is a cashout agent
-  const { data: isCashoutAgent } = useQuery({
+  const { data: isCashoutAgent, isLoading: cashoutAgentLoading } = useQuery({
     queryKey: ['is-cashout-agent', user?.id],
     queryFn: async () => {
       if (!user) return null;
@@ -42,16 +80,31 @@ export function AgentCashPayoutsTab() {
     enabled: !!user,
   });
 
+  const releaseExpiredClaims = async () => {
+    const cutoff = new Date(Date.now() - CLAIM_WINDOW_MS).toISOString();
+    const { error } = await supabase
+      .from('withdrawal_requests')
+      .update({ assigned_cashout_agent_id: null, dispatched_at: null } as any)
+      .not('assigned_cashout_agent_id', 'is', null)
+      .lt('dispatched_at', cutoff)
+      .in('status', CASHOUT_QUEUE_STATUSES);
+
+    if (error) {
+      console.warn('Failed to release expired merchant payout claims', error);
+    }
+  };
+
   // ALL pending/approved withdrawal requests
   // NOTE: no FK exists between withdrawal_requests.user_id and profiles.id,
   // so we cannot use a PostgREST embed. We fetch profiles separately and join client-side.
   const { data: allWithdrawals = [], isLoading: loadingAll } = useQuery({
     queryKey: ['cashout-agent-all-withdrawals'],
     queryFn: async () => {
+      await releaseExpiredClaims();
       const { data, error } = await supabase
         .from('withdrawal_requests')
         .select('*')
-        .in('status', ['pending', 'requested', 'manager_approved', 'cfo_approved', 'approved', 'fin_ops_approved'])
+        .in('status', CASHOUT_QUEUE_STATUSES)
         .order('created_at', { ascending: true });
       if (error) throw error;
       const rows = data || [];
