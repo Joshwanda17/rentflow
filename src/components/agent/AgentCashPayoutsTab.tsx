@@ -11,7 +11,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import {
   Banknote, QrCode, Search, CheckCircle2, Loader2, Building2,
-  Smartphone, Wallet, Bell, TrendingUp, Clock, Hash,
+  Smartphone, Wallet, Bell, TrendingUp, Clock, Hash, Phone, UserCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
@@ -386,12 +386,8 @@ export function AgentCashPayoutsTab() {
             {totalPending > 0 && <Badge variant="destructive" className="h-4 px-1 text-[10px]">{totalPending}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="momo" className="flex-1 gap-1">
-            <Smartphone className="h-3.5 w-3.5" /> MoMo
+            <Smartphone className="h-3.5 w-3.5" /> Mobile Money
             {momoWithdrawals.length > 0 && <Badge variant="destructive" className="h-4 px-1 text-[10px]">{momoWithdrawals.length}</Badge>}
-          </TabsTrigger>
-          <TabsTrigger value="bank" className="flex-1 gap-1">
-            <Building2 className="h-3.5 w-3.5" /> Bank
-            {bankWithdrawals.length > 0 && <Badge variant="destructive" className="h-4 px-1 text-[10px]">{bankWithdrawals.length}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="cash" className="flex-1 gap-1">
             <Banknote className="h-3.5 w-3.5" /> Cash
@@ -399,8 +395,8 @@ export function AgentCashPayoutsTab() {
           </TabsTrigger>
         </TabsList>
 
-        {['all', 'momo', 'bank', 'cash'].map(tab => {
-          const items = tab === 'all' ? availableWithdrawals : tab === 'momo' ? momoWithdrawals : tab === 'bank' ? bankWithdrawals : cashWithdrawals;
+        {['all', 'momo', 'cash'].map(tab => {
+          const items = tab === 'all' ? availableWithdrawals : tab === 'momo' ? momoWithdrawals : cashWithdrawals;
           const emptyMsg = tab === 'all' ? 'No pending withdrawals' : `No pending ${tab} payouts`;
           return (
             <TabsContent key={tab} value={tab} className="space-y-2 mt-3">
@@ -409,18 +405,44 @@ export function AgentCashPayoutsTab() {
               ) : items.length === 0 ? (
                 <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">{emptyMsg}</CardContent></Card>
               ) : (
-                items.map((w: any) => (
-                  <WithdrawalPayoutCard
-                    key={w.id}
-                    withdrawal={w}
-                    isClaimed={myClaimedIds.has(w.id)}
-                    isClaimedByOther={!!w.assigned_cashout_agent_id && w.assigned_cashout_agent_id !== isCashoutAgent?.id}
-                    onClaim={() => claimWithdrawal.mutate(w.id)}
-                    onComplete={completeWithdrawal.mutate}
-                    isClaimPending={claimWithdrawal.isPending}
-                    isCompletePending={completeWithdrawal.isPending}
-                  />
-                ))
+                items.map((w: any) => {
+                  const m = w.payout_method || 'cash';
+                  const isMoMo = ['mobile_money', 'mtn_mobile_money', 'airtel_money'].includes(m);
+                  const isBank = m === 'bank_transfer';
+                  const MethodIcon = isBank ? Building2 : isMoMo ? Smartphone : Banknote;
+                  const methodLabel = isBank ? 'Bank' : isMoMo ? 'Mobile Money' : 'Cash';
+                  const name = w.profiles?.full_name || 'Unknown';
+                  const phone = (isMoMo && w.mobile_money_number) || w.profiles?.phone || '—';
+                  return (
+                    <Card key={w.id}>
+                      <CardContent className="p-3 space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold text-sm truncate">{name}</p>
+                            <p className="text-xs text-muted-foreground inline-flex items-center gap-1 mt-0.5">
+                              <Phone className="h-3 w-3" />
+                              <span className="font-mono">{phone}</span>
+                            </p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="font-bold text-base text-primary tabular-nums">{formatUGX(w.amount)}</p>
+                            <Badge variant="secondary" className="text-[9px] gap-1 h-4 px-1.5 mt-0.5">
+                              <MethodIcon className="h-2.5 w-2.5" />
+                              {methodLabel}
+                            </Badge>
+                          </div>
+                        </div>
+                        <Button
+                          className="w-full h-10 gap-2 font-semibold"
+                          onClick={() => claimWithdrawal.mutate(w.id)}
+                          disabled={claimWithdrawal.isPending}
+                        >
+                          {claimWithdrawal.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><UserCheck className="h-4 w-4" /> Claim</>}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  );
+                })
               )}
             </TabsContent>
           );
