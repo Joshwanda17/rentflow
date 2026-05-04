@@ -1146,6 +1146,20 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <p className="text-[10px] text-destructive">Must be 10-14 characters</p>
                   )}
                 </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Preferred Language *</Label>
+                  <Select value={preferredLanguage} onValueChange={setPreferredLanguage}>
+                    <SelectTrigger className="h-10">
+                      <SelectValue placeholder="Select tenant language" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PREFERRED_LANGUAGES.map((l) => (
+                        <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <Separator />
