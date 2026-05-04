@@ -365,7 +365,7 @@ export function AgentDetailsDialog({ open, onOpenChange, agent, onAgentUpdated }
                             <p className="text-xs text-muted-foreground">{formatUGX(Number(request.rent_amount))}</p>
                           </div>
                           <div className="text-right">
-                            {getStatusBadge(request.status)}
+                            {getStatusBadgeForRequest(request)}
                             <p className="text-xs text-muted-foreground mt-1">{format(new Date(request.created_at), 'MMM d, yyyy')}</p>
                           </div>
                         </div>
