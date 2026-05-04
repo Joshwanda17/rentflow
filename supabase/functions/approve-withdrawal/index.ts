@@ -294,7 +294,9 @@ Deno.serve(async (req) => {
     if (!wallet || totalSpendable < amount) {
       return new Response(
         JSON.stringify({
-          error: `Insufficient withdrawable balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. Cached withdrawable UGX ${Math.round(cachedSpendable).toLocaleString()}, ledger-true UGX ${Math.round(ledgerAvailable).toLocaleString()}. Float and advance buckets cannot fund payouts.`,
+          error: isProxyPayout
+            ? `Insufficient proxy partner float (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. This payout can only use float linked to the selected partner.`
+            : `Insufficient withdrawable balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. Cached withdrawable UGX ${Math.round(cachedSpendable).toLocaleString()}, ledger-true UGX ${Math.round(ledgerAvailable).toLocaleString()}. Float and advance buckets cannot fund payouts.`,
           code: "INSUFFICIENT_WITHDRAWABLE",
           available: Math.round(totalSpendable),
           ledger_available: Math.round(ledgerAvailable),
@@ -316,14 +318,14 @@ Deno.serve(async (req) => {
 
     // Create balanced ledger entries via RPC.
     //
-    // BUCKET ROUTING: external withdrawals only drain the withdrawable bucket.
-    // Float is company/operational money and cannot be paid out via this flow.
+    // BUCKET ROUTING: normal external withdrawals drain withdrawable. Verified
+    // proxy partner deliveries drain only the partner-linked float bucket.
     const refUpper = reference.trim().toUpperCase();
     const baseDesc = `${payment_method} ref: ${refUpper}`;
     const nowIso = new Date().toISOString();
 
-    const withdrawablePortion = amount;
-    const floatPortion = 0;
+    const withdrawablePortion = isProxyPayout ? 0 : amount;
+    const floatPortion = isProxyPayout ? amount : 0;
 
     const debitEntries: any[] = [];
     if (withdrawablePortion > 0) {
@@ -383,7 +385,9 @@ Deno.serve(async (req) => {
         ledgerMessage.includes("Insufficient ledger balance");
       return new Response(JSON.stringify({
         error: isInsufficientBalance
-          ? `Insufficient withdrawable balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. Cached withdrawable UGX ${Math.round(cachedSpendable).toLocaleString()}, ledger-true UGX ${Math.round(ledgerAvailable).toLocaleString()}. Float and advance buckets cannot fund payouts.`
+          ? isProxyPayout
+            ? `Insufficient proxy partner float (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. This payout can only use float linked to the selected partner.`
+            : `Insufficient withdrawable balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. Cached withdrawable UGX ${Math.round(cachedSpendable).toLocaleString()}, ledger-true UGX ${Math.round(ledgerAvailable).toLocaleString()}. Float and advance buckets cannot fund payouts.`
           : "Failed to record ledger entry: " + ledgerMessage,
         code: isInsufficientBalance ? "INSUFFICIENT_WITHDRAWABLE" : "LEDGER_WRITE_FAILED",
         available: Math.round(totalSpendable),
