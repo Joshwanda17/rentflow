@@ -23,12 +23,13 @@ import { COOAgentHub } from '@/components/coo/COOAgentHub';
 import { MissedDaysTracker } from '@/components/executive/MissedDaysTracker';
 import { PendingPortfolioTopUps } from '@/components/cfo/PendingPortfolioTopUps';
 import { PartnerFinancialActivity } from '@/components/executive/PartnerFinancialActivity';
+import DailyCollectionMonitoringDashboard from '@/components/shared/DailyCollectionMonitoringDashboard';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useNavigate } from 'react-router-dom';
 import {
   Activity, ClipboardList, Users, Wallet, BarChart3,
   FileText, AlertTriangle, Banknote, Handshake, UserCheck, UserPlus,
-  TrendingUp, ArrowLeft, ChevronRight, Receipt, Home
+  TrendingUp, ArrowLeft, ChevronRight, Receipt, Home, CalendarCheck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -47,6 +48,7 @@ const quickNavItems: QuickNavItem[] = [
   { id: 'wallets', label: 'Wallets & Ops', icon: Wallet, color: 'bg-primary/10 text-primary border-primary/20', description: 'Deposits & payouts' },
   { id: 'transactions', label: 'Transactions', icon: BarChart3, color: 'bg-amber-500/10 text-amber-600 border-amber-500/20', description: 'Monitor activity' },
   { id: 'collections', label: 'Collections', icon: Users, color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20', description: 'Agent reports' },
+  { id: 'daily-collections', label: 'Daily Collections', icon: CalendarCheck, color: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20', description: 'Live monitoring' },
   { id: 'withdrawals', label: 'Withdrawals', icon: Banknote, color: 'bg-red-500/10 text-red-600 border-red-500/20', description: 'Approve payouts' },
   { id: 'agent-activity', label: 'Agent Activity', icon: Activity, color: 'bg-purple-500/10 text-purple-600 border-purple-500/20', description: 'Live tracking' },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, color: 'bg-teal-500/10 text-teal-600 border-teal-500/20', description: 'Payment modes' },
@@ -127,6 +129,15 @@ export default function COODashboardPage() {
             {isMobile && renderBackButton('Overview')}
             {renderSectionHeader('Agent Collections', Users)}
             <AgentCollectionsOverview />
+          </div>
+        );
+      case 'daily-collections':
+        return (
+          <div className="space-y-3">
+            {isMobile && renderBackButton('Overview')}
+            {renderSectionHeader('Daily Collection Monitoring', CalendarCheck)}
+            <p className="text-sm text-muted-foreground -mt-2">Read-only view of live tenant collections, agent performance, and monthly trend.</p>
+            <DailyCollectionMonitoringDashboard mode="readonly" />
           </div>
         );
       case 'wallets':

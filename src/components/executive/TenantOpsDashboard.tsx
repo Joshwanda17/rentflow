@@ -35,6 +35,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { generateTenantOpsExtractPdf, downloadPdfBlob } from '@/lib/generateTenantOpsExtractPdf';
+import DailyCollectionMonitoringDashboard from '@/components/shared/DailyCollectionMonitoringDashboard';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -50,7 +51,7 @@ import { generateTenantOpsReportPdf } from '@/lib/generateTenantOpsReportPdf';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 
-type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations';
+type ActiveView = 'overview' | 'pipeline' | 'daily' | 'missed' | 'behavior' | 'history' | 'all-requests' | 'link-agent' | 'transfer-audit' | 'collect-rent' | 'agent-tenants' | 'tenant-detail' | 'registration-review' | 'advance-requests' | 'agent-allocations' | 'daily-collections';
 
 interface NavCard {
   id: ActiveView;
@@ -1019,6 +1020,13 @@ export function TenantOpsDashboard() {
       icon: Network,
       color: 'bg-indigo-500/10 text-indigo-600 border-indigo-200',
     },
+    {
+      id: 'daily-collections' as ActiveView,
+      label: 'Daily Collections',
+      description: 'Live daily collection monitoring',
+      icon: CalendarCheck,
+      color: 'bg-cyan-500/10 text-cyan-600 border-cyan-200',
+    },
   ];
 
   const goBack = () => {
@@ -1177,6 +1185,8 @@ export function TenantOpsDashboard() {
         );
       case 'agent-allocations':
         return <AgentAllocationReport />;
+      case 'daily-collections':
+        return <DailyCollectionMonitoringDashboard mode="editable" title="Daily Collection Monitoring" />;
       default:
         return null;
     }
