@@ -738,7 +738,7 @@ Thank you for being part of Welile! 🏠`;
                           )}
                         </div>
                       </div>
-                      {getStatusBadge(request.status)}
+                      {getStatusBadgeForRequest(request)}
                     </div>
 
                     {/* Process Step Tracker */}
@@ -993,7 +993,7 @@ Hi Agent! A tenant needs verification. Please verify them on the Welile app.
                     <div className="flex items-center gap-2 flex-wrap">
                       <User className="h-4 w-4 text-muted-foreground" />
                       <button onClick={(e) => { e.stopPropagation(); navigateToUser(request.tenant?.full_name || ''); }} className="font-semibold text-primary hover:underline cursor-pointer">{request.tenant?.full_name || 'Unknown'}</button>
-                      {getStatusBadge(request.status)}
+                      {getStatusBadgeForRequest(request)}
                       {request.missedDays && request.missedDays > 0 && (
                         <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 gap-1">
                           <AlertTriangle className="h-3 w-3" />
