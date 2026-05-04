@@ -436,9 +436,9 @@ Deno.serve(async (req) => {
     // Create balanced ledger entries via RPC.
     //
     // BUCKET ROUTING: normal external withdrawals drain withdrawable. Verified
-    // proxy partner deliveries use the dedicated proxy category so merchant
-    // agents debit the same wallet bucket that received the partner-linked
-    // credit, and the ledger remains tagged to the beneficiary partner.
+    // proxy partner deliveries drain the bucket where the partner-linked cash
+    // actually sits (float first, then withdrawable) while keeping every debit
+    // tagged to the beneficiary partner for earmark accounting.
     const refUpper = reference.trim().toUpperCase();
     const baseDesc = `${payment_method} ref: ${refUpper}`;
     const nowIso = new Date().toISOString();
