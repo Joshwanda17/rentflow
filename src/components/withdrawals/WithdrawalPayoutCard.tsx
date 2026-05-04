@@ -112,7 +112,7 @@ export function WithdrawalPayoutCard({
   const claimedMinutesAgo = withdrawal.dispatched_at
     ? Math.floor((Date.now() - new Date(withdrawal.dispatched_at).getTime()) / 60000)
     : null;
-  const isStale = claimedMinutesAgo !== null && claimedMinutesAgo >= 10;
+  const isStale = claimedMinutesAgo !== null && claimedMinutesAgo >= 15;
 
   return (
     <Card className={isClaimedByOther && !readOnly ? 'opacity-50' : ''}>
