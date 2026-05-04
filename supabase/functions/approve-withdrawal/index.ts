@@ -375,6 +375,11 @@ Deno.serve(async (req) => {
           transaction_date: nowIso,
         },
       ],
+      idempotency_key: idempotencyKey,
+      // For proxy partner delivery we already verified partner-linked float
+      // above. The generic ledger guard is user-wide and would reject this
+      // valid float debit when the agent also has unrelated historical debt.
+      skip_balance_check: isProxyPayout,
     });
 
     if (ledgerErr) {
