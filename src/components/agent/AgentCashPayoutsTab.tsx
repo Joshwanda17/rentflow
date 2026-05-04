@@ -51,7 +51,7 @@ export function AgentCashPayoutsTab() {
       const { data, error } = await supabase
         .from('withdrawal_requests')
         .select('*')
-        .in('status', ['pending', 'requested', 'manager_approved', 'cfo_approved'])
+        .in('status', ['pending', 'requested', 'manager_approved', 'cfo_approved', 'approved', 'fin_ops_approved'])
         .order('created_at', { ascending: true });
       if (error) throw error;
       const rows = data || [];
