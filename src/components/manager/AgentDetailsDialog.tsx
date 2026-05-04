@@ -56,6 +56,8 @@ interface RentRequest {
   status: string;
   created_at: string;
   tenant_name?: string;
+  amount_repaid?: number | null;
+  total_repayment?: number | null;
 }
 
 export function AgentDetailsDialog({ open, onOpenChange, agent, onAgentUpdated }: AgentDetailsDialogProps) {
@@ -118,7 +120,7 @@ export function AgentDetailsDialog({ open, onOpenChange, agent, onAgentUpdated }
       { data: [], error: null } as any,
       supabase
         .from('rent_requests')
-        .select('id, rent_amount, status, created_at, tenant_id')
+        .select('id, rent_amount, status, created_at, tenant_id, amount_repaid, total_repayment')
         .eq('agent_id', agent.id)
         .order('created_at', { ascending: false })
     ]);
@@ -180,6 +182,18 @@ export function AgentDetailsDialog({ open, onOpenChange, agent, onAgentUpdated }
       case 'rejected': return <Badge className="bg-destructive/20 text-destructive"><XCircle className="h-3 w-3 mr-1" />Rejected</Badge>;
       default: return <Badge variant="outline">{status}</Badge>;
     }
+  };
+
+  // Defensive: only show "Completed" when the rent has actually been fully repaid.
+  const getStatusBadgeForRequest = (req: RentRequest) => {
+    if (req.status === 'completed') {
+      const repaid = Number(req.amount_repaid ?? 0);
+      const total = Number(req.total_repayment ?? 0);
+      if (total > 0 && repaid < total) {
+        return <Badge className="bg-primary/20 text-primary"><CheckCircle className="h-3 w-3 mr-1" />Active</Badge>;
+      }
+    }
+    return getStatusBadge(req.status);
   };
 
   return (
@@ -351,7 +365,7 @@ export function AgentDetailsDialog({ open, onOpenChange, agent, onAgentUpdated }
                             <p className="text-xs text-muted-foreground">{formatUGX(Number(request.rent_amount))}</p>
                           </div>
                           <div className="text-right">
-                            {getStatusBadge(request.status)}
+                            {getStatusBadgeForRequest(request)}
                             <p className="text-xs text-muted-foreground mt-1">{format(new Date(request.created_at), 'MMM d, yyyy')}</p>
                           </div>
                         </div>

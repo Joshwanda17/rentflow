@@ -257,7 +257,13 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
             };
           }
           ctx[rr.tenant_id].totalRequests += 1;
-          if (rr.status === 'completed') ctx[rr.tenant_id].completedCount += 1;
+          // Only count a rent plan as truly completed when the tenant has fully
+          // repaid — guards against rows mis-marked 'completed' upstream.
+          const totalRep = Number(rr.total_repayment || 0);
+          const repaid = Number(rr.amount_repaid || 0);
+          if (rr.status === 'completed' && totalRep > 0 && repaid >= totalRep) {
+            ctx[rr.tenant_id].completedCount += 1;
+          }
         });
         setTenantBalances(balances);
         setTenantTotals(totals);

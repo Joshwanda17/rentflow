@@ -25,6 +25,7 @@ interface AgentRentRequest {
   id: string;
   rent_amount: number;
   total_repayment: number;
+  amount_repaid: number | null;
   duration_days: number;
   daily_repayment: number;
   status: string | null;
@@ -89,7 +90,7 @@ export function AgentMyRentRequestsSheet({ open, onOpenChange }: AgentMyRentRequ
 
     const { data, error } = await supabase
       .from('rent_requests')
-      .select('id, rent_amount, total_repayment, duration_days, daily_repayment, status, created_at, tenant_id, landlord_id, agent_verified, manager_verified, request_latitude, request_longitude, request_city, request_country')
+      .select('id, rent_amount, total_repayment, amount_repaid, duration_days, daily_repayment, status, created_at, tenant_id, landlord_id, agent_verified, manager_verified, request_latitude, request_longitude, request_city, request_country')
       .or(`agent_id.eq.${user.id},agent_verified_by.eq.${user.id}`)
       .neq('status', 'deleted_by_agent')
       .order('created_at', { ascending: false });
@@ -173,6 +174,18 @@ export function AgentMyRentRequestsSheet({ open, onOpenChange }: AgentMyRentRequ
     }
   };
 
+  // Defensive: only show "Done" when the rent has actually been fully repaid.
+  const getStatusBadgeForRequest = (req: { status: string | null; amount_repaid?: number | null; total_repayment?: number | null }) => {
+    if (req.status === 'completed') {
+      const repaid = Number(req.amount_repaid ?? 0);
+      const total = Number(req.total_repayment ?? 0);
+      if (total > 0 && repaid < total) {
+        return <Badge variant="outline" className="bg-chart-5/10 text-chart-5 border-chart-5/30 gap-1"><Banknote className="h-3 w-3" />Active</Badge>;
+      }
+    }
+    return getStatusBadge(req.status);
+  };
+
   const openGoogleMaps = (lat: number, lng: number) => {
     window.open(`https://www.google.com/maps?q=${lat},${lng}`, '_blank');
   };
@@ -230,7 +243,7 @@ export function AgentMyRentRequestsSheet({ open, onOpenChange }: AgentMyRentRequ
                               {req.tenant?.full_name || 'Unknown Tenant'}
                             </span>
                           </div>
-                          {getStatusBadge(req.status)}
+                          {getStatusBadgeForRequest(req)}
                         </div>
 
                         {/* Details */}
