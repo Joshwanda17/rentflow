@@ -353,7 +353,17 @@ export function DirectCreditTool() {
   });
 
   const availableCategories = useMemo(
-    () => PAYOUT_CATEGORIES.filter(c => c.allowedOps.includes(operation)),
+    () => {
+      if (operation === 'withdraw') {
+        // Expense-Only Withdrawal Rule — only categories whose financial
+        // impact is `expense` may fund a real outbound payment. Revenue
+        // and neutral categories are intentionally excluded.
+        return PAYOUT_CATEGORIES.filter(
+          c => c.impact === 'expense' && c.allowedOps.includes('credit'),
+        );
+      }
+      return PAYOUT_CATEGORIES.filter(c => c.allowedOps.includes(operation));
+    },
     [operation]
   );
 
