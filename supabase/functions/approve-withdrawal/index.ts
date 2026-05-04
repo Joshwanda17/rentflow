@@ -347,33 +347,23 @@ Deno.serve(async (req) => {
         // Allow the float-first debit path to also dip into withdrawable.
         partnerLinkedFloatAvailable = physicalCashCap;
       } else {
-        const { data: ledgerRows, error: ledgerErr } = await admin
-          .from("general_ledger")
-          .select("amount, direction")
-          .eq("user_id", fundingUserId)
-          .eq("ledger_scope", "wallet")
-          .or("classification.is.null,classification.eq.production");
-        if (ledgerErr) throw ledgerErr;
-
-        const ledgerNet = sumLedgerRows(ledgerRows || []);
-
-        const { data: pendingRows, error: pendingErr } = await admin
-          .from("withdrawal_requests")
-          .select("amount")
-          .eq("user_id", fundingUserId)
-          .neq("id", withdrawal_id)
-          .in("status", ["pending", "requested", "manager_approved", "processing"]);
-        if (pendingErr) throw pendingErr;
-
-        const otherPendingHolds = (pendingRows || []).reduce(
-          (sum: number, p: any) => sum + Number(p.amount || 0),
-          0,
+        // Standard (non-proxy) payouts: defer to the strict RPC so that the
+        // fresh-start anchor, admin-correction handling, and pending-hold
+        // logic stay in lockstep with what the wallet UI shows. Doing a raw
+        // ledger sum here re-introduces drift (e.g. an anchored agent whose
+        // pre-anchor net is negative will read 0 even though the strict RPC
+        // — and the wallet card — correctly show withdrawable > 0).
+        const { data: rpcVal, error: rpcErr } = await admin.rpc(
+          "get_user_available_balance",
+          { p_user_id: fundingUserId },
         );
-
-        ledgerAvailable = Math.max(
-          0,
-          Math.min(cachedSpendable, Math.max(0, ledgerNet)) - otherPendingHolds,
-        );
+        if (rpcErr) throw rpcErr;
+        // The strict RPC already subtracts pending holds for OTHER requests
+        // (it scopes by user). It does NOT exclude this withdrawal's own
+        // amount, so we add it back to avoid double-counting our own hold.
+        const ownHold = Number(wr.amount || 0);
+        const strictAvailable = Number(rpcVal ?? 0) + ownHold;
+        ledgerAvailable = Math.max(0, strictAvailable - ownHold);
       }
     } catch (e) {
       console.warn(
