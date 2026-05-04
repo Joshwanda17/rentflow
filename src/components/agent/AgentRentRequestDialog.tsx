@@ -64,6 +64,16 @@ const HOUSE_CATEGORIES = [
   { value: 'commercial', label: 'Commercial Property', emoji: '🏪' },
 ];
 
+const PREFERRED_LANGUAGES = [
+  { value: 'English', label: 'English' },
+  { value: 'Luganda', label: 'Luganda' },
+  { value: 'Runyankole', label: 'Runyankole' },
+  { value: 'Lusoga', label: 'Lusoga' },
+  { value: 'Acholi', label: 'Acholi' },
+  { value: 'Lugbara', label: 'Lugbara' },
+  { value: 'Other', label: 'Other' },
+];
+
 // ===== FIX #1: Ugandan phone validation =====
 const UG_PHONE_REGEX = /^0[3-9][0-9]{8}$/;
 
@@ -99,6 +109,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [tenantName, setTenantName] = useState('');
   const [tenantPhone, setTenantPhone] = useState('');
   const [tenantNationalId, setTenantNationalId] = useState('');
+  const [preferredLanguage, setPreferredLanguage] = useState<string>('');
   
   // Rent details
   const [rentAmount, setRentAmount] = useState('');
