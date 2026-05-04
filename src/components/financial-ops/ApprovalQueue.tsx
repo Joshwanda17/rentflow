@@ -310,6 +310,7 @@ export function ApprovalQueue() {
           const paymentMethodLabel = method === 'bank_transfer' ? 'bank_transfer' : method === 'cash' ? 'cash' : (selectedItem?.payoutDetails?.provider || 'mobile_money');
 
           const approvalResults: string[] = [];
+          const failedApprovals: string[] = [];
           for (const id of ids) {
             const { data: approveData, error: approveErr } = await supabase.functions.invoke('approve-withdrawal', {
               body: {
@@ -321,10 +322,15 @@ export function ApprovalQueue() {
             if (approveErr || approveData?.error) {
               const realMsg = await extractFromErrorObject(approveErr || new Error(approveData?.error || 'unknown'), approveData?.error || 'unknown error');
               console.error(`[ApprovalQueue] approve-withdrawal failed for ${id}:`, realMsg);
+              failedApprovals.push(id);
               toast.warning(`Failed to approve ${id.slice(0, 8)}: ${realMsg}`);
             } else {
               approvalResults.push(id);
             }
+          }
+
+          if (failedApprovals.length > 0 && approvalResults.length === 0) {
+            throw new Error(`Approval blocked for ${failedApprovals.length} item(s). Check the warning above for the exact ledger/funds reason.`);
           }
 
           // Handle cash payout codes for cash withdrawals
@@ -358,7 +364,9 @@ export function ApprovalQueue() {
         metadata: { ids, reason: reason || undefined, payout_proof: payoutProof || undefined, count: ids.length },
       });
 
-      toast.success(`${bulkAction === 'approve' ? 'Approved' : 'Rejected'} ${ids.length} items`);
+      if (ids.length > 0) {
+        toast.success(`${bulkAction === 'approve' ? 'Approved' : 'Rejected'} ${ids.length} items`);
+      }
 
       const cacheKey = `approval-queue-${activeQueue}`;
       queryClient.setQueryData<QueueItem[]>([cacheKey], (old) =>
