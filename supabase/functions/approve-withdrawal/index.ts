@@ -283,22 +283,14 @@ Deno.serve(async (req) => {
 
     // Create balanced ledger entries via RPC.
     //
-    // BUCKET ROUTING: `wallet_withdrawal` only drains the withdrawable bucket.
-    // For proxy payouts the agent's funds may sit in the FLOAT bucket (partner
-    // money parked in the agent wallet). We split the debit so the available
-    // withdrawable portion (which already includes advance-funded balance) is
-    // drained as `wallet_withdrawal`, and any remainder is drained from float
-    // as `agent_float_used_for_rent` (a locked-allowlist category that routes
-    // to the float bucket) — keeping the same total and a single platform
-    // cash_in leg so the transaction is still balanced.
+    // BUCKET ROUTING: external withdrawals only drain the withdrawable bucket.
+    // Float is company/operational money and cannot be paid out via this flow.
     const refUpper = reference.trim().toUpperCase();
     const baseDesc = `${payment_method} ref: ${refUpper}`;
     const nowIso = new Date().toISOString();
 
-    const withdrawablePortion = isProxyPayout
-      ? Math.min(amount, Math.max(walletWithdrawable, 0))
-      : amount;
-    const floatPortion = Math.max(amount - withdrawablePortion, 0);
+    const withdrawablePortion = amount;
+    const floatPortion = 0;
 
     const debitEntries: any[] = [];
     if (withdrawablePortion > 0) {
@@ -353,13 +345,17 @@ Deno.serve(async (req) => {
     if (ledgerErr) {
       console.error("[approve-withdrawal] Ledger RPC error:", ledgerErr);
       const ledgerMessage = ledgerErr.message || "unknown";
-      const isInsufficientBalance = ledgerMessage.includes("wallets_buckets_nonneg");
+      const isInsufficientBalance =
+        ledgerMessage.includes("wallets_buckets_nonneg") ||
+        ledgerMessage.includes("Insufficient ledger balance");
       return new Response(JSON.stringify({
         error: isInsufficientBalance
-          ? `Insufficient withdrawable balance. Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}.`
+          ? `Insufficient withdrawable balance (ledger-checked). Available: UGX ${Math.round(totalSpendable).toLocaleString()}, requested: UGX ${amount.toLocaleString()}. Cached withdrawable UGX ${Math.round(cachedSpendable).toLocaleString()}, ledger-true UGX ${Math.round(ledgerAvailable).toLocaleString()}. Float and advance buckets cannot fund payouts.`
           : "Failed to record ledger entry: " + ledgerMessage,
         code: isInsufficientBalance ? "INSUFFICIENT_WITHDRAWABLE" : "LEDGER_WRITE_FAILED",
         available: Math.round(totalSpendable),
+        ledger_available: Math.round(ledgerAvailable),
+        cached_available: Math.round(cachedSpendable),
         wallet_total: Math.round(walletBalance),
         requested: amount,
       }), {
