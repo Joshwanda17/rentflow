@@ -209,11 +209,11 @@ export function AgentOpsPipelineHub() {
         </TabsList>
       </div>
 
-      <TabsContent value="tenants"><RentPipelineQueue stage="tenant_ops_approved" /></TabsContent>
+      <TabsContent value="tenants"><RentPipelineQueue stage="pending" /></TabsContent>
       <TabsContent value="notes"><PromissoryNotesQueue /></TabsContent>
       <TabsContent value="landlords"><LandlordsPipeline /></TabsContent>
       <TabsContent value="rejected">
-        <RejectedRequestsQueue stageFilter="tenant_ops_approved" title="Rejected at Agent Ops" />
+        <RejectedRequestsQueue stageFilter="pending" title="Rejected at Agent Ops" />
       </TabsContent>
     </Tabs>
   );

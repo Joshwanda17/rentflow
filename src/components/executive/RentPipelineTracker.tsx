@@ -5,22 +5,22 @@ import { formatUGX } from '@/lib/rentCalculations';
 const STAGES = [
   {
     key: 'pending',
-    label: 'Tenant Ops',
+    label: 'Agent Ops',
     agentBenefit: 'assigned',
-    agentDesc: 'Agent assigned based on proximity — earns task assignment',
+    agentDesc: 'Agent Ops triage — submission validated',
     earningAmount: 0,
     icon: UserCheck,
   },
   {
-    key: 'tenant_ops_approved',
-    label: 'Agent Ops',
+    key: 'agent_ops_approved',
+    label: 'Tenant Ops',
     agentBenefit: 'verification',
-    agentDesc: 'Agent verifies tenant & property location',
+    agentDesc: 'Tenant Ops review — agent assigned by proximity',
     earningAmount: 0,
     icon: Shield,
   },
   {
-    key: 'agent_verified',
+    key: 'tenant_ops_approved',
     label: 'Landlord Ops',
     agentBenefit: 'landlord_verification',
     agentDesc: 'Landlord location verified → UGX 5,000 verification bonus',
@@ -64,12 +64,12 @@ STAGES.forEach((s, i) => { STAGE_ORDER[s.key] = i; });
 const OUTSTANDING_STAGES = [
   {
     key: 'pending',
-    label: 'Tenant Ops',
+    label: 'Agent Ops',
     icon: UserCheck,
   },
   {
-    key: 'tenant_ops_approved',
-    label: 'Agent Verify',
+    key: 'agent_ops_approved',
+    label: 'Tenant Ops',
     icon: Shield,
   },
   {

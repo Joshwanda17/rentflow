@@ -22,8 +22,8 @@ import { AgentProximitySelector } from './AgentProximitySelector';
 
 export type PipelineStage =
   | 'pending'
+  | 'agent_ops_approved'
   | 'tenant_ops_approved'
-  | 'agent_verified'
   | 'landlord_ops_approved'
   | 'coo_approved';
 
@@ -34,43 +34,64 @@ interface PipelineConfig {
   nextStatus: string;
   reviewerColumn: string;
   reviewerAtColumn: string;
+  commentColumn?: string;
+  /** Columns from previous stages whose comments we surface (read-only) for context. */
+  previousCommentColumns?: { column: string; label: string }[];
   showAgentSelector?: boolean;
   showPayoutFields?: boolean;
+  showLandlordChecklist?: boolean;
 }
 
 const STAGE_CONFIG: Record<PipelineStage, PipelineConfig> = {
   pending: {
     stage: 'pending',
-    title: '🔍 Pending Review',
-    approveLabel: 'Approve & Forward to Agent Ops',
+    title: '🔍 Agent Ops Review',
+    approveLabel: 'Approve & Forward to Tenant Ops',
+    nextStatus: 'agent_ops_approved',
+    reviewerColumn: 'agent_ops_reviewed_by',
+    reviewerAtColumn: 'agent_ops_reviewed_at',
+    commentColumn: 'agent_ops_comment',
+  },
+  agent_ops_approved: {
+    stage: 'agent_ops_approved',
+    title: '👥 Tenant Ops Review',
+    approveLabel: 'Approve & Forward to Landlord Ops',
     nextStatus: 'tenant_ops_approved',
     reviewerColumn: 'tenant_ops_reviewed_by',
     reviewerAtColumn: 'tenant_ops_reviewed_at',
+    commentColumn: 'tenant_ops_comment',
     showAgentSelector: true,
+    previousCommentColumns: [
+      { column: 'agent_ops_comment', label: 'Agent Ops note' },
+    ],
   },
   tenant_ops_approved: {
     stage: 'tenant_ops_approved',
-    title: '🕵️ Agent Verification',
-    approveLabel: 'Verify & Forward to Landlord Ops',
-    nextStatus: 'agent_verified',
-    reviewerColumn: 'agent_verified_by',
-    reviewerAtColumn: 'agent_verified_at',
-  },
-  agent_verified: {
-    stage: 'agent_verified',
-    title: '🏠 Landlord Review',
+    title: '🏠 Landlord Ops Review',
     approveLabel: 'Approve & Forward to COO',
     nextStatus: 'landlord_ops_approved',
     reviewerColumn: 'landlord_ops_reviewed_by',
     reviewerAtColumn: 'landlord_ops_reviewed_at',
+    commentColumn: 'landlord_ops_comment',
+    showLandlordChecklist: true,
+    previousCommentColumns: [
+      { column: 'agent_ops_comment', label: 'Agent Ops note' },
+      { column: 'tenant_ops_comment', label: 'Tenant Ops note' },
+    ],
   },
   landlord_ops_approved: {
     stage: 'landlord_ops_approved',
-    title: '📋 COO Operational Sign-off',
+    title: '📋 COO Approval',
     approveLabel: 'Approve & Forward to CFO',
     nextStatus: 'coo_approved',
     reviewerColumn: 'coo_reviewed_by',
     reviewerAtColumn: 'coo_reviewed_at',
+    commentColumn: 'approval_comment',
+    previousCommentColumns: [
+      { column: 'agent_ops_comment', label: 'Agent Ops note' },
+      { column: 'tenant_ops_comment', label: 'Tenant Ops note' },
+      { column: 'landlord_ops_comment', label: 'Landlord Ops note' },
+    ],
   },
   coo_approved: {
     stage: 'coo_approved',
@@ -79,14 +100,21 @@ const STAGE_CONFIG: Record<PipelineStage, PipelineConfig> = {
     nextStatus: 'funded',
     reviewerColumn: 'cfo_reviewed_by',
     reviewerAtColumn: 'cfo_reviewed_at',
+    commentColumn: 'approval_comment',
     showPayoutFields: true,
+    previousCommentColumns: [
+      { column: 'agent_ops_comment', label: 'Agent Ops note' },
+      { column: 'tenant_ops_comment', label: 'Tenant Ops note' },
+      { column: 'landlord_ops_comment', label: 'Landlord Ops note' },
+      { column: 'approval_comment', label: 'COO note' },
+    ],
   },
 };
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-amber-100 text-amber-700',
+  agent_ops_approved: 'bg-cyan-100 text-cyan-700',
   tenant_ops_approved: 'bg-blue-100 text-blue-700',
-  agent_verified: 'bg-purple-100 text-purple-700',
   landlord_ops_approved: 'bg-indigo-100 text-indigo-700',
   coo_approved: 'bg-emerald-100 text-emerald-700',
   funded: 'bg-green-100 text-green-700',
@@ -292,7 +320,7 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
     // For Landlord Ops stage — enforce checklist.
     // Outstanding-balance rows never reach this stage (trigger short-circuits
     // them straight to completed), but guard anyway.
-    if (stage === 'agent_verified' && !isOutstanding) {
+    if (config.showLandlordChecklist && !isOutstanding) {
       if (!landlordCalled || !landlordAcknowledged) {
         toast({ title: 'Complete the landlord verification checklist first', variant: 'destructive' });
         return;
@@ -307,7 +335,7 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
         updated_at: new Date().toISOString(),
       };
 
-      if (stage === 'agent_verified' && !isOutstanding) {
+      if (config.showLandlordChecklist && !isOutstanding) {
         updateData.landlord_called = true;
         updateData.landlord_acknowledged = true;
         updateData.landlord_verification_method = landlordVerificationMethod || 'phone_call';
@@ -344,7 +372,7 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
     queryFn: async () => {
       const { data } = await supabase
         .from('rent_requests')
-        .select('id, tenant_id, agent_id, landlord_id, lc1_id, rent_amount, duration_days, access_fee, request_fee, total_repayment, daily_repayment, status, created_at, house_category, request_city, request_latitude, request_longitude, assigned_agent_id, payout_method, payout_transaction_reference, approval_comment, registration_type, initial_outstanding_balance')
+        .select('id, tenant_id, agent_id, landlord_id, lc1_id, rent_amount, duration_days, access_fee, request_fee, total_repayment, daily_repayment, status, created_at, house_category, request_city, request_latitude, request_longitude, assigned_agent_id, payout_method, payout_transaction_reference, approval_comment, agent_ops_comment, tenant_ops_comment, landlord_ops_comment, registration_type, initial_outstanding_balance')
         .eq('status', stage)
         .order('created_at', { ascending: true })
         .limit(100);
@@ -423,7 +451,7 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
 
     // Landlord Ops must complete checklist (skipped for outstanding-balance
     // tenants — they short-circuit to completed via DB trigger).
-    if (stage === 'agent_verified' && !isOutstanding && (!landlordCalled || !landlordAcknowledged)) {
+    if (config.showLandlordChecklist && !isOutstanding && (!landlordCalled || !landlordAcknowledged)) {
       toast({ title: 'Complete the landlord verification checklist first', variant: 'destructive' });
       return;
     }
@@ -453,16 +481,20 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
           status: config.nextStatus,
           [config.reviewerColumn]: user.id,
           [config.reviewerAtColumn]: new Date().toISOString(),
-          approval_comment: comment || null,
           updated_at: new Date().toISOString(),
         };
+
+        // Persist this stage's comment in its dedicated column (visible to next stage)
+        if (config.commentColumn) {
+          updateData[config.commentColumn] = comment.trim() || null;
+        }
 
         if (config.showAgentSelector && !isOutstanding && assignedAgentId) {
           updateData.assigned_agent_id = assignedAgentId;
         }
 
         // Save landlord verification checklist (skipped for outstanding-balance)
-        if (stage === 'agent_verified' && !isOutstanding) {
+        if (config.showLandlordChecklist && !isOutstanding) {
           updateData.landlord_called = landlordCalled;
           updateData.landlord_acknowledged = landlordAcknowledged;
           updateData.landlord_verification_method = landlordVerificationMethod || 'phone_call';
@@ -479,7 +511,7 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
 
       // Trigger landlord verification bonus when Landlord Ops approves
       // (not applicable for outstanding-balance — there is no landlord disbursement)
-      if (stage === 'agent_verified' && !isOutstanding) {
+      if (config.showLandlordChecklist && !isOutstanding) {
         try {
           await supabase.functions.invoke('credit-landlord-verification-bonus', {
             body: { rent_request_id: selectedRequest.id },
@@ -490,7 +522,7 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
       }
 
       toast({
-        title: isOutstanding && stage === 'tenant_ops_approved'
+        title: isOutstanding && stage === 'agent_ops_approved'
           ? 'Outstanding balance recorded'
           : 'Request approved and forwarded',
       });
@@ -514,19 +546,25 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
 
     setProcessing(true);
     try {
+      const updateData: any = {
+        status: 'rejected',
+        rejected_reason: comment.trim(),
+        rejected_at_stage: stage,
+        rejected_at: new Date().toISOString(),
+        [config.reviewerColumn]: user.id,
+        [config.reviewerAtColumn]: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      if (config.commentColumn) {
+        updateData[config.commentColumn] = comment.trim();
+      }
       const { error } = await supabase
         .from('rent_requests')
-        .update({
-          status: 'rejected',
-          rejected_reason: comment.trim(),
-          [config.reviewerColumn]: user.id,
-          [config.reviewerAtColumn]: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', selectedRequest.id);
 
       if (error) throw error;
-      toast({ title: 'Request rejected' });
+      toast({ title: 'Request rejected — sent back to Agent Ops & originating Agent' });
       setSelectedRequest(null);
       setComment('');
       queryClient.invalidateQueries({ queryKey: ['rent-pipeline'] });
@@ -861,9 +899,27 @@ export function RentPipelineQueue({ stage }: RentPipelineQueueProps) {
                 />
               )}
 
+              {/* Previous-stage comments (read-only context) */}
+              {config.previousCommentColumns && config.previousCommentColumns.some(c => selectedRequest[c.column]) && (
+                <div className="rounded-xl border border-border bg-muted/40 p-3 space-y-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                    <MessageCircle className="h-3 w-3" />
+                    Notes from previous stages
+                  </h4>
+                  <div className="space-y-1.5">
+                    {config.previousCommentColumns.map(c => selectedRequest[c.column] ? (
+                      <div key={c.column} className="text-xs">
+                        <span className="font-semibold text-foreground">{c.label}:</span>{' '}
+                        <span className="text-muted-foreground">{selectedRequest[c.column]}</span>
+                      </div>
+                    ) : null)}
+                  </div>
+                </div>
+              )}
+
               {/* Landlord Verification Checklist - only for Landlord Ops on normal requests
                   (outstanding-balance requests never reach this stage) */}
-              {stage === 'agent_verified' && selectedRequest.registration_type !== 'outstanding_balance' && (
+              {config.showLandlordChecklist && selectedRequest.registration_type !== 'outstanding_balance' && (
                 <div className="space-y-3 rounded-xl border-2 border-purple-500/30 p-3 bg-purple-500/5">
                   <h4 className="text-sm font-bold flex items-center gap-2">
                     <PhoneCall className="h-4 w-4 text-purple-600" />

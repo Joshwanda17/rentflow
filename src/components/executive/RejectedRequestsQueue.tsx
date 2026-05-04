@@ -16,15 +16,17 @@ import { cn } from '@/lib/utils';
 
 type RejectedStage =
   | 'pending'
+  | 'agent_ops_approved'
   | 'tenant_ops_approved'
   | 'agent_verified'
   | 'landlord_ops_approved'
   | 'coo_approved';
 
 const STAGE_LABEL: Record<string, string> = {
-  pending: 'Tenant Ops',
-  tenant_ops_approved: 'Agent Ops',
-  agent_verified: 'Landlord Ops',
+  pending: 'Agent Ops',
+  agent_ops_approved: 'Tenant Ops',
+  tenant_ops_approved: 'Landlord Ops',
+  agent_verified: 'Landlord Ops (legacy)',
   landlord_ops_approved: 'COO',
   coo_approved: 'CFO',
 };
