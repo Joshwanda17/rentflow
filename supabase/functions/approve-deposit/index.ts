@@ -534,6 +534,11 @@ Deno.serve(async (req) => {
           let repaymentApplied = 0;
           let rentRequestId: string | null = null;
           let newOutstanding = 0;
+          // Declared at outer scope so post-block notification/audit (lines ~889+)
+          // can reference them even when isFloatDeposit short-circuits the block.
+          let debtCleared = 0;
+          let daysPrepaid = 0;
+          let prepaidAmount = 0;
 
           // Float deposits are operational money the agent collected from
           // tenants in the field. They must NEVER be auto-applied to the
