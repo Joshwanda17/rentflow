@@ -4034,7 +4034,14 @@ function NearingPayoutsDialog({ open, onOpenChange, portfolios, onActionComplete
                     <div key={p.portfolioId + idx} className={cn("rounded-xl border border-border/60 bg-card p-3 sm:p-4 space-y-2", isDone === 'compounded' && "opacity-60 border-green-500/40 bg-green-500/5", isDone === 'pending' && "opacity-80 border-amber-500/40 bg-amber-500/5", isDone === 'split' && "opacity-70 border-violet-500/40 bg-violet-500/5")}>
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="font-semibold text-sm truncate">{p.name}</p>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="font-semibold text-sm truncate">{p.name}</p>
+                            {p.roiMode === 'monthly_compounding' && (
+                              <Badge className="shrink-0 text-[9px] bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/30">
+                                📈 Compounding
+                              </Badge>
+                            )}
+                          </div>
                           <p className="text-xs text-primary/80 font-medium truncate">{p.portfolioName}</p>
                           <p className="text-xs text-muted-foreground">{p.phone || p.email || 'No contact'}</p>
                         </div>
