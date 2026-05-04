@@ -391,6 +391,15 @@ export function DirectCreditTool() {
     setSelectedSubCategoryId('');
     setRecipientType('');
     setAutomateEnabled(false);
+    if (op !== 'withdraw') {
+      setPayoutMethod('mobile_money');
+      setPickupLocation('');
+      setMomoNumber('');
+      setMomoName('');
+      setBankName('');
+      setBankAccountNumber('');
+      setBankAccountName('');
+    }
   };
 
   const handleCategoryChange = (catId: string) => {
