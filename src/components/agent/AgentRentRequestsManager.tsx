@@ -208,6 +208,20 @@ export function AgentRentRequestsManager() {
     }
   };
 
+  // Defensive: a rent request is only truly "completed" when fully repaid.
+  // If the row is marked completed but money is still outstanding, surface
+  // it as "Active" so users don't get a misleading green Completed badge.
+  const getStatusBadgeForRequest = (req: { status: string | null; amount_repaid?: number | null; total_repayment?: number | null }) => {
+    if (req.status === 'completed') {
+      const repaid = Number(req.amount_repaid ?? 0);
+      const total = Number(req.total_repayment ?? 0);
+      if (total > 0 && repaid < total) {
+        return <Badge variant="outline" className="bg-chart-5/10 text-chart-5 border-chart-5/30 gap-1"><Banknote className="h-3 w-3" />Active</Badge>;
+      }
+    }
+    return getStatusBadge(req.status);
+  };
+
   const pendingRequests = requests.filter(r => r.status === 'pending');
   const otherRequests = requests.filter(r => r.status !== 'pending');
 
