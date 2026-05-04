@@ -350,7 +350,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    const totalSpendable = Math.min(cachedSpendable, ledgerAvailable);
+    // For partner-linked proxy payouts, the partner-linked ledger is the
+    // authoritative figure (see ledgerAvailable computation above). The cached
+    // float bucket can lag — never let it veto a ledger-earmarked delivery.
+    const isPartnerLinkedProxy =
+      isProxyPayout && wr.linked_party && wr.linked_party !== wr.user_id;
+    const totalSpendable = isPartnerLinkedProxy
+      ? ledgerAvailable
+      : Math.min(cachedSpendable, ledgerAvailable);
     const effectiveBalance = totalSpendable;
 
     if (!wallet || totalSpendable < amount) {
