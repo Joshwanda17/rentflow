@@ -218,7 +218,6 @@ Deno.serve(async (req) => {
     const withdrawable = walletWithdrawable;
     const cachedSpendable = isProxyPayout ? walletFloat : withdrawable;
     let partnerLinkedFloatAvailable = 0;
-    let partnerLinkedWithdrawableAvailable = 0;
 
     // STRICT LEDGER-BACKED GATE.
     // Compute the posting-time cap directly from general_ledger, excluding
@@ -261,7 +260,6 @@ Deno.serve(async (req) => {
             "rent_float_funding",
           ].includes(row?.category);
         partnerLinkedFloatAvailable = Math.max(0, sumLedgerRows((linkedRows || []).filter(isFloatLinkedRow)));
-        partnerLinkedWithdrawableAvailable = Math.max(0, partnerLinkedNet - partnerLinkedFloatAvailable);
         const { data: partnerPendingRows, error: partnerPendingErr } = await admin
           .from("withdrawal_requests")
           .select("amount")
