@@ -393,6 +393,18 @@ export function RentRequestsManager() {
     }
   };
 
+  // Defensive: only show "Completed" when the rent has actually been fully repaid.
+  const getStatusBadgeForRequest = (req: { status: string | null; amount_repaid?: number | null; paidAmount?: number | null; total_repayment?: number | null }) => {
+    if (req.status === 'completed') {
+      const repaid = Number(req.amount_repaid ?? req.paidAmount ?? 0);
+      const total = Number(req.total_repayment ?? 0);
+      if (total > 0 && repaid < total) {
+        return <Badge variant="outline" className="bg-chart-5/10 text-chart-5 border-chart-5/30 gap-1"><Banknote className="h-3 w-3" />Active</Badge>;
+      }
+    }
+    return getStatusBadge(req.status);
+  };
+
   const generateReminderMessage = (request: RentRequest) => {
     const tenantName = request.tenant?.full_name?.split(' ')[0] || 'there';
     const missedDays = request.missedDays || 0;
