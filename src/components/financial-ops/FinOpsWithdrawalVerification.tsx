@@ -422,6 +422,22 @@ export function FinOpsWithdrawalVerification() {
           </div>
         </div>
 
+        {req.assigned_cashout_agent_id && (
+          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/40 text-orange-700 dark:text-orange-300">
+            <Hand className="h-3.5 w-3.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-wide">
+                Claimed by Merchant Agent — DO NOT double-pay
+              </p>
+              <p className="text-[11px] font-medium truncate opacity-90">
+                {req.cashout_agent?.full_name || 'Agent'}
+                {req.cashout_agent?.phone ? ` · ${req.cashout_agent.phone}` : ''}
+                {req.claimed_at ? ` · claimed ${formatDistanceToNow(new Date(req.claimed_at), { addSuffix: true })}` : ''}
+              </p>
+            </div>
+          </div>
+        )}
+
         {(req.mobile_money_name || req.bank_account_name) && (
           <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-primary/5 border border-primary/10">
             <span className="text-xs font-bold text-foreground">
