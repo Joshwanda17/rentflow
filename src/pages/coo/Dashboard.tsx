@@ -131,6 +131,15 @@ export default function COODashboardPage() {
             <AgentCollectionsOverview />
           </div>
         );
+      case 'daily-collections':
+        return (
+          <div className="space-y-3">
+            {isMobile && renderBackButton('Overview')}
+            {renderSectionHeader('Daily Collection Monitoring', CalendarCheck)}
+            <p className="text-sm text-muted-foreground -mt-2">Read-only view of live tenant collections, agent performance, and monthly trend.</p>
+            <DailyCollectionMonitoringDashboard mode="readonly" />
+          </div>
+        );
       case 'wallets':
         return (
           <div className="space-y-3">
