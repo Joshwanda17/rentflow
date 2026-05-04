@@ -9,17 +9,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Send, ArrowUpRight, ArrowDownLeft, TrendingUp, TrendingDown, Minus, Info, ChevronDown } from 'lucide-react';
+import { Loader2, Send, ArrowUpRight, ArrowDownLeft, TrendingUp, TrendingDown, Minus, Info, ChevronDown, Banknote, Phone, Building2, AlertTriangle } from 'lucide-react';
 import { UserSearchPicker } from './UserSearchPicker';
 import { TreasuryImpactBanner } from './TreasuryImpactBanner';
 import { RentDisbursementQueue } from './RentDisbursementQueue';
 import { BusinessAdvanceDisbursementQueue } from './BusinessAdvanceDisbursementQueue';
 import { ROIPayoutQueue } from './ROIPayoutQueue';
 import { PayoutAutomationToggle } from './PayoutAutomationToggle';
+import { UGANDA_BANKS } from '@/lib/ugandaBanks';
 
-type Operation = 'credit' | 'debit';
+type Operation = 'credit' | 'debit' | 'withdraw';
 type FinancialImpact = 'expense' | 'revenue' | 'neutral';
 type RecipientType = 'user' | 'operational_wallet';
+type PayoutMethod = 'cash' | 'mobile_money' | 'bank_transfer';
 
 interface SubCategory {
   id: string;
@@ -295,6 +297,21 @@ export function DirectCreditTool() {
   const [automateEnabled, setAutomateEnabled] = useState(false);
   const [automateDay, setAutomateDay] = useState(1);
 
+  // ── Expense-Only Withdrawal state ──────────────────────────────────
+  // Used when operation === 'withdraw'. Captures HOW the company is
+  // paying the expense out (Cash / MoMo / Bank) and WHO/WHERE it goes.
+  // These details are folded into the mandatory `reason` so they land
+  // in general_ledger.description and audit_logs for full traceability,
+  // without requiring an edge-function schema change.
+  const [payoutMethod, setPayoutMethod] = useState<PayoutMethod>('mobile_money');
+  const [pickupLocation, setPickupLocation] = useState('');
+  const [momoNumber, setMomoNumber] = useState('');
+  const [momoProvider, setMomoProvider] = useState<'MTN' | 'Airtel'>('MTN');
+  const [momoName, setMomoName] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [bankAccountNumber, setBankAccountNumber] = useState('');
+  const [bankAccountName, setBankAccountName] = useState('');
+
   const { data: rentQueueCount = 0 } = useQuery({
     queryKey: ['rent-disbursement-queue-count'],
     queryFn: async () => {
@@ -336,7 +353,17 @@ export function DirectCreditTool() {
   });
 
   const availableCategories = useMemo(
-    () => PAYOUT_CATEGORIES.filter(c => c.allowedOps.includes(operation)),
+    () => {
+      if (operation === 'withdraw') {
+        // Expense-Only Withdrawal Rule — only categories whose financial
+        // impact is `expense` may fund a real outbound payment. Revenue
+        // and neutral categories are intentionally excluded.
+        return PAYOUT_CATEGORIES.filter(
+          c => c.impact === 'expense' && c.allowedOps.includes('credit'),
+        );
+      }
+      return PAYOUT_CATEGORIES.filter(c => c.allowedOps.includes(operation));
+    },
     [operation]
   );
 
@@ -364,6 +391,15 @@ export function DirectCreditTool() {
     setSelectedSubCategoryId('');
     setRecipientType('');
     setAutomateEnabled(false);
+    if (op !== 'withdraw') {
+      setPayoutMethod('mobile_money');
+      setPickupLocation('');
+      setMomoNumber('');
+      setMomoName('');
+      setBankName('');
+      setBankAccountNumber('');
+      setBankAccountName('');
+    }
   };
 
   const handleCategoryChange = (catId: string) => {
@@ -396,6 +432,32 @@ export function DirectCreditTool() {
       if (!selectedCategory) throw new Error('Select a payout category');
       if (hasSubCategories && !selectedSubCategoryId) throw new Error('Select a subcategory');
 
+      // Expense-Only Withdrawal validation — block any non-expense category
+      // and require complete recipient details for the chosen method.
+      let payoutTag = '';
+      if (operation === 'withdraw') {
+        if (selectedCategory.impact !== 'expense') {
+          throw new Error(
+            `Withdrawal blocked: only Expense categories may be withdrawn. "${selectedCategory.label}" is marked as ${selectedCategory.impact}.`,
+          );
+        }
+        if (payoutMethod === 'cash') {
+          if (pickupLocation.trim().length < 3) {
+            throw new Error('Cash payout requires pickup details (min 3 characters).');
+          }
+          payoutTag = `[PAYOUT: CASH @ ${pickupLocation.trim()}]`;
+        } else if (payoutMethod === 'mobile_money') {
+          if (momoNumber.trim().length < 9) throw new Error('Mobile Money number is required (min 9 digits).');
+          if (momoName.trim().length < 2) throw new Error('Mobile Money account name is required.');
+          payoutTag = `[PAYOUT: MOMO ${momoProvider} ${momoNumber.trim()} (${momoName.trim()})]`;
+        } else if (payoutMethod === 'bank_transfer') {
+          if (!bankName) throw new Error('Bank name is required.');
+          if (bankAccountNumber.trim().length < 5) throw new Error('Bank account number is required.');
+          if (bankAccountName.trim().length < 2) throw new Error('Bank account name is required.');
+          payoutTag = `[PAYOUT: BANK ${bankName} A/C ${bankAccountNumber.trim()} (${bankAccountName.trim()})]`;
+        }
+      }
+
       // Wallet Routing v2: when the category has a hard recipient lock, that
       // lock is the single source of truth at submit time. This protects
       // against any stale `recipientType` state (e.g. radio carried over from
@@ -413,12 +475,23 @@ export function DirectCreditTool() {
         ? `${selectedCategory.label} → ${selectedSubCategory.label}`
         : selectedCategory.label;
 
+      // Withdraw rides the existing `credit` rail — the CFO is paying
+      // the expense out to the recipient via Cash / MoMo / Bank. The
+      // ledger leg, recipient bucket, and audit trail are identical to
+      // a direct credit; the payout details are embedded in `reason`
+      // so they appear in general_ledger.description and audit_logs.
+      const submitOperation: 'credit' | 'debit' =
+        operation === 'withdraw' ? 'credit' : operation;
+      const submitReason = operation === 'withdraw'
+        ? `${payoutTag} ${reason}`.trim()
+        : reason;
+
       const { data, error } = await supabase.functions.invoke('cfo-direct-credit', {
         body: {
           target_user_id: selectedUser.id,
           amount: amt,
-          reason,
-          operation,
+          reason: submitReason,
+          operation: submitOperation,
           wallet_category: selectedCategory.walletCategory,
           platform_category: selectedCategory.platformCategory,
           financial_impact: selectedCategory.impact,
@@ -466,7 +539,15 @@ export function DirectCreditTool() {
       return data;
     },
     onSuccess: (data) => {
-      toast({ title: operation === 'credit' ? '✅ Credit applied' : '✅ Debit applied', description: data?.message });
+      toast({
+        title:
+          operation === 'credit'
+            ? '✅ Credit applied'
+            : operation === 'debit'
+              ? '✅ Debit applied'
+              : '✅ Expense withdrawal recorded',
+        description: data?.message,
+      });
       qc.invalidateQueries({ queryKey: ['expense-transfers'] });
       qc.invalidateQueries({ queryKey: ['channel-balances'] });
       qc.invalidateQueries({ queryKey: ['treasury-cash-snapshot'] });
@@ -478,6 +559,12 @@ export function DirectCreditTool() {
       setSelectedSubCategoryId('');
       setRecipientType('');
       setAutomateEnabled(false);
+      setPickupLocation('');
+      setMomoNumber('');
+      setMomoName('');
+      setBankName('');
+      setBankAccountNumber('');
+      setBankAccountName('');
     },
     onError: (e: any) => {
       if (e?.__silent) return; // confirmation dialog will handle it
@@ -499,7 +586,7 @@ export function DirectCreditTool() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <Button
             type="button"
             variant={isCredit ? 'default' : 'outline'}
@@ -507,20 +594,40 @@ export function DirectCreditTool() {
             onClick={() => handleOperationChange('credit')}
           >
             <ArrowUpRight className="h-4 w-4 mr-1.5 shrink-0" />
-            <span className="hidden sm:inline">Platform → Wallet</span>
-            <span className="sm:hidden">Credit</span>
+            <span>Credit</span>
           </Button>
           <Button
             type="button"
-            variant={!isCredit ? 'default' : 'outline'}
-            className={!isCredit ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground' : ''}
+            variant={operation === 'debit' ? 'default' : 'outline'}
+            className={operation === 'debit' ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground' : ''}
             onClick={() => handleOperationChange('debit')}
           >
             <ArrowDownLeft className="h-4 w-4 mr-1.5 shrink-0" />
-            <span className="hidden sm:inline">Wallet → Platform</span>
-            <span className="sm:hidden">Debit</span>
+            <span>Debit</span>
+          </Button>
+          <Button
+            type="button"
+            variant={operation === 'withdraw' ? 'default' : 'outline'}
+            className={operation === 'withdraw' ? 'bg-orange-600 hover:bg-orange-700 text-white' : ''}
+            onClick={() => handleOperationChange('withdraw')}
+          >
+            <Banknote className="h-4 w-4 mr-1.5 shrink-0" />
+            <span>Withdraw</span>
           </Button>
         </div>
+
+        {operation === 'withdraw' && (
+          <div className="rounded-lg border border-orange-200 bg-orange-50 p-3 text-[11px] text-orange-800 flex gap-2">
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+            <div>
+              <div className="font-semibold">Expense-Only Withdrawal</div>
+              <div className="opacity-90 mt-0.5">
+                Only categories marked as <strong>Expense</strong> can fund a real outbound payment
+                (Cash, Mobile Money, Bank). Revenue and Neutral categories are blocked.
+              </div>
+            </div>
+          </div>
+        )}
 
         <div>
           <Label htmlFor="payout-category" className="flex items-center gap-1.5 mb-1.5">
@@ -723,12 +830,149 @@ export function DirectCreditTool() {
               </div>
             </div>
 
+            {/* ── Payout Method + Recipient Details (Withdraw only) ── */}
+            {operation === 'withdraw' && (
+              <div className="space-y-3 rounded-lg border border-orange-200 bg-orange-50/40 p-3">
+                <div>
+                  <Label className="flex items-center gap-1.5 mb-1.5">
+                    Payout Method <span className="text-destructive">*</span>
+                  </Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPayoutMethod('cash')}
+                      className={`rounded-lg border p-2 text-xs font-medium transition flex flex-col items-center gap-1 ${
+                        payoutMethod === 'cash'
+                          ? 'border-orange-500 bg-white ring-2 ring-orange-200'
+                          : 'border-border bg-white hover:border-orange-300'
+                      }`}
+                    >
+                      <Banknote className="h-4 w-4" />
+                      Cash
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPayoutMethod('mobile_money')}
+                      className={`rounded-lg border p-2 text-xs font-medium transition flex flex-col items-center gap-1 ${
+                        payoutMethod === 'mobile_money'
+                          ? 'border-orange-500 bg-white ring-2 ring-orange-200'
+                          : 'border-border bg-white hover:border-orange-300'
+                      }`}
+                    >
+                      <Phone className="h-4 w-4" />
+                      MoMo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPayoutMethod('bank_transfer')}
+                      className={`rounded-lg border p-2 text-xs font-medium transition flex flex-col items-center gap-1 ${
+                        payoutMethod === 'bank_transfer'
+                          ? 'border-orange-500 bg-white ring-2 ring-orange-200'
+                          : 'border-border bg-white hover:border-orange-300'
+                      }`}
+                    >
+                      <Building2 className="h-4 w-4" />
+                      Bank
+                    </button>
+                  </div>
+                </div>
+
+                {payoutMethod === 'cash' && (
+                  <div>
+                    <Label>Pickup Details <span className="text-destructive">*</span></Label>
+                    <Input
+                      placeholder="e.g. Welile HQ Reception, Nakasero — collected by Jane Doe"
+                      value={pickupLocation}
+                      onChange={(e) => setPickupLocation(e.target.value)}
+                    />
+                  </div>
+                )}
+
+                {payoutMethod === 'mobile_money' && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="col-span-2">
+                      <Label>MoMo Number <span className="text-destructive">*</span></Label>
+                      <Input
+                        type="tel"
+                        placeholder="07XX XXX XXX"
+                        value={momoNumber}
+                        onChange={(e) => setMomoNumber(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label>Provider <span className="text-destructive">*</span></Label>
+                      <div className="relative">
+                        <select
+                          value={momoProvider}
+                          onChange={(e) => setMomoProvider(e.target.value as 'MTN' | 'Airtel')}
+                          className="flex h-10 w-full appearance-none rounded-lg border border-border bg-background px-3 py-2 pr-10 text-sm"
+                        >
+                          <option value="MTN">MTN</option>
+                          <option value="Airtel">Airtel</option>
+                        </select>
+                        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      </div>
+                    </div>
+                    <div>
+                      <Label>Account Name <span className="text-destructive">*</span></Label>
+                      <Input
+                        placeholder="Registered MoMo name"
+                        value={momoName}
+                        onChange={(e) => setMomoName(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {payoutMethod === 'bank_transfer' && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="col-span-2">
+                      <Label>Bank Name <span className="text-destructive">*</span></Label>
+                      <div className="relative">
+                        <select
+                          value={bankName}
+                          onChange={(e) => setBankName(e.target.value)}
+                          className="flex h-10 w-full appearance-none rounded-lg border border-border bg-background px-3 py-2 pr-10 text-sm"
+                        >
+                          <option value="">Select bank...</option>
+                          {UGANDA_BANKS.map((b) => (
+                            <option key={b} value={b}>{b}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      </div>
+                    </div>
+                    <div>
+                      <Label>Account Number <span className="text-destructive">*</span></Label>
+                      <Input
+                        placeholder="0123456789"
+                        value={bankAccountNumber}
+                        onChange={(e) => setBankAccountNumber(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label>Account Name <span className="text-destructive">*</span></Label>
+                      <Input
+                        placeholder="Account holder full name"
+                        value={bankAccountName}
+                        onChange={(e) => setBankAccountName(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div>
               <Label>Reason (min 10 chars)</Label>
               <Textarea
-                placeholder={isCredit
-                  ? 'e.g. ROI payout for March cycle, salary advance for agent...'
-                  : 'e.g. Access fee collection, penalty for policy violation...'}
+                placeholder={
+                  operation === 'withdraw'
+                    ? 'e.g. April marketing campaign payout to vendor...'
+                    : isCredit
+                      ? 'e.g. ROI payout for March cycle, salary advance for agent...'
+                      : 'e.g. Access fee collection, penalty for policy violation...'
+                }
                 value={reason}
                 onChange={e => setReason(e.target.value)}
                 rows={2}
@@ -802,12 +1046,20 @@ export function DirectCreditTool() {
             )}
 
             <Button
-              className={`w-full ${isCredit ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-destructive hover:bg-destructive/90'}`}
+              className={`w-full ${
+                operation === 'withdraw'
+                  ? 'bg-orange-600 hover:bg-orange-700'
+                  : isCredit
+                    ? 'bg-emerald-600 hover:bg-emerald-700'
+                    : 'bg-destructive hover:bg-destructive/90'
+              }`}
               onClick={() => mutation.mutate()}
               disabled={mutation.isPending || !selectedUser || !amount || reason.length < 10 || !selectedCategoryId || !recipientType}
             >
               {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
-              {isCredit ? 'Credit' : 'Debit'} UGX {amt.toLocaleString()} {isCredit ? 'to' : 'from'} {selectedUser?.full_name || '...'}
+              {operation === 'withdraw'
+                ? `Withdraw UGX ${amt.toLocaleString()} → ${selectedUser?.full_name || '...'}`
+                : `${isCredit ? 'Credit' : 'Debit'} UGX ${amt.toLocaleString()} ${isCredit ? 'to' : 'from'} ${selectedUser?.full_name || '...'}`}
             </Button>
           </>
         )}
