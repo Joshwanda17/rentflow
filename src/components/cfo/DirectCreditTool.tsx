@@ -539,7 +539,15 @@ export function DirectCreditTool() {
       return data;
     },
     onSuccess: (data) => {
-      toast({ title: operation === 'credit' ? '✅ Credit applied' : '✅ Debit applied', description: data?.message });
+      toast({
+        title:
+          operation === 'credit'
+            ? '✅ Credit applied'
+            : operation === 'debit'
+              ? '✅ Debit applied'
+              : '✅ Expense withdrawal recorded',
+        description: data?.message,
+      });
       qc.invalidateQueries({ queryKey: ['expense-transfers'] });
       qc.invalidateQueries({ queryKey: ['channel-balances'] });
       qc.invalidateQueries({ queryKey: ['treasury-cash-snapshot'] });
@@ -551,6 +559,12 @@ export function DirectCreditTool() {
       setSelectedSubCategoryId('');
       setRecipientType('');
       setAutomateEnabled(false);
+      setPickupLocation('');
+      setMomoNumber('');
+      setMomoName('');
+      setBankName('');
+      setBankAccountNumber('');
+      setBankAccountName('');
     },
     onError: (e: any) => {
       if (e?.__silent) return; // confirmation dialog will handle it
