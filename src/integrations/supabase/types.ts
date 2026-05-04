@@ -5875,6 +5875,7 @@ export type Database = {
           longitude: number | null
           monthly_rent: number
           number_of_rooms: number
+          placement_bonus_paid_at: string | null
           platform_fee: number
           region: string
           short_code: string | null
@@ -5924,6 +5925,7 @@ export type Database = {
           longitude?: number | null
           monthly_rent: number
           number_of_rooms?: number
+          placement_bonus_paid_at?: string | null
           platform_fee?: number
           region: string
           short_code?: string | null
@@ -5973,6 +5975,7 @@ export type Database = {
           longitude?: number | null
           monthly_rent?: number
           number_of_rooms?: number
+          placement_bonus_paid_at?: string | null
           platform_fee?: number
           region?: string
           short_code?: string | null
