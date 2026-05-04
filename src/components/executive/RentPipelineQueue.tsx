@@ -22,8 +22,8 @@ import { AgentProximitySelector } from './AgentProximitySelector';
 
 export type PipelineStage =
   | 'pending'
+  | 'agent_ops_approved'
   | 'tenant_ops_approved'
-  | 'agent_verified'
   | 'landlord_ops_approved'
   | 'coo_approved';
 
@@ -34,43 +34,64 @@ interface PipelineConfig {
   nextStatus: string;
   reviewerColumn: string;
   reviewerAtColumn: string;
+  commentColumn?: string;
+  /** Columns from previous stages whose comments we surface (read-only) for context. */
+  previousCommentColumns?: { column: string; label: string }[];
   showAgentSelector?: boolean;
   showPayoutFields?: boolean;
+  showLandlordChecklist?: boolean;
 }
 
 const STAGE_CONFIG: Record<PipelineStage, PipelineConfig> = {
   pending: {
     stage: 'pending',
-    title: '🔍 Pending Review',
-    approveLabel: 'Approve & Forward to Agent Ops',
+    title: '🔍 Agent Ops Review',
+    approveLabel: 'Approve & Forward to Tenant Ops',
+    nextStatus: 'agent_ops_approved',
+    reviewerColumn: 'agent_ops_reviewed_by',
+    reviewerAtColumn: 'agent_ops_reviewed_at',
+    commentColumn: 'agent_ops_comment',
+  },
+  agent_ops_approved: {
+    stage: 'agent_ops_approved',
+    title: '👥 Tenant Ops Review',
+    approveLabel: 'Approve & Forward to Landlord Ops',
     nextStatus: 'tenant_ops_approved',
     reviewerColumn: 'tenant_ops_reviewed_by',
     reviewerAtColumn: 'tenant_ops_reviewed_at',
+    commentColumn: 'tenant_ops_comment',
     showAgentSelector: true,
+    previousCommentColumns: [
+      { column: 'agent_ops_comment', label: 'Agent Ops note' },
+    ],
   },
   tenant_ops_approved: {
     stage: 'tenant_ops_approved',
-    title: '🕵️ Agent Verification',
-    approveLabel: 'Verify & Forward to Landlord Ops',
-    nextStatus: 'agent_verified',
-    reviewerColumn: 'agent_verified_by',
-    reviewerAtColumn: 'agent_verified_at',
-  },
-  agent_verified: {
-    stage: 'agent_verified',
-    title: '🏠 Landlord Review',
+    title: '🏠 Landlord Ops Review',
     approveLabel: 'Approve & Forward to COO',
     nextStatus: 'landlord_ops_approved',
     reviewerColumn: 'landlord_ops_reviewed_by',
     reviewerAtColumn: 'landlord_ops_reviewed_at',
+    commentColumn: 'landlord_ops_comment',
+    showLandlordChecklist: true,
+    previousCommentColumns: [
+      { column: 'agent_ops_comment', label: 'Agent Ops note' },
+      { column: 'tenant_ops_comment', label: 'Tenant Ops note' },
+    ],
   },
   landlord_ops_approved: {
     stage: 'landlord_ops_approved',
-    title: '📋 COO Operational Sign-off',
+    title: '📋 COO Approval',
     approveLabel: 'Approve & Forward to CFO',
     nextStatus: 'coo_approved',
     reviewerColumn: 'coo_reviewed_by',
     reviewerAtColumn: 'coo_reviewed_at',
+    commentColumn: 'approval_comment',
+    previousCommentColumns: [
+      { column: 'agent_ops_comment', label: 'Agent Ops note' },
+      { column: 'tenant_ops_comment', label: 'Tenant Ops note' },
+      { column: 'landlord_ops_comment', label: 'Landlord Ops note' },
+    ],
   },
   coo_approved: {
     stage: 'coo_approved',
@@ -79,14 +100,21 @@ const STAGE_CONFIG: Record<PipelineStage, PipelineConfig> = {
     nextStatus: 'funded',
     reviewerColumn: 'cfo_reviewed_by',
     reviewerAtColumn: 'cfo_reviewed_at',
+    commentColumn: 'approval_comment',
     showPayoutFields: true,
+    previousCommentColumns: [
+      { column: 'agent_ops_comment', label: 'Agent Ops note' },
+      { column: 'tenant_ops_comment', label: 'Tenant Ops note' },
+      { column: 'landlord_ops_comment', label: 'Landlord Ops note' },
+      { column: 'approval_comment', label: 'COO note' },
+    ],
   },
 };
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-amber-100 text-amber-700',
+  agent_ops_approved: 'bg-cyan-100 text-cyan-700',
   tenant_ops_approved: 'bg-blue-100 text-blue-700',
-  agent_verified: 'bg-purple-100 text-purple-700',
   landlord_ops_approved: 'bg-indigo-100 text-indigo-700',
   coo_approved: 'bg-emerald-100 text-emerald-700',
   funded: 'bg-green-100 text-green-700',
