@@ -1693,9 +1693,23 @@ export function TidVerification() {
                                    Approving in {secondsLeft ?? 0}…
                                  </p>
                                ) : (
-                                 <p className="text-[10px] text-muted-foreground truncate">
-                                   {p.depositorPhone || '—'} · {format(new Date(p.created_at), 'MMM d, HH:mm')}
-                                 </p>
+                                  <>
+                                    <p className="text-[10px] text-muted-foreground truncate">
+                                      {p.depositorPhone || '—'} · {format(new Date(p.created_at), 'MMM d, HH:mm')}
+                                    </p>
+                                    {p.transaction_id ? (
+                                      <p
+                                        className="text-[10px] font-mono text-muted-foreground/90 truncate"
+                                        title={`TID: ${p.transaction_id}`}
+                                      >
+                                        TID: <span className="text-foreground">{p.transaction_id}</span>
+                                      </p>
+                                    ) : (
+                                      <p className="text-[10px] italic text-muted-foreground/60 truncate">
+                                        No TID submitted yet
+                                      </p>
+                                    )}
+                                  </>
                                )}
                              </div>
                              <div className="flex items-center gap-1.5 shrink-0">
