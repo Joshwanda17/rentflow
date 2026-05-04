@@ -170,14 +170,22 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
       const rawDump = (() => {
         try { return JSON.stringify(error, Object.getOwnPropertyNames(error), 2); } catch { return String(error); }
       })();
-      toast.error(error?.message || 'Failed to submit payment confirmation', {
-        description: [error?.code && `Code: ${error.code}`, error?.hint && `Hint: ${error.hint}`, error?.details && `Details: ${error.details}`]
-          .filter(Boolean).join(' • ') || undefined,
-        duration: 12000,
-      });
+      const isDuplicateTid =
+        error?.code === '23505' ||
+        String(error?.message ?? '').toLowerCase().includes('duplicate transaction id');
+      const title = isDuplicateTid
+        ? 'This transaction ID has already been used'
+        : (error?.message || 'Failed to submit payment confirmation');
+      const description = isDuplicateTid
+        ? 'Each telecom transaction ID can only be submitted once. Double-check the TID on your SMS or use a different payment.'
+        : ([error?.code && `Code: ${error.code}`, error?.hint && `Hint: ${error.hint}`, error?.details && `Details: ${error.details}`]
+            .filter(Boolean).join(' • ') || undefined);
+      toast.error(title, { description, duration: 12000 });
       setErrorDetails({
-        title: 'Submission failed',
-        message: error?.message || 'Unknown error occurred while submitting deposit.',
+        title: isDuplicateTid ? 'Duplicate transaction ID' : 'Submission failed',
+        message: isDuplicateTid
+          ? 'This TID was already submitted on an earlier deposit. Each TID can only be used once.'
+          : (error?.message || 'Unknown error occurred while submitting deposit.'),
         code: error?.code,
         hint: error?.hint,
         details: error?.details,
