@@ -10534,6 +10534,9 @@ export type Database = {
         Row: {
           access_fee: number
           agent_id: string | null
+          agent_ops_comment: string | null
+          agent_ops_reviewed_at: string | null
+          agent_ops_reviewed_by: string | null
           agent_verified: boolean | null
           agent_verified_at: string | null
           agent_verified_by: string | null
@@ -10563,6 +10566,7 @@ export type Database = {
           landlord_call_notes: string | null
           landlord_called: boolean | null
           landlord_id: string
+          landlord_ops_comment: string | null
           landlord_ops_reviewed_at: string | null
           landlord_ops_reviewed_by: string | null
           landlord_verification_method: string | null
@@ -10600,6 +10604,7 @@ export type Database = {
           tenant_electricity_meter: string | null
           tenant_id: string
           tenant_no_smartphone: boolean
+          tenant_ops_comment: string | null
           tenant_ops_reviewed_at: string | null
           tenant_ops_reviewed_by: string | null
           tenant_water_meter: string | null
@@ -10610,6 +10615,9 @@ export type Database = {
         Insert: {
           access_fee: number
           agent_id?: string | null
+          agent_ops_comment?: string | null
+          agent_ops_reviewed_at?: string | null
+          agent_ops_reviewed_by?: string | null
           agent_verified?: boolean | null
           agent_verified_at?: string | null
           agent_verified_by?: string | null
@@ -10639,6 +10647,7 @@ export type Database = {
           landlord_call_notes?: string | null
           landlord_called?: boolean | null
           landlord_id: string
+          landlord_ops_comment?: string | null
           landlord_ops_reviewed_at?: string | null
           landlord_ops_reviewed_by?: string | null
           landlord_verification_method?: string | null
@@ -10676,6 +10685,7 @@ export type Database = {
           tenant_electricity_meter?: string | null
           tenant_id: string
           tenant_no_smartphone?: boolean
+          tenant_ops_comment?: string | null
           tenant_ops_reviewed_at?: string | null
           tenant_ops_reviewed_by?: string | null
           tenant_water_meter?: string | null
@@ -10686,6 +10696,9 @@ export type Database = {
         Update: {
           access_fee?: number
           agent_id?: string | null
+          agent_ops_comment?: string | null
+          agent_ops_reviewed_at?: string | null
+          agent_ops_reviewed_by?: string | null
           agent_verified?: boolean | null
           agent_verified_at?: string | null
           agent_verified_by?: string | null
@@ -10715,6 +10728,7 @@ export type Database = {
           landlord_call_notes?: string | null
           landlord_called?: boolean | null
           landlord_id?: string
+          landlord_ops_comment?: string | null
           landlord_ops_reviewed_at?: string | null
           landlord_ops_reviewed_by?: string | null
           landlord_verification_method?: string | null
@@ -10752,6 +10766,7 @@ export type Database = {
           tenant_electricity_meter?: string | null
           tenant_id?: string
           tenant_no_smartphone?: boolean
+          tenant_ops_comment?: string | null
           tenant_ops_reviewed_at?: string | null
           tenant_ops_reviewed_by?: string | null
           tenant_water_meter?: string | null
