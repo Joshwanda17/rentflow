@@ -117,15 +117,39 @@ Deno.serve(async (req) => {
     }
 
     // Proxy payouts are requested by the agent and funded from the agent wallet.
-    // `linked_party` identifies the partner receiving the external payout.
-    const isProxyPayout =
+    // Detection rules (any one is enough):
+    //   1. The withdrawal carries a `linked_party` distinct from the submitter
+    //      AND a "Proxy payout delivery for …" reason (the historical signal).
+    //   2. The submitter is a registered proxy agent (has at least one
+    //      active, approved row in `proxy_agent_assignments`) AND the reason
+    //      still starts with "Proxy payout delivery for". This catches older
+    //      proxy withdrawals that were created before `linked_party` was
+    //      reliably populated — they should still drain partner float, not
+    //      be blocked as personal withdrawals.
+    const reasonLooksProxy =
       typeof wr.reason === "string" &&
-      wr.reason.startsWith("Proxy payout delivery for") &&
-      wr.linked_party &&
-      wr.linked_party !== wr.user_id;
+      wr.reason.startsWith("Proxy payout delivery for");
+
+    let isProxyAgent = false;
+    if (reasonLooksProxy) {
+      const { count: proxyCount } = await admin
+        .from("proxy_agent_assignments")
+        .select("id", { count: "exact", head: true })
+        .eq("agent_id", wr.user_id)
+        .eq("is_active", true)
+        .eq("approval_status", "approved");
+      isProxyAgent = (proxyCount ?? 0) > 0;
+    }
+
+    const isProxyPayout =
+      reasonLooksProxy &&
+      ((wr.linked_party && wr.linked_party !== wr.user_id) || isProxyAgent);
 
     const fundingUserId = wr.user_id;
-    const beneficiaryUserId = isProxyPayout ? wr.linked_party : wr.user_id;
+    const beneficiaryUserId =
+      isProxyPayout && wr.linked_party && wr.linked_party !== wr.user_id
+        ? wr.linked_party
+        : wr.user_id;
     const amount = Number(wr.amount);
 
     console.log(
@@ -209,13 +233,13 @@ Deno.serve(async (req) => {
         return acc;
       }, 0);
 
-      if (isProxyPayout && beneficiaryUserId) {
+      if (isProxyPayout && wr.linked_party && wr.linked_party !== wr.user_id) {
         const { data: linkedRows, error: linkedErr } = await admin
           .from("general_ledger")
           .select("amount, direction")
           .eq("user_id", fundingUserId)
           .eq("ledger_scope", "wallet")
-          .eq("linked_party", beneficiaryUserId)
+          .eq("linked_party", wr.linked_party)
           .or("classification.is.null,classification.eq.production");
         if (linkedErr) throw linkedErr;
 
@@ -224,7 +248,7 @@ Deno.serve(async (req) => {
           .from("withdrawal_requests")
           .select("amount")
           .eq("user_id", fundingUserId)
-          .eq("linked_party", beneficiaryUserId)
+          .eq("linked_party", wr.linked_party)
           .neq("id", withdrawal_id)
           .in("status", ["pending", "requested", "manager_approved", "processing"]);
         if (partnerPendingErr) throw partnerPendingErr;
@@ -237,6 +261,38 @@ Deno.serve(async (req) => {
         ledgerAvailable = Math.max(
           0,
           Math.min(walletFloat, Math.max(0, partnerLinkedNet)) - partnerPendingHolds,
+        );
+      } else if (isProxyPayout) {
+        // Proxy agent without a linked_party on the withdrawal row: gate
+        // against the agent's overall wallet ledger but allow draining
+        // float (since this IS a proxy delivery — partner identity is
+        // recorded in the reason text, not the linked_party column).
+        const { data: ledgerRows, error: ledgerErr } = await admin
+          .from("general_ledger")
+          .select("amount, direction")
+          .eq("user_id", fundingUserId)
+          .eq("ledger_scope", "wallet")
+          .or("classification.is.null,classification.eq.production");
+        if (ledgerErr) throw ledgerErr;
+
+        const ledgerNet = sumLedgerRows(ledgerRows || []);
+
+        const { data: pendingRows, error: pendingErr } = await admin
+          .from("withdrawal_requests")
+          .select("amount")
+          .eq("user_id", fundingUserId)
+          .neq("id", withdrawal_id)
+          .in("status", ["pending", "requested", "manager_approved", "processing"]);
+        if (pendingErr) throw pendingErr;
+
+        const otherPendingHolds = (pendingRows || []).reduce(
+          (sum: number, p: any) => sum + Number(p.amount || 0),
+          0,
+        );
+
+        ledgerAvailable = Math.max(
+          0,
+          Math.min(walletFloat, Math.max(0, ledgerNet)) - otherPendingHolds,
         );
       } else {
         const { data: ledgerRows, error: ledgerErr } = await admin
