@@ -46,6 +46,7 @@ import { CFOAdvancesManager } from '@/components/cfo/CFOAdvancesManager';
 import { CFOAdvanceRequestPayments } from '@/components/cfo/CFOAdvanceRequestPayments';
 import { BusinessAdvanceQueue } from '@/components/ops/BusinessAdvanceQueue';
 import { ManagerApprovalAudit } from '@/components/cfo/ManagerApprovalAudit';
+import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
 import { CFOAgentRequisitions } from '@/components/cfo/CFOAgentRequisitions';
 import { RentCollectionsFeed } from '@/components/cfo/RentCollectionsFeed';
 import { AgentPerformanceRankings } from '@/components/cfo/AgentPerformanceRankings';
@@ -195,6 +196,18 @@ export default function CFODashboardPage() {
         );
       case 'ledger-health':
         return <LedgerHealthPanel />;
+      case 'capital-opportunities':
+        return (
+          <div className="space-y-4">
+            <div>
+              <h1 className="text-xl font-bold">📈 Capital Opportunities</h1>
+              <p className="text-sm text-muted-foreground">
+                Edit the total rent demand and opportunity summary shown to funders.
+              </p>
+            </div>
+            <OpportunitySummaryForm />
+          </div>
+        );
       case 'revenue-expenses':
         return <RevenueExpenseDashboard />;
       case 'platform-impact':
