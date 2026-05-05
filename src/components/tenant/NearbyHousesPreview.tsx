@@ -18,8 +18,8 @@ interface NearbyHousesPreviewProps {
 }
 
 function MiniMapThumb({ lat, lng, title }: { lat: number | null; lng: number | null; title: string }) {
-  if (!lat || !lng) return null;
   const announce = useMapLinkAnnouncer();
+  if (!lat || !lng) return null;
   const mapUrl = `https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed`;
   const linkUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
 
