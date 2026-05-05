@@ -108,16 +108,14 @@ Deno.serve(async (req) => {
     const cacheWithdrawable = Math.max(0, Number(wallet.withdrawable_balance ?? 0));
     const cacheFloat = Math.max(0, Number(wallet.float_balance ?? 0));
 
-    // CFO/FinOps deductions pull directly from the live wallet bucket. Do not
-    // block because strict historical ledger net is lower or negative; older
-    // ledger drift is handled by reconciliation, while this tool removes the
-    // amount currently visible in the user's wallet.
+    // CFO/FinOps deductions pull whatever is currently visible on the wallet,
+    // regardless of bucket. The UI shows the combined deductible figure
+    // (withdrawable + float) and the operator deducts that amount; we then
+    // split the posting across buckets.
     const isRetraction = safeCategory === 'cash_payout_retraction';
-    const trueAvailable = cacheWithdrawable;
+    const trueAvailable = cacheWithdrawable + cacheFloat;
 
     if (amount > trueAvailable) {
-      // Diagnostic log — record the drift between strict and cache so the CFO
-      // Reconcile tab can pick it up.
       console.error("[wallet-deduction] rejected", {
         user_id: target_user_id,
         requested: amount,
@@ -125,24 +123,9 @@ Deno.serve(async (req) => {
         cache_withdrawable: cacheWithdrawable,
         cache_float: cacheFloat,
       });
-      if (cacheWithdrawable > trueAvailable) {
-        try {
-          await adminClient.from('wallet_overdraw_events').insert({
-            user_id: target_user_id,
-            attempted_amount: amount,
-            available_amount: trueAvailable,
-            context: {
-              source: 'wallet-deduction',
-              cache_withdrawable: cacheWithdrawable,
-              cache_float: cacheFloat,
-              actor_id: user.id,
-            },
-          });
-        } catch (_) { /* diagnostic only */ }
-      }
       return new Response(
         JSON.stringify({
-          error: `Maximum deductible from wallet: UGX ${trueAvailable.toLocaleString()} (requested UGX ${amount.toLocaleString()}). Float (UGX ${cacheFloat.toLocaleString()}) is company liability and cannot be deducted from this tool.`,
+          error: `Maximum deductible from wallet: UGX ${trueAvailable.toLocaleString()} (requested UGX ${amount.toLocaleString()}). Withdrawable UGX ${cacheWithdrawable.toLocaleString()} + Float UGX ${cacheFloat.toLocaleString()}.`,
         }),
         {
           status: 400,
@@ -151,15 +134,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Defensive live recheck against the wallet bucket immediately before
-    // posting. This prevents stale UI submissions without reintroducing the
-    // strict-ledger blocker that Finance asked to bypass for retractions.
+    // Defensive live recheck against the wallet buckets immediately before
+    // posting (prevents stale UI submissions).
     const { data: freshWallet } = await adminClient
       .from('wallets')
-      .select('withdrawable_balance')
+      .select('withdrawable_balance, float_balance')
       .eq('user_id', target_user_id)
       .single();
-    const liveAvailable = Math.max(0, Number(freshWallet?.withdrawable_balance ?? 0));
+    const liveWithdrawable = Math.max(0, Number(freshWallet?.withdrawable_balance ?? 0));
+    const liveFloat = Math.max(0, Number(freshWallet?.float_balance ?? 0));
+    const liveAvailable = liveWithdrawable + liveFloat;
     if (liveAvailable < amount) {
       return new Response(
         JSON.stringify({
@@ -169,9 +153,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Single wallet deduction. No float spill — ever.
-    const withdrawablePortion = amount;
-    const floatPortion = 0;
+    // Take from withdrawable first, then spill into float bucket.
+    const withdrawablePortion = Math.min(amount, liveWithdrawable);
+    const floatPortion = Math.max(0, amount - withdrawablePortion);
 
     // Get target user profile for audit
     const { data: targetProfile } = await adminClient
@@ -216,8 +200,31 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Float spill removed: this tool is strict-withdrawable-only. See plan
-    // 2026-04-29 — float is company liability and is never deductible here.
+    if (floatPortion > 0) {
+      entries.push({
+        user_id: target_user_id,
+        amount: floatPortion,
+        direction: 'cash_out',
+        category: ledgerCategory,
+        ledger_scope: 'wallet',
+        description: `Float bucket deduction (${safeCategory}): ${reason}`,
+        currency: 'UGX',
+        source_table: 'wallet_deductions',
+        linked_party: user.id,
+        transaction_date: nowIso,
+        recipient_type: 'operational_wallet',
+      });
+      entries.push({
+        direction: 'cash_in',
+        amount: floatPortion,
+        category: ledgerCategory,
+        ledger_scope: 'platform',
+        description: `Platform receives float deduction (${safeCategory}): ${reason}`,
+        currency: 'UGX',
+        source_table: 'wallet_deductions',
+        transaction_date: nowIso,
+      });
+    }
 
     const { data: txnGroupId, error: ledgerErr } = await adminClient.rpc('create_ledger_transaction', {
       entries,

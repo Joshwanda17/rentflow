@@ -107,19 +107,20 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
       if (!selectedUser) return null;
       const { data, error } = await supabase
         .from('wallets')
-        .select('withdrawable_balance')
+        .select('withdrawable_balance, float_balance')
         .eq('user_id', selectedUser.id)
         .single();
       if (error) throw error;
-      return Math.max(0, Number(data?.withdrawable_balance ?? 0));
+      const w = Math.max(0, Number(data?.withdrawable_balance ?? 0));
+      const f = Math.max(0, Number(data?.float_balance ?? 0));
+      return w + f;
     },
     enabled: !!selectedUser,
   });
 
-  // Show the wallet bucket directly so operators can retract what is actually
-  // visible in the wallet without strict-ledger false blocks.
+  // Combined deductible = withdrawable + float. Backend splits across buckets.
   const trueBalance = selectedUser
-    ? (availableBalance ?? selectedUser.withdrawable_balance)
+    ? (availableBalance ?? (selectedUser.withdrawable_balance + selectedUser.float_balance))
     : 0;
 
   // Search users by name/phone
@@ -269,22 +270,18 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
           <div className="flex-1 min-w-0">
             <p className="font-medium text-sm truncate">{u.full_name}</p>
             <p className="text-xs text-muted-foreground">{u.phone}</p>
-            {u.float_balance > 0 && u.withdrawable_balance === 0 && (
-              <p className="text-[10px] text-amber-600 font-medium mt-0.5">
-                Float only — company liability (not deductible)
-              </p>
-            )}
           </div>
           <div className="text-right shrink-0 space-y-0.5">
             <div>
-              <p className="text-[10px] text-muted-foreground leading-none">Withdrawable</p>
-              <p className="text-sm font-semibold leading-tight">{formatUGX(u.withdrawable_balance)}</p>
+              <p className="text-[10px] text-muted-foreground leading-none">Deductible</p>
+              <p className="text-sm font-semibold leading-tight">
+                {formatUGX(u.withdrawable_balance + u.float_balance)}
+              </p>
             </div>
             {u.float_balance > 0 && (
-              <div className="mt-1">
-                <p className="text-[10px] text-amber-600 leading-none">Float (owed)</p>
-                <p className="text-xs font-medium text-amber-700 leading-tight">{formatUGX(u.float_balance)}</p>
-              </div>
+              <p className="text-[10px] text-amber-600 leading-tight mt-0.5">
+                incl. float {formatUGX(u.float_balance)}
+              </p>
             )}
           </div>
         </button>
