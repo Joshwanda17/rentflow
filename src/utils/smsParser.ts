@@ -43,6 +43,19 @@ function normaliseDate(raw: string): string | undefined {
   return undefined;
 }
 
+const MONTH_MAP: Record<string, string> = {
+  jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+  jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
+};
+
+/** Normalise DD-Mon-YYYY / D Mon YY style dates → YYYY-MM-DD. */
+function normaliseNamedDate(d: string, mon: string, y: string): string | undefined {
+  const mm = MONTH_MAP[mon.slice(0, 3).toLowerCase()];
+  if (!mm) return undefined;
+  const yyyy = y.length === 2 ? `20${y}` : y;
+  return `${yyyy}-${mm}-${d.padStart(2, '0')}`;
+}
+
 /** Normalise a time token (HH:MM, H:MM AM/PM, HH:MM:SS) → 24h HH:MM. */
 function normaliseTime(raw: string): string | undefined {
   const m = raw.trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s?(AM|PM)?$/i);
@@ -62,31 +75,56 @@ export function parseSMS(text: string): ParsedSMS {
 
   // ── Amount ──────────────────────────────────────────────────────────
   // Matches "UGX 50,000", "USh 50000", "UShs.50,000.00", "Shs 1,200"
-  const amountMatch = text.match(/(?:UGX|USh|UShs|Shs)\s*\.?\s*([\d,]+(?:\.\d+)?)/i);
-  if (amountMatch) {
-    const cleaned = amountMatch[1].replace(/,/g, '');
+  // Skips tokens preceded by Bal/Balance/Charge/Fee so "Bal UGX 323,546" or
+  // "Charge UGX 0" don't get mistaken for the paid amount.
+  const amountRe = /(?:UGX|USh|UShs|Shs)\s*\.?\s*([\d,]+(?:\.\d+)?)/gi;
+  const skipRe = /(bal(?:ance)?|charge|fee|fees)\s*[:.]?\s*$/i;
+  let firstAmt: number | undefined;
+  let chosenAmt: number | undefined;
+  for (const m of text.matchAll(amountRe)) {
+    const cleaned = m[1].replace(/,/g, '');
     const n = Math.round(parseFloat(cleaned));
-    if (Number.isFinite(n) && n > 0) result.amount = n;
+    if (!Number.isFinite(n) || n <= 0) continue;
+    if (firstAmt === undefined) firstAmt = n;
+    const start = m.index ?? 0;
+    const lookback = text.slice(Math.max(0, start - 12), start);
+    if (skipRe.test(lookback)) continue;
+    chosenAmt = n;
+    break;
   }
+  if (chosenAmt !== undefined) result.amount = chosenAmt;
+  else if (firstAmt !== undefined) result.amount = firstAmt;
 
   // ── Transaction ID ─────────────────────────────────────────────────
   // Try provider-specific formats first (highest signal), then generic.
   const mtn = text.match(/\bMP[A-Z0-9]{8,}\b/i);
-  const airtel = text.match(/\bTID\d{4,18}\b/i);
+  // Allow optional separator between TID and digits ("TID 146525101664",
+  // "TID.146...", "TID:146..."). Stored canonically as "TID<digits>".
+  const airtel = text.match(/\bTID[\s.:#-]*(\d{4,18})\b/i);
   const generic = text.match(
     /\b(?:Txn\s?ID|Transaction\s?ID|Ref(?:erence)?|Receipt)[:\s#]*([A-Z0-9-]{4,})\b/i,
   );
   if (mtn) result.transactionId = mtn[0].toUpperCase();
-  else if (airtel) result.transactionId = airtel[0].toUpperCase();
+  else if (airtel) result.transactionId = `TID${airtel[1]}`;
   else if (generic) result.transactionId = generic[1].toUpperCase();
 
   // ── Date ───────────────────────────────────────────────────────────
-  const dateMatch = text.match(
+  const numericDate = text.match(
     /\b(\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\b/,
   );
-  if (dateMatch) {
-    const normalised = normaliseDate(dateMatch[1]);
+  if (numericDate) {
+    const normalised = normaliseDate(numericDate[1]);
     if (normalised) result.date = normalised;
+  }
+  if (!result.date) {
+    // Month-name dates: "04-May-2026", "4 May 2026", "04/May/26"
+    const named = text.match(
+      /\b(\d{1,2})[\s/-](Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[\s/-](\d{2,4})\b/i,
+    );
+    if (named) {
+      const normalised = normaliseNamedDate(named[1], named[2], named[3]);
+      if (normalised) result.date = normalised;
+    }
   }
 
   // ── Time ───────────────────────────────────────────────────────────
