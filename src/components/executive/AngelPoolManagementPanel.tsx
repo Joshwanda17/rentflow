@@ -170,53 +170,41 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      if (actionType === 'delete') {
-        const { error } = await supabase
-          .from('angel_pool_investments')
-          .update({ status: 'deleted' })
-          .eq('investor_id', selectedInvestor.investor_id)
-          .eq('status', 'confirmed');
-        if (error) throw error;
-      } else if (actionType === 'suspend') {
-        const { error } = await supabase
-          .from('angel_pool_investments')
-          .update({ status: 'suspended' })
-          .eq('investor_id', selectedInvestor.investor_id)
-          .eq('status', 'confirmed');
-        if (error) throw error;
-      } else if (actionType === 'edit') {
-        // Update shares for all confirmed investments — simple proportional update
-        const shareDiff = editShares - selectedInvestor.total_shares;
-        if (shareDiff === 0) { toast.info('No changes to save'); setActionLoading(false); return; }
-        // For simplicity, update all confirmed rows for this investor to new total
-        const { error } = await supabase
-          .from('angel_pool_investments')
-          .update({
-            shares: editShares,
-            amount: editShares * config.price_per_share,
-            pool_ownership_percent: (editShares / config.total_shares) * 100,
-            company_ownership_percent: (editShares / config.total_shares) * config.pool_equity_percent,
-          })
-          .eq('investor_id', selectedInvestor.investor_id)
-          .eq('status', 'confirmed');
-        if (error) throw error;
+      if (actionType === 'edit' && editShares === selectedInvestor.total_shares) {
+        toast.info('No changes to save');
+        setActionLoading(false);
+        return;
       }
 
-      // Audit log
-      await supabase.from('audit_logs').insert({
-        user_id: user.id,
-        action_type: `angel_pool_shareholder_${actionType}`,
-        table_name: 'angel_pool_investments',
-        record_id: selectedInvestor.investor_id,
-        metadata: {
-          investor_name: selectedInvestor.name,
-          reason: actionReason.trim(),
-          ...(actionType === 'edit' ? { old_shares: selectedInvestor.total_shares, new_shares: editShares } : {}),
-        } as any,
+      const { data, error } = await supabase.rpc('ceo_angel_pool_shareholder_action', {
+        p_investor_id: selectedInvestor.investor_id,
+        p_action: actionType,
+        p_reason: actionReason.trim(),
+        p_new_shares: actionType === 'edit' ? editShares : null,
       });
+      if (error) throw error;
 
-      toast.success(`Shareholder ${actionType === 'delete' ? 'deleted' : actionType === 'suspend' ? 'suspended' : 'updated'} successfully`);
+      const result = (data ?? {}) as { affected?: number; shares_released?: number };
+      const affected = result.affected ?? 0;
+      if (affected === 0) {
+        throw new Error('No confirmed investments were changed. Please refresh and try again.');
+      }
+
+      if (actionType === 'delete') {
+        toast.success(
+          `Shareholder deleted. ${(result.shares_released ?? 0).toLocaleString()} shares released back to the pool.`
+        );
+      } else if (actionType === 'suspend') {
+        toast.success(
+          `Shareholder suspended. ${(result.shares_released ?? 0).toLocaleString()} shares released back to the pool.`
+        );
+      } else {
+        toast.success('Shareholder shares updated successfully');
+      }
+
       qc.invalidateQueries({ queryKey: ['angel-pool-management-investors'] });
+      qc.invalidateQueries({ queryKey: ['angel-pool-data'] });
+      qc.invalidateQueries({ queryKey: ['angel-pool-config'] });
       closeAction();
     } catch (err: any) {
       toast.error(err.message || 'Action failed');
