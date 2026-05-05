@@ -175,10 +175,11 @@ Deno.serve(async (req) => {
 
     const targetName = targetProfile?.full_name || "Unknown";
 
-    // Build balanced ledger entries. If the withdrawable bucket can't cover
-    // the full amount, split: wallet_deduction (withdrawable) + float_retraction (float).
+    // Build balanced ledger entries against withdrawable only.
     const nowIso = new Date().toISOString();
     const entries: any[] = [];
+    const withdrawablePortion = amount;
+    const floatPortion = 0;
 
     const ledgerCategory = isRetraction
       ? 'wallet_deduction_cash_payout_retraction'
@@ -209,39 +210,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (floatPortion > 0) {
-      entries.push({
-        user_id: target_user_id,
-        amount: floatPortion,
-        direction: 'cash_out',
-        category: ledgerCategory,
-        ledger_scope: 'wallet',
-        description: `Float bucket deduction (${safeCategory}): ${reason}`,
-        currency: 'UGX',
-        source_table: 'wallet_deductions',
-        linked_party: user.id,
-        transaction_date: nowIso,
-        recipient_type: 'operational_wallet',
-      });
-      entries.push({
-        direction: 'cash_in',
-        amount: floatPortion,
-        category: ledgerCategory,
-        ledger_scope: 'platform',
-        description: `Platform receives float deduction (${safeCategory}): ${reason}`,
-        currency: 'UGX',
-        source_table: 'wallet_deductions',
-        transaction_date: nowIso,
-      });
-    }
-
     const { data: txnGroupId, error: ledgerErr } = await adminClient.rpc('create_ledger_transaction', {
       entries,
       idempotency_key: `wallet-deduction-${target_user_id}-${crypto.randomUUID()}`,
-      // CFO wallet deductions are an authorized cache-cleanup / recovery path.
-      // The live wallet bucket recheck above is the gate; bypass the
-      // all-time ledger solvency guard so anchored users with negative legacy
-      // ledger history can still have their current withdrawable cache removed.
+      // CFO wallet deductions are gated by get_user_available_balance above.
       skip_balance_check: true,
     });
 
