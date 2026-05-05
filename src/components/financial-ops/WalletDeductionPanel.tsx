@@ -76,71 +76,55 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
     queryClient.removeQueries({ queryKey: ['deduction-balance-search'] });
   }, [queryClient]);
 
-  // Overlay ledger-true `available` balances onto a list of candidate users.
-  // Falls back to 0 (NOT the cached value) on RPC failure so we never show
-  // a misleading stale figure.
-  const overlayLedgerBalances = async (
+  // Overlay live wallet bucket balances onto candidate users. CFO deductions
+  // are allowed against the wallet bucket even when older strict ledger net is
+  // lower, so the UI must not clamp results with get_user_available_balance.
+  const overlayWalletBalances = async (
     rows: Array<{ id: string; full_name: string; phone: string }>,
   ): Promise<UserResult[]> => {
     if (rows.length === 0) return [];
-    const results = await Promise.all(
-      rows.map(async (r) => {
-        try {
-          const { data, error } = await supabase.rpc('get_user_available_balance', {
-            p_user_id: r.id,
-          });
-          if (error) throw error;
-          // RPC returns a single numeric (withdrawable available). Coerce
-          // directly — the previous `.available` destructure always
-          // produced NaN→0, which made every result look empty.
-          const withdrawable = Number(data ?? 0);
-          return {
-            ...r,
-            balance: withdrawable,
-            withdrawable_balance: withdrawable,
-            float_balance: 0,
-          };
-        } catch {
-          return { ...r, balance: 0, withdrawable_balance: 0, float_balance: 0 };
-        }
-      }),
-    );
-    return results;
+    const { data } = await supabase
+      .from('wallets')
+      .select('user_id, balance, withdrawable_balance, float_balance')
+      .in('user_id', rows.map((r) => r.id));
+    const byUser = new Map((data || []).map((w) => [w.user_id, w]));
+    return rows.map((r) => {
+      const w = byUser.get(r.id);
+      return {
+        ...r,
+        balance: Number(w?.balance ?? 0),
+        withdrawable_balance: Math.max(0, Number(w?.withdrawable_balance ?? 0)),
+        float_balance: Math.max(0, Number(w?.float_balance ?? 0)),
+      };
+    });
   };
 
-  // Ledger-true available balance for the selected user (the figure the
-  // backend actually enforces). The cached wallet number can drift above
-  // ledger net due to debt / pending obligations — gating on that causes
-  // confusing "Insufficient ledger balance" errors at submit time.
+  // Live wallet bucket for the selected user — this is what the backend now
+  // enforces for CFO wallet deductions.
   const { data: availableBalance } = useQuery({
-    queryKey: ['deduction-available-balance', selectedUser?.id],
+    queryKey: ['deduction-wallet-balance', selectedUser?.id],
     queryFn: async () => {
       if (!selectedUser) return null;
-      const { data, error } = await supabase.rpc('get_user_available_balance', {
-        p_user_id: selectedUser.id,
-      });
+      const { data, error } = await supabase
+        .from('wallets')
+        .select('withdrawable_balance')
+        .eq('user_id', selectedUser.id)
+        .single();
       if (error) throw error;
-      // RPC returns a scalar numeric (the strict withdrawable available),
-      // NOT an object. The previous `r.available` destructure always
-      // produced NaN→0, which made the deduction tool show USh 0 and
-      // refuse to deduct even when the wallet was funded.
-      return Number(data ?? 0);
+      return Math.max(0, Number(data?.withdrawable_balance ?? 0));
     },
     enabled: !!selectedUser,
   });
 
-  // Show the lesser of (cached, ledger) so the operator can never type a
-  // figure the backend will reject.
+  // Show the wallet bucket directly so operators can retract what is actually
+  // visible in the wallet without strict-ledger false blocks.
   const trueBalance = selectedUser
-    ? Math.min(
-        selectedUser.withdrawable_balance,
-        availableBalance ?? selectedUser.withdrawable_balance,
-      )
+    ? (availableBalance ?? selectedUser.withdrawable_balance)
     : 0;
 
   // Search users by name/phone
   const { data: searchResults, isFetching: searching } = useQuery({
-    queryKey: ['deduction-user-search', 'v2-ledger', searchQuery],
+    queryKey: ['deduction-user-search', 'v3-wallet-bucket', searchQuery],
     staleTime: 0,
     gcTime: 0,
     queryFn: async () => {
@@ -153,8 +137,8 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
 
       if (!data || data.length === 0) return [];
 
-      // Use ledger-true balances — never the cached wallets.balance column.
-      return overlayLedgerBalances(
+      // Use wallet bucket balances — this matches the wallet-deduction gate.
+      return overlayWalletBalances(
         data.map((u) => ({
           id: u.id,
           full_name: u.full_name || 'Unnamed',
@@ -167,7 +151,7 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
 
   // Search by balance range via RPC
   const { data: balanceResults, isFetching: balanceSearching } = useQuery({
-    queryKey: ['deduction-balance-search', 'v2-ledger', minBalance, maxBalance, balanceSearchTriggered],
+    queryKey: ['deduction-balance-search', 'v3-wallet-bucket', minBalance, maxBalance, balanceSearchTriggered],
     staleTime: 0,
     gcTime: 0,
     queryFn: async () => {
@@ -205,28 +189,7 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
         float_balance: Number(r.float_balance ?? 0),
       }));
 
-      // The RPC already returns ledger-backed figures. Re-check each row
-      // against the backend gate so the list cannot display stale wallet cache.
-      const clamped = await Promise.all(
-        mapped.map(async (u) => {
-          try {
-            const { data: strict, error: sErr } = await supabase.rpc(
-              'get_user_available_balance',
-              { p_user_id: u.id },
-            );
-            if (sErr) throw sErr;
-            const strictAvailable = Math.max(0, Number(strict ?? 0));
-            return {
-              ...u,
-              withdrawable_balance: Math.min(u.withdrawable_balance, strictAvailable),
-            };
-          } catch {
-            // RPC unavailable — fall back conservatively (don't trust cache).
-            return { ...u, withdrawable_balance: 0, balance: 0 };
-          }
-        }),
-      );
-      return clamped;
+      return mapped;
     },
     enabled: searchMode === 'balance' && balanceSearchTriggered,
   });
@@ -266,14 +229,14 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
       resetForm();
       queryClient.invalidateQueries({ queryKey: ['deduction-user-search'] });
       queryClient.invalidateQueries({ queryKey: ['deduction-balance-search'] });
-      queryClient.invalidateQueries({ queryKey: ['deduction-available-balance'] });
+      queryClient.invalidateQueries({ queryKey: ['deduction-wallet-balance'] });
     },
     onError: (err: Error) => {
       toast.error(err.message);
       setConfirmStep(false);
-      // Refresh the strict balance so the CFO immediately sees the corrected
-      // ceiling after a "Maximum deductible" or "Balance changed" rejection.
-      queryClient.invalidateQueries({ queryKey: ['deduction-available-balance'] });
+      // Refresh the live wallet bucket so the CFO immediately sees the
+      // corrected ceiling after a rejection.
+      queryClient.invalidateQueries({ queryKey: ['deduction-wallet-balance'] });
     },
   });
 
