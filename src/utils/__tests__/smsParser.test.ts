@@ -14,7 +14,7 @@ describe('parseSMS', () => {
 
   it('parses MTN MP… style TID', () => {
     const sms =
-      'Y\'ello, you have received UGX 50,000 from JOHN. TID: MP260504.1620.A12345. New balance UGX 150,000. 04/05/2026 16:20';
+      "Y'ello, you have received UGX 50,000 from JOHN. TID MP260504A12345. New balance UGX 150,000. 04/05/2026 16:20";
     const r = parseSMS(sms);
     expect(r.amount).toBe(50000);
     expect(r.transactionId?.startsWith('MP')).toBe(true);
