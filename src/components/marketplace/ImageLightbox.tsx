@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { StorageImage } from '@/components/ui/StorageImage';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Share2, Download, ImageOff, RotateCw } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Share2, Download, ImageOff, RotateCw, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -116,6 +116,15 @@ export function ImageLightbox({
     lastTouchDist.current = null;
     lastTouchCenter.current = null;
   }, []);
+
+  const resetMemory = useCallback(() => {
+    if (storageKey && typeof window !== 'undefined') {
+      try { sessionStorage.removeItem(storageKey); } catch { /* noop */ }
+    }
+    setCurrentIndex(initialIndex);
+    resetZoom();
+    toast.success('View reset to start');
+  }, [storageKey, initialIndex, resetZoom]);
 
   // On open: restore from memory if available, else use initialIndex
   useEffect(() => {
@@ -399,6 +408,12 @@ export function ImageLightbox({
                 aria-label={isZoomed ? 'Zoom out' : 'Zoom in'} aria-pressed={isZoomed}
                 className="text-white/70 hover:text-white hover:bg-white/10 h-10 w-10" title={isZoomed ? 'Zoom out' : 'Zoom in'}>
                 {isZoomed ? <ZoomOut className="h-5 w-5" /> : <ZoomIn className="h-5 w-5" />}
+              </Button>
+              <Button variant="ghost" size="icon" onClick={resetMemory}
+                aria-label="Reset zoom and position"
+                className="text-white/70 hover:text-white hover:bg-white/10 h-10 w-10"
+                title="Reset zoom & position">
+                <RotateCcw className="h-5 w-5" />
               </Button>
               <Button ref={closeButtonRef} variant="ghost" size="icon" onClick={onClose} aria-label="Close photo viewer"
                 className="text-white/70 hover:text-white hover:bg-white/10 h-10 w-10">
