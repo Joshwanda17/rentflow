@@ -183,7 +183,15 @@ Deno.serve(async (req) => {
     });
 
     return new Response(JSON.stringify({
-      success: true, storagePath, sizeBytes, tableCount: tablesProcessed, rowCount: totalRows,
+      success: true,
+      storagePath,
+      signedUrl: signed.signedUrl,
+      fileName,
+      sizeBytes,
+      tableCount: tablesProcessed,
+      rowCount: totalRows,
+      generatedAt: startedAt.toISOString(),
+      expiresInHours: 168,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

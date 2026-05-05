@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { roleToSlug } from '@/lib/roleRoutes';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
+import RunBackupNowButton from '@/components/admin/RunBackupNowButton';
 
 interface DashboardCard {
   label: string;
@@ -145,6 +146,13 @@ export default function AdminDashboardPage() {
             <Shield className="h-12 w-12 text-muted-foreground/30 mx-auto" />
             <p className="text-muted-foreground font-medium">No dashboards assigned</p>
             <p className="text-sm text-muted-foreground/70">Contact your administrator to get access to specific dashboards.</p>
+          </div>
+        )}
+
+        {role === 'manager' && (
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">System</p>
+            <RunBackupNowButton />
           </div>
         )}
       </div>
