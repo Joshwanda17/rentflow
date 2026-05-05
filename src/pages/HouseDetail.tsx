@@ -23,7 +23,7 @@ import { motion } from 'framer-motion';
 import {
   Home, MapPin, DoorOpen, Droplets, Zap, ShieldCheck, Car, Sofa,
   ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Check, ArrowLeft, Star,
-  Eye, Navigation,
+  Eye, Navigation, Copy,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -45,6 +45,7 @@ export default function HouseDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [mapCopied, setMapCopied] = useState(false);
   const [listing, setListing] = useState<(HouseListing & { agent_phone?: string | null; agent_name?: string | null }) | null>(null);
   const [loading, setLoading] = useState(true);
   const [imgIdx, setImgIdx] = useState(0);
