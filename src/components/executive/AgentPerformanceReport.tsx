@@ -720,6 +720,10 @@ export function AgentPerformanceReport() {
           { icon: PiggyBank,   label: 'Total Collected',      value: `UGX ${fmt(totals.collected)}`,                    tint: 'bg-sky-600',     text: 'text-sky-700' },
           { icon: Percent,     label: 'Overall Efficiency',   value: fmtPct(overallEfficiency),                         tint: 'bg-orange-500',  text: 'text-orange-600' },
           { icon: Wallet,      label: 'Total Wallet',         value: `UGX ${fmt(totals.wallet_total)}`,                 tint: 'bg-teal-600',    text: 'text-teal-700' },
+          { icon: Activity,    label: 'Daily Collections (Σ)', value: `UGX ${fmt(totals.daily_collection || 0)}`,       tint: 'bg-cyan-600',    text: 'text-cyan-700' },
+          { icon: HandCoins,   label: 'Daily Commissions (Σ)', value: `UGX ${fmt(totals.daily_commission || 0)}`,       tint: 'bg-fuchsia-600', text: 'text-fuchsia-700' },
+          { icon: Building,    label: 'Rent Paid Out (Period)', value: `UGX ${fmt(totals.rent_paid_out || 0)}`,         tint: 'bg-indigo-600',  text: 'text-indigo-700' },
+          { icon: Percent,     label: 'Top Conversion %',     value: fmtPct(topConversion),                             tint: 'bg-rose-600',    text: 'text-rose-700' },
         ].map((kpi, idx) => (
           <div key={idx} className="rounded-xl border border-border bg-card p-3 flex items-center gap-3">
             <div className={cn('h-10 w-10 rounded-full flex items-center justify-center text-white shrink-0', kpi.tint)}>
@@ -732,6 +736,40 @@ export function AgentPerformanceReport() {
           </div>
         ))}
       </div>
+
+      {/* Best / Worst spotlight */}
+      {(bestPerformer || worstPerformer) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {bestPerformer && (
+            <div className="rounded-2xl border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-50 to-card dark:from-emerald-950/30 p-4 flex items-center gap-4">
+              <div className="h-12 w-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                <Trophy className="h-6 w-6" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] uppercase tracking-wide font-bold text-emerald-700 dark:text-emerald-400">Top Performer</div>
+                <div className="text-base font-extrabold truncate">{bestPerformer.agent_name}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  Collected <span className="font-semibold text-foreground">UGX {fmt(bestPerformer.collected)}</span> · Efficiency <span className="font-semibold text-emerald-700">{fmtPct(bestPerformer.efficiency || 0)}</span> · Conversion <span className="font-semibold">{fmtPct(bestPerformer.conversion_pct || 0)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+          {worstPerformer && worstPerformer !== bestPerformer && (
+            <div className="rounded-2xl border-2 border-red-500/40 bg-gradient-to-br from-red-50 to-card dark:from-red-950/30 p-4 flex items-center gap-4">
+              <div className="h-12 w-12 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] uppercase tracking-wide font-bold text-red-700 dark:text-red-400">Needs Attention</div>
+                <div className="text-base font-extrabold truncate">{worstPerformer.agent_name}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  Collected <span className="font-semibold text-foreground">UGX {fmt(worstPerformer.collected)}</span> · Efficiency <span className="font-semibold text-red-700">{fmtPct(worstPerformer.efficiency || 0)}</span> · Gap <span className="font-semibold text-red-700">UGX {fmt(worstPerformer.gap || 0)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Table — desktop */}
       <div className="hidden md:block rounded-2xl border border-border bg-card overflow-hidden">
