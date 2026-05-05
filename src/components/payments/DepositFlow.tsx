@@ -774,17 +774,9 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     if (effectiveDepositPurpose === 'other' && !reason.trim()) {
       return { message: 'Enter the reason for this deposit', fieldId: 'deposit-reason' };
     }
-    if (
-      isAgent &&
-      effectiveDepositPurpose === 'personal_deposit' &&
-      !agentPersonalConfirmedAt
-    ) {
-      return {
-        message:
-          'Confirm this is your own money — tap "Yes, this is my own money" before submitting a Personal Deposit.',
-        fieldId: 'deposit-purpose',
-      };
-    }
+    // Personal Deposit: confirmation is now implicit by selecting the tile —
+    // no separate confirm step. `handleSubmit` stamps the timestamp as a
+    // safety net before insert, so we don't block here.
     if (effectiveDepositPurpose === 'operational_float' && breakdownChoice === 'pending' && (parseFloat(amount) || 0) > 0) {
       return {
         message: 'Choose: deposit with or without a tenant breakdown',
@@ -861,6 +853,21 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       const safePurpose: DepositPurpose = safeDepositPurpose(effectivePurpose);
       // Override consumed; clear so subsequent submits use real state.
       purposeOverrideRef.current = null;
+      // Personal Deposit safety net: stamp the confirmation timestamp
+      // here if it wasn't already set when the tile was tapped. The DB
+      // constraint `agent_personal_deposit_requires_confirmation` rejects
+      // rows without it, so we never want to send one through unstamped.
+      const effectivePersonalConfirmedAt =
+        isAgent && safePurpose === 'personal_deposit'
+          ? agentPersonalConfirmedAt ?? new Date().toISOString()
+          : null;
+      if (
+        isAgent &&
+        safePurpose === 'personal_deposit' &&
+        !agentPersonalConfirmedAt
+      ) {
+        setAgentPersonalConfirmedAt(effectivePersonalConfirmedAt);
+      }
       // Only flip into the submitting state AFTER the auth check passes —
       // otherwise an unauthed user gets the spinner stuck forever (root
       // cause of the "Confirm deposit button is dead" complaint when a
@@ -978,9 +985,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                 last_edited_at: new Date().toISOString(),
                 is_agent: isAgent,
                 agent_personal_confirmed_at:
-                  isAgent && safePurpose === 'personal_deposit'
-                    ? agentPersonalConfirmedAt
-                    : null,
+                  effectivePersonalConfirmedAt,
               },
             } as any)
             .eq('id', activeEditId)
@@ -1008,9 +1013,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
               required_choice: !!requirePurposeChoice,
               is_agent: isAgent,
               agent_personal_confirmed_at:
-                isAgent && safePurpose === 'personal_deposit'
-                  ? agentPersonalConfirmedAt
-                  : null,
+                effectivePersonalConfirmedAt,
             },
           } as any);
 
@@ -1757,16 +1760,12 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                     key={p.id}
                     type="button"
                     onClick={() => {
-                      // Agent gate: switching to Personal Deposit means the
-                      // money will land in withdrawable, not float. Force an
-                      // explicit confirmation so it can't be done by mistake.
-                      if (
-                        isAgent &&
-                        p.id === 'personal_deposit' &&
-                        !agentPersonalConfirmedAt
-                      ) {
-                        setPendingPersonalChoice(true);
-                        return;
+                      // Agent: selecting Personal Deposit auto-stamps the
+                      // required confirmation timestamp — no second confirm
+                      // step. The grid itself is the explicit choice.
+                      if (isAgent && p.id === 'personal_deposit') {
+                        setAgentPersonalConfirmedAt(new Date().toISOString());
+                        setPendingPersonalChoice(false);
                       }
                       setDepositPurpose(p.id);
                       if (p.id !== 'other') setReason(p.label);
