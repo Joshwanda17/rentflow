@@ -124,7 +124,7 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
 
   // Search users by name/phone
   const { data: searchResults, isFetching: searching } = useQuery({
-    queryKey: ['deduction-user-search', 'v2-ledger', searchQuery],
+    queryKey: ['deduction-user-search', 'v3-wallet-bucket', searchQuery],
     staleTime: 0,
     gcTime: 0,
     queryFn: async () => {
