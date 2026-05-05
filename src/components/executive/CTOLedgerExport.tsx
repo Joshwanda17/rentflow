@@ -53,13 +53,13 @@ export function CTOLedgerExport() {
       while (true) {
         const { data, error } = await supabase
           .from('general_ledger')
-          .select('id, created_at, ledger_scope, classification, category, cash_in, cash_out, currency, recipient_type, reference_id, description, metadata')
+          .select('id, created_at, transaction_date, ledger_scope, classification, category, direction, amount, currency, account, reference_id, linked_party, source_table, source_id, transaction_group_id, description, running_balance')
           .eq('user_id', profile.id)
           .order('created_at', { ascending: true })
           .range(from, from + pageSize - 1);
         if (error) throw error;
         if (!data?.length) break;
-        all.push(...(data as Record<string, unknown>[]));
+        all.push(...(data as unknown as Record<string, unknown>[]));
         if (data.length < pageSize) break;
         from += pageSize;
       }
@@ -70,15 +70,11 @@ export function CTOLedgerExport() {
       }
 
       const headers = [
-        'created_at','ledger_scope','classification','category','cash_in','cash_out','currency','recipient_type','reference_id','description','metadata','id',
+        'created_at','transaction_date','ledger_scope','classification','category','direction','amount','currency','account','reference_id','linked_party','source_table','source_id','transaction_group_id','description','running_balance','id',
       ];
       const lines = [headers.join(',')];
       for (const r of all) {
-        lines.push(headers.map(h => {
-          const v = r[h];
-          if (h === 'metadata' && v && typeof v === 'object') return csvEscape(JSON.stringify(v));
-          return csvEscape(v);
-        }).join(','));
+        lines.push(headers.map(h => csvEscape(r[h])).join(','));
       }
       const csv = lines.join('\n');
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
