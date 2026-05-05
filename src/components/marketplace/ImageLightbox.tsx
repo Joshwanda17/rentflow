@@ -453,12 +453,20 @@ export function ImageLightbox({
                   })()}
                   alt={`${productName} - Image ${currentIndex + 1}`}
                   className={cn(
-                    'max-h-full max-w-full object-contain select-none transition-opacity duration-300',
-                    loadedIds.has(images[currentIndex].id) ? 'opacity-100' : 'opacity-0'
+                    'max-h-full max-w-full object-contain select-none',
+                    'transition-[filter,transform,opacity] duration-700 ease-out will-change-[filter,transform]',
+                    erroredIds.has(images[currentIndex].id) && 'opacity-0'
                   )}
                   style={{
-                    transform: `scale(${scale}) translate(${translate.x / scale}px, ${translate.y / scale}px)`,
-                    transition: isZoomed ? 'none' : 'transform 0.3s ease',
+                    transform: loadedIds.has(images[currentIndex].id)
+                      ? `scale(${scale}) translate(${translate.x / scale}px, ${translate.y / scale}px)`
+                      : `scale(${scale * 1.06}) translate(${translate.x / scale}px, ${translate.y / scale}px)`,
+                    filter: loadedIds.has(images[currentIndex].id)
+                      ? 'blur(0px)'
+                      : 'blur(24px)',
+                    transition: isZoomed
+                      ? 'filter 600ms ease-out'
+                      : 'filter 600ms ease-out, transform 400ms ease-out',
                   }}
                   draggable={false}
                   decoding="async"
