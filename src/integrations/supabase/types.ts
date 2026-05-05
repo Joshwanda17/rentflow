@@ -3239,6 +3239,7 @@ export type Database = {
           amount: number
           company_ownership_percent: number
           created_at: string
+          funded_by: string
           id: string
           investment_reference: string | null
           investor_id: string
@@ -3254,6 +3255,7 @@ export type Database = {
           amount: number
           company_ownership_percent: number
           created_at?: string
+          funded_by?: string
           id?: string
           investment_reference?: string | null
           investor_id: string
@@ -3269,6 +3271,7 @@ export type Database = {
           amount?: number
           company_ownership_percent?: number
           created_at?: string
+          funded_by?: string
           id?: string
           investment_reference?: string | null
           investor_id?: string

@@ -1,57 +1,42 @@
-# Angel Pool Share Purchase Confirmation Email
+# Allow agent to fund Angel Pool from either wallet
 
-Trigger an emailed receipt to the investor (the partner the agent is registering for shares) **after** the agent clicks **Confirm** in `AgentAngelPoolInvestDialog` — i.e. only after `agent-angel-pool-invest` completes successfully.
+Today the dialog and edge function always debit the **investor's** wallet. We will add a clear payment-source toggle so the agent can choose:
 
-## Step 1 — Add a new transactional email template
+- **Investor's Wallet** — debit `investor_id`'s wallet (current behaviour, default).
+- **Agent's Wallet** — debit the logged-in agent's own wallet (their withdrawable balance), useful when the agent is fronting the share purchase on the partner's behalf.
 
-Create `supabase/functions/_shared/transactional-email-templates/angel-pool-share-purchase.tsx`, faithfully porting the uploaded HTML to React Email components (matching the existing pattern of `partner-wallet-deposit.tsx`).
+## UI changes — `src/components/agent/AgentAngelPoolInvestDialog.tsx`
 
-Props the template accepts:
+In the **Amount** step (Step 2), under the existing investor card:
 
-| Prop | Source |
-|---|---|
-| `partner_name` | investor `profiles.full_name` |
-| `pool_name` | `"Welile Angel Pool"` (constant) |
-| `share_reference` | `reference_id` from RPC result (e.g. `ANG260505XXXX`) |
-| `shares_purchased` | `shares` |
-| `currency` | `"UGX"` |
-| `investment_amount` | `actual_amount` (formatted with thousand separators) |
-| `ownership_percentage` | `company_ownership_percent` formatted to 4 decimals — this is true company equity, matches the regulator-facing definition |
-| `price_per_share` | `20,000` (constant `PRICE_PER_SHARE`) |
-| `pool_valuation` | `TOTAL_SHARES × PRICE_PER_SHARE` = `500,000,000` (the 8% pool's UGX valuation) |
-| `purchase_date` | server `now()` formatted as `DD Mon YYYY, HH:MM` |
-| `total_pool_shares` | `25,000` (constant `TOTAL_SHARES`) |
-| `available_shares` | `TOTAL_SHARES − totalSharesSold` **after** this purchase, computed from a fresh post-insert read of `angel_pool_investments` (status='confirmed') so the figure is always live and never stale |
-| `pool_percentage` | `8` (constant `POOL_PERCENT`) |
-| `pool_round` | `"Seed Round"` (no rounds table exists today; constant for now, easy to swap to a DB lookup later) |
-| `company_name` | `"Welile"` |
+1. Fetch the agent's own withdrawable balance once when the dialog opens (via `get_user_available_balance` RPC for strict-rule compliance).
+2. Render a 2-tile selector ("Investor Wallet" / "Agent Wallet"), each showing the wallet name + live balance, with a clear "Selected" highlight.
+3. Recompute `canProceed` against whichever wallet is selected (its balance must cover `actualAmount`).
+4. Show "Insufficient balance" against the chosen wallet, not always the investor's.
+5. In the **Preview** step (Step 3) add a "Funded By" row showing the chosen source so the agent confirms intent before clicking Confirm.
 
-Register the template under key `angel-pool-share-purchase` in `supabase/functions/_shared/transactional-email-templates/registry.ts`. Subject line: `"Angel Pool share purchase confirmed — {{shares}} shares ({{reference}})"`.
+Pass the new field `funding_source: 'investor' | 'agent'` to the edge function.
 
-## Step 2 — Send the email from the edge function (server-side, post-confirm)
+## Edge function changes — `supabase/functions/agent-angel-pool-invest/index.ts`
 
-Edit `supabase/functions/agent-angel-pool-invest/index.ts`. After the investment + commission ledger entries succeed and *after* the `angel_pool_investments` row is inserted (so `available_shares` is accurate), do the following — all inside a `try { … } catch` that **never fails the request** (email is best-effort, the financial transaction is the source of truth):
+1. Accept `funding_source` in the request body; default `'investor'` for backward compatibility. Validate it's one of the two allowed values.
+2. Resolve the **funding user id**: `investor_id` if `'investor'`, else `user.id` (agent).
+3. Balance check uses `get_user_available_balance(funding_user_id)` (strict withdrawable rule) instead of the cached `wallets.balance`. Reject if insufficient.
+4. The wallet `cash_out` ledger leg's `user_id` becomes the funding user. The platform `cash_in` (`pool_capital_received`) leg's description is annotated with `funded_by_agent=true` when applicable, so CFO reconciliation can distinguish.
+5. The investment row records `payment_method` plus a new metadata field `funded_by` (`'investor' | 'agent'`) so the audit trail is permanent. (Stored in existing `investment_reference` if no metadata column exists, but we'll add a `funded_by` column via migration if missing — see step 6.)
+6. **Migration** — add `funded_by text not null default 'investor'` (CHECK in `('investor','agent')`) to `angel_pool_investments`. Plus a small index for analytics.
+7. Agent commission logic stays unchanged — still credited to the agent (1%), regardless of funding source.
+8. Email already sent to the investor stays unchanged; we add a `funded_by` line to the template and pass it through (small visual addition, no breaking change).
 
-1. Read the investor's `profiles.email` and `profiles.full_name` via the admin client.
-2. If `email` is non-empty, recompute `available_shares` from the fresh `angel_pool_investments` aggregate (post-insert).
-3. `await adminClient.functions.invoke('send-transactional-email', { body: { templateName: 'angel-pool-share-purchase', recipientEmail: email, idempotencyKey: \`angel-pool-${referenceId}\`, templateData: { …all the props above… } } })`.
-4. Log a `system_event` `agent_angel_pool_email_sent` (or `…_skipped` if no email on file).
+## Safety / governance
 
-Idempotency: the `idempotencyKey` derives from `reference_id`, so even if the agent retries the dialog the email won't be sent twice.
+- Strict withdrawable RPC means agent can never overspend their float — only their truly withdrawable balance can fund a share purchase.
+- System event `agent_angel_pool_investment` payload gains `funded_by` for full auditability.
+- Backward compatible: existing callers without `funding_source` behave exactly as before.
 
-## Step 3 — UI: no changes required
+## Files touched
 
-The dialog already calls `agent-angel-pool-invest` only on **Confirm**, then advances to the success step. Email dispatch happens server-side as part of that same call, so the contract — *“only after Confirm”* — is automatically honored. No client-side email trigger is added (which would be insecure and bypassable).
-
-## Data accuracy guarantees
-
-- All UGX figures are formatted server-side with `toLocaleString('en-US')` to give the comma grouping shown in the mockup (e.g. `200,000`).
-- `ownership_percentage` uses `.toFixed(4)` to match the dialog's `0.0032%` precision.
-- `available_shares` is **always** read post-insert so the user sees the true remaining inventory at the moment they bought, not a stale figure.
-- `purchase_date` is the server transaction timestamp (`txDate`) — same value persisted to the ledger — so the email and the ledger never disagree.
-- Reference ID in the email is the exact `referenceId` written to `angel_pool_investments` and to both ledger legs.
-
-## Out of scope
-
-- No SMS fallback for investors with no email on file (logged-only). Can be added later via the existing Africa's Talking integration if you want.
-- `pool_round` is currently a constant; if/when a `pool_rounds` table is introduced this becomes a one-line lookup.
+1. `src/components/agent/AgentAngelPoolInvestDialog.tsx` — wallet picker UI + agent balance fetch + payload field.
+2. `supabase/functions/agent-angel-pool-invest/index.ts` — funding source routing + strict balance check + ledger user routing + system event metadata.
+3. `supabase/functions/_shared/transactional-email-templates/angel-pool-share-purchase.tsx` — small "Funded by" row.
+4. New migration adding `funded_by` to `angel_pool_investments`.
