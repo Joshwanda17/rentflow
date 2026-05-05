@@ -76,56 +76,54 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
     queryClient.removeQueries({ queryKey: ['deduction-balance-search'] });
   }, [queryClient]);
 
-  // Overlay live wallet bucket balances onto candidate users. CFO deductions
-  // are allowed against the wallet bucket even when older strict ledger net is
-  // lower, so the UI must not clamp results with get_user_available_balance.
+  // Overlay ledger-backed withdrawable balances onto candidate users. Float is
+  // shown separately for context, but it is never counted as deductible here.
   const overlayWalletBalances = async (
     rows: Array<{ id: string; full_name: string; phone: string }>,
   ): Promise<UserResult[]> => {
     if (rows.length === 0) return [];
     const { data } = await supabase
-      .from('wallets')
-      .select('user_id, balance, withdrawable_balance, float_balance')
+      .from('v_user_wallet_strict')
+      .select('user_id, withdrawable, float_balance')
       .in('user_id', rows.map((r) => r.id));
     const byUser = new Map((data || []).map((w) => [w.user_id, w]));
     return rows.map((r) => {
       const w = byUser.get(r.id);
+      const withdrawable = Math.max(0, Number(w?.withdrawable ?? 0));
       return {
         ...r,
-        balance: Number(w?.balance ?? 0),
-        withdrawable_balance: Math.max(0, Number(w?.withdrawable_balance ?? 0)),
+        balance: withdrawable,
+        withdrawable_balance: withdrawable,
         float_balance: Math.max(0, Number(w?.float_balance ?? 0)),
       };
     });
   };
 
-  // Live wallet bucket for the selected user — this is what the backend now
-  // enforces for CFO wallet deductions.
+  // Live ledger-backed withdrawable for the selected user — matches the
+  // backend gate used by wallet deductions.
   const { data: availableBalance } = useQuery({
     queryKey: ['deduction-wallet-balance', selectedUser?.id],
     queryFn: async () => {
       if (!selectedUser) return null;
       const { data, error } = await supabase
-        .from('wallets')
-        .select('withdrawable_balance, float_balance')
+        .from('v_user_wallet_strict')
+        .select('withdrawable')
         .eq('user_id', selectedUser.id)
         .single();
       if (error) throw error;
-      const w = Math.max(0, Number(data?.withdrawable_balance ?? 0));
-      const f = Math.max(0, Number(data?.float_balance ?? 0));
-      return w + f;
+      return Math.max(0, Number(data?.withdrawable ?? 0));
     },
     enabled: !!selectedUser,
   });
 
-  // Combined deductible = withdrawable + float. Backend splits across buckets.
+  // Deductible = withdrawable only. Float is company money and stays excluded.
   const trueBalance = selectedUser
-    ? (availableBalance ?? (selectedUser.withdrawable_balance + selectedUser.float_balance))
+    ? (availableBalance ?? selectedUser.withdrawable_balance)
     : 0;
 
   // Search users by name/phone
   const { data: searchResults, isFetching: searching } = useQuery({
-    queryKey: ['deduction-user-search', 'v3-wallet-bucket', searchQuery],
+    queryKey: ['deduction-user-search', 'v4-strict-withdrawable', searchQuery],
     staleTime: 0,
     gcTime: 0,
     queryFn: async () => {
@@ -138,7 +136,7 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
 
       if (!data || data.length === 0) return [];
 
-      // Use wallet bucket balances — this matches the wallet-deduction gate.
+      // Use strict withdrawable — this matches the wallet-deduction gate.
       return overlayWalletBalances(
         data.map((u) => ({
           id: u.id,
@@ -152,7 +150,7 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
 
   // Search by balance range via RPC
   const { data: balanceResults, isFetching: balanceSearching } = useQuery({
-    queryKey: ['deduction-balance-search', 'v3-wallet-bucket', minBalance, maxBalance, balanceSearchTriggered],
+    queryKey: ['deduction-balance-search', 'v4-strict-withdrawable', minBalance, maxBalance, balanceSearchTriggered],
     staleTime: 0,
     gcTime: 0,
     queryFn: async () => {
@@ -171,7 +169,7 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
         throw error;
       }
       console.log('[WalletDeductionPanel] balance search', { min, max, count: (data || []).length });
-      let rows = (data || []) as Array<{
+      const rows = (data || []) as Array<{
         user_id: string;
         full_name: string | null;
         phone: string | null;
@@ -179,8 +177,6 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
         withdrawable_balance?: number | string | null;
         float_balance?: number | string | null;
       }>;
-      // Float is company money we owe back to the user — operators MUST
-      // see it as a separate figure so they never deduct from a liability.
       const mapped = rows.map((r) => ({
         id: r.user_id,
         full_name: r.full_name || 'Unnamed',
@@ -273,14 +269,14 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
           </div>
           <div className="text-right shrink-0 space-y-0.5">
             <div>
-              <p className="text-[10px] text-muted-foreground leading-none">Deductible</p>
+              <p className="text-[10px] text-muted-foreground leading-none">Withdrawable</p>
               <p className="text-sm font-semibold leading-tight">
-                {formatUGX(u.withdrawable_balance + u.float_balance)}
+                {formatUGX(u.withdrawable_balance)}
               </p>
             </div>
             {u.float_balance > 0 && (
               <p className="text-[10px] text-amber-600 leading-tight mt-0.5">
-                incl. float {formatUGX(u.float_balance)}
+                float excluded {formatUGX(u.float_balance)}
               </p>
             )}
           </div>
@@ -397,14 +393,14 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
                     return (
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                         <span className="text-muted-foreground">
-                          {balanceResults.length} wallets
+                          {balanceResults.length} withdrawable wallets
                         </span>
                         <span className="text-foreground">
                           <strong>{withW.length}</strong> with withdrawable · <strong>{formatUGX(totalW)}</strong>
                         </span>
                         {withF.length > 0 && (
                           <span className="text-amber-700">
-                            <strong>{withF.length}</strong> carry float · <strong>{formatUGX(totalF)}</strong> <span className="text-amber-600">(owed)</span>
+                            <strong>{withF.length}</strong> also carry float · <strong>{formatUGX(totalF)}</strong> <span className="text-amber-600">(excluded)</span>
                           </span>
                         )}
                       </div>
@@ -442,7 +438,7 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
                   <Wallet className="h-3 w-3" /> Withdrawable
                 </div>
                 <p className="text-sm font-bold mt-0.5">{formatUGX(trueBalance)}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Deductible from this tool</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Only this amount can be deducted</p>
               </div>
               <div className={cn(
                 "rounded-lg border p-2.5",

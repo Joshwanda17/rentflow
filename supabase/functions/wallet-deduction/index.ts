@@ -108,12 +108,22 @@ Deno.serve(async (req) => {
     const cacheWithdrawable = Math.max(0, Number(wallet.withdrawable_balance ?? 0));
     const cacheFloat = Math.max(0, Number(wallet.float_balance ?? 0));
 
-    // CFO/FinOps deductions pull whatever is currently visible on the wallet,
-    // regardless of bucket. The UI shows the combined deductible figure
-    // (withdrawable + float) and the operator deducts that amount; we then
-    // split the posting across buckets.
+    // CFO/FinOps deductions can only pull ledger-backed withdrawable funds.
+    // Float is company money owed to the user, so it is shown separately in
+    // the UI but never counted as deductible.
     const isRetraction = safeCategory === 'cash_payout_retraction';
-    const trueAvailable = cacheWithdrawable + cacheFloat;
+    const { data: strictAvailableData, error: strictAvailableErr } = await adminClient.rpc(
+      'get_user_available_balance',
+      { p_user_id: target_user_id },
+    );
+    if (strictAvailableErr) {
+      console.error('[wallet-deduction] strict balance RPC failed', strictAvailableErr);
+      return new Response(JSON.stringify({ error: 'Could not verify withdrawable balance' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const trueAvailable = Math.max(0, Number(strictAvailableData ?? 0));
 
     if (amount > trueAvailable) {
       console.error("[wallet-deduction] rejected", {
@@ -125,7 +135,7 @@ Deno.serve(async (req) => {
       });
       return new Response(
         JSON.stringify({
-          error: `Maximum deductible from wallet: UGX ${trueAvailable.toLocaleString()} (requested UGX ${amount.toLocaleString()}). Withdrawable UGX ${cacheWithdrawable.toLocaleString()} + Float UGX ${cacheFloat.toLocaleString()}.`,
+          error: `Maximum withdrawable deductible: UGX ${trueAvailable.toLocaleString()} (requested UGX ${amount.toLocaleString()}). Float UGX ${cacheFloat.toLocaleString()} is excluded.`,
         }),
         {
           status: 400,
@@ -134,28 +144,27 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Defensive live recheck against the wallet buckets immediately before
-    // posting (prevents stale UI submissions).
-    const { data: freshWallet } = await adminClient
-      .from('wallets')
-      .select('withdrawable_balance, float_balance')
-      .eq('user_id', target_user_id)
-      .single();
-    const liveWithdrawable = Math.max(0, Number(freshWallet?.withdrawable_balance ?? 0));
-    const liveFloat = Math.max(0, Number(freshWallet?.float_balance ?? 0));
-    const liveAvailable = liveWithdrawable + liveFloat;
+    // Defensive live recheck immediately before posting (prevents stale UI submissions).
+    const { data: liveAvailableData, error: liveAvailableErr } = await adminClient.rpc(
+      'get_user_available_balance',
+      { p_user_id: target_user_id },
+    );
+    if (liveAvailableErr) {
+      console.error('[wallet-deduction] live strict balance RPC failed', liveAvailableErr);
+      return new Response(JSON.stringify({ error: 'Could not re-check withdrawable balance' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const liveAvailable = Math.max(0, Number(liveAvailableData ?? 0));
     if (liveAvailable < amount) {
       return new Response(
         JSON.stringify({
-          error: `Wallet balance changed: now UGX ${liveAvailable.toLocaleString()}. Refresh and try again.`,
+          error: `Withdrawable balance changed: now UGX ${liveAvailable.toLocaleString()}. Refresh and try again.`,
         }),
         { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
-
-    // Take from withdrawable first, then spill into float bucket.
-    const withdrawablePortion = Math.min(amount, liveWithdrawable);
-    const floatPortion = Math.max(0, amount - withdrawablePortion);
 
     // Get target user profile for audit
     const { data: targetProfile } = await adminClient
@@ -166,10 +175,11 @@ Deno.serve(async (req) => {
 
     const targetName = targetProfile?.full_name || "Unknown";
 
-    // Build balanced ledger entries. If the withdrawable bucket can't cover
-    // the full amount, split: wallet_deduction (withdrawable) + float_retraction (float).
+    // Build balanced ledger entries against withdrawable only.
     const nowIso = new Date().toISOString();
     const entries: any[] = [];
+    const withdrawablePortion = amount;
+    const floatPortion = 0;
 
     const ledgerCategory = isRetraction
       ? 'wallet_deduction_cash_payout_retraction'
@@ -200,39 +210,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (floatPortion > 0) {
-      entries.push({
-        user_id: target_user_id,
-        amount: floatPortion,
-        direction: 'cash_out',
-        category: ledgerCategory,
-        ledger_scope: 'wallet',
-        description: `Float bucket deduction (${safeCategory}): ${reason}`,
-        currency: 'UGX',
-        source_table: 'wallet_deductions',
-        linked_party: user.id,
-        transaction_date: nowIso,
-        recipient_type: 'operational_wallet',
-      });
-      entries.push({
-        direction: 'cash_in',
-        amount: floatPortion,
-        category: ledgerCategory,
-        ledger_scope: 'platform',
-        description: `Platform receives float deduction (${safeCategory}): ${reason}`,
-        currency: 'UGX',
-        source_table: 'wallet_deductions',
-        transaction_date: nowIso,
-      });
-    }
-
     const { data: txnGroupId, error: ledgerErr } = await adminClient.rpc('create_ledger_transaction', {
       entries,
       idempotency_key: `wallet-deduction-${target_user_id}-${crypto.randomUUID()}`,
-      // CFO wallet deductions are an authorized cache-cleanup / recovery path.
-      // The live wallet bucket recheck above is the gate; bypass the
-      // all-time ledger solvency guard so anchored users with negative legacy
-      // ledger history can still have their current withdrawable cache removed.
+      // CFO wallet deductions are gated by get_user_available_balance above.
       skip_balance_check: true,
     });
 
