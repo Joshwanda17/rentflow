@@ -447,7 +447,7 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
       </Dialog>
 
       {/* Shareholder Action Dialog — CEO only */}
-      <Dialog open={!!actionType} onOpenChange={(open) => { if (!open) closeAction(); }}>
+      <Dialog open={!!actionType && actionType !== 'view'} onOpenChange={(open) => { if (!open) closeAction(); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
@@ -497,6 +497,77 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
             >
               {actionLoading ? 'Processing...' : actionType === 'delete' ? 'Delete' : actionType === 'suspend' ? 'Suspend' : 'Save Changes'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Shareholder Profile Dialog — CEO only */}
+      <Dialog open={actionType === 'view'} onOpenChange={(open) => { if (!open) closeAction(); }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Eye className="h-5 w-5" /> Shareholder Profile</DialogTitle>
+            <DialogDescription>Full investor details and transaction history. This view is logged.</DialogDescription>
+          </DialogHeader>
+          {profileLoading ? (
+            <div className="py-8 text-center text-muted-foreground">Loading profile...</div>
+          ) : selectedInvestor && (
+            <div className="space-y-5">
+              <Card>
+                <CardContent className="pt-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-bold">{profileData?.full_name || selectedInvestor.name}</h3>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary capitalize">{profileData?.role || '—'}</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                    <div className="flex items-center gap-2 text-muted-foreground"><Mail className="h-3.5 w-3.5" /> {profileData?.email || '—'}</div>
+                    <div className="flex items-center gap-2 text-muted-foreground"><Phone className="h-3.5 w-3.5" /> {profileData?.phone || '—'}</div>
+                    <div className="flex items-center gap-2 text-muted-foreground"><Calendar className="h-3.5 w-3.5" /> Joined {profileData?.created_at ? format(new Date(profileData.created_at), 'dd MMM yyyy') : '—'}</div>
+                    <div className="flex items-center gap-2 text-muted-foreground"><Hash className="h-3.5 w-3.5" /> {profileData?.country || '—'}</div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <Card><CardContent className="pt-3 pb-2 px-3"><p className="text-xs text-muted-foreground">Total Shares</p><p className="text-base font-bold">{fmt(selectedInvestor.total_shares)}</p></CardContent></Card>
+                <Card><CardContent className="pt-3 pb-2 px-3"><p className="text-xs text-muted-foreground">Invested</p><p className="text-base font-bold">UGX {fmt(selectedInvestor.total_amount)}</p></CardContent></Card>
+                <Card><CardContent className="pt-3 pb-2 px-3"><p className="text-xs text-muted-foreground">Pool %</p><p className="text-base font-bold">{selectedInvestor.pool_pct.toFixed(4)}%</p></CardContent></Card>
+                <Card><CardContent className="pt-3 pb-2 px-3"><p className="text-xs text-muted-foreground">Company %</p><p className="text-base font-bold">{selectedInvestor.company_pct.toFixed(4)}%</p></CardContent></Card>
+              </div>
+
+              <div>
+                <h4 className="text-sm font-semibold mb-2">Transactions ({profileTxns.length})</h4>
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Reference ID</TableHead>
+                        <TableHead className="text-right">Shares</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {profileTxns.length === 0 && (
+                        <TableRow><TableCell colSpan={5} className="text-center py-4 text-muted-foreground text-sm">No transactions</TableCell></TableRow>
+                      )}
+                      {profileTxns.map((t, i) => (
+                        <TableRow key={i}>
+                          <TableCell className="font-mono text-xs">{t.reference_id || '—'}</TableCell>
+                          <TableCell className="text-right">{fmt(t.shares)}</TableCell>
+                          <TableCell className="text-right">UGX {fmt(t.amount)}</TableCell>
+                          <TableCell className="text-xs">{format(new Date(t.created_at), 'dd MMM yyyy')}</TableCell>
+                          <TableCell><span className="text-xs capitalize">{t.status}</span></TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={closeAction}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
