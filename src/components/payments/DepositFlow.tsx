@@ -2095,5 +2095,54 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         })()}
       </DialogContent>
     </Dialog>
+    <Dialog open={smsPasteOpen} onOpenChange={setSmsPasteOpen}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <ClipboardPaste className="h-4 w-4 text-primary" />
+            Paste your SMS
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Paste the full payment confirmation SMS below. We'll auto-fill
+            the amount, transaction ID, date and time.
+          </p>
+          <Textarea
+            value={smsPasteText}
+            onChange={(e) => setSmsPasteText(e.target.value)}
+            placeholder={'e.g. "You have received UGX 50,000. TID144205097399 on 04/05/2026 at 14:32"'}
+            rows={6}
+            className="font-mono text-xs"
+            autoFocus
+          />
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={() => setSmsPasteOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="flex-1"
+              onClick={() => {
+                const ok = applyPastedSms(smsPasteText);
+                if (ok) {
+                  setSmsPasteOpen(false);
+                  setSmsPasteText('');
+                }
+              }}
+              disabled={!smsPasteText.trim()}
+            >
+              Extract & fill
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
