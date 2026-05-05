@@ -229,14 +229,14 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
       resetForm();
       queryClient.invalidateQueries({ queryKey: ['deduction-user-search'] });
       queryClient.invalidateQueries({ queryKey: ['deduction-balance-search'] });
-      queryClient.invalidateQueries({ queryKey: ['deduction-available-balance'] });
+      queryClient.invalidateQueries({ queryKey: ['deduction-wallet-balance'] });
     },
     onError: (err: Error) => {
       toast.error(err.message);
       setConfirmStep(false);
-      // Refresh the strict balance so the CFO immediately sees the corrected
-      // ceiling after a "Maximum deductible" or "Balance changed" rejection.
-      queryClient.invalidateQueries({ queryKey: ['deduction-available-balance'] });
+      // Refresh the live wallet bucket so the CFO immediately sees the
+      // corrected ceiling after a rejection.
+      queryClient.invalidateQueries({ queryKey: ['deduction-wallet-balance'] });
     },
   });
 
