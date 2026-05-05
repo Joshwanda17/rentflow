@@ -1,64 +1,30 @@
-## Goal
+I found the current CEO Angel Pool delete flow is only doing a client-side `UPDATE status='deleted'`, then immediately showing success. The dashboard list is filtered to `status='confirmed'`, so if the update truly succeeds the shareholder should disappear and their shares should automatically be counted as available again. Since SSENKAALI PIUS still has a `confirmed` Angel Pool investment in the database, the update is not reliably affecting the row even though the UI says success.
 
-Support the new MTN MoMo SMS receipt where the transaction id is written as `ID: 40473329892` (bare digits) instead of the old `MP…` prefix, so pasting it into DepositFlow auto-fills the TID and passes validation.
+Plan:
 
-Sample SMS we must parse:
-```
-You have paid WELILE TECHNOLOGIES LIMITED 090777 UGX 1,000.
-Fee: UGX 0. New balance: UGX 480,692.86. ID: 40473329892.
-Download MoMo App http://bit.ly/3KGlEJJ to get 500MBs.
-```
+1. Replace the fragile client-side delete/suspend/edit updates with a backend-controlled action RPC for Angel Pool shareholder actions.
+   - The RPC will check that the caller is CEO/manager.
+   - It will require the mandatory 10+ character reason.
+   - For delete, it will update all confirmed rows for that investor to `deleted` and return the number of rows changed, shares released, and amount released.
+   - For suspend, it will update confirmed rows to `suspended` and return the count.
+   - For edit, it will safely update allocation values and return the count.
 
-## Changes
+2. Make the CEO dashboard fail loudly if nothing was changed.
+   - If delete returns `0` affected rows, the UI will show an error instead of “success”.
+   - If delete succeeds, the toast will confirm how many shares were released back to the pool.
+   - The row will be removed from “All Shareholders” because the list only includes confirmed investments.
 
-### 1. `src/utils/smsParser.ts`
-Add a new MTN matcher after the existing `MP…` and `TID…` ones, before the generic Ref/Receipt fallback:
+3. Ensure released shares are reflected in the pool immediately.
+   - The dashboard already calculates `Shares Sold` and `Shares Left` from confirmed investments only.
+   - After delete, invalidate/refetch both `angel-pool-management-investors` and the shared `angel-pool-data` queries so all Angel Pool widgets update.
 
-```ts
-// New MTN format: "ID: 40473329892"
-const mtnNew = text.match(/(?:^|[^A-Z])ID[:\s.#-]+(\d{8,18})\b/i);
-```
+4. Improve profile fetching for the shareholder profile dialog.
+   - Fetch profile data with a CEO/manager-safe backend RPC or broaden the existing profile read policy for CEO if needed.
+   - Keep the view audit log.
+   - Show fallback profile fields when some values are missing, instead of blank profile information.
 
-Matching priority (unchanged for old SMS):
-1. `MP…` (legacy MTN)
-2. `TID…` (Airtel — leading word boundary already excludes "TID" from being eaten by the new ID rule because we match the `MP`/`TID` rules first)
-3. `ID: <digits>` (new MTN) — store as the raw digit string (`"40473329892"`)
-4. Generic `Ref/Receipt/Txn ID …`
-
-Also confirm the amount rule still picks `UGX 1,000` and skips `Fee: UGX 0` and `New balance: UGX 480,692.86` — the existing `skipRe` already covers `fee` and `balance`, so no change needed.
-
-The sample SMS has no date/time, so those fields will stay empty and the user fills them manually (existing behaviour, already toasts a warning).
-
-### 2. `src/components/payments/DepositFlow.tsx`
-
-Two MTN TID checks currently insist on the `MP` prefix and would reject the new digit-only id.
-
-a. `applyPastedSms` (≈ line 383) — provider auto-detect:
-```ts
-if (parsed.transactionId?.startsWith('MP')) detectedProvider = 'mtn';
-else if (parsed.transactionId?.startsWith('TID')) detectedProvider = 'airtel';
-else if (/^\d{8,}$/.test(parsed.transactionId ?? '')) detectedProvider = 'mtn';
-```
-
-b. `validateTid` (≈ line 681) — accept either `MP…` or a pure 8–18 digit string for MTN:
-```ts
-if (prov === 'mtn' && !/^MP[A-Z0-9]{6,}$/.test(upper) && !/^\d{8,18}$/.test(upper)) {
-  setTidError("MTN TIDs must start with 'MP' or be the numeric ID from your SMS (e.g. MP39665905645 or 40473329892)");
-}
-```
-
-c. `isTidValid` (≈ line 694) — same dual rule:
-```ts
-if (momoProvider === 'mtn') return /^MP[A-Z0-9]{6,}$/.test(upper) || /^\d{8,18}$/.test(upper);
-```
-
-d. `computeBlockReason` (≈ line 757) — mirror the new rule and update the error string so the inline hint matches what we just allowed.
-
-e. Update the MTN placeholder/help text in the TID input (≈ lines 738, 1535, 1569) to mention both formats: `"e.g. MP39665905645 or 40473329892"`.
-
-No DB or edge-function changes — TIDs are already stored as free text.
-
-## Out of scope
-
-- Date/time auto-extraction for SMS that don't contain them (the new MTN format omits both — manual entry stays).
-- Any change to the receipt-number / RCT flow.
+5. Verify the specific record after implementation.
+   - Test against SSENKAALI PIUS’ current confirmed investment.
+   - Confirm the database status changes from `confirmed` to `deleted` or is soft-deleted.
+   - Confirm the shareholder disappears from the CEO “All Shareholders” list.
+   - Confirm `Shares Left` increases by the deleted shareholder’s shares.

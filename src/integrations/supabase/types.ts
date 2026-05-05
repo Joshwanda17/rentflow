@@ -14701,6 +14701,15 @@ export type Database = {
         }
         Returns: Json
       }
+      ceo_angel_pool_shareholder_action: {
+        Args: {
+          p_action: string
+          p_investor_id: string
+          p_new_shares?: number
+          p_reason: string
+        }
+        Returns: Json
+      }
       cfo_correct_trail_entry: {
         Args: {
           p_audit_id: string
