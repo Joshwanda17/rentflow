@@ -310,11 +310,11 @@ export function ImageLightbox({
           <div ref={imgContainerRef} className="flex-1 relative overflow-hidden flex items-center justify-center">
             {images.length > 1 && !isZoomed && (
               <>
-                <Button variant="ghost" size="icon" onClick={goToPrevious}
+                <Button variant="ghost" size="icon" onClick={goToPrevious} aria-label="Previous image"
                   className="absolute left-4 z-10 h-12 w-12 rounded-full text-white/70 hover:text-white hover:bg-white/10 hidden md:flex">
                   <ChevronLeft className="h-8 w-8" />
                 </Button>
-                <Button variant="ghost" size="icon" onClick={goToNext}
+                <Button variant="ghost" size="icon" onClick={goToNext} aria-label="Next image"
                   className="absolute right-4 z-10 h-12 w-12 rounded-full text-white/70 hover:text-white hover:bg-white/10 hidden md:flex">
                   <ChevronRight className="h-8 w-8" />
                 </Button>
@@ -376,17 +376,21 @@ export function ImageLightbox({
 
           {/* Thumbnails */}
           {images.length > 1 && (
-            <div className="p-3 sm:p-4 overflow-x-auto">
+            <div className="p-3 sm:p-4 overflow-x-auto" role="tablist" aria-label="Image thumbnails">
               <div className="flex gap-2 justify-center">
                 {images.map((image, index) => (
                   <button
                     key={image.id}
+                    role="tab"
+                    aria-selected={index === currentIndex}
+                    aria-label={`View image ${index + 1} of ${images.length}`}
+                    tabIndex={index === currentIndex ? 0 : -1}
                     onClick={() => {
                       setDirection(index > currentIndex ? 1 : -1);
                       setCurrentIndex(index);
                     }}
                     className={cn(
-                      'flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden border-2 transition-all',
+                      'flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden border-2 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white',
                       index === currentIndex
                         ? 'border-white opacity-100 scale-105'
                         : 'border-transparent opacity-50 hover:opacity-75'
@@ -401,10 +405,11 @@ export function ImageLightbox({
 
           {/* Dots - Mobile */}
           {images.length > 1 && images.length <= 10 && (
-            <div className="flex justify-center gap-1.5 pb-4 md:hidden">
+            <div className="flex justify-center gap-1.5 pb-4 md:hidden" aria-hidden="true">
               {images.map((_, index) => (
                 <button
                   key={index}
+                  tabIndex={-1}
                   onClick={() => {
                     setDirection(index > currentIndex ? 1 : -1);
                     setCurrentIndex(index);
