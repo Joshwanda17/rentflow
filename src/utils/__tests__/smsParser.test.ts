@@ -37,4 +37,14 @@ describe('parseSMS', () => {
     expect(r.date).toBe('2026-01-01');
     expect(r.time).toBeUndefined();
   });
+
+  it('parses MTN "sent" SMS with ISO date+time and "ID :" TID', () => {
+    const sms =
+      'You have sent UGX 150000 to LYDIA NAMUGENYI, 256767652611 on 2026-05-05 15:08:28, fee: 1000. Reason: Rent Paid. New balance: 4736158. ID :40479927536. Download MoMo App http://bit.ly/3KGlEJJ to get 500MBs.';
+    const r = parseSMS(sms);
+    expect(r.amount).toBe(150000);
+    expect(r.transactionId).toBe('40479927536');
+    expect(r.date).toBe('2026-05-05');
+    expect(r.time).toBe('15:08');
+  });
 });
