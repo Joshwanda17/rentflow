@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
-import { MapPin, DoorOpen, Home, ChevronRight, ChevronLeft, ShieldCheck, Clock, ExternalLink, ZoomIn } from 'lucide-react';
+import { MapPin, DoorOpen, Home, ChevronRight, ChevronLeft, ShieldCheck, Clock, ExternalLink, ZoomIn, Navigation } from 'lucide-react';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
 import HouseRatingBadge from '@/components/house/HouseRatingBadge';
@@ -28,7 +28,8 @@ function MiniMapThumb({ lat, lng, title }: { lat: number | null; lng: number | n
       target="_blank"
       rel="noopener noreferrer"
       onClick={(e) => e.stopPropagation()}
-      className="block relative w-full h-20 rounded-lg overflow-hidden bg-muted border border-border group"
+      aria-label={`Open ${title} in Google Maps`}
+      className="block relative w-full h-20 rounded-lg overflow-hidden bg-muted border-2 border-primary/40 ring-1 ring-primary/20 shadow-sm active:scale-[0.98] transition-transform"
     >
       <iframe
         src={mapUrl}
@@ -37,11 +38,10 @@ function MiniMapThumb({ lat, lng, title }: { lat: number | null; lng: number | n
         loading="lazy"
         style={{ border: 0 }}
       />
-      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-        <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-          <ExternalLink className="h-3 w-3" /> Open Map
-        </span>
-      </div>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
+      <span className="absolute bottom-1 left-1 right-1 mx-auto w-fit bg-primary text-primary-foreground text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-md">
+        <Navigation className="h-3 w-3" /> Tap to open in Google Maps
+      </span>
     </a>
   );
 }
