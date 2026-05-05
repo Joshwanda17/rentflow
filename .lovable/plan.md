@@ -1,45 +1,53 @@
-## Goal
-Upgrade the existing "Paste from SMS" button in `DepositFlow` from a TID-only paste into a full SMS parser that auto-fills **Amount, Transaction ID, Date, and Time** in one tap, and hard-blocks submission when any of the four are missing or look wrong.
+## Problem
 
-Validation for date/time at submit already exists (`computeBlockReason` lines 690–695) — this plan strengthens the paste step and the disabled-state of the Confirm button.
+The example SMS the user shared exposes two parser gaps in `src/utils/smsParser.ts`:
 
-## Changes
+```
+PAID.TID 146525101664. UGX 300,000 to WELILE TECHNOLOGIES LIMITED Charge UGX 0. Bal UGX 323,546. 04-May-2026 16:20
+```
 
-### 1. New utility: `src/utils/smsParser.ts`
-Pure function `parseSMS(text)` returning `{ amount?, transactionId?, date?, time? }`.
+Current behaviour against this string:
+- ✅ **Amount** — `UGX 300,000` parses to `300000`.
+- ❌ **TID** — regex is `\bTID\d{4,18}\b` (no separator), but the SMS has `TID 146525101664` with a **space**. No match.
+- ❌ **Date** — regex only accepts numeric `DD-MM-YYYY` / `YYYY-MM-DD`. `04-May-2026` (month name) is rejected.
+- ⚠️ **Bal UGX 323,546** appears *after* the paid amount — current amount regex grabs the **first** UGX token, which is the paid amount, so this is fine. But if a future SMS puts `Bal` before the paid amount we'd grab the wrong number. Worth hardening.
+- ✅ **Time** — `16:20` parses correctly.
 
-Extraction rules (broader than the spec to cover real MTN/Airtel/bank SMS in UGX):
-- **Amount** — `/(?:UGX|USh|UShs|Shs)\s?([\d,]+(?:\.\d+)?)/i`, strip commas, parse as integer.
-- **Transaction ID** — try in order:
-  1. `/\bMP[A-Z0-9]{8,}\b/` (MTN)
-  2. `/\bTID\d{4,18}\b/` (Airtel — same regex `extractTidFromText` already uses)
-  3. `/\b(?:Txn\s?ID|Ref(?:erence)?|Receipt)[:\s#]*([A-Z0-9-]{4,})\b/i`
-- **Date** — `/\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}-\d{2}-\d{2})\b/`, normalised to `YYYY-MM-DD` for the `<input type="date">`.
-- **Time** — `/\b(\d{1,2}:\d{2}(?::\d{2})?\s?(?:AM|PM)?)\b/i`, normalised to 24h `HH:MM` for `<input type="time">`.
+## Fix
 
-Unit-friendly (no React deps) so we can add tests later.
+Single file change: `src/utils/smsParser.ts`.
 
-### 2. Wire parser into `DepositFlow.tsx`
-- Replace the body of `handlePasteTid` (lines 351–374) with a full SMS handler:
-  - Read clipboard (keep current Safari fallback toast).
-  - Call `parseSMS(text)`.
-  - For each non-empty field, populate `setAmount`, `setTransactionId` (+ run `validateTid` for MoMo), `setTransactionDate`, `setTransactionTime`.
-  - Auto-detect provider from TID prefix (`MP…` → mtn, `TID…` → airtel) and call `setMomoProvider` so the format validator picks the right rule.
-  - Toast summary: e.g. *"Pasted: UGX 50,000 · TID144… · 2026-05-04 14:32"*.
-  - If **any** of the 4 fields is missing → `toast.error("SMS missing required details — please paste the full confirmation message")` and highlight the first missing field via `setErrorFieldId`. Do **not** clear what we did parse — partial fill helps the agent finish manually.
-- Rename the helper to `handlePasteSms` and update the button label hint copy (line 1417 area) to read *"Paste full SMS"* with a tooltip explaining what gets filled.
+### 1. TID regex — allow optional separator
+Change Airtel matcher to tolerate space, dot, colon or dash between the `TID` token and the digits, then strip the separator when storing:
 
-### 3. Strict submit gate
-The existing `computeBlockReason()` already rejects missing `transactionDate`/`transactionTime`. We piggy-back on it:
-- Add a derived `isFormValid = computeBlockReason() === null` and pass `disabled={isSubmitting || !isFormValid}` to the Confirm button so it visibly greys out until **Amount + TID + Date + Time** (and other channel rules) are all satisfied. Today the button only disables on `isSubmitting`.
+```ts
+const airtel = text.match(/\bTID[\s.:#-]*?(\d{4,18})\b/i);
+if (airtel) result.transactionId = `TID${airtel[1]}`;
+```
 
-### 4. No backend / schema changes
-No migrations, no edge function changes, no RLS impact. Wallet/ledger flow is untouched — this is a UX + validation hardening pass on an existing form.
+Also keep MTN `MP…` and the generic `Ref/Receipt` fallback as today.
 
-## Out of scope
-- "Validate parsed amount vs expected ledger value" — there is no per-deposit expected amount on this flow (deposits are user-initiated, not invoice-bound). Server-side TID uniqueness + amount reconciliation already runs in the deposit verification pipeline; we won't duplicate it client-side.
-- Cross-checking the SMS sender / shortcode (browsers can't read SMS metadata from a clipboard string).
+### 2. Date regex — accept month-name format
+Add a second matcher for `DD-Mon-YYYY` (e.g. `04-May-2026`, `4 May 2026`, `04/May/26`) and normalise via a small month-name map (`Jan…Dec`, case-insensitive). Try numeric first, then named-month:
+
+```ts
+const named = text.match(/\b(\d{1,2})[\s/-](Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[\s/-](\d{2,4})\b/i);
+```
+
+Normalise to `YYYY-MM-DD`. Two-digit years → `20YY`.
+
+### 3. Amount — prefer the paid amount, not balance
+Strengthen the amount matcher to skip tokens that follow the word `Bal`/`Balance`/`Charge`. Easiest implementation: scan all `UGX <number>` matches in order and pick the first one that isn't immediately preceded (within ~6 chars) by `Bal`, `Balance`, or `Charge`. Fall back to the first match if all are filtered.
+
+### 4. Tests (lightweight)
+Add a short test file `src/utils/__tests__/smsParser.test.ts` covering:
+- The exact SMS in this thread.
+- An MTN `MP…` SMS.
+- An SMS with `Bal UGX …` before the paid line (to confirm we still grab the right amount).
+- An SMS missing the time (to confirm `time` is `undefined`, not a false match).
+
+No backend, schema, or `DepositFlow.tsx` changes needed — the consumer already reads `{amount, transactionId, date, time}` from the parser output.
 
 ## Files touched
-- `src/utils/smsParser.ts` (new)
-- `src/components/payments/DepositFlow.tsx` (replace `handlePasteTid`, button label, Confirm `disabled` prop)
+- `src/utils/smsParser.ts` — regex + month-name normalisation + amount-vs-balance disambiguation.
+- `src/utils/__tests__/smsParser.test.ts` — new, 4 cases.
