@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Download, FileBarChart, Search, X, Users, HandCoins, TrendingUp, PiggyBank, Percent, Wallet, Info, Calendar, Filter } from 'lucide-react';
+import { Download, FileBarChart, Search, X, Users, HandCoins, TrendingUp, PiggyBank, Percent, Wallet, Info, Calendar, Filter, Trophy, AlertTriangle, Activity, Building } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, subWeeks, startOfMonth, endOfMonth } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -72,7 +72,8 @@ const fmtPct = (n: number) => `${n.toFixed(1)}%`;
 type NumericKey =
   | 'tenants_total' | 'daily_portfolio' | 'expected_weekly' | 'collected'
   | 'efficiency' | 'gap' | 'payments' | 'pct_paid'
-  | 'commission' | 'interest' | 'wallet_total';
+  | 'commission' | 'interest' | 'wallet_total'
+  | 'daily_collection' | 'daily_commission' | 'rent_paid_out' | 'conversion_pct';
 type Range = { min?: number; max?: number };
 type StatusKey = AgentPerfRow['status'];
 type ColFilters = {
@@ -287,6 +288,13 @@ export function AgentPerformanceReport() {
         return q.lte('created_at', endISO);
       });
 
+      // Pull landlord payouts in window (rent paid out to landlords) — attributed to disbursing agent
+      const landlordPayouts = await fetchAll<{ agent_id: string; amount: number; status: string | null; disbursed_at: string | null; created_at: string }>(() => {
+        let q = supabase.from('landlord_payouts').select('agent_id, amount, status, disbursed_at, created_at');
+        if (startISO) q = q.gte('created_at', startISO);
+        return q.lte('created_at', endISO);
+      });
+
       // Pull rent_requests for tenant counts AND daily_portfolio.
       // We need TWO scopes:
       //  - rentReqsAll: ALL-time, used to attribute merchant payments (rent_request_id → agent_id),
@@ -391,6 +399,14 @@ export function AgentPerformanceReport() {
         if (type.includes('interest')) a.interest += Number(e.amount || 0);
         else if (type.includes('commission')) a.commissionEarnings += Number(e.amount || 0);
       });
+      // Aggregate rent paid out per agent (only successfully disbursed)
+      const rentPaidByAgent: Record<string, number> = {};
+      landlordPayouts.forEach(p => {
+        if (!p.agent_id) return;
+        const status = (p.status || '').toLowerCase();
+        if (!['disbursed', 'completed', 'paid', 'success'].includes(status) && !p.disbursed_at) return;
+        rentPaidByAgent[p.agent_id] = (rentPaidByAgent[p.agent_id] || 0) + Number(p.amount || 0);
+      });
       rentReqsInRange.forEach(r => {
         if (!r.agent_id || !r.tenant_id) return;
         ensure(r.agent_id).tenantsTotal.add(r.tenant_id);
@@ -452,6 +468,11 @@ export function AgentPerformanceReport() {
         });
       }
 
+      // Days in selected window (>=1 to avoid div by zero)
+      const windowDays = Math.max(1, Math.ceil(
+        ((range.end.getTime()) - ((range.start || range.end).getTime())) / (1000 * 60 * 60 * 24)
+      ) || 1);
+
       const rows: AgentPerfRow[] = Object.entries(agg).map(([id, a]) => {
         // Use ledger commission if present, else 5% of collected as display fallback
         const commission = a.commissionEarnings > 0 ? a.commissionEarnings : a.collected * 0.10;
@@ -465,6 +486,10 @@ export function AgentPerformanceReport() {
         const expectedWeekly = dailyPortfolio * 7;
         const efficiency = expectedWeekly ? (a.collected / expectedWeekly) * 100 : 0;
         const gap = expectedWeekly - a.collected;
+        const dailyCollection = a.collected / windowDays;
+        const dailyCommission = commission / windowDays;
+        const rentPaidOut = rentPaidByAgent[id] || 0;
+        const conversionPct = pctPaid; // tenants_paid / tenants_total (window)
         return {
           rank: 0,
           agent_name: profilesMap[id] || `Agent ${id.slice(0, 6)}`,
@@ -483,6 +508,10 @@ export function AgentPerformanceReport() {
           expected_weekly: expectedWeekly,
           efficiency,
           gap,
+          daily_collection: dailyCollection,
+          daily_commission: dailyCommission,
+          rent_paid_out: rentPaidOut,
+          conversion_pct: conversionPct,
         };
       })
       .filter(r => r.tenants_total > 0 || (r.daily_portfolio || 0) > 0)
@@ -500,9 +529,12 @@ export function AgentPerformanceReport() {
         daily_portfolio: (t.daily_portfolio || 0) + (r.daily_portfolio || 0),
         expected_weekly: (t.expected_weekly || 0) + (r.expected_weekly || 0),
         gap: (t.gap || 0) + (r.gap || 0),
-      }), { collected: 0, payments: 0, commission: 0, interest: 0, wallet_total: 0, tenants_paid: 0, tenants_total: 0, daily_portfolio: 0, expected_weekly: 0, gap: 0 });
+        daily_collection: (t.daily_collection || 0) + (r.daily_collection || 0),
+        daily_commission: (t.daily_commission || 0) + (r.daily_commission || 0),
+        rent_paid_out: (t.rent_paid_out || 0) + (r.rent_paid_out || 0),
+      }), { collected: 0, payments: 0, commission: 0, interest: 0, wallet_total: 0, tenants_paid: 0, tenants_total: 0, daily_portfolio: 0, expected_weekly: 0, gap: 0, daily_collection: 0, daily_commission: 0, rent_paid_out: 0 });
 
-      return { rows, totals };
+      return { rows, totals, windowDays };
     },
     staleTime: 60_000,
   });
@@ -543,9 +575,22 @@ export function AgentPerformanceReport() {
     daily_portfolio: (t.daily_portfolio || 0) + (r.daily_portfolio || 0),
     expected_weekly: (t.expected_weekly || 0) + (r.expected_weekly || 0),
     gap: (t.gap || 0) + (r.gap || 0),
-  }), { collected: 0, payments: 0, commission: 0, interest: 0, wallet_total: 0, tenants_paid: 0, tenants_total: 0, daily_portfolio: 0, expected_weekly: 0, gap: 0 }), [rows]);
+    daily_collection: (t.daily_collection || 0) + (r.daily_collection || 0),
+    daily_commission: (t.daily_commission || 0) + (r.daily_commission || 0),
+    rent_paid_out: (t.rent_paid_out || 0) + (r.rent_paid_out || 0),
+  }), { collected: 0, payments: 0, commission: 0, interest: 0, wallet_total: 0, tenants_paid: 0, tenants_total: 0, daily_portfolio: 0, expected_weekly: 0, gap: 0, daily_collection: 0, daily_commission: 0, rent_paid_out: 0 }), [rows]);
 
   const overallEfficiency = (totals.expected_weekly || 0) > 0 ? (totals.collected / (totals.expected_weekly || 1)) * 100 : 0;
+
+  // Best & Worst performer (by efficiency, must have collected > 0 to count)
+  const performersByEff = useMemo(() => rows.filter(r => r.collected > 0).slice(), [rows]);
+  const bestPerformer = useMemo(() =>
+    performersByEff.length ? [...performersByEff].sort((a, b) => (b.efficiency || 0) - (a.efficiency || 0))[0] : null
+  , [performersByEff]);
+  const worstPerformer = useMemo(() =>
+    performersByEff.length ? [...performersByEff].sort((a, b) => (a.efficiency || 0) - (b.efficiency || 0))[0] : null
+  , [performersByEff]);
+  const topConversion = useMemo(() => rows.reduce((m, r) => Math.max(m, r.conversion_pct || 0), 0), [rows]);
 
   const activeColFilterCount =
     (colFilters.name ? 1 : 0) +
@@ -675,6 +720,10 @@ export function AgentPerformanceReport() {
           { icon: PiggyBank,   label: 'Total Collected',      value: `UGX ${fmt(totals.collected)}`,                    tint: 'bg-sky-600',     text: 'text-sky-700' },
           { icon: Percent,     label: 'Overall Efficiency',   value: fmtPct(overallEfficiency),                         tint: 'bg-orange-500',  text: 'text-orange-600' },
           { icon: Wallet,      label: 'Total Wallet',         value: `UGX ${fmt(totals.wallet_total)}`,                 tint: 'bg-teal-600',    text: 'text-teal-700' },
+          { icon: Activity,    label: 'Daily Collections (Σ)', value: `UGX ${fmt(totals.daily_collection || 0)}`,       tint: 'bg-cyan-600',    text: 'text-cyan-700' },
+          { icon: HandCoins,   label: 'Daily Commissions (Σ)', value: `UGX ${fmt(totals.daily_commission || 0)}`,       tint: 'bg-fuchsia-600', text: 'text-fuchsia-700' },
+          { icon: Building,    label: 'Rent Paid Out (Period)', value: `UGX ${fmt(totals.rent_paid_out || 0)}`,         tint: 'bg-indigo-600',  text: 'text-indigo-700' },
+          { icon: Percent,     label: 'Top Conversion %',     value: fmtPct(topConversion),                             tint: 'bg-rose-600',    text: 'text-rose-700' },
         ].map((kpi, idx) => (
           <div key={idx} className="rounded-xl border border-border bg-card p-3 flex items-center gap-3">
             <div className={cn('h-10 w-10 rounded-full flex items-center justify-center text-white shrink-0', kpi.tint)}>
@@ -688,6 +737,40 @@ export function AgentPerformanceReport() {
         ))}
       </div>
 
+      {/* Best / Worst spotlight */}
+      {(bestPerformer || worstPerformer) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {bestPerformer && (
+            <div className="rounded-2xl border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-50 to-card dark:from-emerald-950/30 p-4 flex items-center gap-4">
+              <div className="h-12 w-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                <Trophy className="h-6 w-6" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] uppercase tracking-wide font-bold text-emerald-700 dark:text-emerald-400">Top Performer</div>
+                <div className="text-base font-extrabold truncate">{bestPerformer.agent_name}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  Collected <span className="font-semibold text-foreground">UGX {fmt(bestPerformer.collected)}</span> · Efficiency <span className="font-semibold text-emerald-700">{fmtPct(bestPerformer.efficiency || 0)}</span> · Conversion <span className="font-semibold">{fmtPct(bestPerformer.conversion_pct || 0)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+          {worstPerformer && worstPerformer !== bestPerformer && (
+            <div className="rounded-2xl border-2 border-red-500/40 bg-gradient-to-br from-red-50 to-card dark:from-red-950/30 p-4 flex items-center gap-4">
+              <div className="h-12 w-12 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] uppercase tracking-wide font-bold text-red-700 dark:text-red-400">Needs Attention</div>
+                <div className="text-base font-extrabold truncate">{worstPerformer.agent_name}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  Collected <span className="font-semibold text-foreground">UGX {fmt(worstPerformer.collected)}</span> · Efficiency <span className="font-semibold text-red-700">{fmtPct(worstPerformer.efficiency || 0)}</span> · Gap <span className="font-semibold text-red-700">UGX {fmt(worstPerformer.gap || 0)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Table — desktop */}
       <div className="hidden md:block rounded-2xl border border-border bg-card overflow-hidden">
         <div className="overflow-x-auto">
@@ -697,9 +780,9 @@ export function AgentPerformanceReport() {
               <tr className="text-[11px] uppercase tracking-wide">
                 <th className="bg-slate-800 px-2 py-2 text-center font-bold border-r border-slate-700" colSpan={2}>&nbsp;</th>
                 <th className="bg-blue-700 px-2 py-2 text-center font-bold border-r border-blue-800" colSpan={3}>Portfolio (What They Manage)</th>
-                <th className="bg-emerald-700 px-2 py-2 text-center font-bold border-r border-emerald-800" colSpan={3}>Collection Performance</th>
-                <th className="bg-amber-600 px-2 py-2 text-center font-bold border-r border-amber-700" colSpan={2}>Activity</th>
-                <th className="bg-purple-700 px-2 py-2 text-center font-bold border-r border-purple-800" colSpan={3}>Earnings</th>
+                <th className="bg-emerald-700 px-2 py-2 text-center font-bold border-r border-emerald-800" colSpan={4}>Collection Performance</th>
+                <th className="bg-amber-600 px-2 py-2 text-center font-bold border-r border-amber-700" colSpan={3}>Activity</th>
+                <th className="bg-purple-700 px-2 py-2 text-center font-bold border-r border-purple-800" colSpan={5}>Earnings & Payouts</th>
                 <th className="bg-slate-800 px-2 py-2 text-center font-bold">Status<br/><span className="text-[9px] font-normal normal-case opacity-80">(By Efficiency)</span></th>
               </tr>
               {/* Sub-header row */}
@@ -741,6 +824,13 @@ export function AgentPerformanceReport() {
                   </span>
                 </th>
                 <th className="bg-emerald-600 px-2 py-2 text-right font-semibold">
+                  <span className="inline-flex items-center gap-1.5 justify-end">Daily Avg<br/>Collection (UGX)
+                    <HeaderFilter active={isRangeActive(colFilters.ranges.daily_collection)} align="end" onClear={() => setRange('daily_collection', undefined)}>
+                      <NumericRangeFilter label="Daily Avg Collection (UGX)" value={colFilters.ranges.daily_collection} onChange={(r) => setRange('daily_collection', r)} />
+                    </HeaderFilter>
+                  </span>
+                </th>
+                <th className="bg-emerald-600 px-2 py-2 text-right font-semibold">
                   <span className="inline-flex items-center gap-1.5 justify-end">Efficiency<br/>(%)
                     <HeaderFilter active={isRangeActive(colFilters.ranges.efficiency)} align="end" onClear={() => setRange('efficiency', undefined)}>
                       <NumericRangeFilter label="Efficiency (%)" value={colFilters.ranges.efficiency} onChange={(r) => setRange('efficiency', r)} />
@@ -755,9 +845,9 @@ export function AgentPerformanceReport() {
                   </span>
                 </th>
                 <th className="bg-amber-500 px-2 py-2 text-right font-semibold">
-                  <span className="inline-flex items-center gap-1.5 justify-end">Payments<br/>(Count)
+                  <span className="inline-flex items-center gap-1.5 justify-end">Activities<br/>(Count)
                     <HeaderFilter active={isRangeActive(colFilters.ranges.payments)} align="end" onClear={() => setRange('payments', undefined)}>
-                      <NumericRangeFilter label="Payments (Count)" value={colFilters.ranges.payments} onChange={(r) => setRange('payments', r)} />
+                      <NumericRangeFilter label="Activities (Count)" value={colFilters.ranges.payments} onChange={(r) => setRange('payments', r)} />
                     </HeaderFilter>
                   </span>
                 </th>
@@ -765,6 +855,13 @@ export function AgentPerformanceReport() {
                   <span className="inline-flex items-center gap-1.5 justify-end">% Paid
                     <HeaderFilter active={isRangeActive(colFilters.ranges.pct_paid)} align="end" onClear={() => setRange('pct_paid', undefined)}>
                       <NumericRangeFilter label="% Paid" value={colFilters.ranges.pct_paid} onChange={(r) => setRange('pct_paid', r)} />
+                    </HeaderFilter>
+                  </span>
+                </th>
+                <th className="bg-amber-500 px-2 py-2 text-right font-semibold">
+                  <span className="inline-flex items-center gap-1.5 justify-end">Conversion<br/>(%)
+                    <HeaderFilter active={isRangeActive(colFilters.ranges.conversion_pct)} align="end" onClear={() => setRange('conversion_pct', undefined)}>
+                      <NumericRangeFilter label="Conversion (%)" value={colFilters.ranges.conversion_pct} onChange={(r) => setRange('conversion_pct', r)} />
                     </HeaderFilter>
                   </span>
                 </th>
@@ -776,9 +873,23 @@ export function AgentPerformanceReport() {
                   </span>
                 </th>
                 <th className="bg-purple-600 px-2 py-2 text-right font-semibold">
+                  <span className="inline-flex items-center gap-1.5 justify-end">Daily Commission<br/>(UGX)
+                    <HeaderFilter active={isRangeActive(colFilters.ranges.daily_commission)} align="end" onClear={() => setRange('daily_commission', undefined)}>
+                      <NumericRangeFilter label="Daily Commission (UGX)" value={colFilters.ranges.daily_commission} onChange={(r) => setRange('daily_commission', r)} />
+                    </HeaderFilter>
+                  </span>
+                </th>
+                <th className="bg-purple-600 px-2 py-2 text-right font-semibold">
                   <span className="inline-flex items-center gap-1.5 justify-end">0.5% Interest<br/>(UGX)
                     <HeaderFilter active={isRangeActive(colFilters.ranges.interest)} align="end" onClear={() => setRange('interest', undefined)}>
                       <NumericRangeFilter label="Interest (UGX)" value={colFilters.ranges.interest} onChange={(r) => setRange('interest', r)} />
+                    </HeaderFilter>
+                  </span>
+                </th>
+                <th className="bg-purple-600 px-2 py-2 text-right font-semibold">
+                  <span className="inline-flex items-center gap-1.5 justify-end">Rent Paid<br/>Out (UGX)
+                    <HeaderFilter active={isRangeActive(colFilters.ranges.rent_paid_out)} align="end" onClear={() => setRange('rent_paid_out', undefined)}>
+                      <NumericRangeFilter label="Rent Paid Out (UGX)" value={colFilters.ranges.rent_paid_out} onChange={(r) => setRange('rent_paid_out', r)} />
                     </HeaderFilter>
                   </span>
                 </th>
@@ -802,13 +913,13 @@ export function AgentPerformanceReport() {
               {isLoading ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <tr key={i} className="border-b border-border">
-                    {Array.from({ length: 14 }).map((_, j) => (
+                    {Array.from({ length: 18 }).map((_, j) => (
                       <td key={j} className="px-3 py-2.5"><Skeleton className="h-4 w-full" /></td>
                     ))}
                   </tr>
                 ))
               ) : rows.length === 0 ? (
-                <tr><td colSpan={14} className="px-3 py-12 text-center text-muted-foreground">No agent activity in this period</td></tr>
+                <tr><td colSpan={18} className="px-3 py-12 text-center text-muted-foreground">No agent activity in this period</td></tr>
               ) : (
                 rows.map((r, i) => {
                   const eff = r.efficiency || 0;
@@ -820,6 +931,8 @@ export function AgentPerformanceReport() {
                   const gap = r.gap || 0;
                   const gapCls = gap > 0 ? 'text-red-600' : gap < 0 ? 'text-emerald-600' : 'text-muted-foreground';
                   const pctPaidCls = r.pct_paid >= 75 ? 'text-emerald-600 font-semibold' : r.pct_paid >= 50 ? 'text-amber-600' : r.pct_paid >= 25 ? 'text-orange-600' : 'text-red-600';
+                  const conv = r.conversion_pct || 0;
+                  const convCls = conv >= 75 ? 'text-emerald-700 font-bold' : conv >= 50 ? 'text-amber-600 font-semibold' : conv >= 25 ? 'text-orange-600 font-semibold' : 'text-red-600 font-semibold';
                   return (
                     <tr key={i} className={cn('border-b border-border hover:bg-muted/40 transition-colors', i % 2 === 0 ? 'bg-card' : 'bg-muted/20')}>
                       <td className="px-2 py-2 text-center text-muted-foreground">{r.rank}</td>
@@ -828,12 +941,16 @@ export function AgentPerformanceReport() {
                       <td className="px-2 py-2 text-right font-mono">{fmt(r.daily_portfolio || 0)}</td>
                       <td className="px-2 py-2 text-right font-mono">{fmt(r.expected_weekly || 0)}</td>
                       <td className="px-2 py-2 text-right font-mono font-semibold">{fmt(r.collected)}</td>
+                      <td className="px-2 py-2 text-right font-mono text-emerald-700">{fmt(r.daily_collection || 0)}</td>
                       <td className={cn('px-2 py-2 text-right font-mono', effCls)}>{fmtPct(eff)}</td>
                       <td className={cn('px-2 py-2 text-right font-mono', gapCls)}>{fmt(gap)}</td>
                       <td className="px-2 py-2 text-right">{r.payments}</td>
                       <td className={cn('px-2 py-2 text-right font-mono', pctPaidCls)}>{fmtPct(r.pct_paid)}</td>
+                      <td className={cn('px-2 py-2 text-right font-mono', convCls)}>{fmtPct(conv)}</td>
                       <td className="px-2 py-2 text-right font-mono text-emerald-700">{fmt(r.commission)}</td>
+                      <td className="px-2 py-2 text-right font-mono text-fuchsia-700">{fmt(r.daily_commission || 0)}</td>
                       <td className="px-2 py-2 text-right font-mono text-blue-600">{fmt(r.interest)}</td>
+                      <td className="px-2 py-2 text-right font-mono text-indigo-700">{fmt(r.rent_paid_out || 0)}</td>
                       <td className="px-2 py-2 text-right font-mono font-bold">{fmt(r.wallet_total)}</td>
                       <td className="px-2 py-2 text-center">
                         <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold border', STATUS_BADGE[r.status].cls)}>
@@ -854,12 +971,16 @@ export function AgentPerformanceReport() {
                   <td className="px-2 py-3 text-right font-mono">{fmt(totals.daily_portfolio || 0)}</td>
                   <td className="px-2 py-3 text-right font-mono">{fmt(totals.expected_weekly || 0)}</td>
                   <td className="px-2 py-3 text-right font-mono">{fmt(totals.collected)}</td>
+                  <td className="px-2 py-3 text-right font-mono">{fmt(totals.daily_collection || 0)}</td>
                   <td className="px-2 py-3 text-right font-mono">{fmtPct(overallEfficiency)}</td>
                   <td className="px-2 py-3 text-right font-mono">{fmt(totals.gap || 0)}</td>
                   <td className="px-2 py-3 text-right">{totals.payments}</td>
                   <td className="px-2 py-3 text-right font-mono">{totals.tenants_total ? fmtPct((totals.tenants_paid / totals.tenants_total) * 100) : '0.0%'}</td>
+                  <td className="px-2 py-3 text-right font-mono">{totals.tenants_total ? fmtPct((totals.tenants_paid / totals.tenants_total) * 100) : '0.0%'}</td>
                   <td className="px-2 py-3 text-right font-mono">{fmt(totals.commission)}</td>
+                  <td className="px-2 py-3 text-right font-mono">{fmt(totals.daily_commission || 0)}</td>
                   <td className="px-2 py-3 text-right font-mono">{fmt(totals.interest)}</td>
+                  <td className="px-2 py-3 text-right font-mono">{fmt(totals.rent_paid_out || 0)}</td>
                   <td className="px-2 py-3 text-right font-mono">{fmt(totals.wallet_total)}</td>
                   <td className="px-2 py-3 text-center">—</td>
                 </tr>
@@ -902,7 +1023,10 @@ export function AgentPerformanceReport() {
                 <div className="grid grid-cols-3 gap-2 text-xs">
                   <div><div className="text-muted-foreground">Tenants</div><div className="font-semibold">{r.tenants_paid}/{r.tenants_total}</div></div>
                   <div><div className="text-muted-foreground">Collected</div><div className="font-semibold">{fmt(r.collected)}</div></div>
-                  <div><div className="text-muted-foreground">Payments</div><div className="font-semibold">{r.payments}</div></div>
+                  <div><div className="text-muted-foreground">Activities</div><div className="font-semibold">{r.payments}</div></div>
+                  <div><div className="text-muted-foreground">Daily Avg</div><div className="font-semibold text-emerald-700">{fmt(r.daily_collection || 0)}</div></div>
+                  <div><div className="text-muted-foreground">Conversion</div><div className="font-semibold">{fmtPct(r.conversion_pct || 0)}</div></div>
+                  <div><div className="text-muted-foreground">Rent Paid Out</div><div className="font-semibold text-indigo-700">{fmt(r.rent_paid_out || 0)}</div></div>
                   <div><div className="text-muted-foreground">Commission</div><div className="font-semibold text-emerald-600">{fmt(r.commission)}</div></div>
                   <div><div className="text-muted-foreground">Interest</div><div className="font-semibold text-blue-600">{fmt(r.interest)}</div></div>
                   <div><div className="text-muted-foreground">Wallet</div><div className="font-bold">{fmt(r.wallet_total)}</div></div>
