@@ -155,6 +155,66 @@ Deno.serve(async (req) => {
       investor_id, shares, amount: actualAmount, commission, reference_id: referenceId,
     });
 
+    // Best-effort: send share-purchase confirmation email to the investor.
+    // Never fails the request — financial transaction is the source of truth.
+    try {
+      const { data: investorProfile } = await adminClient
+        .from("profiles")
+        .select("email, full_name")
+        .eq("id", investor_id)
+        .maybeSingle();
+
+      if (investorProfile?.email) {
+        // Recompute available shares post-insert for accuracy.
+        const { data: postPool } = await adminClient
+          .from("angel_pool_investments")
+          .select("shares")
+          .eq("status", "confirmed");
+        const sold = (postPool || []).reduce((s: number, r: any) => s + r.shares, 0);
+        const availableShares = Math.max(0, TOTAL_SHARES - sold);
+
+        const purchaseDate = new Date(txDate).toLocaleString("en-GB", {
+          day: "2-digit", month: "short", year: "numeric",
+          hour: "2-digit", minute: "2-digit", hour12: false,
+        });
+
+        const { error: emailErr } = await adminClient.functions.invoke("send-transactional-email", {
+          body: {
+            templateName: "angel-pool-share-purchase",
+            recipientEmail: investorProfile.email,
+            idempotencyKey: `angel-pool-${referenceId}`,
+            templateData: {
+              partner_name: investorProfile.full_name || "Partner",
+              pool_name: "Welile Angel Pool",
+              share_reference: referenceId,
+              shares_purchased: shares,
+              currency: "UGX",
+              investment_amount: actualAmount,
+              ownership_percentage: companyOwnershipPercent.toFixed(4),
+              price_per_share: PRICE_PER_SHARE,
+              pool_valuation: TOTAL_SHARES * PRICE_PER_SHARE,
+              purchase_date: purchaseDate,
+              total_pool_shares: TOTAL_SHARES,
+              available_shares: availableShares,
+              pool_percentage: POOL_PERCENT,
+              pool_round: "Seed Round",
+              company_name: "Welile",
+            },
+          },
+        });
+        if (emailErr) console.error("Angel pool email enqueue error:", emailErr);
+        await logSystemEvent(adminClient, "agent_angel_pool_email_sent", user.id,
+          "angel_pool_investments", referenceId,
+          { investor_id, recipient: investorProfile.email, reference_id: referenceId });
+      } else {
+        await logSystemEvent(adminClient, "agent_angel_pool_email_skipped", user.id,
+          "angel_pool_investments", referenceId,
+          { investor_id, reason: "no_email_on_file", reference_id: referenceId });
+      }
+    } catch (emailEx) {
+      console.error("Angel pool email dispatch failed:", emailEx);
+    }
+
     return new Response(JSON.stringify({
       success: true, reference_id: referenceId, shares, actual_amount: actualAmount,
       pool_ownership_percent: poolOwnershipPercent, company_ownership_percent: companyOwnershipPercent,
