@@ -2137,7 +2137,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       modal={false}
     >
       <DialogContent
-        className="max-w-md z-[110]"
+        className="max-w-md z-[110] max-h-[90vh] overflow-y-auto"
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
       >
