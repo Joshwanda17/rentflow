@@ -3350,6 +3350,42 @@ export type Database = {
         }
         Relationships: []
       }
+      backup_runs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          recipients: string[] | null
+          row_count: number | null
+          size_bytes: number | null
+          status: string
+          storage_path: string | null
+          table_count: number | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          recipients?: string[] | null
+          row_count?: number | null
+          size_bytes?: number | null
+          status?: string
+          storage_path?: string | null
+          table_count?: number | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          recipients?: string[] | null
+          row_count?: number | null
+          size_bytes?: number | null
+          status?: string
+          storage_path?: string | null
+          table_count?: number | null
+        }
+        Relationships: []
+      }
       borrower_vouch_disclosures: {
         Row: {
           acknowledged_at: string

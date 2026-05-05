@@ -8,6 +8,7 @@ import { template as partnerCompoundTemplate } from './partner-compound.tsx'
 import { template as portfolioRenewalTemplate } from './portfolio-renewal.tsx'
 import { template as portfolioMaturityTemplate } from './portfolio-maturity.tsx'
 import { template as partnerAccountCreatedTemplate } from './partner-account-created.tsx'
+import { template as databaseBackupReadyTemplate } from './database-backup-ready.tsx'
 import type { TemplateEntry } from './types.ts'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
@@ -21,4 +22,5 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'portfolio-renewal': portfolioRenewalTemplate,
   'portfolio-maturity': portfolioMaturityTemplate,
   'partner-account-created': partnerAccountCreatedTemplate,
+  'database-backup-ready': databaseBackupReadyTemplate,
 }
