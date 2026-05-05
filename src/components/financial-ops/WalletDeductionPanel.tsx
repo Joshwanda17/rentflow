@@ -137,8 +137,8 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
 
       if (!data || data.length === 0) return [];
 
-      // Use ledger-true balances — never the cached wallets.balance column.
-      return overlayLedgerBalances(
+      // Use wallet bucket balances — this matches the wallet-deduction gate.
+      return overlayWalletBalances(
         data.map((u) => ({
           id: u.id,
           full_name: u.full_name || 'Unnamed',
@@ -151,7 +151,7 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
 
   // Search by balance range via RPC
   const { data: balanceResults, isFetching: balanceSearching } = useQuery({
-    queryKey: ['deduction-balance-search', 'v2-ledger', minBalance, maxBalance, balanceSearchTriggered],
+    queryKey: ['deduction-balance-search', 'v3-wallet-bucket', minBalance, maxBalance, balanceSearchTriggered],
     staleTime: 0,
     gcTime: 0,
     queryFn: async () => {
@@ -189,28 +189,7 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
         float_balance: Number(r.float_balance ?? 0),
       }));
 
-      // The RPC already returns ledger-backed figures. Re-check each row
-      // against the backend gate so the list cannot display stale wallet cache.
-      const clamped = await Promise.all(
-        mapped.map(async (u) => {
-          try {
-            const { data: strict, error: sErr } = await supabase.rpc(
-              'get_user_available_balance',
-              { p_user_id: u.id },
-            );
-            if (sErr) throw sErr;
-            const strictAvailable = Math.max(0, Number(strict ?? 0));
-            return {
-              ...u,
-              withdrawable_balance: Math.min(u.withdrawable_balance, strictAvailable),
-            };
-          } catch {
-            // RPC unavailable — fall back conservatively (don't trust cache).
-            return { ...u, withdrawable_balance: 0, balance: 0 };
-          }
-        }),
-      );
-      return clamped;
+      return mapped;
     },
     enabled: searchMode === 'balance' && balanceSearchTriggered,
   });
