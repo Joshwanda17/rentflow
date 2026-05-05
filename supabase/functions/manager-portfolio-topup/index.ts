@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
     }
 
     const partnerId = portfolio.investor_id || portfolio.agent_id;
-    const txGroupId = crypto.randomUUID();
+    let txGroupId = crypto.randomUUID();
     const accountLabel = portfolio.account_name || portfolio.portfolio_code;
 
     // ── Resolve source wallet ──
@@ -178,11 +178,33 @@ Deno.serve(async (req) => {
       }, 400);
     }
 
+    const idempotencyBucket = Math.floor(Date.now() / (5 * 60 * 1000));
+    const ledgerIdempotencyKey = `manager_portfolio_topup:${walletOwnerId}:${portfolio_id}:${topupAmount}:${idempotencyBucket}`;
+    const { data: existingLedger } = await supabase
+      .from("general_ledger")
+      .select("transaction_group_id")
+      .eq("idempotency_key", ledgerIdempotencyKey)
+      .limit(1)
+      .maybeSingle();
+
+    if (existingLedger?.transaction_group_id) {
+      return jsonRes({
+        success: true,
+        duplicate: true,
+        amount: topupAmount,
+        status: "approved",
+        payment_method,
+        source_wallet: walletOwnerLabel,
+        current_capital: Number(portfolio.investment_amount),
+        portfolio_code: portfolio.portfolio_code,
+      }, 200);
+    }
+
     // ── 1. Deduct from wallet immediately (FATAL on failure — no silent leaks) ──
     // CRITICAL: The credit (cash_in) MUST be platform-scope. If it stays at the default
     // wallet scope and the partner == wallet owner, the two entries net-zero and the
     // wallet never reduces. Money has left the user's wallet → it now sits with the platform.
-    const { error: deductErr } = await supabase.rpc("create_ledger_transaction", {
+    const { data: ledgerTxnGroupId, error: deductErr } = await supabase.rpc("create_ledger_transaction", {
       entries: [
         {
           user_id: walletOwnerId,
@@ -211,12 +233,14 @@ Deno.serve(async (req) => {
           transaction_date: new Date().toISOString(),
         },
       ],
+      idempotency_key: ledgerIdempotencyKey,
     });
 
     if (deductErr) {
       console.error("[manager-portfolio-topup] LEDGER FAILURE — aborting:", deductErr);
       return jsonRes({ error: `Wallet deduction failed: ${deductErr.message}. Top-up cancelled.` }, 400);
     }
+    txGroupId = ledgerTxnGroupId || txGroupId;
 
     // ── 2. Create wallet transaction (visible in partner/agent tx history) ──
     // Only write this AFTER the ledger succeeds. Earlier versions wrote this
