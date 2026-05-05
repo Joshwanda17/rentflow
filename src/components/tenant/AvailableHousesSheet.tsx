@@ -348,6 +348,31 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
             </>
           )}
         </div>
+        {(() => {
+          const target = filtered.find(l => l.latitude && l.longitude);
+          const mapHref = target
+            ? `https://www.google.com/maps/search/?api=1&query=${target.latitude},${target.longitude}`
+            : (hasGPS
+                ? `https://www.google.com/maps/search/?api=1&query=${geo.latitude},${geo.longitude}`
+                : `https://www.google.com/maps/search/?api=1&query=houses+for+rent+${encodeURIComponent(selectedRegion !== 'All Regions' ? selectedRegion : 'Uganda')}`);
+          const label = target
+            ? `Open ${filtered.length > 1 ? 'nearest house' : target.title} in Google Maps`
+            : 'Open Google Maps';
+          return (
+            <div className="sticky bottom-0 left-0 right-0 z-10 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 bg-gradient-to-t from-background via-background/95 to-background/0 md:hidden">
+              <a
+                href={mapHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={label}
+                className="flex items-center justify-center gap-2 w-full h-12 rounded-full bg-primary text-primary-foreground font-bold text-sm shadow-lg active:scale-[0.98] transition-transform"
+              >
+                <Navigation className="h-4 w-4" />
+                Tap to open in Google Maps
+              </a>
+            </div>
+          );
+        })()}
       </SheetContent>
     </Sheet>
   );
