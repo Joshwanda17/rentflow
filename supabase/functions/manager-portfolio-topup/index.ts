@@ -178,37 +178,7 @@ Deno.serve(async (req) => {
       }, 400);
     }
 
-    // ── 1. Create wallet transaction (visible in partner/agent tx history) ──
-    // Idempotency guard: a partial unique index on (sender, recipient, amount,
-    // description, 5-min bucket) blocks duplicates with code 23505. When the
-    // user retries after a transient/perceived error, we return a clean 409
-    // instead of writing a second wallet deduction.
-    const { error: txErr } = await supabase.from("wallet_transactions").insert({
-      sender_id: walletOwnerId,
-      recipient_id: walletOwnerId, // self — internal portfolio transfer
-      amount: topupAmount,
-      description: `Portfolio top-up: ${accountLabel} (${portfolio.portfolio_code})`,
-    });
-
-    if (txErr) {
-      // Postgres unique violation → another identical top-up was just recorded.
-      if ((txErr as any).code === "23505") {
-        console.warn(
-          `[manager-portfolio-topup] DUPLICATE BLOCKED — wallet=${walletOwnerId} portfolio=${portfolio_id} amount=${topupAmount}`,
-        );
-        return jsonRes({
-          error:
-            `This top-up was already recorded moments ago. ` +
-            `Refresh the portfolio to see the updated balance. ` +
-            `(Duplicate submission blocked.)`,
-          duplicate: true,
-        }, 409);
-      }
-      console.error("[manager-portfolio-topup] wallet_transactions insert error:", txErr);
-      return jsonRes({ error: "Failed to record wallet transaction" }, 500);
-    }
-
-    // ── 2. Deduct from wallet immediately (FATAL on failure — no silent leaks) ──
+    // ── 1. Deduct from wallet immediately (FATAL on failure — no silent leaks) ──
     // CRITICAL: The credit (cash_in) MUST be platform-scope. If it stays at the default
     // wallet scope and the partner == wallet owner, the two entries net-zero and the
     // wallet never reduces. Money has left the user's wallet → it now sits with the platform.
@@ -245,7 +215,35 @@ Deno.serve(async (req) => {
 
     if (deductErr) {
       console.error("[manager-portfolio-topup] LEDGER FAILURE — aborting:", deductErr);
-      return jsonRes({ error: `Wallet deduction failed: ${deductErr.message}. Top-up cancelled.` }, 500);
+      return jsonRes({ error: `Wallet deduction failed: ${deductErr.message}. Top-up cancelled.` }, 400);
+    }
+
+    // ── 2. Create wallet transaction (visible in partner/agent tx history) ──
+    // Only write this AFTER the ledger succeeds. Earlier versions wrote this
+    // first, so failed ledger attempts left orphan rows that then triggered the
+    // duplicate guard and blocked legitimate retries for funded wallets.
+    const { error: txErr } = await supabase.from("wallet_transactions").insert({
+      sender_id: walletOwnerId,
+      recipient_id: walletOwnerId, // self — internal portfolio transfer
+      amount: topupAmount,
+      description: `Portfolio top-up: ${accountLabel} (${portfolio.portfolio_code})`,
+    });
+
+    if (txErr) {
+      if ((txErr as any).code === "23505") {
+        console.warn(
+          `[manager-portfolio-topup] DUPLICATE BLOCKED — wallet=${walletOwnerId} portfolio=${portfolio_id} amount=${topupAmount}`,
+        );
+        return jsonRes({
+          error:
+            `This top-up was already recorded moments ago. ` +
+            `Refresh the portfolio to see the updated balance. ` +
+            `(Duplicate submission blocked.)`,
+          duplicate: true,
+        }, 409);
+      }
+      console.error("[manager-portfolio-topup] wallet_transactions insert error:", txErr);
+      return jsonRes({ error: "Wallet was deducted, but transaction history failed. Please contact support before retrying." }, 500);
     }
 
     // ── 2b. Verify wallet actually decreased (guard against silent net-zero bugs) ──
