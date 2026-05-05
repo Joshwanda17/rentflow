@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef } from 'react';
 
 const REGION_ID = 'map-link-live-region';
+const DEDUPE_WINDOW_MS = 2000;
+
+// Module-level so dedupe works across every component using this hook.
+let lastAnnouncedTitle: string | null = null;
+let lastAnnouncedAt = 0;
 
 function ensureLiveRegion(): HTMLElement {
   let el = document.getElementById(REGION_ID);
@@ -30,6 +35,17 @@ export function useMapLinkAnnouncer() {
   }, []);
 
   return useCallback((title: string) => {
+    const now = Date.now();
+    if (
+      title === lastAnnouncedTitle &&
+      now - lastAnnouncedAt < DEDUPE_WINDOW_MS
+    ) {
+      // Same link re-activated in quick succession — skip duplicate announcement.
+      return;
+    }
+    lastAnnouncedTitle = title;
+    lastAnnouncedAt = now;
+
     const region = ensureLiveRegion();
     region.textContent = '';
     // Force re-announcement even if text is identical.
