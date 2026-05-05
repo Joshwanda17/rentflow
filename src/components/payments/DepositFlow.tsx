@@ -382,6 +382,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       let detectedProvider: 'mtn' | 'airtel' | null = null;
       if (parsed.transactionId?.startsWith('MP')) detectedProvider = 'mtn';
       else if (parsed.transactionId?.startsWith('TID')) detectedProvider = 'airtel';
+      else if (parsed.transactionId && /^\d{8,18}$/.test(parsed.transactionId)) detectedProvider = 'mtn';
       if (channel === 'momo' && detectedProvider) {
         setMomoProvider(detectedProvider);
       }
@@ -678,8 +679,8 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     const upper = value.trim().toUpperCase();
     const prov = provider ?? momoProvider;
     if (!upper) { setTidError(''); return; }
-    if (prov === 'mtn' && !upper.startsWith('MP')) {
-      setTidError("MTN TIDs must start with 'MP' (e.g. MP39665905645)");
+    if (prov === 'mtn' && !upper.startsWith('MP') && !/^\d{8,18}$/.test(upper)) {
+      setTidError("MTN TIDs must start with 'MP' or be the numeric ID from your SMS (e.g. MP39665905645 or 40473329892)");
     } else if (prov === 'airtel' && !upper.startsWith('TID')) {
       setTidError("Airtel TIDs must start with 'TID' (e.g. TID144205097399)");
     } else {
@@ -691,7 +692,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     if (channel !== 'momo') return true;
     const upper = transactionId.trim().toUpperCase();
     if (!upper) return false;
-    if (momoProvider === 'mtn') return upper.startsWith('MP');
+    if (momoProvider === 'mtn') return upper.startsWith('MP') || /^\d{8,18}$/.test(upper);
     if (momoProvider === 'airtel') return upper.startsWith('TID');
     return true;
   };
@@ -735,7 +736,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     if (channel === 'momo' && !transactionId.trim()) {
       return {
         message: momoProvider === 'mtn'
-          ? "Enter your MTN MoMo TID from the SMS (starts with 'MP', e.g. MP39665905645)"
+          ? "Enter your MTN MoMo TID from the SMS ('MP…' or numeric ID, e.g. MP39665905645 or 40473329892)"
           : "Enter your Airtel Money TID from the SMS (starts with 'TID', e.g. TID144205097399)",
         fieldId: 'deposit-tid',
       };
@@ -754,8 +755,8 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     }
     if (channel === 'momo') {
       const rawTid = transactionId.trim().toUpperCase();
-      if (momoProvider === 'mtn' && !rawTid.startsWith('MP')) {
-        return { message: "MTN TIDs must start with 'MP' (e.g. MP39665905645)", fieldId: 'deposit-tid' };
+      if (momoProvider === 'mtn' && !rawTid.startsWith('MP') && !/^\d{8,18}$/.test(rawTid)) {
+        return { message: "MTN TIDs must start with 'MP' or be the numeric ID from your SMS (e.g. MP39665905645 or 40473329892)", fieldId: 'deposit-tid' };
       }
       if (momoProvider === 'airtel' && !rawTid.startsWith('TID')) {
         return { message: "Airtel TIDs must start with 'TID' (e.g. TID144205097399)", fieldId: 'deposit-tid' };
@@ -1531,7 +1532,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                       channel === 'bank'
                         ? 'e.g. FT24123456789'
                         : momoProvider === 'mtn'
-                          ? 'e.g. MP39665905645'
+                          ? 'e.g. MP39665905645 or 40473329892'
                           : 'e.g. TID144205097399'
                     }
                     value={transactionId}
