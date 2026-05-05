@@ -119,9 +119,8 @@ export function LedgerEntryDetailDrawer({ entryId, open, onOpenChange }: LedgerE
               .select('id, amount, direction, category, description, transaction_date, user_id')
               .eq('transaction_group_id', e.transaction_group_id)
               .neq('id', entryId)
-              // Hide admin/CFO reconciliation legs from end users.
-              .neq('classification', 'admin_correction')
-              .neq('category', 'system_balance_correction')
+              // Hide admin/CFO reconciliation legs only when both flags align.
+              .or('classification.neq.admin_correction,category.neq.system_balance_correction')
               .order('transaction_date', { ascending: false })
           : Promise.resolve({ data: [] }),
         e.linked_party && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(e.linked_party)
