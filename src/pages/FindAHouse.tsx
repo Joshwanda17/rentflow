@@ -94,12 +94,12 @@ function HouseImageCarousel({ images, title, onImageClick }: { images: string[] 
   );
 }
 
-function LocationMap({ lat, lng, title }: { lat: number | null; lng: number | null; title: string }) {
+function LocationMap({ lat, lng, title, anchorId }: { lat: number | null; lng: number | null; title: string; anchorId?: string }) {
   if (!lat || !lng) return null;
   const mapUrl = `https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed`;
   const linkUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
   return (
-    <a href={linkUrl} target="_blank" rel="noopener noreferrer"
+    <a href={linkUrl} id={anchorId} target="_blank" rel="noopener noreferrer"
       aria-label={`Open ${title} location in Google Maps (opens in a new tab)`}
       className="block relative w-full h-32 rounded-xl overflow-hidden bg-muted border-2 border-primary/40 ring-2 ring-primary/20 shadow-md active:scale-[0.99] transition-transform focus:outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background">
       <iframe src={mapUrl} className="w-full h-full pointer-events-none" title={`Map: ${title}`} loading="lazy" style={{ border: 0 }} />
@@ -127,7 +127,7 @@ function VerificationBadge({ verified, status }: { verified?: boolean | null; st
   );
 }
 
-function PublicHouseCard({ listing }: { listing: HouseListing }) {
+function PublicHouseCard({ listing, isFirst }: { listing: HouseListing; isFirst?: boolean }) {
   const categoryLabel = CATEGORIES.find(c => c.value === listing.house_category)?.label || listing.house_category;
   const dist = listing.distance_km;
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -210,7 +210,7 @@ function PublicHouseCard({ listing }: { listing: HouseListing }) {
 
         {listing.description && <p className="text-xs text-muted-foreground line-clamp-2" itemProp="description">{listing.description}</p>}
 
-        <LocationMap lat={listing.latitude} lng={listing.longitude} title={listing.title} />
+        <LocationMap lat={listing.latitude} lng={listing.longitude} title={listing.title} anchorId={isFirst ? 'first-map-cta' : undefined} />
 
         {/* WhatsApp Agent */}
         <WhatsAppAgentButton phone={listing.agent_phone} agentName={listing.agent_name} houseTitle={listing.title} />
@@ -367,6 +367,19 @@ export default function FindAHouse() {
       </Helmet>
 
       <div className="min-h-screen bg-background">
+        {/* Skip links for keyboard / screen-reader users */}
+        <a
+          href="#house-list"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:rounded-md focus:bg-primary focus:text-primary-foreground focus:font-bold focus:shadow-lg focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          Skip to house list
+        </a>
+        <a
+          href="#first-map-cta"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-44 focus:z-[100] focus:px-4 focus:py-2 focus:rounded-md focus:bg-primary focus:text-primary-foreground focus:font-bold focus:shadow-lg focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          Skip to Google Maps links
+        </a>
         {/* Header */}
         <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-border">
           <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -413,7 +426,7 @@ export default function FindAHouse() {
         </div>
 
         {/* Listings */}
-        <main className="max-w-2xl mx-auto px-4 py-4 space-y-3 pb-20">
+        <main id="house-list" tabIndex={-1} className="max-w-2xl mx-auto px-4 py-4 space-y-3 pb-20">
           {loading ? (
             Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-48 w-full rounded-2xl" />
@@ -429,8 +442,8 @@ export default function FindAHouse() {
               <p className="text-xs text-muted-foreground">
                 {filtered.length} house{filtered.length !== 1 ? 's' : ''} available · sorted by lowest price
               </p>
-              {filtered.map(listing => (
-                <PublicHouseCard key={listing.id} listing={listing} />
+              {filtered.map((listing, i) => (
+                <PublicHouseCard key={listing.id} listing={listing} isFirst={i === 0} />
               ))}
             </>
           )}
