@@ -407,8 +407,57 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
                   = {shares} shares × UGX {PRICE_PER_SHARE.toLocaleString()} = {formatUGX(actualAmount)}
                 </p>
               )}
-              {parsedAmount > 0 && selectedInvestor.walletBalance < actualAmount && (
-                <p className="text-xs text-destructive">Insufficient wallet balance</p>
+              {parsedAmount > 0 && fundingBalance < actualAmount && (
+                <p className="text-xs text-destructive">
+                  Insufficient {fundingSource === 'agent' ? "agent" : "investor"} wallet balance
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Fund From</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFundingSource('investor')}
+                  className={cn(
+                    "rounded-xl border p-3 text-left transition-colors",
+                    fundingSource === 'investor'
+                      ? "border-primary bg-primary/5 ring-1 ring-primary"
+                      : "border-border hover:bg-muted/40"
+                  )}
+                >
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Wallet className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-xs font-semibold">Investor Wallet</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    {formatUGX(selectedInvestor.walletBalance)}
+                  </p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFundingSource('agent')}
+                  className={cn(
+                    "rounded-xl border p-3 text-left transition-colors",
+                    fundingSource === 'agent'
+                      ? "border-primary bg-primary/5 ring-1 ring-primary"
+                      : "border-border hover:bg-muted/40"
+                  )}
+                >
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Wallet className="h-3.5 w-3.5 text-emerald-600" />
+                    <span className="text-xs font-semibold">My Wallet (Agent)</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    {agentBalanceLoading ? 'Loading…' : formatUGX(agentBalance)}
+                  </p>
+                </button>
+              </div>
+              {fundingSource === 'agent' && (
+                <p className="text-[11px] text-muted-foreground">
+                  You're paying for these shares on {selectedInvestor.full_name}'s behalf. The shares will still be allocated to them.
+                </p>
               )}
             </div>
 
@@ -432,6 +481,12 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Amount</span>
                 <span className="font-semibold">{formatUGX(actualAmount)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Funded By</span>
+                <span className="font-medium">
+                  {fundingSource === 'agent' ? "Agent's Wallet" : "Investor's Wallet"}
+                </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Shares</span>
