@@ -25,7 +25,7 @@ import { AgentRequisitionForm } from './AgentRequisitionForm';
 import { 
   ShieldCheck, Banknote, ArrowLeft, ChevronDown,
   ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, MinusCircle, FileText,
-  WifiOff, MoreHorizontal, AlertTriangle, ScanLine
+  WifiOff, MoreHorizontal, AlertTriangle, ScanLine, Receipt
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 
@@ -34,9 +34,7 @@ type Tool =
   | null
   | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit'
   | 'withdrawals' | 'opportunities' | 'deductions' | 'requisitions'
-  | 'mismatch_metrics' | 'recon_review';
-
-type ToolExt = Tool | 'withdrawal_history';
+  | 'mismatch_metrics' | 'recon_review' | 'withdrawal_history';
 
 /**
  * Items hidden behind the "More" button. Per CFO mandate the dashboard
@@ -49,6 +47,7 @@ type MoreAction =
 
 const moreActions: MoreAction[] = [
   { kind: 'view', id: 'offline_collections', label: 'Offline Collections', desc: 'Drafts agents submitted with proof', icon: WifiOff },
+  { kind: 'tool', id: 'withdrawal_history', label: 'Withdrawal History', desc: 'Statement of every withdrawal — balance before & after', icon: Receipt },
   { kind: 'tool', id: 'deductions', label: 'Wallet Deductions', desc: 'Retractions, corrections & penalties', icon: MinusCircle },
   { kind: 'tool', id: 'ledgers', label: 'Ledger', desc: 'Full record of all wallet activity', icon: BookOpen },
   { kind: 'tool', id: 'ops', label: 'Ops Center', desc: 'Automation & monitoring', icon: Gauge },
