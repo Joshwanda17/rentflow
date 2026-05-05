@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Download, FileBarChart, Search, X, Users, HandCoins, TrendingUp, PiggyBank, Percent, Wallet, Info, Calendar, Filter } from 'lucide-react';
+import { Download, FileBarChart, Search, X, Users, HandCoins, TrendingUp, PiggyBank, Percent, Wallet, Info, Calendar, Filter, Trophy, AlertTriangle, Activity, Building } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, subWeeks, startOfMonth, endOfMonth } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -72,7 +72,8 @@ const fmtPct = (n: number) => `${n.toFixed(1)}%`;
 type NumericKey =
   | 'tenants_total' | 'daily_portfolio' | 'expected_weekly' | 'collected'
   | 'efficiency' | 'gap' | 'payments' | 'pct_paid'
-  | 'commission' | 'interest' | 'wallet_total';
+  | 'commission' | 'interest' | 'wallet_total'
+  | 'daily_collection' | 'daily_commission' | 'rent_paid_out' | 'conversion_pct';
 type Range = { min?: number; max?: number };
 type StatusKey = AgentPerfRow['status'];
 type ColFilters = {
