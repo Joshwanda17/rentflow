@@ -29,7 +29,7 @@ function MiniMapThumb({ lat, lng, title }: { lat: number | null; lng: number | n
       rel="noopener noreferrer"
       onClick={(e) => e.stopPropagation()}
       aria-label={`Open ${title} in Google Maps`}
-      className="block relative w-full h-20 rounded-lg overflow-hidden bg-muted border-2 border-primary/40 ring-1 ring-primary/20 shadow-sm active:scale-[0.98] transition-transform"
+      className="block relative w-full h-24 rounded-lg overflow-hidden bg-muted border-2 border-primary/40 ring-1 ring-primary/20 shadow-sm active:scale-[0.98] transition-transform touch-manipulation"
     >
       <iframe
         src={mapUrl}
@@ -39,8 +39,8 @@ function MiniMapThumb({ lat, lng, title }: { lat: number | null; lng: number | n
         style={{ border: 0 }}
       />
       <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
-      <span className="absolute bottom-1 left-1 right-1 mx-auto w-fit bg-primary text-primary-foreground text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-md">
-        <Navigation className="h-3 w-3" /> Tap to open in Google Maps
+      <span className="absolute bottom-1.5 left-1.5 right-1.5 mx-auto w-fit min-h-[36px] bg-primary text-primary-foreground text-xs font-bold px-3.5 py-2 rounded-full flex items-center gap-1.5 shadow-lg">
+        <Navigation className="h-3.5 w-3.5" /> Tap to open in Google Maps
       </span>
     </a>
   );
