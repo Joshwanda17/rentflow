@@ -501,3 +501,72 @@ function KPI({ label, value, valueCls }: { label: string; value: string; valueCl
     </div>
   );
 }
+
+function EditableNumber({
+  value,
+  onSave,
+  className,
+}: {
+  value: number;
+  onSave: (v: number) => Promise<void>;
+  className?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(String(value));
+  const [saving, setSaving] = useState(false);
+
+  const start = () => { setDraft(String(value)); setEditing(true); };
+  const cancel = () => { setEditing(false); setDraft(String(value)); };
+  const commit = async () => {
+    const n = Number(String(draft).replace(/[^\d.-]/g, ''));
+    if (!Number.isFinite(n) || n < 0) { toast.error('Invalid number'); return; }
+    if (n === value) { setEditing(false); return; }
+    setSaving(true);
+    try {
+      await onSave(n);
+      toast.success('Saved');
+      setEditing(false);
+    } catch (e: any) {
+      toast.error('Save failed', { description: e?.message });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (editing) {
+    return (
+      <span className="inline-flex items-center gap-1">
+        <Input
+          autoFocus
+          inputMode="numeric"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') cancel(); }}
+          className="h-7 w-24 text-xs font-mono px-2"
+          disabled={saving}
+        />
+        <button type="button" onClick={commit} disabled={saving} className="text-emerald-600 hover:text-emerald-700">
+          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+        </button>
+        <button type="button" onClick={cancel} disabled={saving} className="text-muted-foreground hover:text-foreground">
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </span>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={start}
+      className={cn(
+        'inline-flex items-center gap-1 hover:bg-muted/60 rounded px-1 -mx-1 transition-colors group',
+        className,
+      )}
+      title="Click to edit"
+    >
+      <span className="font-mono">{fmt(value)}</span>
+      <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-60" />
+    </button>
+  );
+}
