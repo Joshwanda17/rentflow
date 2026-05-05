@@ -386,37 +386,6 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label>Payment Method</Label>
-              <div className="grid grid-cols-3 gap-2">
-                {['cash', 'momo', 'bank'].map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setPaymentMethod(m)}
-                    className={cn(
-                      "py-2 px-3 rounded-lg text-xs font-medium border transition-colors capitalize",
-                      paymentMethod === m
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border bg-muted/30 text-muted-foreground hover:bg-muted/50"
-                    )}
-                  >
-                    {m === 'momo' ? 'Mobile Money' : m}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {paymentMethod !== 'cash' && (
-              <div className="space-y-2">
-                <Label>Payment Reference (optional)</Label>
-                <Input
-                  placeholder="Transaction ID or reference"
-                  value={investmentReference}
-                  onChange={(e) => setInvestmentReference(e.target.value)}
-                />
-              </div>
-            )}
-
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep('search')} className="flex-1">Back</Button>
               <Button onClick={() => setStep('preview')} disabled={!canProceed} className="flex-1">
