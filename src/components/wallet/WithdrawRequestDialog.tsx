@@ -849,15 +849,19 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
                     )}
                   </Button>
                 ) : (
-                  <Button disabled className="flex-1 h-12 rounded-xl font-bold opacity-40">
+                  <Button
+                    type="button"
+                    onClick={focusMissing}
+                    className="flex-1 h-12 rounded-xl font-bold opacity-70 bg-muted text-muted-foreground hover:opacity-90 hover:bg-muted"
+                  >
                     {!payoutMode
-                      ? 'Select method ↑'
+                      ? 'Select payout method ↑'
                       : !isPayoutValid()
-                      ? 'Fill details ↑'
+                      ? 'Fill payout details ↑'
                       : reason.trim().length < 10
-                      ? 'Add reason ↑'
+                      ? 'Add reason (10+ chars) ↑'
                       : amount < 500
-                      ? 'Enter amount'
+                      ? 'Enter amount ↓'
                       : 'Withdraw'
                     }
                   </Button>
