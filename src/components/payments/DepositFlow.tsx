@@ -2126,8 +2126,12 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         })()}
       </DialogContent>
     </Dialog>
-    <Dialog open={smsPasteOpen} onOpenChange={setSmsPasteOpen}>
-      <DialogContent className="max-w-md">
+    <Dialog open={smsPasteOpen} onOpenChange={setSmsPasteOpen} modal={false}>
+      <DialogContent
+        className="max-w-md z-[110]"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <ClipboardPaste className="h-4 w-4 text-primary" />
