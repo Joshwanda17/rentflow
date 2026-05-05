@@ -131,7 +131,15 @@ Deno.serve(async (req) => {
     // bucket. Do NOT add a second raw all-time ledger cap here: older users can
     // have negative historical ledger positions while still having a valid
     // anchored withdrawable balance that Finance must be allowed to sweep.
-    const trueAvailable = Math.max(0, strictAvailable);
+    // RETRACTION OVERRIDE: cash_payout_retraction reverses a payout that the
+    // user actually received but is being clawed back. The strict RPC may
+    // under-report (anchored cache > ledger net), so for retractions we cap
+    // against the cached withdrawable bucket instead. All other categories
+    // remain strict-gated.
+    const isRetraction = safeCategory === 'cash_payout_retraction';
+    const trueAvailable = isRetraction
+      ? Math.max(0, cacheWithdrawable)
+      : Math.max(0, strictAvailable);
 
     if (amount > trueAvailable) {
       // Diagnostic log — record the drift between strict and cache so the CFO
@@ -175,15 +183,25 @@ Deno.serve(async (req) => {
     // cache). The cache can lag the ledger after the Wallet Ledger Anchor
     // posts its balanced pair; using the cache here causes spurious 409s on
     // legitimate retractions. The strict RPC is the single source of truth.
-    const { data: strictNow } = await adminClient.rpc(
-      "get_user_available_balance",
-      { p_user_id: target_user_id },
-    );
-    const liveStrict = Number(strictNow ?? 0);
-    if (liveStrict < amount) {
+    let liveAvailable: number;
+    if (isRetraction) {
+      const { data: freshWallet } = await adminClient
+        .from('wallets')
+        .select('withdrawable_balance')
+        .eq('user_id', target_user_id)
+        .single();
+      liveAvailable = Math.max(0, Number(freshWallet?.withdrawable_balance ?? 0));
+    } else {
+      const { data: strictNow } = await adminClient.rpc(
+        "get_user_available_balance",
+        { p_user_id: target_user_id },
+      );
+      liveAvailable = Number(strictNow ?? 0);
+    }
+    if (liveAvailable < amount) {
       return new Response(
         JSON.stringify({
-          error: `Available balance changed: now UGX ${liveStrict.toLocaleString()}. Refresh and try again.`,
+          error: `Available balance changed: now UGX ${liveAvailable.toLocaleString()}. Refresh and try again.`,
         }),
         { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
