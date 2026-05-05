@@ -123,8 +123,8 @@ function LocationMap({ lat, lng, title }: { lat: number | null; lng: number | nu
           style={{ border: 0 }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent pointer-events-none" />
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-bold px-3.5 py-1.5 rounded-full flex items-center gap-1.5 shadow-lg">
-          <Navigation className="h-3.5 w-3.5" /> Tap to open in Google Maps
+        <div className="absolute bottom-2 left-2 right-2 mx-auto w-fit min-h-[44px] bg-primary text-primary-foreground text-sm font-bold px-5 py-2.5 rounded-full flex items-center gap-2 shadow-xl touch-manipulation">
+          <Navigation className="h-4 w-4" /> Tap to open in Google Maps
         </div>
       </a>
     </div>
@@ -365,9 +365,9 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={label}
-                className="flex items-center justify-center gap-2 w-full h-12 rounded-full bg-primary text-primary-foreground font-bold text-sm shadow-lg active:scale-[0.98] transition-transform"
+                className="flex items-center justify-center gap-2.5 w-full min-h-[56px] px-6 py-4 rounded-full bg-primary text-primary-foreground font-bold text-base shadow-xl active:scale-[0.98] transition-transform touch-manipulation"
               >
-                <Navigation className="h-4 w-4" />
+                <Navigation className="h-5 w-5" />
                 Tap to open in Google Maps
               </a>
             </div>
