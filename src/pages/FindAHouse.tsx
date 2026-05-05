@@ -442,8 +442,8 @@ export default function FindAHouse() {
               <p className="text-xs text-muted-foreground">
                 {filtered.length} house{filtered.length !== 1 ? 's' : ''} available · sorted by lowest price
               </p>
-              {filtered.map(listing => (
-                <PublicHouseCard key={listing.id} listing={listing} />
+              {filtered.map((listing, i) => (
+                <PublicHouseCard key={listing.id} listing={listing} isFirst={i === 0} />
               ))}
             </>
           )}
