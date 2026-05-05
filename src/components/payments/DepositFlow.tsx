@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Loader2, CheckCircle2, Phone, Calendar, Clock, Hash, AlertCircle, History, Building2, Banknote, Upload, Receipt, Copy, ShieldAlert, ClipboardPaste, Camera, X, ImageIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -189,6 +190,14 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
    */
   const [errorFieldId, setErrorFieldId] = useState<string | null>(null);
   /**
+   * Controls the "Paste SMS" sheet. When open, the agent pastes the
+   * full SMS body into a textarea and we parse it on submit. Far more
+   * reliable than `navigator.clipboard.readText()` which Safari, in-app
+   * browsers, and most Android WebViews silently deny.
+   */
+  const [smsPasteOpen, setSmsPasteOpen] = useState(false);
+  const [smsPasteText, setSmsPasteText] = useState('');
+  /**
    * Per-tenant breakdown for an Operational Float deposit. The agent
    * collected one bulk amount in the field, dropped it at the merchant
    * code under one TID, and now needs to tell us *which tenants* it came
@@ -354,14 +363,17 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
    * first missing field — `computeBlockReason()` keeps the Confirm
    * button disabled until everything is filled.
    */
-  const handlePasteTid = async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      if (!text) {
-        toast.error('Clipboard is empty');
-        return;
-      }
-      const parsed = parseSMS(text);
+  /**
+   * Parse a raw SMS body (pasted by the agent into the SMS sheet) and
+   * apply every field we can confidently extract. Returns true when all
+   * four required fields landed so the caller can close the sheet.
+   */
+  const applyPastedSms = (text: string): boolean => {
+    if (!text.trim()) {
+      toast.error('Paste the SMS text first');
+      return false;
+    }
+    const parsed = parseSMS(text);
 
       // Auto-detect MoMo provider from the TID prefix so the format
       // validator picks the right rule (MP… vs TID…).
@@ -392,9 +404,8 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         toast.success(
           `Pasted: UGX ${parsed.amount!.toLocaleString()} · ${parsed.transactionId} · ${parsed.date} ${parsed.time}`,
         );
+        return true;
       } else if (missing.length === 4) {
-        // Nothing usable — fall back to the legacy raw-TID behaviour so
-        // a single-token paste (just the TID) still works.
         const tid = extractTidFromText(text);
         if (tid) {
           setTransactionId(tid);
@@ -404,6 +415,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           toast.error('Could not parse this SMS. Paste the full confirmation message.');
         }
         setErrorFieldId('deposit-amount');
+        return false;
       } else {
         toast.error(`SMS missing: ${missing.join(', ')}. Fill the remaining fields manually.`);
         const firstMissing = missing[0];
@@ -413,9 +425,23 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           : firstMissing === 'date' ? 'deposit-date'
           : 'deposit-time';
         setErrorFieldId(fieldId);
+        return false;
       }
+  };
+
+  /**
+   * Opens the SMS paste sheet. Best-effort pre-fills the textarea from
+   * the clipboard if the browser allows; otherwise leaves it empty for
+   * a manual paste.
+   */
+  const handleOpenSmsPaste = async () => {
+    setSmsPasteText('');
+    setSmsPasteOpen(true);
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text?.trim()) setSmsPasteText(text);
     } catch {
-      toast.error('Could not read clipboard. Paste manually instead.');
+      /* clipboard blocked — agent will paste manually */
     }
   };
 
@@ -1012,6 +1038,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       : '';
 
   return (
+    <>
     <Dialog open={open} onOpenChange={handleClose}>
       {/*
         Mobile-first dialog shell.
@@ -1456,7 +1483,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   </Label>
                   <button
                     type="button"
-                    onClick={handlePasteTid}
+                    onClick={handleOpenSmsPaste}
                     className="text-xs font-semibold text-primary inline-flex items-center gap-1 hover:underline underline-offset-2"
                   >
                     <ClipboardPaste className="h-3 w-3" />
@@ -2069,5 +2096,54 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         })()}
       </DialogContent>
     </Dialog>
+    <Dialog open={smsPasteOpen} onOpenChange={setSmsPasteOpen}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <ClipboardPaste className="h-4 w-4 text-primary" />
+            Paste your SMS
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Paste the full payment confirmation SMS below. We'll auto-fill
+            the amount, transaction ID, date and time.
+          </p>
+          <Textarea
+            value={smsPasteText}
+            onChange={(e) => setSmsPasteText(e.target.value)}
+            placeholder={'e.g. "You have received UGX 50,000. TID144205097399 on 04/05/2026 at 14:32"'}
+            rows={6}
+            className="font-mono text-xs"
+            autoFocus
+          />
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={() => setSmsPasteOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="flex-1"
+              onClick={() => {
+                const ok = applyPastedSms(smsPasteText);
+                if (ok) {
+                  setSmsPasteOpen(false);
+                  setSmsPasteText('');
+                }
+              }}
+              disabled={!smsPasteText.trim()}
+            >
+              Extract & fill
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
