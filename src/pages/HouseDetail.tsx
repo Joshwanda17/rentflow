@@ -22,7 +22,7 @@ import { motion } from 'framer-motion';
 import {
   Home, MapPin, DoorOpen, Droplets, Zap, ShieldCheck, Car, Sofa,
   ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Check, ArrowLeft, Star,
-  Eye,
+  Eye, Navigation,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -374,12 +374,28 @@ export default function HouseDetail() {
               transition={{ delay: 0.2, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             >
               <h2 className="font-bold text-sm text-foreground mb-2">Location</h2>
-              <a href={mapLink} target="_blank" rel="noopener noreferrer"
-                className="block relative w-full h-44 rounded-2xl overflow-hidden bg-muted border border-border group">
+              <a
+                href={mapLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Open ${listing.title} location in Google Maps (opens in a new tab)`}
+                className="block relative w-full h-44 rounded-2xl overflow-hidden bg-muted border-2 border-primary/40 ring-2 ring-primary/20 shadow-md active:scale-[0.99] transition-transform focus:outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
                 <iframe src={mapEmbed} className="w-full h-full pointer-events-none" title={`Map: ${listing.title}`} loading="lazy" style={{ border: 0 }} />
-                <div className="absolute bottom-3 right-3 bg-card/90 backdrop-blur-sm text-foreground text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 border border-border shadow-sm group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                  <ExternalLink className="h-3 w-3" /> Open in Maps
+                <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent pointer-events-none" />
+                <div className="absolute bottom-2 left-2 right-2 mx-auto w-fit min-h-[44px] bg-primary text-primary-foreground text-sm font-bold px-5 py-2.5 rounded-full flex items-center gap-2 shadow-xl touch-manipulation">
+                  <Navigation className="h-4 w-4" /> Tap to open in Google Maps
                 </div>
+              </a>
+              <a
+                href={mapLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Get directions to ${listing.title} in Google Maps (opens in a new tab)`}
+                className="mt-2 flex items-center justify-center gap-2.5 w-full min-h-[52px] px-6 py-3.5 rounded-full bg-primary text-primary-foreground font-bold text-base shadow-lg active:scale-[0.98] transition-transform touch-manipulation focus:outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
+                <Navigation className="h-5 w-5" />
+                Tap to open in Google Maps
               </a>
             </motion.div>
           )}
