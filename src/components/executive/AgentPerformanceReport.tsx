@@ -913,13 +913,13 @@ export function AgentPerformanceReport() {
               {isLoading ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <tr key={i} className="border-b border-border">
-                    {Array.from({ length: 14 }).map((_, j) => (
+                    {Array.from({ length: 18 }).map((_, j) => (
                       <td key={j} className="px-3 py-2.5"><Skeleton className="h-4 w-full" /></td>
                     ))}
                   </tr>
                 ))
               ) : rows.length === 0 ? (
-                <tr><td colSpan={14} className="px-3 py-12 text-center text-muted-foreground">No agent activity in this period</td></tr>
+                <tr><td colSpan={18} className="px-3 py-12 text-center text-muted-foreground">No agent activity in this period</td></tr>
               ) : (
                 rows.map((r, i) => {
                   const eff = r.efficiency || 0;
@@ -931,6 +931,8 @@ export function AgentPerformanceReport() {
                   const gap = r.gap || 0;
                   const gapCls = gap > 0 ? 'text-red-600' : gap < 0 ? 'text-emerald-600' : 'text-muted-foreground';
                   const pctPaidCls = r.pct_paid >= 75 ? 'text-emerald-600 font-semibold' : r.pct_paid >= 50 ? 'text-amber-600' : r.pct_paid >= 25 ? 'text-orange-600' : 'text-red-600';
+                  const conv = r.conversion_pct || 0;
+                  const convCls = conv >= 75 ? 'text-emerald-700 font-bold' : conv >= 50 ? 'text-amber-600 font-semibold' : conv >= 25 ? 'text-orange-600 font-semibold' : 'text-red-600 font-semibold';
                   return (
                     <tr key={i} className={cn('border-b border-border hover:bg-muted/40 transition-colors', i % 2 === 0 ? 'bg-card' : 'bg-muted/20')}>
                       <td className="px-2 py-2 text-center text-muted-foreground">{r.rank}</td>
@@ -939,12 +941,16 @@ export function AgentPerformanceReport() {
                       <td className="px-2 py-2 text-right font-mono">{fmt(r.daily_portfolio || 0)}</td>
                       <td className="px-2 py-2 text-right font-mono">{fmt(r.expected_weekly || 0)}</td>
                       <td className="px-2 py-2 text-right font-mono font-semibold">{fmt(r.collected)}</td>
+                      <td className="px-2 py-2 text-right font-mono text-emerald-700">{fmt(r.daily_collection || 0)}</td>
                       <td className={cn('px-2 py-2 text-right font-mono', effCls)}>{fmtPct(eff)}</td>
                       <td className={cn('px-2 py-2 text-right font-mono', gapCls)}>{fmt(gap)}</td>
                       <td className="px-2 py-2 text-right">{r.payments}</td>
                       <td className={cn('px-2 py-2 text-right font-mono', pctPaidCls)}>{fmtPct(r.pct_paid)}</td>
+                      <td className={cn('px-2 py-2 text-right font-mono', convCls)}>{fmtPct(conv)}</td>
                       <td className="px-2 py-2 text-right font-mono text-emerald-700">{fmt(r.commission)}</td>
+                      <td className="px-2 py-2 text-right font-mono text-fuchsia-700">{fmt(r.daily_commission || 0)}</td>
                       <td className="px-2 py-2 text-right font-mono text-blue-600">{fmt(r.interest)}</td>
+                      <td className="px-2 py-2 text-right font-mono text-indigo-700">{fmt(r.rent_paid_out || 0)}</td>
                       <td className="px-2 py-2 text-right font-mono font-bold">{fmt(r.wallet_total)}</td>
                       <td className="px-2 py-2 text-center">
                         <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold border', STATUS_BADGE[r.status].cls)}>
@@ -965,12 +971,16 @@ export function AgentPerformanceReport() {
                   <td className="px-2 py-3 text-right font-mono">{fmt(totals.daily_portfolio || 0)}</td>
                   <td className="px-2 py-3 text-right font-mono">{fmt(totals.expected_weekly || 0)}</td>
                   <td className="px-2 py-3 text-right font-mono">{fmt(totals.collected)}</td>
+                  <td className="px-2 py-3 text-right font-mono">{fmt(totals.daily_collection || 0)}</td>
                   <td className="px-2 py-3 text-right font-mono">{fmtPct(overallEfficiency)}</td>
                   <td className="px-2 py-3 text-right font-mono">{fmt(totals.gap || 0)}</td>
                   <td className="px-2 py-3 text-right">{totals.payments}</td>
                   <td className="px-2 py-3 text-right font-mono">{totals.tenants_total ? fmtPct((totals.tenants_paid / totals.tenants_total) * 100) : '0.0%'}</td>
+                  <td className="px-2 py-3 text-right font-mono">{totals.tenants_total ? fmtPct((totals.tenants_paid / totals.tenants_total) * 100) : '0.0%'}</td>
                   <td className="px-2 py-3 text-right font-mono">{fmt(totals.commission)}</td>
+                  <td className="px-2 py-3 text-right font-mono">{fmt(totals.daily_commission || 0)}</td>
                   <td className="px-2 py-3 text-right font-mono">{fmt(totals.interest)}</td>
+                  <td className="px-2 py-3 text-right font-mono">{fmt(totals.rent_paid_out || 0)}</td>
                   <td className="px-2 py-3 text-right font-mono">{fmt(totals.wallet_total)}</td>
                   <td className="px-2 py-3 text-center">—</td>
                 </tr>
