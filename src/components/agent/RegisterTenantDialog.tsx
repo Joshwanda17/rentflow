@@ -28,6 +28,7 @@ import {
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
+import RentRequestStatusTracker from '@/components/agent/RentRequestStatusTracker';
 
 interface RegisterTenantDialogProps {
   open: boolean;
@@ -39,6 +40,7 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [createdRentRequestId, setCreatedRentRequestId] = useState<string | null>(null);
   const [capturingLocation, setCapturingLocation] = useState(false);
   const [nationalIdError, setNationalIdError] = useState('');
   
@@ -84,6 +86,7 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
     setLc1Village('');
     setGuarantorConsent(false);
     setSuccess(false);
+    setCreatedRentRequestId(null);
     setNationalIdError('');
   };
 
@@ -242,7 +245,7 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
 
       // Create the rent_request so the tenant enters the rent pipeline and
       // the agent receives commission on every payment.
-      const { error: rentErr } = await supabase
+      const { data: rentRow, error: rentErr } = await supabase
         .from('rent_requests')
         .insert({
           tenant_id: tenantId,
@@ -260,7 +263,9 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
           house_category: 'single-room',
           request_latitude: latitude,
           request_longitude: longitude,
-        } as any);
+        } as any)
+        .select('id')
+        .single();
 
       if (rentErr) {
         toast.error('Failed to create rent request', { description: rentErr.message });
@@ -268,6 +273,7 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
         setLoading(false);
         return;
       }
+      setCreatedRentRequestId(rentRow?.id ?? null);
 
       // Activate rent discount for tenant
       await supabase
@@ -327,6 +333,14 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
               <p className="text-muted-foreground text-sm mb-2">
                 The tenant is now linked to the landlord
               </p>
+              {createdRentRequestId && (
+                <div className="mb-4">
+                  <RentRequestStatusTracker
+                    rentRequestId={createdRentRequestId}
+                    initialStatus="pending"
+                  />
+                </div>
+              )}
               <div className="text-xs text-muted-foreground space-y-1 mb-4">
                 <p>✅ You earn <span className="font-semibold text-primary">2% commission</span> on every rent payment</p>
                 <p>✅ Commission is automatically sent to your wallet</p>
