@@ -29,6 +29,7 @@ interface Investor {
   latest_date: string;
   status: string;
   name: string;
+  reference_ids: string[];
 }
 
 export function AngelPoolManagementPanel({ userRole }: Props) {
@@ -54,12 +55,12 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('angel_pool_investments')
-        .select('investor_id, shares, amount, pool_ownership_percent, company_ownership_percent, created_at, status')
+        .select('investor_id, shares, amount, pool_ownership_percent, company_ownership_percent, created_at, status, reference_id')
         .eq('status', 'confirmed');
       if (error) throw error;
 
       // aggregate by investor
-      const map = new Map<string, { total_shares: number; total_amount: number; pool_pct: number; company_pct: number; latest_date: string; status: string }>();
+      const map = new Map<string, { total_shares: number; total_amount: number; pool_pct: number; company_pct: number; latest_date: string; status: string; reference_ids: string[] }>();
       for (const r of data ?? []) {
         const e = map.get(r.investor_id);
         if (e) {
@@ -68,8 +69,9 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
           e.pool_pct += r.pool_ownership_percent;
           e.company_pct += r.company_ownership_percent;
           if (r.created_at > e.latest_date) e.latest_date = r.created_at;
+          if (r.reference_id && !e.reference_ids.includes(r.reference_id)) e.reference_ids.push(r.reference_id);
         } else {
-          map.set(r.investor_id, { total_shares: r.shares, total_amount: r.amount, pool_pct: r.pool_ownership_percent, company_pct: r.company_ownership_percent, latest_date: r.created_at, status: r.status });
+          map.set(r.investor_id, { total_shares: r.shares, total_amount: r.amount, pool_pct: r.pool_ownership_percent, company_pct: r.company_ownership_percent, latest_date: r.created_at, status: r.status, reference_ids: r.reference_id ? [r.reference_id] : [] });
         }
       }
 
@@ -190,9 +192,9 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
   };
 
   const exportCSV = () => {
-    const headers = ['#', 'Name', 'Shares', 'Amount (USh)', 'Pool %', 'Company %', 'Date', 'Status'];
+    const headers = ['#', 'Name', 'Reference IDs', 'Shares', 'Amount (USh)', 'Pool %', 'Company %', 'Date', 'Status'];
     const rows = sorted.map((inv, i) => [
-      i + 1, inv.name, inv.total_shares, inv.total_amount, inv.pool_pct.toFixed(4),
+      i + 1, inv.name, `"${inv.reference_ids.join('; ')}"`, inv.total_shares, inv.total_amount, inv.pool_pct.toFixed(4),
       inv.company_pct.toFixed(4), format(new Date(inv.latest_date), 'yyyy-MM-dd'), inv.status,
     ]);
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
@@ -321,6 +323,7 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
                 <TableRow>
                   <TableHead className="w-10">#</TableHead>
                   <TableHead className="cursor-pointer" onClick={() => toggleSort('name')}>Name <ArrowUpDown className="inline h-3 w-3" /></TableHead>
+                  <TableHead>Reference ID</TableHead>
                   <TableHead className="cursor-pointer text-right" onClick={() => toggleSort('total_shares')}>Shares <ArrowUpDown className="inline h-3 w-3" /></TableHead>
                   <TableHead className="cursor-pointer text-right hidden sm:table-cell" onClick={() => toggleSort('total_amount')}>Amount <ArrowUpDown className="inline h-3 w-3" /></TableHead>
                   <TableHead className="text-right hidden md:table-cell">Pool %</TableHead>
@@ -332,12 +335,23 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
               </TableHeader>
               <TableBody>
                 {paginated.length === 0 && (
-                  <TableRow><TableCell colSpan={userRole === 'ceo' ? 9 : 8} className="text-center py-8 text-muted-foreground">{isLoading ? 'Loading...' : 'No shareholders yet'}</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={userRole === 'ceo' ? 10 : 9} className="text-center py-8 text-muted-foreground">{isLoading ? 'Loading...' : 'No shareholders yet'}</TableCell></TableRow>
                 )}
                 {paginated.map((inv, i) => (
                   <TableRow key={inv.investor_id}>
                     <TableCell className="text-muted-foreground">{page * PAGE_SIZE + i + 1}</TableCell>
                     <TableCell className="font-medium">{inv.name}</TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {inv.reference_ids.length === 0 ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : inv.reference_ids.length === 1 ? (
+                        <span className="px-2 py-0.5 rounded bg-muted">{inv.reference_ids[0]}</span>
+                      ) : (
+                        <span title={inv.reference_ids.join(', ')} className="px-2 py-0.5 rounded bg-muted">
+                          {inv.reference_ids[0]} <span className="text-muted-foreground">+{inv.reference_ids.length - 1}</span>
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">{fmt(inv.total_shares)}</TableCell>
                     <TableCell className="text-right hidden sm:table-cell">UGX {fmt(inv.total_amount)}</TableCell>
                     <TableCell className="text-right hidden md:table-cell">{inv.pool_pct.toFixed(4)}%</TableCell>

@@ -129,28 +129,32 @@ export function AngelPoolSharePurchase({
                                 <tr>
                                   <td colSpan={2} style={{ paddingBottom: '20px' }}>
                                     <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation">
-                                      <tbody><tr>
-                                        <td width="31%" valign="top" className="td-block mobile-padding-bottom">
-                                          <div style={pillBlue}>
-                                            <Text style={pillBlueLabel}>Shares Purchased</Text>
-                                            <Text style={pillBlueValue}>{fmtNum(shares_purchased)}</Text>
-                                          </div>
-                                        </td>
-                                        <td width="3%" className="hide-mobile"></td>
-                                        <td width="32%" valign="top" className="td-block mobile-padding-bottom">
-                                          <div style={pillGreen}>
-                                            <Text style={pillGreenLabel}>Investment Amount</Text>
-                                            <Text style={pillGreenValue}>{currency} {fmtNum(investment_amount)}</Text>
-                                          </div>
-                                        </td>
-                                        <td width="3%" className="hide-mobile"></td>
-                                        <td width="31%" valign="top" className="td-block">
-                                          <div style={pillPurple}>
-                                            <Text style={pillPurpleLabel}>Ownership</Text>
-                                            <Text style={pillPurpleValue}>{ownership_percentage}%</Text>
-                                          </div>
-                                        </td>
-                                      </tr></tbody>
+                                      <tbody>
+                                        <tr>
+                                          <td valign="top" style={{ paddingBottom: '12px' }}>
+                                            <div style={pillBlue}>
+                                              <Text style={pillBlueLabel}>Shares Purchased</Text>
+                                              <Text style={pillBlueValue}>{fmtNum(shares_purchased)}</Text>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                        <tr>
+                                          <td valign="top" style={{ paddingBottom: '12px' }}>
+                                            <div style={pillGreen}>
+                                              <Text style={pillGreenLabel}>Investment Amount</Text>
+                                              <Text style={pillGreenValue}>{currency} {fmtNum(investment_amount)}</Text>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                        <tr>
+                                          <td valign="top">
+                                            <div style={pillPurple}>
+                                              <Text style={pillPurpleLabel}>Ownership</Text>
+                                              <Text style={pillPurpleValue}>{ownership_percentage}%</Text>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      </tbody>
                                     </table>
                                   </td>
                                 </tr>
