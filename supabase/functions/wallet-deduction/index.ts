@@ -105,41 +105,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    const cacheWithdrawable = Number(wallet.withdrawable_balance ?? 0);
-    const cacheFloat = Number(wallet.float_balance ?? 0);
+    const cacheWithdrawable = Math.max(0, Number(wallet.withdrawable_balance ?? 0));
+    const cacheFloat = Math.max(0, Number(wallet.float_balance ?? 0));
 
-    // ── STRICT WITHDRAWABLE GATE (matches the UI cap) ───────────────────────
-    // The CFO panel shows "Withdrawable" via get_user_available_balance, which
-    // floors the cached bucket by the user's ledger-net position and pending
-    // holds. We MUST gate on the same number — never the raw cache, and never
-    // float (float is company liability and is NEVER deductible from this tool).
-    const { data: strictData, error: strictErr } = await adminClient.rpc(
-      'get_user_available_balance',
-      { p_user_id: target_user_id },
-    );
-    if (strictErr) {
-      console.error("[wallet-deduction] strict RPC failed:", strictErr.message);
-      return new Response(JSON.stringify({ error: `Could not verify withdrawable balance: ${strictErr.message}` }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const strictAvailable = Number(strictData ?? 0);
-
-    // get_user_available_balance is the authoritative CFO cap. It already
-    // handles anchored wallet baselines, pending holds, and the withdrawable
-    // bucket. Do NOT add a second raw all-time ledger cap here: older users can
-    // have negative historical ledger positions while still having a valid
-    // anchored withdrawable balance that Finance must be allowed to sweep.
-    // RETRACTION OVERRIDE: cash_payout_retraction reverses a payout that the
-    // user actually received but is being clawed back. The strict RPC may
-    // under-report (anchored cache > ledger net), so for retractions we cap
-    // against the cached withdrawable bucket instead. All other categories
-    // remain strict-gated.
+    // CFO/FinOps deductions pull directly from the live wallet bucket. Do not
+    // block because strict historical ledger net is lower or negative; older
+    // ledger drift is handled by reconciliation, while this tool removes the
+    // amount currently visible in the user's wallet.
     const isRetraction = safeCategory === 'cash_payout_retraction';
-    const trueAvailable = isRetraction
-      ? Math.max(0, cacheWithdrawable)
-      : Math.max(0, strictAvailable);
+    const trueAvailable = cacheWithdrawable;
 
     if (amount > trueAvailable) {
       // Diagnostic log — record the drift between strict and cache so the CFO
@@ -147,7 +121,6 @@ Deno.serve(async (req) => {
       console.error("[wallet-deduction] rejected", {
         user_id: target_user_id,
         requested: amount,
-        strict_available: strictAvailable,
         true_available: trueAvailable,
         cache_withdrawable: cacheWithdrawable,
         cache_float: cacheFloat,
@@ -162,7 +135,6 @@ Deno.serve(async (req) => {
               source: 'wallet-deduction',
               cache_withdrawable: cacheWithdrawable,
               cache_float: cacheFloat,
-              strict_rpc: strictAvailable,
               actor_id: user.id,
             },
           });
@@ -170,7 +142,7 @@ Deno.serve(async (req) => {
       }
       return new Response(
         JSON.stringify({
-          error: `Maximum deductible: UGX ${trueAvailable.toLocaleString()} (requested UGX ${amount.toLocaleString()}). Cached withdrawable shows UGX ${cacheWithdrawable.toLocaleString()}. Float (UGX ${cacheFloat.toLocaleString()}) is company liability and cannot be deducted from this tool.`,
+          error: `Maximum deductible from wallet: UGX ${trueAvailable.toLocaleString()} (requested UGX ${amount.toLocaleString()}). Float (UGX ${cacheFloat.toLocaleString()}) is company liability and cannot be deducted from this tool.`,
         }),
         {
           status: 400,
