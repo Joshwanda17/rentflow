@@ -26,6 +26,7 @@ import CacheSweepPanel from '@/components/cfo/CacheSweepPanel';
 import LedgerReconciliationPanel from '@/components/cfo/LedgerReconciliationPanel';
 
 import { CFOPartnerPayoutProcessing } from '@/components/cfo/CFOPartnerPayoutProcessing';
+import { WithdrawalHistoryStatement } from '@/components/financial-ops/WithdrawalHistoryStatement';
 import { RentPipelineQueue } from '@/components/executive/RentPipelineQueue';
 import { RejectedRequestsQueue } from '@/components/executive/RejectedRequestsQueue';
 import { ListingBonusApprovalQueue } from '@/components/executive/ListingBonusApprovalQueue';
@@ -132,6 +133,8 @@ export default function CFODashboardPage() {
             <CFOPartnerPayoutProcessing />
           </div>
         );
+      case 'withdrawal-history':
+        return <WithdrawalHistoryStatement />;
       case 'financial-agents':
         return <FinancialAgentsPanel />;
       case 'proxy-agents':
