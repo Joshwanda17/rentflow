@@ -4,13 +4,14 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, MapPin, Droplets, Zap, ShieldCheck, Car, Sofa, Home, DoorOpen, ChevronLeft, ChevronRight, Clock, ExternalLink } from 'lucide-react';
+import { Search, MapPin, Droplets, Zap, ShieldCheck, Car, Sofa, Home, DoorOpen, ChevronLeft, ChevronRight, Clock, ExternalLink, ZoomIn } from 'lucide-react';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
 import { useNearbyHouses, HouseListing } from '@/hooks/useHouseListings';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion } from 'framer-motion';
+import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
 
 interface AvailableHousesSheetProps {
   open: boolean;
@@ -38,6 +39,7 @@ const CATEGORIES = [
 
 function HouseImageCarousel({ images, title }: { images: string[] | null; title: string }) {
   const [idx, setIdx] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   if (!images || images.length === 0) {
     return (
       <div className="w-full h-44 rounded-xl bg-muted flex items-center justify-center">
@@ -48,7 +50,21 @@ function HouseImageCarousel({ images, title }: { images: string[] | null; title:
 
   return (
     <div className="relative w-full h-44 rounded-xl overflow-hidden bg-muted">
-      <img src={images[idx]} alt={title} className="w-full h-full object-cover" loading="lazy" />
+      <img
+        src={images[idx]}
+        alt={title}
+        className="w-full h-full object-cover cursor-zoom-in"
+        loading="lazy"
+        onClick={(e) => { e.stopPropagation(); setLightboxOpen(true); }}
+      />
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setLightboxOpen(true); }}
+        aria-label="View full screen"
+        className="absolute top-1.5 right-1.5 bg-black/60 text-white rounded-full p-1.5 active:scale-95 transition-transform"
+      >
+        <ZoomIn className="h-3.5 w-3.5" />
+      </button>
       {images.length > 1 && (
         <>
           <button
@@ -72,6 +88,13 @@ function HouseImageCarousel({ images, title }: { images: string[] | null; title:
           </div>
         </>
       )}
+      <ImageLightbox
+        images={images.map((url, i) => ({ id: `${i}`, image_url: url }))}
+        initialIndex={idx}
+        open={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+        productName={title}
+      />
     </div>
   );
 }

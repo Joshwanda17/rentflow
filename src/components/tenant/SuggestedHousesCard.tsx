@@ -1,12 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, MapPin, DoorOpen, ChevronRight } from 'lucide-react';
+import { Sparkles, MapPin, DoorOpen, ChevronRight, ZoomIn } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion } from 'framer-motion';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
+import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
 
 interface SuggestedHousesCardProps {
   userId: string;
@@ -73,6 +75,7 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
     queryFn: () => fetchSuggestions(userId),
     staleTime: 300000,
   });
+  const [lightbox, setLightbox] = useState<{ images: string[]; title: string } | null>(null);
 
   if (isLoading || !suggestions?.length) return null;
 
@@ -94,15 +97,25 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
             <CardContent className="p-0">
               <div className="flex gap-3 p-3">
                 {/* Thumbnail */}
-                <div className="shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-muted">
+                <button
+                  type="button"
+                  onClick={() => house.image_urls?.length && setLightbox({ images: house.image_urls, title: house.title })}
+                  className="relative shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-muted group"
+                  aria-label="View photos"
+                >
                   {house.image_urls?.[0] ? (
-                    <img src={house.image_urls[0]} alt={house.title} className="w-full h-full object-cover" loading="lazy" />
+                    <>
+                      <img src={house.image_urls[0]} alt={house.title} className="w-full h-full object-cover" loading="lazy" />
+                      <span className="absolute bottom-0.5 right-0.5 bg-black/60 text-white rounded-full p-1">
+                        <ZoomIn className="h-2.5 w-2.5" />
+                      </span>
+                    </>
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <DoorOpen className="h-6 w-6 text-muted-foreground/30" />
                     </div>
                   )}
-                </div>
+                </button>
 
                 {/* Details */}
                 <div className="flex-1 min-w-0 space-y-1">
@@ -130,6 +143,14 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
           </Card>
         ))}
       </div>
+      {lightbox && (
+        <ImageLightbox
+          images={lightbox.images.map((url, i) => ({ id: `${i}`, image_url: url }))}
+          open={!!lightbox}
+          onClose={() => setLightbox(null)}
+          productName={lightbox.title}
+        />
+      )}
     </motion.div>
   );
 }
