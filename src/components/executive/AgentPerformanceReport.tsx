@@ -575,9 +575,22 @@ export function AgentPerformanceReport() {
     daily_portfolio: (t.daily_portfolio || 0) + (r.daily_portfolio || 0),
     expected_weekly: (t.expected_weekly || 0) + (r.expected_weekly || 0),
     gap: (t.gap || 0) + (r.gap || 0),
-  }), { collected: 0, payments: 0, commission: 0, interest: 0, wallet_total: 0, tenants_paid: 0, tenants_total: 0, daily_portfolio: 0, expected_weekly: 0, gap: 0 }), [rows]);
+    daily_collection: (t.daily_collection || 0) + (r.daily_collection || 0),
+    daily_commission: (t.daily_commission || 0) + (r.daily_commission || 0),
+    rent_paid_out: (t.rent_paid_out || 0) + (r.rent_paid_out || 0),
+  }), { collected: 0, payments: 0, commission: 0, interest: 0, wallet_total: 0, tenants_paid: 0, tenants_total: 0, daily_portfolio: 0, expected_weekly: 0, gap: 0, daily_collection: 0, daily_commission: 0, rent_paid_out: 0 }), [rows]);
 
   const overallEfficiency = (totals.expected_weekly || 0) > 0 ? (totals.collected / (totals.expected_weekly || 1)) * 100 : 0;
+
+  // Best & Worst performer (by efficiency, must have collected > 0 to count)
+  const performersByEff = useMemo(() => rows.filter(r => r.collected > 0).slice(), [rows]);
+  const bestPerformer = useMemo(() =>
+    performersByEff.length ? [...performersByEff].sort((a, b) => (b.efficiency || 0) - (a.efficiency || 0))[0] : null
+  , [performersByEff]);
+  const worstPerformer = useMemo(() =>
+    performersByEff.length ? [...performersByEff].sort((a, b) => (a.efficiency || 0) - (b.efficiency || 0))[0] : null
+  , [performersByEff]);
+  const topConversion = useMemo(() => rows.reduce((m, r) => Math.max(m, r.conversion_pct || 0), 0), [rows]);
 
   const activeColFilterCount =
     (colFilters.name ? 1 : 0) +
