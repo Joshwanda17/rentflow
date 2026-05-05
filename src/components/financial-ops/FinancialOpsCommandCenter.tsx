@@ -180,6 +180,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
           </div>
         )}
         {activeTool === 'mismatch_metrics' && <MismatchMetricsPanel />}
+        {activeTool === 'withdrawal_history' && <WithdrawalHistoryStatement />}
       </div>
     );
   }
