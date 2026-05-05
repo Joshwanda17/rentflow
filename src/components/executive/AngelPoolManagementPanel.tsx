@@ -323,6 +323,7 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
                 <TableRow>
                   <TableHead className="w-10">#</TableHead>
                   <TableHead className="cursor-pointer" onClick={() => toggleSort('name')}>Name <ArrowUpDown className="inline h-3 w-3" /></TableHead>
+                  <TableHead>Reference ID</TableHead>
                   <TableHead className="cursor-pointer text-right" onClick={() => toggleSort('total_shares')}>Shares <ArrowUpDown className="inline h-3 w-3" /></TableHead>
                   <TableHead className="cursor-pointer text-right hidden sm:table-cell" onClick={() => toggleSort('total_amount')}>Amount <ArrowUpDown className="inline h-3 w-3" /></TableHead>
                   <TableHead className="text-right hidden md:table-cell">Pool %</TableHead>
@@ -334,12 +335,23 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
               </TableHeader>
               <TableBody>
                 {paginated.length === 0 && (
-                  <TableRow><TableCell colSpan={userRole === 'ceo' ? 9 : 8} className="text-center py-8 text-muted-foreground">{isLoading ? 'Loading...' : 'No shareholders yet'}</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={userRole === 'ceo' ? 10 : 9} className="text-center py-8 text-muted-foreground">{isLoading ? 'Loading...' : 'No shareholders yet'}</TableCell></TableRow>
                 )}
                 {paginated.map((inv, i) => (
                   <TableRow key={inv.investor_id}>
                     <TableCell className="text-muted-foreground">{page * PAGE_SIZE + i + 1}</TableCell>
                     <TableCell className="font-medium">{inv.name}</TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {inv.reference_ids.length === 0 ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : inv.reference_ids.length === 1 ? (
+                        <span className="px-2 py-0.5 rounded bg-muted">{inv.reference_ids[0]}</span>
+                      ) : (
+                        <span title={inv.reference_ids.join(', ')} className="px-2 py-0.5 rounded bg-muted">
+                          {inv.reference_ids[0]} <span className="text-muted-foreground">+{inv.reference_ids.length - 1}</span>
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">{fmt(inv.total_shares)}</TableCell>
                     <TableCell className="text-right hidden sm:table-cell">UGX {fmt(inv.total_amount)}</TableCell>
                     <TableCell className="text-right hidden md:table-cell">{inv.pool_pct.toFixed(4)}%</TableCell>
