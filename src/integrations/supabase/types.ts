@@ -14474,6 +14474,23 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_anchor_today_view: {
+        Row: {
+          batch_id: string | null
+          cached_at_anchor: number | null
+          cached_now: number | null
+          created_at: string | null
+          delta_applied: number | null
+          full_name: string | null
+          phone: string | null
+          platform_leg_id: string | null
+          strict_net_at_anchor: number | null
+          strict_net_now: number | null
+          user_id: string | null
+          wallet_leg_id: string | null
+        }
+        Relationships: []
+      }
       wallet_anchored_balance_drift_view: {
         Row: {
           cached_balance: number | null
