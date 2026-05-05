@@ -198,6 +198,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
    */
   const [smsPasteOpen, setSmsPasteOpen] = useState(false);
   const [smsPasteText, setSmsPasteText] = useState('');
+  const [smsConfirmStep, setSmsConfirmStep] = useState(false);
   /**
    * Per-tenant breakdown for an Operational Float deposit. The agent
    * collected one bulk amount in the field, dropped it at the merchant
@@ -2127,7 +2128,14 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         })()}
       </DialogContent>
     </Dialog>
-    <Dialog open={smsPasteOpen} onOpenChange={setSmsPasteOpen} modal={false}>
+    <Dialog
+      open={smsPasteOpen}
+      onOpenChange={(o) => {
+        setSmsPasteOpen(o);
+        if (!o) setSmsConfirmStep(false);
+      }}
+      modal={false}
+    >
       <DialogContent
         className="max-w-md z-[110]"
         onPointerDownOutside={(e) => e.preventDefault()}
@@ -2136,9 +2144,10 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <ClipboardPaste className="h-4 w-4 text-primary" />
-            Paste your SMS
+            {smsConfirmStep ? 'Confirm extracted details' : 'Paste your SMS'}
           </DialogTitle>
         </DialogHeader>
+        {!smsConfirmStep ? (
         <div className="space-y-3">
           <p className="text-xs text-muted-foreground">
             Paste the full payment confirmation SMS below. We'll auto-fill
@@ -2211,19 +2220,70 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             <Button
               type="button"
               className="flex-1"
-              onClick={() => {
-                const ok = applyPastedSms(smsPasteText);
-                if (ok) {
-                  setSmsPasteOpen(false);
-                  setSmsPasteText('');
-                }
-              }}
+              onClick={() => setSmsConfirmStep(true)}
               disabled={!smsPasteText.trim()}
             >
-              Extract & fill
+              Review →
             </Button>
           </div>
         </div>
+        ) : (() => {
+          const preview = parseSMS(smsPasteText.trim());
+          const found = [preview.amount, preview.transactionId, preview.date, preview.time].filter(Boolean).length;
+          const Row = ({ label, value }: { label: string; value: string | null | undefined }) => (
+            <div className="flex items-center justify-between gap-3 py-2 border-b border-border last:border-0">
+              <span className="text-xs text-muted-foreground">{label}</span>
+              <span className={cn("text-sm font-mono font-semibold text-right truncate", !value && "text-muted-foreground/60 font-normal")}>
+                {value || 'Not detected'}
+              </span>
+            </div>
+          );
+          return (
+            <div className="space-y-3">
+              <div className={cn(
+                "rounded-lg border p-3",
+                found === 4 ? "border-success/40 bg-success/5" : "border-amber-300 bg-amber-50"
+              )}>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                  {found}/4 fields detected
+                </p>
+                <Row label="Amount" value={preview.amount ? `UGX ${preview.amount.toLocaleString()}` : null} />
+                <Row label="Transaction ID" value={preview.transactionId} />
+                <Row label="Date" value={preview.date} />
+                <Row label="Time" value={preview.time} />
+              </div>
+              {found < 4 && (
+                <p className="text-[11px] text-amber-700">
+                  Some fields couldn't be read. You can still confirm — missing fields will be left blank for you to fill manually.
+                </p>
+              )}
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setSmsConfirmStep(false)}
+                >
+                  ← Back
+                </Button>
+                <Button
+                  type="button"
+                  className="flex-1"
+                  onClick={() => {
+                    const ok = applyPastedSms(smsPasteText);
+                    if (ok) {
+                      setSmsPasteOpen(false);
+                      setSmsPasteText('');
+                      setSmsConfirmStep(false);
+                    }
+                  }}
+                >
+                  Confirm & fill
+                </Button>
+              </div>
+            </div>
+          );
+        })()}
       </DialogContent>
     </Dialog>
     </>
