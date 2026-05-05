@@ -1,53 +1,58 @@
-## Problem
+## Goal
+Align the Agent Performance Report with the 6 required fields from your checklist:
+1. Best and Worst performance
+2. Daily Collection rates (each collection per person)
+3. Agent activities
+4. Daily Commissions paid out
+5. Daily rent paid out
+6. Conversion percentages
 
-The example SMS the user shared exposes two parser gaps in `src/utils/smsParser.ts`:
+## Current state (already in `src/components/executive/AgentPerformanceReport.tsx`)
+- Active Tenants, Daily Portfolio, Expected Weekly, Collected, Efficiency, Gap
+- Payments count, % Paid
+- 10% Commission, Interest, Wallet Total
+- Status badge by efficiency
+- KPI strip (6 cards), filters, PDF download
 
-```
-PAID.TID 146525101664. UGX 300,000 to WELILE TECHNOLOGIES LIMITED Charge UGX 0. Bal UGX 323,546. 04-May-2026 16:20
-```
+## What's missing vs the checklist
 
-Current behaviour against this string:
-- ✅ **Amount** — `UGX 300,000` parses to `300000`.
-- ❌ **TID** — regex is `\bTID\d{4,18}\b` (no separator), but the SMS has `TID 146525101664` with a **space**. No match.
-- ❌ **Date** — regex only accepts numeric `DD-MM-YYYY` / `YYYY-MM-DD`. `04-May-2026` (month name) is rejected.
-- ⚠️ **Bal UGX 323,546** appears *after* the paid amount — current amount regex grabs the **first** UGX token, which is the paid amount, so this is fine. But if a future SMS puts `Bal` before the paid amount we'd grab the wrong number. Worth hardening.
-- ✅ **Time** — `16:20` parses correctly.
+| # | Required | Status | Action |
+|---|----------|--------|--------|
+| 1 | Best and Worst performance | Implicit (sorted) | Add explicit **"Top Performer" + "Needs Attention"** spotlight cards above the table |
+| 2 | Daily Collection rates per person | Aggregated only | Add a **"Daily Avg / Agent"** column = collected ÷ active days; plus per-agent daily-trend sparkline |
+| 3 | Agent activities | Payments count exists | Rename "Payments (Count)" → **"Activities"** and include collections + deposits + visits in one tally |
+| 4 | Daily Commissions paid out | Period total only | Add **Daily Commission Avg** column + a top-strip KPI "Today's Commissions Paid" |
+| 5 | Daily rent paid out | Not present | Add **"Rent Paid Out (Daily)"** = sum of `landlord_payouts` (or rent disbursement) attributed to each agent's tenants for the day; KPI for today's total |
+| 6 | Conversion percentages | Efficiency + %Paid exist | Add explicit **"Conversion %"** column = tenants_paid ÷ tenants_total over selected window, displayed as a clear column with color-coded bar |
 
-## Fix
+## Implementation steps
 
-Single file change: `src/utils/smsParser.ts`.
+1. **Add Best/Worst spotlight (top of report)**
+   - Two cards: highest-efficiency agent (green) + lowest non-zero efficiency agent (red), with name, collected, efficiency.
 
-### 1. TID regex — allow optional separator
-Change Airtel matcher to tolerate space, dot, colon or dash between the `TID` token and the digits, then strip the separator when storing:
+2. **New columns in the table**
+   - `Activities` (renamed from Payments) — keep count of all field actions per agent in window.
+   - `Daily Avg Collection (UGX)` — collected / number of days in window.
+   - `Daily Commission (UGX)` — commission / days in window.
+   - `Rent Paid Out (UGX)` — pulled from `landlord_payouts` (or equivalent rent disbursement table) joined by `agent_id` of the related rent_request.
+   - `Conversion %` — tenants_paid / tenants_total, color-coded.
 
-```ts
-const airtel = text.match(/\bTID[\s.:#-]*?(\d{4,18})\b/i);
-if (airtel) result.transactionId = `TID${airtel[1]}`;
-```
+3. **New KPI strip cards** (additions to existing 6)
+   - Today's Commissions Paid Out (UGX)
+   - Today's Rent Paid Out (UGX)
+   - Top Conversion % (from best agent)
 
-Also keep MTN `MP…` and the generic `Ref/Receipt` fallback as today.
+4. **Data fetch additions**
+   - Pull `landlord_payouts` (or `disbursements` — verify exact table during implementation) within window, attributed to agent via `rent_request_id → agent_id` map (already built in current code).
+   - Compute "days in window" from the selected preset to power daily averages.
 
-### 2. Date regex — accept month-name format
-Add a second matcher for `DD-Mon-YYYY` (e.g. `04-May-2026`, `4 May 2026`, `04/May/26`) and normalise via a small month-name map (`Jan…Dec`, case-insensitive). Try numeric first, then named-month:
+5. **PDF export update**
+   - Extend `agentPerformanceReportPdf.ts` to include the new columns and the spotlight section.
 
-```ts
-const named = text.match(/\b(\d{1,2})[\s/-](Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[\s/-](\d{2,4})\b/i);
-```
+## Out of scope
+- No schema changes — all data exists in `agent_collections`, `repayments`, `tenant_merchant_payments`, `agent_earnings`, `rent_requests`, and the rent disbursement table.
+- No new RPCs unless `landlord_payouts` doesn't exist in the schema, in which case I'll confirm with you before proceeding.
 
-Normalise to `YYYY-MM-DD`. Two-digit years → `20YY`.
-
-### 3. Amount — prefer the paid amount, not balance
-Strengthen the amount matcher to skip tokens that follow the word `Bal`/`Balance`/`Charge`. Easiest implementation: scan all `UGX <number>` matches in order and pick the first one that isn't immediately preceded (within ~6 chars) by `Bal`, `Balance`, or `Charge`. Fall back to the first match if all are filtered.
-
-### 4. Tests (lightweight)
-Add a short test file `src/utils/__tests__/smsParser.test.ts` covering:
-- The exact SMS in this thread.
-- An MTN `MP…` SMS.
-- An SMS with `Bal UGX …` before the paid line (to confirm we still grab the right amount).
-- An SMS missing the time (to confirm `time` is `undefined`, not a false match).
-
-No backend, schema, or `DepositFlow.tsx` changes needed — the consumer already reads `{amount, transactionId, date, time}` from the parser output.
-
-## Files touched
-- `src/utils/smsParser.ts` — regex + month-name normalisation + amount-vs-balance disambiguation.
-- `src/utils/__tests__/smsParser.test.ts` — new, 4 cases.
+## Files to edit
+- `src/components/executive/AgentPerformanceReport.tsx` — spotlight, KPI additions, new columns, daily averages, conversion column.
+- `src/lib/agentPerformanceReportPdf.ts` — match new columns in PDF.
