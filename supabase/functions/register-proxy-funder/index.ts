@@ -9,11 +9,27 @@ const corsHeaders = {
 
 function normalizePhone(phone: string): string {
   const digits = phone.replace(/[^0-9]/g, "");
-  // Supabase Auth expects E.164 digits WITHOUT the leading '+'.
-  if (digits.startsWith("256") && digits.length === 12) return digits;
+  // Normalize to local Uganda format-friendly digits, accept many inputs.
+  if (digits.startsWith("256") && digits.length >= 12) return digits.slice(0, 12);
   if (digits.startsWith("0") && digits.length === 10) return `256${digits.slice(1)}`;
   if (digits.length === 9) return `256${digits}`;
+  if (digits.length >= 9 && digits.length <= 15) return digits;
   return digits;
+}
+
+function toE164(digits: string): string {
+  // Supabase Auth's createUser expects E.164 with leading '+'.
+  return digits.startsWith("+") ? digits : `+${digits}`;
+}
+
+function friendlyAuthError(msg: string): string {
+  if (/E\.?164/i.test(msg) || /phone/i.test(msg) && /format/i.test(msg)) {
+    return "That phone number doesn't look right. Use a Uganda format like 0704825473, 256704825473, or +256704825473.";
+  }
+  if (/already (been )?registered|duplicate/i.test(msg)) {
+    return "This phone number is already registered.";
+  }
+  return msg;
 }
 
 Deno.serve(async (req) => {
@@ -46,6 +62,12 @@ Deno.serve(async (req) => {
 
     const normalizedPhone = normalizePhone(phone);
     const local9 = normalizedPhone.slice(-9);
+    if (local9.length !== 9) {
+      return new Response(
+        JSON.stringify({ error: "That phone number doesn't look right. Use a Uganda format like 0704825473 or +256704825473." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Check if phone already exists
     const phoneFormats = [local9, `0${local9}`, `256${local9}`, `+256${local9}`];
@@ -64,14 +86,14 @@ Deno.serve(async (req) => {
 
     // Create auth user (no password — USSD-only user)
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-      phone: normalizedPhone,
+      phone: toE164(normalizedPhone),
       phone_confirm: true,
       user_metadata: { full_name: cleanFullName, registered_by_agent: agent_id },
     });
 
     if (authError) {
       return new Response(
-        JSON.stringify({ error: `Auth error: ${authError.message}` }),
+        JSON.stringify({ error: friendlyAuthError(authError.message) }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
