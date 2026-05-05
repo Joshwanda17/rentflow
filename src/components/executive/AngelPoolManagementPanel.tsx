@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
-import { Settings, Download, ArrowUpDown, TrendingUp, Users, PieChart, DollarSign, BarChart3, Layers, Trash2, Ban, Pencil, MoreHorizontal } from 'lucide-react';
+import { Settings, Download, ArrowUpDown, TrendingUp, Users, PieChart, DollarSign, BarChart3, Layers, Trash2, Ban, Pencil, MoreHorizontal, Eye, Mail, Phone, Calendar, Hash } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { format } from 'date-fns';
@@ -43,11 +43,14 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
   const PAGE_SIZE = 15;
 
   // Shareholder action states
-  const [actionType, setActionType] = useState<'delete' | 'suspend' | 'edit' | null>(null);
+  const [actionType, setActionType] = useState<'delete' | 'suspend' | 'edit' | 'view' | null>(null);
   const [selectedInvestor, setSelectedInvestor] = useState<Investor | null>(null);
   const [actionReason, setActionReason] = useState('');
   const [editShares, setEditShares] = useState(0);
   const [actionLoading, setActionLoading] = useState(false);
+  const [profileData, setProfileData] = useState<any | null>(null);
+  const [profileTxns, setProfileTxns] = useState<any[]>([]);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   // Fetch investments joined with profiles
   const { data: investments = [], isLoading: investLoading } = useQuery({
@@ -119,14 +122,42 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
     }));
   }, [investments]);
 
-  const openAction = (type: 'delete' | 'suspend' | 'edit', inv: Investor) => {
+  const openAction = async (type: 'delete' | 'suspend' | 'edit' | 'view', inv: Investor) => {
     setActionType(type);
     setSelectedInvestor(inv);
     setActionReason('');
     setEditShares(inv.total_shares);
+    if (type === 'view') {
+      setProfileLoading(true);
+      setProfileData(null);
+      setProfileTxns([]);
+      try {
+        const [{ data: prof }, { data: txns }] = await Promise.all([
+          supabase.from('profiles').select('id, full_name, phone, email, country, created_at, role').eq('id', inv.investor_id).maybeSingle(),
+          supabase.from('angel_pool_investments').select('reference_id, shares, amount, pool_ownership_percent, company_ownership_percent, status, created_at').eq('investor_id', inv.investor_id).order('created_at', { ascending: false }),
+        ]);
+        setProfileData(prof);
+        setProfileTxns(txns ?? []);
+        // Audit profile view
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.from('audit_logs').insert({
+            user_id: user.id,
+            action_type: 'angel_pool_shareholder_view',
+            table_name: 'angel_pool_investments',
+            record_id: inv.investor_id,
+            metadata: { investor_name: inv.name, reason: 'CEO viewed shareholder profile' } as any,
+          });
+        }
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to load profile');
+      } finally {
+        setProfileLoading(false);
+      }
+    }
   };
 
-  const closeAction = () => { setActionType(null); setSelectedInvestor(null); setActionReason(''); setActionLoading(false); };
+  const closeAction = () => { setActionType(null); setSelectedInvestor(null); setActionReason(''); setActionLoading(false); setProfileData(null); setProfileTxns([]); };
 
   const handleAction = async () => {
     if (!selectedInvestor || !actionType) return;
@@ -365,6 +396,9 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
                             <Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openAction('view', inv)}>
+                              <Eye className="h-3.5 w-3.5 mr-2" /> View Profile
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => openAction('edit', inv)}>
                               <Pencil className="h-3.5 w-3.5 mr-2" /> Edit Shares
                             </DropdownMenuItem>
