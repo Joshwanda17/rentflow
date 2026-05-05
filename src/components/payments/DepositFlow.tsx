@@ -857,6 +857,36 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       const txDateTime = new Date(`${transactionDate}T${transactionTime}`);
       const normalizedRef = getReferenceId();
 
+      // 🛡️ DUPLICATE GUARD — check if this Transaction ID / receipt has
+      // already been submitted (and isn't rejected/cancelled/failed) so we
+      // don't double-post the same SMS or receipt. Cheap, indexed lookup
+      // (`idx_deposit_requests_tid_provider_active`). If the network blip
+      // here, fall through and let the DB unique index / Financial Ops
+      // catch it — never block on a transient error.
+      if (normalizedRef && !isEditMode) {
+        try {
+          const { data: existing } = await supabase
+            .from('deposit_requests')
+            .select('id, status, amount, created_at')
+            .ilike('transaction_id', normalizedRef)
+            .not('status', 'in', '(rejected,cancelled,failed)')
+            .limit(1);
+          if (existing && existing.length > 0) {
+            const dup = existing[0] as { status: string; amount: number };
+            toast.error('Duplicate transaction blocked', {
+              description: `This reference (${normalizedRef}) has already been submitted (status: ${dup.status}). Each Transaction ID can only be used once.`,
+              duration: 8000,
+            });
+            setStep('form');
+            setIsSubmitting(false);
+            return;
+          }
+        } catch {
+          // Soft-fail — don't block on a transient lookup error; the DB
+          // and Financial Ops review remain the final guardrails.
+        }
+      }
+
       // Upload bank slip if provided
       let bankSlipUrl: string | null = null;
       if (channel === 'bank' && bankSlipFile) {

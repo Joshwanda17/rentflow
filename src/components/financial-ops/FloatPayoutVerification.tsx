@@ -116,6 +116,23 @@ export function FloatPayoutVerification() {
         if (error) throw error;
 
       } else if (action === 'complete') {
+        // 🛡️ DUPLICATE TID GUARD — block saving a TID that's already been
+        // recorded against another completed float payout. Prevents an
+        // operator from accidentally pasting the same SMS reference twice
+        // and double-counting commission / disbursement.
+        const trimmedTid = tid.trim();
+        const { data: dupTid } = await supabase
+          .from('agent_float_withdrawals')
+          .select('id, status')
+          .ilike('transaction_id', trimmedTid)
+          .neq('id', id)
+          .limit(1);
+        if (dupTid && dupTid.length > 0) {
+          throw new Error(
+            `Transaction ID ${trimmedTid} is already recorded on another payout (${(dupTid[0] as any).status}). Each TID can only be used once.`,
+          );
+        }
+
         // Upload receipt photos from Financial Ops
         const photoUrls: string[] = [];
         for (const file of files) {
