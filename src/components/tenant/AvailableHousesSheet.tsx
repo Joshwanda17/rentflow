@@ -112,8 +112,8 @@ function LocationMap({ lat, lng, title }: { lat: number | null; lng: number | nu
         href={linkUrl}
         target="_blank"
         rel="noopener noreferrer"
-        aria-label={`Open ${title} in Google Maps`}
-        className="block relative w-full h-32 rounded-xl overflow-hidden bg-muted border-2 border-primary/40 ring-2 ring-primary/20 shadow-md active:scale-[0.99] transition-transform"
+        aria-label={`Open ${title} location in Google Maps (opens in a new tab)`}
+        className="block relative w-full h-32 rounded-xl overflow-hidden bg-muted border-2 border-primary/40 ring-2 ring-primary/20 shadow-md active:scale-[0.99] transition-transform focus:outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         <iframe
           src={mapUrl}
@@ -364,8 +364,8 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                 href={mapHref}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label={label}
-                className="flex items-center justify-center gap-2.5 w-full min-h-[56px] px-6 py-4 rounded-full bg-primary text-primary-foreground font-bold text-base shadow-xl active:scale-[0.98] transition-transform touch-manipulation"
+                aria-label={`${label} (opens in a new tab)`}
+                className="flex items-center justify-center gap-2.5 w-full min-h-[56px] px-6 py-4 rounded-full bg-primary text-primary-foreground font-bold text-base shadow-xl active:scale-[0.98] transition-transform touch-manipulation focus:outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 <Navigation className="h-5 w-5" />
                 Tap to open in Google Maps
