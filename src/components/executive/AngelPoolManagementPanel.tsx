@@ -132,11 +132,14 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
       setProfileData(null);
       setProfileTxns([]);
       try {
-        const [{ data: prof }, { data: txns }] = await Promise.all([
-          supabase.from('profiles').select('id, full_name, phone, email, country, created_at, role').eq('id', inv.investor_id).maybeSingle(),
+        const [{ data: prof, error: profErr }, { data: txns }, { data: roles }] = await Promise.all([
+          supabase.from('profiles').select('id, full_name, phone, email, country, city, created_at, avatar_url, verified').eq('id', inv.investor_id).maybeSingle(),
           supabase.from('angel_pool_investments').select('reference_id, shares, amount, pool_ownership_percent, company_ownership_percent, status, created_at').eq('investor_id', inv.investor_id).order('created_at', { ascending: false }),
+          supabase.from('user_roles').select('role').eq('user_id', inv.investor_id),
         ]);
-        setProfileData(prof);
+        if (profErr) console.error('Profile fetch error:', profErr);
+        const roleNames = (roles ?? []).map((r: any) => r.role).join(', ');
+        setProfileData(prof ? { ...prof, role: roleNames || '—' } : { id: inv.investor_id, full_name: inv.name, role: roleNames || '—' });
         setProfileTxns(txns ?? []);
         // Audit profile view
         const { data: { user } } = await supabase.auth.getUser();
