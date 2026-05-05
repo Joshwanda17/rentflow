@@ -317,12 +317,15 @@ export function FunderManagementSheet({ open, onOpenChange }: { open: boolean; o
             <div>
               <Label>Phone Number *</Label>
               <Input
-                placeholder="e.g. 0704825473"
+                placeholder="e.g. 0704825473 or +256704825473"
                 value={regPhone}
                 onChange={e => setRegPhone(e.target.value)}
                 type="tel"
                 maxLength={15}
               />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Accepted formats: 0704825473, 256704825473, or +256704825473
+              </p>
               {isChecking && <p className="text-[10px] text-muted-foreground mt-1">Checking...</p>}
               {isDuplicate && (
                 <p className="text-[10px] text-destructive mt-1 flex items-center gap-1">
