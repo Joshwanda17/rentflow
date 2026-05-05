@@ -17,6 +17,7 @@ import { OfflineSubmissionsQueue } from './OfflineSubmissionsQueue';
 import { VerifyDepositsHub } from './VerifyDepositsHub';
 import { MismatchMetricsPanel } from './MismatchMetricsPanel';
 import { ReconciliationReviewScreen } from './ReconciliationReviewScreen';
+import { WithdrawalHistoryStatement } from './WithdrawalHistoryStatement';
 
 
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
