@@ -46,6 +46,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
   const [amount, setAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<string>('cash');
   const [investmentReference, setInvestmentReference] = useState('');
+  const [investmentDate, setInvestmentDate] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<InvestmentResult | null>(null);
   const [fundingSource, setFundingSource] = useState<'investor' | 'agent'>('investor');
@@ -70,6 +71,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
     setAmount('');
     setPaymentMethod('cash');
     setInvestmentReference('');
+    setInvestmentDate('');
     setSubmitting(false);
     setResult(null);
     setShowRegister(false);
@@ -197,7 +199,8 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
   const fundingBalance = fundingSource === 'agent'
     ? agentBalance
     : (selectedInvestor?.walletBalance ?? 0);
-  const canProceed = shares > 0 && !!selectedInvestor && actualAmount <= fundingBalance;
+  const canProceed =
+    shares > 0 && !!selectedInvestor && actualAmount <= fundingBalance && !!investmentDate;
 
   const handleSubmit = async () => {
     if (!selectedInvestor || !canProceed) return;
@@ -210,6 +213,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
           payment_method: paymentMethod,
           investment_reference: investmentReference || undefined,
           funding_source: fundingSource,
+          investment_date: investmentDate,
         },
       });
 
