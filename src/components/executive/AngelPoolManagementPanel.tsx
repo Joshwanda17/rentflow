@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
-import { Settings, Download, ArrowUpDown, TrendingUp, Users, PieChart, DollarSign, BarChart3, Layers, Trash2, Ban, Pencil, MoreHorizontal } from 'lucide-react';
+import { Settings, Download, ArrowUpDown, TrendingUp, Users, PieChart, DollarSign, BarChart3, Layers, Trash2, Ban, Pencil, MoreHorizontal, Eye, Mail, Phone, Calendar, Hash } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { format } from 'date-fns';
@@ -43,11 +43,14 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
   const PAGE_SIZE = 15;
 
   // Shareholder action states
-  const [actionType, setActionType] = useState<'delete' | 'suspend' | 'edit' | null>(null);
+  const [actionType, setActionType] = useState<'delete' | 'suspend' | 'edit' | 'view' | null>(null);
   const [selectedInvestor, setSelectedInvestor] = useState<Investor | null>(null);
   const [actionReason, setActionReason] = useState('');
   const [editShares, setEditShares] = useState(0);
   const [actionLoading, setActionLoading] = useState(false);
+  const [profileData, setProfileData] = useState<any | null>(null);
+  const [profileTxns, setProfileTxns] = useState<any[]>([]);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   // Fetch investments joined with profiles
   const { data: investments = [], isLoading: investLoading } = useQuery({
@@ -119,14 +122,42 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
     }));
   }, [investments]);
 
-  const openAction = (type: 'delete' | 'suspend' | 'edit', inv: Investor) => {
+  const openAction = async (type: 'delete' | 'suspend' | 'edit' | 'view', inv: Investor) => {
     setActionType(type);
     setSelectedInvestor(inv);
     setActionReason('');
     setEditShares(inv.total_shares);
+    if (type === 'view') {
+      setProfileLoading(true);
+      setProfileData(null);
+      setProfileTxns([]);
+      try {
+        const [{ data: prof }, { data: txns }] = await Promise.all([
+          supabase.from('profiles').select('id, full_name, phone, email, country, created_at, role').eq('id', inv.investor_id).maybeSingle(),
+          supabase.from('angel_pool_investments').select('reference_id, shares, amount, pool_ownership_percent, company_ownership_percent, status, created_at').eq('investor_id', inv.investor_id).order('created_at', { ascending: false }),
+        ]);
+        setProfileData(prof);
+        setProfileTxns(txns ?? []);
+        // Audit profile view
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.from('audit_logs').insert({
+            user_id: user.id,
+            action_type: 'angel_pool_shareholder_view',
+            table_name: 'angel_pool_investments',
+            record_id: inv.investor_id,
+            metadata: { investor_name: inv.name, reason: 'CEO viewed shareholder profile' } as any,
+          });
+        }
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to load profile');
+      } finally {
+        setProfileLoading(false);
+      }
+    }
   };
 
-  const closeAction = () => { setActionType(null); setSelectedInvestor(null); setActionReason(''); setActionLoading(false); };
+  const closeAction = () => { setActionType(null); setSelectedInvestor(null); setActionReason(''); setActionLoading(false); setProfileData(null); setProfileTxns([]); };
 
   const handleAction = async () => {
     if (!selectedInvestor || !actionType) return;
@@ -365,6 +396,9 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
                             <Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openAction('view', inv)}>
+                              <Eye className="h-3.5 w-3.5 mr-2" /> View Profile
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => openAction('edit', inv)}>
                               <Pencil className="h-3.5 w-3.5 mr-2" /> Edit Shares
                             </DropdownMenuItem>
@@ -413,7 +447,7 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
       </Dialog>
 
       {/* Shareholder Action Dialog — CEO only */}
-      <Dialog open={!!actionType} onOpenChange={(open) => { if (!open) closeAction(); }}>
+      <Dialog open={!!actionType && actionType !== 'view'} onOpenChange={(open) => { if (!open) closeAction(); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
@@ -463,6 +497,77 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
             >
               {actionLoading ? 'Processing...' : actionType === 'delete' ? 'Delete' : actionType === 'suspend' ? 'Suspend' : 'Save Changes'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Shareholder Profile Dialog — CEO only */}
+      <Dialog open={actionType === 'view'} onOpenChange={(open) => { if (!open) closeAction(); }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Eye className="h-5 w-5" /> Shareholder Profile</DialogTitle>
+            <DialogDescription>Full investor details and transaction history. This view is logged.</DialogDescription>
+          </DialogHeader>
+          {profileLoading ? (
+            <div className="py-8 text-center text-muted-foreground">Loading profile...</div>
+          ) : selectedInvestor && (
+            <div className="space-y-5">
+              <Card>
+                <CardContent className="pt-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-bold">{profileData?.full_name || selectedInvestor.name}</h3>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary capitalize">{profileData?.role || '—'}</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                    <div className="flex items-center gap-2 text-muted-foreground"><Mail className="h-3.5 w-3.5" /> {profileData?.email || '—'}</div>
+                    <div className="flex items-center gap-2 text-muted-foreground"><Phone className="h-3.5 w-3.5" /> {profileData?.phone || '—'}</div>
+                    <div className="flex items-center gap-2 text-muted-foreground"><Calendar className="h-3.5 w-3.5" /> Joined {profileData?.created_at ? format(new Date(profileData.created_at), 'dd MMM yyyy') : '—'}</div>
+                    <div className="flex items-center gap-2 text-muted-foreground"><Hash className="h-3.5 w-3.5" /> {profileData?.country || '—'}</div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <Card><CardContent className="pt-3 pb-2 px-3"><p className="text-xs text-muted-foreground">Total Shares</p><p className="text-base font-bold">{fmt(selectedInvestor.total_shares)}</p></CardContent></Card>
+                <Card><CardContent className="pt-3 pb-2 px-3"><p className="text-xs text-muted-foreground">Invested</p><p className="text-base font-bold">UGX {fmt(selectedInvestor.total_amount)}</p></CardContent></Card>
+                <Card><CardContent className="pt-3 pb-2 px-3"><p className="text-xs text-muted-foreground">Pool %</p><p className="text-base font-bold">{selectedInvestor.pool_pct.toFixed(4)}%</p></CardContent></Card>
+                <Card><CardContent className="pt-3 pb-2 px-3"><p className="text-xs text-muted-foreground">Company %</p><p className="text-base font-bold">{selectedInvestor.company_pct.toFixed(4)}%</p></CardContent></Card>
+              </div>
+
+              <div>
+                <h4 className="text-sm font-semibold mb-2">Transactions ({profileTxns.length})</h4>
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Reference ID</TableHead>
+                        <TableHead className="text-right">Shares</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {profileTxns.length === 0 && (
+                        <TableRow><TableCell colSpan={5} className="text-center py-4 text-muted-foreground text-sm">No transactions</TableCell></TableRow>
+                      )}
+                      {profileTxns.map((t, i) => (
+                        <TableRow key={i}>
+                          <TableCell className="font-mono text-xs">{t.reference_id || '—'}</TableCell>
+                          <TableCell className="text-right">{fmt(t.shares)}</TableCell>
+                          <TableCell className="text-right">UGX {fmt(t.amount)}</TableCell>
+                          <TableCell className="text-xs">{format(new Date(t.created_at), 'dd MMM yyyy')}</TableCell>
+                          <TableCell><span className="text-xs capitalize">{t.status}</span></TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={closeAction}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
