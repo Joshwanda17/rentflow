@@ -774,17 +774,9 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     if (effectiveDepositPurpose === 'other' && !reason.trim()) {
       return { message: 'Enter the reason for this deposit', fieldId: 'deposit-reason' };
     }
-    if (
-      isAgent &&
-      effectiveDepositPurpose === 'personal_deposit' &&
-      !agentPersonalConfirmedAt
-    ) {
-      return {
-        message:
-          'Confirm this is your own money — tap "Yes, this is my own money" before submitting a Personal Deposit.',
-        fieldId: 'deposit-purpose',
-      };
-    }
+    // Personal Deposit: confirmation is now implicit by selecting the tile —
+    // no separate confirm step. `handleSubmit` stamps the timestamp as a
+    // safety net before insert, so we don't block here.
     if (effectiveDepositPurpose === 'operational_float' && breakdownChoice === 'pending' && (parseFloat(amount) || 0) > 0) {
       return {
         message: 'Choose: deposit with or without a tenant breakdown',
