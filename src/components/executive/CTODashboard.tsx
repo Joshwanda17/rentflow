@@ -8,6 +8,7 @@ import { format, subDays, startOfDay } from 'date-fns';
 import { SystemLogsViewer } from './SystemLogsViewer';
 import { InfrastructureHealthMonitor } from './InfrastructureHealthMonitor';
 import { CTOEmailsOverview } from './CTOEmailsOverview';
+import RunBackupNowButton from '@/components/admin/RunBackupNowButton';
 
 export function CTODashboard({ activeTab }: { activeTab?: string }) {
   if (activeTab === 'system-logs') {
@@ -207,6 +208,9 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
     <div className="space-y-4 sm:space-y-6">
       {/* Infrastructure Health Monitor */}
       <InfrastructureHealthMonitor />
+
+      {/* Database Backup */}
+      <RunBackupNowButton />
 
       {/* System KPIs - all real */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
