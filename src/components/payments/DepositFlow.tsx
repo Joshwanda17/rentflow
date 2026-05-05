@@ -1232,20 +1232,13 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                     key={p.id}
                     type="button"
                     onClick={() => {
-                      // Agent gate: Personal Deposit credits the
-                      // withdrawable bucket, so the DB requires an explicit
-                      // confirmation timestamp. Route the agent into the
-                      // form with the warning banner instead of silently
-                      // accepting the choice (which would later fail with
-                      // `agent_personal_deposit_requires_confirmation`).
-                      if (isAgent && p.id === 'personal_deposit' && !agentPersonalConfirmedAt) {
-                        setDepositPurpose('');
-                        setPendingPersonalChoice(true);
-                        setShowPurposeGrid(true);
-                        setPurposeChosenAt(new Date().toISOString());
-                        setPurposeEntryPoint('gate');
-                        setStep('channel');
-                        return;
+                      // Agent gate: tapping "Personal Deposit" on the
+                      // dedicated full-screen purpose card IS the explicit
+                      // confirmation the DB requires. Stamp the
+                      // confirmation timestamp here so the submit doesn't
+                      // later fail with `agent_personal_deposit_requires_confirmation`.
+                      if (isAgent && p.id === 'personal_deposit') {
+                        setAgentPersonalConfirmedAt(new Date().toISOString());
                       }
                       setDepositPurpose(p.id);
                       if (p.id !== 'other') setReason(p.label);
