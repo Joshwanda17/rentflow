@@ -333,6 +333,14 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
               <p className="text-muted-foreground text-sm mb-2">
                 The tenant is now linked to the landlord
               </p>
+              {createdRentRequestId && (
+                <div className="mb-4">
+                  <RentRequestStatusTracker
+                    rentRequestId={createdRentRequestId}
+                    initialStatus="pending"
+                  />
+                </div>
+              )}
               <div className="text-xs text-muted-foreground space-y-1 mb-4">
                 <p>✅ You earn <span className="font-semibold text-primary">2% commission</span> on every rent payment</p>
                 <p>✅ Commission is automatically sent to your wallet</p>
