@@ -1038,6 +1038,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       : '';
 
   return (
+    <>
     <Dialog open={open} onOpenChange={handleClose}>
       {/*
         Mobile-first dialog shell.
