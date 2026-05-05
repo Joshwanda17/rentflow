@@ -1,79 +1,57 @@
-# Fix agent rent-collection commission gaps
+# Angel Pool Share Purchase Confirmation Email
 
-## Root cause (confirmed against last 30 days of `general_ledger`)
+Trigger an emailed receipt to the investor (the partner the agent is registering for shares) **after** the agent clicks **Confirm** in `AgentAngelPoolInvestDialog` — i.e. only after `agent-angel-pool-invest` completes successfully.
 
-`supabase/functions/agent-deposit/index.ts` only calls
-`credit_agent_rent_commission` when an **active** `rent_requests` row exists
-for the tenant in status `approved | funded | disbursed | repaying`. Every
-other collection — including ones with a real tenant and a real cash payment
-— silently skips the 10% commission credit, even though the agent's float
-is already debited.
+## Step 1 — Add a new transactional email template
 
-Audit (last 30 days):
-- **33 collections, UGX 190,890 in commission**, never paid to 3 agents
-  via the `agent-deposit` (`wallet_deposits`) path.
-- 1 collection via `wallets` path (UGX 28,100) similarly skipped.
-- The `agent_collections` RPC path is healthy (only ~190 UGX of pure
-  rounding drift across 111 collections).
+Create `supabase/functions/_shared/transactional-email-templates/angel-pool-share-purchase.tsx`, faithfully porting the uploaded HTML to React Email components (matching the existing pattern of `partner-wallet-deposit.tsx`).
 
-## Step 1 — Pay the back-owed commissions
+Props the template accepts:
 
-For every transaction_group_id flagged by the audit query, post a balanced
-admin-correction pair via `create_ledger_transaction`:
+| Prop | Source |
+|---|---|
+| `partner_name` | investor `profiles.full_name` |
+| `pool_name` | `"Welile Angel Pool"` (constant) |
+| `share_reference` | `reference_id` from RPC result (e.g. `ANG260505XXXX`) |
+| `shares_purchased` | `shares` |
+| `currency` | `"UGX"` |
+| `investment_amount` | `actual_amount` (formatted with thousand separators) |
+| `ownership_percentage` | `company_ownership_percent` formatted to 4 decimals — this is true company equity, matches the regulator-facing definition |
+| `price_per_share` | `20,000` (constant `PRICE_PER_SHARE`) |
+| `pool_valuation` | `TOTAL_SHARES × PRICE_PER_SHARE` = `500,000,000` (the 8% pool's UGX valuation) |
+| `purchase_date` | server `now()` formatted as `DD Mon YYYY, HH:MM` |
+| `total_pool_shares` | `25,000` (constant `TOTAL_SHARES`) |
+| `available_shares` | `TOTAL_SHARES − totalSharesSold` **after** this purchase, computed from a fresh post-insert read of `angel_pool_investments` (status='confirmed') so the figure is always live and never stale |
+| `pool_percentage` | `8` (constant `POOL_PERCENT`) |
+| `pool_round` | `"Seed Round"` (no rounds table exists today; constant for now, easy to swap to a DB lookup later) |
+| `company_name` | `"Welile"` |
 
-```text
-Wallet leg :  agent_id, +amount*10%, cash_in,  category='agent_commission_earned', classification='production'
-Platform   :  agent_id, +amount*10%, cash_out, category='agent_commission_payable', classification='production'
-```
+Register the template under key `angel-pool-share-purchase` in `supabase/functions/_shared/transactional-email-templates/registry.ts`. Subject line: `"Angel Pool share purchase confirmed — {{shares}} shares ({{reference}})"`.
 
-Idempotency key: `comm-backfill-<transaction_group_id>` so a retry is safe.
+## Step 2 — Send the email from the edge function (server-side, post-confirm)
 
-Audit log (per agent batch):
-- `action_type='agent_commission_backfill'`
-- `table_name='general_ledger'`
-- `record_id=<agent_id>`
-- `metadata.reason='Backfill missing 10% commission on agent-deposit Path B
-   collections — root cause: no active rent_request at collection time'`
+Edit `supabase/functions/agent-angel-pool-invest/index.ts`. After the investment + commission ledger entries succeed and *after* the `angel_pool_investments` row is inserted (so `available_shares` is accurate), do the following — all inside a `try { … } catch` that **never fails the request** (email is best-effort, the financial transaction is the source of truth):
 
-Total to pay out:
-- Akampurira Onesmus (`e3cf4d3a…`): **UGX 168,490**
-- `e4f07815…`: **UGX 8,400**
-- `04ef6aad…`: **UGX 4,300**
-- `wallets`-path agent: **UGX 28,100**
-- **Total: UGX 209,290**
+1. Read the investor's `profiles.email` and `profiles.full_name` via the admin client.
+2. If `email` is non-empty, recompute `available_shares` from the fresh `angel_pool_investments` aggregate (post-insert).
+3. `await adminClient.functions.invoke('send-transactional-email', { body: { templateName: 'angel-pool-share-purchase', recipientEmail: email, idempotencyKey: \`angel-pool-${referenceId}\`, templateData: { …all the props above… } } })`.
+4. Log a `system_event` `agent_angel_pool_email_sent` (or `…_skipped` if no email on file).
 
-## Step 2 — Fix `agent-deposit/index.ts` so this stops bleeding
+Idempotency: the `idempotencyKey` derives from `reference_id`, so even if the agent retries the dialog the email won't be sent twice.
 
-Two changes in the edge function:
+## Step 3 — UI: no changes required
 
-**2a. Pay commission in Path B too.** When the function falls into the
-`repaymentAmount === 0` branch but the agent did pay UGX X "for tenant",
-the agent has performed a rent-collection action and should still earn
-commission. Call `credit_agent_rent_commission` with `p_rent_request_id =
-NULL` (or extend the RPC to accept a NULL rent_request_id and just credit
-the originating agent at 10%). Easiest: add a sibling RPC
-`credit_agent_collection_commission(p_agent_id, p_amount, p_event_ref)` that
-only credits the originating agent at 10%, no sub-agent split logic. Use it
-in Path B.
+The dialog already calls `agent-angel-pool-invest` only on **Confirm**, then advances to the success step. Email dispatch happens server-side as part of that same call, so the contract — *“only after Confirm”* — is automatically honored. No client-side email trigger is added (which would be insecure and bypassable).
 
-**2b. Widen Path A's commission base.** In Path A, the agent's float is
-debited for `amount`, not `repaymentAmount`. If `depositAmount > 0` (i.e.
-collection exceeded the tenant's outstanding rent), pay commission on the
-overflow as well using the same Path B credit RPC. This keeps the rule
-simple: **every shilling the agent moves out of float earns 10%**.
+## Data accuracy guarantees
 
-## Step 3 — Lightweight monitoring
+- All UGX figures are formatted server-side with `toLocaleString('en-US')` to give the comma grouping shown in the mockup (e.g. `200,000`).
+- `ownership_percentage` uses `.toFixed(4)` to match the dialog's `0.0032%` precision.
+- `available_shares` is **always** read post-insert so the user sees the true remaining inventory at the moment they bought, not a stale figure.
+- `purchase_date` is the server transaction timestamp (`txDate`) — same value persisted to the ledger — so the email and the ledger never disagree.
+- Reference ID in the email is the exact `referenceId` written to `angel_pool_investments` and to both ledger legs.
 
-Add a daily cron `cron-backfill-missing-agent-commission` that runs the
-same audit query for the last 24h and writes any gaps it finds into a new
-`commission_backfill_queue` table (status `pending`), and emits a
-`agent.commission.gap_detected` system event so CFO/Finance Ops sees it
-in the daily digest. This guarantees we never silently lose another
-shilling even if a future regression slips through.
+## Out of scope
 
-## Out of scope for this turn
-
-- The 21 `withdrawal_requests` rows (proxy payouts) correctly do not earn
-  rent commission — they are agent-mediated cash-out, not rent collection.
-- The ~190 UGX rounding drift on `agent_collections` is below noise floor;
-  no action.
+- No SMS fallback for investors with no email on file (logged-only). Can be added later via the existing Africa's Talking integration if you want.
+- `pool_round` is currently a constant; if/when a `pool_rounds` table is introduced this becomes a one-line lookup.
