@@ -151,35 +151,25 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Defensive recheck against the STRICT available balance (not the raw
-    // cache). The cache can lag the ledger after the Wallet Ledger Anchor
-    // posts its balanced pair; using the cache here causes spurious 409s on
-    // legitimate retractions. The strict RPC is the single source of truth.
-    let liveAvailable: number;
-    if (isRetraction) {
-      const { data: freshWallet } = await adminClient
-        .from('wallets')
-        .select('withdrawable_balance')
-        .eq('user_id', target_user_id)
-        .single();
-      liveAvailable = Math.max(0, Number(freshWallet?.withdrawable_balance ?? 0));
-    } else {
-      const { data: strictNow } = await adminClient.rpc(
-        "get_user_available_balance",
-        { p_user_id: target_user_id },
-      );
-      liveAvailable = Number(strictNow ?? 0);
-    }
+    // Defensive live recheck against the wallet bucket immediately before
+    // posting. This prevents stale UI submissions without reintroducing the
+    // strict-ledger blocker that Finance asked to bypass for retractions.
+    const { data: freshWallet } = await adminClient
+      .from('wallets')
+      .select('withdrawable_balance')
+      .eq('user_id', target_user_id)
+      .single();
+    const liveAvailable = Math.max(0, Number(freshWallet?.withdrawable_balance ?? 0));
     if (liveAvailable < amount) {
       return new Response(
         JSON.stringify({
-          error: `Available balance changed: now UGX ${liveAvailable.toLocaleString()}. Refresh and try again.`,
+          error: `Wallet balance changed: now UGX ${liveAvailable.toLocaleString()}. Refresh and try again.`,
         }),
         { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    // Single, withdrawable-only deduction. No float spill — ever.
+    // Single wallet deduction. No float spill — ever.
     const withdrawablePortion = amount;
     const floatPortion = 0;
 
