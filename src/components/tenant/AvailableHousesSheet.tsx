@@ -37,7 +37,7 @@ const CATEGORIES = [
   { value: 'shop', label: 'Shop' },
 ];
 
-function HouseImageCarousel({ images, title }: { images: string[] | null; title: string }) {
+function HouseImageCarousel({ images, title, houseId }: { images: string[] | null; title: string; houseId: string }) {
   const [idx, setIdx] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   if (!images || images.length === 0) {
@@ -94,6 +94,7 @@ function HouseImageCarousel({ images, title }: { images: string[] | null; title:
         open={lightboxOpen}
         onClose={() => setLightboxOpen(false)}
         productName={title}
+        memoryKey={`house:${houseId}`}
       />
     </div>
   );
@@ -157,7 +158,7 @@ function HouseCard({ listing }: { listing: HouseListing }) {
       className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm"
     >
       <div className="relative">
-        <HouseImageCarousel images={listing.image_urls} title={listing.title} />
+        <HouseImageCarousel images={listing.image_urls} title={listing.title} houseId={listing.id} />
         {dist !== undefined && dist < 9999 && (
           <span className="absolute top-2 left-2 text-[10px] font-medium text-white bg-primary/80 px-2 py-0.5 rounded-full">
             ~{dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist.toFixed(1)}km`}
