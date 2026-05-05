@@ -1232,6 +1232,14 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                     key={p.id}
                     type="button"
                     onClick={() => {
+                      // Agent gate: tapping "Personal Deposit" on the
+                      // dedicated full-screen purpose card IS the explicit
+                      // confirmation the DB requires. Stamp the
+                      // confirmation timestamp here so the submit doesn't
+                      // later fail with `agent_personal_deposit_requires_confirmation`.
+                      if (isAgent && p.id === 'personal_deposit') {
+                        setAgentPersonalConfirmedAt(new Date().toISOString());
+                      }
                       setDepositPurpose(p.id);
                       if (p.id !== 'other') setReason(p.label);
                       else setReason('');
