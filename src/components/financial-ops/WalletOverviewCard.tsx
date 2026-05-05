@@ -19,7 +19,7 @@ interface WalletOverviewCardProps {
    */
   onViewActiveWallets?: () => void;
   /**
-   * Tapping the "Cache drift" line opens the Reconciliation tool so the
+   * Tapping the "Ledger drift" line opens the Reconciliation tool so the
    * operator can investigate / sweep the excess. Optional — when omitted
    * the drift line is informational only.
    */
@@ -214,7 +214,7 @@ export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets, onOp
         <div className="flex items-center justify-between gap-2 text-[11px]">
           <span className="flex items-center gap-1.5 text-muted-foreground">
             <Scale className="h-3 w-3" />
-            <span className="uppercase tracking-wider font-semibold">Strict ledger total</span>
+            <span className="uppercase tracking-wider font-semibold">Ledger total</span>
           </span>
           <span className="font-mono tabular-nums font-semibold text-foreground">
             {strictLoading ? '———' : formatUGX(strict?.strictTotal ?? 0)}
@@ -222,7 +222,7 @@ export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets, onOp
         </div>
 
         {strictLoading ? (
-          <p className="text-[10px] text-muted-foreground">Computing cache drift…</p>
+          <p className="text-[10px] text-muted-foreground">Checking ledger alignment…</p>
         ) : driftIsMaterial ? (
           driftClickable ? (
             <button
@@ -233,20 +233,20 @@ export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets, onOp
             >
               <span className="flex items-center gap-1.5 font-medium">
                 <AlertTriangle className="h-3 w-3" />
-                Cache excess: +{formatUGX(strict?.totalDrift ?? 0)} across {strict?.driftedWallets ?? 0} wallet{strict?.driftedWallets === 1 ? '' : 's'}
+                Ledger mismatch: +{formatUGX(strict?.totalDrift ?? 0)} across {strict?.driftedWallets ?? 0} wallet{strict?.driftedWallets === 1 ? '' : 's'}
               </span>
               <ChevronRight className="h-3 w-3" />
             </button>
           ) : (
             <p className="flex items-center gap-1.5 text-[11px] text-warning font-medium">
               <AlertTriangle className="h-3 w-3" />
-              Cache excess: +{formatUGX(strict?.totalDrift ?? 0)} across {strict?.driftedWallets ?? 0} wallet{strict?.driftedWallets === 1 ? '' : 's'}
+              Ledger mismatch: +{formatUGX(strict?.totalDrift ?? 0)} across {strict?.driftedWallets ?? 0} wallet{strict?.driftedWallets === 1 ? '' : 's'}
             </p>
           )
         ) : (
           <p className="flex items-center gap-1.5 text-[11px] text-emerald-600 font-medium">
             <CheckCircle2 className="h-3 w-3" />
-            Cache reconciled with ledger
+            Ledger reconciled
           </p>
         )}
       </div>
