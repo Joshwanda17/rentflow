@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Download, FileBarChart, Phone } from 'lucide-react';
+import { Download, FileBarChart, Phone, Pencil, Check, X, Loader2 } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, subWeeks, startOfMonth, endOfMonth, differenceInCalendarDays } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -224,6 +225,8 @@ export function AgentAllocationReport() {
           });
           const prof = profMap[r.tenant_id!] || { name: r.tenant_id!.slice(0, 8), phone: '' };
           return {
+          request_id: r.id,
+          tenant_id: r.tenant_id!,
             tenant_name: prof.name,
             tenant_phone: prof.phone,
             start_date: start,
