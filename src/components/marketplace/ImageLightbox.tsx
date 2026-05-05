@@ -33,6 +33,7 @@ export function ImageLightbox({
   const lastTouchDist = useRef<number | null>(null);
   const lastTouchCenter = useRef<{ x: number; y: number } | null>(null);
   const imgContainerRef = useRef<HTMLDivElement>(null);
+  const swipeStart = useRef<{ x: number; y: number; t: number } | null>(null);
 
   const isZoomed = scale > 1.05;
 
@@ -95,6 +96,9 @@ export function ImageLightbox({
         e.preventDefault();
         lastTouchDist.current = dist(e.touches);
         lastTouchCenter.current = center(e.touches);
+        swipeStart.current = null;
+      } else if (e.touches.length === 1 && !isZoomed) {
+        swipeStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() };
       }
     };
     const onTM = (e: TouchEvent) => {
@@ -123,6 +127,18 @@ export function ImageLightbox({
           return prev;
         });
       }
+      // Native swipe fallback for single-finger horizontal swipes
+      if (swipeStart.current && e.changedTouches.length === 1 && images.length > 1 && !isZoomed) {
+        const start = swipeStart.current;
+        const end = e.changedTouches[0];
+        const dx = end.clientX - start.x;
+        const dy = end.clientY - start.y;
+        const dt = Date.now() - start.t;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.2 && dt < 600) {
+          if (dx > 0) goToPrevious(); else goToNext();
+        }
+        swipeStart.current = null;
+      }
     };
 
     el.addEventListener('touchstart', onTS, { passive: false });
@@ -133,7 +149,7 @@ export function ImageLightbox({
       el.removeEventListener('touchmove', onTM);
       el.removeEventListener('touchend', onTE);
     };
-  }, [open]);
+  }, [open, isZoomed, images.length]);
 
   const goToPrevious = useCallback(() => {
     if (isZoomed) return;
@@ -149,8 +165,8 @@ export function ImageLightbox({
 
   const handleDragEnd = useCallback((_e: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     if (isZoomed) return;
-    if (info.offset.x > 50 || info.velocity.x > 0.5) goToPrevious();
-    else if (info.offset.x < -50 || info.velocity.x < -0.5) goToNext();
+    if (info.offset.x > 40 || info.velocity.x > 300) goToPrevious();
+    else if (info.offset.x < -40 || info.velocity.x < -300) goToNext();
   }, [goToPrevious, goToNext, isZoomed]);
 
   const handleToggleZoom = useCallback(() => {
