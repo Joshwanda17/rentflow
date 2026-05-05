@@ -499,6 +499,10 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
                 <span className="font-medium">{selectedInvestor.full_name}</span>
               </div>
               <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Investment Date</span>
+                <span className="font-medium">{investmentDate}</span>
+              </div>
+              <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Amount</span>
                 <span className="font-semibold">{formatUGX(actualAmount)}</span>
               </div>
