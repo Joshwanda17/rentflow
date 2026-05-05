@@ -171,20 +171,19 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Defensive bucket recheck — the strict RPC could have read just before a
-    // concurrent debit lowered the cached withdrawable bucket below the amount
-    // we're about to push. If so, fail fast with a 409 instead of letting the
-    // wallets_balance_check constraint fire deep in the ledger trigger.
-    const { data: walletNow } = await adminClient
-      .from("wallets")
-      .select("withdrawable_balance")
-      .eq("user_id", target_user_id)
-      .single();
-    const liveWithdrawable = Number(walletNow?.withdrawable_balance ?? 0);
-    if (liveWithdrawable < amount) {
+    // Defensive recheck against the STRICT available balance (not the raw
+    // cache). The cache can lag the ledger after the Wallet Ledger Anchor
+    // posts its balanced pair; using the cache here causes spurious 409s on
+    // legitimate retractions. The strict RPC is the single source of truth.
+    const { data: strictNow } = await adminClient.rpc(
+      "get_user_available_balance",
+      { p_user_id: target_user_id },
+    );
+    const liveStrict = Number(strictNow ?? 0);
+    if (liveStrict < amount) {
       return new Response(
         JSON.stringify({
-          error: `Withdrawable balance changed: now UGX ${liveWithdrawable.toLocaleString()}. Refresh and try again.`,
+          error: `Available balance changed: now UGX ${liveStrict.toLocaleString()}. Refresh and try again.`,
         }),
         { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
