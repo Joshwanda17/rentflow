@@ -134,37 +134,13 @@ async function applyRepaymentForRepayingRequest(
     if (landlordUpdateError) throw landlordUpdateError;
   }
 
-  const { error: ledgerError } = await adminClient.rpc('create_ledger_transaction', {
-    entries: [
-      {
-        user_id: tenantId,
-        amount: appliedAmount,
-        direction: 'cash_out',
-        category: 'tenant_repayment',
-        ledger_scope: 'wallet',
-        source_table: 'repayments',
-        source_id: rentRequest.id,
-        description: `Rent repayment - ${rentRequest.landlords?.name || 'landlord'}`,
-        currency: 'UGX',
-        linked_party: rentRequest.landlord_id || null,
-        reference_id: rentRequest.id,
-        transaction_date: new Date().toISOString(),
-      },
-      {
-        direction: 'cash_in',
-        amount: appliedAmount,
-        category: 'tenant_repayment',
-        ledger_scope: 'platform',
-        source_table: 'repayments',
-        source_id: rentRequest.id,
-        description: `Platform receives rent repayment`,
-        currency: 'UGX',
-        transaction_date: new Date().toISOString(),
-      },
-    ],
-  });
-
-  if (ledgerError) throw ledgerError;
+  // NOTE: No tenant-wallet ledger leg here. When the agent pays on behalf
+  // of the tenant via float, the cash flow is captured by the agent's own
+  // ledger entry (`agent_float_used_for_rent`) posted by the caller, plus
+  // the landlord credit leg. Posting a tenant cash_out would falsely debit
+  // the tenant wallet (and trips the strict insufficient-balance guard
+  // when the tenant wallet is empty). Mirrors the non-'repaying' branch
+  // which relies on `record_rent_request_repayment` (no ledger insert).
 
   return { appliedAmount, updatedAmountRepaid, remainingBalance };
 }
