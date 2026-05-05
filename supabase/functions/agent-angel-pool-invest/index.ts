@@ -38,9 +38,12 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { investor_id, amount, payment_method, investment_reference } = body as {
-      investor_id?: string; amount?: number; payment_method?: string; investment_reference?: string;
+    const { investor_id, amount, payment_method, investment_reference, funding_source } = body as {
+      investor_id?: string; amount?: number; payment_method?: string;
+      investment_reference?: string; funding_source?: string;
     };
+    const fundingSource: 'investor' | 'agent' =
+      funding_source === 'agent' ? 'agent' : 'investor';
 
     if (!investor_id || typeof investor_id !== "string") {
       return new Response(JSON.stringify({ error: "investor_id is required" }),
@@ -74,12 +77,26 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const { data: investorWallet } = await adminClient
-      .from("wallets").select("id, balance").eq("user_id", investor_id).single();
-    if (!investorWallet || investorWallet.balance < actualAmount) {
-      return new Response(JSON.stringify({ error: `Insufficient investor wallet balance` }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    // Resolve funding user (the wallet that pays) — defaults to investor for backward compat.
+    const fundingUserId = fundingSource === 'agent' ? user.id : investor_id;
+
+    // Strict withdrawable balance check via canonical RPC (never trusts cached wallet.balance).
+    const { data: availableBalance, error: balErr } = await adminClient
+      .rpc('get_user_available_balance', { p_user_id: fundingUserId });
+    if (balErr) {
+      return new Response(JSON.stringify({ error: `Failed to verify wallet balance: ${balErr.message}` }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+    const fundingBalance = Number(availableBalance) || 0;
+    if (fundingBalance < actualAmount) {
+      return new Response(JSON.stringify({
+        error: `Insufficient ${fundingSource === 'agent' ? 'agent' : 'investor'} wallet balance (available: UGX ${fundingBalance.toLocaleString()})`,
+      }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // Reuse investor wallet id only as a source_id reference for ledger entries.
+    const { data: investorWallet } = await adminClient
+      .from("wallets").select("id").eq("user_id", investor_id).single();
 
     const now = new Date();
     const yy = String(now.getFullYear()).slice(-2);
@@ -90,21 +107,21 @@ Deno.serve(async (req) => {
 
     const txDate = new Date().toISOString();
 
-    // 1. Investment: wallet cash_out + platform cash_in (share_capital)
+    // 1. Investment: wallet cash_out (from funding user) + platform cash_in (share_capital)
     const { error: investRpcErr } = await adminClient.rpc('create_ledger_transaction', {
       entries: [
         {
-          user_id: investor_id, ledger_scope: 'wallet', direction: 'cash_out',
+          user_id: fundingUserId, ledger_scope: 'wallet', direction: 'cash_out',
           amount: actualAmount, category: 'angel_pool_investment',
-          source_table: 'angel_pool_investments', source_id: investorWallet.id,
-          description: `Angel Pool investment: ${shares} shares @ UGX ${PRICE_PER_SHARE.toLocaleString()}/share (via agent)`,
+          source_table: 'angel_pool_investments', source_id: investorWallet?.id ?? null,
+          description: `Angel Pool investment: ${shares} shares @ UGX ${PRICE_PER_SHARE.toLocaleString()}/share (via agent, funded_by=${fundingSource}, beneficiary=${investor_id})`,
           currency: 'UGX', reference_id: referenceId, transaction_date: txDate,
         },
         {
           user_id: investor_id, ledger_scope: 'platform', direction: 'cash_in',
           amount: actualAmount, category: 'pool_capital_received',
-          source_table: 'angel_pool_investments', source_id: investorWallet.id,
-          description: `Angel Pool share capital received via agent`,
+          source_table: 'angel_pool_investments', source_id: investorWallet?.id ?? null,
+          description: `Angel Pool share capital received via agent (funded_by=${fundingSource})`,
           currency: 'UGX', reference_id: referenceId, transaction_date: txDate,
         },
       ],
@@ -121,6 +138,7 @@ Deno.serve(async (req) => {
         status: "confirmed", reference_id: referenceId,
         agent_id: user.id, payment_method: payment_method || null,
         investment_reference: investment_reference || null,
+        funded_by: fundingSource,
       });
     if (investErr) throw investErr;
 
@@ -153,6 +171,7 @@ Deno.serve(async (req) => {
 
     await logSystemEvent(adminClient, "agent_angel_pool_investment", user.id, "angel_pool_investments", referenceId, {
       investor_id, shares, amount: actualAmount, commission, reference_id: referenceId,
+      funded_by: fundingSource, funding_user_id: fundingUserId,
     });
 
     // Best-effort: send share-purchase confirmation email to the investor.
@@ -199,6 +218,7 @@ Deno.serve(async (req) => {
               pool_percentage: POOL_PERCENT,
               pool_round: "Seed Round",
               company_name: "Welile",
+              funded_by: fundingSource,
             },
           },
         });

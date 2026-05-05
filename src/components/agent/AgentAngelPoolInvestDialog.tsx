@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,6 +48,9 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
   const [investmentReference, setInvestmentReference] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<InvestmentResult | null>(null);
+  const [fundingSource, setFundingSource] = useState<'investor' | 'agent'>('investor');
+  const [agentBalance, setAgentBalance] = useState<number>(0);
+  const [agentBalanceLoading, setAgentBalanceLoading] = useState(false);
 
   // Registration state
   const [showRegister, setShowRegister] = useState(false);
@@ -74,7 +77,26 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
     setRegPhone('');
     setRegNotes('');
     setRegistering(false);
+    setFundingSource('investor');
   };
+
+  // Fetch agent's strict-withdrawable balance once when dialog opens
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      setAgentBalanceLoading(true);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data, error } = await supabase.rpc('get_user_available_balance', { p_user_id: user.id });
+        if (!cancelled && !error) setAgentBalance(Number(data) || 0);
+      } finally {
+        if (!cancelled) setAgentBalanceLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open]);
 
   const handleClose = () => {
     reset();
@@ -172,7 +194,10 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
   const companyPercent = (shares / TOTAL_SHARES) * POOL_PERCENT;
   const commission = Math.floor(actualAmount * 0.01);
 
-  const canProceed = shares > 0 && selectedInvestor && actualAmount <= selectedInvestor.walletBalance;
+  const fundingBalance = fundingSource === 'agent'
+    ? agentBalance
+    : (selectedInvestor?.walletBalance ?? 0);
+  const canProceed = shares > 0 && !!selectedInvestor && actualAmount <= fundingBalance;
 
   const handleSubmit = async () => {
     if (!selectedInvestor || !canProceed) return;
@@ -184,6 +209,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
           amount: actualAmount,
           payment_method: paymentMethod,
           investment_reference: investmentReference || undefined,
+          funding_source: fundingSource,
         },
       });
 
@@ -381,8 +407,57 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
                   = {shares} shares × UGX {PRICE_PER_SHARE.toLocaleString()} = {formatUGX(actualAmount)}
                 </p>
               )}
-              {parsedAmount > 0 && selectedInvestor.walletBalance < actualAmount && (
-                <p className="text-xs text-destructive">Insufficient wallet balance</p>
+              {parsedAmount > 0 && fundingBalance < actualAmount && (
+                <p className="text-xs text-destructive">
+                  Insufficient {fundingSource === 'agent' ? "agent" : "investor"} wallet balance
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Fund From</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFundingSource('investor')}
+                  className={cn(
+                    "rounded-xl border p-3 text-left transition-colors",
+                    fundingSource === 'investor'
+                      ? "border-primary bg-primary/5 ring-1 ring-primary"
+                      : "border-border hover:bg-muted/40"
+                  )}
+                >
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Wallet className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-xs font-semibold">Investor Wallet</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    {formatUGX(selectedInvestor.walletBalance)}
+                  </p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFundingSource('agent')}
+                  className={cn(
+                    "rounded-xl border p-3 text-left transition-colors",
+                    fundingSource === 'agent'
+                      ? "border-primary bg-primary/5 ring-1 ring-primary"
+                      : "border-border hover:bg-muted/40"
+                  )}
+                >
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Wallet className="h-3.5 w-3.5 text-emerald-600" />
+                    <span className="text-xs font-semibold">My Wallet (Agent)</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    {agentBalanceLoading ? 'Loading…' : formatUGX(agentBalance)}
+                  </p>
+                </button>
+              </div>
+              {fundingSource === 'agent' && (
+                <p className="text-[11px] text-muted-foreground">
+                  You're paying for these shares on {selectedInvestor.full_name}'s behalf. The shares will still be allocated to them.
+                </p>
               )}
             </div>
 
@@ -406,6 +481,12 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Amount</span>
                 <span className="font-semibold">{formatUGX(actualAmount)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Funded By</span>
+                <span className="font-medium">
+                  {fundingSource === 'agent' ? "Agent's Wallet" : "Investor's Wallet"}
+                </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Shares</span>

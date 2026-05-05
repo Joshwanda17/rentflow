@@ -27,6 +27,7 @@ interface AngelPoolSharePurchaseProps {
   pool_percentage?: number | string
   pool_round?: string
   company_name?: string
+  funded_by?: string
   logo_url?: string
   unsubscribe_url?: string
 }
@@ -56,6 +57,7 @@ export function AngelPoolSharePurchase({
   pool_percentage = 8,
   pool_round = 'Seed Round',
   company_name = 'Welile',
+  funded_by = 'investor',
   logo_url = 'https://wirntoujqoyjobfhyelc.supabase.co/storage/v1/object/public/email-assets/welile-logo.png',
   unsubscribe_url = 'https://welile.com/unsubscribe',
 }: AngelPoolSharePurchaseProps) {
@@ -172,6 +174,14 @@ export function AngelPoolSharePurchase({
                                   <td width="50%" valign="top" className="td-block">
                                     <Text style={subKey}>Status</Text>
                                     <Text style={statusConfirmed}>Confirmed</Text>
+                                  </td>
+                                </tr>
+                                <tr>
+                                  <td colSpan={2} valign="top" style={{ paddingTop: '15px' }}>
+                                    <Text style={subKey}>Funded By</Text>
+                                    <Text style={subValMuted}>
+                                      {funded_by === 'agent' ? "Agent's Wallet (paid on your behalf)" : "Your Wallet"}
+                                    </Text>
                                   </td>
                                 </tr>
                               </tbody>
