@@ -137,6 +137,23 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
   const [pendingAmount, setPendingAmount] = useState(0);
   const isSubmittingRef = useRef(false);
   const clientRequestIdRef = useRef<string | null>(null);
+  const amountSectionRef = useRef<HTMLDivElement | null>(null);
+  const payoutSectionRef = useRef<HTMLDivElement | null>(null);
+  const reasonSectionRef = useRef<HTMLDivElement | null>(null);
+  const [pulseTarget, setPulseTarget] = useState<null | 'amount' | 'payout' | 'reason'>(null);
+
+  const focusMissing = () => {
+    let target: 'amount' | 'payout' | 'reason' | null = null;
+    let node: HTMLDivElement | null = null;
+    if (!payoutMode || !isPayoutValid()) { target = 'payout'; node = payoutSectionRef.current; }
+    else if (reason.trim().length < 10) { target = 'reason'; node = reasonSectionRef.current; }
+    else if (amount < 500) { target = 'amount'; node = amountSectionRef.current; }
+    if (node) {
+      node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setPulseTarget(target);
+      setTimeout(() => setPulseTarget(null), 1600);
+    }
+  };
 
   const [payoutMode, setPayoutMode] = useState<PayoutMode | null>(null);
   const [momoNumber, setMomoNumber] = useState('');
@@ -540,7 +557,10 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
               )}
 
               {/* ── PAYOUT METHOD ── */}
-              <div className="space-y-3">
+              <div
+                ref={payoutSectionRef}
+                className={`space-y-3 rounded-2xl transition-shadow ${pulseTarget === 'payout' ? 'ring-4 ring-primary/40 ring-offset-2 ring-offset-background' : ''}`}
+              >
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-primary" />
                   <Label className="text-sm font-bold text-foreground">Where should we send your money?</Label>
@@ -697,9 +717,10 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
               {/* ── REASON FOR WITHDRAWAL ── */}
               {payoutMode && isPayoutValid() && (
                 <motion.div
+                  ref={reasonSectionRef as any}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="space-y-2"
+                  className={`space-y-2 rounded-2xl p-1 transition-shadow ${pulseTarget === 'reason' ? 'ring-4 ring-primary/40 ring-offset-2 ring-offset-background' : ''}`}
                 >
                   <Label className="text-sm font-bold text-foreground flex items-center gap-2">
                     <FileText className="h-4 w-4 text-primary" />
@@ -720,11 +741,12 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
               <AnimatePresence>
                 {isPayoutValid() && meetsMinBalance && workingHoursStatus.isOpen && (
                   <motion.div
+                    ref={amountSectionRef as any}
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.3 }}
-                    className="space-y-4"
+                    className={`space-y-4 rounded-2xl p-1 transition-shadow ${pulseTarget === 'amount' ? 'ring-4 ring-primary/40 ring-offset-2 ring-offset-background' : ''}`}
                   >
                     <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
 
@@ -827,15 +849,19 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
                     )}
                   </Button>
                 ) : (
-                  <Button disabled className="flex-1 h-12 rounded-xl font-bold opacity-40">
+                  <Button
+                    type="button"
+                    onClick={focusMissing}
+                    className="flex-1 h-12 rounded-xl font-bold opacity-70 bg-muted text-muted-foreground hover:opacity-90 hover:bg-muted"
+                  >
                     {!payoutMode
-                      ? 'Select method ↑'
+                      ? 'Select payout method ↑'
                       : !isPayoutValid()
-                      ? 'Fill details ↑'
+                      ? 'Fill payout details ↑'
                       : reason.trim().length < 10
-                      ? 'Add reason ↑'
+                      ? 'Add reason (10+ chars) ↑'
                       : amount < 500
-                      ? 'Enter amount'
+                      ? 'Enter amount ↓'
                       : 'Withdraw'
                     }
                   </Button>
