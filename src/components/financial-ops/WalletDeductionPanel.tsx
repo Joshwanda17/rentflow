@@ -269,14 +269,14 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
           </div>
           <div className="text-right shrink-0 space-y-0.5">
             <div>
-              <p className="text-[10px] text-muted-foreground leading-none">Deductible</p>
+              <p className="text-[10px] text-muted-foreground leading-none">Withdrawable</p>
               <p className="text-sm font-semibold leading-tight">
-                {formatUGX(u.withdrawable_balance + u.float_balance)}
+                {formatUGX(u.withdrawable_balance)}
               </p>
             </div>
             {u.float_balance > 0 && (
               <p className="text-[10px] text-amber-600 leading-tight mt-0.5">
-                incl. float {formatUGX(u.float_balance)}
+                float excluded {formatUGX(u.float_balance)}
               </p>
             )}
           </div>
@@ -393,14 +393,14 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
                     return (
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                         <span className="text-muted-foreground">
-                          {balanceResults.length} wallets
+                          {balanceResults.length} withdrawable wallets
                         </span>
                         <span className="text-foreground">
                           <strong>{withW.length}</strong> with withdrawable · <strong>{formatUGX(totalW)}</strong>
                         </span>
                         {withF.length > 0 && (
                           <span className="text-amber-700">
-                            <strong>{withF.length}</strong> carry float · <strong>{formatUGX(totalF)}</strong> <span className="text-amber-600">(owed)</span>
+                            <strong>{withF.length}</strong> also carry float · <strong>{formatUGX(totalF)}</strong> <span className="text-amber-600">(excluded)</span>
                           </span>
                         )}
                       </div>
@@ -438,7 +438,7 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
                   <Wallet className="h-3 w-3" /> Withdrawable
                 </div>
                 <p className="text-sm font-bold mt-0.5">{formatUGX(trueBalance)}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Deductible from this tool</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Only this amount can be deducted</p>
               </div>
               <div className={cn(
                 "rounded-lg border p-2.5",
