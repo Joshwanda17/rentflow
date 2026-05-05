@@ -96,21 +96,26 @@ export function parseSMS(text: string): ParsedSMS {
   else if (firstAmt !== undefined) result.amount = firstAmt;
 
   // ── Transaction ID ─────────────────────────────────────────────────
-  // Try provider-specific formats first (highest signal), then generic.
-  const mtn = text.match(/\bMP[A-Z0-9]{8,}\b/i);
-  // Allow optional separator between TID and digits ("TID 146525101664",
-  // "TID.146...", "TID:146..."). Stored canonically as "TID<digits>".
+  // Provider-specific formats first (highest signal), then generic.
+  //
+  // MTN MoMo (current): the canonical TID lives in the "ID: <digits>"
+  // field on every variant of the confirmation SMS, e.g.
+  //   "...New balance: UGX 480,692.86. ID: 40473329892. Download MoMo..."
+  // The leading `(?:^|[^A-Z])` deliberately rejects the "ID" inside
+  // "TID" so an Airtel SMS does not get mis-parsed as MTN.
+  const mtnId = text.match(/(?:^|[^A-Z])ID[:\s.#-]+(\d{8,18})\b/i);
+  // Airtel: "TID 146525101664", "TID.146...", "TID:146...". Stored
+  // canonically as "TID<digits>".
   const airtel = text.match(/\bTID[\s.:#-]*(\d{4,18})\b/i);
-  // New MTN MoMo format: "ID: 40473329892" (bare digits, no MP prefix).
-  // The leading lookbehind `(?:^|[^A-Z])` deliberately rejects the "ID"
-  // inside "TID" so the Airtel rule above wins for Airtel SMS.
-  const mtnNew = text.match(/(?:^|[^A-Z])ID[:\s.#-]+(\d{8,18})\b/i);
+  // Legacy MTN format kept as a last-resort fallback for old SMS that
+  // only carry the MP… token without an "ID:" field.
+  const mtnLegacy = text.match(/\bMP[A-Z0-9]{8,}\b/i);
   const generic = text.match(
     /\b(?:Txn\s?ID|Transaction\s?ID|Ref(?:erence)?|Receipt)[:\s#]*([A-Z0-9-]{4,})\b/i,
   );
-  if (mtn) result.transactionId = mtn[0].toUpperCase();
+  if (mtnId) result.transactionId = mtnId[1];
   else if (airtel) result.transactionId = `TID${airtel[1]}`;
-  else if (mtnNew) result.transactionId = mtnNew[1];
+  else if (mtnLegacy) result.transactionId = mtnLegacy[0].toUpperCase();
   else if (generic) result.transactionId = generic[1].toUpperCase();
 
   // ── Date ───────────────────────────────────────────────────────────
