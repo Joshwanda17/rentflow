@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
+import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
 
 interface RegisterTenantDialogProps {
   open: boolean;
@@ -166,46 +167,30 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
     setLoading(true);
 
     try {
-      // Find tenant by email or phone
-      let tenantId: string | null = null;
-      
-      if (tenantEmail.trim()) {
-        const { data: tenantByEmail } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('email', tenantEmail.trim().toLowerCase())
-          .maybeSingle();
-        if (tenantByEmail) tenantId = tenantByEmail.id;
-      }
-      
-      if (!tenantId && tenantPhone.trim()) {
-        const { data: tenantByPhone } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('phone', tenantPhone.trim())
-          .maybeSingle();
-        if (tenantByPhone) tenantId = tenantByPhone.id;
-      }
+      // Provision (or fetch) the tenant via the edge function. Handles
+      // duplicate-national-id checks, profile/auth user creation, role
+      // assignment, and referral linking server-side.
+      const { data: regData, error: regErr } = await invokeEdgeFunction<{
+        user_id: string;
+        existing: boolean;
+      }>('register-tenant', {
+        body: {
+          full_name: tenantFullName.trim(),
+          phone: tenantPhone.trim() || `0${Date.now().toString().slice(-9)}`,
+          email: tenantEmail.trim() || undefined,
+          national_id: tenantNationalId.trim().toUpperCase(),
+        },
+        errorTitle: 'Could not register tenant',
+      });
 
-      if (!tenantId) {
-        toast.error('Tenant not found. They need to sign up first.');
+      if (regErr || !regData?.user_id) {
         setLoading(false);
         return;
       }
-
-      // Update tenant profile with national ID and name
-      if (tenantNationalId.trim() || tenantFullName.trim()) {
-        await supabase
-          .from('profiles')
-          .update({ 
-            national_id: tenantNationalId.trim() || undefined,
-            full_name: tenantFullName.trim() || undefined
-          })
-          .eq('id', tenantId);
-      }
+      const tenantId = regData.user_id;
 
       // Register landlord for tenant — agent is recorded as registered_by
-      const { error } = await supabase
+      const { data: landlordRow, error: landlordErr } = await supabase
         .from('landlords')
         .insert({
           tenant_id: tenantId,
@@ -219,20 +204,23 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
           location_captured_at: latitude ? new Date().toISOString() : null,
           location_captured_by: user.id,
           registered_by: user.id,
-        });
+        })
+        .select('id')
+        .single();
 
-      if (error) {
-        if (error.code === '23505') {
+      if (landlordErr || !landlordRow) {
+        if (landlordErr?.code === '23505') {
           toast.error('This tenant already has this landlord registered');
         } else {
-          toast.error('Failed to register tenant');
-          console.error('Registration error:', error);
+          toast.error('Failed to save landlord', { description: landlordErr?.message });
+          console.error('Landlord insert error:', landlordErr);
         }
         setLoading(false);
         return;
       }
 
       // Save LC1 chairperson if provided
+      let lc1Id: string | null = null;
       if (lc1Name.trim() && lc1Phone.trim() && lc1Village.trim()) {
         const { data: existingLc1 } = await supabase
           .from('lc1_chairpersons')
@@ -240,13 +228,45 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
           .eq('village', lc1Village.trim())
           .maybeSingle();
 
-        if (!existingLc1) {
-          await supabase.from('lc1_chairpersons').insert({
+        if (existingLc1) {
+          lc1Id = existingLc1.id;
+        } else {
+          const { data: newLc1 } = await supabase.from('lc1_chairpersons').insert({
             name: lc1Name.trim(),
             phone: lc1Phone.trim(),
             village: lc1Village.trim(),
-          });
+          }).select('id').single();
+          lc1Id = newLc1?.id ?? null;
         }
+      }
+
+      // Create the rent_request so the tenant enters the rent pipeline and
+      // the agent receives commission on every payment.
+      const { error: rentErr } = await supabase
+        .from('rent_requests')
+        .insert({
+          tenant_id: tenantId,
+          agent_id: user.id,
+          landlord_id: landlordRow.id,
+          lc1_id: lc1Id,
+          rent_amount: parseInt(monthlyRent),
+          duration_days: 30,
+          // Formula-derived fields — DB trigger overwrites these.
+          access_fee: 0,
+          request_fee: 0,
+          total_repayment: 0,
+          daily_repayment: 0,
+          status: 'pending',
+          house_category: 'single-room',
+          request_latitude: latitude,
+          request_longitude: longitude,
+        } as any);
+
+      if (rentErr) {
+        toast.error('Failed to create rent request', { description: rentErr.message });
+        console.error('Rent request insert error:', rentErr);
+        setLoading(false);
+        return;
       }
 
       // Activate rent discount for tenant
