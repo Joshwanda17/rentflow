@@ -101,11 +101,16 @@ export function parseSMS(text: string): ParsedSMS {
   // Allow optional separator between TID and digits ("TID 146525101664",
   // "TID.146...", "TID:146..."). Stored canonically as "TID<digits>".
   const airtel = text.match(/\bTID[\s.:#-]*(\d{4,18})\b/i);
+  // New MTN MoMo format: "ID: 40473329892" (bare digits, no MP prefix).
+  // The leading lookbehind `(?:^|[^A-Z])` deliberately rejects the "ID"
+  // inside "TID" so the Airtel rule above wins for Airtel SMS.
+  const mtnNew = text.match(/(?:^|[^A-Z])ID[:\s.#-]+(\d{8,18})\b/i);
   const generic = text.match(
     /\b(?:Txn\s?ID|Transaction\s?ID|Ref(?:erence)?|Receipt)[:\s#]*([A-Z0-9-]{4,})\b/i,
   );
   if (mtn) result.transactionId = mtn[0].toUpperCase();
   else if (airtel) result.transactionId = `TID${airtel[1]}`;
+  else if (mtnNew) result.transactionId = mtnNew[1];
   else if (generic) result.transactionId = generic[1].toUpperCase();
 
   // ── Date ───────────────────────────────────────────────────────────
