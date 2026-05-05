@@ -631,6 +631,20 @@ Deno.serve(async (req) => {
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+
+      // Path B (no active rent_request): the agent still moved float to a
+      // tenant on behalf of rent collection. Credit the same flat 10%
+      // commission so we don't silently lose it.
+      try {
+        actualCommission = await creditFlatAgentCommission(
+          adminClient,
+          agentId,
+          amount,
+          `pathB-${targetUserId}-${Date.now()}`,
+        );
+      } catch (e) {
+        console.error('[agent-deposit] Path B commission failed:', e);
+      }
     }
 
     // Add remaining amount to user's wallet
