@@ -1,72 +1,79 @@
-# Fix Atuhaire Carolyne's missing 25M + repair `cfo-direct-credit`
+# Fix agent rent-collection commission gaps
 
-## Root cause
+## Root cause (confirmed against last 30 days of `general_ledger`)
 
-`v_user_wallet_strict` (and every user-facing wallet view) filters out
-`category = 'system_balance_correction'` per the `user-facing-ledger-filter`
-constitutional rule. The `cfo-direct-credit` edge function is posting the
-**wallet leg** of CFO direct credits under `system_balance_correction`, paired
-with a `general_admin_expense` cash_out on the platform side. Result: the
-−25M leg shows in the user's ledger view, the +25M leg is filtered out, and
-strict withdrawable nets to 0 — even though the cached `wallets.balance`
-correctly shows 25M.
+`supabase/functions/agent-deposit/index.ts` only calls
+`credit_agent_rent_commission` when an **active** `rent_requests` row exists
+for the tenant in status `approved | funded | disbursed | repaying`. Every
+other collection — including ones with a real tenant and a real cash payment
+— silently skips the 10% commission credit, even though the agent's float
+is already debited.
 
-This affected at least three credits to Atuhaire today:
-- 11:15  +25,000,000  "FOR SHARE HOLDING"
-- 10:59     +500,000  "test funds"
-- 10:53   +1,000,000  "TEST FUNDS"
-Total invisible-to-user: **26,500,000 UGX**
+Audit (last 30 days):
+- **33 collections, UGX 190,890 in commission**, never paid to 3 agents
+  via the `agent-deposit` (`wallet_deposits`) path.
+- 1 collection via `wallets` path (UGX 28,100) similarly skipped.
+- The `agent_collections` RPC path is healthy (only ~190 UGX of pure
+  rounding drift across 111 collections).
 
-Same bug has been silently affecting every CFO direct credit since the rule
-was tightened.
+## Step 1 — Pay the back-owed commissions
 
-## Step 1 — Repair Atuhaire's three credits (user `ae194750-4827-47e8-839e-5e772565138b`)
-
-For each of the 3 credits above, post a **balanced reclassification pair**
-under `classification='admin_correction'` via `create_ledger_transaction`:
+For every transaction_group_id flagged by the audit query, post a balanced
+admin-correction pair via `create_ledger_transaction`:
 
 ```text
-Leg A (user side):    +amount, category='wallet_deposit',       direction='cash_in'
-Leg B (platform):     +amount, category='operational_expense',  direction='cash_out'
-                                                                    (or matching expense)
+Wallet leg :  agent_id, +amount*10%, cash_in,  category='agent_commission_earned', classification='production'
+Platform   :  agent_id, +amount*10%, cash_out, category='agent_commission_payable', classification='production'
 ```
 
-Then mirror-cancel the original `system_balance_correction` legs so the
-strict view balances. Net effect on strict withdrawable: **+26,500,000**.
-Cached `wallets.balance` is unchanged (still 25M) — but we will reseed it to
-match the new strict figure to avoid permanent drift.
+Idempotency key: `comm-backfill-<transaction_group_id>` so a retry is safe.
 
-Reason field (mandatory, ≥10 chars): `"CFO direct credit visibility fix — restore SHAREHOLDING + test funds"`.
+Audit log (per agent batch):
+- `action_type='agent_commission_backfill'`
+- `table_name='general_ledger'`
+- `record_id=<agent_id>`
+- `metadata.reason='Backfill missing 10% commission on agent-deposit Path B
+   collections — root cause: no active rent_request at collection time'`
 
-Audit log: `action_type='cfo_credit_visibility_repair'`, `table_name='general_ledger'`, `record_id=<user_id>`.
+Total to pay out:
+- Akampurira Onesmus (`e3cf4d3a…`): **UGX 168,490**
+- `e4f07815…`: **UGX 8,400**
+- `04ef6aad…`: **UGX 4,300**
+- `wallets`-path agent: **UGX 28,100**
+- **Total: UGX 209,290**
 
-## Step 2 — Fix `supabase/functions/cfo-direct-credit/index.ts`
+## Step 2 — Fix `agent-deposit/index.ts` so this stops bleeding
 
-Change the wallet-leg category from `system_balance_correction` to
-`wallet_deposit` (which is on the user-visible allowlist). Keep the
-platform-side leg as the appropriate operational expense category that the
-CFO selects in the UI. Both legs stay `classification='production'`.
+Two changes in the edge function:
 
-After the change, future CFO direct credits will:
-- show up in the user's strict ledger view immediately
-- still pass the ledger category allowlist
-- still keep the cache and strict ledger in sync
+**2a. Pay commission in Path B too.** When the function falls into the
+`repaymentAmount === 0` branch but the agent did pay UGX X "for tenant",
+the agent has performed a rent-collection action and should still earn
+commission. Call `credit_agent_rent_commission` with `p_rent_request_id =
+NULL` (or extend the RPC to accept a NULL rent_request_id and just credit
+the originating agent at 10%). Easiest: add a sibling RPC
+`credit_agent_collection_commission(p_agent_id, p_amount, p_event_ref)` that
+only credits the originating agent at 10%, no sub-agent split logic. Use it
+in Path B.
 
-## Step 3 — Sweep historical impact (read-only report first)
+**2b. Widen Path A's commission base.** In Path A, the agent's float is
+debited for `amount`, not `repaymentAmount`. If `depositAmount > 0` (i.e.
+collection exceeded the tenant's outstanding rent), pay commission on the
+overflow as well using the same Path B credit RPC. This keeps the rule
+simple: **every shilling the agent moves out of float earns 10%**.
 
-Run a read-only query to find every other user with at least one
-`cfo-direct-credit`-shaped pair (`category='system_balance_correction'`
-cash_in paired with a `general_admin_expense` cash_out on the same
-`transaction_id`, classification='production', since the bug was
-introduced). Surface the list in a CFO panel for review — do **not**
-auto-repair until the CFO approves the list, since some of those rows may
-be legitimate admin corrections.
+## Step 3 — Lightweight monitoring
+
+Add a daily cron `cron-backfill-missing-agent-commission` that runs the
+same audit query for the last 24h and writes any gaps it finds into a new
+`commission_backfill_queue` table (status `pending`), and emits a
+`agent.commission.gap_detected` system event so CFO/Finance Ops sees it
+in the daily digest. This guarantees we never silently lose another
+shilling even if a future regression slips through.
 
 ## Out of scope for this turn
 
-- The big `wallet_deduction_general_adjustment` debits (154.4M, 152.2M) and
-  the `historical_balance_reseed` (135.4M) on this same user are pre-existing
-  and will be reviewed separately if the user wants.
-- The two duplicate "ATUHAIRE CAROLYNE" profiles (`522ee29a…` 1M cached,
-  `7e506ac9…` 0) are not the active account and need a separate dedupe
-  decision.
+- The 21 `withdrawal_requests` rows (proxy payouts) correctly do not earn
+  rent commission — they are agent-mediated cash-out, not rent collection.
+- The ~190 UGX rounding drift on `agent_collections` is below noise floor;
+  no action.

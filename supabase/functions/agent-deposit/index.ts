@@ -15,6 +15,55 @@ const corsHeaders = {
 // deno-lint-ignore no-explicit-any
 type AdminClient = any;
 
+// Flat 10% commission credit for agent-collection paths that don't go
+// through `credit_agent_rent_commission` (no active rent_request, or
+// overflow above outstanding balance). Posts an idempotent balanced pair
+// using allowlisted ledger categories.
+async function creditFlatAgentCommission(
+  adminClient: AdminClient,
+  agentId: string,
+  rentAmount: number,
+  contextRef: string,
+) {
+  const commission = Math.round(rentAmount * 0.10);
+  if (commission <= 0) return 0;
+  const ref = `agent-collection-comm-${contextRef}`;
+  const { error } = await adminClient.rpc('create_ledger_transaction', {
+    entries: [
+      {
+        user_id: agentId,
+        amount: commission,
+        direction: 'cash_in',
+        category: 'agent_commission_earned',
+        ledger_scope: 'wallet',
+        classification: 'production',
+        description: `10% commission on rent collection (${contextRef})`,
+        reference_id: ref,
+        recipient_type: 'user',
+      },
+      {
+        user_id: agentId,
+        amount: commission,
+        direction: 'cash_out',
+        category: 'marketing_expense',
+        ledger_scope: 'platform',
+        classification: 'production',
+        description: 'Platform marketing expense: 10% rent collection commission',
+        reference_id: ref,
+      },
+    ],
+    idempotency_key: ref,
+  });
+  if (error) {
+    // Idempotent retry — duplicate key means we already paid this one
+    if (!String(error?.message ?? '').toLowerCase().includes('duplicate')) {
+      console.error('[agent-deposit] Flat commission credit failed:', error);
+      throw error;
+    }
+  }
+  return commission;
+}
+
 function toNumber(value: unknown): number {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -470,6 +519,25 @@ Deno.serve(async (req) => {
         // Use actual credited commission from RPC result
         actualCommission = commissionResult?.credited_commission || 0;
 
+        // Path A overflow: if the agent paid MORE than the outstanding rent
+        // (e.g. amount=100K but only 60K was owed), the overflow lands in
+        // the tenant's wallet but the agent's float was still debited for
+        // the full amount. Pay 10% on the overflow too — every shilling the
+        // agent moves out of float earns commission.
+        if (depositAmount > 0) {
+          try {
+            const overflowCommission = await creditFlatAgentCommission(
+              adminClient,
+              agentId,
+              depositAmount,
+              `${activeRentRequest.id}-overflow-${Date.now()}`,
+            );
+            actualCommission = (actualCommission || 0) + overflowCommission;
+          } catch (e) {
+            console.error('[agent-deposit] Path A overflow commission failed:', e);
+          }
+        }
+
         // Credit landlord wallet (using resolved user ID)
         if (landlordUserId && landlordPayment > 0) {
           await ensureWalletExists(adminClient, landlordUserId);
@@ -562,6 +630,20 @@ Deno.serve(async (req) => {
           JSON.stringify({ error: 'Failed to record agent payment audit trail' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
+      }
+
+      // Path B (no active rent_request): the agent still moved float to a
+      // tenant on behalf of rent collection. Credit the same flat 10%
+      // commission so we don't silently lose it.
+      try {
+        actualCommission = await creditFlatAgentCommission(
+          adminClient,
+          agentId,
+          amount,
+          `pathB-${targetUserId}-${Date.now()}`,
+        );
+      } catch (e) {
+        console.error('[agent-deposit] Path B commission failed:', e);
       }
     }
 
