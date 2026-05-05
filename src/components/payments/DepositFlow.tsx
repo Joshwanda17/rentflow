@@ -190,6 +190,14 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
    */
   const [errorFieldId, setErrorFieldId] = useState<string | null>(null);
   /**
+   * Controls the "Paste SMS" sheet. When open, the agent pastes the
+   * full SMS body into a textarea and we parse it on submit. Far more
+   * reliable than `navigator.clipboard.readText()` which Safari, in-app
+   * browsers, and most Android WebViews silently deny.
+   */
+  const [smsPasteOpen, setSmsPasteOpen] = useState(false);
+  const [smsPasteText, setSmsPasteText] = useState('');
+  /**
    * Per-tenant breakdown for an Operational Float deposit. The agent
    * collected one bulk amount in the field, dropped it at the merchant
    * code under one TID, and now needs to tell us *which tenants* it came
