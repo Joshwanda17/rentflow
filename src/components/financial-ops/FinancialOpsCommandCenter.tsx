@@ -36,6 +36,8 @@ type Tool =
   | 'withdrawals' | 'opportunities' | 'deductions' | 'requisitions'
   | 'mismatch_metrics' | 'recon_review';
 
+type ToolExt = Tool | 'withdrawal_history';
+
 /**
  * Items hidden behind the "More" button. Per CFO mandate the dashboard
  * surfaces ONLY the two most-used actions (Verify Deposits, Withdrawals)
