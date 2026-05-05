@@ -1482,7 +1482,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   </Label>
                   <button
                     type="button"
-                    onClick={handlePasteTid}
+                    onClick={handleOpenSmsPaste}
                     className="text-xs font-semibold text-primary inline-flex items-center gap-1 hover:underline underline-offset-2"
                   >
                     <ClipboardPaste className="h-3 w-3" />
