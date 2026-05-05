@@ -33,6 +33,10 @@ export function ImageLightbox({
   const lastTouchDist = useRef<number | null>(null);
   const lastTouchCenter = useRef<{ x: number; y: number } | null>(null);
   const imgContainerRef = useRef<HTMLDivElement>(null);
+  const swipeStart = useRef<{ x: number; y: number; t: number } | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const previouslyFocused = useRef<HTMLElement | null>(null);
 
   const isZoomed = scale > 1.05;
 
@@ -61,11 +65,45 @@ export function ImageLightbox({
         case 'Escape': onClose(); break;
         case 'ArrowLeft': goToPrevious(); break;
         case 'ArrowRight': goToNext(); break;
+        case 'Home': setDirection(-1); setCurrentIndex(0); break;
+        case 'End': setDirection(1); setCurrentIndex(images.length - 1); break;
+        case '+': case '=': setScale(s => Math.min(s + 0.5, 5)); break;
+        case '-': setScale(s => { const n = Math.max(s - 0.5, 1); if (n === 1) setTranslate({ x: 0, y: 0 }); return n; }); break;
+        case '0': resetZoom(); break;
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open, currentIndex]);
+  }, [open, currentIndex, images.length, onClose, resetZoom]);
+
+  // Focus trap + restore focus on close
+  useEffect(() => {
+    if (!open) return;
+    previouslyFocused.current = document.activeElement as HTMLElement | null;
+    // Defer to allow dialog to mount
+    const focusTimer = window.setTimeout(() => closeButtonRef.current?.focus(), 0);
+
+    const handleFocusTrap = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      const root = dialogRef.current;
+      if (!root) return;
+      const focusables = root.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+      if (e.shiftKey && active === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
+    };
+    window.addEventListener('keydown', handleFocusTrap);
+    return () => {
+      window.clearTimeout(focusTimer);
+      window.removeEventListener('keydown', handleFocusTrap);
+      previouslyFocused.current?.focus?.();
+    };
+  }, [open]);
 
   // Prevent body scroll
   useEffect(() => {
@@ -95,6 +133,9 @@ export function ImageLightbox({
         e.preventDefault();
         lastTouchDist.current = dist(e.touches);
         lastTouchCenter.current = center(e.touches);
+        swipeStart.current = null;
+      } else if (e.touches.length === 1 && !isZoomed) {
+        swipeStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() };
       }
     };
     const onTM = (e: TouchEvent) => {
@@ -123,6 +164,18 @@ export function ImageLightbox({
           return prev;
         });
       }
+      // Native swipe fallback for single-finger horizontal swipes
+      if (swipeStart.current && e.changedTouches.length === 1 && images.length > 1 && !isZoomed) {
+        const start = swipeStart.current;
+        const end = e.changedTouches[0];
+        const dx = end.clientX - start.x;
+        const dy = end.clientY - start.y;
+        const dt = Date.now() - start.t;
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.2 && dt < 600) {
+          if (dx > 0) goToPrevious(); else goToNext();
+        }
+        swipeStart.current = null;
+      }
     };
 
     el.addEventListener('touchstart', onTS, { passive: false });
@@ -133,7 +186,7 @@ export function ImageLightbox({
       el.removeEventListener('touchmove', onTM);
       el.removeEventListener('touchend', onTE);
     };
-  }, [open]);
+  }, [open, isZoomed, images.length]);
 
   const goToPrevious = useCallback(() => {
     if (isZoomed) return;
@@ -149,8 +202,8 @@ export function ImageLightbox({
 
   const handleDragEnd = useCallback((_e: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     if (isZoomed) return;
-    if (info.offset.x > 50 || info.velocity.x > 0.5) goToPrevious();
-    else if (info.offset.x < -50 || info.velocity.x < -0.5) goToNext();
+    if (info.offset.x > 40 || info.velocity.x > 300) goToPrevious();
+    else if (info.offset.x < -40 || info.velocity.x < -300) goToNext();
   }, [goToPrevious, goToNext, isZoomed]);
 
   const handleToggleZoom = useCallback(() => {
@@ -203,39 +256,50 @@ export function ImageLightbox({
     <AnimatePresence>
       {open && (
         <motion.div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${productName} photo viewer`}
+          aria-describedby="lightbox-status"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
           className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-sm flex flex-col"
         >
+          {/* Screen reader live region */}
+          <div id="lightbox-status" role="status" aria-live="polite" className="sr-only">
+            {productName} — Image {currentIndex + 1} of {images.length}
+            {isZoomed ? ', zoomed in' : ''}
+          </div>
           {/* Header */}
           <div className="flex items-center justify-between p-3 sm:p-4 relative z-10">
             <div className="flex items-center gap-3">
-              <span className="text-white/70 text-sm font-medium tabular-nums">
+              <span className="text-white/70 text-sm font-medium tabular-nums" aria-hidden="true">
                 {currentIndex + 1} / {images.length}
               </span>
               {productName && (
-                <span className="text-white/50 text-sm hidden sm:block truncate max-w-[200px]">
+                <span className="text-white/50 text-sm hidden sm:block truncate max-w-[200px]" aria-hidden="true">
                   — {productName}
                 </span>
               )}
             </div>
             
             <div className="flex items-center gap-0.5 sm:gap-1">
-              <Button variant="ghost" size="icon" onClick={handleShare}
+              <Button variant="ghost" size="icon" onClick={handleShare} aria-label="Share image"
                 className="text-white/70 hover:text-white hover:bg-white/10 h-10 w-10" title="Share image">
                 <Share2 className="h-5 w-5" />
               </Button>
-              <Button variant="ghost" size="icon" onClick={handleDownload}
+              <Button variant="ghost" size="icon" onClick={handleDownload} aria-label="Download image"
                 className="text-white/70 hover:text-white hover:bg-white/10 h-10 w-10" title="Save image">
                 <Download className="h-5 w-5" />
               </Button>
               <Button variant="ghost" size="icon" onClick={handleToggleZoom}
+                aria-label={isZoomed ? 'Zoom out' : 'Zoom in'} aria-pressed={isZoomed}
                 className="text-white/70 hover:text-white hover:bg-white/10 h-10 w-10" title={isZoomed ? 'Zoom out' : 'Zoom in'}>
                 {isZoomed ? <ZoomOut className="h-5 w-5" /> : <ZoomIn className="h-5 w-5" />}
               </Button>
-              <Button variant="ghost" size="icon" onClick={onClose}
+              <Button ref={closeButtonRef} variant="ghost" size="icon" onClick={onClose} aria-label="Close photo viewer"
                 className="text-white/70 hover:text-white hover:bg-white/10 h-10 w-10">
                 <X className="h-6 w-6" />
               </Button>
@@ -246,11 +310,11 @@ export function ImageLightbox({
           <div ref={imgContainerRef} className="flex-1 relative overflow-hidden flex items-center justify-center">
             {images.length > 1 && !isZoomed && (
               <>
-                <Button variant="ghost" size="icon" onClick={goToPrevious}
+                <Button variant="ghost" size="icon" onClick={goToPrevious} aria-label="Previous image"
                   className="absolute left-4 z-10 h-12 w-12 rounded-full text-white/70 hover:text-white hover:bg-white/10 hidden md:flex">
                   <ChevronLeft className="h-8 w-8" />
                 </Button>
-                <Button variant="ghost" size="icon" onClick={goToNext}
+                <Button variant="ghost" size="icon" onClick={goToNext} aria-label="Next image"
                   className="absolute right-4 z-10 h-12 w-12 rounded-full text-white/70 hover:text-white hover:bg-white/10 hidden md:flex">
                   <ChevronRight className="h-8 w-8" />
                 </Button>
@@ -312,17 +376,21 @@ export function ImageLightbox({
 
           {/* Thumbnails */}
           {images.length > 1 && (
-            <div className="p-3 sm:p-4 overflow-x-auto">
+            <div className="p-3 sm:p-4 overflow-x-auto" role="tablist" aria-label="Image thumbnails">
               <div className="flex gap-2 justify-center">
                 {images.map((image, index) => (
                   <button
                     key={image.id}
+                    role="tab"
+                    aria-selected={index === currentIndex}
+                    aria-label={`View image ${index + 1} of ${images.length}`}
+                    tabIndex={index === currentIndex ? 0 : -1}
                     onClick={() => {
                       setDirection(index > currentIndex ? 1 : -1);
                       setCurrentIndex(index);
                     }}
                     className={cn(
-                      'flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden border-2 transition-all',
+                      'flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden border-2 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white',
                       index === currentIndex
                         ? 'border-white opacity-100 scale-105'
                         : 'border-transparent opacity-50 hover:opacity-75'
@@ -337,10 +405,11 @@ export function ImageLightbox({
 
           {/* Dots - Mobile */}
           {images.length > 1 && images.length <= 10 && (
-            <div className="flex justify-center gap-1.5 pb-4 md:hidden">
+            <div className="flex justify-center gap-1.5 pb-4 md:hidden" aria-hidden="true">
               {images.map((_, index) => (
                 <button
                   key={index}
+                  tabIndex={-1}
                   onClick={() => {
                     setDirection(index > currentIndex ? 1 : -1);
                     setCurrentIndex(index);
