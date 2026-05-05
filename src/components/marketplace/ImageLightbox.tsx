@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { StorageImage } from '@/components/ui/StorageImage';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Share2, Download } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Share2, Download, ImageOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -37,6 +37,33 @@ export function ImageLightbox({
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
+  const [loadedIds, setLoadedIds] = useState<Set<string>>(new Set());
+  const [erroredIds, setErroredIds] = useState<Set<string>>(new Set());
+
+  const markLoaded = useCallback((id: string) => {
+    setLoadedIds(prev => prev.has(id) ? prev : new Set(prev).add(id));
+  }, []);
+  const markErrored = useCallback((id: string) => {
+    setErroredIds(prev => prev.has(id) ? prev : new Set(prev).add(id));
+  }, []);
+
+  // Preload current + neighbour images for instant swipe
+  useEffect(() => {
+    if (!open || images.length === 0) return;
+    const targets = new Set<number>([currentIndex]);
+    if (images.length > 1) {
+      targets.add((currentIndex + 1) % images.length);
+      targets.add((currentIndex - 1 + images.length) % images.length);
+    }
+    targets.forEach(i => {
+      const img = images[i];
+      if (!img || loadedIds.has(img.id) || erroredIds.has(img.id)) return;
+      const el = new Image();
+      el.src = img.image_url;
+      el.onload = () => markLoaded(img.id);
+      el.onerror = () => markErrored(img.id);
+    });
+  }, [open, currentIndex, images, loadedIds, erroredIds, markLoaded, markErrored]);
 
   const isZoomed = scale > 1.05;
 
@@ -345,15 +372,37 @@ export function ImageLightbox({
                 <motion.img
                   src={images[currentIndex].image_url}
                   alt={`${productName} - Image ${currentIndex + 1}`}
-                  className="max-h-full max-w-full object-contain select-none"
+                  className={cn(
+                    'max-h-full max-w-full object-contain select-none transition-opacity duration-300',
+                    loadedIds.has(images[currentIndex].id) ? 'opacity-100' : 'opacity-0'
+                  )}
                   style={{
                     transform: `scale(${scale}) translate(${translate.x / scale}px, ${translate.y / scale}px)`,
                     transition: isZoomed ? 'none' : 'transform 0.3s ease',
                   }}
                   draggable={false}
+                  decoding="async"
+                  loading="eager"
+                  onLoad={() => markLoaded(images[currentIndex].id)}
+                  onError={() => markErrored(images[currentIndex].id)}
                   onDoubleClick={handleToggleZoom}
                   onClick={() => { if (!isZoomed) handleToggleZoom(); }}
                 />
+                {/* Skeleton + spinner */}
+                {!loadedIds.has(images[currentIndex].id) && !erroredIds.has(images[currentIndex].id) && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
+                    <div className="relative w-[min(80vw,640px)] h-[min(60vh,480px)] rounded-2xl overflow-hidden bg-white/5">
+                      <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.4s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                    </div>
+                  </div>
+                )}
+                {/* Error fallback */}
+                {erroredIds.has(images[currentIndex].id) && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white/60 pointer-events-none">
+                    <ImageOff className="h-10 w-10" />
+                    <span className="text-sm">Image failed to load</span>
+                  </div>
+                )}
               </motion.div>
             </AnimatePresence>
 
