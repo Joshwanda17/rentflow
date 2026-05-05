@@ -226,9 +226,8 @@ export function ShareBreadDialog({ open, onOpenChange, availableBalance, onTopUp
         .select('id, amount, category, description, transaction_date')
         .eq('user_id', user.id)
         .eq('direction', 'cash_in')
-        // Hide admin/CFO reconciliation legs from end users.
-        .neq('classification', 'admin_correction')
-        .neq('category', 'system_balance_correction')
+        // Hide admin/CFO reconciliation legs only when both flags align.
+        .or('classification.neq.admin_correction,category.neq.system_balance_correction')
         .gte('transaction_date', since)
         .order('transaction_date', { ascending: false })
         .limit(3);
