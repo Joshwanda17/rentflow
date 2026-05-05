@@ -18,6 +18,10 @@ export interface AgentPerfRow {
   expected_weekly?: number;
   efficiency?: number;
   gap?: number;
+  daily_collection?: number;
+  daily_commission?: number;
+  rent_paid_out?: number;
+  conversion_pct?: number;
 }
 
 export interface AgentPerfTotals {
@@ -31,6 +35,9 @@ export interface AgentPerfTotals {
   daily_portfolio?: number;
   expected_weekly?: number;
   gap?: number;
+  daily_collection?: number;
+  daily_commission?: number;
+  rent_paid_out?: number;
 }
 
 const STATUS_LABEL: Record<AgentPerfRow['status'], string> = {
