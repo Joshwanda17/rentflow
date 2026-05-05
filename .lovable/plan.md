@@ -1,42 +1,64 @@
-# Allow agent to fund Angel Pool from either wallet
+## Goal
 
-Today the dialog and edge function always debit the **investor's** wallet. We will add a clear payment-source toggle so the agent can choose:
+Support the new MTN MoMo SMS receipt where the transaction id is written as `ID: 40473329892` (bare digits) instead of the old `MP…` prefix, so pasting it into DepositFlow auto-fills the TID and passes validation.
 
-- **Investor's Wallet** — debit `investor_id`'s wallet (current behaviour, default).
-- **Agent's Wallet** — debit the logged-in agent's own wallet (their withdrawable balance), useful when the agent is fronting the share purchase on the partner's behalf.
+Sample SMS we must parse:
+```
+You have paid WELILE TECHNOLOGIES LIMITED 090777 UGX 1,000.
+Fee: UGX 0. New balance: UGX 480,692.86. ID: 40473329892.
+Download MoMo App http://bit.ly/3KGlEJJ to get 500MBs.
+```
 
-## UI changes — `src/components/agent/AgentAngelPoolInvestDialog.tsx`
+## Changes
 
-In the **Amount** step (Step 2), under the existing investor card:
+### 1. `src/utils/smsParser.ts`
+Add a new MTN matcher after the existing `MP…` and `TID…` ones, before the generic Ref/Receipt fallback:
 
-1. Fetch the agent's own withdrawable balance once when the dialog opens (via `get_user_available_balance` RPC for strict-rule compliance).
-2. Render a 2-tile selector ("Investor Wallet" / "Agent Wallet"), each showing the wallet name + live balance, with a clear "Selected" highlight.
-3. Recompute `canProceed` against whichever wallet is selected (its balance must cover `actualAmount`).
-4. Show "Insufficient balance" against the chosen wallet, not always the investor's.
-5. In the **Preview** step (Step 3) add a "Funded By" row showing the chosen source so the agent confirms intent before clicking Confirm.
+```ts
+// New MTN format: "ID: 40473329892"
+const mtnNew = text.match(/(?:^|[^A-Z])ID[:\s.#-]+(\d{8,18})\b/i);
+```
 
-Pass the new field `funding_source: 'investor' | 'agent'` to the edge function.
+Matching priority (unchanged for old SMS):
+1. `MP…` (legacy MTN)
+2. `TID…` (Airtel — leading word boundary already excludes "TID" from being eaten by the new ID rule because we match the `MP`/`TID` rules first)
+3. `ID: <digits>` (new MTN) — store as the raw digit string (`"40473329892"`)
+4. Generic `Ref/Receipt/Txn ID …`
 
-## Edge function changes — `supabase/functions/agent-angel-pool-invest/index.ts`
+Also confirm the amount rule still picks `UGX 1,000` and skips `Fee: UGX 0` and `New balance: UGX 480,692.86` — the existing `skipRe` already covers `fee` and `balance`, so no change needed.
 
-1. Accept `funding_source` in the request body; default `'investor'` for backward compatibility. Validate it's one of the two allowed values.
-2. Resolve the **funding user id**: `investor_id` if `'investor'`, else `user.id` (agent).
-3. Balance check uses `get_user_available_balance(funding_user_id)` (strict withdrawable rule) instead of the cached `wallets.balance`. Reject if insufficient.
-4. The wallet `cash_out` ledger leg's `user_id` becomes the funding user. The platform `cash_in` (`pool_capital_received`) leg's description is annotated with `funded_by_agent=true` when applicable, so CFO reconciliation can distinguish.
-5. The investment row records `payment_method` plus a new metadata field `funded_by` (`'investor' | 'agent'`) so the audit trail is permanent. (Stored in existing `investment_reference` if no metadata column exists, but we'll add a `funded_by` column via migration if missing — see step 6.)
-6. **Migration** — add `funded_by text not null default 'investor'` (CHECK in `('investor','agent')`) to `angel_pool_investments`. Plus a small index for analytics.
-7. Agent commission logic stays unchanged — still credited to the agent (1%), regardless of funding source.
-8. Email already sent to the investor stays unchanged; we add a `funded_by` line to the template and pass it through (small visual addition, no breaking change).
+The sample SMS has no date/time, so those fields will stay empty and the user fills them manually (existing behaviour, already toasts a warning).
 
-## Safety / governance
+### 2. `src/components/payments/DepositFlow.tsx`
 
-- Strict withdrawable RPC means agent can never overspend their float — only their truly withdrawable balance can fund a share purchase.
-- System event `agent_angel_pool_investment` payload gains `funded_by` for full auditability.
-- Backward compatible: existing callers without `funding_source` behave exactly as before.
+Two MTN TID checks currently insist on the `MP` prefix and would reject the new digit-only id.
 
-## Files touched
+a. `applyPastedSms` (≈ line 383) — provider auto-detect:
+```ts
+if (parsed.transactionId?.startsWith('MP')) detectedProvider = 'mtn';
+else if (parsed.transactionId?.startsWith('TID')) detectedProvider = 'airtel';
+else if (/^\d{8,}$/.test(parsed.transactionId ?? '')) detectedProvider = 'mtn';
+```
 
-1. `src/components/agent/AgentAngelPoolInvestDialog.tsx` — wallet picker UI + agent balance fetch + payload field.
-2. `supabase/functions/agent-angel-pool-invest/index.ts` — funding source routing + strict balance check + ledger user routing + system event metadata.
-3. `supabase/functions/_shared/transactional-email-templates/angel-pool-share-purchase.tsx` — small "Funded by" row.
-4. New migration adding `funded_by` to `angel_pool_investments`.
+b. `validateTid` (≈ line 681) — accept either `MP…` or a pure 8–18 digit string for MTN:
+```ts
+if (prov === 'mtn' && !/^MP[A-Z0-9]{6,}$/.test(upper) && !/^\d{8,18}$/.test(upper)) {
+  setTidError("MTN TIDs must start with 'MP' or be the numeric ID from your SMS (e.g. MP39665905645 or 40473329892)");
+}
+```
+
+c. `isTidValid` (≈ line 694) — same dual rule:
+```ts
+if (momoProvider === 'mtn') return /^MP[A-Z0-9]{6,}$/.test(upper) || /^\d{8,18}$/.test(upper);
+```
+
+d. `computeBlockReason` (≈ line 757) — mirror the new rule and update the error string so the inline hint matches what we just allowed.
+
+e. Update the MTN placeholder/help text in the TID input (≈ lines 738, 1535, 1569) to mention both formats: `"e.g. MP39665905645 or 40473329892"`.
+
+No DB or edge-function changes — TIDs are already stored as free text.
+
+## Out of scope
+
+- Date/time auto-extraction for SMS that don't contain them (the new MTN format omits both — manual entry stays).
+- Any change to the receipt-number / RCT flow.
