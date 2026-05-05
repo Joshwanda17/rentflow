@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ImageLightbox } from '@/components/marketplace/ImageLightbox';
-import { MapPin, DoorOpen, Home, ChevronRight, ChevronLeft, ShieldCheck, Clock, ExternalLink } from 'lucide-react';
+import { MapPin, DoorOpen, Home, ChevronRight, ChevronLeft, ShieldCheck, Clock, ExternalLink, ZoomIn } from 'lucide-react';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
 import HouseRatingBadge from '@/components/house/HouseRatingBadge';
@@ -73,10 +73,18 @@ function MiniHouseCard({ listing }: { listing: HouseListing }) {
             <img
               src={images[imgIdx]}
               alt={listing.title}
-              className="w-full h-full object-cover cursor-pointer"
+              className="w-full h-full object-cover cursor-zoom-in"
               loading="lazy"
-              onClick={() => setLightboxOpen(true)}
+              onClick={(e) => { e.stopPropagation(); setLightboxOpen(true); }}
             />
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setLightboxOpen(true); }}
+              aria-label="View full screen"
+              className="absolute top-1 right-7 bg-black/60 text-white rounded-full p-1 active:scale-95 transition-transform"
+            >
+              <ZoomIn className="h-3 w-3" />
+            </button>
             {images.length > 1 && (
               <>
                 <button type="button" onClick={(e) => { e.stopPropagation(); setImgIdx(i => (i - 1 + images.length) % images.length); }}
