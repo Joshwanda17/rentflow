@@ -17,6 +17,8 @@ interface ImageLightboxProps {
   open: boolean;
   onClose: () => void;
   productName?: string;
+  /** Optional stable key (e.g. house id). When set, last viewed index + zoom are restored on reopen. */
+  memoryKey?: string;
 }
 
 export function ImageLightbox({ 
@@ -24,12 +26,31 @@ export function ImageLightbox({
   initialIndex = 0, 
   open, 
   onClose,
-  productName = 'Product'
+  productName = 'Product',
+  memoryKey,
 }: ImageLightboxProps) {
-  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const storageKey = memoryKey ? `lightbox:${memoryKey}` : null;
+  const readMemory = useCallback(() => {
+    if (!storageKey || typeof window === 'undefined') return null;
+    try {
+      const raw = sessionStorage.getItem(storageKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as { index?: number; scale?: number; tx?: number; ty?: number };
+      return parsed;
+    } catch { return null; }
+  }, [storageKey]);
+
+  const initial = (() => {
+    const m = readMemory();
+    if (m && typeof m.index === 'number' && m.index >= 0 && m.index < images.length) return m;
+    return null;
+  })();
+
+  const [currentIndex, setCurrentIndex] = useState(initial?.index ?? initialIndex);
   const [direction, setDirection] = useState(0);
-  const [scale, setScale] = useState(1);
-  const [translate, setTranslate] = useState({ x: 0, y: 0 });
+  const [scale, setScale] = useState(initial?.scale && initial.scale > 1.05 ? initial.scale : 1);
+  const [translate, setTranslate] = useState({ x: initial?.tx ?? 0, y: initial?.ty ?? 0 });
+  const restoredOnceRef = useRef(false);
   const lastTouchDist = useRef<number | null>(null);
   const lastTouchCenter = useRef<{ x: number; y: number } | null>(null);
   const imgContainerRef = useRef<HTMLDivElement>(null);
@@ -74,15 +95,46 @@ export function ImageLightbox({
     lastTouchCenter.current = null;
   }, []);
 
+  // On open: restore from memory if available, else use initialIndex
   useEffect(() => {
-    if (open) {
+    if (!open) { restoredOnceRef.current = false; return; }
+    const m = readMemory();
+    if (m && typeof m.index === 'number' && m.index >= 0 && m.index < images.length) {
+      setCurrentIndex(m.index);
+      if (m.scale && m.scale > 1.05) {
+        setScale(Math.min(m.scale, 5));
+        setTranslate({ x: m.tx ?? 0, y: m.ty ?? 0 });
+      } else {
+        resetZoom();
+      }
+    } else {
       setCurrentIndex(initialIndex);
       resetZoom();
     }
-  }, [open, initialIndex, resetZoom]);
+    restoredOnceRef.current = true;
+  }, [open, initialIndex, images.length, readMemory, resetZoom]);
 
-  // Reset zoom on slide change
-  useEffect(() => { resetZoom(); }, [currentIndex, resetZoom]);
+  // Reset zoom on slide change (but skip the very first restore so saved zoom survives reopen)
+  const prevIndexRef = useRef(currentIndex);
+  useEffect(() => {
+    if (prevIndexRef.current !== currentIndex) {
+      resetZoom();
+      prevIndexRef.current = currentIndex;
+    }
+  }, [currentIndex, resetZoom]);
+
+  // Persist to sessionStorage whenever index or zoom changes while open
+  useEffect(() => {
+    if (!open || !storageKey || typeof window === 'undefined') return;
+    try {
+      sessionStorage.setItem(storageKey, JSON.stringify({
+        index: currentIndex,
+        scale,
+        tx: translate.x,
+        ty: translate.y,
+      }));
+    } catch { /* ignore quota */ }
+  }, [open, storageKey, currentIndex, scale, translate.x, translate.y]);
 
   // Keyboard navigation
   useEffect(() => {
