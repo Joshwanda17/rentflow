@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Download, FileBarChart, Phone } from 'lucide-react';
+import { Download, FileBarChart, Phone, Pencil, Check, X, Loader2 } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, subWeeks, startOfMonth, endOfMonth, differenceInCalendarDays } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -92,6 +93,7 @@ function agentStatus(rate: number): AllocAgentBlock['status'] {
 }
 
 export function AgentAllocationReport() {
+  const queryClient = useQueryClient();
   const [preset, setPreset] = useState<RangePreset>('all');
   const range = useMemo(() => getRange(preset), [preset]);
   const startISO = range.start ? range.start.toISOString() : null;
@@ -224,6 +226,8 @@ export function AgentAllocationReport() {
           });
           const prof = profMap[r.tenant_id!] || { name: r.tenant_id!.slice(0, 8), phone: '' };
           return {
+          request_id: r.id,
+          tenant_id: r.tenant_id!,
             tenant_name: prof.name,
             tenant_phone: prof.phone,
             start_date: start,
@@ -276,6 +280,20 @@ export function AgentAllocationReport() {
 
   const blocks = data?.blocks || [];
   const kpi = data?.kpi || { agents: 0, tenants: 0, allocated: 0, repaid: 0, rate: 0 };
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['agent-allocation-report'] });
+
+  const saveField = async (
+    requestId: string,
+    field: 'rent_amount' | 'amount_repaid' | 'duration_days',
+    value: number,
+  ) => {
+    const { error } = await supabase
+      .from('rent_requests')
+      .update({ [field]: value })
+      .eq('id', requestId);
+    if (error) throw error;
+  };
 
   const handleDownloadPdf = async () => {
     if (!blocks.length) { toast.error('No data to export'); return; }
@@ -416,10 +434,16 @@ export function AgentAllocationReport() {
                           <td className="px-2 py-2 font-medium">{t.tenant_name}</td>
                           <td className="px-2 py-2 text-muted-foreground">{t.tenant_phone || '—'}</td>
                           <td className="px-2 py-2 text-center">{t.start_date ? format(new Date(t.start_date), 'dd MMM yy') : '—'}</td>
-                          <td className="px-2 py-2 text-right font-mono">{fmt(t.rent_given)}</td>
+                          <td className="px-2 py-2 text-right font-mono">
+                            <EditableNumber value={t.rent_given} onSave={async (v) => { await saveField(t.request_id, 'rent_amount', v); await refresh(); }} />
+                          </td>
                           <td className="px-2 py-2 text-right font-mono">{fmt(t.daily)}</td>
-                          <td className="px-2 py-2 text-right">{t.duration_days || 0}</td>
-                          <td className="px-2 py-2 text-right font-mono text-emerald-600">{fmt(t.paid)}</td>
+                          <td className="px-2 py-2 text-right">
+                            <EditableNumber value={t.duration_days || 0} onSave={async (v) => { await saveField(t.request_id, 'duration_days', v); await refresh(); }} />
+                          </td>
+                          <td className="px-2 py-2 text-right font-mono text-emerald-600">
+                            <EditableNumber value={t.paid} onSave={async (v) => { await saveField(t.request_id, 'amount_repaid', v); await refresh(); }} />
+                          </td>
                           <td className="px-2 py-2 text-right font-mono text-orange-600">{fmt(t.outstanding)}</td>
                           <td className="px-2 py-2 text-right">{fmtPct(t.pct_paid)}</td>
                           <td className="px-2 py-2 text-center text-muted-foreground">{t.last_payment ? format(new Date(t.last_payment), 'dd MMM yy') : '—'}</td>
@@ -449,11 +473,12 @@ export function AgentAllocationReport() {
                         </span>
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-[11px]">
-                        <div><div className="text-muted-foreground">Rent</div><div className="font-semibold">{fmt(t.rent_given)}</div></div>
-                        <div><div className="text-muted-foreground">Paid</div><div className="font-semibold text-emerald-600">{fmt(t.paid)}</div></div>
+                        <div><div className="text-muted-foreground">Rent</div><EditableNumber value={t.rent_given} className="font-semibold" onSave={async (v) => { await saveField(t.request_id, 'rent_amount', v); await refresh(); }} /></div>
+                        <div><div className="text-muted-foreground">Paid</div><EditableNumber value={t.paid} className="font-semibold text-emerald-600" onSave={async (v) => { await saveField(t.request_id, 'amount_repaid', v); await refresh(); }} /></div>
                         <div><div className="text-muted-foreground">Outstanding</div><div className="font-semibold text-orange-600">{fmt(t.outstanding)}</div></div>
                         <div><div className="text-muted-foreground">Daily</div><div className="font-semibold">{fmt(t.daily)}</div></div>
                         <div><div className="text-muted-foreground">% Paid</div><div className="font-semibold">{fmtPct(t.pct_paid)}</div></div>
+                        <div><div className="text-muted-foreground">Days</div><EditableNumber value={t.duration_days || 0} className="font-semibold" onSave={async (v) => { await saveField(t.request_id, 'duration_days', v); await refresh(); }} /></div>
                         <div><div className="text-muted-foreground">Overdue</div><div className={cn('font-semibold', t.days_overdue > 7 && 'text-red-600')}>{t.days_overdue > 0 ? `${t.days_overdue}d` : '—'}</div></div>
                       </div>
                     </div>
@@ -474,5 +499,74 @@ function KPI({ label, value, valueCls }: { label: string; value: string; valueCl
       <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">{label}</div>
       <div className={cn('text-base sm:text-lg font-bold mt-1', valueCls)}>{value}</div>
     </div>
+  );
+}
+
+function EditableNumber({
+  value,
+  onSave,
+  className,
+}: {
+  value: number;
+  onSave: (v: number) => Promise<void>;
+  className?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(String(value));
+  const [saving, setSaving] = useState(false);
+
+  const start = () => { setDraft(String(value)); setEditing(true); };
+  const cancel = () => { setEditing(false); setDraft(String(value)); };
+  const commit = async () => {
+    const n = Number(String(draft).replace(/[^\d.-]/g, ''));
+    if (!Number.isFinite(n) || n < 0) { toast.error('Invalid number'); return; }
+    if (n === value) { setEditing(false); return; }
+    setSaving(true);
+    try {
+      await onSave(n);
+      toast.success('Saved');
+      setEditing(false);
+    } catch (e: any) {
+      toast.error('Save failed', { description: e?.message });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (editing) {
+    return (
+      <span className="inline-flex items-center gap-1">
+        <Input
+          autoFocus
+          inputMode="numeric"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') cancel(); }}
+          className="h-7 w-24 text-xs font-mono px-2"
+          disabled={saving}
+        />
+        <button type="button" onClick={commit} disabled={saving} className="text-emerald-600 hover:text-emerald-700">
+          {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+        </button>
+        <button type="button" onClick={cancel} disabled={saving} className="text-muted-foreground hover:text-foreground">
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </span>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={start}
+      className={cn(
+        'inline-flex items-center gap-1 hover:bg-muted/60 rounded px-1 -mx-1 transition-colors group',
+        className,
+      )}
+      title="Click to edit"
+    >
+      <span className="font-mono">{fmt(value)}</span>
+      <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-60" />
+    </button>
   );
 }

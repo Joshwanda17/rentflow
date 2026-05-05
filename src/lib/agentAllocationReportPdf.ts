@@ -3,6 +3,8 @@ import { format } from 'date-fns';
 export type AllocStatus = 'on_track' | 'slow' | 'behind' | 'default_risk' | 'completed';
 
 export interface AllocTenantRow {
+  request_id: string;
+  tenant_id: string;
   tenant_name: string;
   tenant_phone: string;
   start_date: string | null;
