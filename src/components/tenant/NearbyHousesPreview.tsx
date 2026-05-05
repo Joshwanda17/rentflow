@@ -11,6 +11,7 @@ import { useGeolocation } from '@/hooks/useGeolocation';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { useMapLinkAnnouncer } from '@/hooks/useMapLinkAnnouncer';
 
 interface NearbyHousesPreviewProps {
   onViewAll: () => void;
@@ -18,7 +19,7 @@ interface NearbyHousesPreviewProps {
 
 function MiniMapThumb({ lat, lng, title }: { lat: number | null; lng: number | null; title: string }) {
   if (!lat || !lng) return null;
-  
+  const announce = useMapLinkAnnouncer();
   const mapUrl = `https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed`;
   const linkUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
 
@@ -27,7 +28,7 @@ function MiniMapThumb({ lat, lng, title }: { lat: number | null; lng: number | n
       href={linkUrl}
       target="_blank"
       rel="noopener noreferrer"
-      onClick={(e) => e.stopPropagation()}
+      onClick={(e) => { e.stopPropagation(); announce(title); }}
       aria-label={`Open ${title} location in Google Maps (opens in a new tab)`}
       className="block relative w-full h-24 rounded-lg overflow-hidden bg-muted border-2 border-primary/40 ring-1 ring-primary/20 shadow-sm active:scale-[0.98] transition-transform touch-manipulation focus:outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
