@@ -1023,7 +1023,10 @@ export function AgentPerformanceReport() {
                 <div className="grid grid-cols-3 gap-2 text-xs">
                   <div><div className="text-muted-foreground">Tenants</div><div className="font-semibold">{r.tenants_paid}/{r.tenants_total}</div></div>
                   <div><div className="text-muted-foreground">Collected</div><div className="font-semibold">{fmt(r.collected)}</div></div>
-                  <div><div className="text-muted-foreground">Payments</div><div className="font-semibold">{r.payments}</div></div>
+                  <div><div className="text-muted-foreground">Activities</div><div className="font-semibold">{r.payments}</div></div>
+                  <div><div className="text-muted-foreground">Daily Avg</div><div className="font-semibold text-emerald-700">{fmt(r.daily_collection || 0)}</div></div>
+                  <div><div className="text-muted-foreground">Conversion</div><div className="font-semibold">{fmtPct(r.conversion_pct || 0)}</div></div>
+                  <div><div className="text-muted-foreground">Rent Paid Out</div><div className="font-semibold text-indigo-700">{fmt(r.rent_paid_out || 0)}</div></div>
                   <div><div className="text-muted-foreground">Commission</div><div className="font-semibold text-emerald-600">{fmt(r.commission)}</div></div>
                   <div><div className="text-muted-foreground">Interest</div><div className="font-semibold text-blue-600">{fmt(r.interest)}</div></div>
                   <div><div className="text-muted-foreground">Wallet</div><div className="font-bold">{fmt(r.wallet_total)}</div></div>
