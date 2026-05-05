@@ -15507,6 +15507,10 @@ export type Database = {
           withdrawable: number
         }[]
       }
+      reconcile_wallet_cache_to_ledger: {
+        Args: { p_reason?: string }
+        Returns: Json
+      }
       reconcile_wallet_from_ledger:
         | { Args: { p_user_id: string }; Returns: number }
         | { Args: { p_reason: string; p_user_id: string }; Returns: Json }

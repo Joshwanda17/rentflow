@@ -38,8 +38,6 @@ interface UserResult {
   balance: number;
   withdrawable_balance: number;
   float_balance: number;
-  /** Pre-clamp cached value, kept so the row can warn about reconciliation drift. */
-  cached_withdrawable?: number;
 }
 
 interface WalletDeductionPanelProps {
@@ -196,41 +194,6 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
         withdrawable_balance?: number | string | null;
         float_balance?: number | string | null;
       }>;
-      // Fallback: if the RPC returned nothing (e.g. PostgREST schema cache
-      // hasn't picked it up after a recent deploy), query the wallets
-      // table directly so the 229 wallets the hero counts always surface.
-      if (rows.length === 0) {
-        console.warn('[WalletDeductionPanel] RPC returned 0 — falling back to direct wallets query');
-        const { data: walletRows, error: wErr } = await supabase
-          .from('wallets')
-          .select('user_id, balance, withdrawable_balance, float_balance')
-          .gte('balance', min)
-          .lte('balance', max)
-          .order('withdrawable_balance', { ascending: false, nullsFirst: false })
-          .limit(500);
-        if (wErr) {
-          console.error('[WalletDeductionPanel] fallback wallets query error:', wErr);
-        } else if (walletRows && walletRows.length > 0) {
-          const ids = walletRows.map((w) => w.user_id);
-          const { data: profs } = await supabase
-            .from('profiles')
-            .select('id, full_name, phone')
-            .in('id', ids);
-          const profMap = new Map((profs || []).map((p) => [p.id, p]));
-          rows = walletRows.map((w) => {
-            const p = profMap.get(w.user_id);
-            return {
-              user_id: w.user_id,
-              full_name: p?.full_name || 'Unnamed',
-              phone: p?.phone || '',
-              balance: w.balance,
-              withdrawable_balance: w.withdrawable_balance,
-              float_balance: w.float_balance,
-            };
-          });
-          console.log('[WalletDeductionPanel] fallback returned', rows.length, 'wallets');
-        }
-      }
       // Float is company money we owe back to the user — operators MUST
       // see it as a separate figure so they never deduct from a liability.
       const mapped = rows.map((r) => ({
@@ -242,14 +205,8 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
         float_balance: Number(r.float_balance ?? 0),
       }));
 
-      // STRICT-CLAMP every row's withdrawable to what the backend gate will
-      // actually allow. The cached `wallets.withdrawable_balance` can sit
-      // ABOVE the ledger-true position — most commonly for agents anchored
-      // by the 2026-04-29 hybrid fresh-start backfill, where the cached
-      // bucket was never reseeded against the post-anchor window. Showing
-      // the cached figure here lets operators promise money the system
-      // refuses to pay out (LOLEM FIRICILA: cache 1.897M vs strict 313K).
-      // We never let the strict figure INFLATE the cache — only narrow it.
+      // The RPC already returns ledger-backed figures. Re-check each row
+      // against the backend gate so the list cannot display stale wallet cache.
       const clamped = await Promise.all(
         mapped.map(async (u) => {
           try {
@@ -261,12 +218,11 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
             const strictAvailable = Math.max(0, Number(strict ?? 0));
             return {
               ...u,
-              cached_withdrawable: u.withdrawable_balance,
               withdrawable_balance: Math.min(u.withdrawable_balance, strictAvailable),
             };
           } catch {
             // RPC unavailable — fall back conservatively (don't trust cache).
-            return { ...u, cached_withdrawable: u.withdrawable_balance };
+            return { ...u, withdrawable_balance: 0, balance: 0 };
           }
         }),
       );
@@ -355,12 +311,6 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
                 Float only — company liability (not deductible)
               </p>
             )}
-            {typeof u.cached_withdrawable === 'number' &&
-              u.cached_withdrawable - u.withdrawable_balance > 1 && (
-                <p className="text-[10px] text-amber-600 font-medium mt-0.5">
-                  Cache shows {formatUGX(u.cached_withdrawable)} — pending CFO reconciliation
-                </p>
-              )}
           </div>
           <div className="text-right shrink-0 space-y-0.5">
             <div>
@@ -554,11 +504,6 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
                 )}>Company liability — not deductible</p>
               </div>
             </div>
-            {availableBalance !== undefined && availableBalance !== null && availableBalance < selectedUser.withdrawable_balance && (
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Cached withdrawable shows {formatUGX(selectedUser.withdrawable_balance)}, but ledger-true available is lower (debt / pending obligations).
-              </p>
-            )}
           </div>
 
           {/* Step 2: Amount & details */}

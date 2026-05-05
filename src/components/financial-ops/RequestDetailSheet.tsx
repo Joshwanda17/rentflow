@@ -68,7 +68,7 @@ export function RequestDetailSheet({ open, onOpenChange, userId, requestType, re
     const fetchAll = async () => {
       const [profileRes, walletRes, rolesRes, txRes, depositRes] = await Promise.all([
         supabase.from('profiles').select('id, full_name, phone, avatar_url, created_at, last_active_at, city, country').eq('id', userId).single(),
-        supabase.from('wallets').select('balance').eq('user_id', userId).single(),
+        supabase.rpc('get_user_wallet_view', { p_user_id: userId }),
         supabase.from('user_roles').select('role').eq('user_id', userId),
         supabase.from('general_ledger')
           .select('id, amount, direction, category, description, transaction_date')
@@ -82,7 +82,8 @@ export function RequestDetailSheet({ open, onOpenChange, userId, requestType, re
       ]);
 
       setProfile(profileRes.data as UserDetail | null);
-      setWallet(walletRes.data as WalletInfo | null);
+      const walletView = (walletRes.data ?? {}) as { total_visible?: number | string };
+      setWallet({ balance: Number(walletView.total_visible ?? 0) });
       setRoles((rolesRes.data as UserRole[]) || []);
       setRecentTxns((txRes.data as RecentTx[]) || []);
 
