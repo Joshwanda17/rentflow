@@ -198,6 +198,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
    */
   const [smsPasteOpen, setSmsPasteOpen] = useState(false);
   const [smsPasteText, setSmsPasteText] = useState('');
+  const [smsConfirmStep, setSmsConfirmStep] = useState(false);
   /**
    * Per-tenant breakdown for an Operational Float deposit. The agent
    * collected one bulk amount in the field, dropped it at the merchant
