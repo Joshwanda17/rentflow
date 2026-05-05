@@ -127,6 +127,7 @@ Deno.serve(async (req) => {
         method: "POST",
         headers: {
           Authorization: `Bearer ${serviceKey}`,
+          apikey: serviceKey,
           "Content-Type": "application/sql",
           "x-upsert": "false",
         },
