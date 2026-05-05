@@ -218,6 +218,7 @@ Deno.serve(async (req) => {
               pool_percentage: POOL_PERCENT,
               pool_round: "Seed Round",
               company_name: "Welile",
+              funded_by: fundingSource,
             },
           },
         });
