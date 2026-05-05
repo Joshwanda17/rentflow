@@ -419,6 +419,22 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
             </div>
 
             <div className="space-y-2">
+              <Label>Investment Date <span className="text-destructive">*</span></Label>
+              <Input
+                type="date"
+                value={investmentDate}
+                onChange={(e) => setInvestmentDate(e.target.value)}
+                max={new Date().toISOString().split('T')[0]}
+                required
+              />
+              {!investmentDate && (
+                <p className="text-[11px] text-muted-foreground">
+                  Date the investor handed over the funds.
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
               <Label>Fund From</Label>
               <div className="grid grid-cols-2 gap-2">
                 <button
