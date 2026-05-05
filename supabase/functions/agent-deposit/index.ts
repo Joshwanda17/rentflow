@@ -519,6 +519,25 @@ Deno.serve(async (req) => {
         // Use actual credited commission from RPC result
         actualCommission = commissionResult?.credited_commission || 0;
 
+        // Path A overflow: if the agent paid MORE than the outstanding rent
+        // (e.g. amount=100K but only 60K was owed), the overflow lands in
+        // the tenant's wallet but the agent's float was still debited for
+        // the full amount. Pay 10% on the overflow too — every shilling the
+        // agent moves out of float earns commission.
+        if (depositAmount > 0) {
+          try {
+            const overflowCommission = await creditFlatAgentCommission(
+              adminClient,
+              agentId,
+              depositAmount,
+              `${activeRentRequest.id}-overflow-${Date.now()}`,
+            );
+            actualCommission = (actualCommission || 0) + overflowCommission;
+          } catch (e) {
+            console.error('[agent-deposit] Path A overflow commission failed:', e);
+          }
+        }
+
         // Credit landlord wallet (using resolved user ID)
         if (landlordUserId && landlordPayment > 0) {
           await ensureWalletExists(adminClient, landlordUserId);
