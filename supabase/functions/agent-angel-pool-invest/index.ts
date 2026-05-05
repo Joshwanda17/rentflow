@@ -95,14 +95,14 @@ Deno.serve(async (req) => {
       entries: [
         {
           user_id: investor_id, ledger_scope: 'wallet', direction: 'cash_out',
-          amount: actualAmount, category: 'share_capital',
+          amount: actualAmount, category: 'angel_pool_investment',
           source_table: 'angel_pool_investments', source_id: investorWallet.id,
           description: `Angel Pool investment: ${shares} shares @ UGX ${PRICE_PER_SHARE.toLocaleString()}/share (via agent)`,
           currency: 'UGX', reference_id: referenceId, transaction_date: txDate,
         },
         {
           user_id: investor_id, ledger_scope: 'platform', direction: 'cash_in',
-          amount: actualAmount, category: 'share_capital',
+          amount: actualAmount, category: 'pool_capital_received',
           source_table: 'angel_pool_investments', source_id: investorWallet.id,
           description: `Angel Pool share capital received via agent`,
           currency: 'UGX', reference_id: referenceId, transaction_date: txDate,
