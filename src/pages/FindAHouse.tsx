@@ -367,6 +367,19 @@ export default function FindAHouse() {
       </Helmet>
 
       <div className="min-h-screen bg-background">
+        {/* Skip links for keyboard / screen-reader users */}
+        <a
+          href="#house-list"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:rounded-md focus:bg-primary focus:text-primary-foreground focus:font-bold focus:shadow-lg focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          Skip to house list
+        </a>
+        <a
+          href="#first-map-cta"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-44 focus:z-[100] focus:px-4 focus:py-2 focus:rounded-md focus:bg-primary focus:text-primary-foreground focus:font-bold focus:shadow-lg focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          Skip to Google Maps links
+        </a>
         {/* Header */}
         <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-md border-b border-border">
           <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -413,7 +426,7 @@ export default function FindAHouse() {
         </div>
 
         {/* Listings */}
-        <main className="max-w-2xl mx-auto px-4 py-4 space-y-3 pb-20">
+        <main id="house-list" tabIndex={-1} className="max-w-2xl mx-auto px-4 py-4 space-y-3 pb-20">
           {loading ? (
             Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-48 w-full rounded-2xl" />
