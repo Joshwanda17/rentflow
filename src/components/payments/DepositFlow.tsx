@@ -1082,7 +1082,12 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         step + back) and a sticky footer (the primary action) — never
         chase a button hidden below the fold.
       */}
-      <DialogContent className="p-0 gap-0 sm:max-w-md w-screen h-svh sm:h-auto sm:max-h-[90vh] sm:rounded-2xl rounded-none overflow-hidden flex flex-col">
+      <DialogContent
+        className="p-0 gap-0 sm:max-w-md w-screen h-svh sm:h-auto sm:max-h-[90vh] sm:rounded-2xl rounded-none overflow-hidden flex flex-col"
+        onPointerDownOutside={(e) => { if (smsPasteOpen) e.preventDefault(); }}
+        onInteractOutside={(e) => { if (smsPasteOpen) e.preventDefault(); }}
+        onEscapeKeyDown={(e) => { if (smsPasteOpen) e.preventDefault(); }}
+      >
         {/* Sticky header */}
         <DialogHeader className="px-4 py-3 border-b bg-background sticky top-0 z-10 space-y-0">
           <div className="flex items-center gap-3">
