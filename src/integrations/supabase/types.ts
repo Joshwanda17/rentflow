@@ -14569,6 +14569,10 @@ export type Database = {
           test_name: string
         }[]
       }
+      admin_reseed_wallet_cache: {
+        Args: { p_balance: number; p_user_id: string; p_withdrawable: number }
+        Returns: undefined
+      }
       agent_allocate_tenant_payment:
         | {
             Args: {
