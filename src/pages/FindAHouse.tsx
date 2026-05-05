@@ -127,7 +127,7 @@ function VerificationBadge({ verified, status }: { verified?: boolean | null; st
   );
 }
 
-function PublicHouseCard({ listing }: { listing: HouseListing }) {
+function PublicHouseCard({ listing, isFirst }: { listing: HouseListing; isFirst?: boolean }) {
   const categoryLabel = CATEGORIES.find(c => c.value === listing.house_category)?.label || listing.house_category;
   const dist = listing.distance_km;
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -210,7 +210,7 @@ function PublicHouseCard({ listing }: { listing: HouseListing }) {
 
         {listing.description && <p className="text-xs text-muted-foreground line-clamp-2" itemProp="description">{listing.description}</p>}
 
-        <LocationMap lat={listing.latitude} lng={listing.longitude} title={listing.title} />
+        <LocationMap lat={listing.latitude} lng={listing.longitude} title={listing.title} anchorId={isFirst ? 'first-map-cta' : undefined} />
 
         {/* WhatsApp Agent */}
         <WhatsAppAgentButton phone={listing.agent_phone} agentName={listing.agent_name} houseTitle={listing.title} />
