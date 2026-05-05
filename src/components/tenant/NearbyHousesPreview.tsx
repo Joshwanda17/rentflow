@@ -168,6 +168,7 @@ function MiniHouseCard({ listing }: { listing: HouseListing }) {
         open={lightboxOpen}
         onClose={() => setLightboxOpen(false)}
         productName={listing.title}
+        memoryKey={`house:${listing.id}`}
       />
     </motion.div>
   );

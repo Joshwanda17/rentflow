@@ -245,6 +245,7 @@ export default function HouseDetail() {
                 open={lightboxOpen}
                 onClose={() => setLightboxOpen(false)}
                 productName={listing.title}
+                memoryKey={listing.id ? `house:${listing.id}` : undefined}
               />
             </>
           ) : (

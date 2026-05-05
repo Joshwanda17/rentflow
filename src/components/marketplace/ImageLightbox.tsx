@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { StorageImage } from '@/components/ui/StorageImage';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Share2, Download } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Share2, Download, ImageOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -17,6 +17,8 @@ interface ImageLightboxProps {
   open: boolean;
   onClose: () => void;
   productName?: string;
+  /** Optional stable key (e.g. house id). When set, last viewed index + zoom are restored on reopen. */
+  memoryKey?: string;
 }
 
 export function ImageLightbox({ 
@@ -24,12 +26,31 @@ export function ImageLightbox({
   initialIndex = 0, 
   open, 
   onClose,
-  productName = 'Product'
+  productName = 'Product',
+  memoryKey,
 }: ImageLightboxProps) {
-  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const storageKey = memoryKey ? `lightbox:${memoryKey}` : null;
+  const readMemory = useCallback(() => {
+    if (!storageKey || typeof window === 'undefined') return null;
+    try {
+      const raw = sessionStorage.getItem(storageKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as { index?: number; scale?: number; tx?: number; ty?: number };
+      return parsed;
+    } catch { return null; }
+  }, [storageKey]);
+
+  const initial = (() => {
+    const m = readMemory();
+    if (m && typeof m.index === 'number' && m.index >= 0 && m.index < images.length) return m;
+    return null;
+  })();
+
+  const [currentIndex, setCurrentIndex] = useState(initial?.index ?? initialIndex);
   const [direction, setDirection] = useState(0);
-  const [scale, setScale] = useState(1);
-  const [translate, setTranslate] = useState({ x: 0, y: 0 });
+  const [scale, setScale] = useState(initial?.scale && initial.scale > 1.05 ? initial.scale : 1);
+  const [translate, setTranslate] = useState({ x: initial?.tx ?? 0, y: initial?.ty ?? 0 });
+  const restoredOnceRef = useRef(false);
   const lastTouchDist = useRef<number | null>(null);
   const lastTouchCenter = useRef<{ x: number; y: number } | null>(null);
   const imgContainerRef = useRef<HTMLDivElement>(null);
@@ -37,6 +58,33 @@ export function ImageLightbox({
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
+  const [loadedIds, setLoadedIds] = useState<Set<string>>(new Set());
+  const [erroredIds, setErroredIds] = useState<Set<string>>(new Set());
+
+  const markLoaded = useCallback((id: string) => {
+    setLoadedIds(prev => prev.has(id) ? prev : new Set(prev).add(id));
+  }, []);
+  const markErrored = useCallback((id: string) => {
+    setErroredIds(prev => prev.has(id) ? prev : new Set(prev).add(id));
+  }, []);
+
+  // Preload current + neighbour images for instant swipe
+  useEffect(() => {
+    if (!open || images.length === 0) return;
+    const targets = new Set<number>([currentIndex]);
+    if (images.length > 1) {
+      targets.add((currentIndex + 1) % images.length);
+      targets.add((currentIndex - 1 + images.length) % images.length);
+    }
+    targets.forEach(i => {
+      const img = images[i];
+      if (!img || loadedIds.has(img.id) || erroredIds.has(img.id)) return;
+      const el = new Image();
+      el.src = img.image_url;
+      el.onload = () => markLoaded(img.id);
+      el.onerror = () => markErrored(img.id);
+    });
+  }, [open, currentIndex, images, loadedIds, erroredIds, markLoaded, markErrored]);
 
   const isZoomed = scale > 1.05;
 
@@ -47,15 +95,46 @@ export function ImageLightbox({
     lastTouchCenter.current = null;
   }, []);
 
+  // On open: restore from memory if available, else use initialIndex
   useEffect(() => {
-    if (open) {
+    if (!open) { restoredOnceRef.current = false; return; }
+    const m = readMemory();
+    if (m && typeof m.index === 'number' && m.index >= 0 && m.index < images.length) {
+      setCurrentIndex(m.index);
+      if (m.scale && m.scale > 1.05) {
+        setScale(Math.min(m.scale, 5));
+        setTranslate({ x: m.tx ?? 0, y: m.ty ?? 0 });
+      } else {
+        resetZoom();
+      }
+    } else {
       setCurrentIndex(initialIndex);
       resetZoom();
     }
-  }, [open, initialIndex, resetZoom]);
+    restoredOnceRef.current = true;
+  }, [open, initialIndex, images.length, readMemory, resetZoom]);
 
-  // Reset zoom on slide change
-  useEffect(() => { resetZoom(); }, [currentIndex, resetZoom]);
+  // Reset zoom on slide change (but skip the very first restore so saved zoom survives reopen)
+  const prevIndexRef = useRef(currentIndex);
+  useEffect(() => {
+    if (prevIndexRef.current !== currentIndex) {
+      resetZoom();
+      prevIndexRef.current = currentIndex;
+    }
+  }, [currentIndex, resetZoom]);
+
+  // Persist to sessionStorage whenever index or zoom changes while open
+  useEffect(() => {
+    if (!open || !storageKey || typeof window === 'undefined') return;
+    try {
+      sessionStorage.setItem(storageKey, JSON.stringify({
+        index: currentIndex,
+        scale,
+        tx: translate.x,
+        ty: translate.y,
+      }));
+    } catch { /* ignore quota */ }
+  }, [open, storageKey, currentIndex, scale, translate.x, translate.y]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -345,15 +424,37 @@ export function ImageLightbox({
                 <motion.img
                   src={images[currentIndex].image_url}
                   alt={`${productName} - Image ${currentIndex + 1}`}
-                  className="max-h-full max-w-full object-contain select-none"
+                  className={cn(
+                    'max-h-full max-w-full object-contain select-none transition-opacity duration-300',
+                    loadedIds.has(images[currentIndex].id) ? 'opacity-100' : 'opacity-0'
+                  )}
                   style={{
                     transform: `scale(${scale}) translate(${translate.x / scale}px, ${translate.y / scale}px)`,
                     transition: isZoomed ? 'none' : 'transform 0.3s ease',
                   }}
                   draggable={false}
+                  decoding="async"
+                  loading="eager"
+                  onLoad={() => markLoaded(images[currentIndex].id)}
+                  onError={() => markErrored(images[currentIndex].id)}
                   onDoubleClick={handleToggleZoom}
                   onClick={() => { if (!isZoomed) handleToggleZoom(); }}
                 />
+                {/* Skeleton + spinner */}
+                {!loadedIds.has(images[currentIndex].id) && !erroredIds.has(images[currentIndex].id) && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
+                    <div className="relative w-[min(80vw,640px)] h-[min(60vh,480px)] rounded-2xl overflow-hidden bg-white/5">
+                      <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.4s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                    </div>
+                  </div>
+                )}
+                {/* Error fallback */}
+                {erroredIds.has(images[currentIndex].id) && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white/60 pointer-events-none">
+                    <ImageOff className="h-10 w-10" />
+                    <span className="text-sm">Image failed to load</span>
+                  </div>
+                )}
               </motion.div>
             </AnimatePresence>
 
