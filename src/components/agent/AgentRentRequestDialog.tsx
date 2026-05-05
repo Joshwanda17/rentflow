@@ -356,7 +356,14 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   };
 
   const handleSubmit = async () => {
-    if (!user || !fees) return;
+    if (!user) {
+      toast.error('You must be signed in to submit a request');
+      return;
+    }
+    if (!fees) {
+      toast.error('Please enter a valid rent amount before submitting');
+      return;
+    }
 
     const isOutstanding = incomeType === 'outstanding';
     const errors = collectValidationErrors(isOutstanding);
@@ -364,6 +371,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     if (errors.length > 0) {
       setValidationErrors(errors);
       toast.error(errors[0]);
+      // Scroll the dialog so the agent actually sees the error summary
+      requestAnimationFrame(() => {
+        const dialog = document.querySelector('[role="dialog"]');
+        if (dialog) dialog.scrollTo({ top: 0, behavior: 'smooth' });
+      });
       return;
     }
 
