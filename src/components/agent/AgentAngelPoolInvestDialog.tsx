@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,6 +48,9 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
   const [investmentReference, setInvestmentReference] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<InvestmentResult | null>(null);
+  const [fundingSource, setFundingSource] = useState<'investor' | 'agent'>('investor');
+  const [agentBalance, setAgentBalance] = useState<number>(0);
+  const [agentBalanceLoading, setAgentBalanceLoading] = useState(false);
 
   // Registration state
   const [showRegister, setShowRegister] = useState(false);
@@ -74,7 +77,26 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
     setRegPhone('');
     setRegNotes('');
     setRegistering(false);
+    setFundingSource('investor');
   };
+
+  // Fetch agent's strict-withdrawable balance once when dialog opens
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      setAgentBalanceLoading(true);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data, error } = await supabase.rpc('get_user_available_balance', { p_user_id: user.id });
+        if (!cancelled && !error) setAgentBalance(Number(data) || 0);
+      } finally {
+        if (!cancelled) setAgentBalanceLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open]);
 
   const handleClose = () => {
     reset();
@@ -172,7 +194,10 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
   const companyPercent = (shares / TOTAL_SHARES) * POOL_PERCENT;
   const commission = Math.floor(actualAmount * 0.01);
 
-  const canProceed = shares > 0 && selectedInvestor && actualAmount <= selectedInvestor.walletBalance;
+  const fundingBalance = fundingSource === 'agent'
+    ? agentBalance
+    : (selectedInvestor?.walletBalance ?? 0);
+  const canProceed = shares > 0 && !!selectedInvestor && actualAmount <= fundingBalance;
 
   const handleSubmit = async () => {
     if (!selectedInvestor || !canProceed) return;
@@ -184,6 +209,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
           amount: actualAmount,
           payment_method: paymentMethod,
           investment_reference: investmentReference || undefined,
+          funding_source: fundingSource,
         },
       });
 
