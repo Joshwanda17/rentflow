@@ -245,6 +245,7 @@ function HouseCard({ listing }: { listing: HouseListing }) {
 
 export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesSheetProps) {
   const geo = useGeolocation(true);
+  const announceMap = useMapLinkAnnouncer();
   const [searchText, setSearchText] = useState('');
   const [selectedRegion, setSelectedRegion] = useState('All Regions');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -367,6 +368,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                 href={mapHref}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => announceMap(label)}
                 aria-label={`${label} (opens in a new tab)`}
                 className="flex items-center justify-center gap-2.5 w-full min-h-[56px] px-6 py-4 rounded-full bg-primary text-primary-foreground font-bold text-base shadow-xl active:scale-[0.98] transition-transform touch-manipulation focus:outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
