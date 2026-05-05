@@ -130,7 +130,7 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
     queryFn: async () => {
       const { data, error } = await supabase
         .from('rent_requests')
-        .select('id, tenant_id, agent_id, landlord_id, daily_repayment, rent_amount, total_repayment, amount_repaid, status, house_category')
+        .select('id, tenant_id, agent_id, landlord_id, daily_repayment, rent_amount, total_repayment, amount_repaid, status, house_category, created_at')
         .in('status', ['funded', 'disbursed', 'repaying'])
         .limit(1000);
       if (error) throw error;
@@ -259,7 +259,13 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
       collectionsByTenant.set(c.tenant_id, arr);
     });
 
-    const rows: TenantTrackerRow[] = (rentReqs || []).map(r => {
+    const targetEnd = endOfDay(target);
+    const activeForDay = (rentReqs || []).filter((r: any) => {
+      // Only include rent requests that already existed on/before the selected day.
+      if (!r.created_at) return true;
+      return new Date(r.created_at) <= targetEnd;
+    });
+    const rows: TenantTrackerRow[] = activeForDay.map(r => {
       const tenantName = profiles?.get(r.tenant_id)?.full_name || 'Unknown';
       const agentName = r.agent_id ? (profiles?.get(r.agent_id)?.full_name || '—') : '—';
       const landlordName = r.landlord_id ? (profiles?.get(r.landlord_id)?.full_name || '') : '';
