@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { useMapLinkAnnouncer } from '@/hooks/useMapLinkAnnouncer';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -101,6 +102,7 @@ function HouseImageCarousel({ images, title, houseId }: { images: string[] | nul
 }
 
 function LocationMap({ lat, lng, title }: { lat: number | null; lng: number | null; title: string }) {
+  const announce = useMapLinkAnnouncer();
   if (!lat || !lng) return null;
 
   const mapUrl = `https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed`;
@@ -112,6 +114,7 @@ function LocationMap({ lat, lng, title }: { lat: number | null; lng: number | nu
         href={linkUrl}
         target="_blank"
         rel="noopener noreferrer"
+        onClick={() => announce(title)}
         aria-label={`Open ${title} location in Google Maps (opens in a new tab)`}
         className="block relative w-full h-32 rounded-xl overflow-hidden bg-muted border-2 border-primary/40 ring-2 ring-primary/20 shadow-md active:scale-[0.99] transition-transform focus:outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
