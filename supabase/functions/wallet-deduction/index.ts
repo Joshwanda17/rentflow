@@ -175,6 +175,29 @@ Deno.serve(async (req) => {
 
     const targetName = targetProfile?.full_name || "Unknown";
 
+    // Pre-flight cache reseed: if cached withdrawable is below the strict
+    // (ledger-backed) figure, the apply_wallet_movement trigger will try to
+    // debit a too-small cache and fail wallets_balance_check. Lift the cache
+    // up to the strict number first so the trigger can deduct cleanly.
+    // Strict has already gated the request, so this never inflates beyond
+    // what the user is actually entitled to.
+    if (cacheWithdrawable < liveAvailable) {
+      const reseedTarget = liveAvailable;
+      const newBalance = reseedTarget + cacheFloat + Math.max(0, Number(wallet.advance_balance ?? 0));
+      const { error: reseedErr } = await adminClient.rpc('admin_reseed_wallet_cache', {
+        p_user_id: target_user_id,
+        p_withdrawable: reseedTarget,
+        p_balance: newBalance,
+      });
+      if (reseedErr) {
+        console.error('[wallet-deduction] cache reseed failed', reseedErr);
+        return new Response(
+          JSON.stringify({ error: `Could not reseed wallet cache before deduction: ${reseedErr.message}` }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+    }
+
     // Build balanced ledger entries against withdrawable only.
     const nowIso = new Date().toISOString();
     const entries: any[] = [];
