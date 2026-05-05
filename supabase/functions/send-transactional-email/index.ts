@@ -317,7 +317,8 @@ Deno.serve(async (req) => {
         templateName.startsWith('partnership-') ||
         templateName.startsWith('partner-') ||
         templateName === 'portfolio-renewal' ||
-        templateName === 'returns-disbursement-confirmation'
+        templateName === 'returns-disbursement-confirmation' ||
+        templateName === 'angel-pool-share-purchase'
       )
         ? `Welile Partnerships <partnership@${FROM_DOMAIN}>`
         : `Welile <info@${FROM_DOMAIN}>`,
