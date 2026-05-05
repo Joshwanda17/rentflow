@@ -75,7 +75,7 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
     queryFn: () => fetchSuggestions(userId),
     staleTime: 300000,
   });
-  const [lightbox, setLightbox] = useState<{ images: string[]; title: string } | null>(null);
+  const [lightbox, setLightbox] = useState<{ images: string[]; title: string; houseId: string } | null>(null);
 
   if (isLoading || !suggestions?.length) return null;
 
@@ -99,7 +99,7 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
                 {/* Thumbnail */}
                 <button
                   type="button"
-                  onClick={() => house.image_urls?.length && setLightbox({ images: house.image_urls, title: house.title })}
+                  onClick={() => house.image_urls?.length && setLightbox({ images: house.image_urls, title: house.title, houseId: house.id })}
                   className="relative shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-muted group"
                   aria-label="View photos"
                 >
@@ -149,6 +149,7 @@ export function SuggestedHousesCard({ userId, onViewAll }: SuggestedHousesCardPr
           open={!!lightbox}
           onClose={() => setLightbox(null)}
           productName={lightbox.title}
+          memoryKey={`house:${lightbox.houseId}`}
         />
       )}
     </motion.div>
