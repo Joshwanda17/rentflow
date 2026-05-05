@@ -13599,6 +13599,45 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_negative_reconciliation_log: {
+        Row: {
+          batch_id: string
+          cached_withdrawable_before: number | null
+          created_at: string
+          deficit_cleared: number
+          id: string
+          ledger_net_before: number
+          reconciled_by: string | null
+          reseed_ledger_id: string | null
+          user_id: string
+          writeoff_ledger_id: string | null
+        }
+        Insert: {
+          batch_id: string
+          cached_withdrawable_before?: number | null
+          created_at?: string
+          deficit_cleared: number
+          id?: string
+          ledger_net_before: number
+          reconciled_by?: string | null
+          reseed_ledger_id?: string | null
+          user_id: string
+          writeoff_ledger_id?: string | null
+        }
+        Update: {
+          batch_id?: string
+          cached_withdrawable_before?: number | null
+          created_at?: string
+          deficit_cleared?: number
+          id?: string
+          ledger_net_before?: number
+          reconciled_by?: string | null
+          reseed_ledger_id?: string | null
+          user_id?: string
+          writeoff_ledger_id?: string | null
+        }
+        Relationships: []
+      }
       wallet_overdraw_events: {
         Row: {
           advance_after: number | null
@@ -15528,6 +15567,10 @@ export type Database = {
           float_bal: number
           withdrawable: number
         }[]
+      }
+      reconcile_negative_wallets: {
+        Args: { p_dry_run?: boolean; p_max_users?: number }
+        Returns: Json
       }
       reconcile_wallet_cache_to_ledger: {
         Args: { p_reason?: string }
