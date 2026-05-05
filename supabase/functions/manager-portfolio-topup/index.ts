@@ -232,18 +232,11 @@ Deno.serve(async (req) => {
     if (txErr) {
       if ((txErr as any).code === "23505") {
         console.warn(
-          `[manager-portfolio-topup] DUPLICATE BLOCKED — wallet=${walletOwnerId} portfolio=${portfolio_id} amount=${topupAmount}`,
+          `[manager-portfolio-topup] wallet_transactions duplicate after ledger success — wallet=${walletOwnerId} portfolio=${portfolio_id} amount=${topupAmount}`,
         );
-        return jsonRes({
-          error:
-            `This top-up was already recorded moments ago. ` +
-            `Refresh the portfolio to see the updated balance. ` +
-            `(Duplicate submission blocked.)`,
-          duplicate: true,
-        }, 409);
+      } else {
+        console.error("[manager-portfolio-topup] wallet_transactions insert error:", txErr);
       }
-      console.error("[manager-portfolio-topup] wallet_transactions insert error:", txErr);
-      return jsonRes({ error: "Wallet was deducted, but transaction history failed. Please contact support before retrying." }, 500);
     }
 
     // ── 2b. Verify wallet actually decreased (guard against silent net-zero bugs) ──
