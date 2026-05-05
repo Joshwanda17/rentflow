@@ -23,7 +23,7 @@ import { motion } from 'framer-motion';
 import {
   Home, MapPin, DoorOpen, Droplets, Zap, ShieldCheck, Car, Sofa,
   ChevronLeft, ChevronRight, Clock, ExternalLink, Share2, Check, ArrowLeft, Star,
-  Eye, Navigation,
+  Eye, Navigation, Copy,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -45,6 +45,7 @@ export default function HouseDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [mapCopied, setMapCopied] = useState(false);
   const [listing, setListing] = useState<(HouseListing & { agent_phone?: string | null; agent_name?: string | null }) | null>(null);
   const [loading, setLoading] = useState(true);
   const [imgIdx, setImgIdx] = useState(0);
@@ -401,6 +402,28 @@ export default function HouseDetail() {
                 <Navigation className="h-5 w-5" />
                 Tap to open in Google Maps
               </a>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    if (navigator.share) {
+                      await navigator.share({ title: listing.title, text: `${listing.title} on Google Maps`, url: mapLink });
+                    } else {
+                      await navigator.clipboard.writeText(mapLink);
+                    }
+                    setMapCopied(true);
+                    toast({ title: 'Google Maps link copied', description: 'Paste it anywhere to share this location.' });
+                    setTimeout(() => setMapCopied(false), 2500);
+                  } catch {
+                    toast({ title: 'Could not copy link', description: 'Long-press the map button to copy manually.', variant: 'destructive' });
+                  }
+                }}
+                aria-label={`Copy Google Maps link for ${listing.title} to clipboard`}
+                className="mt-2 flex items-center justify-center gap-2.5 w-full min-h-[48px] px-6 py-3 rounded-full border-2 border-primary/40 bg-background text-primary font-bold text-sm shadow-sm active:scale-[0.98] transition-transform touch-manipulation focus:outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
+                {mapCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                {mapCopied ? 'Map link copied!' : 'Share Google Maps link'}
+              </button>
             </motion.div>
           )}
 
