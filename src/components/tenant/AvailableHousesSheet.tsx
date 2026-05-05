@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, MapPin, Droplets, Zap, ShieldCheck, Car, Sofa, Home, DoorOpen, ChevronLeft, ChevronRight, Clock, ExternalLink, ZoomIn } from 'lucide-react';
+import { Search, MapPin, Droplets, Zap, ShieldCheck, Car, Sofa, Home, DoorOpen, ChevronLeft, ChevronRight, Clock, ExternalLink, ZoomIn, Navigation } from 'lucide-react';
 import { WhatsAppAgentButton } from '@/components/tenant/WhatsAppAgentButton';
 import { ShareHouseButton } from '@/components/tenant/ShareHouseButton';
 import { useNearbyHouses, HouseListing } from '@/hooks/useHouseListings';
@@ -112,7 +112,8 @@ function LocationMap({ lat, lng, title }: { lat: number | null; lng: number | nu
         href={linkUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="block relative w-full h-32 rounded-xl overflow-hidden bg-muted border border-border group"
+        aria-label={`Open ${title} in Google Maps`}
+        className="block relative w-full h-32 rounded-xl overflow-hidden bg-muted border-2 border-primary/40 ring-2 ring-primary/20 shadow-md active:scale-[0.99] transition-transform"
       >
         <iframe
           src={mapUrl}
@@ -121,8 +122,9 @@ function LocationMap({ lat, lng, title }: { lat: number | null; lng: number | nu
           loading="lazy"
           style={{ border: 0 }}
         />
-        <div className="absolute bottom-2 right-2 bg-card/90 backdrop-blur-sm text-foreground text-[10px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 border border-border shadow-sm group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-          <ExternalLink className="h-3 w-3" /> Open in Maps
+        <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent pointer-events-none" />
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-bold px-3.5 py-1.5 rounded-full flex items-center gap-1.5 shadow-lg">
+          <Navigation className="h-3.5 w-3.5" /> Tap to open in Google Maps
         </div>
       </a>
     </div>
