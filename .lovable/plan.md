@@ -1,39 +1,72 @@
-## Goal
+# Fix Atuhaire Carolyne's missing 25M + repair `cfo-direct-credit`
 
-You want every reconciliation entry to land on the **wallet ledger** (the side that the user's strict balance is computed from), not on the platform ledger. The platform leg is just the balancing counter-leg.
+## Root cause
 
-## Current state (after audit)
+`v_user_wallet_strict` (and every user-facing wallet view) filters out
+`category = 'system_balance_correction'` per the `user-facing-ledger-filter`
+constitutional rule. The `cfo-direct-credit` edge function is posting the
+**wallet leg** of CFO direct credits under `system_balance_correction`, paired
+with a `general_admin_expense` cash_out on the platform side. Result: the
+−25M leg shows in the user's ledger view, the +25M leg is filtered out, and
+strict withdrawable nets to 0 — even though the cached `wallets.balance`
+correctly shows 25M.
 
-`reseed_wallets_to_cached_balance` (migration `20260505094021`) already posts a balanced pair per user:
+This affected at least three credits to Atuhaire today:
+- 11:15  +25,000,000  "FOR SHARE HOLDING"
+- 10:59     +500,000  "test funds"
+- 10:53   +1,000,000  "TEST FUNDS"
+Total invisible-to-user: **26,500,000 UGX**
+
+Same bug has been silently affecting every CFO direct credit since the rule
+was tightened.
+
+## Step 1 — Repair Atuhaire's three credits (user `ae194750-4827-47e8-839e-5e772565138b`)
+
+For each of the 3 credits above, post a **balanced reclassification pair**
+under `classification='admin_correction'` via `create_ledger_transaction`:
 
 ```text
-case A: cached > strict_ledger  (need to credit ledger up)
-  wallet leg:   cash_in  historical_balance_reseed       scope=wallet    user_id=<user>
-  platform leg: cash_out platform_loss_writeoff          scope=platform  user_id=NULL
-
-case B: cached < strict_ledger  (need to debit ledger down)
-  wallet leg:   cash_out wallet_deduction_general_adjustment   scope=wallet    user_id=<user>
-  platform leg: cash_in  system_balance_correction             scope=platform  user_id=NULL
+Leg A (user side):    +amount, category='wallet_deposit',       direction='cash_in'
+Leg B (platform):     +amount, category='operational_expense',  direction='cash_out'
+                                                                    (or matching expense)
 ```
 
-So the **wallet-side leg already writes to `ledger_scope='wallet'`** with the user's id, classification `production`, and a category that is NOT excluded by the strict-net filter — meaning the user's strict ledger DOES move when the anchor runs.
+Then mirror-cancel the original `system_balance_correction` legs so the
+strict view balances. Net effect on strict withdrawable: **+26,500,000**.
+Cached `wallets.balance` is unchanged (still 25M) — but we will reseed it to
+match the new strict figure to avoid permanent drift.
 
-The platform leg is correctly isolated to `ledger_scope='platform'` with `user_id=NULL`, so it never inflates or deflates a user's wallet ledger.
+Reason field (mandatory, ≥10 chars): `"CFO direct credit visibility fix — restore SHAREHOLDING + test funds"`.
 
-## What is still wrong / needs a tweak
+Audit log: `action_type='cfo_credit_visibility_repair'`, `table_name='general_ledger'`, `record_id=<user_id>`.
 
-Two small things to harden so this matches the rule "drift lives on the wallet ledger, fix lives on the wallet ledger":
+## Step 2 — Fix `supabase/functions/cfo-direct-credit/index.ts`
 
-1. **Strict-net filter consistency** — `get_user_available_balance` and `wallet_ledger_truth_view` exclude rows where `classification='admin_correction' OR category='system_balance_correction'`. Our anchor uses `classification='production'` and avoids `system_balance_correction` on the wallet leg, so the wallet leg is already counted. Add an explicit comment + a test query in the migration so future devs don't accidentally flip the wallet leg to `system_balance_correction` (which would silently make the anchor a no-op for strict balance).
+Change the wallet-leg category from `system_balance_correction` to
+`wallet_deposit` (which is on the user-visible allowlist). Keep the
+platform-side leg as the appropriate operational expense category that the
+CFO selects in the UI. Both legs stay `classification='production'`.
 
-2. **Idempotency / re-run safety** — currently a second click would post another pair on top. Add a uniqueness guard: skip users that already have a row in `wallet_negative_reconciliation_log` for today (Africa/Kampala day), so the operator can rerun the dry-run / execute pair without doubling up.
+After the change, future CFO direct credits will:
+- show up in the user's strict ledger view immediately
+- still pass the ledger category allowlist
+- still keep the cache and strict ledger in sync
 
-3. **Verification view** — add a small CFO read-only view `wallet_anchor_today_view` that shows, per user touched today: cached_balance, strict_ledger_net, delta, anchor_ledger_id. Surface a "Verify last anchor" button on `NegativeWalletReconciliationPanel` that lists the first 50 rows.
+## Step 3 — Sweep historical impact (read-only report first)
 
-## Deliverable
+Run a read-only query to find every other user with at least one
+`cfo-direct-credit`-shaped pair (`category='system_balance_correction'`
+cash_in paired with a `general_admin_expense` cash_out on the same
+`transaction_id`, classification='production', since the bug was
+introduced). Surface the list in a CFO panel for review — do **not**
+auto-repair until the CFO approves the list, since some of those rows may
+be legitimate admin corrections.
 
-- Migration: add today-key uniqueness guard inside `reseed_wallets_to_cached_balance`, plus inline comments documenting why the wallet leg category must stay outside the strict-net exclusion list.
-- Migration: create `wallet_anchor_today_view` (security_invoker, CFO/super_admin filter via RLS-style WHERE on caller role).
-- UI: extend `NegativeWalletReconciliationPanel` with a "Verify last anchor" expandable section that queries the view and shows a small table (user, cached, strict, delta).
+## Out of scope for this turn
 
-No change to the wallet-cache write path — cached balances stay untouched, only the wallet ledger moves, exactly as you described.
+- The big `wallet_deduction_general_adjustment` debits (154.4M, 152.2M) and
+  the `historical_balance_reseed` (135.4M) on this same user are pre-existing
+  and will be reviewed separately if the user wants.
+- The two duplicate "ATUHAIRE CAROLYNE" profiles (`522ee29a…` 1M cached,
+  `7e506ac9…` 0) are not the active account and need a separate dedupe
+  decision.
