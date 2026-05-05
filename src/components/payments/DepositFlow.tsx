@@ -363,14 +363,17 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
    * first missing field — `computeBlockReason()` keeps the Confirm
    * button disabled until everything is filled.
    */
-  const handlePasteTid = async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      if (!text) {
-        toast.error('Clipboard is empty');
-        return;
-      }
-      const parsed = parseSMS(text);
+  /**
+   * Parse a raw SMS body (pasted by the agent into the SMS sheet) and
+   * apply every field we can confidently extract. Returns true when all
+   * four required fields landed so the caller can close the sheet.
+   */
+  const applyPastedSms = (text: string): boolean => {
+    if (!text.trim()) {
+      toast.error('Paste the SMS text first');
+      return false;
+    }
+    const parsed = parseSMS(text);
 
       // Auto-detect MoMo provider from the TID prefix so the format
       // validator picks the right rule (MP… vs TID…).
@@ -401,9 +404,8 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         toast.success(
           `Pasted: UGX ${parsed.amount!.toLocaleString()} · ${parsed.transactionId} · ${parsed.date} ${parsed.time}`,
         );
+        return true;
       } else if (missing.length === 4) {
-        // Nothing usable — fall back to the legacy raw-TID behaviour so
-        // a single-token paste (just the TID) still works.
         const tid = extractTidFromText(text);
         if (tid) {
           setTransactionId(tid);
@@ -413,6 +415,7 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           toast.error('Could not parse this SMS. Paste the full confirmation message.');
         }
         setErrorFieldId('deposit-amount');
+        return false;
       } else {
         toast.error(`SMS missing: ${missing.join(', ')}. Fill the remaining fields manually.`);
         const firstMissing = missing[0];
@@ -422,9 +425,23 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
           : firstMissing === 'date' ? 'deposit-date'
           : 'deposit-time';
         setErrorFieldId(fieldId);
+        return false;
       }
+  };
+
+  /**
+   * Opens the SMS paste sheet. Best-effort pre-fills the textarea from
+   * the clipboard if the browser allows; otherwise leaves it empty for
+   * a manual paste.
+   */
+  const handleOpenSmsPaste = async () => {
+    setSmsPasteText('');
+    setSmsPasteOpen(true);
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text?.trim()) setSmsPasteText(text);
     } catch {
-      toast.error('Could not read clipboard. Paste manually instead.');
+      /* clipboard blocked — agent will paste manually */
     }
   };
 
