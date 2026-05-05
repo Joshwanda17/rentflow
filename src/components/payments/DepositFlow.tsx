@@ -23,6 +23,7 @@ import {
   type DepositPurpose as SharedDepositPurpose,
 } from '@/lib/depositPurposeGuard';
 import { parseSMS } from '@/utils/smsParser';
+import { cn } from '@/lib/utils';
 
 /**
  * Extract a Mobile Money / bank reference from arbitrary SMS text.
@@ -2151,6 +2152,53 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
             className="font-mono text-xs"
             autoFocus
           />
+          {(() => {
+            const trimmed = smsPasteText.trim();
+            if (!trimmed) return null;
+            const preview = parseSMS(trimmed);
+            const found = [preview.amount, preview.transactionId, preview.date, preview.time].filter(Boolean).length;
+            return (
+              <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Live preview
+                  </p>
+                  <span className={cn(
+                    "text-[10px] font-medium px-2 py-0.5 rounded-full",
+                    found === 4 ? "bg-success/15 text-success" : found > 0 ? "bg-amber-500/15 text-amber-700" : "bg-destructive/15 text-destructive"
+                  )}>
+                    {found}/4 detected
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Amount</p>
+                    <p className={cn("font-mono font-semibold", !preview.amount && "text-muted-foreground/60")}>
+                      {preview.amount ? `UGX ${preview.amount.toLocaleString()}` : '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Transaction ID</p>
+                    <p className={cn("font-mono font-semibold truncate", !preview.transactionId && "text-muted-foreground/60")}>
+                      {preview.transactionId || '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Date</p>
+                    <p className={cn("font-mono font-semibold", !preview.date && "text-muted-foreground/60")}>
+                      {preview.date || '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">Time</p>
+                    <p className={cn("font-mono font-semibold", !preview.time && "text-muted-foreground/60")}>
+                      {preview.time || '—'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
           <div className="flex gap-2">
             <Button
               type="button"
