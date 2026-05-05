@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Download, Loader2, Search } from 'lucide-react';
+import { Download, Loader2, Search, Database } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
@@ -20,6 +20,8 @@ export function CTOLedgerExport() {
   const [matches, setMatches] = useState<ProfileMatch[]>([]);
   const [searching, setSearching] = useState(false);
   const [exporting, setExporting] = useState<string | null>(null);
+  const [exportingAll, setExportingAll] = useState(false);
+  const [allProgress, setAllProgress] = useState(0);
 
   const runSearch = async () => {
     const term = search.trim();
@@ -95,13 +97,66 @@ export function CTOLedgerExport() {
     }
   };
 
+  const exportAll = async () => {
+    setExportingAll(true);
+    setAllProgress(0);
+    try {
+      const pageSize = 1000;
+      let from = 0;
+      const headers = [
+        'created_at','transaction_date','ledger_scope','classification','category','direction','amount','currency','account','user_id','reference_id','linked_party','source_table','source_id','transaction_group_id','description','running_balance','id',
+      ];
+      const lines: string[] = [headers.join(',')];
+      let total = 0;
+      while (true) {
+        const { data, error } = await supabase
+          .from('general_ledger')
+          .select('id, created_at, transaction_date, ledger_scope, classification, category, direction, amount, currency, account, user_id, reference_id, linked_party, source_table, source_id, transaction_group_id, description, running_balance')
+          .order('created_at', { ascending: true })
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        if (!data?.length) break;
+        for (const r of data as unknown as Record<string, unknown>[]) {
+          lines.push(headers.map(h => csvEscape(r[h])).join(','));
+        }
+        total += data.length;
+        setAllProgress(total);
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+      if (!total) {
+        toast({ title: 'Ledger is empty' });
+        return;
+      }
+      const csv = lines.join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `general_ledger_full_${format(new Date(), 'yyyyMMdd_HHmm')}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast({ title: 'Full ledger exported', description: `${total.toLocaleString()} rows.` });
+    } catch (e) {
+      toast({ title: 'Full export failed', description: (e as Error).message, variant: 'destructive' });
+    } finally {
+      setExportingAll(false);
+    }
+  };
+
   return (
     <div className="rounded-2xl border border-border bg-card p-3 sm:p-4">
       <div className="flex items-center justify-between mb-3">
         <div>
           <h3 className="text-sm font-semibold">Ledger Audit Export</h3>
-          <p className="text-xs text-muted-foreground">Download a user's full ledger history as CSV (includes classification & category for audit).</p>
+          <p className="text-xs text-muted-foreground">Export the entire ledger, or search a specific user. CSV includes classification & category for audit.</p>
         </div>
+        <Button onClick={exportAll} disabled={exportingAll} variant="default">
+          {exportingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
+          <span className="ml-2">{exportingAll ? `Exporting… ${allProgress.toLocaleString()}` : 'Export Entire Ledger'}</span>
+        </Button>
       </div>
       <div className="flex flex-col sm:flex-row gap-2 mb-3">
         <div className="flex-1">
