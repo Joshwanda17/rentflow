@@ -21,6 +21,7 @@ import {
   ALLOWED_DEPOSIT_PURPOSES as SHARED_ALLOWED_DEPOSIT_PURPOSES,
   type DepositPurpose as SharedDepositPurpose,
 } from '@/lib/depositPurposeGuard';
+import { parseSMS } from '@/utils/smsParser';
 
 /**
  * Extract a Mobile Money / bank reference from arbitrary SMS text.
@@ -344,9 +345,14 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   }, []);
 
   /**
-   * Read the clipboard, extract the first valid TID from the pasted text,
-   * and apply it to the input. Falls back gracefully on browsers that
-   * deny clipboard-read (Safari without user gesture, etc).
+   * Read the clipboard, parse the full deposit-confirmation SMS, and
+   * auto-fill amount, transaction ID, date, and time in one tap.
+   *
+   * Any field the parser can't confidently extract is left untouched so
+   * the agent can correct it manually. If the four required fields
+   * aren't all present we surface a hard error toast and focus the
+   * first missing field — `computeBlockReason()` keeps the Confirm
+   * button disabled until everything is filled.
    */
   const handlePasteTid = async () => {
     try {
@@ -355,19 +361,59 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
         toast.error('Clipboard is empty');
         return;
       }
-      const tid = extractTidFromText(text);
-      if (!tid) {
-        // Still let the user try the raw text — they may have copied
-        // exactly the TID without surrounding SMS context.
-        const trimmed = text.trim().split(/\s+/)[0].toUpperCase();
-        setTransactionId(trimmed);
-        if (channel === 'momo') validateTid(trimmed);
-        toast.warning('No standard TID detected — pasted raw text instead');
-        return;
+      const parsed = parseSMS(text);
+
+      // Auto-detect MoMo provider from the TID prefix so the format
+      // validator picks the right rule (MP… vs TID…).
+      let detectedProvider: 'mtn' | 'airtel' | null = null;
+      if (parsed.transactionId?.startsWith('MP')) detectedProvider = 'mtn';
+      else if (parsed.transactionId?.startsWith('TID')) detectedProvider = 'airtel';
+      if (channel === 'momo' && detectedProvider) {
+        setMomoProvider(detectedProvider);
       }
-      setTransactionId(tid);
-      if (channel === 'momo') validateTid(tid);
-      toast.success(`Pasted ${tid}`);
+
+      if (parsed.amount) setAmount(String(parsed.amount));
+      if (parsed.transactionId) {
+        setTransactionId(parsed.transactionId);
+        if (channel === 'momo') {
+          validateTid(parsed.transactionId, detectedProvider ?? momoProvider);
+        }
+      }
+      if (parsed.date) setTransactionDate(parsed.date);
+      if (parsed.time) setTransactionTime(parsed.time);
+
+      const missing: string[] = [];
+      if (!parsed.amount) missing.push('amount');
+      if (!parsed.transactionId) missing.push('transaction ID');
+      if (!parsed.date) missing.push('date');
+      if (!parsed.time) missing.push('time');
+
+      if (missing.length === 0) {
+        toast.success(
+          `Pasted: UGX ${parsed.amount!.toLocaleString()} · ${parsed.transactionId} · ${parsed.date} ${parsed.time}`,
+        );
+      } else if (missing.length === 4) {
+        // Nothing usable — fall back to the legacy raw-TID behaviour so
+        // a single-token paste (just the TID) still works.
+        const tid = extractTidFromText(text);
+        if (tid) {
+          setTransactionId(tid);
+          if (channel === 'momo') validateTid(tid);
+          toast.warning('Only the TID was detected — please fill amount, date and time manually');
+        } else {
+          toast.error('Could not parse this SMS. Paste the full confirmation message.');
+        }
+        setErrorFieldId('deposit-amount');
+      } else {
+        toast.error(`SMS missing: ${missing.join(', ')}. Fill the remaining fields manually.`);
+        const firstMissing = missing[0];
+        const fieldId =
+          firstMissing === 'amount' ? 'deposit-amount'
+          : firstMissing === 'transaction ID' ? 'deposit-tid'
+          : firstMissing === 'date' ? 'deposit-date'
+          : 'deposit-time';
+        setErrorFieldId(fieldId);
+      }
     } catch {
       toast.error('Could not read clipboard. Paste manually instead.');
     }

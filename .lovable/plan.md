@@ -1,43 +1,45 @@
-## Problem
+## Goal
+Upgrade the existing "Paste from SMS" button in `DepositFlow` from a TID-only paste into a full SMS parser that auto-fills **Amount, Transaction ID, Date, and Time** in one tap, and hard-blocks submission when any of the four are missing or look wrong.
 
-Looking at the screenshot, tenant rent records that have only been **verified by Tenant Ops** are showing the badge **"completed"** in the agent's tenant balance list. That's wrong — `completed` in our schema means the rent cycle is **fully repaid**, not just approved.
+Validation for date/time at submit already exists (`computeBlockReason` lines 690–695) — this plan strengthens the paste step and the disabled-state of the Confirm button.
 
-In the current pipeline, Tenant Ops approving a request should move its status to `tenant_ops_approved`, then continue through Landlord Ops → COO → CFO → `funded` → `repaying` → `completed`. So no badge should ever read "Completed" simply because Tenant Ops verified.
+## Changes
 
-## Root cause (suspected)
+### 1. New utility: `src/utils/smsParser.ts`
+Pure function `parseSMS(text)` returning `{ amount?, transactionId?, date?, time? }`.
 
-The list shown in the screenshot (the agent-side tenant list / balances view) renders the **raw `status` string** from `rent_requests` as a badge. Two separate things are conspiring:
+Extraction rules (broader than the spec to cover real MTN/Airtel/bank SMS in UGX):
+- **Amount** — `/(?:UGX|USh|UShs|Shs)\s?([\d,]+(?:\.\d+)?)/i`, strip commas, parse as integer.
+- **Transaction ID** — try in order:
+  1. `/\bMP[A-Z0-9]{8,}\b/` (MTN)
+  2. `/\bTID\d{4,18}\b/` (Airtel — same regex `extractTidFromText` already uses)
+  3. `/\b(?:Txn\s?ID|Ref(?:erence)?|Receipt)[:\s#]*([A-Z0-9-]{4,})\b/i`
+- **Date** — `/\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}-\d{2}-\d{2})\b/`, normalised to `YYYY-MM-DD` for the `<input type="date">`.
+- **Time** — `/\b(\d{1,2}:\d{2}(?::\d{2})?\s?(?:AM|PM)?)\b/i`, normalised to 24h `HH:MM` for `<input type="time">`.
 
-1. The badge component shows whatever raw status the row has (`funded`, `completed`), so any rent request actually in `completed` state shows "completed" — fine on its own.
-2. After the recent pipeline rewrite (Agent Ops → Tenant Ops → Landlord Ops → COO → CFO), some rent records appear to have been advanced to `funded`/`completed` via legacy paths or because of a verify action that wrongly fast-forwards status. We need to confirm whether the Tenant Ops "Approve" button is actually writing the correct `tenant_ops_approved` status (and not falling back to `completed`/`funded`).
+Unit-friendly (no React deps) so we can add tests later.
 
-The two `agent_allocate_tenant_payment` DB functions correctly only flip status to `completed` when `amount_repaid >= total_repayment`, so completion via repayment is sound. The bug is most likely in the **UI label**, not the DB.
+### 2. Wire parser into `DepositFlow.tsx`
+- Replace the body of `handlePasteTid` (lines 351–374) with a full SMS handler:
+  - Read clipboard (keep current Safari fallback toast).
+  - Call `parseSMS(text)`.
+  - For each non-empty field, populate `setAmount`, `setTransactionId` (+ run `validateTid` for MoMo), `setTransactionDate`, `setTransactionTime`.
+  - Auto-detect provider from TID prefix (`MP…` → mtn, `TID…` → airtel) and call `setMomoProvider` so the format validator picks the right rule.
+  - Toast summary: e.g. *"Pasted: UGX 50,000 · TID144… · 2026-05-04 14:32"*.
+  - If **any** of the 4 fields is missing → `toast.error("SMS missing required details — please paste the full confirmation message")` and highlight the first missing field via `setErrorFieldId`. Do **not** clear what we did parse — partial fill helps the agent finish manually.
+- Rename the helper to `handlePasteSms` and update the button label hint copy (line 1417 area) to read *"Paste full SMS"* with a tooltip explaining what gets filled.
 
-## Fix
+### 3. Strict submit gate
+The existing `computeBlockReason()` already rejects missing `transactionDate`/`transactionTime`. We piggy-back on it:
+- Add a derived `isFormValid = computeBlockReason() === null` and pass `disabled={isSubmitting || !isFormValid}` to the Confirm button so it visibly greys out until **Amount + TID + Date + Time** (and other channel rules) are all satisfied. Today the button only disables on `isSubmitting`.
 
-1. **Confirm the source list.** Identify which component renders the screen in the screenshot (most likely `AgentTenantsSheet` and/or `AgentTenantRentRequestsList`) and confirm it is rendering the raw `status` string as the badge text.
-2. **Decouple "approval pipeline" from "rent cycle" labels.** Introduce one shared helper (e.g. `getRentRequestStatusLabel(status)`) that maps:
-   - `pending`, `agent_ops_approved`, `tenant_ops_approved`, `landlord_ops_approved`, `coo_approved` → "In review" / "Approved" (in-pipeline labels, never "completed")
-   - `funded` → "Funded"
-   - `disbursed` / `repaying` → "Active"
-   - `completed` → "Fully repaid" (only when `amount_repaid >= total_repayment`)
-   - `rejected` → "Rejected"
-3. **Apply the helper** in:
-   - `src/components/agent/AgentTenantsSheet.tsx`
-   - `src/components/agent/AgentTenantRentRequestsList.tsx`
-   - `src/components/agent/AgentRentRequestsManager.tsx` (already has labels; align them)
-   - any other badge that prints `req.status` directly (search and replace).
-4. **Defensive guard.** Before showing "Fully repaid", also check `amount_repaid >= total_repayment` — so even if a row is mis-marked `completed` in the DB, the UI won't claim it's fully paid when it isn't.
-5. **Audit** the recent migration (`20260504080457_…`) and the Tenant Ops approve handler in `RentPipelineQueue.tsx` to make sure the `tenant_ops_approved` write isn't being overridden anywhere; if it is, fix the offending update.
+### 4. No backend / schema changes
+No migrations, no edge function changes, no RLS impact. Wallet/ledger flow is untouched — this is a UX + validation hardening pass on an existing form.
 
 ## Out of scope
+- "Validate parsed amount vs expected ledger value" — there is no per-deposit expected amount on this flow (deposits are user-initiated, not invoice-bound). Server-side TID uniqueness + amount reconciliation already runs in the deposit verification pipeline; we won't duplicate it client-side.
+- Cross-checking the SMS sender / shortcode (browsers can't read SMS metadata from a clipboard string).
 
-- No change to the DB pipeline status names.
-- No change to the rent repayment / completion logic.
-- No backfill of historic `completed` rows — we only fix the label and the gating check.
-
-## Acceptance
-
-- After Tenant Ops verifies a rent request, in every agent-facing list the badge reads "Approved" (or "In review" for earlier stages), never "Completed".
-- "Fully repaid" only ever appears for rows where `amount_repaid >= total_repayment`.
-- Funded / Active / Rejected labels stay accurate.
+## Files touched
+- `src/utils/smsParser.ts` (new)
+- `src/components/payments/DepositFlow.tsx` (replace `handlePasteTid`, button label, Confirm `disabled` prop)
