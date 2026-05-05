@@ -9,6 +9,7 @@ import { Download, FileBarChart, Phone } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, subWeeks, startOfMonth, endOfMonth, differenceInCalendarDays } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { calculateRentRepayment } from '@/lib/rentCalculations';
 import {
   generateAgentAllocationPdf,
   AllocStatus,
@@ -208,11 +209,15 @@ export function AgentAllocationReport() {
           const start = r.disbursed_at || r.funded_at || r.created_at;
           const last = lastPaymentMap[lastPaymentKey(agentId, r.tenant_id!)] || null;
           const rent = Number(r.rent_amount || 0);
-          const total = Number(r.total_repayment || 0) || rent;
+          const duration = Number(r.duration_days || 0);
+          // Canonical formula is the source of truth (DB trigger enforces it on new rows;
+          // legacy rows may carry stale total_repayment / daily_repayment values).
+          const canonical = rent > 0 && duration > 0 ? calculateRentRepayment(rent, duration) : null;
+          const storedTotal = Number(r.total_repayment || 0);
+          const total = canonical ? canonical.totalRepayment : (storedTotal || rent);
           const paid = Number(r.amount_repaid || 0);
           const outstanding = Math.max(0, total - paid);
-          const daily = Number(r.daily_repayment || 0);
-          const duration = Number(r.duration_days || 0);
+          const daily = canonical ? canonical.dailyRepayment : Number(r.daily_repayment || 0);
           const pct = total > 0 ? (paid / total) * 100 : 0;
           const { status, days_overdue } = tenantStatus({
             paid, outstanding, daily, duration_days: duration, start_date: start, last_payment: last,
