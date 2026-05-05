@@ -53,64 +53,94 @@ Deno.serve(async (req) => {
   const fileName = `welile_export_${stamp}.sql`;
   const storagePath = `${startedAt.getUTCFullYear()}/${fileName}`;
 
-  let dump = `-- Welile Weekly Database Backup\n-- Generated: ${startedAt.toISOString()}\n\nBEGIN;\n\n`;
-  dump += `DO $$ BEGIN CREATE TYPE public.app_role AS ENUM ('admin','moderator','user'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;\n\n`;
-
   let totalRows = 0;
   let tablesProcessed = 0;
+  let sizeBytes = 0;
 
   try {
-    for (const tableName of TABLES) {
-      let allRows: any[] = [];
-      let offset = 0;
-      const pageSize = 1000;
-      let hasMore = true;
-      while (hasMore) {
-        const { data: rows, error } = await supabase
-          .from(tableName).select("*").range(offset, offset + pageSize - 1);
-        if (error) {
-          dump += `-- Error reading ${tableName}: ${error.message}\n\n`;
-          hasMore = false; break;
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        const push = (s: string) => {
+          const b = encoder.encode(s);
+          sizeBytes += b.byteLength;
+          controller.enqueue(b);
+        };
+        try {
+          push(`-- Welile Weekly Database Backup\n-- Generated: ${startedAt.toISOString()}\n\nBEGIN;\n\n`);
+          push(`DO $$ BEGIN CREATE TYPE public.app_role AS ENUM ('admin','moderator','user'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;\n\n`);
+
+          for (const tableName of TABLES) {
+            tablesProcessed++;
+            let offset = 0;
+            const pageSize = 500;
+            let hasMore = true;
+            let tableRowCount = 0;
+            let cols: string[] | null = null;
+            let headerWritten = false;
+
+            while (hasMore) {
+              const { data: rows, error } = await supabase
+                .from(tableName).select("*").range(offset, offset + pageSize - 1);
+              if (error) {
+                push(`-- Error reading ${tableName}: ${error.message}\n\n`);
+                hasMore = false; break;
+              }
+              if (!rows || rows.length === 0) { hasMore = false; break; }
+              if (!cols) cols = Object.keys(rows[0]);
+              if (!headerWritten) {
+                push(`-- Table: ${tableName}\n`);
+                headerWritten = true;
+              }
+              for (const row of rows) {
+                const values = cols!.map(c => {
+                  const v = row[c];
+                  if (v === null || v === undefined) return "NULL";
+                  if (typeof v === "boolean") return v ? "TRUE" : "FALSE";
+                  if (typeof v === "number") return String(v);
+                  if (typeof v === "object") return `'${JSON.stringify(v).replace(/'/g, "''")}'::jsonb`;
+                  return `'${String(v).replace(/'/g, "''")}'`;
+                });
+                push(`INSERT INTO public.${tableName} (${cols!.map(c => `"${c}"`).join(", ")}) VALUES (${values.join(", ")}) ON CONFLICT DO NOTHING;\n`);
+              }
+              tableRowCount += rows.length;
+              totalRows += rows.length;
+              offset += pageSize;
+              hasMore = rows.length === pageSize;
+            }
+            if (!headerWritten) push(`-- Table: ${tableName} (0 rows)\n\n`);
+            else push(`-- (${tableRowCount} rows)\n\n`);
+          }
+          push(`COMMIT;\n`);
+          controller.close();
+        } catch (e) {
+          controller.error(e);
         }
-        if (rows && rows.length > 0) {
-          allRows = allRows.concat(rows);
-          offset += pageSize;
-          hasMore = rows.length === pageSize;
-        } else { hasMore = false; }
-      }
-      tablesProcessed++;
-      if (allRows.length > 0) {
-        const cols = Object.keys(allRows[0]);
-        dump += `-- Table: ${tableName} (${allRows.length} rows)\n`;
-        for (const row of allRows) {
-          const values = cols.map(c => {
-            const v = row[c];
-            if (v === null || v === undefined) return "NULL";
-            if (typeof v === "boolean") return v ? "TRUE" : "FALSE";
-            if (typeof v === "number") return String(v);
-            if (typeof v === "object") return `'${JSON.stringify(v).replace(/'/g, "''")}'::jsonb`;
-            return `'${String(v).replace(/'/g, "''")}'`;
-          });
-          dump += `INSERT INTO public.${tableName} (${cols.map(c => `"${c}"`).join(", ")}) VALUES (${values.join(", ")}) ON CONFLICT DO NOTHING;\n`;
-        }
-        dump += `\n`;
-        totalRows += allRows.length;
-      } else {
-        dump += `-- Table: ${tableName} (0 rows)\n\n`;
-      }
+      },
+    });
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const uploadResp = await fetch(
+      `${supabaseUrl}/storage/v1/object/db-backups/${storagePath}`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${serviceKey}`,
+          apikey: serviceKey,
+          "Content-Type": "application/sql",
+          "x-upsert": "false",
+        },
+        body: stream,
+        // @ts-ignore - Deno fetch supports duplex for streaming bodies
+        duplex: "half",
+      },
+    );
+    if (!uploadResp.ok) {
+      const txt = await uploadResp.text();
+      throw new Error(`Upload failed: ${uploadResp.status} ${txt}`);
     }
-    dump += `COMMIT;\n`;
-
-    const bytes = new TextEncoder().encode(dump);
-    const sizeBytes = bytes.byteLength;
-
-    const { error: upErr } = await supabase.storage
-      .from("db-backups")
-      .upload(storagePath, bytes, {
-        contentType: "application/sql",
-        upsert: false,
-      });
-    if (upErr) throw new Error(`Upload failed: ${upErr.message}`);
+    await uploadResp.text();
 
     const { data: signed, error: signErr } = await supabase.storage
       .from("db-backups")
