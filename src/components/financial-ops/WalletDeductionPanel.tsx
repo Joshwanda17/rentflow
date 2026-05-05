@@ -76,66 +76,50 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
     queryClient.removeQueries({ queryKey: ['deduction-balance-search'] });
   }, [queryClient]);
 
-  // Overlay ledger-true `available` balances onto a list of candidate users.
-  // Falls back to 0 (NOT the cached value) on RPC failure so we never show
-  // a misleading stale figure.
-  const overlayLedgerBalances = async (
+  // Overlay live wallet bucket balances onto candidate users. CFO deductions
+  // are allowed against the wallet bucket even when older strict ledger net is
+  // lower, so the UI must not clamp results with get_user_available_balance.
+  const overlayWalletBalances = async (
     rows: Array<{ id: string; full_name: string; phone: string }>,
   ): Promise<UserResult[]> => {
     if (rows.length === 0) return [];
-    const results = await Promise.all(
-      rows.map(async (r) => {
-        try {
-          const { data, error } = await supabase.rpc('get_user_available_balance', {
-            p_user_id: r.id,
-          });
-          if (error) throw error;
-          // RPC returns a single numeric (withdrawable available). Coerce
-          // directly — the previous `.available` destructure always
-          // produced NaN→0, which made every result look empty.
-          const withdrawable = Number(data ?? 0);
-          return {
-            ...r,
-            balance: withdrawable,
-            withdrawable_balance: withdrawable,
-            float_balance: 0,
-          };
-        } catch {
-          return { ...r, balance: 0, withdrawable_balance: 0, float_balance: 0 };
-        }
-      }),
-    );
-    return results;
+    const { data } = await supabase
+      .from('wallets')
+      .select('user_id, balance, withdrawable_balance, float_balance')
+      .in('user_id', rows.map((r) => r.id));
+    const byUser = new Map((data || []).map((w) => [w.user_id, w]));
+    return rows.map((r) => {
+      const w = byUser.get(r.id);
+      return {
+        ...r,
+        balance: Number(w?.balance ?? 0),
+        withdrawable_balance: Math.max(0, Number(w?.withdrawable_balance ?? 0)),
+        float_balance: Math.max(0, Number(w?.float_balance ?? 0)),
+      };
+    });
   };
 
-  // Ledger-true available balance for the selected user (the figure the
-  // backend actually enforces). The cached wallet number can drift above
-  // ledger net due to debt / pending obligations — gating on that causes
-  // confusing "Insufficient ledger balance" errors at submit time.
+  // Live wallet bucket for the selected user — this is what the backend now
+  // enforces for CFO wallet deductions.
   const { data: availableBalance } = useQuery({
-    queryKey: ['deduction-available-balance', selectedUser?.id],
+    queryKey: ['deduction-wallet-balance', selectedUser?.id],
     queryFn: async () => {
       if (!selectedUser) return null;
-      const { data, error } = await supabase.rpc('get_user_available_balance', {
-        p_user_id: selectedUser.id,
-      });
+      const { data, error } = await supabase
+        .from('wallets')
+        .select('withdrawable_balance')
+        .eq('user_id', selectedUser.id)
+        .single();
       if (error) throw error;
-      // RPC returns a scalar numeric (the strict withdrawable available),
-      // NOT an object. The previous `r.available` destructure always
-      // produced NaN→0, which made the deduction tool show USh 0 and
-      // refuse to deduct even when the wallet was funded.
-      return Number(data ?? 0);
+      return Math.max(0, Number(data?.withdrawable_balance ?? 0));
     },
     enabled: !!selectedUser,
   });
 
-  // Show the lesser of (cached, ledger) so the operator can never type a
-  // figure the backend will reject.
+  // Show the wallet bucket directly so operators can retract what is actually
+  // visible in the wallet without strict-ledger false blocks.
   const trueBalance = selectedUser
-    ? Math.min(
-        selectedUser.withdrawable_balance,
-        availableBalance ?? selectedUser.withdrawable_balance,
-      )
+    ? (availableBalance ?? selectedUser.withdrawable_balance)
     : 0;
 
   // Search users by name/phone
