@@ -169,7 +169,7 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
         throw error;
       }
       console.log('[WalletDeductionPanel] balance search', { min, max, count: (data || []).length });
-      let rows = (data || []) as Array<{
+      const rows = (data || []) as Array<{
         user_id: string;
         full_name: string | null;
         phone: string | null;
