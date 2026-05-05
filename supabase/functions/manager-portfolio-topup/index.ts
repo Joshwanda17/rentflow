@@ -146,18 +146,33 @@ Deno.serve(async (req) => {
     const floatBal = Number(wallet.float_balance ?? 0);
     const advanceBal = Number(wallet.advance_balance ?? 0);
 
-    // wallet_deduction routes to withdrawable; advance_balance offsets first.
-    const spendable = withdrawable + advanceBal;
+    // STRICT withdrawable per WITHDRAWABLE STRICT RULE — same gate as
+    // approve-withdrawal. Cached buckets can be inflated relative to the
+    // ledger; if we trust them we end up calling the ledger RPC and getting
+    // a 500 from `enforce_no_negative_wallet_ledger` after we've already
+    // written a wallet_transactions row.
+    const { data: strictAvailRaw, error: availErr } = await supabase.rpc(
+      "get_user_available_balance",
+      { p_user_id: walletOwnerId },
+    );
+    if (availErr) {
+      console.error("[manager-portfolio-topup] strict balance lookup failed:", availErr);
+      return jsonRes({ error: "Could not verify wallet balance. Please retry." }, 500);
+    }
+    const strictAvail = Number(strictAvailRaw ?? 0);
+    const spendable = strictAvail + advanceBal;
     if (spendable < topupAmount) {
       const parts: string[] = [];
-      if (withdrawable > 0) parts.push(`Withdrawable: UGX ${withdrawable.toLocaleString()}`);
+      if (strictAvail > 0) parts.push(`Withdrawable: UGX ${strictAvail.toLocaleString()}`);
       if (floatBal > 0) parts.push(`Float (locked): UGX ${floatBal.toLocaleString()}`);
       const breakdown = parts.length ? ` (${parts.join(" · ")})` : "";
       return jsonRes({
         error:
           `Insufficient withdrawable balance in ${walletOwnerLabel.toLowerCase()}. ` +
           `Need UGX ${topupAmount.toLocaleString()}, but only UGX ${spendable.toLocaleString()} is spendable${breakdown}. ` +
-          (floatBal > 0
+          (floatBal > 0 && withdrawable > strictAvail
+            ? `Cached wallet shows more, but the ledger of record only allows UGX ${strictAvail.toLocaleString()}. Please reconcile before retrying.`
+            : floatBal > 0
             ? `Funds in Float must be released to Withdrawable before topping up.`
             : ``),
       }, 400);
