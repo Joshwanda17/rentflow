@@ -780,9 +780,9 @@ export function AgentPerformanceReport() {
               <tr className="text-[11px] uppercase tracking-wide">
                 <th className="bg-slate-800 px-2 py-2 text-center font-bold border-r border-slate-700" colSpan={2}>&nbsp;</th>
                 <th className="bg-blue-700 px-2 py-2 text-center font-bold border-r border-blue-800" colSpan={3}>Portfolio (What They Manage)</th>
-                <th className="bg-emerald-700 px-2 py-2 text-center font-bold border-r border-emerald-800" colSpan={3}>Collection Performance</th>
-                <th className="bg-amber-600 px-2 py-2 text-center font-bold border-r border-amber-700" colSpan={2}>Activity</th>
-                <th className="bg-purple-700 px-2 py-2 text-center font-bold border-r border-purple-800" colSpan={3}>Earnings</th>
+                <th className="bg-emerald-700 px-2 py-2 text-center font-bold border-r border-emerald-800" colSpan={4}>Collection Performance</th>
+                <th className="bg-amber-600 px-2 py-2 text-center font-bold border-r border-amber-700" colSpan={3}>Activity</th>
+                <th className="bg-purple-700 px-2 py-2 text-center font-bold border-r border-purple-800" colSpan={5}>Earnings & Payouts</th>
                 <th className="bg-slate-800 px-2 py-2 text-center font-bold">Status<br/><span className="text-[9px] font-normal normal-case opacity-80">(By Efficiency)</span></th>
               </tr>
               {/* Sub-header row */}
