@@ -21,6 +21,7 @@ import {
   ALLOWED_DEPOSIT_PURPOSES as SHARED_ALLOWED_DEPOSIT_PURPOSES,
   type DepositPurpose as SharedDepositPurpose,
 } from '@/lib/depositPurposeGuard';
+import { parseSMS } from '@/utils/smsParser';
 
 /**
  * Extract a Mobile Money / bank reference from arbitrary SMS text.
