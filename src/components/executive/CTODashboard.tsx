@@ -9,6 +9,7 @@ import { SystemLogsViewer } from './SystemLogsViewer';
 import { InfrastructureHealthMonitor } from './InfrastructureHealthMonitor';
 import { CTOEmailsOverview } from './CTOEmailsOverview';
 import RunBackupNowButton from '@/components/admin/RunBackupNowButton';
+import { CTOLedgerExport } from './CTOLedgerExport';
 
 export function CTODashboard({ activeTab }: { activeTab?: string }) {
   if (activeTab === 'system-logs') {
@@ -211,6 +212,9 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
 
       {/* Database Backup */}
       <RunBackupNowButton />
+
+      {/* Ledger Audit Export */}
+      <CTOLedgerExport />
 
       {/* System KPIs - all real */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
