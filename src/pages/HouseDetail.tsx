@@ -14,6 +14,7 @@ import { useHouseReviews } from '@/hooks/useHouseReviews';
 import WriteHouseReviewForm from '@/components/reviews/WriteHouseReviewForm';
 import HouseReviewsList from '@/components/reviews/HouseReviewsList';
 import SaveHouseButton from '@/components/house/SaveHouseButton';
+import { useMapLinkAnnouncer } from '@/hooks/useMapLinkAnnouncer';
 import HouseQASection from '@/components/house/HouseQASection';
 import PriceComparison from '@/components/house/PriceComparison';
 import VisitBadge from '@/components/house/VisitBadge';
@@ -40,6 +41,7 @@ const CATEGORIES = [
 ];
 
 export default function HouseDetail() {
+  const announceMap = useMapLinkAnnouncer();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -378,6 +380,7 @@ export default function HouseDetail() {
                 href={mapLink}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => announceMap(listing.title)}
                 aria-label={`Open ${listing.title} location in Google Maps (opens in a new tab)`}
                 className="block relative w-full h-44 rounded-2xl overflow-hidden bg-muted border-2 border-primary/40 ring-2 ring-primary/20 shadow-md active:scale-[0.99] transition-transform focus:outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
@@ -391,6 +394,7 @@ export default function HouseDetail() {
                 href={mapLink}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => announceMap(listing.title)}
                 aria-label={`Get directions to ${listing.title} in Google Maps (opens in a new tab)`}
                 className="mt-2 flex items-center justify-center gap-2.5 w-full min-h-[52px] px-6 py-3.5 rounded-full bg-primary text-primary-foreground font-bold text-base shadow-lg active:scale-[0.98] transition-transform touch-manipulation focus:outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >

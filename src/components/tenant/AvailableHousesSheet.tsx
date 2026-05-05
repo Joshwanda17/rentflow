@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { useMapLinkAnnouncer } from '@/hooks/useMapLinkAnnouncer';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -101,6 +102,7 @@ function HouseImageCarousel({ images, title, houseId }: { images: string[] | nul
 }
 
 function LocationMap({ lat, lng, title }: { lat: number | null; lng: number | null; title: string }) {
+  const announce = useMapLinkAnnouncer();
   if (!lat || !lng) return null;
 
   const mapUrl = `https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed`;
@@ -112,6 +114,7 @@ function LocationMap({ lat, lng, title }: { lat: number | null; lng: number | nu
         href={linkUrl}
         target="_blank"
         rel="noopener noreferrer"
+        onClick={() => announce(title)}
         aria-label={`Open ${title} location in Google Maps (opens in a new tab)`}
         className="block relative w-full h-32 rounded-xl overflow-hidden bg-muted border-2 border-primary/40 ring-2 ring-primary/20 shadow-md active:scale-[0.99] transition-transform focus:outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
@@ -242,6 +245,7 @@ function HouseCard({ listing }: { listing: HouseListing }) {
 
 export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesSheetProps) {
   const geo = useGeolocation(true);
+  const announceMap = useMapLinkAnnouncer();
   const [searchText, setSearchText] = useState('');
   const [selectedRegion, setSelectedRegion] = useState('All Regions');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -364,6 +368,7 @@ export function AvailableHousesSheet({ open, onOpenChange }: AvailableHousesShee
                 href={mapHref}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => announceMap(label)}
                 aria-label={`${label} (opens in a new tab)`}
                 className="flex items-center justify-center gap-2.5 w-full min-h-[56px] px-6 py-4 rounded-full bg-primary text-primary-foreground font-bold text-base shadow-xl active:scale-[0.98] transition-transform touch-manipulation focus:outline-none focus-visible:ring-4 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
