@@ -100,35 +100,48 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const scrollDialogToTop = () => {
+    requestAnimationFrame(() => {
+      document
+        .querySelector('[role="dialog"]')
+        ?.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  };
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     setAttempted(true);
 
     // Auto-sync lc1_village from village
     const syncedForm = { ...form, lc1_village: form.village.trim() };
 
+    const failWith = (msg: string) => {
+      toast.error(msg);
+      scrollDialogToTop();
+    };
+
     if (!monthlyRent || monthlyRent < 10000) {
-      toast.error('Monthly rent must be at least UGX 10,000');
+      failWith('Monthly rent must be at least UGX 10,000');
       return;
     }
     if (!syncedForm.region) {
-      toast.error('Please select a region');
+      failWith('Please select a region');
       return;
     }
     if (!syncedForm.address.trim()) {
-      toast.error('Address is required');
+      failWith('Address is required');
       return;
     }
     if (!syncedForm.village.trim()) {
-      toast.error('Village/Zone is required');
+      failWith('Village/Zone is required');
       return;
     }
     if (!syncedForm.lc1_name.trim()) {
-      toast.error('LC1 Chairperson name is required');
+      failWith('LC1 Chairperson name is required');
       return;
     }
     if (!syncedForm.lc1_phone.trim()) {
-      toast.error('LC1 Chairperson phone is required');
+      failWith('LC1 Chairperson phone is required');
       return;
     }
 
@@ -243,7 +256,7 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
       }
 
       toast.success('House listed successfully!', {
-        description: `Daily rate: ${formatUGX(pricing.dailyRate)}/day · UGX 5,000 bonus on landlord verification`,
+        description: `Daily rate: ${formatUGX(pricing.dailyRate)}/day · Earn UGX 5,000 the moment a tenant is placed in this house`,
       });
       onSuccess?.();
       onOpenChange(false);
@@ -262,7 +275,9 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
       setExistingLc1Options([]);
       setAttempted(false);
     } catch (err: any) {
-      toast.error(err.message || 'Failed to list house');
+      console.error('[ListEmptyHouseDialog] submit failed:', err);
+      toast.error(err?.message || 'Failed to list house');
+      scrollDialogToTop();
     } finally {
       setSubmitting(false);
     }
@@ -277,11 +292,11 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
             List Empty House
           </DialogTitle>
           <DialogDescription>
-            Register an available rental · Earn UGX 5,000 on verification
+            Register an available rental · Earn UGX 5,000 when a tenant is placed
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
           {/* Landlord Info */}
           <div className="space-y-3 p-3 rounded-xl bg-muted/30 border border-border">
             <p className="text-xs font-semibold text-muted-foreground uppercase">Landlord Details</p>
@@ -593,10 +608,23 @@ export function ListEmptyHouseDialog({ open, onOpenChange, onSuccess }: ListEmpt
 
           {/* Bonus reminder */}
           <div className="p-2 rounded-lg bg-chart-4/10 border border-chart-4/20 text-center">
-            <p className="text-xs text-chart-4 font-semibold">💰 You earn UGX 5,000 when this landlord is verified</p>
+            <p className="text-xs text-chart-4 font-semibold">
+              💰 You earn UGX 5,000 the moment a tenant is placed in this house
+            </p>
           </div>
 
-          <Button type="submit" className="w-full" disabled={submitting}>
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={submitting}
+            onClick={(e) => {
+              // Defensive: some mobile browsers swallow form submit when
+              // a native-validated input (e.g. type="number") rejects silently.
+              // Guarantee the handler always runs.
+              if (e.currentTarget.form) return;
+              handleSubmit();
+            }}
+          >
             {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Home className="h-4 w-4 mr-2" />}
             List House at {monthlyRent > 0 ? `${formatUGX(pricing.dailyRate)}/day` : '...'}
           </Button>
