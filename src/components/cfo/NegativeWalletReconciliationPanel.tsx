@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, Loader2, ShieldCheck, Wand2 } from 'lucide-react';
+import { AlertTriangle, Loader2, ShieldCheck, Wand2, Eye } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { toast } from 'sonner';
 
@@ -15,6 +15,18 @@ interface DryRunResult {
   total_credited: number;
   users_debited: number;
   total_debited: number;
+  users_skipped_already_anchored_today?: number;
+}
+
+interface AnchorRow {
+  user_id: string;
+  full_name: string | null;
+  phone: string | null;
+  cached_at_anchor: number;
+  strict_net_at_anchor: number;
+  delta_applied: number;
+  cached_now: number | null;
+  strict_net_now: number | null;
 }
 
 /**
@@ -27,6 +39,8 @@ export function NegativeWalletReconciliationPanel() {
   const [running, setRunning] = useState(false);
   const [executing, setExecuting] = useState(false);
   const [lastRun, setLastRun] = useState<DryRunResult | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [verifyRows, setVerifyRows] = useState<AnchorRow[] | null>(null);
 
   const runDryRun = async () => {
     setRunning(true);
@@ -70,6 +84,22 @@ export function NegativeWalletReconciliationPanel() {
     }
   };
 
+  const verifyToday = async () => {
+    setVerifying(true);
+    try {
+      const { data, error } = await (supabase as any)
+        .from('wallet_anchor_today_view')
+        .select('user_id, full_name, phone, cached_at_anchor, strict_net_at_anchor, delta_applied, cached_now, strict_net_now')
+        .limit(50);
+      if (error) throw error;
+      setVerifyRows((data ?? []) as AnchorRow[]);
+    } catch (e: any) {
+      toast.error(e.message || 'Verify failed');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   return (
     <Card>
       <CardHeader className="border-b">
@@ -94,6 +124,10 @@ export function NegativeWalletReconciliationPanel() {
             {executing ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : <Wand2 className="h-3.5 w-3.5 mr-2" />}
             Anchor ledger now
           </Button>
+          <Button onClick={verifyToday} disabled={verifying} variant="ghost" size="sm">
+            {verifying ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : <Eye className="h-3.5 w-3.5 mr-2" />}
+            Verify last anchor
+          </Button>
         </div>
 
         {preview && (
@@ -114,7 +148,42 @@ export function NegativeWalletReconciliationPanel() {
             </p>
             <p>Credited: <span className="font-bold">{lastRun.users_credited.toLocaleString()}</span> · {formatUGX(lastRun.total_credited)}</p>
             <p>Debited: <span className="font-bold">{lastRun.users_debited.toLocaleString()}</span> · {formatUGX(lastRun.total_debited)}</p>
+            {!!lastRun.users_skipped_already_anchored_today && (
+              <p className="text-[11px] text-muted-foreground">Skipped (already anchored today): {lastRun.users_skipped_already_anchored_today.toLocaleString()}</p>
+            )}
             <p className="text-[11px] text-muted-foreground mt-1 break-all">Batch: {lastRun.batch_id}</p>
+          </div>
+        )}
+
+        {verifyRows && (
+          <div className="rounded-lg border p-3 text-xs overflow-x-auto">
+            <p className="font-medium mb-2">Anchored today ({verifyRows.length} shown)</p>
+            {verifyRows.length === 0 ? (
+              <p className="text-muted-foreground">No users anchored today yet.</p>
+            ) : (
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="text-muted-foreground">
+                    <th className="py-1 pr-3">User</th>
+                    <th className="py-1 pr-3">Cached@anchor</th>
+                    <th className="py-1 pr-3">Strict@anchor</th>
+                    <th className="py-1 pr-3">Δ applied</th>
+                    <th className="py-1 pr-3">Strict now</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {verifyRows.map((r) => (
+                    <tr key={r.user_id} className="border-t">
+                      <td className="py-1 pr-3">{r.full_name || r.phone || r.user_id.slice(0, 8)}</td>
+                      <td className="py-1 pr-3">{formatUGX(r.cached_at_anchor)}</td>
+                      <td className="py-1 pr-3">{formatUGX(r.strict_net_at_anchor)}</td>
+                      <td className="py-1 pr-3">{formatUGX(r.delta_applied)}</td>
+                      <td className="py-1 pr-3">{formatUGX(Number(r.strict_net_now ?? 0))}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         )}
 
