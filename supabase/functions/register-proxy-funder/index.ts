@@ -9,10 +9,11 @@ const corsHeaders = {
 
 function normalizePhone(phone: string): string {
   const digits = phone.replace(/[^0-9]/g, "");
-  if (digits.startsWith("256") && digits.length === 12) return `+${digits}`;
-  if (digits.startsWith("0") && digits.length === 10) return `+256${digits.slice(1)}`;
-  if (digits.length === 9) return `+256${digits}`;
-  return `+${digits}`;
+  // Supabase Auth expects E.164 digits WITHOUT the leading '+'.
+  if (digits.startsWith("256") && digits.length === 12) return digits;
+  if (digits.startsWith("0") && digits.length === 10) return `256${digits.slice(1)}`;
+  if (digits.length === 9) return `256${digits}`;
+  return digits;
 }
 
 Deno.serve(async (req) => {
