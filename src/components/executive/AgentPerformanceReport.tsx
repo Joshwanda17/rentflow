@@ -288,6 +288,13 @@ export function AgentPerformanceReport() {
         return q.lte('created_at', endISO);
       });
 
+      // Pull landlord payouts in window (rent paid out to landlords) — attributed to disbursing agent
+      const landlordPayouts = await fetchAll<{ agent_id: string; amount: number; status: string | null; disbursed_at: string | null; created_at: string }>(() => {
+        let q = supabase.from('landlord_payouts').select('agent_id, amount, status, disbursed_at, created_at');
+        if (startISO) q = q.gte('created_at', startISO);
+        return q.lte('created_at', endISO);
+      });
+
       // Pull rent_requests for tenant counts AND daily_portfolio.
       // We need TWO scopes:
       //  - rentReqsAll: ALL-time, used to attribute merchant payments (rent_request_id → agent_id),
@@ -392,6 +399,14 @@ export function AgentPerformanceReport() {
         if (type.includes('interest')) a.interest += Number(e.amount || 0);
         else if (type.includes('commission')) a.commissionEarnings += Number(e.amount || 0);
       });
+      // Aggregate rent paid out per agent (only successfully disbursed)
+      const rentPaidByAgent: Record<string, number> = {};
+      landlordPayouts.forEach(p => {
+        if (!p.agent_id) return;
+        const status = (p.status || '').toLowerCase();
+        if (!['disbursed', 'completed', 'paid', 'success'].includes(status) && !p.disbursed_at) return;
+        rentPaidByAgent[p.agent_id] = (rentPaidByAgent[p.agent_id] || 0) + Number(p.amount || 0);
+      });
       rentReqsInRange.forEach(r => {
         if (!r.agent_id || !r.tenant_id) return;
         ensure(r.agent_id).tenantsTotal.add(r.tenant_id);
@@ -453,6 +468,11 @@ export function AgentPerformanceReport() {
         });
       }
 
+      // Days in selected window (>=1 to avoid div by zero)
+      const windowDays = Math.max(1, Math.ceil(
+        ((range.end.getTime()) - ((range.start || range.end).getTime())) / (1000 * 60 * 60 * 24)
+      ) || 1);
+
       const rows: AgentPerfRow[] = Object.entries(agg).map(([id, a]) => {
         // Use ledger commission if present, else 5% of collected as display fallback
         const commission = a.commissionEarnings > 0 ? a.commissionEarnings : a.collected * 0.10;
@@ -466,6 +486,10 @@ export function AgentPerformanceReport() {
         const expectedWeekly = dailyPortfolio * 7;
         const efficiency = expectedWeekly ? (a.collected / expectedWeekly) * 100 : 0;
         const gap = expectedWeekly - a.collected;
+        const dailyCollection = a.collected / windowDays;
+        const dailyCommission = commission / windowDays;
+        const rentPaidOut = rentPaidByAgent[id] || 0;
+        const conversionPct = pctPaid; // tenants_paid / tenants_total (window)
         return {
           rank: 0,
           agent_name: profilesMap[id] || `Agent ${id.slice(0, 6)}`,
@@ -484,6 +508,10 @@ export function AgentPerformanceReport() {
           expected_weekly: expectedWeekly,
           efficiency,
           gap,
+          daily_collection: dailyCollection,
+          daily_commission: dailyCommission,
+          rent_paid_out: rentPaidOut,
+          conversion_pct: conversionPct,
         };
       })
       .filter(r => r.tenants_total > 0 || (r.daily_portfolio || 0) > 0)
@@ -501,9 +529,12 @@ export function AgentPerformanceReport() {
         daily_portfolio: (t.daily_portfolio || 0) + (r.daily_portfolio || 0),
         expected_weekly: (t.expected_weekly || 0) + (r.expected_weekly || 0),
         gap: (t.gap || 0) + (r.gap || 0),
-      }), { collected: 0, payments: 0, commission: 0, interest: 0, wallet_total: 0, tenants_paid: 0, tenants_total: 0, daily_portfolio: 0, expected_weekly: 0, gap: 0 });
+        daily_collection: (t.daily_collection || 0) + (r.daily_collection || 0),
+        daily_commission: (t.daily_commission || 0) + (r.daily_commission || 0),
+        rent_paid_out: (t.rent_paid_out || 0) + (r.rent_paid_out || 0),
+      }), { collected: 0, payments: 0, commission: 0, interest: 0, wallet_total: 0, tenants_paid: 0, tenants_total: 0, daily_portfolio: 0, expected_weekly: 0, gap: 0, daily_collection: 0, daily_commission: 0, rent_paid_out: 0 });
 
-      return { rows, totals };
+      return { rows, totals, windowDays };
     },
     staleTime: 60_000,
   });
