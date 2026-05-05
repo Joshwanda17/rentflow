@@ -1757,16 +1757,12 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                     key={p.id}
                     type="button"
                     onClick={() => {
-                      // Agent gate: switching to Personal Deposit means the
-                      // money will land in withdrawable, not float. Force an
-                      // explicit confirmation so it can't be done by mistake.
-                      if (
-                        isAgent &&
-                        p.id === 'personal_deposit' &&
-                        !agentPersonalConfirmedAt
-                      ) {
-                        setPendingPersonalChoice(true);
-                        return;
+                      // Agent: selecting Personal Deposit auto-stamps the
+                      // required confirmation timestamp — no second confirm
+                      // step. The grid itself is the explicit choice.
+                      if (isAgent && p.id === 'personal_deposit') {
+                        setAgentPersonalConfirmedAt(new Date().toISOString());
+                        setPendingPersonalChoice(false);
                       }
                       setDepositPurpose(p.id);
                       if (p.id !== 'other') setReason(p.label);
