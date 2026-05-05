@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Database, Loader2, ExternalLink, CheckCircle2 } from 'lucide-react';
+import { Database, Loader2, ExternalLink, CheckCircle2, Mail } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 
 interface BackupResult {
   signedUrl: string;
@@ -17,6 +19,10 @@ export default function RunBackupNowButton() {
   const [running, setRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [result, setResult] = useState<BackupResult | null>(null);
+  const [showResend, setShowResend] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [recipients, setRecipients] = useState('joshwanda17@gmail.com, weliletechnologies@gmail.com');
+  const [note, setNote] = useState('Re-sent because the previous email did not arrive in the inbox.');
 
   const handleRun = async () => {
     setRunning(true);
@@ -48,6 +54,34 @@ export default function RunBackupNowButton() {
     }
   };
 
+  const handleResend = async () => {
+    const list = recipients.split(/[,\s]+/).map(s => s.trim()).filter(Boolean);
+    if (list.length === 0) {
+      toast.error('Add at least one recipient email');
+      return;
+    }
+    setResending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('resend-database-backup-link', {
+        body: { recipients: list, note: note.trim() || undefined },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Resend failed');
+      const okCount = (data.sent || []).filter((s: any) => s.ok).length;
+      const failed = (data.sent || []).filter((s: any) => !s.ok);
+      if (failed.length === 0) {
+        toast.success(`Signed link emailed to ${okCount} recipient${okCount === 1 ? '' : 's'}`);
+      } else {
+        toast.warning(`Sent to ${okCount}, failed for ${failed.map((f: any) => f.email).join(', ')}`);
+      }
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message || 'Resend failed');
+    } finally {
+      setResending(false);
+    }
+  };
+
   return (
     <div className="space-y-3 p-4 rounded-xl border-2 bg-card">
       <div className="flex items-center justify-between gap-3">
@@ -60,10 +94,22 @@ export default function RunBackupNowButton() {
             <p className="text-xs text-muted-foreground">Run a fresh backup now (also runs weekly)</p>
           </div>
         </div>
-        <Button onClick={handleRun} disabled={running} size="sm" className="gap-2">
-          {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
-          {running ? 'Running…' : 'Run backup now'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => setShowResend(v => !v)}
+          >
+            <Mail className="h-4 w-4" />
+            {showResend ? 'Hide resend' : 'Resend link'}
+          </Button>
+          <Button onClick={handleRun} disabled={running} size="sm" className="gap-2">
+            {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
+            {running ? 'Running…' : 'Run backup now'}
+          </Button>
+        </div>
       </div>
 
       {running && (
@@ -94,6 +140,35 @@ export default function RunBackupNowButton() {
             <ExternalLink className="h-4 w-4" />
             Download signed link (valid 7 days)
           </a>
+        </div>
+      )}
+
+      {showResend && (
+        <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+          <p className="text-xs font-semibold text-foreground">Resend latest signed link</p>
+          <p className="text-xs text-muted-foreground">
+            Re-signs the most recent successful backup and emails it with a spam-safe subject
+            (“Your requested Welile file link”) and a plain body — no attachments, single link.
+          </p>
+          <Input
+            value={recipients}
+            onChange={(e) => setRecipients(e.target.value)}
+            placeholder="comma-separated emails"
+            className="text-sm"
+          />
+          <Textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Optional note included in the email body"
+            rows={2}
+            className="text-sm"
+          />
+          <div className="flex justify-end">
+            <Button onClick={handleResend} disabled={resending} size="sm" className="gap-2">
+              {resending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+              {resending ? 'Sending…' : 'Send signed link'}
+            </Button>
+          </div>
         </div>
       )}
     </div>
