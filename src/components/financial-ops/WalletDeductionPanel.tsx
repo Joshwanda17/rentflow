@@ -107,19 +107,20 @@ export function WalletDeductionPanel({ initialMode = 'name', initialBalancePrese
       if (!selectedUser) return null;
       const { data, error } = await supabase
         .from('wallets')
-        .select('withdrawable_balance')
+        .select('withdrawable_balance, float_balance')
         .eq('user_id', selectedUser.id)
         .single();
       if (error) throw error;
-      return Math.max(0, Number(data?.withdrawable_balance ?? 0));
+      const w = Math.max(0, Number(data?.withdrawable_balance ?? 0));
+      const f = Math.max(0, Number(data?.float_balance ?? 0));
+      return w + f;
     },
     enabled: !!selectedUser,
   });
 
-  // Show the wallet bucket directly so operators can retract what is actually
-  // visible in the wallet without strict-ledger false blocks.
+  // Combined deductible = withdrawable + float. Backend splits across buckets.
   const trueBalance = selectedUser
-    ? (availableBalance ?? selectedUser.withdrawable_balance)
+    ? (availableBalance ?? (selectedUser.withdrawable_balance + selectedUser.float_balance))
     : 0;
 
   // Search users by name/phone
