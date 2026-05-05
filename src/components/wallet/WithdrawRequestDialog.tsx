@@ -557,7 +557,10 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
               )}
 
               {/* ── PAYOUT METHOD ── */}
-              <div className="space-y-3">
+              <div
+                ref={payoutSectionRef}
+                className={`space-y-3 rounded-2xl transition-shadow ${pulseTarget === 'payout' ? 'ring-4 ring-primary/40 ring-offset-2 ring-offset-background' : ''}`}
+              >
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-primary" />
                   <Label className="text-sm font-bold text-foreground">Where should we send your money?</Label>
@@ -714,9 +717,10 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
               {/* ── REASON FOR WITHDRAWAL ── */}
               {payoutMode && isPayoutValid() && (
                 <motion.div
+                  ref={reasonSectionRef as any}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="space-y-2"
+                  className={`space-y-2 rounded-2xl p-1 transition-shadow ${pulseTarget === 'reason' ? 'ring-4 ring-primary/40 ring-offset-2 ring-offset-background' : ''}`}
                 >
                   <Label className="text-sm font-bold text-foreground flex items-center gap-2">
                     <FileText className="h-4 w-4 text-primary" />
@@ -737,11 +741,12 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
               <AnimatePresence>
                 {isPayoutValid() && meetsMinBalance && workingHoursStatus.isOpen && (
                   <motion.div
+                    ref={amountSectionRef as any}
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.3 }}
-                    className="space-y-4"
+                    className={`space-y-4 rounded-2xl p-1 transition-shadow ${pulseTarget === 'amount' ? 'ring-4 ring-primary/40 ring-offset-2 ring-offset-background' : ''}`}
                   >
                     <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent" />
 
