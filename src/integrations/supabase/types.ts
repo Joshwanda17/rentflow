@@ -3245,7 +3245,7 @@ export type Database = {
           investor_id: string
           payment_method: string | null
           pool_ownership_percent: number
-          reference_id: string | null
+          reference_id: string
           shares: number
           status: string
           transaction_group_id: string | null
@@ -3261,7 +3261,7 @@ export type Database = {
           investor_id: string
           payment_method?: string | null
           pool_ownership_percent: number
-          reference_id?: string | null
+          reference_id: string
           shares: number
           status?: string
           transaction_group_id?: string | null
@@ -3277,7 +3277,7 @@ export type Database = {
           investor_id?: string
           payment_method?: string | null
           pool_ownership_percent?: number
-          reference_id?: string | null
+          reference_id?: string
           shares?: number
           status?: string
           transaction_group_id?: string | null
