@@ -189,9 +189,7 @@ Deno.serve(async (req) => {
 
     const ledgerCategory = isRetraction
       ? 'wallet_deduction_cash_payout_retraction'
-      : (safeCategory === 'general_adjustment'
-          ? 'wallet_deduction_general_adjustment'
-          : 'wallet_deduction');
+      : 'wallet_deduction_general_adjustment';
     if (withdrawablePortion > 0) {
       entries.push({
         user_id: target_user_id,
@@ -225,7 +223,7 @@ Deno.serve(async (req) => {
       entries,
       idempotency_key: `wallet-deduction-${target_user_id}-${crypto.randomUUID()}`,
       // CFO wallet deductions are an authorized cache-cleanup / recovery path.
-      // The strict RPC + live bucket recheck above is the gate; bypass the
+      // The live wallet bucket recheck above is the gate; bypass the
       // all-time ledger solvency guard so anchored users with negative legacy
       // ledger history can still have their current withdrawable cache removed.
       skip_balance_check: true,
@@ -234,19 +232,7 @@ Deno.serve(async (req) => {
     if (ledgerErr) {
       console.error("Ledger RPC error:", ledgerErr);
       const rawMsg = ledgerErr.message || "Failed to record ledger entry";
-      // Friendlier message for the most common case
-      const friendly = /Insufficient ledger balance/i.test(rawMsg)
-        ? (() => {
-            const m = rawMsg.match(/Available:\s*(\d+(?:\.\d+)?),\s*Required:\s*(\d+(?:\.\d+)?)/i);
-            if (m) {
-              const avail = Number(m[1]).toLocaleString();
-              const req = Number(m[2]).toLocaleString();
-              return `Insufficient ledger balance. Available: UGX ${avail}, Required: UGX ${req}. The wallet shows UGX ${Number(wallet.balance).toLocaleString()} but the user's net ledger position is lower (likely due to outstanding debt or pending obligations).`;
-            }
-            return rawMsg;
-          })()
-        : rawMsg;
-      return new Response(JSON.stringify({ error: friendly }), {
+      return new Response(JSON.stringify({ error: rawMsg }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
