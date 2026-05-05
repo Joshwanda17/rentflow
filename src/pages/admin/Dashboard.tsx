@@ -149,7 +149,7 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
-        {role === 'manager' && (
+        {(role === 'manager' || role === 'cto') && (
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">System</p>
             <RunBackupNowButton />
