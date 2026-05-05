@@ -15,6 +15,55 @@ const corsHeaders = {
 // deno-lint-ignore no-explicit-any
 type AdminClient = any;
 
+// Flat 10% commission credit for agent-collection paths that don't go
+// through `credit_agent_rent_commission` (no active rent_request, or
+// overflow above outstanding balance). Posts an idempotent balanced pair
+// using allowlisted ledger categories.
+async function creditFlatAgentCommission(
+  adminClient: AdminClient,
+  agentId: string,
+  rentAmount: number,
+  contextRef: string,
+) {
+  const commission = Math.round(rentAmount * 0.10);
+  if (commission <= 0) return 0;
+  const ref = `agent-collection-comm-${contextRef}`;
+  const { error } = await adminClient.rpc('create_ledger_transaction', {
+    entries: [
+      {
+        user_id: agentId,
+        amount: commission,
+        direction: 'cash_in',
+        category: 'agent_commission_earned',
+        ledger_scope: 'wallet',
+        classification: 'production',
+        description: `10% commission on rent collection (${contextRef})`,
+        reference_id: ref,
+        recipient_type: 'user',
+      },
+      {
+        user_id: agentId,
+        amount: commission,
+        direction: 'cash_out',
+        category: 'marketing_expense',
+        ledger_scope: 'platform',
+        classification: 'production',
+        description: 'Platform marketing expense: 10% rent collection commission',
+        reference_id: ref,
+      },
+    ],
+    idempotency_key: ref,
+  });
+  if (error) {
+    // Idempotent retry — duplicate key means we already paid this one
+    if (!String(error?.message ?? '').toLowerCase().includes('duplicate')) {
+      console.error('[agent-deposit] Flat commission credit failed:', error);
+      throw error;
+    }
+  }
+  return commission;
+}
+
 function toNumber(value: unknown): number {
   const parsed = Number(value ?? 0);
   return Number.isFinite(parsed) ? parsed : 0;
