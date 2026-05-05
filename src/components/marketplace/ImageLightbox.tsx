@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { StorageImage } from '@/components/ui/StorageImage';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Share2, Download, ImageOff } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Share2, Download, ImageOff, RotateCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -60,6 +60,7 @@ export function ImageLightbox({
   const previouslyFocused = useRef<HTMLElement | null>(null);
   const [loadedIds, setLoadedIds] = useState<Set<string>>(new Set());
   const [erroredIds, setErroredIds] = useState<Set<string>>(new Set());
+  const [retryTokens, setRetryTokens] = useState<Record<string, number>>({});
 
   const markLoaded = useCallback((id: string) => {
     setLoadedIds(prev => prev.has(id) ? prev : new Set(prev).add(id));
@@ -67,6 +68,27 @@ export function ImageLightbox({
   const markErrored = useCallback((id: string) => {
     setErroredIds(prev => prev.has(id) ? prev : new Set(prev).add(id));
   }, []);
+  const retryImage = useCallback((id: string, url: string) => {
+    setErroredIds(prev => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    setLoadedIds(prev => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    const token = Date.now();
+    setRetryTokens(prev => ({ ...prev, [id]: token }));
+    const sep = url.includes('?') ? '&' : '?';
+    const el = new Image();
+    el.src = `${url}${sep}retry=${token}`;
+    el.onload = () => markLoaded(id);
+    el.onerror = () => markErrored(id);
+  }, [markLoaded, markErrored]);
 
   // Preload current + neighbour images for instant swipe
   useEffect(() => {
@@ -422,7 +444,13 @@ export function ImageLightbox({
                 )}
               >
                 <motion.img
-                  src={images[currentIndex].image_url}
+                  src={(() => {
+                    const img = images[currentIndex];
+                    const t = retryTokens[img.id];
+                    if (!t) return img.image_url;
+                    const sep = img.image_url.includes('?') ? '&' : '?';
+                    return `${img.image_url}${sep}retry=${t}`;
+                  })()}
                   alt={`${productName} - Image ${currentIndex + 1}`}
                   className={cn(
                     'max-h-full max-w-full object-contain select-none transition-opacity duration-300',
@@ -450,9 +478,21 @@ export function ImageLightbox({
                 )}
                 {/* Error fallback */}
                 {erroredIds.has(images[currentIndex].id) && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white/60 pointer-events-none">
-                    <ImageOff className="h-10 w-10" />
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white/70">
+                    <ImageOff className="h-10 w-10" aria-hidden="true" />
                     <span className="text-sm">Image failed to load</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        retryImage(images[currentIndex].id, images[currentIndex].image_url);
+                      }}
+                      className="inline-flex items-center gap-2 rounded-full bg-white/15 hover:bg-white/25 active:bg-white/30 px-4 py-2 text-sm font-medium text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                      aria-label="Retry loading image"
+                    >
+                      <RotateCw className="h-4 w-4" />
+                      Retry
+                    </button>
                   </div>
                 )}
               </motion.div>
