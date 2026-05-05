@@ -853,6 +853,21 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       const safePurpose: DepositPurpose = safeDepositPurpose(effectivePurpose);
       // Override consumed; clear so subsequent submits use real state.
       purposeOverrideRef.current = null;
+      // Personal Deposit safety net: stamp the confirmation timestamp
+      // here if it wasn't already set when the tile was tapped. The DB
+      // constraint `agent_personal_deposit_requires_confirmation` rejects
+      // rows without it, so we never want to send one through unstamped.
+      const effectivePersonalConfirmedAt =
+        isAgent && safePurpose === 'personal_deposit'
+          ? agentPersonalConfirmedAt ?? new Date().toISOString()
+          : null;
+      if (
+        isAgent &&
+        safePurpose === 'personal_deposit' &&
+        !agentPersonalConfirmedAt
+      ) {
+        setAgentPersonalConfirmedAt(effectivePersonalConfirmedAt);
+      }
       // Only flip into the submitting state AFTER the auth check passes —
       // otherwise an unauthed user gets the spinner stuck forever (root
       // cause of the "Confirm deposit button is dead" complaint when a
