@@ -38,9 +38,9 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { investor_id, amount, payment_method, investment_reference, funding_source } = body as {
+    const { investor_id, amount, payment_method, investment_reference, funding_source, investment_date } = body as {
       investor_id?: string; amount?: number; payment_method?: string;
-      investment_reference?: string; funding_source?: string;
+      investment_reference?: string; funding_source?: string; investment_date?: string;
     };
     const fundingSource: 'investor' | 'agent' =
       funding_source === 'agent' ? 'agent' : 'investor';
@@ -51,6 +51,10 @@ Deno.serve(async (req) => {
     }
     if (!amount || typeof amount !== "number" || amount < PRICE_PER_SHARE) {
       return new Response(JSON.stringify({ error: `Minimum investment is UGX ${PRICE_PER_SHARE.toLocaleString()}` }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    if (!investment_date || !/^\d{4}-\d{2}-\d{2}$/.test(investment_date)) {
+      return new Response(JSON.stringify({ error: "investment_date is required (YYYY-MM-DD)" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -105,7 +109,8 @@ Deno.serve(async (req) => {
     const seq = String(Math.floor(1000 + Math.random() * 9000));
     const referenceId = `ANG${yy}${mm}${dd}${seq}`;
 
-    const txDate = new Date().toISOString();
+    // Anchor ledger + email to the agent-supplied investment date (midday UTC to avoid TZ drift).
+    const txDate = new Date(`${investment_date}T12:00:00.000Z`).toISOString();
 
     // 1. Investment: wallet cash_out (from funding user) + platform cash_in (share_capital)
     const { error: investRpcErr } = await adminClient.rpc('create_ledger_transaction', {
@@ -192,9 +197,8 @@ Deno.serve(async (req) => {
         const sold = (postPool || []).reduce((s: number, r: any) => s + r.shares, 0);
         const availableShares = Math.max(0, TOTAL_SHARES - sold);
 
-        const purchaseDate = new Date(txDate).toLocaleString("en-GB", {
-          day: "2-digit", month: "short", year: "numeric",
-          hour: "2-digit", minute: "2-digit", hour12: false,
+        const purchaseDate = new Date(txDate).toLocaleDateString("en-GB", {
+          day: "2-digit", month: "long", year: "numeric",
         });
 
         const { error: emailErr } = await adminClient.functions.invoke("send-transactional-email", {
