@@ -87,7 +87,9 @@ Deno.serve(async (req) => {
     // Create auth user (no password — USSD-only user)
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       phone: toE164(normalizedPhone),
+      email: `${normalizedPhone}@proxy.welile.local`,
       phone_confirm: true,
+      email_confirm: true,
       user_metadata: { full_name: cleanFullName, registered_by_agent: agent_id },
     });
 
