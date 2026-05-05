@@ -225,12 +225,17 @@ Deno.serve(async (req) => {
     const nowIso = new Date().toISOString();
     const entries: any[] = [];
 
+    const ledgerCategory = isRetraction
+      ? 'wallet_deduction_cash_payout_retraction'
+      : (safeCategory === 'general_adjustment'
+          ? 'wallet_deduction_general_adjustment'
+          : 'wallet_deduction');
     if (withdrawablePortion > 0) {
       entries.push({
         user_id: target_user_id,
         amount: withdrawablePortion,
         direction: 'cash_out',
-        category: 'wallet_deduction',
+        category: ledgerCategory,
         ledger_scope: 'wallet',
         description: `Wallet deduction (${safeCategory}): ${reason}`,
         currency: 'UGX',
@@ -242,7 +247,7 @@ Deno.serve(async (req) => {
       entries.push({
         direction: 'cash_in',
         amount: withdrawablePortion,
-        category: 'wallet_deduction',
+        category: ledgerCategory,
         ledger_scope: 'platform',
         description: `Platform receives deduction (${safeCategory}): ${reason}`,
         currency: 'UGX',
