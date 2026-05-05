@@ -1,26 +1,16 @@
 ---
-name: User-facing ledger views must hide admin corrections
-description: Any query that surfaces general_ledger rows to the end user (wallet statements, recent activity, auto-charges, related-entry drawers, agent wallet reports) MUST filter .neq('classification','admin_correction') AND .neq('category','system_balance_correction'). Reconciliation/CFO-correction legs are bookkeeping, not real movements.
+name: User-facing ledger filter
+description: End-user wallet views and balance RPCs filter system_balance_correction ONLY when paired with admin_correction; production reversals stay visible
 type: constraint
 ---
-**Rule.** End-user wallet UIs must not show admin/CFO reconciliation legs. They are bookkeeping corrections that already adjust the strict-withdrawable headline; surfacing them as "transactions" confuses users and erodes trust.
+End-user wallet balance reads (`v_user_wallet_strict`, `get_user_wallet_view`, `get_user_available_balance`, and any frontend `general_ledger` query that drives a user-visible figure) MUST exclude rows that are BOTH `classification = 'admin_correction'` AND `category = 'system_balance_correction'`.
 
-**Why.** The strict `get_user_available_balance` already incorporates admin corrections into the displayed balance. Showing the raw correction legs as line items would double-count the cognitive impact (user sees both "−100,000 wallet correction" and a smaller balance).
+They MUST NOT exclude `system_balance_correction` rows that are classified `production` — those are legitimate operational reversals (e.g., reversing a bogus pending top-up wallet credit, payroll-growth credits) and they have to count toward the user's balance, otherwise the user sees a phantom balance that the cache doesn't have.
 
-**How to apply.** Every Supabase query against `general_ledger` that renders rows to the end user MUST chain:
-```ts
-.neq('classification', 'admin_correction')
-.neq('category', 'system_balance_correction')
-```
+**Why:** Prior to 2026-05-05 the filter was a blanket `category <> 'system_balance_correction'`, which silently dropped production reversals. Real-world impact: tenant LUYIMA SOLOMON SAMUEL (`22f6cdf9-…`) saw UGX 100,000 withdrawable that did not exist — the April 17 production reversal of his parked top-up was being filtered out.
 
-**In scope (already patched 2026-04-30):**
-- `src/components/wallet/WalletStatement.tsx`
-- `src/components/wallet/WalletLedgerStatement.tsx`
-- `src/components/wallet/RecentBalanceChanges.tsx`
-- `src/components/wallet/RecentAutoCharges.tsx`
-- `src/components/wallet/LedgerEntryDetailDrawer.tsx` (related-group fetch)
-- `src/lib/fetchAgentWalletData.ts` (agent wallet PDF report)
+**How to apply:**
+- SQL: `NOT (COALESCE(classification,'') = 'admin_correction' AND COALESCE(category,'') = 'system_balance_correction')`
+- Supabase JS (frontend): `.not('and', '(classification.eq.admin_correction,category.eq.system_balance_correction)')` — or restructure the filter so production-classified corrections survive.
 
-**Explicitly out of scope** (do NOT add the filter): CFO/FinOps/Manager/COO/CEO/CTO/HR dashboards, `LedgerHealthPanel`, `WalletReconciliationAuditPanel`, `LedgerReconciliationPanel`, `MoneyFlowTrace`, `ManagerLedgerSummary`, `ManagerBankingLedger`, `GeneralLedger`, `FinancialTransactionsTable`, `TransactionSearch`, `RentCollectionsFeed`, `AnchoredCacheDriftPanel`, `PhantomDriftPanel`. Operators MUST see corrections to audit them.
-
-**Balance computations** (`computeLedgerAvailable`, `useAgentBalances`, `get_user_available_balance`) are governed separately by the strict-withdrawable rule and the existing `classification IN ('production','legacy_real')` filters — do not add the admin_correction exclusion there or you will hide real corrections from the available-balance math.
+CFO/ops dashboards remain exempt and may include all classifications.

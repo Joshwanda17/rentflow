@@ -105,11 +105,10 @@ export function WalletStatement() {
           .from('general_ledger')
           .select('id, transaction_date, amount, direction, category, description, reference_id, linked_party')
           .eq('user_id', user.id)
-          // Hide admin/CFO reconciliation legs from end users — they are bookkeeping corrections,
-          // not real money movements the user took. The strict-withdrawable rule already accounts
-          // for them in the headline balance.
-          .neq('classification', 'admin_correction')
-          .neq('category', 'system_balance_correction')
+          // Hide admin/CFO reconciliation legs (admin_correction + system_balance_correction)
+          // from end users — they are bookkeeping-only. Production-classified reversals must
+          // remain visible so the statement matches the headline balance.
+          .or('classification.neq.admin_correction,category.neq.system_balance_correction')
           .order('transaction_date', { ascending: true })
           .limit(200),
         supabase.from('profiles').select('full_name').eq('id', user.id).single(),

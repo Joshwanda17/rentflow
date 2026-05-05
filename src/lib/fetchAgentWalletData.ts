@@ -44,9 +44,8 @@ export async function fetchAgentWalletData(agentId: string): Promise<AgentWallet
       .select('id, user_id, amount, direction, category, description, created_at, transaction_group_id, linked_party')
       .eq('user_id', agentId)
       .eq('ledger_scope', 'wallet')
-      // Hide admin/CFO reconciliation legs from end-user wallet reports.
-      .neq('classification', 'admin_correction')
-      .neq('category', 'system_balance_correction')
+      // Hide admin/CFO reconciliation legs only when both flags align.
+      .or('classification.neq.admin_correction,category.neq.system_balance_correction')
       .order('created_at', { ascending: false }),
   ]);
 
