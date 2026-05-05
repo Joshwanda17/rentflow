@@ -137,6 +137,23 @@ export function WithdrawRequestDialog({ open, onOpenChange, walletBalance = 0, o
   const [pendingAmount, setPendingAmount] = useState(0);
   const isSubmittingRef = useRef(false);
   const clientRequestIdRef = useRef<string | null>(null);
+  const amountSectionRef = useRef<HTMLDivElement | null>(null);
+  const payoutSectionRef = useRef<HTMLDivElement | null>(null);
+  const reasonSectionRef = useRef<HTMLDivElement | null>(null);
+  const [pulseTarget, setPulseTarget] = useState<null | 'amount' | 'payout' | 'reason'>(null);
+
+  const focusMissing = () => {
+    let target: 'amount' | 'payout' | 'reason' | null = null;
+    let node: HTMLDivElement | null = null;
+    if (!payoutMode || !isPayoutValid()) { target = 'payout'; node = payoutSectionRef.current; }
+    else if (reason.trim().length < 10) { target = 'reason'; node = reasonSectionRef.current; }
+    else if (amount < 500) { target = 'amount'; node = amountSectionRef.current; }
+    if (node) {
+      node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setPulseTarget(target);
+      setTimeout(() => setPulseTarget(null), 1600);
+    }
+  };
 
   const [payoutMode, setPayoutMode] = useState<PayoutMode | null>(null);
   const [momoNumber, setMomoNumber] = useState('');
