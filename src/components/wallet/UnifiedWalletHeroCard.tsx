@@ -144,6 +144,28 @@ export function UnifiedWalletHeroCard({
               </div>
             </div>
 
+            {/* Commission breakdown — always shown for agents so the agent can
+                see how much of their withdrawable is earned commission vs. other
+                credits (CFO admin, payroll, etc.). Even when commission is 0,
+                we show "Commission · UGX 0" so the agent knows the field
+                exists and isn't hidden by a bug. */}
+            {(commissionBalance !== undefined || otherBalance !== undefined) && (
+              <div className="flex items-center justify-between gap-3 mt-2 px-1 flex-wrap">
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-emerald-300">
+                  <Coins className="h-3 w-3" />
+                  Commission · {formatAmount(commissionBalance ?? 0)}
+                </span>
+                {(otherBalance ?? 0) > 0 && (
+                  <span
+                    className="text-[10px] font-semibold text-amber-300"
+                    title="Funds credited by CFO under a non-commission category. Withdrawable but not counted as earnings."
+                  >
+                    Other · {formatAmount(otherBalance ?? 0)}
+                  </span>
+                )}
+              </div>
+            )}
+
             {/* Total balance row */}
             <div className="flex items-center justify-between mt-3 px-1">
               <span className="text-[10px] uppercase tracking-[0.12em] font-semibold text-primary-foreground/40">Total Balance</span>
