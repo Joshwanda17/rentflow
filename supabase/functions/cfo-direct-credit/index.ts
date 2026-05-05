@@ -80,7 +80,12 @@ Deno.serve(async (req) => {
       'marketing_expense', 'payroll_expense', 'general_admin_expense',
       'research_development_expense', 'tax_expense', 'interest_expense', 'equipment_expense',
     ];
-    const walletCatRaw = ALLOWED_CATEGORIES.includes(wallet_category) ? wallet_category : 'system_balance_correction';
+    // Default the wallet leg to `wallet_deposit` (user-visible) instead of
+    // `system_balance_correction`, which `v_user_wallet_strict` and every
+    // end-user wallet view filter out — that filter caused CFO direct credits
+    // to silently disappear from users' wallets even though the cached
+    // `wallets.balance` updated. See plan: Atuhaire Carolyne 26.5M repair.
+    const walletCatRaw = ALLOWED_CATEGORIES.includes(wallet_category) ? wallet_category : 'wallet_deposit';
     const platformCat = ALLOWED_CATEGORIES.includes(platform_category) ? platform_category : 'system_balance_correction';
 
     // Expense categories (payroll, marketing, tax, etc.) describe the PLATFORM
@@ -93,8 +98,12 @@ Deno.serve(async (req) => {
       'marketing_expense', 'payroll_expense', 'general_admin_expense',
       'research_development_expense', 'tax_expense', 'interest_expense', 'equipment_expense',
     ]);
+    // For credits, expense categories describe the platform leg only; the
+    // recipient's wallet leg must use a user-visible deposit category so the
+    // strict ledger view (which filters out system_balance_correction) shows
+    // the funds.
     const walletCat = (operation !== 'debit' && EXPENSE_CATEGORIES.has(walletCatRaw))
-      ? 'system_balance_correction'
+      ? 'wallet_deposit'
       : walletCatRaw;
     const impact = ['revenue', 'expense', 'neutral'].includes(financial_impact) ? financial_impact : 'neutral';
 
