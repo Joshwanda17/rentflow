@@ -15667,6 +15667,10 @@ export type Database = {
         Args: { p_reason: string; p_user_id: string }
         Returns: Json
       }
+      reseed_wallets_to_cached_balance: {
+        Args: { p_dry_run?: boolean; p_max_users?: number }
+        Returns: Json
+      }
       reset_agent_float_if_stale: {
         Args: { p_agent_id: string }
         Returns: undefined
