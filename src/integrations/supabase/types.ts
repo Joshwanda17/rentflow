@@ -15300,6 +15300,28 @@ export type Database = {
       get_wallet_totals: { Args: never; Returns: Json }
       get_wallet_totals_strict: { Args: never; Returns: Json }
       get_withdrawable_total: { Args: { p_user_id: string }; Returns: number }
+      get_withdrawal_history: {
+        Args: { p_limit?: number; p_offset?: number; p_search?: string }
+        Returns: {
+          amount: number
+          balance_after: number
+          balance_before: number
+          bank_account_number: string
+          bank_name: string
+          created_at: string
+          mobile_money_number: string
+          mobile_money_provider: string
+          payout_method: string
+          processed_at: string
+          status: string
+          total_count: number
+          transaction_id: string
+          user_id: string
+          user_name: string
+          user_phone: string
+          withdrawal_id: string
+        }[]
+      }
       has_agent_capability: {
         Args: { _agent_id: string; _capability: string }
         Returns: boolean
