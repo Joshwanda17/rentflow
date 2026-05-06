@@ -13,7 +13,7 @@ export default function MaintenanceLockScreen() {
   const [bypass, setBypass] = useState(false);
   const [queryBypass, setQueryBypass] = useState(false);
   const [message, setMessage] = useState(
-    'Welile is temporarily locked while we reconcile the platform. No actions, dashboards, or sign-ins are available right now. Please check back shortly.',
+    'Welile is currently under scheduled maintenance. All services are temporarily unavailable as we complete system improvements and reconciliation. Normal operations will resume shortly.',
   );
 
   useEffect(() => {
@@ -100,6 +100,26 @@ export default function MaintenanceLockScreen() {
         </h1>
         <p className="text-base sm:text-lg text-white/90 leading-relaxed">
           {message}
+        </p>
+        <div className="text-sm sm:text-base text-white/95 leading-relaxed space-y-2 bg-white/10 rounded-xl p-4 backdrop-blur">
+          <p className="font-semibold uppercase tracking-wider text-xs text-white/80">
+            For assistance or urgent inquiries
+          </p>
+          <p>
+            <span className="font-semibold">Agents:</span> Contact Grace Paul at{' '}
+            <a href="tel:+256700212384" className="underline font-semibold">
+              +256 700 212384
+            </a>
+          </p>
+          <p>
+            <span className="font-semibold">Partners &amp; Funders:</span> Contact Joseph at{' '}
+            <a href="tel:+256751424629" className="underline font-semibold">
+              +256 751 424629
+            </a>
+          </p>
+        </div>
+        <p className="text-sm text-white/80 italic">
+          Thank you for your patience and understanding.
         </p>
         <div className="text-xs uppercase tracking-[0.25em] text-white/70">
           All dashboards · sign-ins · sign-ups · transactions are locked
