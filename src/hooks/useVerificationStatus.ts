@@ -40,7 +40,7 @@ export function useVerificationStatus(userId: string | undefined) {
           // Agent (extended): listed houses
           supabase.from('house_listings').select('id', { count: 'exact', head: true }).eq('agent_id', userId),
           // Agent (extended): landlord float allocations
-          supabase.from('landlord_float_allocations').select('id', { count: 'exact', head: true }).eq('agent_id', userId),
+          supabase.from('agent_landlord_float_allocations').select('id', { count: 'exact', head: true }).eq('agent_id', userId),
           // Agent (extended): logged agent visits
           supabase.from('agent_visits').select('id', { count: 'exact', head: true }).eq('agent_id', userId),
           // Agent (extended): referrer of an active profile
