@@ -108,6 +108,24 @@ Deno.serve(async (req) => {
     const cacheWithdrawable = Math.max(0, Number(wallet.withdrawable_balance ?? 0));
     const cacheFloat = Math.max(0, Number(wallet.float_balance ?? 0));
 
+    // ── Pivot guard (Phase 1): block if wallet cache disagrees with the
+    // independently-computed pivot beyond threshold. Outgoing-only check.
+    {
+      const { data: pivotCheck, error: pivotErr } = await adminClient.rpc(
+        'validate_wallet_against_pivot',
+        { p_user_id: target_user_id },
+      );
+      if (pivotErr) {
+        console.error('[wallet-deduction] pivot validate failed', pivotErr);
+      } else if (pivotCheck && (pivotCheck as { ok?: boolean }).ok === false) {
+        console.error('[wallet-deduction] BALANCE_MISMATCH', pivotCheck);
+        return new Response(
+          JSON.stringify({ error: 'BALANCE_MISMATCH', detail: pivotCheck }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+    }
+
     // CFO/FinOps deductions can only pull ledger-backed withdrawable funds.
     // Float is company money owed to the user, so it is shown separately in
     // the UI but never counted as deductible.
