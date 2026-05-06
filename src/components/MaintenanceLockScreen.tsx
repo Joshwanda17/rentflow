@@ -10,6 +10,7 @@ interface ControlRow {
 
 export default function MaintenanceLockScreen() {
   const [active, setActive] = useState(false);
+  const [bypass, setBypass] = useState(false);
   const [message, setMessage] = useState(
     'Welile is temporarily locked while we reconcile the platform. No actions, dashboards, or sign-ins are available right now. Please check back shortly.',
   );
@@ -36,7 +37,32 @@ export default function MaintenanceLockScreen() {
     };
   }, []);
 
-  if (!active) return null;
+  // CTO (and super_admin) bypass — they need access during maintenance to
+  // diagnose and resolve the very issue that triggered the lock.
+  useEffect(() => {
+    let cancelled = false;
+    const checkBypass = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        if (!cancelled) setBypass(false);
+        return;
+      }
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .in('role', ['cto', 'super_admin']);
+      if (!cancelled) setBypass(!!data && data.length > 0);
+    };
+    checkBypass();
+    const t = setInterval(checkBypass, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, []);
+
+  if (!active || bypass) return null;
 
   return (
     <div
