@@ -29,6 +29,7 @@ import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
 import RentRequestStatusTracker from '@/components/agent/RentRequestStatusTracker';
+import { useSmartLocation } from '@/hooks/useSmartLocation';
 
 interface RegisterTenantDialogProps {
   open: boolean;
@@ -41,7 +42,7 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [createdRentRequestId, setCreatedRentRequestId] = useState<string | null>(null);
-  const [capturingLocation, setCapturingLocation] = useState(false);
+  const { capture: captureSmart, loading: capturingLocation } = useSmartLocation();
   const [nationalIdError, setNationalIdError] = useState('');
   
   // Tenant info
@@ -104,26 +105,19 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
     }
   };
 
-  const captureLocation = () => {
-    if (!navigator.geolocation) {
-      toast.error('Geolocation is not supported by your browser');
-      return;
+  const captureLocation = async () => {
+    const result = await captureSmart();
+    if (result.ok) {
+      setLatitude(result.latitude);
+      setLongitude(result.longitude);
+      toast.success(
+        result.source === 'high'
+          ? 'Location captured successfully'
+          : 'Approximate location captured (low accuracy)',
+      );
+    } else {
+      toast.error(result.message);
     }
-    setCapturingLocation(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setLatitude(position.coords.latitude);
-        setLongitude(position.coords.longitude);
-        setCapturingLocation(false);
-        toast.success('Location captured successfully');
-      },
-      (error) => {
-        setCapturingLocation(false);
-        toast.error('Failed to capture location. Please allow location access.');
-        console.error('Geolocation error:', error);
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -170,18 +164,42 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
     setLoading(true);
 
     try {
-      // Provision (or fetch) the tenant via the edge function. Handles
-      // duplicate-national-id checks, profile/auth user creation, role
-      // assignment, and referral linking server-side.
+      // Single atomic call — the edge function provisions the tenant AND
+      // creates the landlord, LC1, and rent request inside one transaction.
+      // If any step fails server-side, the auth user is rolled back.
       const { data: regData, error: regErr } = await invokeEdgeFunction<{
         user_id: string;
         existing: boolean;
+        rent_request_id?: string | null;
       }>('register-tenant', {
         body: {
           full_name: tenantFullName.trim(),
           phone: tenantPhone.trim() || `0${Date.now().toString().slice(-9)}`,
           email: tenantEmail.trim() || undefined,
           national_id: tenantNationalId.trim().toUpperCase(),
+          landlord: {
+            name: landlordName.trim(),
+            phone: landlordPhone.trim(),
+            property_address: propertyAddress.trim(),
+            monthly_rent: parseInt(monthlyRent),
+            mobile_money_number: mobileMoneyNumber.trim() || null,
+            latitude,
+            longitude,
+          },
+          lc1: lc1Name.trim() && lc1Phone.trim() && lc1Village.trim()
+            ? {
+                name: lc1Name.trim(),
+                phone: lc1Phone.trim(),
+                village: lc1Village.trim(),
+              }
+            : null,
+          rent_request: {
+            rent_amount: parseInt(monthlyRent),
+            duration_days: 30,
+            house_category: 'single-room',
+            request_latitude: latitude,
+            request_longitude: longitude,
+          },
         },
         errorTitle: 'Could not register tenant',
       });
@@ -190,99 +208,7 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
         setLoading(false);
         return;
       }
-      const tenantId = regData.user_id;
-
-      // Register landlord for tenant — agent is recorded as registered_by
-      const { data: landlordRow, error: landlordErr } = await supabase
-        .from('landlords')
-        .insert({
-          tenant_id: tenantId,
-          name: landlordName.trim(),
-          phone: landlordPhone.trim(),
-          property_address: propertyAddress.trim(),
-          monthly_rent: parseInt(monthlyRent),
-          mobile_money_number: mobileMoneyNumber.trim() || null,
-          latitude,
-          longitude,
-          location_captured_at: latitude ? new Date().toISOString() : null,
-          location_captured_by: user.id,
-          registered_by: user.id,
-        })
-        .select('id')
-        .single();
-
-      if (landlordErr || !landlordRow) {
-        if (landlordErr?.code === '23505') {
-          toast.error('This tenant already has this landlord registered');
-        } else {
-          toast.error('Failed to save landlord', { description: landlordErr?.message });
-          console.error('Landlord insert error:', landlordErr);
-        }
-        setLoading(false);
-        return;
-      }
-
-      // Save LC1 chairperson if provided
-      let lc1Id: string | null = null;
-      if (lc1Name.trim() && lc1Phone.trim() && lc1Village.trim()) {
-        const { data: existingLc1 } = await supabase
-          .from('lc1_chairpersons')
-          .select('id')
-          .eq('village', lc1Village.trim())
-          .maybeSingle();
-
-        if (existingLc1) {
-          lc1Id = existingLc1.id;
-        } else {
-          const { data: newLc1 } = await supabase.from('lc1_chairpersons').insert({
-            name: lc1Name.trim(),
-            phone: lc1Phone.trim(),
-            village: lc1Village.trim(),
-          }).select('id').single();
-          lc1Id = newLc1?.id ?? null;
-        }
-      }
-
-      // Create the rent_request so the tenant enters the rent pipeline and
-      // the agent receives commission on every payment.
-      const { data: rentRow, error: rentErr } = await supabase
-        .from('rent_requests')
-        .insert({
-          tenant_id: tenantId,
-          agent_id: user.id,
-          landlord_id: landlordRow.id,
-          lc1_id: lc1Id,
-          rent_amount: parseInt(monthlyRent),
-          duration_days: 30,
-          // Formula-derived fields — DB trigger overwrites these.
-          access_fee: 0,
-          request_fee: 0,
-          total_repayment: 0,
-          daily_repayment: 0,
-          status: 'pending',
-          house_category: 'single-room',
-          request_latitude: latitude,
-          request_longitude: longitude,
-        } as any)
-        .select('id')
-        .single();
-
-      if (rentErr) {
-        toast.error('Failed to create rent request', { description: rentErr.message });
-        console.error('Rent request insert error:', rentErr);
-        setLoading(false);
-        return;
-      }
-      setCreatedRentRequestId(rentRow?.id ?? null);
-
-      // Activate rent discount for tenant
-      await supabase
-        .from('profiles')
-        .update({ 
-          rent_discount_active: true,
-          monthly_rent: parseInt(monthlyRent),
-        })
-        .eq('id', tenantId);
+      setCreatedRentRequestId(regData.rent_request_id ?? null);
 
       setSuccess(true);
       toast.success('Tenant registered under landlord! You earn 2% on every rent payment.');
