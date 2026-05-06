@@ -12,6 +12,7 @@ import {
   Navigation, Home, Calendar, Clock,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { captureSmartLocation } from '@/hooks/useSmartLocation';
 
 interface ViewingData {
   id: string;
@@ -53,18 +54,19 @@ export function ViewingCheckinCard({ viewing }: { viewing: ViewingData }) {
     if (!user) return;
     setCheckingIn(true);
     try {
-      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true, timeout: 15000, maximumAge: 0,
-        });
-      });
+      const loc = await captureSmartLocation();
+      if (!loc.ok) {
+        toast.error(loc.message);
+        setCheckingIn(false);
+        return;
+      }
 
       const { data, error } = await supabase.functions.invoke('verify-viewing-checkin', {
         body: {
           action: 'checkin',
           viewing_id: viewing.id,
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
+          latitude: loc.latitude,
+          longitude: loc.longitude,
         },
       });
 
