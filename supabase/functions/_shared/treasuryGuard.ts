@@ -13,20 +13,37 @@ const corsHeaders = {
 export async function checkTreasuryGuard(
   adminClient: any,
   op: GuardOp = "any",
-  callerUserId?: string | null,
+  callerUserIdOrAuthHeader?: string | null,
 ): Promise<Response | null> {
   // CTO / super_admin bypass — they need full capability during maintenance
   // to diagnose and resolve the very issue that triggered the lock.
-  if (callerUserId) {
+  // Accepts a raw user id (UUID) OR an Authorization header ("Bearer <jwt>").
+  if (callerUserIdOrAuthHeader) {
     try {
-      const { data: roles } = await adminClient
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", callerUserId)
-        .in("role", ["cto", "super_admin"]);
-      if (roles && roles.length > 0) return null;
+      const v = callerUserIdOrAuthHeader.trim();
+      const isUuid =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+      let userId: string | null = null;
+      if (isUuid) {
+        userId = v;
+      } else {
+        const token = v.replace(/^Bearer\s+/i, "");
+        const { data: userData } = await adminClient.auth.getUser(token);
+        userId = userData?.user?.id ?? null;
+      }
+      if (userId) {
+        const { data: roles } = await adminClient
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userId)
+          .in("role", ["cto", "super_admin"]);
+        if (roles && roles.length > 0) {
+          console.log("[treasuryGuard] bypass granted for", userId);
+          return null;
+        }
+      }
     } catch (e) {
-      console.warn("[treasuryGuard] bypass role lookup failed", e);
+      console.warn("[treasuryGuard] bypass lookup failed", e);
     }
   }
 
