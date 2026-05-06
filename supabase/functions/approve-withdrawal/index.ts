@@ -501,6 +501,27 @@ Deno.serve(async (req) => {
     }
 
     const idempotencyKey = `approve-withdrawal-${withdrawal_id}`;
+    // ── Pivot guard: block if wallet cache disagrees with ledger-derived pivot ──
+    {
+      const { data: pivotCheck, error: pivotErr } = await admin.rpc(
+        "validate_wallet_against_pivot",
+        { p_user_id: fundingUserId },
+      );
+      if (pivotErr) {
+        console.error("[approve-withdrawal] pivot validate failed", pivotErr);
+      } else if (pivotCheck && (pivotCheck as { ok?: boolean }).ok === false) {
+        console.error("[approve-withdrawal] BALANCE_MISMATCH", pivotCheck);
+        await auditFailedWithdrawalAttempt(
+          "Wallet/pivot drift exceeds threshold; withdrawal blocked.",
+          "BALANCE_MISMATCH",
+        );
+        return new Response(
+          JSON.stringify({ error: "BALANCE_MISMATCH", detail: pivotCheck }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+
     const { data: txnGroupId, error: ledgerErr } = await admin.rpc("create_ledger_transaction", {
       entries: [
         ...debitEntries,
