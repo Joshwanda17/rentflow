@@ -107,7 +107,7 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
 
   const captureLocation = async () => {
     const result = await captureSmart();
-    if (result.ok) {
+    if (result.ok === true) {
       setLatitude(result.latitude);
       setLongitude(result.longitude);
       toast.success(
@@ -115,9 +115,9 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
           ? 'Location captured successfully'
           : 'Approximate location captured (low accuracy)',
       );
-    } else {
-      toast.error(result.message);
+      return;
     }
+    toast.error(result.message);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
