@@ -169,11 +169,19 @@ Deno.serve(async (req) => {
       if (pivotErr) {
         console.error('[agent-withdrawal] pivot validate failed', pivotErr);
       } else if (pivotCheck && (pivotCheck as { ok?: boolean }).ok === false) {
-        console.error('[agent-withdrawal] BALANCE_MISMATCH', pivotCheck);
-        return new Response(
-          JSON.stringify({ error: 'BALANCE_MISMATCH', detail: pivotCheck }),
-          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        console.warn('[agent-withdrawal] pivot mismatch — attempting self-heal', pivotCheck);
+        await adminClient.rpc('reconcile_wallet_from_pivot', { p_user_id: targetUserId });
+        const { data: recheck } = await adminClient.rpc(
+          'validate_wallet_against_pivot',
+          { p_user_id: targetUserId },
         );
+        if (recheck && (recheck as { ok?: boolean }).ok === false) {
+          console.error('[agent-withdrawal] BALANCE_MISMATCH after self-heal', recheck);
+          return new Response(
+            JSON.stringify({ error: 'BALANCE_MISMATCH', detail: recheck }),
+            { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          );
+        }
       }
     }
 
