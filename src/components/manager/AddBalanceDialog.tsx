@@ -75,7 +75,10 @@ export default function AddBalanceDialog({
       if (!wallet) {
         const { data: newWallet, error: createError } = await supabase
           .from('wallets')
-          .insert({ user_id: userId, balance: 0 })
+          // `wallets` is now a view backed by an INSTEAD OF trigger that routes
+          // INSERTs to wallets_physical. Generated types mark views read-only,
+          // so cast through `any` to keep the (still-functional) write.
+          .insert({ user_id: userId, balance: 0 } as any)
           .select('id, balance')
           .single();
         if (createError) throw createError;
