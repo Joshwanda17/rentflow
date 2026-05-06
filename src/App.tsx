@@ -36,6 +36,7 @@ const FeatureFlagsProvider = lazyWithRetry(() => import("@/contexts/FeatureFlags
 const Toaster = lazyWithRetry(() => import("@/components/ui/toaster").then(m => ({ default: m.Toaster })));
 const SonnerToaster = lazyWithRetry(() => import("@/components/ui/sonner").then(m => ({ default: m.Toaster })));
 import MaintenanceBanner from "@/components/MaintenanceBanner";
+import MaintenanceLockScreen from "@/components/MaintenanceLockScreen";
 
 const DeferredExtras = lazyWithRetry(() => import("@/components/DeferredExtras"));
 const FloatingToolbar = lazyWithRetry(() => import("@/components/FloatingToolbar"));
@@ -516,6 +517,7 @@ const App = () => {
                       <DeferredProviders>
                         <MaintenanceBanner />
                         <AppRoutes />
+                        <MaintenanceLockScreen />
                       </DeferredProviders>
                       <Suspense fallback={null}>
                         <DeferredExtras />

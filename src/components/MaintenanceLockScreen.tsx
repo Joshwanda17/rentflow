@@ -1,0 +1,63 @@
+import { useEffect, useState } from 'react';
+import { Lock } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+
+interface ControlRow {
+  control_key: string;
+  enabled: boolean;
+  value: string | null;
+}
+
+export default function MaintenanceLockScreen() {
+  const [active, setActive] = useState(false);
+  const [message, setMessage] = useState(
+    'Welile is temporarily locked while we reconcile the platform. No actions, dashboards, or sign-ins are available right now. Please check back shortly.',
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const { data } = await supabase
+        .from('treasury_controls')
+        .select('control_key, enabled, value')
+        .in('control_key', ['maintenance_mode', 'maintenance_message']);
+      if (cancelled || !data) return;
+      const rows = data as ControlRow[];
+      const mode = rows.find((r) => r.control_key === 'maintenance_mode');
+      const msg = rows.find((r) => r.control_key === 'maintenance_message');
+      setActive(!!mode?.enabled);
+      if (msg?.value) setMessage(msg.value);
+    };
+    load();
+    const t = setInterval(load, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, []);
+
+  if (!active) return null;
+
+  return (
+    <div
+      role="alertdialog"
+      aria-modal="true"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-purple-700 text-white px-6 py-10 overflow-auto"
+    >
+      <div className="max-w-lg w-full text-center space-y-6">
+        <div className="mx-auto h-20 w-20 rounded-full bg-white/15 flex items-center justify-center backdrop-blur">
+          <Lock className="h-10 w-10" />
+        </div>
+        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
+          Welile is under maintenance
+        </h1>
+        <p className="text-base sm:text-lg text-white/90 leading-relaxed">
+          {message}
+        </p>
+        <div className="text-xs uppercase tracking-[0.25em] text-white/70">
+          All dashboards · sign-ins · sign-ups · transactions are locked
+        </div>
+      </div>
+    </div>
+  );
+}
