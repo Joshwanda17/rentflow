@@ -255,7 +255,7 @@ Deno.serve(async (req) => {
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
     // Treasury guard: agent deposits credit user wallets — block when paused
-    const guardBlock = await checkTreasuryGuard(adminClient, "credit");
+    const guardBlock = await checkTreasuryGuard(adminClient, "credit", req.headers.get("Authorization"));
     if (guardBlock) return guardBlock;
 
     // Verify agent role

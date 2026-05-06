@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
     const admin = createClient(supabaseUrl, serviceKey);
 
     // Treasury guard: rejection refunds (credits) the user wallet — block when paused
-    const guardBlock = await checkTreasuryGuard(admin, "credit");
+    const guardBlock = await checkTreasuryGuard(admin, "credit", req.headers.get("Authorization"));
     if (guardBlock) return guardBlock;
 
     // Verify caller has operations/manager/cfo role

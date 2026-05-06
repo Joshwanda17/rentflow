@@ -221,7 +221,7 @@ Deno.serve(async (req) => {
     }
 
     // Treasury guard: block credits when paused (deposits credit user wallets)
-    const guardBlock = await checkTreasuryGuard(supabaseAdmin, "credit");
+    const guardBlock = await checkTreasuryGuard(supabaseAdmin, "credit", req.headers.get("Authorization"));
     if (guardBlock) return guardBlock;
 
     const { data: isManagerRole } = await supabaseAdmin

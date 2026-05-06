@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
     // Treasury guard: block debits when paused
-    const guardBlock = await checkTreasuryGuard(adminClient, "debit");
+    const guardBlock = await checkTreasuryGuard(adminClient, "debit", req.headers.get("Authorization"));
     if (guardBlock) return guardBlock;
     const { data: roles } = await adminClient
       .from("user_roles")
