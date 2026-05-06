@@ -7319,6 +7319,27 @@ export type Database = {
           },
         ]
       }
+      ledger_balance_pivot: {
+        Row: {
+          balance_sum: number
+          bucket: string
+          last_updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance_sum?: number
+          bucket: string
+          last_updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance_sum?: number
+          bucket?: string
+          last_updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ledger_entries: {
         Row: {
           account_id: string
@@ -14547,6 +14568,21 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_pivot_drift_view: {
+        Row: {
+          advance_drift: number | null
+          cache_advance: number | null
+          cache_float: number | null
+          cache_withdrawable: number | null
+          float_drift: number | null
+          pivot_advance: number | null
+          pivot_float: number | null
+          pivot_withdrawable: number | null
+          user_id: string | null
+          withdrawable_drift: number | null
+        }
+        Relationships: []
+      }
       wallet_strict_drift_view: {
         Row: {
           cached_advance: number | null
@@ -15612,6 +15648,14 @@ export type Database = {
       reconcile_wallet_from_ledger:
         | { Args: { p_user_id: string }; Returns: number }
         | { Args: { p_reason: string; p_user_id: string }; Returns: Json }
+      reconcile_wallet_from_pivot: {
+        Args: { p_threshold?: number; p_user_id: string }
+        Returns: Json
+      }
+      reconcile_wallets_batch: {
+        Args: { p_limit?: number; p_threshold?: number }
+        Returns: Json
+      }
       record_double_entry: {
         Args: {
           p_amount: number
@@ -15860,6 +15904,10 @@ export type Database = {
       validate_treasury_action: {
         Args: { action_type: string; p_amount: number; p_user_id?: string }
         Returns: boolean
+      }
+      validate_wallet_against_pivot: {
+        Args: { p_threshold?: number; p_user_id: string }
+        Returns: Json
       }
       verify_staff_access_password: {
         Args: { p_password: string; p_user_id: string }
