@@ -11,6 +11,7 @@ import { calculateRentRepayment, formatUGX, ACCESS_FEE_RATES, calculateInstalmen
 import { generateRepaymentSchedule, insertRepaymentSchedule } from '@/lib/scheduleUtils';
 import { useToast } from '@/hooks/use-toast';
 import { optimizeImage } from '@/lib/imageOptimizer';
+import { useSmartLocation, captureSmartLocation } from '@/hooks/useSmartLocation';
 
 interface RentRequestFormProps {
   userId: string;
@@ -63,25 +64,22 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
 
   // GPS & Photos
   const [propertyGps, setPropertyGps] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
-  const [gpsLoading, setGpsLoading] = useState(false);
+  const { capture: captureGps, loading: gpsLoading } = useSmartLocation();
   const [housePhotos, setHousePhotos] = useState<{ file: File; preview: string }[]>([]);
 
-  const capturePropertyGPS = useCallback(() => {
-    if (!navigator.geolocation) { toast({ title: 'GPS not supported', variant: 'destructive' }); return; }
-    setGpsLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setPropertyGps({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy });
-        setGpsLoading(false);
-        toast({ title: '📍 Property GPS captured!' });
-      },
-      (err) => {
-        setGpsLoading(false);
-        toast({ title: err.code === 1 ? 'Location permission denied' : 'Could not get GPS', variant: 'destructive' });
-      },
-      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
-    );
-  }, [toast]);
+  const capturePropertyGPS = useCallback(async () => {
+    const result = await captureGps();
+    if (result.ok === true) {
+      setPropertyGps({ lat: result.latitude, lng: result.longitude, accuracy: result.accuracy });
+      toast({
+        title: result.source === 'high'
+          ? '📍 Property GPS captured!'
+          : '📍 Approximate GPS captured (low accuracy)',
+      });
+    } else {
+      toast({ title: result.message, variant: 'destructive' });
+    }
+  }, [captureGps, toast]);
 
   const handlePhotoAdd = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -218,18 +216,12 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
     let requestCountry: string | null = null;
     
     if (!requestLat) {
-      try {
-        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: true,
-            timeout: 5000,
-            maximumAge: 60000,
-          });
-        });
-        requestLat = position.coords.latitude;
-        requestLon = position.coords.longitude;
-      } catch (locErr) {
-        console.warn('Could not capture location for rent request:', locErr);
+      const auto = await captureSmartLocation();
+      if (auto.ok === true) {
+        requestLat = auto.latitude;
+        requestLon = auto.longitude;
+      } else {
+        console.warn('Could not capture location for rent request:', auto.reason, auto.message);
       }
     }
     

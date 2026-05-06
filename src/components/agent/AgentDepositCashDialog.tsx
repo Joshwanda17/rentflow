@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +27,7 @@ const USSD_DIAL: Record<string, string> = {
 export function AgentDepositCashDialog({ open, onOpenChange, onSuccess }: AgentDepositCashDialogProps) {
   const { profile } = useProfile();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [amount, setAmount] = useState('');
   const [depositType, setDepositType] = useState<DepositType>('float');
   const [method, setMethod] = useState<'mtn' | 'airtel' | 'bank'>('mtn');
@@ -71,6 +73,17 @@ export function AgentDepositCashDialog({ open, onOpenChange, onSuccess }: AgentD
 
     setLoading(false);
     setSuccess(true);
+    // STRICT LEDGER REFRESH: never trust local state — invalidate every wallet-derived query
+    // so the UI re-reads from `wallets` (which is now the ledger-backed view). No optimistic
+    // setBalance / manual balance mutation is performed here.
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['wallets'] }),
+      queryClient.invalidateQueries({ queryKey: ['wallet'] }),
+      queryClient.invalidateQueries({ queryKey: ['agent-balances'] }),
+      queryClient.invalidateQueries({ queryKey: ['user-available-balance'] }),
+      queryClient.invalidateQueries({ queryKey: ['v_user_wallet_strict'] }),
+      queryClient.invalidateQueries({ queryKey: ['agent_float_limits'] }),
+    ]);
     toast({ 
       title: depositType === 'float' 
         ? 'Float deposit recorded! Float capacity restored.' 
