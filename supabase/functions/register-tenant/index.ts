@@ -39,8 +39,43 @@ Deno.serve(async (req) => {
 
   console.log("[register-tenant] Function invoked");
 
+  // Tracks resources we created so we can roll them back if a later step fails.
+  const rollback = {
+    authUserId: null as string | null,
+    landlordId: null as string | null,
+    lc1Id: null as string | null, // only set when WE created it (not reused)
+    rentRequestId: null as string | null,
+  };
+
+  let supabaseAdmin: ReturnType<typeof createClient> | null = null;
+
+  async function performRollback(reason: string) {
+    console.error(`[register-tenant] Rolling back due to: ${reason}`);
+    if (!supabaseAdmin) return;
+    try {
+      if (rollback.rentRequestId) {
+        await supabaseAdmin.from("rent_requests").delete().eq("id", rollback.rentRequestId);
+      }
+      if (rollback.landlordId) {
+        await supabaseAdmin.from("landlords").delete().eq("id", rollback.landlordId);
+      }
+      if (rollback.lc1Id) {
+        await supabaseAdmin.from("lc1_chairpersons").delete().eq("id", rollback.lc1Id);
+      }
+      if (rollback.authUserId) {
+        // Profile/role rows cascade or will be ignored if they reference a missing user;
+        // we explicitly clean profile to avoid orphan FK rows.
+        await supabaseAdmin.from("profiles").delete().eq("id", rollback.authUserId);
+        await supabaseAdmin.from("user_roles").delete().eq("user_id", rollback.authUserId);
+        await supabaseAdmin.auth.admin.deleteUser(rollback.authUserId);
+      }
+    } catch (cleanupErr) {
+      console.error("[register-tenant] Rollback partially failed:", cleanupErr);
+    }
+  }
+
   try {
-    const supabaseAdmin = createClient(
+    supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
@@ -72,7 +107,10 @@ Deno.serve(async (req) => {
     }
 
     const { full_name: rawName, phone: rawPhone, email: rawEmail, national_id: rawNationalId } = body as Record<string, unknown>;
-    console.log("[register-tenant] Input:", { rawName, rawPhone, rawNationalId });
+    const landlordPayload = (body as any)?.landlord ?? null;
+    const lc1Payload = (body as any)?.lc1 ?? null;
+    const rentRequestPayload = (body as any)?.rent_request ?? null;
+    console.log("[register-tenant] Input:", { rawName, rawPhone, rawNationalId, hasLandlord: !!landlordPayload });
 
     const nameCheck = validateFullName(rawName);
     const full_name = nameCheck.valid ? nameCheck.trimmed : null;
@@ -179,6 +217,7 @@ Deno.serve(async (req) => {
     }
 
     const userId = authData.user.id;
+    rollback.authUserId = userId;
     console.log("[register-tenant] Created auth user:", userId);
 
     // Update profile (trigger should have created it).
@@ -191,6 +230,10 @@ Deno.serve(async (req) => {
     
     if (profileErr) {
       console.error("[register-tenant] Profile update error:", profileErr.message);
+      await performRollback(`profile update: ${profileErr.message}`);
+      return new Response(JSON.stringify({ error: `Failed to write tenant profile: ${profileErr.message}` }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Assign tenant role
@@ -200,6 +243,10 @@ Deno.serve(async (req) => {
     
     if (roleErr) {
       console.error("[register-tenant] Role upsert error:", roleErr.message);
+      await performRollback(`role assign: ${roleErr.message}`);
+      return new Response(JSON.stringify({ error: `Failed to assign tenant role: ${roleErr.message}` }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Create referral link between agent and tenant
@@ -209,6 +256,118 @@ Deno.serve(async (req) => {
       .then(({ error }) => {
         if (error) console.log("[register-tenant] Referral upsert (non-critical):", error.message);
       });
+
+    // ---------- Atomic landlord + LC1 + rent_request provisioning ----------
+    let createdRentRequestId: string | null = null;
+
+    if (landlordPayload && typeof landlordPayload === 'object') {
+      const monthlyRentNum = Number(landlordPayload.monthly_rent);
+      if (!Number.isFinite(monthlyRentNum) || monthlyRentNum <= 0) {
+        await performRollback('invalid landlord.monthly_rent');
+        return new Response(JSON.stringify({ error: 'Invalid monthly rent amount' }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: landlordRow, error: landlordErr } = await supabaseAdmin
+        .from('landlords')
+        .insert({
+          tenant_id: userId,
+          name: String(landlordPayload.name ?? '').trim(),
+          phone: String(landlordPayload.phone ?? '').trim(),
+          property_address: String(landlordPayload.property_address ?? '').trim(),
+          monthly_rent: monthlyRentNum,
+          mobile_money_number: landlordPayload.mobile_money_number ?? null,
+          latitude: landlordPayload.latitude ?? null,
+          longitude: landlordPayload.longitude ?? null,
+          location_captured_at: landlordPayload.latitude ? new Date().toISOString() : null,
+          location_captured_by: callingUser.id,
+          registered_by: callingUser.id,
+        })
+        .select('id')
+        .single();
+
+      if (landlordErr || !landlordRow) {
+        await performRollback(`landlord insert: ${landlordErr?.message}`);
+        const msg = landlordErr?.code === '23505'
+          ? 'This tenant already has this landlord registered'
+          : `Failed to save landlord: ${landlordErr?.message ?? 'unknown'}`;
+        return new Response(JSON.stringify({ error: msg }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      rollback.landlordId = landlordRow.id;
+
+      // LC1 (optional): reuse existing village row, otherwise create.
+      let lc1Id: string | null = null;
+      if (lc1Payload && lc1Payload.name && lc1Payload.phone && lc1Payload.village) {
+        const village = String(lc1Payload.village).trim();
+        const { data: existingLc1 } = await supabaseAdmin
+          .from('lc1_chairpersons')
+          .select('id')
+          .eq('village', village)
+          .maybeSingle();
+        if (existingLc1) {
+          lc1Id = existingLc1.id;
+        } else {
+          const { data: newLc1, error: lc1Err } = await supabaseAdmin
+            .from('lc1_chairpersons')
+            .insert({
+              name: String(lc1Payload.name).trim(),
+              phone: String(lc1Payload.phone).trim(),
+              village,
+            })
+            .select('id')
+            .single();
+          if (lc1Err || !newLc1) {
+            await performRollback(`lc1 insert: ${lc1Err?.message}`);
+            return new Response(JSON.stringify({ error: `Failed to save LC1: ${lc1Err?.message ?? 'unknown'}` }), {
+              status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          lc1Id = newLc1.id;
+          rollback.lc1Id = newLc1.id;
+        }
+      }
+
+      // Rent request (the agent earns commission on every payment).
+      const rr = rentRequestPayload && typeof rentRequestPayload === 'object' ? rentRequestPayload : {};
+      const { data: rentRow, error: rentErr } = await supabaseAdmin
+        .from('rent_requests')
+        .insert({
+          tenant_id: userId,
+          agent_id: callingUser.id,
+          landlord_id: landlordRow.id,
+          lc1_id: lc1Id,
+          rent_amount: Number(rr.rent_amount ?? monthlyRentNum),
+          duration_days: Number(rr.duration_days ?? 30),
+          access_fee: 0,
+          request_fee: 0,
+          total_repayment: 0,
+          daily_repayment: 0,
+          status: 'pending',
+          house_category: rr.house_category ?? 'single-room',
+          request_latitude: rr.request_latitude ?? landlordPayload.latitude ?? null,
+          request_longitude: rr.request_longitude ?? landlordPayload.longitude ?? null,
+        } as any)
+        .select('id')
+        .single();
+
+      if (rentErr || !rentRow) {
+        await performRollback(`rent_request insert: ${rentErr?.message}`);
+        return new Response(JSON.stringify({ error: `Failed to create rent request: ${rentErr?.message ?? 'unknown'}` }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      createdRentRequestId = rentRow.id;
+      rollback.rentRequestId = rentRow.id;
+
+      // Activate rent discount on the tenant profile.
+      await supabaseAdmin
+        .from('profiles')
+        .update({ rent_discount_active: true, monthly_rent: monthlyRentNum })
+        .eq('id', userId);
+    }
 
     // Create activation invite so the tenant can claim their account later
     const activationToken = crypto.randomUUID();
@@ -248,12 +407,14 @@ Deno.serve(async (req) => {
       existing: false,
       activation_token: activationToken,
       temp_password: tempPassword,
+      rent_request_id: createdRentRequestId,
     }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
   } catch (error) {
     console.error("[register-tenant] Unhandled error:", error?.message || error);
+    await performRollback(`unhandled: ${error?.message ?? 'unknown'}`);
     return new Response(JSON.stringify({ error: `Service error: ${error?.message || 'Unknown'}` }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
