@@ -13,7 +13,23 @@ const corsHeaders = {
 export async function checkTreasuryGuard(
   adminClient: any,
   op: GuardOp = "any",
+  callerUserId?: string | null,
 ): Promise<Response | null> {
+  // CTO / super_admin bypass — they need full capability during maintenance
+  // to diagnose and resolve the very issue that triggered the lock.
+  if (callerUserId) {
+    try {
+      const { data: roles } = await adminClient
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", callerUserId)
+        .in("role", ["cto", "super_admin"]);
+      if (roles && roles.length > 0) return null;
+    } catch (e) {
+      console.warn("[treasuryGuard] bypass role lookup failed", e);
+    }
+  }
+
   const { data, error } = await adminClient
     .from("treasury_controls")
     .select("control_key, enabled, value")
