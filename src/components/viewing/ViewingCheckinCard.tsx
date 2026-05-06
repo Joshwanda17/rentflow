@@ -55,7 +55,7 @@ export function ViewingCheckinCard({ viewing }: { viewing: ViewingData }) {
     setCheckingIn(true);
     try {
       const loc = await captureSmartLocation();
-      if (!loc.ok) {
+      if (loc.ok !== true) {
         toast.error(loc.message);
         setCheckingIn(false);
         return;
