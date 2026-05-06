@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
     const serviceClient = createClient(supabaseUrl, serviceKey)
 
     // Treasury guard: disbursement moves money — block when paused
-    const guardBlock = await checkTreasuryGuard(serviceClient, "any")
+    const guardBlock = await checkTreasuryGuard(serviceClient, "any", req.headers.get("Authorization"))
     if (guardBlock) return guardBlock
     const { data: roles } = await serviceClient
       .from('user_roles')

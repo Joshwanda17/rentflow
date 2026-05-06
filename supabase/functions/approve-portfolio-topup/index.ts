@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceKey);
 
     // Treasury guard: approving top-ups parks/credits funds — block when paused
-    const guardBlock = await checkTreasuryGuard(supabase, "credit");
+    const guardBlock = await checkTreasuryGuard(supabase, "credit", req.headers.get("Authorization"));
     if (guardBlock) return guardBlock;
 
     // Authenticate caller

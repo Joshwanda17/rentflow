@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
 
     const service = createClient(supabaseUrl, serviceKey);
 
-    const guard = await checkTreasuryGuard(service, 'any');
+    const guard = await checkTreasuryGuard(service, 'any', req.headers.get("Authorization"));
     if (guard) return guard;
 
     const body = await req.json();

@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
     const adminClient = createClient(supabaseUrl, serviceKey);
 
     // Treasury guard: platform-to-agent transfers move money — block when paused
-    const guardBlock = await checkTreasuryGuard(adminClient, "any");
+    const guardBlock = await checkTreasuryGuard(adminClient, "any", req.headers.get("Authorization"));
     if (guardBlock) return guardBlock;
 
     const { data: roles } = await adminClient.from('user_roles').select('role').eq('user_id', user.id);
