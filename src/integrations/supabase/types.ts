@@ -9782,6 +9782,13 @@ export type Database = {
             referencedRelation: "wallets"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "profiles_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets_physical"
+            referencedColumns: ["id"]
+          },
         ]
       }
       promissory_notes: {
@@ -13905,7 +13912,7 @@ export type Database = {
         }
         Relationships: []
       }
-      wallets: {
+      wallets_physical: {
         Row: {
           advance_balance: number
           balance: number
@@ -14595,6 +14602,21 @@ export type Database = {
           strict_withdrawable: number | null
           user_id: string | null
           wallet_ledger_net: number | null
+        }
+        Relationships: []
+      }
+      wallets: {
+        Row: {
+          advance_balance: number | null
+          balance: number | null
+          created_at: string | null
+          currency: string | null
+          float_balance: number | null
+          id: string | null
+          locked_balance: number | null
+          updated_at: string | null
+          user_id: string | null
+          withdrawable_balance: number | null
         }
         Relationships: []
       }
