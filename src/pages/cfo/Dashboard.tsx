@@ -16,15 +16,8 @@ import { AgentCommissionPayoutsManager } from '@/components/manager/AgentCommiss
 import { WithdrawalRequestsManager } from '@/components/manager/WithdrawalRequestsManager';
 import { GeneralLedger } from '@/components/manager/GeneralLedger';
 import { FinancialOverview } from '@/components/manager/FinancialOverview';
-import CFOReconciliationPanel from '@/components/cfo/CFOReconciliationPanel';
-import PhantomDriftPanel from '@/components/cfo/PhantomDriftPanel';
-import WalletReconciliationAuditPanel from '@/components/cfo/WalletReconciliationAuditPanel';
 import WithdrawableDriftAlertsPanel from '@/components/cfo/WithdrawableDriftAlertsPanel';
 import HistoricalDriftReviewPanel from '@/components/cfo/HistoricalDriftReviewPanel';
-import AnchoredCacheDriftPanel from '@/components/cfo/AnchoredCacheDriftPanel';
-import NegativeWalletReconciliationPanel from '@/components/cfo/NegativeWalletReconciliationPanel';
-import CacheSweepPanel from '@/components/cfo/CacheSweepPanel';
-import LedgerReconciliationPanel from '@/components/cfo/LedgerReconciliationPanel';
 
 import { CFOPartnerPayoutProcessing } from '@/components/cfo/CFOPartnerPayoutProcessing';
 import { WithdrawalHistoryStatement } from '@/components/financial-ops/WithdrawalHistoryStatement';
@@ -113,15 +106,8 @@ export default function CFODashboardPage() {
       case 'reconciliation':
         return (
           <div className="space-y-6">
-            <LedgerReconciliationPanel />
-            <NegativeWalletReconciliationPanel />
             <WithdrawableDriftAlertsPanel />
-            <AnchoredCacheDriftPanel />
-            <CacheSweepPanel />
-            <PhantomDriftPanel />
             <HistoricalDriftReviewPanel />
-            <WalletReconciliationAuditPanel />
-            <CFOReconciliationPanel />
           </div>
         );
       case 'ledger':
