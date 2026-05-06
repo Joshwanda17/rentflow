@@ -24,6 +24,10 @@ export function useVerificationStatus(userId: string | undefined) {
           activeRentSubs,
           landlordTenants,
           deployedCapital,
+          houseListingsAgent,
+          floatAllocAgent,
+          agentVisitsAgent,
+          referredProfiles,
         ] = await Promise.all([
           // Agent: has posted ≥1 rent request
           supabase.from('rent_requests').select('id', { count: 'exact', head: true }).eq('agent_id', userId),
@@ -33,6 +37,14 @@ export function useVerificationStatus(userId: string | undefined) {
           supabase.from('landlords').select('id', { count: 'exact', head: true }).eq('tenant_id', userId).eq('verified', true),
           // Supporter: ≥50K deployed
           supabase.from('investor_portfolios').select('investment_amount').eq('investor_id', userId).in('status', ['active', 'pending', 'pending_approval']),
+          // Agent (extended): listed houses
+          supabase.from('house_listings').select('id', { count: 'exact', head: true }).eq('agent_id', userId),
+          // Agent (extended): landlord float allocations
+          supabase.from('landlord_float_allocations').select('id', { count: 'exact', head: true }).eq('agent_id', userId),
+          // Agent (extended): logged agent visits
+          supabase.from('agent_visits').select('id', { count: 'exact', head: true }).eq('agent_id', userId),
+          // Agent (extended): referrer of an active profile
+          supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('referrer_id', userId),
         ]);
 
         // Also check if this user is a landlord with tenants
@@ -44,12 +56,27 @@ export function useVerificationStatus(userId: string | undefined) {
 
         const deployedTotal = (deployedCapital.data || []).reduce((s, p) => s + (p.investment_amount || 0), 0);
 
+        const agentSignals = {
+          rent_requests: rentReqAgent.count ?? 0,
+          house_listings: houseListingsAgent.count ?? 0,
+          float_allocations: floatAllocAgent.count ?? 0,
+          agent_visits: agentVisitsAgent.count ?? 0,
+          referrals: referredProfiles.count ?? 0,
+        };
+        const agentTotal = Object.values(agentSignals).reduce((s, n) => s + n, 0);
+        const isAgent = agentTotal >= 1;
+        const agentReasonParts = Object.entries(agentSignals)
+          .filter(([, n]) => n > 0)
+          .map(([k, n]) => `${n} ${k.replace(/_/g, ' ')}`);
+
         const results: RoleVerification[] = [
           {
             role: 'agent',
             label: 'Verified Agent',
-            verified: (rentReqAgent.count ?? 0) >= 1,
-            reason: (rentReqAgent.count ?? 0) >= 1 ? 'Posted rent requests for tenants' : 'Post 1 rent request for a tenant',
+            verified: isAgent,
+            reason: isAgent
+              ? `Active responsibility: ${agentReasonParts.join(', ')}`
+              : 'Post a rent request, list a house, allocate landlord float, log a visit, or refer a user',
             action: 'Post Rent Request',
           },
           {
