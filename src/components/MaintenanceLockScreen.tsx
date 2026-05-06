@@ -11,6 +11,7 @@ interface ControlRow {
 export default function MaintenanceLockScreen() {
   const [active, setActive] = useState(false);
   const [bypass, setBypass] = useState(false);
+  const [queryBypass, setQueryBypass] = useState(false);
   const [message, setMessage] = useState(
     'Welile is temporarily locked while we reconcile the platform. No actions, dashboards, or sign-ins are available right now. Please check back shortly.',
   );
@@ -35,6 +36,26 @@ export default function MaintenanceLockScreen() {
       cancelled = true;
       clearInterval(t);
     };
+  }, []);
+
+  // Query-string bypass: ?admin=c10 reveals the underlying page (typically
+  // /auth) so a privileged operator can sign in even while maintenance mode
+  // is on. Persisted to sessionStorage so the bypass survives navigations
+  // within the same tab.
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('admin') === 'c10') {
+        sessionStorage.setItem('welile.maintenance.bypass', '1');
+        setQueryBypass(true);
+        return;
+      }
+      if (sessionStorage.getItem('welile.maintenance.bypass') === '1') {
+        setQueryBypass(true);
+      }
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   // CTO (and super_admin) bypass — they need access during maintenance to
@@ -62,7 +83,7 @@ export default function MaintenanceLockScreen() {
     };
   }, []);
 
-  if (!active || bypass) return null;
+  if (!active || bypass || queryBypass) return null;
 
   return (
     <div
