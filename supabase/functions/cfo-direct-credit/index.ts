@@ -17,10 +17,6 @@ Deno.serve(async (req) => {
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
   const adminClient = createClient(supabaseUrl, serviceKey);
 
-  // Treasury guard: block any money movement when paused
-  const guardBlock = await checkTreasuryGuard(adminClient, "any", req.headers.get("Authorization"));
-  if (guardBlock) return guardBlock;
-
   // Fetch shadow config once (cached 60s)
   const shadowConfig = await fetchShadowConfig(adminClient);
 
@@ -44,11 +40,17 @@ Deno.serve(async (req) => {
     }
     const userId = user.id;
 
+    // Treasury guard: block any money movement when paused. Pass the
+    // already-validated caller UUID so CTO / super_admin maintenance bypass is
+    // deterministic and does not depend on bearer-token re-validation.
+    const guardBlock = await checkTreasuryGuard(adminClient, "any", userId);
+    if (guardBlock) return guardBlock;
+
     const { data: roles } = await adminClient
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)
-      .in("role", ["cfo", "manager", "super_admin"]);
+      .in("role", ["cfo", "manager", "super_admin", "cto"]);
 
     if (!roles?.length) {
       return new Response(JSON.stringify({ error: "Insufficient permissions" }), {

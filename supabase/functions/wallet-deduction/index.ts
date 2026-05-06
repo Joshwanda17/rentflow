@@ -40,15 +40,17 @@ Deno.serve(async (req) => {
     // Check caller has financial-ops permission via user_roles
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Treasury guard: block debits when paused
-    const guardBlock = await checkTreasuryGuard(adminClient, "debit", req.headers.get("Authorization"));
+    // Treasury guard: block debits when paused. Pass the already-validated
+    // caller UUID so CTO / super_admin maintenance bypass does not depend on
+    // re-parsing the bearer token inside the shared guard.
+    const guardBlock = await checkTreasuryGuard(adminClient, "debit", user.id);
     if (guardBlock) return guardBlock;
     const { data: roles } = await adminClient
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id);
 
-    const allowedRoles = ["super_admin", "manager", "cfo", "coo"];
+    const allowedRoles = ["super_admin", "manager", "cfo", "coo", "cto"];
     const hasAccess = (roles || []).some((r: any) => allowedRoles.includes(r.role));
     if (!hasAccess) {
       return new Response(JSON.stringify({ error: "Forbidden: insufficient role" }), {
