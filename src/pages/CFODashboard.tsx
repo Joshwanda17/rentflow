@@ -19,9 +19,6 @@ import { AgentCommissionPayoutsManager } from '@/components/manager/AgentCommiss
 import { WithdrawalRequestsManager } from '@/components/manager/WithdrawalRequestsManager';
 import { GeneralLedger } from '@/components/manager/GeneralLedger';
 import { FinancialOverview } from '@/components/manager/FinancialOverview';
-import CFOReconciliationPanel from '@/components/cfo/CFOReconciliationPanel';
-import WalletReconciliationAuditPanel from '@/components/cfo/WalletReconciliationAuditPanel';
-
 import { CFOPartnerPayoutProcessing } from '@/components/cfo/CFOPartnerPayoutProcessing';
 import { DisbursementRegistry } from '@/components/cfo/DisbursementRegistry';
 import { DailyCashPositionReport } from '@/components/cfo/DailyCashPositionReport';
@@ -247,8 +244,10 @@ export default function CFODashboard() {
 
           {/* Reconciliation Tab */}
           <TabsContent value="reconciliation" className="space-y-6">
-            <CFOReconciliationPanel />
-            <WalletReconciliationAuditPanel />
+            <p className="text-sm text-muted-foreground">
+              Reconciliation panels have been retired. The general ledger is now
+              the single source of truth for every wallet bucket.
+            </p>
           </TabsContent>
 
           {/* Ledger Tab */}

@@ -3,7 +3,6 @@ import { FinancialOpsPulseStrip } from './FinancialOpsPulseStrip';
 import { ApprovalQueue } from './ApprovalQueue';
 import { TransactionSearch } from './TransactionSearch';
 import { ReconciliationDashboard } from './ReconciliationDashboard';
-import { LedgerReconciliationPanel } from '@/components/cfo/LedgerReconciliationPanel';
 import { AuditFeed } from './AuditFeed';
 import { ScaleDashboard } from './ScaleDashboard';
 import { FloatPayoutVerification } from './FloatPayoutVerification';
@@ -125,10 +124,6 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         {activeTool === 'search' && <TransactionSearch />}
         {activeTool === 'recon' && (
           <div className="space-y-6">
-            {/* Ledger-backed reconciliation: every fix posts a balanced
-                system_balance_correction pair to general_ledger first, then
-                the wallet cache is updated via apply_wallet_movement. */}
-            <LedgerReconciliationPanel />
             {/* 7-day cash flow context for the operator. */}
             <ReconciliationDashboard />
           </div>
