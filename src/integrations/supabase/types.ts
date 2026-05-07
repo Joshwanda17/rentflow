@@ -13890,6 +13890,10 @@ export type Database = {
         Args: { p_collection_id: string; p_reason: string }
         Returns: Json
       }
+      apply_layer_a_writedown: {
+        Args: { p_dry_run?: boolean; p_user_id: string }
+        Returns: Json
+      }
       apply_tier_capabilities: {
         Args: {
           _actor: string
@@ -15007,6 +15011,7 @@ export type Database = {
         Args: { p_id: string; p_payload: Json }
         Returns: string
       }
+      run_layer_a_bulk: { Args: { p_dry_run?: boolean }; Returns: Json }
       run_phantom_clamp_pass: {
         Args: { p_dry_run?: boolean }
         Returns: {
