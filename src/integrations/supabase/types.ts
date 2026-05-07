@@ -8469,221 +8469,6 @@ export type Database = {
           },
         ]
       }
-      phantom_drift_run_audit: {
-        Row: {
-          auto_resolved: number
-          executed_at: string
-          new_drift_rows: number
-          notes: string | null
-          run_id: string
-          skipped_anchored: number
-          skipped_recently_resolved: number
-          total_drift_ugx: number
-          updated_drift_rows: number
-        }
-        Insert: {
-          auto_resolved?: number
-          executed_at?: string
-          new_drift_rows?: number
-          notes?: string | null
-          run_id: string
-          skipped_anchored?: number
-          skipped_recently_resolved?: number
-          total_drift_ugx?: number
-          updated_drift_rows?: number
-        }
-        Update: {
-          auto_resolved?: number
-          executed_at?: string
-          new_drift_rows?: number
-          notes?: string | null
-          run_id?: string
-          skipped_anchored?: number
-          skipped_recently_resolved?: number
-          total_drift_ugx?: number
-          updated_drift_rows?: number
-        }
-        Relationships: []
-      }
-      phantom_drift_run_user_audit: {
-        Row: {
-          drift_amount: number | null
-          id: string
-          ledger_net: number | null
-          outcome: string
-          reason: string | null
-          recorded_at: string
-          run_id: string
-          user_id: string
-          wallet_balance: number | null
-        }
-        Insert: {
-          drift_amount?: number | null
-          id?: string
-          ledger_net?: number | null
-          outcome: string
-          reason?: string | null
-          recorded_at?: string
-          run_id: string
-          user_id: string
-          wallet_balance?: number | null
-        }
-        Update: {
-          drift_amount?: number | null
-          id?: string
-          ledger_net?: number | null
-          outcome?: string
-          reason?: string | null
-          recorded_at?: string
-          run_id?: string
-          user_id?: string
-          wallet_balance?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "phantom_drift_run_user_audit_run_id_fkey"
-            columns: ["run_id"]
-            isOneToOne: false
-            referencedRelation: "phantom_drift_run_audit"
-            referencedColumns: ["run_id"]
-          },
-        ]
-      }
-      phantom_drift_test_runs: {
-        Row: {
-          failure_samples: Json
-          id: string
-          notes: string | null
-          passed: boolean
-          pivot_failures: number
-          pivot_match_count: number
-          ran_at: string
-          raw_match_count: number
-          total_anchored_users_checked: number
-          users_with_pre_anchor_ledger: number
-        }
-        Insert: {
-          failure_samples?: Json
-          id?: string
-          notes?: string | null
-          passed?: boolean
-          pivot_failures?: number
-          pivot_match_count?: number
-          ran_at?: string
-          raw_match_count?: number
-          total_anchored_users_checked?: number
-          users_with_pre_anchor_ledger?: number
-        }
-        Update: {
-          failure_samples?: Json
-          id?: string
-          notes?: string | null
-          passed?: boolean
-          pivot_failures?: number
-          pivot_match_count?: number
-          ran_at?: string
-          raw_match_count?: number
-          total_anchored_users_checked?: number
-          users_with_pre_anchor_ledger?: number
-        }
-        Relationships: []
-      }
-      phantom_freeze_audit: {
-        Row: {
-          frozen_at: string
-          id: string
-          ledger_total_at_freeze: number
-          new_locked_balance: number
-          previous_locked_balance: number
-          surplus_locked: number
-          trigger_reason: string
-          user_id: string
-          wallet_balance_before: number
-          wallet_id: string | null
-        }
-        Insert: {
-          frozen_at?: string
-          id?: string
-          ledger_total_at_freeze: number
-          new_locked_balance: number
-          previous_locked_balance: number
-          surplus_locked: number
-          trigger_reason?: string
-          user_id: string
-          wallet_balance_before: number
-          wallet_id?: string | null
-        }
-        Update: {
-          frozen_at?: string
-          id?: string
-          ledger_total_at_freeze?: number
-          new_locked_balance?: number
-          previous_locked_balance?: number
-          surplus_locked?: number
-          trigger_reason?: string
-          user_id?: string
-          wallet_balance_before?: number
-          wallet_id?: string | null
-        }
-        Relationships: []
-      }
-      phantom_wallet_drift: {
-        Row: {
-          created_at: string
-          detection_run_id: string | null
-          drift_amount: number
-          drift_type: string
-          first_detected_at: string
-          id: string
-          last_detected_at: string
-          ledger_net: number
-          resolution_notes: string | null
-          resolved_at: string | null
-          resolved_by: string | null
-          severity: string
-          status: string
-          updated_at: string
-          user_id: string
-          wallet_balance: number
-        }
-        Insert: {
-          created_at?: string
-          detection_run_id?: string | null
-          drift_amount: number
-          drift_type: string
-          first_detected_at?: string
-          id?: string
-          last_detected_at?: string
-          ledger_net: number
-          resolution_notes?: string | null
-          resolved_at?: string | null
-          resolved_by?: string | null
-          severity: string
-          status?: string
-          updated_at?: string
-          user_id: string
-          wallet_balance: number
-        }
-        Update: {
-          created_at?: string
-          detection_run_id?: string | null
-          drift_amount?: number
-          drift_type?: string
-          first_detected_at?: string
-          id?: string
-          last_detected_at?: string
-          ledger_net?: number
-          resolution_notes?: string | null
-          resolved_at?: string | null
-          resolved_by?: string | null
-          severity?: string
-          status?: string
-          updated_at?: string
-          user_id?: string
-          wallet_balance?: number
-        }
-        Relationships: []
-      }
       platform_expense_transfers: {
         Row: {
           agent_id: string
@@ -12717,45 +12502,6 @@ export type Database = {
         }
         Relationships: []
       }
-      wallet_commission_drift: {
-        Row: {
-          attempted_amount: number | null
-          context: string | null
-          detected_at: string
-          id: string
-          notes: string | null
-          raw_commission: number
-          reviewed_at: string | null
-          reviewer: string | null
-          total_wallet_ledger: number
-          user_id: string
-        }
-        Insert: {
-          attempted_amount?: number | null
-          context?: string | null
-          detected_at?: string
-          id?: string
-          notes?: string | null
-          raw_commission: number
-          reviewed_at?: string | null
-          reviewer?: string | null
-          total_wallet_ledger: number
-          user_id: string
-        }
-        Update: {
-          attempted_amount?: number | null
-          context?: string | null
-          detected_at?: string
-          id?: string
-          notes?: string | null
-          raw_commission?: number
-          reviewed_at?: string | null
-          reviewer?: string | null
-          total_wallet_ledger?: number
-          user_id?: string
-        }
-        Relationships: []
-      }
       wallet_deductions: {
         Row: {
           amount: number
@@ -12816,45 +12562,6 @@ export type Database = {
         }
         Relationships: []
       }
-      wallet_drift_alert_config: {
-        Row: {
-          created_at: string
-          critical_threshold_ugx: number
-          enabled: boolean
-          high_threshold_ugx: number
-          id: string
-          low_threshold_ugx: number
-          medium_threshold_ugx: number
-          singleton: boolean
-          updated_at: string
-          updated_by: string | null
-        }
-        Insert: {
-          created_at?: string
-          critical_threshold_ugx?: number
-          enabled?: boolean
-          high_threshold_ugx?: number
-          id?: string
-          low_threshold_ugx?: number
-          medium_threshold_ugx?: number
-          singleton?: boolean
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Update: {
-          created_at?: string
-          critical_threshold_ugx?: number
-          enabled?: boolean
-          high_threshold_ugx?: number
-          id?: string
-          low_threshold_ugx?: number
-          medium_threshold_ugx?: number
-          singleton?: boolean
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Relationships: []
-      }
       wallet_fresh_start_anchors: {
         Row: {
           anchor_at: string
@@ -12881,48 +12588,6 @@ export type Database = {
           notes?: string | null
           pre_anchor_ledger_net?: number
           reason?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      wallet_historical_drift_review: {
-        Row: {
-          cached_withdrawable: number
-          cfo_actor: string | null
-          cfo_decision: string | null
-          correction_ledger_id: string | null
-          created_at: string
-          decided_at: string | null
-          id: string
-          phantom_amount: number
-          pre_anchor_ledger_net: number
-          status: string
-          user_id: string
-        }
-        Insert: {
-          cached_withdrawable: number
-          cfo_actor?: string | null
-          cfo_decision?: string | null
-          correction_ledger_id?: string | null
-          created_at?: string
-          decided_at?: string | null
-          id?: string
-          phantom_amount: number
-          pre_anchor_ledger_net: number
-          status?: string
-          user_id: string
-        }
-        Update: {
-          cached_withdrawable?: number
-          cfo_actor?: string | null
-          cfo_decision?: string | null
-          correction_ledger_id?: string | null
-          created_at?: string
-          decided_at?: string | null
-          id?: string
-          phantom_amount?: number
-          pre_anchor_ledger_net?: number
-          status?: string
           user_id?: string
         }
         Relationships: []
@@ -13227,72 +12892,6 @@ export type Database = {
           id?: string
           sign_returned?: number | null
           user_id?: string
-        }
-        Relationships: []
-      }
-      wallet_withdrawable_drift_alerts: {
-        Row: {
-          baseline_ledger_net: number
-          baseline_withdrawable: number
-          created_at: string
-          detection_run_id: string | null
-          deviation_amount: number
-          deviation_direction: string
-          expected_withdrawable: number
-          first_detected_at: string
-          id: string
-          last_detected_at: string
-          ledger_net_now: number
-          resolution_notes: string | null
-          resolved_at: string | null
-          resolved_by: string | null
-          severity: string
-          status: string
-          updated_at: string
-          user_id: string
-          withdrawable_cached: number
-        }
-        Insert: {
-          baseline_ledger_net: number
-          baseline_withdrawable: number
-          created_at?: string
-          detection_run_id?: string | null
-          deviation_amount: number
-          deviation_direction: string
-          expected_withdrawable: number
-          first_detected_at?: string
-          id?: string
-          last_detected_at?: string
-          ledger_net_now: number
-          resolution_notes?: string | null
-          resolved_at?: string | null
-          resolved_by?: string | null
-          severity: string
-          status?: string
-          updated_at?: string
-          user_id: string
-          withdrawable_cached: number
-        }
-        Update: {
-          baseline_ledger_net?: number
-          baseline_withdrawable?: number
-          created_at?: string
-          detection_run_id?: string | null
-          deviation_amount?: number
-          deviation_direction?: string
-          expected_withdrawable?: number
-          first_detected_at?: string
-          id?: string
-          last_detected_at?: string
-          ledger_net_now?: number
-          resolution_notes?: string | null
-          resolved_at?: string | null
-          resolved_by?: string | null
-          severity?: string
-          status?: string
-          updated_at?: string
-          user_id?: string
-          withdrawable_cached?: number
         }
         Relationships: []
       }
@@ -14176,7 +13775,6 @@ export type Database = {
         Returns: boolean
       }
       derive_welile_ai_id: { Args: { p_user_id: string }; Returns: string }
-      detect_phantom_wallet_drift: { Args: never; Returns: Json }
       detect_velocity_abuse: {
         Args: { p_threshold?: number; p_window_minutes?: number }
         Returns: {
@@ -14184,7 +13782,6 @@ export type Database = {
           user_id: string
         }[]
       }
-      detect_withdrawable_drift_alerts: { Args: never; Returns: Json }
       drain_withdrawable_buckets: {
         Args: { p_amount: number; p_user_id: string }
         Returns: {
@@ -15151,27 +14748,6 @@ export type Database = {
           last_seen_at: string
           phone: string
         }[]
-      }
-      test_drift_uses_strict_pivot: {
-        Args: never
-        Returns: {
-          failure_samples: Json
-          id: string
-          notes: string | null
-          passed: boolean
-          pivot_failures: number
-          pivot_match_count: number
-          ran_at: string
-          raw_match_count: number
-          total_anchored_users_checked: number
-          users_with_pre_anchor_ledger: number
-        }
-        SetofOptions: {
-          from: "*"
-          to: "phantom_drift_test_runs"
-          isOneToOne: true
-          isSetofReturn: false
-        }
       }
       test_wallet_drift_fix: { Args: never; Returns: Json }
       topup_dedup_bucket: { Args: { ts: string }; Returns: string }
