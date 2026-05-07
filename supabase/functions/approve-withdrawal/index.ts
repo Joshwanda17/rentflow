@@ -353,6 +353,29 @@ Deno.serve(async (req) => {
         // ledger sum here re-introduces drift (e.g. an anchored agent whose
         // pre-anchor net is negative will read 0 even though the strict RPC
         // — and the wallet card — correctly show withdrawable > 0).
+        // First, lift the cached `wallets.withdrawable_balance` up to the
+        // strict ledger figure so that the MIN(cache, ledger) gate inside
+        // `get_user_available_balance` is no longer artificially clamped by
+        // a stale cache (e.g. wallet-transfer credits that landed in the
+        // ledger but never updated the cache). This NEVER inflates beyond
+        // ledger truth — it only lifts cache up to what the ledger proves.
+        try {
+          const { error: liftErr } = await admin.rpc(
+            "lift_withdrawable_to_ledger",
+            { p_user_id: fundingUserId },
+          );
+          if (liftErr) {
+            console.warn(
+              "[approve-withdrawal] lift_withdrawable_to_ledger failed (non-fatal):",
+              liftErr.message,
+            );
+          }
+        } catch (liftEx) {
+          console.warn(
+            "[approve-withdrawal] lift_withdrawable_to_ledger threw (non-fatal):",
+            (liftEx as Error).message,
+          );
+        }
         const { data: rpcVal, error: rpcErr } = await admin.rpc(
           "get_user_available_balance",
           { p_user_id: fundingUserId },
