@@ -229,6 +229,7 @@ Deno.serve(async (req) => {
           transaction_date: new Date().toISOString(),
           reference_id: transferReference,
           linked_party: recipientLabel,
+          recipient_type: 'user',
         },
         {
           user_id: resolvedRecipientId,
@@ -242,6 +243,7 @@ Deno.serve(async (req) => {
           transaction_date: new Date().toISOString(),
           reference_id: transferReference,
           linked_party: senderLabel,
+          recipient_type: 'user',
         },
       ],
       idempotency_key: transferReference,
