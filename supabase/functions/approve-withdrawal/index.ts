@@ -605,6 +605,39 @@ Deno.serve(async (req) => {
       // Ledger entry already exists — log but don't fail the user
     }
 
+    // ── Read-after-write settlement wait ─────────────────────────────────
+    // Wallet bucket triggers fire inside the same txn as the ledger RPC, but
+    // downstream readers (UI snapshots, CFO diagnostics, this very response)
+    // can race the commit and observe the pre-debit cache. Poll the strict
+    // gate until it reflects the deduction (or a 1.5s budget elapses).
+    let settledAvailable: number | null = null;
+    {
+      const expectedMax = Math.max(0, Math.round(effectiveBalance - amount));
+      const deadline = Date.now() + 1500;
+      let attempt = 0;
+      while (Date.now() < deadline) {
+        attempt++;
+        const { data: avail, error: availErr } = await admin.rpc(
+          "get_user_available_balance",
+          { p_user_id: fundingUserId },
+        );
+        if (!availErr) {
+          const n = Number(avail ?? 0);
+          if (n <= expectedMax) {
+            settledAvailable = n;
+            console.log(`[approve-withdrawal] settled after ${attempt} poll(s): ${n} <= ${expectedMax}`);
+            break;
+          }
+        }
+        await new Promise((r) => setTimeout(r, 150));
+      }
+      if (settledAvailable === null) {
+        console.warn(
+          `[approve-withdrawal] settlement wait exhausted; cache may be transitional for ${fundingUserId}`,
+        );
+      }
+    }
+
     // ── Payroll Growth Bonus: stop growth on withdrawn money ─────────────
     // Consume FIFO from any active payroll-growth tracker rows so the daily
     // 0.5% bonus only continues to accrue on what's still parked in the wallet.
@@ -771,6 +804,7 @@ Deno.serve(async (req) => {
         target_user: targetName,
         txn_group_id: txnGroupId,
         cashout_commission: cashoutCommission,
+        settled_available: settledAvailable,
       }),
       {
         status: 200,
