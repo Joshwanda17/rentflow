@@ -6937,6 +6937,39 @@ export type Database = {
           },
         ]
       }
+      ledger_maintenance_state: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          closed_reason: string | null
+          id: boolean
+          open_until: string | null
+          opened_at: string | null
+          opened_by: string | null
+          reason: string | null
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          closed_reason?: string | null
+          id?: boolean
+          open_until?: string | null
+          opened_at?: string | null
+          opened_by?: string | null
+          reason?: string | null
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          closed_reason?: string | null
+          id?: boolean
+          open_until?: string | null
+          opened_at?: string | null
+          opened_by?: string | null
+          reason?: string | null
+        }
+        Relationships: []
+      }
       ledger_transactions: {
         Row: {
           approved_by: string | null
