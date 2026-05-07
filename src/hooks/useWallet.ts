@@ -41,25 +41,6 @@ export function useWallet() {
   const fetchWallet = useCallback(async (force = false) => {
     if (!user) return;
 
-    // Check module-level cache first (prevents duplicate fetches from multiple hook instances)
-    if (!force && walletCache && walletCache.userId === user.id && (Date.now() - walletCache.timestamp < WALLET_CACHE_TTL)) {
-      setWallet(walletCache.data);
-      setLoading(false);
-      setIsOfflineData(false);
-      return;
-    }
-
-    // Try cached data first
-    try {
-      const cached = await getCachedWallet(user.id);
-      if (cached) {
-        setWallet(cached);
-        setIsOfflineData(true);
-      }
-    } catch (e) {
-      console.warn('[useWallet] Cache read failed:', e);
-    }
-
     if (!navigator.onLine) return;
 
     try {
@@ -92,9 +73,6 @@ export function useWallet() {
       setWallet(displayed);
       setIsOfflineData(false);
       setLastSyncedAt(new Date());
-      walletCache = { data: displayed, userId: user.id, timestamp: Date.now() };
-      try { localStorage.setItem(lsKey(user.id), JSON.stringify(displayed)); } catch {}
-      await cacheWallet(displayed);
     } catch (e) {
       console.warn('[useWallet] Failed to fetch strict wallet view:', e);
     }
@@ -230,9 +208,9 @@ export function useWallet() {
         )
         .subscribe();
 
-      // Anti-drift: every 60s wipe ALL wallet_* localStorage entries (across
-      // versions and users) and refetch ledger-true balances. This guarantees
-      // a stale cached number can never persist for hours on long sessions.
+      // Anti-drift: every 60s wipe old wallet_* localStorage entries and
+      // refetch ledger-true balances. We no longer store money balances in
+      // browser cache, but this removes stale values from earlier releases.
       const driftInterval = window.setInterval(() => {
         try {
           const keys: string[] = [];
@@ -242,8 +220,6 @@ export function useWallet() {
           }
           keys.forEach((k) => localStorage.removeItem(k));
         } catch {}
-        // Bust module-level cache so the refetch is forced to hit the ledger
-        walletCache = null;
         void fetchWallet(true);
       }, 60_000);
 
