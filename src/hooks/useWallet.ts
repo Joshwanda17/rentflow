@@ -2,8 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import {
-  cacheWallet,
-  getCachedWallet,
   cacheTransactions,
   getCachedTransactions,
 } from '@/lib/offlineDataStorage';
@@ -28,71 +26,20 @@ interface Wallet {
   created_at: string;
   updated_at: string;
 }
-// Module-level wallet cache to prevent duplicate fetches across component instances
-let walletCache: { data: Wallet | null; userId: string; timestamp: number } | null = null;
-// Keep a tiny module-level cache so multiple hook instances on the same render
-// don't all fire the same fetch, but never long enough to mask a real change
-// in withdrawable funds. Realtime UPDATE events override this immediately.
-const WALLET_CACHE_TTL = 5_000; // 5 seconds
-// Bump this whenever the wallet shape or invalidation logic changes — old
-// localStorage entries from previous releases will be discarded on next load.
-// v4 (2026-05-01): wallet.balance is now STRICT ledger-derived from
-// get_user_wallet_view. The cached wallets.* columns are never read here.
-const WALLET_LS_VERSION = 'v4';
-const lsKey = (uid?: string) => `wallet_${WALLET_LS_VERSION}_${uid}`;
-
 export function useWallet() {
   const { user } = useAuth();
   const { preValidateTransfer, checkBalance } = useServiceValidation();
-  // Initialize from module cache OR localStorage for instant display (no flash)
-  const [wallet, setWallet] = useState<Wallet | null>(() => {
-    if (walletCache && walletCache.userId === user?.id && (Date.now() - walletCache.timestamp < WALLET_CACHE_TTL)) {
-      return walletCache.data;
-    }
-    // Sync read from localStorage for instant first-paint
-    try {
-      const raw = localStorage.getItem(lsKey(user?.id));
-      if (raw) return JSON.parse(raw) as Wallet;
-      // Clean up any stale pre-v3 cache so it can never be served again
-      try {
-        localStorage.removeItem(`wallet_${user?.id}`);
-        localStorage.removeItem(`wallet_v2_${user?.id}`);
-      } catch {}
-    } catch {}
-    return null;
-  });
+  // Money must never be hydrated from browser/IndexedDB cache. Older cached
+  // first-paint values made funds appear briefly, then disappear after the
+  // strict ledger refetch. Start empty and fetch the ledger-derived view.
+  const [wallet, setWallet] = useState<Wallet | null>(null);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
-  // Never show loading if we have ANY cached balance — show stale data instantly
-  const [loading, setLoading] = useState(() => {
-    if (walletCache && walletCache.userId === user?.id) return false;
-    try {
-      return !localStorage.getItem(lsKey(user?.id));
-    } catch { return true; }
-  });
+  const [loading, setLoading] = useState(true);
   const [isOfflineData, setIsOfflineData] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
 
-  const fetchWallet = useCallback(async (force = false) => {
+  const fetchWallet = useCallback(async (_force = false) => {
     if (!user) return;
-
-    // Check module-level cache first (prevents duplicate fetches from multiple hook instances)
-    if (!force && walletCache && walletCache.userId === user.id && (Date.now() - walletCache.timestamp < WALLET_CACHE_TTL)) {
-      setWallet(walletCache.data);
-      setLoading(false);
-      setIsOfflineData(false);
-      return;
-    }
-
-    // Try cached data first
-    try {
-      const cached = await getCachedWallet(user.id);
-      if (cached) {
-        setWallet(cached);
-        setIsOfflineData(true);
-      }
-    } catch (e) {
-      console.warn('[useWallet] Cache read failed:', e);
-    }
 
     if (!navigator.onLine) return;
 
@@ -126,9 +73,6 @@ export function useWallet() {
       setWallet(displayed);
       setIsOfflineData(false);
       setLastSyncedAt(new Date());
-      walletCache = { data: displayed, userId: user.id, timestamp: Date.now() };
-      try { localStorage.setItem(lsKey(user.id), JSON.stringify(displayed)); } catch {}
-      await cacheWallet(displayed);
     } catch (e) {
       console.warn('[useWallet] Failed to fetch strict wallet view:', e);
     }
@@ -264,9 +208,9 @@ export function useWallet() {
         )
         .subscribe();
 
-      // Anti-drift: every 60s wipe ALL wallet_* localStorage entries (across
-      // versions and users) and refetch ledger-true balances. This guarantees
-      // a stale cached number can never persist for hours on long sessions.
+      // Anti-drift: every 60s wipe old wallet_* localStorage entries and
+      // refetch ledger-true balances. We no longer store money balances in
+      // browser cache, but this removes stale values from earlier releases.
       const driftInterval = window.setInterval(() => {
         try {
           const keys: string[] = [];
@@ -276,8 +220,6 @@ export function useWallet() {
           }
           keys.forEach((k) => localStorage.removeItem(k));
         } catch {}
-        // Bust module-level cache so the refetch is forced to hit the ledger
-        walletCache = null;
         void fetchWallet(true);
       }, 60_000);
 
