@@ -8565,6 +8565,86 @@ export type Database = {
           },
         ]
       }
+      phantom_drift_run_audit: {
+        Row: {
+          auto_resolved: number
+          executed_at: string
+          new_drift_rows: number
+          notes: string | null
+          run_id: string
+          skipped_anchored: number
+          skipped_recently_resolved: number
+          total_drift_ugx: number
+          updated_drift_rows: number
+        }
+        Insert: {
+          auto_resolved?: number
+          executed_at?: string
+          new_drift_rows?: number
+          notes?: string | null
+          run_id: string
+          skipped_anchored?: number
+          skipped_recently_resolved?: number
+          total_drift_ugx?: number
+          updated_drift_rows?: number
+        }
+        Update: {
+          auto_resolved?: number
+          executed_at?: string
+          new_drift_rows?: number
+          notes?: string | null
+          run_id?: string
+          skipped_anchored?: number
+          skipped_recently_resolved?: number
+          total_drift_ugx?: number
+          updated_drift_rows?: number
+        }
+        Relationships: []
+      }
+      phantom_drift_run_user_audit: {
+        Row: {
+          drift_amount: number | null
+          id: string
+          ledger_net: number | null
+          outcome: string
+          reason: string | null
+          recorded_at: string
+          run_id: string
+          user_id: string
+          wallet_balance: number | null
+        }
+        Insert: {
+          drift_amount?: number | null
+          id?: string
+          ledger_net?: number | null
+          outcome: string
+          reason?: string | null
+          recorded_at?: string
+          run_id: string
+          user_id: string
+          wallet_balance?: number | null
+        }
+        Update: {
+          drift_amount?: number | null
+          id?: string
+          ledger_net?: number | null
+          outcome?: string
+          reason?: string | null
+          recorded_at?: string
+          run_id?: string
+          user_id?: string
+          wallet_balance?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "phantom_drift_run_user_audit_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "phantom_drift_run_audit"
+            referencedColumns: ["run_id"]
+          },
+        ]
+      }
       phantom_freeze_audit: {
         Row: {
           frozen_at: string
