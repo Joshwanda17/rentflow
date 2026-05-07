@@ -804,6 +804,7 @@ Deno.serve(async (req) => {
         target_user: targetName,
         txn_group_id: txnGroupId,
         cashout_commission: cashoutCommission,
+        settled_available: settledAvailable,
       }),
       {
         status: 200,
