@@ -8645,6 +8645,45 @@ export type Database = {
           },
         ]
       }
+      phantom_drift_test_runs: {
+        Row: {
+          failure_samples: Json
+          id: string
+          notes: string | null
+          passed: boolean
+          pivot_failures: number
+          pivot_match_count: number
+          ran_at: string
+          raw_match_count: number
+          total_anchored_users_checked: number
+          users_with_pre_anchor_ledger: number
+        }
+        Insert: {
+          failure_samples?: Json
+          id?: string
+          notes?: string | null
+          passed?: boolean
+          pivot_failures?: number
+          pivot_match_count?: number
+          ran_at?: string
+          raw_match_count?: number
+          total_anchored_users_checked?: number
+          users_with_pre_anchor_ledger?: number
+        }
+        Update: {
+          failure_samples?: Json
+          id?: string
+          notes?: string | null
+          passed?: boolean
+          pivot_failures?: number
+          pivot_match_count?: number
+          ran_at?: string
+          raw_match_count?: number
+          total_anchored_users_checked?: number
+          users_with_pre_anchor_ledger?: number
+        }
+        Relationships: []
+      }
       phantom_freeze_audit: {
         Row: {
           frozen_at: string
@@ -15208,6 +15247,27 @@ export type Database = {
           last_seen_at: string
           phone: string
         }[]
+      }
+      test_drift_uses_strict_pivot: {
+        Args: never
+        Returns: {
+          failure_samples: Json
+          id: string
+          notes: string | null
+          passed: boolean
+          pivot_failures: number
+          pivot_match_count: number
+          ran_at: string
+          raw_match_count: number
+          total_anchored_users_checked: number
+          users_with_pre_anchor_ledger: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "phantom_drift_test_runs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       test_wallet_drift_fix: { Args: never; Returns: Json }
       topup_dedup_bucket: { Args: { ts: string }; Returns: string }
