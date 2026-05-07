@@ -42,7 +42,7 @@ export function LedgerMaintenancePanel() {
     if (error) {
       toast.error('Failed to load maintenance state');
     } else {
-      setState(data as State);
+      setState(data as unknown as State);
     }
     setLoading(false);
   }, []);
