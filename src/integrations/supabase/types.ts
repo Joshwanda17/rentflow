@@ -14042,6 +14042,14 @@ export type Database = {
         | {
             Args: {
               p_entries: Json
+              p_metadata?: Json
+              p_reference_id?: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_entries: Json
               p_idempotency_key?: string
               p_skip_balance_check?: boolean
               p_transaction_group_id: string
