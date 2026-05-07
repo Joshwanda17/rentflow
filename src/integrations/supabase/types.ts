@@ -13907,6 +13907,10 @@ export type Database = {
         Args: { _email: string }
         Returns: Json
       }
+      begin_ledger_maintenance: {
+        Args: { p_minutes?: number; p_reason?: string }
+        Returns: string
+      }
       build_funder_reference: {
         Args: { p_created_at: string; p_user_id: string }
         Returns: string
@@ -14138,6 +14142,10 @@ export type Database = {
           new_float: number
           new_withdrawable: number
         }[]
+      }
+      end_ledger_maintenance: {
+        Args: { p_reason?: string }
+        Returns: undefined
       }
       enforce_recipient_routing: {
         Args: { p_amount: number; p_recipient_type: string; p_user_id: string }
