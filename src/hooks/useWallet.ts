@@ -38,7 +38,7 @@ export function useWallet() {
   const [isOfflineData, setIsOfflineData] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
 
-  const fetchWallet = useCallback(async (force = false) => {
+  const fetchWallet = useCallback(async (_force = false) => {
     if (!user) return;
 
     if (!navigator.onLine) return;
