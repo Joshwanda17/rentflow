@@ -14329,6 +14329,10 @@ export type Database = {
       is_sub_agent: { Args: { _agent_id: string }; Returns: boolean }
       is_supporter: { Args: never; Returns: boolean }
       is_tenant_locked: { Args: { _user_id: string }; Returns: boolean }
+      lift_withdrawable_to_ledger: {
+        Args: { p_user_id: string }
+        Returns: Json
+      }
       log_finops_provider_mismatch: {
         Args: {
           _attempted_amount?: number
