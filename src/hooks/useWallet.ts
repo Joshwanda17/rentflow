@@ -2,8 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import {
-  cacheWallet,
-  getCachedWallet,
   cacheTransactions,
   getCachedTransactions,
 } from '@/lib/offlineDataStorage';
@@ -28,47 +26,15 @@ interface Wallet {
   created_at: string;
   updated_at: string;
 }
-// Module-level wallet cache to prevent duplicate fetches across component instances
-let walletCache: { data: Wallet | null; userId: string; timestamp: number } | null = null;
-// Keep a tiny module-level cache so multiple hook instances on the same render
-// don't all fire the same fetch, but never long enough to mask a real change
-// in withdrawable funds. Realtime UPDATE events override this immediately.
-const WALLET_CACHE_TTL = 5_000; // 5 seconds
-// Bump this whenever the wallet shape or invalidation logic changes — old
-// localStorage entries from previous releases will be discarded on next load.
-// v4 (2026-05-01): wallet.balance is now STRICT ledger-derived from
-// get_user_wallet_view. The cached wallets.* columns are never read here.
-const WALLET_LS_VERSION = 'v4';
-const lsKey = (uid?: string) => `wallet_${WALLET_LS_VERSION}_${uid}`;
-
 export function useWallet() {
   const { user } = useAuth();
   const { preValidateTransfer, checkBalance } = useServiceValidation();
-  // Initialize from module cache OR localStorage for instant display (no flash)
-  const [wallet, setWallet] = useState<Wallet | null>(() => {
-    if (walletCache && walletCache.userId === user?.id && (Date.now() - walletCache.timestamp < WALLET_CACHE_TTL)) {
-      return walletCache.data;
-    }
-    // Sync read from localStorage for instant first-paint
-    try {
-      const raw = localStorage.getItem(lsKey(user?.id));
-      if (raw) return JSON.parse(raw) as Wallet;
-      // Clean up any stale pre-v3 cache so it can never be served again
-      try {
-        localStorage.removeItem(`wallet_${user?.id}`);
-        localStorage.removeItem(`wallet_v2_${user?.id}`);
-      } catch {}
-    } catch {}
-    return null;
-  });
+  // Money must never be hydrated from browser/IndexedDB cache. Older cached
+  // first-paint values made funds appear briefly, then disappear after the
+  // strict ledger refetch. Start empty and fetch the ledger-derived view.
+  const [wallet, setWallet] = useState<Wallet | null>(null);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
-  // Never show loading if we have ANY cached balance — show stale data instantly
-  const [loading, setLoading] = useState(() => {
-    if (walletCache && walletCache.userId === user?.id) return false;
-    try {
-      return !localStorage.getItem(lsKey(user?.id));
-    } catch { return true; }
-  });
+  const [loading, setLoading] = useState(true);
   const [isOfflineData, setIsOfflineData] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
 
