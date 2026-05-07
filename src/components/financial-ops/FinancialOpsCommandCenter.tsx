@@ -7,7 +7,6 @@ import { AuditFeed } from './AuditFeed';
 import { ScaleDashboard } from './ScaleDashboard';
 import { FloatPayoutVerification } from './FloatPayoutVerification';
 import { FinOpsWithdrawalVerification } from './FinOpsWithdrawalVerification';
-import { WalletDeductionPanel } from './WalletDeductionPanel';
 import { LandlordPayoutsQueue } from './LandlordPayoutsQueue';
 import { LedgerHub } from '@/components/ledgers/LedgerHub';
 import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
@@ -23,7 +22,7 @@ import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryF
 import { AgentRequisitionForm } from './AgentRequisitionForm';
 import { 
   ShieldCheck, Banknote, ArrowLeft, ChevronDown,
-  ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, MinusCircle, FileText,
+  ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, FileText,
   WifiOff, MoreHorizontal, AlertTriangle, ScanLine, Receipt
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
@@ -32,7 +31,7 @@ type View = 'home' | 'deposits' | 'offline_collections';
 type Tool =
   | null
   | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit'
-  | 'withdrawals' | 'opportunities' | 'deductions' | 'requisitions'
+  | 'withdrawals' | 'opportunities' | 'requisitions'
   | 'mismatch_metrics' | 'recon_review' | 'withdrawal_history';
 
 /**
@@ -47,7 +46,6 @@ type MoreAction =
 const moreActions: MoreAction[] = [
   { kind: 'view', id: 'offline_collections', label: 'Offline Collections', desc: 'Drafts agents submitted with proof', icon: WifiOff },
   { kind: 'tool', id: 'withdrawal_history', label: 'Withdrawal History', desc: 'Statement of every withdrawal — balance before & after', icon: Receipt },
-  { kind: 'tool', id: 'deductions', label: 'Wallet Deductions', desc: 'Retractions, corrections & penalties', icon: MinusCircle },
   { kind: 'tool', id: 'ledgers', label: 'Ledger', desc: 'Full record of all wallet activity', icon: BookOpen },
   { kind: 'tool', id: 'ops', label: 'Ops Center', desc: 'Automation & monitoring', icon: Gauge },
   { kind: 'tool', id: 'queue', label: 'Approval Queue', desc: 'Pending approvals', icon: ClipboardList },
@@ -64,13 +62,9 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
   const [view, setView] = useState<View>('home');
   const [activeTool, setActiveTool] = useState<Tool>(null);
   const [moreSheet, setMoreSheet] = useState(false);
-  // When set, the Wallet Deductions tool opens pre-filtered to wallets
-  // currently holding money (driven by the hero "X with balance" pill).
-  const [deductionsAutoBalance, setDeductionsAutoBalance] = useState(false);
 
-  const openTool = (t: Tool, opts?: { withBalance?: boolean }) => {
+  const openTool = (t: Tool) => {
     setActiveTool(t);
-    setDeductionsAutoBalance(t === 'deductions' && !!opts?.withBalance);
     setMoreSheet(false);
   };
 
@@ -155,20 +149,6 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
         {activeTool === 'opportunities' && (
           <OpportunitySummaryForm onClose={() => setActiveTool(null)} />
         )}
-        {activeTool === 'deductions' && (
-          <div className="max-w-2xl w-full">
-            <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2.5 mb-4">
-              <MinusCircle className="h-6 w-6 text-orange-600" />
-              Wallet Deductions
-            </h2>
-            <WalletDeductionPanel
-              initialMode={deductionsAutoBalance ? 'balance' : 'name'}
-              initialBalancePreset={
-                deductionsAutoBalance ? { min: 1, max: 999999999999 } : undefined
-              }
-            />
-          </div>
-        )}
         {activeTool === 'requisitions' && (
           <div className="max-w-2xl w-full">
             <AgentRequisitionForm />
@@ -195,8 +175,6 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
       </div>
 
       <WalletOverviewCard
-        onOpenDeductions={() => openTool('deductions')}
-        onViewActiveWallets={() => openTool('deductions', { withBalance: true })}
         onOpenReconciliation={() => openTool('recon')}
       />
       <FinancialOpsPulseStrip />
