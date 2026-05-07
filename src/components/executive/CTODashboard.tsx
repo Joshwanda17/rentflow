@@ -10,6 +10,7 @@ import { InfrastructureHealthMonitor } from './InfrastructureHealthMonitor';
 import { CTOEmailsOverview } from './CTOEmailsOverview';
 import RunBackupNowButton from '@/components/admin/RunBackupNowButton';
 import { CTOLedgerExport } from './CTOLedgerExport';
+import MaintenanceToggleCard from '@/components/cto/MaintenanceToggleCard';
 
 export function CTODashboard({ activeTab }: { activeTab?: string }) {
   if (activeTab === 'system-logs') {
@@ -207,6 +208,9 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Maintenance Mode Control (CTO) */}
+      <MaintenanceToggleCard />
+
       {/* Infrastructure Health Monitor */}
       <InfrastructureHealthMonitor />
 
