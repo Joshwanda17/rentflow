@@ -77,6 +77,8 @@ import { AddMonthlyRentDialog, getStoredMonthlyRent } from '@/components/tenant/
 import { RentDiscountCarousel } from '@/components/tenant/RentDiscountCarousel';
 import { Share2, Plus, Info, Store } from 'lucide-react';
 import { useAvailableBalance } from '@/hooks/useAvailableBalance';
+import { UnifiedWalletHeroCard } from '@/components/wallet/UnifiedWalletHeroCard';
+import { FunderQuickActions } from '@/components/supporter/FunderQuickActions';
 
 interface TenantDashboardProps {
   user: User;
