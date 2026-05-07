@@ -10,6 +10,7 @@ import { KPIBreakdownSheet } from '@/components/cfo/KPIBreakdownSheet';
 import { GroupedKPIBreakdownSheet } from '@/components/cfo/GroupedKPIBreakdownSheet';
 import { ROIPayableForecast } from '@/components/cfo/ROIPayableForecast';
 import { CFOActionsLog } from '@/components/cfo/CFOActionsLog';
+import { LedgerMaintenancePanel } from '@/components/cfo/LedgerMaintenancePanel';
 
 interface CFOOverviewDashboardProps {
   onTabChange?: (tab: string) => void;
@@ -321,6 +322,9 @@ export function CFOOverviewDashboard({ onTabChange }: CFOOverviewDashboardProps)
 
       {/* ── CFO ACTIONS LOG ── */}
       <CFOActionsLog />
+
+      {/* ── LEDGER MAINTENANCE WINDOW ── */}
+      <LedgerMaintenancePanel />
 
       {/* ── EXPORT COMMISSION REPORT ── */}
       <Button
