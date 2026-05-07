@@ -411,9 +411,16 @@ Deno.serve(async (req) => {
     // For partner-linked proxy payouts, the partner-linked ledger is the
     // authoritative figure (see ledgerAvailable computation above). The cached
     // float bucket can lag — never let it veto a ledger-earmarked delivery.
+    //
+    // For NORMAL (non-proxy) payouts the `wallets` table is now a read-only
+    // view derived from the ledger (`v_user_wallet_strict`), so the legacy
+    // `cachedSpendable` figure is just another rendering of the same ledger
+    // and CANNOT be more authoritative. We therefore trust the ledger figure
+    // directly. This is what unblocks "approve full balance": when the ledger
+    // proves UGX X is available, the cache can no longer veto it.
     const isPartnerLinkedProxy =
       isProxyPayout && wr.linked_party && wr.linked_party !== wr.user_id;
-    const totalSpendable = isPartnerLinkedProxy
+    const totalSpendable = isPartnerLinkedProxy || !isProxyPayout
       ? ledgerAvailable
       : Math.min(cachedSpendable, ledgerAvailable);
     const effectiveBalance = totalSpendable;
@@ -569,10 +576,15 @@ Deno.serve(async (req) => {
         },
       ],
       idempotency_key: idempotencyKey,
-      // For proxy partner delivery we already verified partner-linked float
-      // above. The generic ledger guard is user-wide and would reject this
-      // valid float debit when the agent also has unrelated historical debt.
-      skip_balance_check: isProxyPayout,
+      // We've already gated the withdrawal on the strict ledger figure above
+      // (`get_user_available_balance` for normal payouts; partner-linked
+      // ledger for proxy delivery). The generic guard inside
+      // `create_ledger_transaction` re-applies a `MIN(cached, ledger)` cap
+      // that errors out when the cached `wallets.withdrawable_balance` lags
+      // the ledger — which is now the common case because `wallets` is a
+      // ledger-derived VIEW rather than an authoritative cache. Skip that
+      // duplicate check; the strict gate above is the source of truth.
+      skip_balance_check: true,
     });
 
     if (ledgerErr) {
