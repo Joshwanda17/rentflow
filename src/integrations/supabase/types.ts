@@ -15322,6 +15322,7 @@ export type Database = {
         | "deposit_failed"
         | "finops_provider_mismatch"
         | "ledger_classification_backfilled"
+        | "wallet_historical_drift_absorbed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -15570,6 +15571,7 @@ export const Constants = {
         "deposit_failed",
         "finops_provider_mismatch",
         "ledger_classification_backfilled",
+        "wallet_historical_drift_absorbed",
       ],
     },
   },
