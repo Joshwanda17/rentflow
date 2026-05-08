@@ -339,15 +339,16 @@ Deno.serve(async (req) => {
           0,
         );
 
-        // Cap by total physical cash the agent holds, NOT just float —
-        // proxy ROI / partner credits often sit in withdrawable_balance.
-        const physicalCashCap = Math.max(0, Number(wallet?.balance ?? 0));
+        // Do NOT cap by `wallet.balance`. Proxy payouts deliver ROI /
+        // Nearing-Payouts funds that live on the partner's ledger; the
+        // agent's wallet cache routinely shows 0 even when the partner
+        // is fully funded. Trust the ledger net.
         ledgerAvailable = Math.max(
           0,
-          Math.min(physicalCashCap, Math.max(0, ledgerNet)) - otherPendingHolds,
+          Math.max(0, ledgerNet) - otherPendingHolds,
         );
         // Allow the float-first debit path to also dip into withdrawable.
-        partnerLinkedFloatAvailable = physicalCashCap;
+        partnerLinkedFloatAvailable = ledgerAvailable;
       } else {
         // Standard (non-proxy) payouts: defer to the strict RPC so that the
         // fresh-start anchor, admin-correction handling, and pending-hold
