@@ -28,6 +28,10 @@ export function useAuthForm() {
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [isForgotPhone, setIsForgotPhone] = useState(false);
   const [email, setEmail] = useState('');
+  // Optional email collected on the SIGNUP form. Kept separate from `email`
+  // (which is reused by the forgot-password / forgot-phone flows) so the two
+  // never overwrite each other.
+  const [signupEmail, setSignupEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -252,27 +256,38 @@ export function useAuthForm() {
       toast({ title: 'Error', description: validationError, variant: 'destructive' });
       return;
     }
-    // OTP verification is MANDATORY before account creation
-    if (!otpVerified) {
-      toast({ title: 'Phone Verification Required', description: 'Please verify your phone number with the SMS code before creating your account.', variant: 'destructive' });
+    const trimmedEmail = signupEmail.trim().toLowerCase();
+    const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const hasRealEmail = trimmedEmail.length > 0 && EMAIL_RE.test(trimmedEmail) && !trimmedEmail.endsWith('@welile.user') && !trimmedEmail.endsWith('@welile.agent');
+
+    // OTP is only mandatory when the user has NOT supplied a real email.
+    // Users who provide an email can verify via the email confirmation link
+    // instead — this unblocks signup for anyone whose phone can't receive SMS.
+    if (!hasRealEmail && !otpVerified) {
+      toast({ title: 'Verify Phone or Add Email', description: 'Verify your phone with the SMS code, or add an email address to continue.', variant: 'destructive' });
       return;
     }
     const cleanPhone = phone.replace(/\D/g, '');
     // Prepend country code if the number doesn't already include it
     const fullPhone = cleanPhone.startsWith(countryCode) ? cleanPhone : countryCode + (cleanPhone.startsWith('0') ? cleanPhone.slice(1) : cleanPhone);
-    const generatedEmail = `${fullPhone}@welile.user`;
+    const authEmail = hasRealEmail ? trimmedEmail : `${fullPhone}@welile.user`;
     const storedReferrerId = referrerIdState || localStorage.getItem('referral_agent_id');
     console.log('[Auth] Signup with referrer:', storedReferrerId, '(state:', referrerIdState, ', localStorage:', localStorage.getItem('referral_agent_id'), ')');
 
-    const { error } = await signUpWithoutRole(generatedEmail, password, trimmedFullName, fullPhone, storedReferrerId || undefined, preSelectedRole || undefined);
+    const { error } = await signUpWithoutRole(authEmail, password, trimmedFullName, fullPhone, storedReferrerId || undefined, preSelectedRole || undefined);
     if (error) {
       let errorMessage = error.message;
       if (error.message.includes('already registered')) {
         errorMessage = 'This phone number is already registered. Please sign in instead.';
+      } else if (error.message.includes('phone_already_registered')) {
+        errorMessage = 'This phone number is already linked to another account. Please sign in instead.';
       }
       toast({ title: 'Sign Up Failed', description: errorMessage, variant: 'destructive' });
     } else {
-      toast({ title: 'Account Created!', description: 'Welcome to Welile' });
+      toast({
+        title: 'Account Created!',
+        description: hasRealEmail ? 'Check your email to confirm your account.' : 'Welcome to Welile',
+      });
       saveLocationInBackground();
     }
   };
@@ -528,6 +543,7 @@ export function useAuthForm() {
     isForgotPassword, setIsForgotPassword,
     isForgotPhone, setIsForgotPhone,
     email, setEmail,
+    signupEmail, setSignupEmail,
     password, setPassword,
     confirmPassword, setConfirmPassword,
     showConfirmPassword, setShowConfirmPassword,
