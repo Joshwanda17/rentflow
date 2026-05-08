@@ -1,14 +1,21 @@
 ---
-name: Wallet Deduction strict-withdrawable
-description: CFO wallet-deduction tool MUST gate on get_user_available_balance and never spill into float. Float is company liability and is non-deductible from this tool.
+name: Wallet Deduction RETIRED — use CFO Direct Debit
+description: The wallet-deduction edge function is retired. All wallet→platform debits MUST go through CFO Direct Debit (cfo-direct-credit, operation:'debit').
 type: constraint
 ---
-The `wallet-deduction` edge function (Financial Ops → CFO Wallet Deduction panel) is strict-withdrawable-only:
+**RETIRED 2026-05-08.** The `wallet-deduction` edge function and its `WalletDeductionPanel` UI are gone.
 
-1. **Cap the request** by `get_user_available_balance(target_user_id)` — the same strict RPC the UI uses. Never use the raw cached `wallets.withdrawable_balance + float_balance` as the cap. If `amount > strict_available`, reject with HTTP 400 and a "Maximum deductible: UGX X" message; do not invent fallbacks.
-2. **No float-spill branch.** Do not emit any `agent_float_settlement`/float-bucket cash_out leg from this tool. If withdrawable cannot cover the request, the request is rejected — float is company liability per the 3-bucket rule.
-3. **Defensive recheck** the live `wallets.withdrawable_balance` immediately before calling `create_ledger_transaction`; on a race, return HTTP 409 "Withdrawable balance changed" instead of letting the `wallets_balance_check` constraint fire.
-4. **Tag** the wallet leg with `recipient_type: 'user'` so Wallet Routing v2 routes correctly to `withdrawable_balance`.
-5. **Diagnostics**: on rejection, `console.error` `{user_id, requested, strict_available, cache_withdrawable, cache_float}`. When `cache_withdrawable > strict_available` (cache is inflated relative to strict), insert a `wallet_overdraw_events` row tagged `source: 'wallet-deduction'` so the CFO Reconcile tab surfaces the drift.
+- `wallet-deduction` now returns HTTP 410 Gone — no ledger writes possible.
+- `WalletDeductionPanel.tsx` has been deleted.
+- The `wallet_deductions` table is preserved **read-only** for historical audit. `WalletRetractionsFeed` and `PartnerFinancialActivity` still read from it.
 
-**Why:** Spilling into float drove `float_balance` (and therefore `wallets.balance`) negative, triggering `wallets_balance_check` constraint failures and silently violating the wallet 3-bucket model.
+**Single channel for wallet → platform debits:**
+`DirectCreditTool` → `cfo-direct-credit` edge function with `operation: 'debit'`. This:
+
+1. Gates the cap on `get_user_available_balance(target_user_id)` (strict withdrawable). Never spills into float.
+2. Posts a balanced double-entry to `general_ledger` (user `cash_out` + platform `cash_in`) tagged with `recipient_type: 'user'` so Wallet Routing v2 lands the deduction on `withdrawable_balance`.
+3. Updates the wallet cache via `apply_wallet_movement` only.
+4. **Does NOT create any debt** — no `agent_advances` insert, no `advance_balance` mutation, no debt-recovery hook. So the user's future deposits are not silently swallowed.
+5. Logged in `audit_logs` as `cfo_direct_debit` and visible in `CFOActionsLog`.
+
+**Why:** Two parallel debit paths confused operators and made it ambiguous whether a debit could create a downstream debt. Consolidating to CFO Direct Debit enforces one auditable path with no advance/debt side effects.
