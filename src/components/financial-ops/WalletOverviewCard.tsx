@@ -24,9 +24,14 @@ interface WalletOverviewCardProps {
    * the drift line is informational only.
    */
   onOpenReconciliation?: () => void;
+  /**
+   * Tapping the "Ledger total" row opens the read-only Wallet Breakdown
+   * so a manager can search every wallet by name, phone or balance range.
+   */
+  onOpenBreakdown?: () => void;
 }
 
-export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets, onOpenReconciliation }: WalletOverviewCardProps = {}) {
+export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets, onOpenReconciliation, onOpenBreakdown }: WalletOverviewCardProps = {}) {
   // Operators reviewing a deposit don't want the screen reshuffling under
   // their cursor. The shared toggle gates polling on this card AND on the
   // Verify Deposits hub at the same time.
@@ -211,15 +216,33 @@ export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets, onOp
         onClick={(e) => e.stopPropagation()}
         className="mt-3 pt-3 border-t border-primary/15 space-y-1.5"
       >
-        <div className="flex items-center justify-between gap-2 text-[11px]">
-          <span className="flex items-center gap-1.5 text-muted-foreground">
-            <Scale className="h-3 w-3" />
-            <span className="uppercase tracking-wider font-semibold">Ledger total</span>
-          </span>
-          <span className="font-mono tabular-nums font-semibold text-foreground">
-            {strictLoading ? '———' : formatUGX(strict?.strictTotal ?? 0)}
-          </span>
-        </div>
+        {onOpenBreakdown ? (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onOpenBreakdown(); }}
+            className="w-full flex items-center justify-between gap-2 text-[11px] rounded-md px-1.5 py-1 -mx-1.5 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label="Open read-only wallet breakdown"
+          >
+            <span className="flex items-center gap-1.5 text-muted-foreground">
+              <Scale className="h-3 w-3" />
+              <span className="uppercase tracking-wider font-semibold">Ledger total</span>
+            </span>
+            <span className="flex items-center gap-1 font-mono tabular-nums font-semibold text-foreground">
+              {strictLoading ? '———' : formatUGX(strict?.strictTotal ?? 0)}
+              <ChevronRight className="h-3 w-3 text-muted-foreground" />
+            </span>
+          </button>
+        ) : (
+          <div className="flex items-center justify-between gap-2 text-[11px]">
+            <span className="flex items-center gap-1.5 text-muted-foreground">
+              <Scale className="h-3 w-3" />
+              <span className="uppercase tracking-wider font-semibold">Ledger total</span>
+            </span>
+            <span className="font-mono tabular-nums font-semibold text-foreground">
+              {strictLoading ? '———' : formatUGX(strict?.strictTotal ?? 0)}
+            </span>
+          </div>
+        )}
 
         {strictLoading ? (
           <p className="text-[10px] text-muted-foreground">Checking ledger alignment…</p>
