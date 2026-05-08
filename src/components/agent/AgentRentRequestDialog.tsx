@@ -985,6 +985,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     </div>
                   )}
 
+                  {submissionError && validationErrors.length === 0 && (
+                    <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 text-xs font-medium text-destructive flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                      <span>{submissionError}</span>
+                    </div>
+                  )}
+
                   {/* Submit button for outstanding mode */}
                   <div className="flex gap-3 pt-2">
                     <Button 
@@ -1408,6 +1415,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <li key={i} className="text-[11px] text-destructive">{err}</li>
                     ))}
                   </ul>
+                </div>
+              )}
+
+              {submissionError && validationErrors.length === 0 && (
+                <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 text-xs font-medium text-destructive flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <span>{submissionError}</span>
                 </div>
               )}
 
