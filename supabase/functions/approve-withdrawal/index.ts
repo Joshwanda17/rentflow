@@ -810,6 +810,44 @@ Deno.serve(async (req) => {
           .limit(1)
           .maybeSingle();
 
+        // ── Returns-source guard ──────────────────────────────────────────
+        // The "Returns Disbursement Confirmation" template must ONLY be sent
+        // when this withdrawal is actually backed by Supporter returns/ROI
+        // credits. A plain wallet/commission/float cashout — even from a
+        // user who happens to have an `investor_portfolios` row — must NOT
+        // receive this email (incident: tcollines004@gmail.com, 2026-05-08).
+        //
+        // Discriminator: beneficiary must have (a) an investor portfolio
+        // AND (b) at least one ROI credit leg in the general_ledger
+        // (`roi_payout` or `roi_wallet_credit`). This holds for both
+        // self-withdrawals by partners and proxy-agent withdrawals on
+        // behalf of a partner, because `partnerId === beneficiaryUserId`
+        // in either case.
+        if (!portfolio?.portfolio_code) {
+          console.log(
+            `[approve-withdrawal] Skipping returns-disbursement email: beneficiary ${partnerId} has no investor portfolio`,
+          );
+          break;
+        }
+        const { count: roiLegCount, error: roiLegErr } = await admin
+          .from("general_ledger")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", partnerId)
+          .in("category", ["roi_payout", "roi_wallet_credit"]);
+        if (roiLegErr) {
+          console.warn(
+            "[approve-withdrawal] Could not verify ROI ledger source; suppressing returns email:",
+            roiLegErr.message,
+          );
+          break;
+        }
+        if (!roiLegCount || roiLegCount <= 0) {
+          console.log(
+            `[approve-withdrawal] Skipping returns-disbursement email: beneficiary ${partnerId} has no ROI ledger credits (portfolio=${portfolio.portfolio_code})`,
+          );
+          break;
+        }
+
         const refUpper = reference.trim().toUpperCase();
         const emailReq = buildReturnsDisbursementRequest({
           recipientEmail: partnerProfile.email,
