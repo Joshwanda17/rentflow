@@ -19,6 +19,7 @@ import { AgentTenantCollectDialog } from './AgentTenantCollectDialog';
 import { TenantBehaviorCard } from './TenantBehaviorCard';
 import { TenantProfileView } from './TenantProfileView';
 import { TenantFieldCollectDialog } from './TenantFieldCollectDialog';
+import { AgentRequestPipelineView } from './AgentRequestPipelineView';
 
 interface Tenant {
   id: string;
@@ -123,6 +124,7 @@ function Highlight({ text, query }: { text?: string | null; query: string }) {
 export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [view, setView] = useState<'tenants' | 'pipeline'>('tenants');
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState(() => loadPrefs().search ?? '');
@@ -551,6 +553,30 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
             </SheetTitle>
           </SheetHeader>
 
+          {/* Top-level view toggle: live tenants vs request pipeline */}
+          <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-muted/50">
+            <button
+              onClick={() => setView('tenants')}
+              className={`py-2 rounded-lg text-sm font-semibold transition-all ${
+                view === 'tenants' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
+              }`}
+              style={{ touchAction: 'manipulation', minHeight: '40px' }}
+            >
+              Tenants
+            </button>
+            <button
+              onClick={() => setView('pipeline')}
+              className={`py-2 rounded-lg text-sm font-semibold transition-all ${
+                view === 'pipeline' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
+              }`}
+              style={{ touchAction: 'manipulation', minHeight: '40px' }}
+            >
+              Submissions
+            </button>
+          </div>
+
+          {view === 'tenants' && (
+          <>
           {/* Search — name, phone, property, landlord, or AI ID */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -678,9 +704,16 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               );
             })}
           </div>
+          </>
+          )}
         </div>
 
-        {/* ───── Tenant List ───── */}
+        {/* ───── Body ───── */}
+        {view === 'pipeline' ? (
+          <div className="flex-1 overflow-y-auto px-4 py-3">
+            <AgentRequestPipelineView />
+          </div>
+        ) : (
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
           {loading ? (
             <div className="flex items-center justify-center py-20">
@@ -1078,6 +1111,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
             })
           )}
         </div>
+        )}
         </>
         )}
       </SheetContent>
