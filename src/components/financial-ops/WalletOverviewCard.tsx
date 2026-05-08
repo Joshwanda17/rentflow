@@ -191,7 +191,17 @@ export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets, onOp
           <Users className="h-3.5 w-3.5" />
           {isLoading ? '—' : data?.walletCount?.toLocaleString()} wallets
         </span>
-        {onViewActiveWallets ? (
+        {onOpenBreakdown ? (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onOpenBreakdown(); }}
+            className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 -my-0.5 text-primary font-medium underline-offset-2 hover:bg-primary/10 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            aria-label="Open read-only wallet breakdown"
+          >
+            {isLoading ? '—' : data?.activeWallets?.toLocaleString()} with balance
+            <ChevronRight className="h-3 w-3" />
+          </button>
+        ) : onViewActiveWallets ? (
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onViewActiveWallets(); }}
@@ -216,33 +226,15 @@ export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets, onOp
         onClick={(e) => e.stopPropagation()}
         className="mt-3 pt-3 border-t border-primary/15 space-y-1.5"
       >
-        {onOpenBreakdown ? (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onOpenBreakdown(); }}
-            className="w-full flex items-center justify-between gap-2 text-[11px] rounded-md px-1.5 py-1 -mx-1.5 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            aria-label="Open read-only wallet breakdown"
-          >
-            <span className="flex items-center gap-1.5 text-muted-foreground">
-              <Scale className="h-3 w-3" />
-              <span className="uppercase tracking-wider font-semibold">Ledger total</span>
-            </span>
-            <span className="flex items-center gap-1 font-mono tabular-nums font-semibold text-foreground">
-              {strictLoading ? '———' : formatUGX(strict?.strictTotal ?? 0)}
-              <ChevronRight className="h-3 w-3 text-muted-foreground" />
-            </span>
-          </button>
-        ) : (
-          <div className="flex items-center justify-between gap-2 text-[11px]">
-            <span className="flex items-center gap-1.5 text-muted-foreground">
-              <Scale className="h-3 w-3" />
-              <span className="uppercase tracking-wider font-semibold">Ledger total</span>
-            </span>
-            <span className="font-mono tabular-nums font-semibold text-foreground">
-              {strictLoading ? '———' : formatUGX(strict?.strictTotal ?? 0)}
-            </span>
-          </div>
-        )}
+        <div className="flex items-center justify-between gap-2 text-[11px]">
+          <span className="flex items-center gap-1.5 text-muted-foreground">
+            <Scale className="h-3 w-3" />
+            <span className="uppercase tracking-wider font-semibold">Ledger total</span>
+          </span>
+          <span className="font-mono tabular-nums font-semibold text-foreground">
+            {strictLoading ? '———' : formatUGX(strict?.strictTotal ?? 0)}
+          </span>
+        </div>
 
         {strictLoading ? (
           <p className="text-[10px] text-muted-foreground">Checking ledger alignment…</p>
