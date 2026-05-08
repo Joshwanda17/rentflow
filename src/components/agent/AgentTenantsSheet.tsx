@@ -1111,6 +1111,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
             })
           )}
         </div>
+        )}
         </>
         )}
       </SheetContent>
