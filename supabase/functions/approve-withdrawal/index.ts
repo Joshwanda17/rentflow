@@ -788,13 +788,15 @@ Deno.serve(async (req) => {
 
       if (partnerProfile?.email) {
         let agentName: string | undefined;
+        let agentEmail: string | undefined;
         if (isProxyPayout && fundingUserId !== partnerId) {
           const { data: agentProfile } = await admin
             .from("profiles")
-            .select("full_name")
+            .select("full_name, email")
             .eq("id", fundingUserId)
             .maybeSingle();
           agentName = agentProfile?.full_name || undefined;
+          agentEmail = agentProfile?.email || undefined;
         }
 
         const { data: portfolio } = await admin
@@ -821,6 +823,27 @@ Deno.serve(async (req) => {
           agentName,
         });
         dispatchTransactionalEmail(supabaseUrl, serviceKey, emailReq, "approve-withdrawal");
+
+        // Also notify the proxy agent who submitted the withdrawal so they
+        // have a written confirmation that the payout they processed on
+        // behalf of the funder has been disbursed.
+        if (isProxyPayout && agentEmail && fundingUserId !== partnerId) {
+          const agentEmailReq = buildReturnsDisbursementRequest({
+            recipientEmail: agentEmail,
+            partnerName: agentName || "Agent",
+            // Use fundingUserId so the idempotency key differs from the
+            // partner's email and both are queued independently.
+            partnerId: fundingUserId,
+            txGroupId: String(txnGroupId ?? withdrawal_id),
+            amount,
+            transactionId: refUpper,
+            portfolioCode: portfolio?.portfolio_code || undefined,
+            payoutMethod: `${payment_method} — Proxy payout for ${partnerProfile.full_name || "funder"}`,
+            isManagedByAgent: true,
+            agentName,
+          });
+          dispatchTransactionalEmail(supabaseUrl, serviceKey, agentEmailReq, "approve-withdrawal");
+        }
       }
     } catch (emailErr) {
       console.warn(
