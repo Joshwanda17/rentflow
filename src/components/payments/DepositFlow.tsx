@@ -252,6 +252,16 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   const [editStatus, setEditStatus] = useState<'pending' | 'rejected' | null>(null);
 
   /**
+   * Live duplicate-TID check. Whenever the agent finishes typing/pasting
+   * a transaction id (or receipt number), we run the same indexed lookup
+   * the submit-time guard uses and surface the conflicting row's status
+   * through the standard inline blocker. Replaces the old "older than 7
+   * days" date heuristic, which rejected perfectly valid SMS just because
+   * the agent uploaded them late.
+   */
+  const [duplicateTidStatus, setDuplicateTidStatus] = useState<string | null>(null);
+
+  /**
    * Edit-mode fallback bookkeeping.
    *
    * When the Reference Matcher tells us "I found a pending deposit, flip
@@ -802,13 +812,15 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     if (transactionDate && transactionTime) {
       const txDate = new Date(`${transactionDate}T${transactionTime}`);
       const now = new Date();
-      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       if (txDate > now) {
         return { message: 'Transaction date cannot be in the future', fieldId: 'deposit-date' };
       }
-      if (txDate < weekAgo) {
-        return { message: 'Transaction must be within the last 7 days', fieldId: 'deposit-date' };
-      }
+    }
+    if (duplicateTidStatus) {
+      return {
+        message: `This Transaction ID is already registered (status: ${duplicateTidStatus}). Each TID can only be used once.`,
+        fieldId: 'deposit-tid',
+      };
     }
     return null;
   };
