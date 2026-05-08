@@ -1,40 +1,22 @@
-# Replace stale-date block with duplicate-TID lookup
+## Root cause
 
-## What changes (and what doesn't)
+The Landlord Ops "Force Approve" button calls the DB RPC `force_approve_rejected_rent_request`, which inserts a `system_events` row with `event_type = 'rent_request.force_approved'`. That value is **not** in the `system_event_type` enum, so Postgres aborts the whole transaction:
 
-The deposit form in `src/components/payments/DepositFlow.tsx` currently rejects any transaction whose date is older than 7 days, surfacing **"Transaction must be within the last 7 days"** as the inline blocker (the message visible in the screenshot for the `04/22/2026` TID `TID145635659834`).
+> invalid input value for enum system_event_type: "rent_request.force_approved"
 
-That date heuristic is the wrong gate — a TID is either already in our system or it isn't, regardless of how old the SMS is. We will:
+The status update, audit log, and event emission all roll back together — so the request stays `rejected` and the UI shows "Action failed".
 
-1. **Remove** the `txDate < weekAgo` branch from `computeBlockReason()` (lines 805 & 809–811 of `DepositFlow.tsx`). The "future date" check stays — that one is genuinely invalid.
-2. **Add** an async "is this TID already registered?" check that runs whenever the user finishes typing/pasting a TID and the form is otherwise complete. It hits the same indexed query the submit-time duplicate guard already uses (lines 887–908):
-   ```
-   supabase
-     .from('deposit_requests')
-     .select('id, status')
-     .ilike('transaction_id', normalizedRef)
-     .not('status', 'in', '(rejected,cancelled,failed)')
-     .limit(1)
-   ```
-3. **Surface** the result through the existing inline blocker UI (the red bar at lines 2119–2130). Message: `"This Transaction ID is already registered (status: <status>). Each TID can only be used once."` — pointing at `deposit-tid` so the existing "Fix" button focuses the TID input, not the date input.
-4. The "Within last 7 days only" helper text under the date field (line 299 in `PaymentConfirmationForm.tsx`) and the `PaymentConfirmationForm` 7-day validator (line 59) are **out of scope** — they belong to a different form. Only `DepositFlow.tsx` is touched.
+Existing enum entries use underscores (`rent_request_approved`, `rent_request_funded`, etc.); only this one uses a dot, which is the inconsistency that caused it to be missed.
 
-## How the lookup is wired
+## Fix (single migration, no UI change)
 
-- New state in `DepositFlow`: `duplicateTidStatus: string | null` and `duplicateTidChecking: boolean`.
-- New `useEffect` keyed on `[transactionId, momoProvider, channel, isEditMode]` that:
-  - Skips edit mode and skips while `tidError` is non-empty / TID format invalid.
-  - Debounces ~400 ms, normalizes via the same `getReferenceId()` helper used at submit, runs the query above, and stores the conflicting row's status.
-  - Aborts in-flight checks via an `ignored` flag if the TID changes mid-flight.
-- `computeBlockReason()` gains a new branch (placed **before** the date checks) that returns the duplicate-TID message + `fieldId: 'deposit-tid'` whenever `duplicateTidStatus` is set.
-- The submit-time duplicate guard (lines 881–909) stays as the authoritative final gate — the inline check is a UX preview, not a replacement.
+1. Add the missing enum value to `public.system_event_type`:
+   - `rent_request_force_approved` (underscore form, matches the family)
+2. Update `public.force_approve_rejected_rent_request(...)` to emit `'rent_request_force_approved'` instead of the dotted string. All other logic (role gate, 10-char reason check, stage advancement, audit log, TID requirement when advancing to `funded`) stays exactly the same.
 
-## Files
+No frontend or edge-function changes are needed. The button already calls the right RPC with the right arguments — the failure is purely the enum mismatch inside the function body.
 
-- `src/components/payments/DepositFlow.tsx` — only file edited.
+## Verification after apply
 
-## Out of scope
-
-- No DB migration, no edge-function change, no schema change.
-- No change to `PaymentConfirmationForm.tsx`, `DepositReferenceMatcher.tsx`, or any other deposit surface.
-- No change to the submit-time duplicate guard or its toast.
+- Re-try Force Approve on the same rejected rent request (Kyobula Dorothy, UGX 150,000) with the same justification — it should succeed and advance the request from `rejected` to the next stage based on `rejected_at_stage`.
+- Confirm a row appears in `system_events` with `event_type = 'rent_request_force_approved'` and a matching `audit_logs` row with `action_type = 'rent_request_force_approved'`.
