@@ -596,8 +596,6 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               >✕</button>
             )}
           </div>
-          </>
-          )}
 
           {/* 3 Filter Tabs */}
           <div className="flex gap-2">
@@ -706,9 +704,16 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               );
             })}
           </div>
+          </>
+          )}
         </div>
 
-        {/* ───── Tenant List ───── */}
+        {/* ───── Body ───── */}
+        {view === 'pipeline' ? (
+          <div className="flex-1 overflow-y-auto px-4 py-3">
+            <AgentRequestPipelineView />
+          </div>
+        ) : (
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
           {loading ? (
             <div className="flex items-center justify-center py-20">
