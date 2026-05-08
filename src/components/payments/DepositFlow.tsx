@@ -1146,9 +1146,9 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
       */}
       <DialogContent
         className="p-0 gap-0 sm:max-w-md w-screen h-svh sm:h-auto sm:max-h-[90vh] sm:rounded-2xl rounded-none overflow-hidden flex flex-col"
-        onPointerDownOutside={(e) => { if (smsPasteOpen) e.preventDefault(); }}
-        onInteractOutside={(e) => { if (smsPasteOpen) e.preventDefault(); }}
-        onEscapeKeyDown={(e) => { if (smsPasteOpen) e.preventDefault(); }}
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
       >
         {/* Sticky header */}
         <DialogHeader className="px-4 py-3 border-b bg-background sticky top-0 z-10 space-y-0">
@@ -2344,9 +2344,12 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   onClick={() => {
                     const ok = applyPastedSms(smsPasteText);
                     if (ok) {
-                      setSmsPasteOpen(false);
                       setSmsPasteText('');
                       setSmsConfirmStep(false);
+                      // Defer close to next tick so Radix's focus-restore
+                      // doesn't race with the parent dialog's outside-interaction
+                      // handler on touch devices (mobile Confirm & fill bug).
+                      setTimeout(() => setSmsPasteOpen(false), 0);
                     }
                   }}
                 >

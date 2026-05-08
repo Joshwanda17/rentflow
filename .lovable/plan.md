@@ -1,22 +1,49 @@
 ## Root cause
 
-The Landlord Ops "Force Approve" button calls the DB RPC `force_approve_rejected_rent_request`, which inserts a `system_events` row with `event_type = 'rent_request.force_approved'`. That value is **not** in the `system_event_type` enum, so Postgres aborts the whole transaction:
+On the funder mobile DepositFlow, after the user taps **Confirm & fill** in the "Confirm extracted details" inner sheet, the parent **Deposit to wallet** dialog closes — so the **Deposit USh …** button never gets pressed.
 
-> invalid input value for enum system_event_type: "rent_request.force_approved"
+The inner sheet (`smsPasteOpen`) uses `modal={false}`, which means it lives in a portal at body level and is treated as *outside* the parent dialog by Radix. The parent currently guards against this with:
 
-The status update, audit log, and event emission all roll back together — so the request stays `rejected` and the UI shows "Action failed".
+```tsx
+onPointerDownOutside={(e) => { if (smsPasteOpen) e.preventDefault(); }}
+onInteractOutside={(e) => { if (smsPasteOpen) e.preventDefault(); }}
+onEscapeKeyDown={(e) => { if (smsPasteOpen) e.preventDefault(); }}
+```
 
-Existing enum entries use underscores (`rent_request_approved`, `rent_request_funded`, etc.); only this one uses a dot, which is the inconsistency that caused it to be missed.
+The Confirm & fill handler runs `setSmsPasteOpen(false)` synchronously. Pointer-down is preventDefaulted (state still true at that instant), but the **focus-restoration** that Radix performs as the inner dialog unmounts fires `onFocusOutside` / a follow-up `onInteractOutside` *after* `smsPasteOpen` has already flipped to `false`. The guard short-circuits, Radix concludes the user clicked outside the parent, and the whole DepositFlow closes.
 
-## Fix (single migration, no UI change)
+This only manifests on touch devices because desktop pointer-up + click happen on the same React tick before commit; on mobile the focus restore is async enough to lose the race. The screenshot the user sent confirms the inner sheet is the "4/4 fields detected" confirmation step right before the dialog vanishes.
 
-1. Add the missing enum value to `public.system_event_type`:
-   - `rent_request_force_approved` (underscore form, matches the family)
-2. Update `public.force_approve_rejected_rent_request(...)` to emit `'rent_request_force_approved'` instead of the dotted string. All other logic (role gate, 10-char reason check, stage advancement, audit log, TID requirement when advancing to `funded`) stays exactly the same.
+## Fix (UI-only, in `src/components/payments/DepositFlow.tsx`)
 
-No frontend or edge-function changes are needed. The button already calls the right RPC with the right arguments — the failure is purely the enum mismatch inside the function body.
+Make the parent DepositFlow dialog **immune to outside-interaction dismissal at all times**. The dialog already provides explicit Close / Cancel / X buttons (which call `handleClose`), so accidental dismissal via outside-click / focus-restore / Esc is never desired in this fintech flow.
 
-## Verification after apply
+Change the three guards on the outer `<DialogContent>` from conditional to unconditional:
 
-- Re-try Force Approve on the same rejected rent request (Kyobula Dorothy, UGX 150,000) with the same justification — it should succeed and advance the request from `rejected` to the next stage based on `rejected_at_stage`.
-- Confirm a row appears in `system_events` with `event_type = 'rent_request_force_approved'` and a matching `audit_logs` row with `action_type = 'rent_request_force_approved'`.
+```tsx
+onPointerDownOutside={(e) => e.preventDefault()}
+onInteractOutside={(e) => e.preventDefault()}
+onEscapeKeyDown={(e) => e.preventDefault()}
+```
+
+Also harden the inner SMS sheet so its Confirm & fill handler defers the close to the next tick, eliminating any residual focus-race against the parent:
+
+```tsx
+onClick={() => {
+  const ok = applyPastedSms(smsPasteText);
+  if (ok) {
+    setSmsPasteText('');
+    setSmsConfirmStep(false);
+    // Defer so Radix's focus restore happens after this React commit,
+    // preventing the parent dialog from interpreting it as outside-click.
+    setTimeout(() => setSmsPasteOpen(false), 0);
+  }
+}}
+```
+
+No business logic, no state-shape, no edge-function, no DB changes — just two small UI hardenings inside `DepositFlow.tsx`.
+
+## Verification
+
+- On a phone (390×844 viewport): open DepositFlow → MoMo → Paste SMS → Review → **Confirm & fill**. The inner sheet must close, the parent stays open with the amount/TID/date/time pre-filled, and the user can tap **Deposit USh …** as the next action.
+- The X, Cancel, and Back buttons inside the parent still close it normally (they call `handleClose` directly, not via outside-interaction).
