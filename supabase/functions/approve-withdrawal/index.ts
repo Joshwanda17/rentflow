@@ -790,6 +790,7 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (partnerProfile?.email) {
+       sendReturnsEmail: {
         let agentName: string | undefined;
         let agentEmail: string | undefined;
         if (isProxyPayout && fundingUserId !== partnerId) {
@@ -827,7 +828,7 @@ Deno.serve(async (req) => {
           console.log(
             `[approve-withdrawal] Skipping returns-disbursement email: beneficiary ${partnerId} has no investor portfolio`,
           );
-          break;
+          break sendReturnsEmail;
         }
         const { count: roiLegCount, error: roiLegErr } = await admin
           .from("general_ledger")
@@ -839,13 +840,13 @@ Deno.serve(async (req) => {
             "[approve-withdrawal] Could not verify ROI ledger source; suppressing returns email:",
             roiLegErr.message,
           );
-          break;
+          break sendReturnsEmail;
         }
         if (!roiLegCount || roiLegCount <= 0) {
           console.log(
             `[approve-withdrawal] Skipping returns-disbursement email: beneficiary ${partnerId} has no ROI ledger credits (portfolio=${portfolio.portfolio_code})`,
           );
-          break;
+          break sendReturnsEmail;
         }
 
         const refUpper = reference.trim().toUpperCase();
@@ -885,6 +886,7 @@ Deno.serve(async (req) => {
           });
           dispatchTransactionalEmail(supabaseUrl, serviceKey, agentEmailReq, "approve-withdrawal");
         }
+       }
       }
     } catch (emailErr) {
       console.warn(
