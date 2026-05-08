@@ -37,6 +37,7 @@ export default function Auth() {
     isForgotPassword, setIsForgotPassword,
     isForgotPhone, setIsForgotPhone,
     email, setEmail,
+    signupEmail, setSignupEmail,
     password, setPassword,
     confirmPassword, setConfirmPassword,
     showConfirmPassword, setShowConfirmPassword,
