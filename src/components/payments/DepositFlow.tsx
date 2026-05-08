@@ -252,6 +252,16 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
   const [editStatus, setEditStatus] = useState<'pending' | 'rejected' | null>(null);
 
   /**
+   * Live duplicate-TID check. Whenever the agent finishes typing/pasting
+   * a transaction id (or receipt number), we run the same indexed lookup
+   * the submit-time guard uses and surface the conflicting row's status
+   * through the standard inline blocker. Replaces the old "older than 7
+   * days" date heuristic, which rejected perfectly valid SMS just because
+   * the agent uploaded them late.
+   */
+  const [duplicateTidStatus, setDuplicateTidStatus] = useState<string | null>(null);
+
+  /**
    * Edit-mode fallback bookkeeping.
    *
    * When the Reference Matcher tells us "I found a pending deposit, flip
@@ -675,6 +685,42 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, activeEditId]);
 
+  /**
+   * Live "is this TID already registered?" check. Debounced 400ms,
+   * skipped in edit mode and while the TID format is invalid. Hits the
+   * same indexed query the submit-time guard runs so the UX preview and
+   * the final gate stay in lock-step.
+   */
+  useEffect(() => {
+    if (isEditMode) { setDuplicateTidStatus(null); return; }
+    if (tidError) { setDuplicateTidStatus(null); return; }
+    const ref =
+      channel === 'agent_cash' || channel === 'cash'
+        ? (receiptNumber.trim() ? `RCT${receiptNumber.trim().toUpperCase()}` : '')
+        : transactionId.trim().toUpperCase();
+    if (!ref || ref.length < 4) { setDuplicateTidStatus(null); return; }
+    let ignored = false;
+    const t = setTimeout(async () => {
+      try {
+        const { data } = await supabase
+          .from('deposit_requests')
+          .select('id, status')
+          .ilike('transaction_id', ref)
+          .not('status', 'in', '(rejected,cancelled,failed)')
+          .limit(1);
+        if (ignored) return;
+        if (data && data.length > 0) {
+          setDuplicateTidStatus((data[0] as { status: string }).status);
+        } else {
+          setDuplicateTidStatus(null);
+        }
+      } catch {
+        if (!ignored) setDuplicateTidStatus(null);
+      }
+    }, 400);
+    return () => { ignored = true; clearTimeout(t); };
+  }, [transactionId, receiptNumber, channel, momoProvider, tidError, isEditMode]);
+
   const validateTid = (value: string, provider?: 'mtn' | 'airtel') => {
     const upper = value.trim().toUpperCase();
     const prov = provider ?? momoProvider;
@@ -802,13 +848,15 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     if (transactionDate && transactionTime) {
       const txDate = new Date(`${transactionDate}T${transactionTime}`);
       const now = new Date();
-      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       if (txDate > now) {
         return { message: 'Transaction date cannot be in the future', fieldId: 'deposit-date' };
       }
-      if (txDate < weekAgo) {
-        return { message: 'Transaction must be within the last 7 days', fieldId: 'deposit-date' };
-      }
+    }
+    if (duplicateTidStatus) {
+      return {
+        message: `This Transaction ID is already registered (status: ${duplicateTidStatus}). Each TID can only be used once.`,
+        fieldId: 'deposit-tid',
+      };
     }
     return null;
   };
