@@ -297,15 +297,17 @@ Deno.serve(async (req) => {
         // 'withdrawable'), so float_balance is often 0 even when the
         // partner is fully funded. Using min() against float zeroed out
         // legitimate withdrawable-funded proxy payouts. The partner-
-        // linked ledger already enforces the per-partner earmark — we
-        // only need to verify the agent has enough TOTAL cash to deliver.
-        const physicalCashCap = Math.max(0, Number(wallet?.balance ?? 0));
+        // linked ledger already enforces the per-partner earmark.
+        //
+        // IMPORTANT: do NOT cap by the agent's `wallet.balance`. Proxy
+        // partner money is ROI / Nearing-Payouts funds that live on the
+        // PARTNER's ledger, not the agent's wallet. The agent is only the
+        // delivery channel — their `wallet.balance` is routinely 0 even
+        // when the partner is fully funded, so a physical-cash cap would
+        // (and did) wrongly reject every legitimate proxy payout.
         ledgerAvailable = Math.max(
           0,
-          Math.min(
-            Math.max(0, partnerLinkedNet) - partnerPendingHolds,
-            physicalCashCap,
-          ),
+          Math.max(0, partnerLinkedNet) - partnerPendingHolds,
         );
       } else if (isProxyPayout) {
         // Proxy agent without a linked_party on the withdrawal row: gate
