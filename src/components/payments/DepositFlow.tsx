@@ -1592,9 +1592,9 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
                   <button
                     type="button"
                     onClick={handleOpenSmsPaste}
-                    className="text-xs font-semibold text-primary inline-flex items-center gap-1 hover:underline underline-offset-2"
+                    className="text-sm font-semibold text-primary-foreground bg-primary inline-flex items-center gap-2 px-4 py-2 rounded-lg shadow-sm hover:bg-primary/90 active:scale-[0.98] transition"
                   >
-                    <ClipboardPaste className="h-3 w-3" />
+                    <ClipboardPaste className="h-4 w-4" />
                     Paste from SMS
                   </button>
                 </div>
