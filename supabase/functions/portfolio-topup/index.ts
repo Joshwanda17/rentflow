@@ -124,9 +124,12 @@ Deno.serve(async (req) => {
       source_table: "investor_portfolios",
       source_id: portfolio_id,
       transaction_group_id: txGroupId,
-      description: `Wallet-funded top-up for ${accountLabel} — auto-approved`,
+      description: `Wallet-funded top-up for ${accountLabel} — auto-applied`,
       linked_party: "platform",
-      status: "approved",
+      // `completed` (not `approved`) so the merge-pending-topups engine
+      // never re-picks this row and double-credits the principal — the
+      // investment_amount has already been bumped below.
+      status: "completed",
       reviewed_at: now,
       reviewed_by: user.id,
       operation_type: "portfolio_topup",
