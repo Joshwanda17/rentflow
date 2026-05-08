@@ -133,6 +133,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [housePhotos, setHousePhotos] = useState<{ file: File; preview: string }[]>([]);
   const [guarantorConsent, setGuarantorConsent] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
 
   // FIX #9: house category for outstanding flow
   const [outstandingHouseCategory, setOutstandingHouseCategory] = useState('');
@@ -232,6 +233,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setHousePhotos([]);
     setGuarantorConsent(false);
     setValidationErrors([]);
+    setSubmissionError(null);
     setSuccess(false);
     setActivationLink(null);
     setStep('type');
@@ -356,6 +358,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   };
 
   const handleSubmit = async () => {
+    setSubmissionError(null);
+
     if (!user) {
       toast.error('You must be signed in to submit a request');
       return;
@@ -370,6 +374,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
     if (errors.length > 0) {
       setValidationErrors(errors);
+      setSubmissionError(errors[0]);
       toast.error(errors[0]);
       // Scroll the dialog so the agent actually sees the error summary
       requestAnimationFrame(() => {
@@ -471,6 +476,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
             errorMsg = parsed.error || errorMsg;
           }
         } catch {}
+        setSubmissionError(errorMsg);
         toast.error(errorMsg);
         setLoading(false);
         return;
@@ -478,7 +484,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
       if (!tenantResult?.user_id) {
         console.error('Tenant registration returned no user_id:', tenantResult);
-        toast.error(tenantResult?.error || 'Failed to register tenant - no user ID returned');
+        const errorMsg = tenantResult?.error || 'Failed to register tenant - no user ID returned';
+        setSubmissionError(errorMsg);
+        toast.error(errorMsg);
         setLoading(false);
         return;
       }
@@ -544,8 +552,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       console.error('Submission error:', error);
       const msg = error.message || 'Failed to submit request';
       if (msg.includes('row-level security') || msg.includes('RLS')) {
-        toast.error('Permission denied — your session may have expired. Please log out and log in again.');
+        const friendly = 'Permission denied — your session may have expired. Please log out and log in again.';
+        setSubmissionError(friendly);
+        toast.error(friendly);
       } else {
+        setSubmissionError(msg);
         toast.error(msg);
       }
     } finally {
@@ -974,6 +985,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     </div>
                   )}
 
+                  {submissionError && validationErrors.length === 0 && (
+                    <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 text-xs font-medium text-destructive flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                      <span>{submissionError}</span>
+                    </div>
+                  )}
+
                   {/* Submit button for outstanding mode */}
                   <div className="flex gap-3 pt-2">
                     <Button 
@@ -1397,6 +1415,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <li key={i} className="text-[11px] text-destructive">{err}</li>
                     ))}
                   </ul>
+                </div>
+              )}
+
+              {submissionError && validationErrors.length === 0 && (
+                <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/30 text-xs font-medium text-destructive flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <span>{submissionError}</span>
                 </div>
               )}
 
