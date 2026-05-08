@@ -246,26 +246,6 @@ export function WalletOverviewCard({ onOpenDeductions, onViewActiveWallets, onOp
 
         {strictLoading ? (
           <p className="text-[10px] text-muted-foreground">Checking ledger alignment…</p>
-        ) : driftIsMaterial ? (
-          driftClickable ? (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onOpenReconciliation?.(); }}
-              className="w-full flex items-center justify-between gap-2 text-[11px] rounded-md px-1.5 py-1 -mx-1.5 text-warning hover:bg-warning/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-warning"
-              aria-label="Open reconciliation to review cache drift"
-            >
-              <span className="flex items-center gap-1.5 font-medium">
-                <AlertTriangle className="h-3 w-3" />
-                Ledger mismatch: +{formatUGX(strict?.totalDrift ?? 0)} across {strict?.driftedWallets ?? 0} wallet{strict?.driftedWallets === 1 ? '' : 's'}
-              </span>
-              <ChevronRight className="h-3 w-3" />
-            </button>
-          ) : (
-            <p className="flex items-center gap-1.5 text-[11px] text-warning font-medium">
-              <AlertTriangle className="h-3 w-3" />
-              Ledger mismatch: +{formatUGX(strict?.totalDrift ?? 0)} across {strict?.driftedWallets ?? 0} wallet{strict?.driftedWallets === 1 ? '' : 's'}
-            </p>
-          )
         ) : (
           <p className="flex items-center gap-1.5 text-[11px] text-emerald-600 font-medium">
             <CheckCircle2 className="h-3 w-3" />
