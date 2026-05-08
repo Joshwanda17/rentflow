@@ -16,6 +16,7 @@ import { VerifyDepositsHub } from './VerifyDepositsHub';
 import { MismatchMetricsPanel } from './MismatchMetricsPanel';
 import { ReconciliationReviewScreen } from './ReconciliationReviewScreen';
 import { WithdrawalHistoryStatement } from './WithdrawalHistoryStatement';
+import { PortfolioTopUpVerification } from './PortfolioTopUpVerification';
 
 
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
@@ -144,6 +145,15 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
             <FinOpsWithdrawalVerification />
             <PendingWalletOperationsWidget requirePaymentRef={requirePaymentRef} />
             <FloatPayoutVerification />
+            {/* Portfolio top-ups parked at status='awaiting_verification' —
+                e.g. partner wallet → portfolio top-ups. Without this panel
+                FinOps had no surface to approve them. */}
+            <div>
+              <h3 className="text-base sm:text-lg font-bold mt-4 mb-2">
+                Portfolio Top-Ups Awaiting Verification
+              </h3>
+              <PortfolioTopUpVerification />
+            </div>
           </>
         )}
         {activeTool === 'opportunities' && (
