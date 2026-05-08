@@ -19,6 +19,7 @@ import { AgentTenantCollectDialog } from './AgentTenantCollectDialog';
 import { TenantBehaviorCard } from './TenantBehaviorCard';
 import { TenantProfileView } from './TenantProfileView';
 import { TenantFieldCollectDialog } from './TenantFieldCollectDialog';
+import { AgentRequestPipelineView } from './AgentRequestPipelineView';
 
 interface Tenant {
   id: string;
@@ -123,6 +124,7 @@ function Highlight({ text, query }: { text?: string | null; query: string }) {
 export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [view, setView] = useState<'tenants' | 'pipeline'>('tenants');
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState(() => loadPrefs().search ?? '');
