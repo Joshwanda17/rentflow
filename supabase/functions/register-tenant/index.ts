@@ -135,48 +135,51 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check for duplicate National ID
-    const { data: existingNationalId } = await supabaseAdmin
-      .from("profiles")
-      .select("id, full_name")
-      .eq("national_id", national_id)
-      .maybeSingle();
-
-    if (existingNationalId) {
-      console.log("[register-tenant] Duplicate national_id found:", existingNationalId.id);
-      return new Response(JSON.stringify({ error: `A tenant with this National ID already exists (${existingNationalId.full_name})` }), {
-        status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const cleanPhone = phone.trim();
     const digits = cleanPhone.replace(/[^0-9]/g, '');
+    const last9 = digits.slice(-9);
     const virtualEmail = (rawEmail ? validateEmail(rawEmail) : null) || `${digits}@noapp.welile.user`;
 
-    // Check if a profile with this phone already exists (exact match)
+    // Check if a profile with this phone already exists before National ID conflict handling.
+    // Agents often renew Rent Plans for existing tenants; that must reuse the tenant,
+    // not fail as a duplicate National ID.
     const { data: existing } = await supabaseAdmin
       .from("profiles")
-      .select("id")
+      .select("id, phone, national_id")
       .eq("phone", cleanPhone)
       .maybeSingle();
 
-    if (existing) {
-      console.log("[register-tenant] Found existing profile by exact phone:", existing.id);
-      return new Response(JSON.stringify({ user_id: existing.id, existing: true }), {
-        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     // Also check by normalized last 9 digits
-    const last9 = digits.slice(-9);
     const { data: existingByLast9 } = await supabaseAdmin
       .from("profiles")
-      .select("id, phone")
+      .select("id, phone, national_id")
       .ilike("phone", `%${last9}`);
 
-    if (existingByLast9 && existingByLast9.length > 0) {
-      console.log("[register-tenant] Found existing profile by last9:", existingByLast9[0].id);
-      return new Response(JSON.stringify({ user_id: existingByLast9[0].id, existing: true }), {
+    const existingByPhone = existing ?? existingByLast9?.[0] ?? null;
+
+    // Check for duplicate National ID. Reuse it only when it is the same phone/account.
+    const { data: existingNationalId } = await supabaseAdmin
+      .from("profiles")
+      .select("id, full_name, phone")
+      .eq("national_id", national_id)
+      .maybeSingle();
+
+    if (existingNationalId && (!existingByPhone || existingNationalId.id !== existingByPhone.id)) {
+      const nationalDigits = String(existingNationalId.phone ?? '').replace(/\D/g, '');
+      if (nationalDigits.slice(-9) !== last9) {
+        console.log("[register-tenant] Duplicate national_id found:", existingNationalId.id);
+        return new Response(JSON.stringify({ error: `A tenant with this National ID already exists (${existingNationalId.full_name})` }), {
+          status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    if (existingByPhone) {
+      console.log("[register-tenant] Found existing profile by phone:", existingByPhone.id);
+      if (!existingByPhone.national_id || existingByPhone.national_id === national_id) {
+        await supabaseAdmin.from("profiles").update({ national_id, referrer_id: callingUser.id }).eq("id", existingByPhone.id);
+      }
+      return new Response(JSON.stringify({ user_id: existingByPhone.id, existing: true }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
