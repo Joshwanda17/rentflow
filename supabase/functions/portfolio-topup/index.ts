@@ -111,11 +111,12 @@ Deno.serve(async (req) => {
     const accountLabel = portfolio.account_name || portfolio.portfolio_code;
     const now = new Date().toISOString();
 
-    // 1. Record the operation. Wallet-funded top-ups bypass Financial Ops
-    //    verification — the funds are already on-platform (cash already
-    //    sitting in the user's wallet), so there is nothing for FinOps to
-    //    physically reconcile against an external receipt. We mark it
-    //    `approved` immediately so it never lands in the FinOps queue.
+    // 1. Record the operation as `approved` — wallet-funded top-ups skip
+    //    Financial Ops verification (funds already on-platform), but the
+    //    principal is NOT applied instantly. The merge-pending-topups cron
+    //    picks up `approved` rows and merges them into investment_amount
+    //    on the portfolio's next payout date. Until then the partner sees
+    //    a "Pending — applies on next payout" banner on the portfolio.
     const { error: pendingErr } = await supabase.from("pending_wallet_operations").insert({
       user_id: user.id,
       amount: topupAmount,
@@ -124,12 +125,11 @@ Deno.serve(async (req) => {
       source_table: "investor_portfolios",
       source_id: portfolio_id,
       transaction_group_id: txGroupId,
-      description: `Wallet-funded top-up for ${accountLabel} — auto-applied`,
+      description: `Wallet-funded top-up for ${accountLabel} — applies on next payout`,
       linked_party: "platform",
-      // `completed` (not `approved`) so the merge-pending-topups engine
-      // never re-picks this row and double-credits the principal — the
-      // investment_amount has already been bumped below.
-      status: "completed",
+      // `approved` — skips FinOps queue, eligible for merge-pending-topups
+      // engine on the next payout date.
+      status: "approved",
       reviewed_at: now,
       reviewed_by: user.id,
       operation_type: "portfolio_topup",
@@ -226,23 +226,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 4. Apply the top-up to the portfolio principal IMMEDIATELY.
-    //    Because the wallet was already debited via the ledger above
-    //    (partner_funding cash_out wallet / cash_in platform), the funds
-    //    are real and on-platform — no parking, no maturity wait.
-    const newInvestmentAmount = Number(portfolio.investment_amount) + topupAmount;
-    const { error: invErr } = await supabase
-      .from("investor_portfolios")
-      .update({ investment_amount: newInvestmentAmount })
-      .eq("id", portfolio_id);
-
-    if (invErr) {
-      console.error("[portfolio-topup] Failed to update investment_amount:", invErr);
-      // Non-blocking — funds are already recorded in the ledger and pending op
-      // is marked approved; merge engine will reconcile on next pass.
-    }
-
-    console.log(`[portfolio-topup] User ${user.id} auto-applied wallet-funded top-up of ${topupAmount} to ${portfolio_id} (new principal: ${newInvestmentAmount})`);
+    // 4. DO NOT bump investment_amount here. The top-up is parked in
+    //    pending_wallet_operations (status=approved) and the
+    //    merge-pending-topups cron applies it to the portfolio principal
+    //    on the next payout date. Until then UI shows pending banner.
+    console.log(`[portfolio-topup] User ${user.id} parked wallet-funded top-up of ${topupAmount} for ${portfolio_id} — merges on next payout`);
 
     // Log system event
     logSystemEvent(supabase, 'portfolio_topup', user.id, 'investor_portfolios', portfolio_id, { amount: topupAmount, portfolio_code: portfolio.portfolio_code });
