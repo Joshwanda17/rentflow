@@ -3,23 +3,10 @@ import { lovable } from '@/integrations/lovable';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import type { AppRole } from './types';
 
-const MAINTENANCE_LOCK_MESSAGE =
-  'Welile is under maintenance. Sign-in and sign-up are temporarily disabled while we reconcile the platform. Please check back shortly.';
-
-const hasMaintenanceBypass = () => {
-  try {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('admin') === 'c10') {
-      sessionStorage.setItem('welile.maintenance.bypass', '1');
-      return true;
-    }
-    return sessionStorage.getItem('welile.maintenance.bypass') === '1';
-  } catch {
-    return false;
-  }
-};
-
-const maintenanceError = () => ({ error: new Error(MAINTENANCE_LOCK_MESSAGE) as Error });
+// Maintenance lock removed 2026-05-08 — was silently returning a fake
+// "Welile is under maintenance" error on every sign-in / sign-up unless
+// the URL contained `?admin=c10`, which made password logins and
+// admin-reset-password flows appear broken.
 
 export async function signUp(
   email: string,
@@ -30,7 +17,6 @@ export async function signUp(
   signupSource?: string,
   referrerId?: string,
 ) {
-  if (!hasMaintenanceBypass()) return maintenanceError();
   const redirectUrl = `${window.location.origin}/`;
   // Build metadata explicitly. Only include `signup_source` when it is a
   // non-empty string so the Postgres `handle_new_user` trigger persists it
@@ -65,7 +51,6 @@ export async function signUp(
 }
 
 export async function signUpWithoutRole(email: string, password: string, fullName: string, phone: string, referrerId?: string, intendedRole?: string) {
-  if (!hasMaintenanceBypass()) return maintenanceError();
   const redirectUrl = `${window.location.origin}/`;
   const { error } = await supabase.auth.signUp({
     email,
@@ -79,7 +64,6 @@ export async function signUpWithoutRole(email: string, password: string, fullNam
 }
 
 export async function signIn(email: string, password: string) {
-  if (!hasMaintenanceBypass()) return maintenanceError();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   return { error: error as Error | null };
 }
@@ -116,7 +100,6 @@ async function preparePreviewOAuthFlow() {
 }
 
 export async function signInWithGoogle() {
-  if (!hasMaintenanceBypass()) return maintenanceError();
   await preparePreviewOAuthFlow();
 
   // Use current origin so OAuth callback returns to wherever the user is
@@ -144,7 +127,6 @@ export async function signInWithGoogle() {
 }
 
 export async function signInWithApple() {
-  if (!hasMaintenanceBypass()) return maintenanceError();
   await preparePreviewOAuthFlow();
 
   const primaryUri = window.location.origin;
