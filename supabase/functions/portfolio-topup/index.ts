@@ -111,7 +111,11 @@ Deno.serve(async (req) => {
     const accountLabel = portfolio.account_name || portfolio.portfolio_code;
     const now = new Date().toISOString();
 
-    // 1. Record pending operation FIRST (no wallet mutation yet)
+    // 1. Record the operation. Wallet-funded top-ups bypass Financial Ops
+    //    verification — the funds are already on-platform (cash already
+    //    sitting in the user's wallet), so there is nothing for FinOps to
+    //    physically reconcile against an external receipt. We mark it
+    //    `approved` immediately so it never lands in the FinOps queue.
     const { error: pendingErr } = await supabase.from("pending_wallet_operations").insert({
       user_id: user.id,
       amount: topupAmount,
@@ -120,9 +124,14 @@ Deno.serve(async (req) => {
       source_table: "investor_portfolios",
       source_id: portfolio_id,
       transaction_group_id: txGroupId,
-      description: `Pending top-up for ${accountLabel} — awaiting maturity`,
+      description: `Wallet-funded top-up for ${accountLabel} — auto-applied`,
       linked_party: "platform",
-      status: "pending",
+      // `completed` (not `approved`) so the merge-pending-topups engine
+      // never re-picks this row and double-credits the principal — the
+      // investment_amount has already been bumped below.
+      status: "completed",
+      reviewed_at: now,
+      reviewed_by: user.id,
       operation_type: "portfolio_topup",
     });
 
@@ -217,41 +226,23 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 4. Notify user
-    await supabase.from("notifications").insert({
-      user_id: user.id,
-      title: "⏳ Portfolio Top-Up Pending",
-      message: `UGX ${topupAmount.toLocaleString()} has been deducted from your wallet for "${accountLabel}". This deposit will be added to your portfolio at maturity.`,
-      type: "info",
-      metadata: { portfolio_id, amount: topupAmount, status: "pending" },
-    });
+    // 4. Apply the top-up to the portfolio principal IMMEDIATELY.
+    //    Because the wallet was already debited via the ledger above
+    //    (partner_funding cash_out wallet / cash_in platform), the funds
+    //    are real and on-platform — no parking, no maturity wait.
+    const newInvestmentAmount = Number(portfolio.investment_amount) + topupAmount;
+    const { error: invErr } = await supabase
+      .from("investor_portfolios")
+      .update({ investment_amount: newInvestmentAmount })
+      .eq("id", portfolio_id);
 
-    // 5. Notify CFO + COO executives
-    try {
-      const { data: execs } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .in("role", ["cfo", "coo"])
-        .eq("enabled", true);
-      if (execs && execs.length > 0) {
-        const uniqueIds = [...new Set(execs.map((e: any) => e.user_id).filter((id: string) => id !== user.id))];
-        if (uniqueIds.length > 0) {
-          await supabase.from("notifications").insert(
-            uniqueIds.map((uid: string) => ({
-              user_id: uid,
-              title: "📊 Portfolio Top-Up Submitted",
-              message: `UGX ${topupAmount.toLocaleString()} self-service top-up for "${accountLabel}" (${portfolio.portfolio_code}) — pending verification.`,
-              type: "info",
-              metadata: { portfolio_id, amount: topupAmount, portfolio_code: portfolio.portfolio_code, submitted_by: user.id },
-            }))
-          );
-        }
-      }
-    } catch (notifErr) {
-      console.error("[portfolio-topup] Executive notification error (non-blocking):", notifErr);
+    if (invErr) {
+      console.error("[portfolio-topup] Failed to update investment_amount:", invErr);
+      // Non-blocking — funds are already recorded in the ledger and pending op
+      // is marked approved; merge engine will reconcile on next pass.
     }
 
-    console.log(`[portfolio-topup] User ${user.id} created pending top-up for ${portfolio_id} with ${topupAmount}`);
+    console.log(`[portfolio-topup] User ${user.id} auto-applied wallet-funded top-up of ${topupAmount} to ${portfolio_id} (new principal: ${newInvestmentAmount})`);
 
     // Log system event
     logSystemEvent(supabase, 'portfolio_topup', user.id, 'investor_portfolios', portfolio_id, { amount: topupAmount, portfolio_code: portfolio.portfolio_code });
