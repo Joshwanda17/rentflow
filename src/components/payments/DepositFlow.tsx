@@ -685,6 +685,42 @@ export default function DepositFlow({ open, onOpenChange, defaultPurpose, allowe
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, activeEditId]);
 
+  /**
+   * Live "is this TID already registered?" check. Debounced 400ms,
+   * skipped in edit mode and while the TID format is invalid. Hits the
+   * same indexed query the submit-time guard runs so the UX preview and
+   * the final gate stay in lock-step.
+   */
+  useEffect(() => {
+    if (isEditMode) { setDuplicateTidStatus(null); return; }
+    if (tidError) { setDuplicateTidStatus(null); return; }
+    const ref =
+      channel === 'agent_cash' || channel === 'cash'
+        ? (receiptNumber.trim() ? `RCT${receiptNumber.trim().toUpperCase()}` : '')
+        : transactionId.trim().toUpperCase();
+    if (!ref || ref.length < 4) { setDuplicateTidStatus(null); return; }
+    let ignored = false;
+    const t = setTimeout(async () => {
+      try {
+        const { data } = await supabase
+          .from('deposit_requests')
+          .select('id, status')
+          .ilike('transaction_id', ref)
+          .not('status', 'in', '(rejected,cancelled,failed)')
+          .limit(1);
+        if (ignored) return;
+        if (data && data.length > 0) {
+          setDuplicateTidStatus((data[0] as { status: string }).status);
+        } else {
+          setDuplicateTidStatus(null);
+        }
+      } catch {
+        if (!ignored) setDuplicateTidStatus(null);
+      }
+    }, 400);
+    return () => { ignored = true; clearTimeout(t); };
+  }, [transactionId, receiptNumber, channel, momoProvider, tidError, isEditMode]);
+
   const validateTid = (value: string, provider?: 'mtn' | 'airtel') => {
     const upper = value.trim().toUpperCase();
     const prov = provider ?? momoProvider;
