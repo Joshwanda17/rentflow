@@ -133,6 +133,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [housePhotos, setHousePhotos] = useState<{ file: File; preview: string }[]>([]);
   const [guarantorConsent, setGuarantorConsent] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
 
   // FIX #9: house category for outstanding flow
   const [outstandingHouseCategory, setOutstandingHouseCategory] = useState('');
@@ -232,6 +233,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setHousePhotos([]);
     setGuarantorConsent(false);
     setValidationErrors([]);
+    setSubmissionError(null);
     setSuccess(false);
     setActivationLink(null);
     setStep('type');
