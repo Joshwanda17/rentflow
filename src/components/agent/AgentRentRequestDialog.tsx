@@ -358,6 +358,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   };
 
   const handleSubmit = async () => {
+    setSubmissionError(null);
+
     if (!user) {
       toast.error('You must be signed in to submit a request');
       return;
@@ -372,6 +374,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
     if (errors.length > 0) {
       setValidationErrors(errors);
+      setSubmissionError(errors[0]);
       toast.error(errors[0]);
       // Scroll the dialog so the agent actually sees the error summary
       requestAnimationFrame(() => {
@@ -473,6 +476,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
             errorMsg = parsed.error || errorMsg;
           }
         } catch {}
+        setSubmissionError(errorMsg);
         toast.error(errorMsg);
         setLoading(false);
         return;
@@ -480,7 +484,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
       if (!tenantResult?.user_id) {
         console.error('Tenant registration returned no user_id:', tenantResult);
-        toast.error(tenantResult?.error || 'Failed to register tenant - no user ID returned');
+        const errorMsg = tenantResult?.error || 'Failed to register tenant - no user ID returned';
+        setSubmissionError(errorMsg);
+        toast.error(errorMsg);
         setLoading(false);
         return;
       }
@@ -546,8 +552,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       console.error('Submission error:', error);
       const msg = error.message || 'Failed to submit request';
       if (msg.includes('row-level security') || msg.includes('RLS')) {
-        toast.error('Permission denied — your session may have expired. Please log out and log in again.');
+        const friendly = 'Permission denied — your session may have expired. Please log out and log in again.';
+        setSubmissionError(friendly);
+        toast.error(friendly);
       } else {
+        setSubmissionError(msg);
         toast.error(msg);
       }
     } finally {
