@@ -4,7 +4,10 @@ import { ArrowDownToLine, ArrowUpFromLine, Activity, AlertTriangle, RefreshCw, B
 import { formatUGX } from '@/lib/rentCalculations';
 import { Button } from '@/components/ui/button';
 
+export type PulseMetricKey = 'deposits' | 'cash_out' | 'today' | 'wallet_ops' | 'invest_wd';
+
 interface PulseMetric {
+  key: PulseMetricKey;
   label: string;
   value: number;
   amount?: number;
@@ -13,7 +16,7 @@ interface PulseMetric {
   bgColor: string;
 }
 
-export function FinancialOpsPulseStrip() {
+export function FinancialOpsPulseStrip({ onSelect }: { onSelect?: (key: PulseMetricKey) => void } = {}) {
   const { data: metrics, isLoading, refetch } = useQuery({
     queryKey: ['financial-ops-pulse'],
     queryFn: async () => {
@@ -35,6 +38,7 @@ export function FinancialOpsPulseStrip() {
 
   const pulseItems: PulseMetric[] = [
     {
+      key: 'deposits',
       label: 'Deposits',
       value: metrics?.pendingDeposits.count || 0,
       amount: metrics?.pendingDeposits.amount,
@@ -43,6 +47,7 @@ export function FinancialOpsPulseStrip() {
       bgColor: 'bg-primary/10',
     },
     {
+      key: 'cash_out',
       label: 'Cash Out',
       value: metrics?.pendingWalletWithdrawals.count || 0,
       amount: metrics?.pendingWalletWithdrawals.amount,
@@ -51,6 +56,7 @@ export function FinancialOpsPulseStrip() {
       bgColor: 'bg-destructive/10',
     },
     {
+      key: 'today',
       label: "Today",
       value: metrics?.todayVolume.count || 0,
       amount: metrics?.todayVolume.amount,
@@ -59,6 +65,7 @@ export function FinancialOpsPulseStrip() {
       bgColor: 'bg-emerald-500/10',
     },
     {
+      key: 'wallet_ops',
       label: 'Wallet Ops',
       value: metrics?.pendingWalletOps.count || 0,
       amount: metrics?.pendingWalletOps.amount,
@@ -67,6 +74,7 @@ export function FinancialOpsPulseStrip() {
       bgColor: 'bg-amber-500/10',
     },
     {
+      key: 'invest_wd',
       label: 'Invest W/D',
       value: metrics?.pendingWithdrawals.count || 0,
       amount: metrics?.pendingWithdrawals.amount,
@@ -93,9 +101,11 @@ export function FinancialOpsPulseStrip() {
           const Icon = item.icon;
           const isUrgent = item.value > 0 && item.label !== 'Today';
           return (
-            <div
+            <button
               key={item.label}
-              className={`rounded-lg sm:rounded-xl border p-1.5 sm:p-3 transition-all ${
+              type="button"
+              onClick={() => onSelect?.(item.key)}
+              className={`text-left rounded-lg sm:rounded-xl border p-1.5 sm:p-3 transition-all hover:bg-accent/40 hover:border-primary/40 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                 isUrgent ? 'border-amber-500/40 bg-amber-500/5' : 'border-border bg-card'
               }`}
             >
@@ -113,7 +123,7 @@ export function FinancialOpsPulseStrip() {
                   {formatUGX(item.amount)}
                 </p>
               )}
-            </div>
+            </button>
           );
         })}
       </div>

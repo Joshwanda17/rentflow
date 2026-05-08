@@ -177,7 +177,23 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
       <WalletOverviewCard
         onOpenReconciliation={() => openTool('recon')}
       />
-      <FinancialOpsPulseStrip />
+      <FinancialOpsPulseStrip
+        onSelect={(key) => {
+          switch (key) {
+            case 'deposits':
+              setView('deposits');
+              break;
+            case 'cash_out':
+            case 'wallet_ops':
+            case 'invest_wd':
+              openTool('withdrawals');
+              break;
+            case 'today':
+              openTool('audit');
+              break;
+          }
+        }}
+      />
 
       {/* ═══ CORE: Wallet Management ═══
           Per CFO mandate: only the two most-used actions live here.
