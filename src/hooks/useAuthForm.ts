@@ -260,13 +260,9 @@ export function useAuthForm() {
     const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const hasRealEmail = trimmedEmail.length > 0 && EMAIL_RE.test(trimmedEmail) && !trimmedEmail.endsWith('@welile.user') && !trimmedEmail.endsWith('@welile.agent');
 
-    // OTP is only mandatory when the user has NOT supplied a real email.
-    // Users who provide an email can verify via the email confirmation link
-    // instead — this unblocks signup for anyone whose phone can't receive SMS.
-    if (!hasRealEmail && !otpVerified) {
-      toast({ title: 'Verify Phone or Add Email', description: 'Verify your phone with the SMS code, or add an email address to continue.', variant: 'destructive' });
-      return;
-    }
+    // Phone OTP verification is currently disabled for signup. Users can
+    // register with phone + password directly; optional email is still used
+    // when supplied so confirmation links still work for those users.
     const cleanPhone = phone.replace(/\D/g, '');
     // Prepend country code if the number doesn't already include it
     const fullPhone = cleanPhone.startsWith(countryCode) ? cleanPhone : countryCode + (cleanPhone.startsWith('0') ? cleanPhone.slice(1) : cleanPhone);

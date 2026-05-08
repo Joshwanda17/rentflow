@@ -879,48 +879,14 @@ export default function Auth() {
                     <p className="text-xs text-destructive px-1">Passwords don't match</p>
                   )}
 
-                  {/* OTP Verification */}
-                  {phone.replace(/\D/g, '').length >= 9 && (
-                    <OtpVerificationStep
-                      phone={phone}
-                      otpSent={otpSent}
-                      otpVerified={otpVerified}
-                      otpLoading={otpLoading}
-                      otpError={otpError}
-                      onSendOtp={() => {
-                        const cleanDigits = phone.replace(/\D/g, '');
-                        const fullNum = cleanDigits.startsWith(countryCode) ? cleanDigits : countryCode + (cleanDigits.startsWith('0') ? cleanDigits.slice(1) : cleanDigits);
-                        sendOtp(fullNum);
-                      }}
-                      onVerifyOtp={(otp) => {
-                        const cleanDigits = phone.replace(/\D/g, '');
-                        const fullNum = cleanDigits.startsWith(countryCode) ? cleanDigits : countryCode + (cleanDigits.startsWith('0') ? cleanDigits.slice(1) : cleanDigits);
-                        verifyOtp(fullNum, otp);
-                      }}
-                      onResendOtp={() => {
-                        const cleanDigits = phone.replace(/\D/g, '');
-                        const fullNum = cleanDigits.startsWith(countryCode) ? cleanDigits : countryCode + (cleanDigits.startsWith('0') ? cleanDigits.slice(1) : cleanDigits);
-                        sendOtp(fullNum);
-                      }}
-                    />
-                  )}
-
-                  {(() => {
-                    const trimmed = signupEmail.trim();
-                    const hasEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
-                    const showButton = otpSent || hasEmail;
-                    if (!showButton) return null;
-                    return (
-                      <Button
-                        type="submit"
-                        className="w-full h-12 text-base rounded-xl font-semibold touch-manipulation active:scale-[0.98]"
-                        disabled={isLoading || isDuplicate || isCheckingDuplicate || (!otpVerified && !hasEmail)}
-                        style={{ fontSize: '16px', WebkitTapHighlightColor: 'transparent' }}
-                      >
-                        {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Create Account'}
-                      </Button>
-                    );
-                  })()}
+                  <Button
+                    type="submit"
+                    className="w-full h-12 text-base rounded-xl font-semibold touch-manipulation active:scale-[0.98]"
+                    disabled={isLoading || isDuplicate || isCheckingDuplicate}
+                    style={{ fontSize: '16px', WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Create Account'}
+                  </Button>
                 </form>
               </div>
             )}
