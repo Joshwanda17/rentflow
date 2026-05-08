@@ -905,16 +905,22 @@ export default function Auth() {
                     />
                   )}
 
-                  {otpSent && (
-                    <Button
-                      type="submit"
-                      className="w-full h-12 text-base rounded-xl font-semibold touch-manipulation active:scale-[0.98]"
-                      disabled={isLoading || isDuplicate || isCheckingDuplicate || !otpVerified}
-                      style={{ fontSize: '16px', WebkitTapHighlightColor: 'transparent' }}
-                    >
-                      {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Create Account'}
-                    </Button>
-                  )}
+                  {(() => {
+                    const trimmed = signupEmail.trim();
+                    const hasEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+                    const showButton = otpSent || hasEmail;
+                    if (!showButton) return null;
+                    return (
+                      <Button
+                        type="submit"
+                        className="w-full h-12 text-base rounded-xl font-semibold touch-manipulation active:scale-[0.98]"
+                        disabled={isLoading || isDuplicate || isCheckingDuplicate || (!otpVerified && !hasEmail)}
+                        style={{ fontSize: '16px', WebkitTapHighlightColor: 'transparent' }}
+                      >
+                        {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Create Account'}
+                      </Button>
+                    );
+                  })()}
                 </form>
               </div>
             )}
