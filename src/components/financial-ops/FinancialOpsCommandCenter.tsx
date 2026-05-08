@@ -17,6 +17,7 @@ import { MismatchMetricsPanel } from './MismatchMetricsPanel';
 import { ReconciliationReviewScreen } from './ReconciliationReviewScreen';
 import { WithdrawalHistoryStatement } from './WithdrawalHistoryStatement';
 import { PortfolioTopUpVerification } from './PortfolioTopUpVerification';
+import { WalletBreakdownReadOnly } from './WalletBreakdownReadOnly';
 
 
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
@@ -33,7 +34,7 @@ type Tool =
   | null
   | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit'
   | 'withdrawals' | 'opportunities' | 'requisitions'
-  | 'mismatch_metrics' | 'recon_review' | 'withdrawal_history';
+  | 'mismatch_metrics' | 'recon_review' | 'withdrawal_history' | 'wallet_breakdown';
 
 /**
  * Items hidden behind the "More" button. Per CFO mandate the dashboard
@@ -128,6 +129,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
             onCreateNewAllocation={() => setView('deposits')}
           />
         )}
+        {activeTool === 'wallet_breakdown' && <WalletBreakdownReadOnly />}
         {activeTool === 'ledgers' && <LedgerHub />}
         {activeTool === 'audit' && <AuditFeed />}
         {activeTool === 'withdrawals' && (
@@ -186,6 +188,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
 
       <WalletOverviewCard
         onOpenReconciliation={() => openTool('recon')}
+        onOpenBreakdown={() => openTool('wallet_breakdown')}
       />
       <FinancialOpsPulseStrip
         onSelect={(key) => {
