@@ -14947,6 +14947,7 @@ export type Database = {
         | "finops_provider_mismatch"
         | "ledger_classification_backfilled"
         | "wallet_historical_drift_absorbed"
+        | "rent_request_force_approved"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -15196,6 +15197,7 @@ export const Constants = {
         "finops_provider_mismatch",
         "ledger_classification_backfilled",
         "wallet_historical_drift_absorbed",
+        "rent_request_force_approved",
       ],
     },
   },
