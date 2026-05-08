@@ -801,6 +801,21 @@ export default function Auth() {
                     <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Full name" className="pl-10 h-12 text-base rounded-xl" style={{ fontSize: '16px' }} required />
                   </div>
 
+                  {/* Email (optional — lets users sign up without SMS OTP) */}
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="email"
+                      inputMode="email"
+                      autoComplete="email"
+                      value={signupEmail}
+                      onChange={(e) => setSignupEmail(e.target.value)}
+                      placeholder="Email (optional)"
+                      className="pl-10 h-12 text-base rounded-xl"
+                      style={{ fontSize: '16px' }}
+                    />
+                  </div>
+
                   {/* Phone */}
                   <div className="relative flex">
                     <CountryCodeSelect value={countryCode} onChange={setCountryCode} />
