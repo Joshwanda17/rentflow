@@ -1,69 +1,106 @@
-# Tenant Overdue Penalty (33%)
+## Landlord (Owner) Workflow Extraction — Plan
 
-## Goal
-When an active rent (`rent_requests.status = 'disbursed'`) reaches the end of its `duration_days` and still has an outstanding balance, automatically apply a **33% penalty** on the outstanding amount. The penalty must:
-- Add to what the tenant owes (so daily auto-charge keeps collecting it).
-- Land in the ledger as platform revenue and show up in the CFO Income Statement.
-- Be idempotent (one penalty per overdue cycle, never doubled).
-- Trigger an SMS / in-app notification.
+Mirror the structure of `Tenant_Workflow_Spec.md` and `Agent_Workflow_Spec.md` already in `/mnt/documents/`. Output a single Markdown artifact:
 
-No new tables. We reuse `rent_requests`, `general_ledger`, and the existing `tenant_default_charge` ledger category that's already on the allowlist.
+**File:** `/mnt/documents/Landlord_Workflow_Spec.md`
 
-## Mechanics
+### Sections to cover
 
-Formula matches the existing 33%/30-day rent constitution:
+1. **Role & Entry Points**
+   - `AppRole = 'landlord'`, default route, role switcher, auto-enrollment via phone match in `landlords.phone`.
+   - Landlord agreement gate (`useLandlordAgreement`, `/landlord-agreement`, `LANDLORD_AGREEMENT_VERSION`).
+
+2. **Login → Dashboard Boot Sequence**
+   - `LandlordDashboard.tsx` mounts → `useProfile`, `useWallet`, `useLandlordStats(userId)`.
+   - Cached-first stats from `localStorage` key `lf_landlord_stats_<userId>` (instant paint).
+   - Background fetch of `landlords` table filtered by `registered_by`.
+
+3. **Hero & Top Surface**
+   - `UnifiedWalletHeroCard` (role=landlord) — Total + Withdrawable.
+   - Optional richer variant `LandlordWalletHeroCard` (Properties / Rent-per-month / Empty count, occupancy %).
+   - `VerificationChecklist` (highlightRole='landlord').
+   - `CreditAccessCard` — landlord credit access limit.
+
+4. **Primary Action Buttons** (positions, onClick, downstream sheet)
+   - **Register Property** → `RegisterPropertyDialog`.
+   - **Menu** → `LandlordMenuDrawer` (right-side drawer).
+   - **Invite & Earn** card.
+
+5. **Register Property Flow** — full breakdown of `RegisterPropertyDialog`
+   - Fields: address, monthly rent, # houses, UEDCL meter, NWSC meter (≥1 required), payout date (1-28), caretaker, GPS capture (`navigator.geolocation`, high accuracy 15s), occupied/empty toggle, tenant name+phone (if occupied), LC1 chairperson trio, terms checkbox.
+   - **Fee math:** `platformFee = monthlyRent × 0.10`; landlord receives `monthlyRent − platformFee`; 12-month total displayed.
+   - DB writes: `landlords` insert (with `registered_by=user.id`, `desired_rent_from_welile=monthlyRent`, `ready_to_receive=false`), optional `lc1_chairpersons` insert, optional `welile_homes_subscriptions` insert when tenant exists.
+   - Manager verification flow via `VerifyLandlordButton` — sets `verified`, `verified_at`, `verified_by`, optional `ready_to_receive`. Triggers bonuses via `credit-landlord-registration-bonus` and `credit-landlord-verification-bonus` edge functions.
+
+6. **Add Tenant Flow** — `LandlordAddTenantDialog`
+   - 3-stage form: Tenant identity → Property + rent → LC1 + GPS + terms.
+   - Phone lookup of tenant in `profiles` (links account if exists).
+   - Inserts new `landlords` row (one row per tenant placement).
+
+7. **Menu Drawer** — every item, route, badge
+   - Property Management: Add Tenant, Daily Rent Listings (`AvailableHousesSheet`), My Tenants (`/landlord-welile-homes`), Welile Homes Impact.
+   - Finances: My Receipts, My Loans, Payment History (`/transactions`), Financial Statement.
+   - Growth: Post Shopping Receipt, My Referrals, Share & Earn.
+   - More: Landlord Agreement, Share App, Settings, Help.
+
+8. **My Properties Sheet** — `MyPropertiesSheet`
+   - Bottom sheet (85vh). Per-card: address, owner, occupancy badge + Switch (`is_occupied` toggle, optimistic), rooms, units, rent, tenant name, `TenantRating` star widget, Google Maps link.
+   - Summary chips: Occupied / Empty counts.
+
+9. **My Tenants Section** — `MyTenantsSection`
+   - Tenant cards with avatar, phone, address, rent, agent attribution badge, `StarRatingDisplay`, Review button → `UserReviewsSection` dialog.
+   - Lookup uses `landlords.phone == profile.phone` (phone-matched landlord rows).
+
+10. **Welile Homes Section** — `LandlordWelileHomesSection`
+    - 5-year savings projection: `MONTHLY_GROWTH_RATE=0.05`, `LANDLORD_FEE_RATE=0.10`. Compounding: `balance = balance × 1.05 + (rent × 0.10)` over 60 months.
+    - Enroll tenant via `EnrollTenantWelileHomesDialog`; manage via `ManageTenantSubscriptionDialog`; `WelileHomesLandlordBadge` + leaderboard.
+
+11. **Wallet & Withdrawals**
+    - Strict withdrawable rule (`get_user_available_balance`) + 3-bucket model (withdrawable / float / advance — landlords use only withdrawable).
+    - `FullScreenWalletSheet` is shared with all roles; payout via standard withdraw flow.
+
+12. **Rent Payout to Landlord** (server-driven, surfaces in landlord wallet)
+    - `disburse-rent-to-landlord` edge function: CFO/manager-triggered; treasury guard; reads `rent_requests` (status `coo_approved` | `funded`); pays via wallet credit if `landlords.phone` matches a profile, else cash payout queue. Adds `RENT_FUNDED_BONUS = 5000 UGX` agent bonus.
+    - Two-step OTP route: `issue-landlord-payout-otp` → `verify-landlord-payout-otp` → `landlord-payout-disburse` → `submit-landlord-payout-receipt` (agent uploads receipt to close loop).
+    - SLA monitor: `landlord-payout-sla-monitor` cron.
+
+13. **Verification & Bonuses**
+    - Registration bonus (`credit-landlord-registration-bonus`) on landlord create.
+    - Verification bonus (`credit-landlord-verification-bonus`) when manager flips `verified=true`.
+    - Trust signals (`capture_trust_signal`) on receipt upload, location capture, ready-to-receive flip.
+
+14. **Database Tables Touched** (read-only summary table)
+    - `landlords` (full column list from live schema), `welile_homes_subscriptions`, `lc1_chairpersons`, `rent_requests`, `landlord_payouts`, `agent_landlord_float_allocations`, `profiles`, `wallets`, `general_ledger`.
+
+15. **Calculations Cheat-Sheet** (Flutter port)
+    - Platform fee: `rent × 0.10`.
+    - Landlord net per month: `rent × 0.90`.
+    - 12-month receivable: `(rent × 0.90) × 12`.
+    - Welile Homes 5-yr projection: iterate 60× `bal = bal × 1.05 + rent × 0.10`.
+    - Agent rent-funded bonus: flat 5,000 UGX.
+    - Tenant placement bonus to listing agent: 5,000 UGX.
+
+16. **State / Hooks Reference**
+    - `useLandlordStats`, `useLandlordAgreement`, `useLandlordOtp`, `useLandlordFloatAllocations`, `useAgentLandlordFloat`, `useWallet`, `useProfile`, `useAuth`.
+
+17. **Navigation Map (ASCII)**
 
 ```text
-outstanding   = total_repayment - amount_repaid
-penalty       = ceil(outstanding * 0.33)
-new_total     = total_repayment + penalty
-new_daily     = ceil((new_total - amount_repaid) / GRACE_DAYS)   # GRACE_DAYS = 30
+LandlordDashboard
+ ├─ UnifiedWalletHeroCard ──tap──> FullScreenWalletSheet ──> WithdrawFlow / DepositFlow
+ ├─ VerificationChecklist
+ ├─ CreditAccessCard
+ ├─ [Register Property] ──> RegisterPropertyDialog (form + GPS)
+ │      └─ insert landlords + welile_homes_subscriptions (if tenant)
+ ├─ [Menu] ──> LandlordMenuDrawer
+ │      ├─ Add Tenant ──> LandlordAddTenantDialog
+ │      ├─ Daily Rent Listings ──> AvailableHousesSheet
+ │      ├─ My Tenants / Welile Homes ──> /landlord-welile-homes
+ │      ├─ My Receipts / Loans / Transactions / Financial Statement
+ │      └─ Referrals / Share / Settings / Agreement
+ ├─ MyPropertiesSheet (Switch occupancy, Rate tenant, Map)
+ └─ InviteAndEarnCard
 ```
 
-Re-application: if a rent stays overdue for another full 30-day cycle without being cleared, the penalty is applied again on the *current* outstanding (compounding, consistent with `Rent × 1.33^n`).
-
-Idempotency key:
-```text
-rent:<rent_request_id>:overdue_penalty:<cycle_index>
-```
-where `cycle_index = floor((today - duration_end_date) / 30)`.
-
-## Ledger entry (per penalty)
-
-Single double-entry transaction via `create_ledger_transaction`, scope `bridge`, category `tenant_default_charge`, `source_id = rent_request_id`:
-
-| Leg | direction | account | amount |
-|---|---|---|---|
-| 1 | `cash_in`  | platform revenue (`tenant_default_charge`) | penalty |
-| 2 | `cash_out` | tenant receivable (bridge) anchored to `tenant_id` | penalty |
-
-This mirrors the pattern already used in `agent_allocate_tenant_payment` (bridge ledger, no landlord wallet write) so it cannot trip the wallet FK guard.
-
-## Backend work
-
-1. **New edge function** `apply-rent-overdue-penalty` (no new tables):
-   - Selects `rent_requests` where `status='disbursed'` and `disbursed_at + duration_days * 1 day < now()` and `total_repayment - amount_repaid > 0`.
-   - For each row: compute `cycle_index`; check `general_ledger` for an existing row with the matching `idempotency_key`; if absent, post the ledger entry above and `UPDATE rent_requests SET total_repayment = total_repayment + penalty, daily_repayment = ceil((total_repayment + penalty - amount_repaid)/30), schedule_status = 'overdue'`.
-   - Fires `notifications` insert + `send-sms` invoke for the tenant ("Your rent expired with UGX X outstanding. A 33% penalty of UGX Y has been added.").
-   - Standard `corsHeaders`, `adminClient.auth.getUser` pattern, idempotent, batched.
-
-2. **Cron job** added via migration: schedule `apply-rent-overdue-penalty` daily at 06:30 UTC (right after `auto-charge-wallets` at 06:00).
-
-3. **Reporting**:
-   - Add `tenant_default_charge` to `CFO_REVENUE_CATEGORIES` in `src/lib/ledgerConstants.ts` with label "Tenant Default Penalty" so it appears in CFO Income Statement, Revenue panels, and the per-category report description.
-   - Extend `useFinancialStatements` / income-statement aggregator to include this category in total revenue (it already reads from `general_ledger`, so adding the label is enough).
-
-4. **Tenant UI**:
-   - In `TenantProfileView` and the tenant's own dashboard, show an "Overdue + Penalty" badge when `schedule_status='overdue'` and surface the penalty amount derived from ledger rows (`category = 'tenant_default_charge'`, `source_id = rent_request_id`).
-
-## Files to touch
-- `supabase/functions/apply-rent-overdue-penalty/index.ts` (new)
-- `supabase/migrations/<ts>_overdue_penalty_cron.sql` (cron schedule only — no new tables)
-- `src/lib/ledgerConstants.ts` (add revenue label + description)
-- `src/components/agent/TenantProfileView.tsx` (badge + penalty line)
-- Tenant dashboard card (small "Penalty applied" notice)
-
-## Out of scope
-- No schema changes, no new tables.
-- No change to the 1.33^n formula for *active* rent — penalty only kicks in after `duration_days` elapse.
-- Withdrawable / wallet bucket logic untouched.
+### Deliverable
+Single self-contained Markdown file ready for Flutter/Codex consumption, plus a `<lov-artifact>` tag so it surfaces in the file viewer alongside the Tenant and Agent specs.
