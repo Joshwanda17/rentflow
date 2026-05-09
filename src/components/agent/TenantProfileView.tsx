@@ -823,6 +823,38 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
           </SectionCard>
         )}
 
+        {/* ── Renew Rent Cycle (only when previous cycle is fully repaid and no active rent) ── */}
+        {lastCompletedRequest && (
+          <SectionCard
+            icon={RefreshCw}
+            title="Renew Rent Cycle"
+            tone={canRenew ? 'success' : 'neutral'}
+            badge={
+              canRenew ? (
+                <Badge variant="success" className="text-xs">Ready</Badge>
+              ) : (
+                <Badge variant="outline" className="text-xs">Active cycle in progress</Badge>
+              )
+            }
+          >
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {canRenew
+                ? <>Re-post the same rent plan for <strong>{profile.full_name.split(' ')[0]}</strong> — {formatUGX(lastCompletedRequest.rent_amount)} for {lastCompletedRequest.duration_days} days. Landlord and house details are reused.</>
+                : <>This tenant still has an active rent cycle. Renew unlocks once the current cycle is fully repaid.</>}
+            </p>
+            <Button
+              onClick={handleRenewCycle}
+              disabled={!canRenew || renewing}
+              variant={canRenew ? 'success' : 'outline'}
+              size="xl"
+              className="w-full gap-2 text-base h-14 font-bold rounded-xl shadow-lg active:scale-[0.97] transition-transform"
+            >
+              {renewing ? <Loader2 className="h-6 w-6 animate-spin" /> : <RefreshCw className="h-6 w-6" />}
+              {renewing ? 'Renewing…' : canRenew ? 'Renew Rent' : 'Renew (locked)'}
+            </Button>
+          </SectionCard>
+        )}
+
         {/* ── Quick Actions ── */}
         <SectionCard icon={Zap} title="Quick Actions">
           <div className="grid grid-cols-2 gap-2.5">
