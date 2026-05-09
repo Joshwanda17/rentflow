@@ -178,6 +178,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
   const [lastAllocation, setLastAllocation] = useState<{ id: string; amount: number; created_at: string } | null>(null);
   const [reverseDialogOpen, setReverseDialogOpen] = useState(false);
   const [rentLimitOpen, setRentLimitOpen] = useState(false);
+  const [renewing, setRenewing] = useState(false);
 
   const loadLastAllocation = async () => {
     if (!user?.id) return;
