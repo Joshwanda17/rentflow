@@ -93,6 +93,7 @@ export const CFO_REVENUE_CATEGORIES: { category: string; label: string }[] = [
   { category: 'platform_service_income', label: 'Platform Service Income' },
   { category: 'partner_commission', label: 'Partner Commission Revenue' },
   { category: 'debt_recovery', label: 'Debt Recovery (recovered cash)' },
+  { category: 'tenant_default_charge', label: 'Tenant Default Penalty (33%)' },
   { category: 'share_capital', label: 'Share Capital Inflow' },
 ];
 
@@ -133,6 +134,7 @@ export const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   platform_service_income: 'Miscellaneous service income (SMS, premium features, advisory).',
   partner_commission: 'Proxy-agent commissions earned on partner deposits (2% instant).',
   debt_recovery: 'Cash recovered from defaulted accounts via wallet deductions.',
+  tenant_default_charge: '33% penalty applied to tenants whose rent term expired with an outstanding balance.',
   share_capital: 'Equity injections — share capital paid in by founders/investors.',
 
   // Expense
