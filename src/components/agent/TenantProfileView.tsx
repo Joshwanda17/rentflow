@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { generateWelileAiId, getRiskTierLabel } from '@/lib/welileAiId';
-import { formatUGX } from '@/lib/rentCalculations';
+import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
 import { useAgentLandlordFloat } from '@/hooks/useAgentLandlordFloat';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ import {
   Loader2, ArrowLeft, Phone, Mail, MapPin, Home, User, Shield, Calendar,
   CreditCard, TrendingUp, Copy, CheckCircle2, Wallet, Banknote, History,
   UserCheck, Star, AlertTriangle, ChevronDown, ChevronUp, Navigation, Share2, Smartphone,
-  MessageCircle, Pencil, UsersRound, Zap, Bot,
+  MessageCircle, Pencil, UsersRound, Zap, Bot, RefreshCw,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useGeoLocation } from '@/hooks/useGeoLocation';
@@ -56,6 +56,12 @@ interface RentRequestRow {
   disbursed_at: string | null;
   duration_days: number;
   daily_repayment: number;
+  landlord_id?: string | null;
+  lc1_id?: string | null;
+  house_category?: string | null;
+  tenant_no_smartphone?: boolean | null;
+  request_latitude?: number | null;
+  request_longitude?: number | null;
   landlord?: { name: string; property_address: string; house_category?: string } | null;
 }
 
@@ -172,6 +178,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
   const [lastAllocation, setLastAllocation] = useState<{ id: string; amount: number; created_at: string } | null>(null);
   const [reverseDialogOpen, setReverseDialogOpen] = useState(false);
   const [rentLimitOpen, setRentLimitOpen] = useState(false);
+  const [renewing, setRenewing] = useState(false);
 
   const loadLastAllocation = async () => {
     if (!user?.id) return;
@@ -207,7 +214,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
           .single(),
         supabase
           .from('rent_requests')
-          .select('id, rent_amount, total_repayment, amount_repaid, status, created_at, disbursed_at, duration_days, daily_repayment, landlord:landlords(name, property_address, house_category)')
+          .select('id, rent_amount, total_repayment, amount_repaid, status, created_at, disbursed_at, duration_days, daily_repayment, landlord_id, lc1_id, house_category, tenant_no_smartphone, request_latitude, request_longitude, landlord:landlords(name, property_address, house_category)')
           .eq('tenant_id', tenantId)
           .in('status', ['pending', 'approved', 'funded', 'disbursed', 'repaying', 'completed'])
           .order('created_at', { ascending: false }),
@@ -480,6 +487,51 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
   const activePct = summary.activeRequest && summary.activeRequest.total_repayment > 0
     ? Math.min(100, Math.round((summary.activeRequest.amount_repaid / summary.activeRequest.total_repayment) * 100))
     : 0;
+
+  // Latest fully-completed cycle (used for one-tap renew). `requests` is ordered desc by created_at.
+  const lastCompletedRequest = useMemo(
+    () => requests.find(r => (r.status || '').toLowerCase() === 'completed') || null,
+    [requests],
+  );
+  const canRenew = !!lastCompletedRequest && !summary.activeRequest;
+
+  const handleRenewCycle = async () => {
+    if (!user || !profile || !lastCompletedRequest) return;
+    const req = lastCompletedRequest;
+    if (!req.landlord_id) {
+      toast({ title: 'Cannot renew', description: 'Landlord info missing on prior request.', variant: 'destructive' });
+      return;
+    }
+    setRenewing(true);
+    try {
+      const fees = calculateRentRepayment(req.rent_amount, req.duration_days);
+      const { error } = await supabase.from('rent_requests').insert({
+        tenant_id: profile.id,
+        agent_id: user.id,
+        landlord_id: req.landlord_id,
+        lc1_id: req.lc1_id ?? null,
+        rent_amount: fees.rentAmount,
+        duration_days: fees.durationDays,
+        access_fee: fees.accessFee,
+        request_fee: fees.requestFee,
+        total_repayment: fees.totalRepayment,
+        daily_repayment: fees.dailyRepayment,
+        status: 'pending',
+        house_category: req.house_category ?? req.landlord?.house_category ?? null,
+        tenant_no_smartphone: req.tenant_no_smartphone ?? false,
+        request_latitude: req.request_latitude ?? null,
+        request_longitude: req.request_longitude ?? null,
+      } as any);
+      if (error) throw error;
+      toast({ title: 'Rent request renewed ✅', description: `Posted for ${profile.full_name}` });
+      loadFullProfile();
+    } catch (err: any) {
+      console.error('Renew failed:', err);
+      toast({ title: 'Renew failed', description: err?.message || 'Try again', variant: 'destructive' });
+    } finally {
+      setRenewing(false);
+    }
+  };
 
   const visibleRepayments = showAllRepayments ? repayments : repayments.slice(0, PAGE_SIZE);
   const visibleRequests = showAllRequests ? requests : requests.slice(0, PAGE_SIZE);
@@ -768,6 +820,38 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
                 </Button>
               </div>
             )}
+          </SectionCard>
+        )}
+
+        {/* ── Renew Rent Cycle (only when previous cycle is fully repaid and no active rent) ── */}
+        {lastCompletedRequest && (
+          <SectionCard
+            icon={RefreshCw}
+            title="Renew Rent Cycle"
+            tone={canRenew ? 'success' : 'neutral'}
+            badge={
+              canRenew ? (
+                <Badge variant="success" className="text-xs">Ready</Badge>
+              ) : (
+                <Badge variant="outline" className="text-xs">Active cycle in progress</Badge>
+              )
+            }
+          >
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {canRenew
+                ? <>Re-post the same rent plan for <strong>{profile.full_name.split(' ')[0]}</strong> — {formatUGX(lastCompletedRequest.rent_amount)} for {lastCompletedRequest.duration_days} days. Landlord and house details are reused.</>
+                : <>This tenant still has an active rent cycle. Renew unlocks once the current cycle is fully repaid.</>}
+            </p>
+            <Button
+              onClick={handleRenewCycle}
+              disabled={!canRenew || renewing}
+              variant={canRenew ? 'success' : 'outline'}
+              size="xl"
+              className="w-full gap-2 text-base h-14 font-bold rounded-xl shadow-lg active:scale-[0.97] transition-transform"
+            >
+              {renewing ? <Loader2 className="h-6 w-6 animate-spin" /> : <RefreshCw className="h-6 w-6" />}
+              {renewing ? 'Renewing…' : canRenew ? 'Renew Rent' : 'Renew (locked)'}
+            </Button>
           </SectionCard>
         )}
 
