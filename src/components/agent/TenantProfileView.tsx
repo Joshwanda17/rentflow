@@ -213,7 +213,7 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
           .single(),
         supabase
           .from('rent_requests')
-          .select('id, rent_amount, total_repayment, amount_repaid, status, created_at, disbursed_at, duration_days, daily_repayment, landlord:landlords(name, property_address, house_category)')
+          .select('id, rent_amount, total_repayment, amount_repaid, status, created_at, disbursed_at, duration_days, daily_repayment, landlord_id, lc1_id, house_category, tenant_no_smartphone, request_latitude, request_longitude, landlord:landlords(name, property_address, house_category)')
           .eq('tenant_id', tenantId)
           .in('status', ['pending', 'approved', 'funded', 'disbursed', 'repaying', 'completed'])
           .order('created_at', { ascending: false }),
