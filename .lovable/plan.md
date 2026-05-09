@@ -1,106 +1,122 @@
-## Landlord (Owner) Workflow Extraction — Plan
+# Fix Float / Commission Mis-Bucketing — Permanent Migration
 
-Mirror the structure of `Tenant_Workflow_Spec.md` and `Agent_Workflow_Spec.md` already in `/mnt/documents/`. Output a single Markdown artifact:
+## Problem
 
-**File:** `/mnt/documents/Landlord_Workflow_Spec.md`
+When agent **Onesmus** paid UGX 152,000 for tenant **Ignitius** (ledger group `9b17ad8d…`), all 4 ledger legs posted correctly, but his wallet showed:
 
-### Sections to cover
+- float = 650,000 (should be 498,000)
+- withdrawable = 0 (should be 15,200 commission)
 
-1. **Role & Entry Points**
-   - `AppRole = 'landlord'`, default route, role switcher, auto-enrollment via phone match in `landlords.phone`.
-   - Landlord agreement gate (`useLandlordAgreement`, `/landlord-agreement`, `LANDLORD_AGREEMENT_VERSION`).
+Root cause: `wallets` is now a **view** built on `v_user_wallet_strict`. That view assigns each ledger row to a bucket using a **hardcoded category list** that does not include the newer `rent_payment_for_tenant`, `rent_obligation`, `agent_proxy_investment`, `coo_proxy_investment`, `pending_portfolio_topup`, `proxy_partner_withdrawal`, `wallet_transfer` (debit) categories.
 
-2. **Login → Dashboard Boot Sequence**
-   - `LandlordDashboard.tsx` mounts → `useProfile`, `useWallet`, `useLandlordStats(userId)`.
-   - Cached-first stats from `localStorage` key `lf_landlord_stats_<userId>` (instant paint).
-   - Background fetch of `landlords` table filtered by `registered_by`.
+Meanwhile the canonical routing function `wallet_route_for_category(user_id, category, direction)` already routes these to the **float** bucket for agents.
 
-3. **Hero & Top Surface**
-   - `UnifiedWalletHeroCard` (role=landlord) — Total + Withdrawable.
-   - Optional richer variant `LandlordWalletHeroCard` (Properties / Rent-per-month / Empty count, occupancy %).
-   - `VerificationChecklist` (highlightRole='landlord').
-   - `CreditAccessCard` — landlord credit access limit.
+The two sources drifted. Eight agents are currently impacted (any wallet that has ever posted one of those categories).
 
-4. **Primary Action Buttons** (positions, onClick, downstream sheet)
-   - **Register Property** → `RegisterPropertyDialog`.
-   - **Menu** → `LandlordMenuDrawer` (right-side drawer).
-   - **Invite & Earn** card.
+## The Permanent Fix
 
-5. **Register Property Flow** — full breakdown of `RegisterPropertyDialog`
-   - Fields: address, monthly rent, # houses, UEDCL meter, NWSC meter (≥1 required), payout date (1-28), caretaker, GPS capture (`navigator.geolocation`, high accuracy 15s), occupied/empty toggle, tenant name+phone (if occupied), LC1 chairperson trio, terms checkbox.
-   - **Fee math:** `platformFee = monthlyRent × 0.10`; landlord receives `monthlyRent − platformFee`; 12-month total displayed.
-   - DB writes: `landlords` insert (with `registered_by=user.id`, `desired_rent_from_welile=monthlyRent`, `ready_to_receive=false`), optional `lc1_chairpersons` insert, optional `welile_homes_subscriptions` insert when tenant exists.
-   - Manager verification flow via `VerifyLandlordButton` — sets `verified`, `verified_at`, `verified_by`, optional `ready_to_receive`. Triggers bonuses via `credit-landlord-registration-bonus` and `credit-landlord-verification-bonus` edge functions.
+Rebuild `v_user_wallet_strict` so its bucket assignment is driven **directly by `wallet_route_for_category(user_id, category, direction)`** instead of a hardcoded list. After this, the view and the routing function can never disagree again — adding a new category to the routing function automatically corrects the view.
 
-6. **Add Tenant Flow** — `LandlordAddTenantDialog`
-   - 3-stage form: Tenant identity → Property + rent → LC1 + GPS + terms.
-   - Phone lookup of tenant in `profiles` (links account if exists).
-   - Inserts new `landlords` row (one row per tenant placement).
+No ledger rewrites. No `wallets` table backfill (it's a view — recompute is instant). No data migration. The 8 affected agents — and Onesmus specifically — will display correct float / withdrawable / advance the moment the view is replaced.
 
-7. **Menu Drawer** — every item, route, badge
-   - Property Management: Add Tenant, Daily Rent Listings (`AvailableHousesSheet`), My Tenants (`/landlord-welile-homes`), Welile Homes Impact.
-   - Finances: My Receipts, My Loans, Payment History (`/transactions`), Financial Statement.
-   - Growth: Post Shopping Receipt, My Referrals, Share & Earn.
-   - More: Landlord Agreement, Share App, Settings, Help.
+## Migration (single file)
 
-8. **My Properties Sheet** — `MyPropertiesSheet`
-   - Bottom sheet (85vh). Per-card: address, owner, occupancy badge + Switch (`is_occupied` toggle, optimistic), rooms, units, rent, tenant name, `TenantRating` star widget, Google Maps link.
-   - Summary chips: Occupied / Empty counts.
+```sql
+-- 1) Replace the view definition
+CREATE OR REPLACE VIEW public.v_user_wallet_strict AS
+WITH anchors AS (
+  SELECT user_id, anchor_at FROM public.wallet_fresh_start_anchors
+),
+ledger AS (
+  SELECT gl.user_id, gl.category, gl.direction, gl.amount
+  FROM public.general_ledger gl
+  LEFT JOIN anchors a ON a.user_id = gl.user_id
+  WHERE gl.ledger_scope = 'wallet'
+    AND (gl.classification IS NULL OR gl.classification = 'production')
+    AND (a.anchor_at IS NULL OR gl.created_at >= a.anchor_at)
+    AND NOT (
+      COALESCE(gl.classification, '') = 'admin_correction'
+      AND COALESCE(gl.category, '')  = 'system_balance_correction'
+    )
+),
+routed AS (
+  SELECT l.user_id, l.amount, r.bucket, r.sign
+  FROM ledger l
+  CROSS JOIN LATERAL public.wallet_route_for_category(l.user_id, l.category, l.direction) r
+),
+buckets AS (
+  SELECT
+    user_id,
+    SUM(CASE WHEN bucket = 'withdrawable'      THEN sign * amount ELSE 0 END) AS withdrawable_raw,
+    SUM(CASE WHEN bucket = 'float'             THEN sign * amount ELSE 0 END) AS float_raw,
+    SUM(CASE WHEN bucket IN ('advance_credit','advance_repayment')
+             THEN sign * amount ELSE 0 END)                                    AS advance_raw
+  FROM routed
+  GROUP BY user_id
+),
+holds AS (
+  SELECT user_id, COALESCE(SUM(amount), 0) AS pending_holds
+  FROM public.withdrawal_requests
+  WHERE status = ANY (ARRAY['pending','requested','manager_approved','processing'])
+  GROUP BY user_id
+),
+universe AS (
+  SELECT user_id FROM public.wallets_physical
+  UNION SELECT user_id FROM buckets
+  UNION SELECT user_id FROM holds
+)
+SELECT
+  u.user_id,
+  GREATEST(0, COALESCE(b.withdrawable_raw, 0) - COALESCE(h.pending_holds, 0))         AS withdrawable,
+  GREATEST(0, COALESCE(b.float_raw, 0))                                                AS float_balance,
+  GREATEST(0, COALESCE(b.advance_raw, 0))                                              AS advance_balance,
+  COALESCE(h.pending_holds, 0)                                                         AS pending_holds,
+  GREATEST(0, COALESCE(b.withdrawable_raw, 0) - COALESCE(h.pending_holds, 0))
+    + GREATEST(0, COALESCE(b.float_raw, 0))                                            AS total_visible
+FROM universe u
+LEFT JOIN buckets b ON b.user_id = u.user_id
+LEFT JOIN holds   h ON h.user_id = u.user_id;
 
-9. **My Tenants Section** — `MyTenantsSection`
-   - Tenant cards with avatar, phone, address, rent, agent attribution badge, `StarRatingDisplay`, Review button → `UserReviewsSection` dialog.
-   - Lookup uses `landlords.phone == profile.phone` (phone-matched landlord rows).
+-- 2) Defensive: ensure the routing function silently skips junk-classified rows
+--    (already filtered above, but harmless to keep IMMUTABLE/STABLE marker correct)
 
-10. **Welile Homes Section** — `LandlordWelileHomesSection`
-    - 5-year savings projection: `MONTHLY_GROWTH_RATE=0.05`, `LANDLORD_FEE_RATE=0.10`. Compounding: `balance = balance × 1.05 + (rent × 0.10)` over 60 months.
-    - Enroll tenant via `EnrollTenantWelileHomesDialog`; manage via `ManageTenantSubscriptionDialog`; `WelileHomesLandlordBadge` + leaderboard.
+-- 3) Sanity check (run as part of the migration, raises if Onesmus is still wrong)
+DO $$
+DECLARE v_w numeric; v_f numeric;
+BEGIN
+  SELECT withdrawable, float_balance INTO v_w, v_f
+  FROM public.v_user_wallet_strict
+  WHERE user_id = 'e3cf4d3a-d021-49e4-b815-7e1938166eeb';
 
-11. **Wallet & Withdrawals**
-    - Strict withdrawable rule (`get_user_available_balance`) + 3-bucket model (withdrawable / float / advance — landlords use only withdrawable).
-    - `FullScreenWalletSheet` is shared with all roles; payout via standard withdraw flow.
-
-12. **Rent Payout to Landlord** (server-driven, surfaces in landlord wallet)
-    - `disburse-rent-to-landlord` edge function: CFO/manager-triggered; treasury guard; reads `rent_requests` (status `coo_approved` | `funded`); pays via wallet credit if `landlords.phone` matches a profile, else cash payout queue. Adds `RENT_FUNDED_BONUS = 5000 UGX` agent bonus.
-    - Two-step OTP route: `issue-landlord-payout-otp` → `verify-landlord-payout-otp` → `landlord-payout-disburse` → `submit-landlord-payout-receipt` (agent uploads receipt to close loop).
-    - SLA monitor: `landlord-payout-sla-monitor` cron.
-
-13. **Verification & Bonuses**
-    - Registration bonus (`credit-landlord-registration-bonus`) on landlord create.
-    - Verification bonus (`credit-landlord-verification-bonus`) when manager flips `verified=true`.
-    - Trust signals (`capture_trust_signal`) on receipt upload, location capture, ready-to-receive flip.
-
-14. **Database Tables Touched** (read-only summary table)
-    - `landlords` (full column list from live schema), `welile_homes_subscriptions`, `lc1_chairpersons`, `rent_requests`, `landlord_payouts`, `agent_landlord_float_allocations`, `profiles`, `wallets`, `general_ledger`.
-
-15. **Calculations Cheat-Sheet** (Flutter port)
-    - Platform fee: `rent × 0.10`.
-    - Landlord net per month: `rent × 0.90`.
-    - 12-month receivable: `(rent × 0.90) × 12`.
-    - Welile Homes 5-yr projection: iterate 60× `bal = bal × 1.05 + rent × 0.10`.
-    - Agent rent-funded bonus: flat 5,000 UGX.
-    - Tenant placement bonus to listing agent: 5,000 UGX.
-
-16. **State / Hooks Reference**
-    - `useLandlordStats`, `useLandlordAgreement`, `useLandlordOtp`, `useLandlordFloatAllocations`, `useAgentLandlordFloat`, `useWallet`, `useProfile`, `useAuth`.
-
-17. **Navigation Map (ASCII)**
-
-```text
-LandlordDashboard
- ├─ UnifiedWalletHeroCard ──tap──> FullScreenWalletSheet ──> WithdrawFlow / DepositFlow
- ├─ VerificationChecklist
- ├─ CreditAccessCard
- ├─ [Register Property] ──> RegisterPropertyDialog (form + GPS)
- │      └─ insert landlords + welile_homes_subscriptions (if tenant)
- ├─ [Menu] ──> LandlordMenuDrawer
- │      ├─ Add Tenant ──> LandlordAddTenantDialog
- │      ├─ Daily Rent Listings ──> AvailableHousesSheet
- │      ├─ My Tenants / Welile Homes ──> /landlord-welile-homes
- │      ├─ My Receipts / Loans / Transactions / Financial Statement
- │      └─ Referrals / Share / Settings / Agreement
- ├─ MyPropertiesSheet (Switch occupancy, Rate tenant, Map)
- └─ InviteAndEarnCard
+  IF v_f <> 498000 OR v_w <> 15200 THEN
+    RAISE EXCEPTION 'Reseed verification failed for Onesmus: float=%, withdrawable=% (expected 498000 / 15200)', v_f, v_w;
+  END IF;
+END $$;
 ```
 
-### Deliverable
-Single self-contained Markdown file ready for Flutter/Codex consumption, plus a `<lov-artifact>` tag so it surfaces in the file viewer alongside the Tenant and Agent specs.
+## Why no row-level reseed is needed
+
+`wallets` is a view derived from `v_user_wallet_strict`, which is derived from `general_ledger`. Replacing the view re-derives every wallet on next read. Onesmus's row will read 498,000 / 15,200 immediately; the other 7 affected agents auto-correct the same way.
+
+## Confirmation that no agent will be hit again
+
+After this migration:
+
+1. The bucket allocation in `v_user_wallet_strict` calls `wallet_route_for_category(user_id, category, direction)` — the **same** function the ledger router, CFO Direct Debit, and `apply_wallet_movement` use.
+2. Any new ledger category introduced in the future is routed in **one place** (the function). The view inherits the routing automatically.
+3. The migration includes a verification block (`DO $$ … $$`) that fails the deploy if Onesmus's wallet doesn't match the expected post-fix figures.
+4. A post-deploy spot check across the 8 currently-affected agents will be run to confirm.
+
+## Code changes
+
+None required in `src/` — the React app reads from the `wallets` view through the existing hooks (`useWallet`, `useAgentBalances`, `get_user_available_balance`). All of those already depend on the strict view.
+
+## Out of scope
+
+- No edits to `agent_allocate_tenant_payment` (both overloads post correctly; the ledger is the source of truth).
+- No edits to `apply_wallet_movement` (intentional no-op since 2026-04-23).
+- No changes to `general_ledger` rows (immutable by policy).
+
+## Approval requested
+
+Approve and I will submit the migration via the migration tool, then run the post-deploy spot check across the 8 affected wallets.
