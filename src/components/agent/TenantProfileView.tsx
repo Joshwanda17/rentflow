@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { generateWelileAiId, getRiskTierLabel } from '@/lib/welileAiId';
-import { formatUGX } from '@/lib/rentCalculations';
+import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
 import { useAgentLandlordFloat } from '@/hooks/useAgentLandlordFloat';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ import {
   Loader2, ArrowLeft, Phone, Mail, MapPin, Home, User, Shield, Calendar,
   CreditCard, TrendingUp, Copy, CheckCircle2, Wallet, Banknote, History,
   UserCheck, Star, AlertTriangle, ChevronDown, ChevronUp, Navigation, Share2, Smartphone,
-  MessageCircle, Pencil, UsersRound, Zap, Bot,
+  MessageCircle, Pencil, UsersRound, Zap, Bot, RefreshCw,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useGeoLocation } from '@/hooks/useGeoLocation';
@@ -56,6 +56,12 @@ interface RentRequestRow {
   disbursed_at: string | null;
   duration_days: number;
   daily_repayment: number;
+  landlord_id?: string | null;
+  lc1_id?: string | null;
+  house_category?: string | null;
+  tenant_no_smartphone?: boolean | null;
+  request_latitude?: number | null;
+  request_longitude?: number | null;
   landlord?: { name: string; property_address: string; house_category?: string } | null;
 }
 
