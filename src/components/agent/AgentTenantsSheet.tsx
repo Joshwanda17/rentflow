@@ -156,6 +156,15 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [profileTenantId, setProfileTenantId] = useState<string | null>(null);
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [propertyPickerOpen, setPropertyPickerOpen] = useState(false);
+  const [groupByProperty, setGroupByProperty] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const toggleGroup = (key: string) => {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (open && user) fetchTenants();
