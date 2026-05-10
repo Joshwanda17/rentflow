@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp, ArrowLeft, Shield, ArrowUp, ArrowDown, ArrowUpDown, Wallet, DollarSign, AlertCircle, CheckCircle2, CreditCard, Eye, Building2, SlidersHorizontal, Plus, Check, ChevronsUpDown } from 'lucide-react';
+import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp, ArrowLeft, Shield, ArrowUp, ArrowDown, ArrowUpDown, Wallet, DollarSign, AlertCircle, CheckCircle2, CreditCard, Eye, Building2, SlidersHorizontal, Plus, Check, ChevronsUpDown, Map as MapIcon, Navigation, List } from 'lucide-react';
+import { PropertyMapView } from './PropertyMapView';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
@@ -145,6 +146,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [tenantLastPaid, setTenantLastPaid] = useState<Record<string, { date: string; amount: number }>>({});
   // Per-tenant context for richer search/filter (latest landlord & address)
   const [tenantContext, setTenantContext] = useState<Record<string, { landlordName: string; propertyAddress: string; completedCount: number; totalRequests: number }>>({});
+  const [propertyLocations, setPropertyLocations] = useState<Record<string, { lat: number; lng: number; address: string }>>({});
   const [renewDialogOpen, setRenewDialogOpen] = useState(false);
   const [renewPrefill, setRenewPrefill] = useState<{ name: string; phone: string; amount: string } | null>(null);
   const [renewingReqId, setRenewingReqId] = useState<string | null>(null);
@@ -158,6 +160,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [propertyPickerOpen, setPropertyPickerOpen] = useState(false);
   const [groupByProperty, setGroupByProperty] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [mapMode, setMapMode] = useState(false);
   const toggleGroup = (key: string) => {
     setCollapsedGroups(prev => {
       const next = new Set(prev);
@@ -249,7 +252,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         const tenantIds = tenantList.map(t => t.id);
         const { data: rentRequests } = await supabase
           .from('rent_requests')
-          .select('tenant_id, total_repayment, amount_repaid, daily_repayment, status, created_at, landlord:landlords(name, property_address)')
+          .select('tenant_id, total_repayment, amount_repaid, daily_repayment, status, created_at, landlord:landlords(name, property_address, latitude, longitude)')
           .in('tenant_id', tenantIds)
           .in('status', ['pending', 'approved', 'funded', 'disbursed', 'repaying', 'completed'])
           .order('created_at', { ascending: false });
@@ -259,6 +262,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         const totals: Record<string, { total: number; paid: number }> = {};
         const statusMap: Record<string, Set<string>> = {};
         const ctx: Record<string, { landlordName: string; propertyAddress: string; completedCount: number; totalRequests: number }> = {};
+        const locs: Record<string, { lat: number; lng: number; address: string }> = {};
         (rentRequests || []).forEach((rr: any) => {
           const owing = (rr.total_repayment || 0) - (rr.amount_repaid || 0);
           balances[rr.tenant_id] = (balances[rr.tenant_id] || 0) + Math.max(0, owing);
@@ -279,6 +283,13 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               totalRequests: 0,
             };
           }
+          // Capture lat/lng once per property address (latest-first wins)
+          const addr = rr.landlord?.property_address?.trim();
+          const lat = Number(rr.landlord?.latitude);
+          const lng = Number(rr.landlord?.longitude);
+          if (addr && Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0 && !locs[addr]) {
+            locs[addr] = { lat, lng, address: addr };
+          }
           ctx[rr.tenant_id].totalRequests += 1;
           // Only count a rent plan as truly completed when the tenant has fully
           // repaid — guards against rows mis-marked 'completed' upstream.
@@ -293,6 +304,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         setTenantTotals(totals);
         setTenantStatuses(statusMap);
         setTenantContext(ctx);
+        setPropertyLocations(locs);
 
         // Most recent cash-in per tenant (for "Last collected" indicator)
         const { data: recentRepayments } = await supabase
@@ -715,7 +727,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               )}
             </button>
             <button
-              onClick={() => { setGroupByProperty(v => !v); setCollapsedGroups(new Set()); }}
+              onClick={() => { setGroupByProperty(v => !v); setCollapsedGroups(new Set()); if (mapMode) setMapMode(false); }}
               className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-colors ${
                 groupByProperty
                   ? 'bg-primary/10 text-primary'
@@ -726,6 +738,19 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
             >
               <Building2 className="h-3.5 w-3.5" />
               {groupByProperty ? 'Grouped by property' : 'Group by property'}
+            </button>
+            <button
+              onClick={() => setMapMode(v => !v)}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                mapMode
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+              }`}
+              style={{ touchAction: 'manipulation', minHeight: '36px' }}
+              aria-pressed={mapMode}
+            >
+              {mapMode ? <List className="h-3.5 w-3.5" /> : <MapIcon className="h-3.5 w-3.5" />}
+              {mapMode ? 'List view' : 'Map view'}
             </button>
             </div>
 
@@ -827,6 +852,17 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         {view === 'pipeline' ? (
           <div className="flex-1 overflow-y-auto px-4 py-3">
             <AgentRequestPipelineView />
+          </div>
+        ) : mapMode ? (
+          <div className="flex-1 overflow-hidden px-4 py-3">
+            <PropertyMapView
+              tenants={processedTenants}
+              tenantContext={tenantContext}
+              tenantBalances={tenantBalances}
+              tenantDaily={tenantDaily}
+              propertyLocations={propertyLocations}
+              onSelectTenant={(id) => setProfileTenantId(id)}
+            />
           </div>
         ) : (
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
