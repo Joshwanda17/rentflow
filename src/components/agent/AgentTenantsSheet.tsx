@@ -911,7 +911,11 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                     <CommandGroup>
                       <CommandItem
                         value="All Properties"
-                        onSelect={() => { setPropertyFilter('all'); setPropertyPickerOpen(false); }}
+                        onSelect={() => {
+                          setPropertyFilter('all');
+                          setPropertyPickerOpen(false);
+                          requestAnimationFrame(() => tenantListRef.current?.focus());
+                        }}
                       >
                         <Check className={`mr-2 h-4 w-4 ${propertyFilter === 'all' ? 'opacity-100' : 'opacity-0'}`} />
                         All Properties
@@ -920,7 +924,11 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                         <CommandItem
                           key={p}
                           value={p}
-                          onSelect={() => { setPropertyFilter(p); setPropertyPickerOpen(false); }}
+                          onSelect={() => {
+                            setPropertyFilter(p);
+                            setPropertyPickerOpen(false);
+                            requestAnimationFrame(() => tenantListRef.current?.focus());
+                          }}
                         >
                           <Check className={`mr-2 h-4 w-4 shrink-0 ${propertyFilter === p ? 'opacity-100' : 'opacity-0'}`} />
                           <span className="truncate">{p}</span>
