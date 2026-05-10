@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp, ArrowLeft, Shield, ArrowUp, ArrowDown, ArrowUpDown, Wallet, DollarSign, AlertCircle, CheckCircle2, CreditCard, Eye, Building2, SlidersHorizontal, Plus } from 'lucide-react';
+import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp, ArrowLeft, Shield, ArrowUp, ArrowDown, ArrowUpDown, Wallet, DollarSign, AlertCircle, CheckCircle2, CreditCard, Eye, Building2, SlidersHorizontal, Plus, Check, ChevronsUpDown } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
 import { generateWelileAiId, getRiskTierLabel } from '@/lib/welileAiId';
 import { format, startOfDay, formatDistanceToNowStrict } from 'date-fns';
@@ -154,6 +155,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [behaviorData, setBehaviorData] = useState<any>(null);
   const [profileTenantId, setProfileTenantId] = useState<string | null>(null);
   const [showMoreFilters, setShowMoreFilters] = useState(false);
+  const [propertyPickerOpen, setPropertyPickerOpen] = useState(false);
 
   useEffect(() => {
     if (open && user) fetchTenants();
@@ -720,20 +722,50 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 <SelectItem value="new">New</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={propertyFilter} onValueChange={setPropertyFilter}>
-              <SelectTrigger className="w-[180px] h-10 rounded-xl">
-                <div className="text-left">
-                  <p className="text-[10px] text-muted-foreground leading-none mb-0.5">Property</p>
-                  <SelectValue placeholder="All Properties" />
-                </div>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Properties</SelectItem>
-                {propertyOptions.map(p => (
-                  <SelectItem key={p} value={p}>{p}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={propertyPickerOpen} onOpenChange={setPropertyPickerOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  className="h-10 rounded-xl justify-between font-normal px-3"
+                >
+                  <div className="text-left min-w-0">
+                    <p className="text-[10px] text-muted-foreground leading-none mb-0.5">Property</p>
+                    <p className="text-sm truncate">
+                      {propertyFilter === 'all' ? 'All Properties' : propertyFilter}
+                    </p>
+                  </div>
+                  <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0 ml-2" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="p-0 w-[min(92vw,320px)]" align="start">
+                <Command>
+                  <CommandInput placeholder="Search property name or address…" className="h-10" />
+                  <CommandList>
+                    <CommandEmpty>No matching property.</CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        value="All Properties"
+                        onSelect={() => { setPropertyFilter('all'); setPropertyPickerOpen(false); }}
+                      >
+                        <Check className={`mr-2 h-4 w-4 ${propertyFilter === 'all' ? 'opacity-100' : 'opacity-0'}`} />
+                        All Properties
+                      </CommandItem>
+                      {propertyOptions.map(p => (
+                        <CommandItem
+                          key={p}
+                          value={p}
+                          onSelect={() => { setPropertyFilter(p); setPropertyPickerOpen(false); }}
+                        >
+                          <Check className={`mr-2 h-4 w-4 shrink-0 ${propertyFilter === p ? 'opacity-100' : 'opacity-0'}`} />
+                          <span className="truncate">{p}</span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
             <Select value={`${sortKey}-${sortDir}`} onValueChange={(v) => {
               const [k, d] = v.split('-') as [SortKey, SortDir];
               setSortKey(k); setSortDir(d);
