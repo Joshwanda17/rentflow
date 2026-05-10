@@ -829,7 +829,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 placeholder="Search by name or phone…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-10 h-12 rounded-xl bg-muted/40 border-transparent focus-visible:ring-1 focus-visible:ring-primary/30 text-base"
+                className="pl-10 h-12 rounded-xl bg-muted/40 border-2 border-solid border-purple-600 focus-visible:ring-1 focus-visible:ring-primary/30 text-base"
                 style={{ fontSize: '16px' }}
                 aria-label="Search tenants"
               />
