@@ -184,7 +184,7 @@ export default function MyTenantsSection() {
       supabase
         .from('rent_requests')
         .select(
-          'tenant_id, rent_amount, total_repayment, amount_repaid, status, end_date, updated_at, created_at',
+          'tenant_id, rent_amount, total_repayment, amount_repaid, status, disbursed_at, duration_days, updated_at, created_at',
         )
         .in('tenant_id', tenantIds)
         .or(`landlord_id.eq.${user.id},landlord_phone.eq.${profile.phone}`),
@@ -209,7 +209,11 @@ export default function MyTenantsSection() {
       const totalRepayment = Number(active?.total_repayment ?? e.monthly_rent ?? 0);
       const amountRepaid = Number(active?.amount_repaid ?? 0);
       const balance = Math.max(0, totalRepayment - amountRepaid);
-      const dueDate = active?.end_date ?? null;
+      const startMs = active?.disbursed_at ? new Date(active.disbursed_at).getTime() : null;
+      const dueDate =
+        startMs && active?.duration_days
+          ? new Date(startMs + Number(active.duration_days) * 86400000).toISOString()
+          : null;
       const daysDelta = dueDate
         ? Math.round((new Date(dueDate).getTime() - today) / 86400000)
         : null;
