@@ -861,6 +861,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 <SelectItem value="property-daily-asc">Property, then Daily (Low → High)</SelectItem>
                 <SelectItem value="property-balance-desc">Property, then Balance (High → Low)</SelectItem>
                 <SelectItem value="property-balance-asc">Property, then Balance (Low → High)</SelectItem>
+                <SelectItem value="lastCollected-desc">Last collected (Recent → Oldest)</SelectItem>
+                <SelectItem value="lastCollected-asc">Last collected (Oldest → Recent)</SelectItem>
               </SelectContent>
             </Select>
               </div>
