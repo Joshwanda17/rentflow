@@ -829,7 +829,9 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               </PopoverContent>
             </Popover>
             <Select value={`${sortKey}-${sortDir}`} onValueChange={(v) => {
-              const [k, d] = v.split('-') as [SortKey, SortDir];
+              const idx = v.lastIndexOf('-');
+              const k = v.slice(0, idx) as SortKey;
+              const d = v.slice(idx + 1) as SortDir;
               setSortKey(k); setSortDir(d);
             }}>
               <SelectTrigger className="col-span-2 h-10 rounded-xl">
