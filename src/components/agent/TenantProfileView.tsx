@@ -750,6 +750,65 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
               </div>
             </div>
 
+            {/* Payment history — each cash-in with running Paid / Remaining */}
+            {(() => {
+              const target = summary.activeRequest!.total_repayment;
+              const cycleRepayments = repayments
+                .filter(r => r.rent_request_id === summary.activeRequest!.id)
+                .slice()
+                .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+              if (cycleRepayments.length === 0) {
+                return (
+                  <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-3 text-center text-xs text-muted-foreground">
+                    No payments collected yet for this cycle.
+                  </div>
+                );
+              }
+              let running = 0;
+              const rows = cycleRepayments.map(r => {
+                running += r.amount || 0;
+                return {
+                  id: r.id,
+                  amount: r.amount || 0,
+                  date: r.created_at,
+                  paid: running,
+                  remaining: Math.max(0, target - running),
+                };
+              }).reverse(); // newest first
+              return (
+                <div className="rounded-xl border border-border/60 overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-2 bg-muted/40">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Payment History
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">{cycleRepayments.length} payment{cycleRepayments.length === 1 ? '' : 's'}</p>
+                  </div>
+                  <div className="divide-y divide-border/60 max-h-64 overflow-y-auto">
+                    {rows.map(row => (
+                      <div key={row.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold font-mono tabular-nums text-success">
+                            +{formatUGX(row.amount)}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {format(new Date(row.date), 'MMM d, yyyy · HH:mm')}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Paid / Remaining</p>
+                          <p className="text-xs font-mono tabular-nums">
+                            <span className="text-success font-semibold">{formatUGX(row.paid)}</span>
+                            <span className="text-muted-foreground"> / </span>
+                            <span className="text-destructive font-semibold">{formatUGX(row.remaining)}</span>
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Float warnings */}
             {!floatLoading && floatError && (
               <div className="flex items-center gap-2 bg-warning/10 border border-warning/30 rounded-xl p-3">
