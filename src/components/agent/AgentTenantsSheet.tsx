@@ -839,6 +839,58 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
             )}
           </div>
 
+          {/* Top properties — quick-switch chips (horizontal scroll on mobile) */}
+          {(() => {
+            const counts = new Map<string, number>();
+            tenants.forEach(t => {
+              const a = tenantContext[t.id]?.propertyAddress?.trim();
+              if (a) counts.set(a, (counts.get(a) || 0) + 1);
+            });
+            const top = Array.from(counts.entries())
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 6);
+            if (top.length < 2) return null;
+            return (
+              <div className="-mx-4 px-4 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="flex items-center gap-1.5 w-max pb-1">
+                  <button
+                    onClick={() => setPropertyFilter('all')}
+                    className={`shrink-0 h-8 px-3 rounded-full text-xs font-semibold border transition-colors ${
+                      propertyFilter === 'all'
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-background text-foreground border-border hover:bg-muted'
+                    }`}
+                    style={{ touchAction: 'manipulation' }}
+                  >
+                    All
+                  </button>
+                  {top.map(([addr, count]) => {
+                    const active = propertyFilter === addr;
+                    return (
+                      <button
+                        key={addr}
+                        onClick={() => setPropertyFilter(active ? 'all' : addr)}
+                        title={addr}
+                        className={`shrink-0 h-8 pl-3 pr-2 rounded-full text-xs font-semibold border inline-flex items-center gap-1.5 transition-colors max-w-[180px] ${
+                          active
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-background text-foreground border-border hover:bg-muted'
+                        }`}
+                        style={{ touchAction: 'manipulation' }}
+                      >
+                        <Building2 className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{addr}</span>
+                        <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-md ${
+                          active ? 'bg-primary-foreground/20' : 'bg-muted text-muted-foreground'
+                        }`}>{count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
           {stats.totalOwing > 0 && (
             <p className="text-xs text-muted-foreground">
               Total owed: <span className="font-bold text-destructive font-mono">{formatUGX(stats.totalOwing)}</span>
