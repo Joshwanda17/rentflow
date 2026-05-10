@@ -15,7 +15,7 @@ import { generateWelileAiId, getRiskTierLabel } from '@/lib/welileAiId';
 import { format, startOfDay, formatDistanceToNowStrict } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { downloadRepaymentPdf, shareRepaymentPdfWhatsApp } from '@/lib/repaymentSchedulePdf';
-import { downloadRentStatement } from '@/lib/receiptPdf';
+import { downloadRentStatement, buildRentStatementWhatsApp } from '@/lib/receiptPdf';
 import { useToast } from '@/hooks/use-toast';
 import AgentRentRequestDialog from './AgentRentRequestDialog';
 import { AgentTenantCollectDialog } from './AgentTenantCollectDialog';
