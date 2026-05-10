@@ -9,7 +9,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp, ArrowLeft, Shield, ArrowUp, ArrowDown, ArrowUpDown, Wallet, DollarSign, AlertCircle, CheckCircle2, CreditCard, Eye, Building2, SlidersHorizontal, Plus, Check, ChevronsUpDown, Map as MapIcon, Navigation, List, X } from 'lucide-react';
 import { PropertyMapView } from './PropertyMapView';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
 import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
 import { generateWelileAiId, getRiskTierLabel } from '@/lib/welileAiId';
 import { format, startOfDay, formatDistanceToNowStrict } from 'date-fns';
@@ -65,6 +65,20 @@ type SortKey = 'risk' | 'aiId' | 'property' | 'balance' | 'daily' | 'property-da
 type SortDir = 'asc' | 'desc';
 
 const PREFS_KEY = 'agent-tenants-sheet:prefs:v2';
+const RECENT_PROPERTIES_KEY = 'agent-tenants-sheet:recent-properties:v1';
+const MAX_RECENT_PROPERTIES = 5;
+
+function loadRecentProperties(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(RECENT_PROPERTIES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
+  } catch {
+    return [];
+  }
+}
 
 type RecentCollectionFilter = 'all' | '1' | '3' | '7' | '14' | '30' | 'never';
 
@@ -165,6 +179,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [profileTenantId, setProfileTenantId] = useState<string | null>(null);
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [propertyPickerOpen, setPropertyPickerOpen] = useState(false);
+  const [recentProperties, setRecentProperties] = useState<string[]>(() => loadRecentProperties());
   const [groupByProperty, setGroupByProperty] = useState<boolean>(() => loadPrefs().groupByProperty ?? false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [mapMode, setMapMode] = useState(false);
@@ -175,6 +190,18 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     () => loadPrefs().recentCollectionFilter ?? 'all',
   );
   const tenantListRef = useRef<HTMLDivElement>(null);
+
+  // Push a property to the front of the MRU list and persist (deduped, capped).
+  const recordRecentProperty = useCallback((address: string) => {
+    if (!address || address === 'all') return;
+    setRecentProperties(prev => {
+      const next = [address, ...prev.filter(p => p !== address)].slice(0, MAX_RECENT_PROPERTIES);
+      try {
+        window.localStorage.setItem(RECENT_PROPERTIES_KEY, JSON.stringify(next));
+      } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
   const toggleGroup = (key: string) => {
     setCollapsedGroups(prev => {
       const next = new Set(prev);
@@ -942,12 +969,52 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                         <Check className={`mr-2 h-4 w-4 ${propertyFilter === 'all' ? 'opacity-100' : 'opacity-0'}`} />
                         All Properties
                       </CommandItem>
+                    </CommandGroup>
+                    {(() => {
+                      const validRecents = recentProperties.filter(addr =>
+                        propertyOptions.some(p => p.address === addr),
+                      );
+                      if (validRecents.length === 0) return null;
+                      return (
+                        <>
+                          <CommandSeparator />
+                          <CommandGroup heading="Recent">
+                            {validRecents.map(addr => {
+                              const opt = propertyOptions.find(p => p.address === addr);
+                              return (
+                                <CommandItem
+                                  key={`recent-${addr}`}
+                                  value={`recent ${addr}`}
+                                  onSelect={() => {
+                                    setPropertyFilter(addr);
+                                    recordRecentProperty(addr);
+                                    setPropertyPickerOpen(false);
+                                    requestAnimationFrame(() => tenantListRef.current?.focus());
+                                  }}
+                                >
+                                  <Check className={`mr-2 h-4 w-4 shrink-0 ${propertyFilter === addr ? 'opacity-100' : 'opacity-0'}`} />
+                                  <span className="truncate flex-1">{addr}</span>
+                                  {opt && (
+                                    <span className="ml-2 text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground">
+                                      {opt.count}
+                                    </span>
+                                  )}
+                                </CommandItem>
+                              );
+                            })}
+                          </CommandGroup>
+                          <CommandSeparator />
+                        </>
+                      );
+                    })()}
+                    <CommandGroup heading="All properties">
                       {propertyOptions.map(p => (
                         <CommandItem
                           key={p.address}
                           value={p.address}
                           onSelect={() => {
                             setPropertyFilter(p.address);
+                            recordRecentProperty(p.address);
                             setPropertyPickerOpen(false);
                             requestAnimationFrame(() => tenantListRef.current?.focus());
                           }}
