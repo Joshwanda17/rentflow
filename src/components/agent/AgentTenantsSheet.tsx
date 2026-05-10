@@ -433,7 +433,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
       return cmp * dir;
     });
     return list;
-  }, [tenants, search, activeFilter, riskFilter, sortKey, sortDir, tenantBalances, tenantStatuses, tenantContext, tenantMeta]);
+  }, [tenants, search, activeFilter, riskFilter, sortKey, sortDir, tenantBalances, tenantDaily, tenantStatuses, tenantContext, tenantMeta]);
 
   const propertyOptions = useMemo(() => {
     const set = new Set<string>();
@@ -703,6 +703,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               <SelectContent>
                 <SelectItem value="balance-desc">Balance (High → Low)</SelectItem>
                 <SelectItem value="balance-asc">Balance (Low → High)</SelectItem>
+                <SelectItem value="daily-desc">Daily Expected (High → Low)</SelectItem>
+                <SelectItem value="daily-asc">Daily Expected (Low → High)</SelectItem>
                 <SelectItem value="risk-desc">Risk (Worst first)</SelectItem>
                 <SelectItem value="aiId-asc">AI ID (A → Z)</SelectItem>
                 <SelectItem value="property-asc">Property (A → Z)</SelectItem>
