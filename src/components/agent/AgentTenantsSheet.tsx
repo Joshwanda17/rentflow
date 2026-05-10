@@ -10,7 +10,7 @@ import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, Refr
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
 import { generateWelileAiId, getRiskTierLabel } from '@/lib/welileAiId';
-import { format, startOfDay } from 'date-fns';
+import { format, startOfDay, formatDistanceToNowStrict } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { downloadRepaymentPdf, shareRepaymentPdfWhatsApp } from '@/lib/repaymentSchedulePdf';
 import { downloadRentStatement } from '@/lib/receiptPdf';
@@ -859,6 +859,28 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                     </div>
 
                     {/* Quick actions row — mobile-friendly tap targets */}
+                    {tenantLastPaid[tenant.id] ? (
+                      <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1.5">
+                        <span className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wider flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Last collected
+                        </span>
+                        <span className="text-[11px] font-mono font-bold text-emerald-700">
+                          +{formatUGX(tenantLastPaid[tenant.id].amount)}
+                          <span className="font-sans font-normal text-emerald-600/80 ml-1.5">
+                            · {formatDistanceToNowStrict(new Date(tenantLastPaid[tenant.id].date), { addSuffix: true })}
+                          </span>
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-muted/40 border border-border/40 px-2.5 py-1.5">
+                        <AlertCircle className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                          No collections yet
+                        </span>
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-3 gap-2 mt-3">
                       <Button
                         size="sm"
