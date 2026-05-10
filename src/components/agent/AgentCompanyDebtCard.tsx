@@ -42,7 +42,7 @@ export function AgentCompanyDebtCard({ onViewBreakdown }: Props) {
     <Card className={cn(hasDebt && 'border-destructive/40')}>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
-          <Building2 className="h-4 w-4 text-primary" /> Owed to Welile
+          <Building2 className="h-4 w-4 text-primary" /> My Tenants — Money Summary
           <TooltipProvider delayDuration={200}>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -55,42 +55,45 @@ export function AgentCompanyDebtCard({ onViewBreakdown }: Props) {
                 </button>
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-[260px] text-xs">
-                This is everything Welile has paid out for your tenants that hasn't been
-                repaid yet. It is not a personal debt — it goes down every time a tenant
-                repays.
+                Left: total cash Welile disbursed to landlords for your tenants.
+                Middle: total your tenants have repaid so far (rent + fees).
+                Right: what's still outstanding on active cycles.
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <p
-          className={cn(
-            'font-bold text-2xl tabular-nums',
-            hasDebt ? 'text-destructive' : 'text-muted-foreground',
-          )}
-        >
-          {formatUGX(x.totalOwed)}
-        </p>
-        <p className="text-[11px] text-muted-foreground mt-0.5">
-          Outstanding company exposure on your book
-        </p>
-
-        <div className="mt-3 pt-3 border-t border-dashed space-y-1.5 text-xs">
-          <Row label="Lifetime paid out for my tenants" value={x.lifetimeDisbursed} />
-          <Row label="Lifetime repaid" value={x.lifetimeRepaid} positive />
-          <Row
-            label={`Active cycles outstanding${x.activeCycleCount ? ` (${x.activeCycleCount})` : ''}`}
-            value={x.outstandingCycles}
-            danger={x.outstandingCycles > 0}
+        <div className="grid grid-cols-3 gap-2">
+          <Stat
+            label="Welile paid out"
+            sub="for my tenants"
+            value={x.lifetimeDisbursed}
           />
-          {x.subscriptionDebt > 0 && (
-            <Row label="Subscription debt (guarantor)" value={x.subscriptionDebt} danger />
-          )}
-          {x.advanceBalance > 0 && (
-            <Row label="Personal advance (wallet)" value={x.advanceBalance} danger />
-          )}
+          <Stat
+            label="Collected so far"
+            sub="rent + fees"
+            value={x.lifetimeRepaid}
+            tone="positive"
+          />
+          <Stat
+            label="Outstanding"
+            sub={x.activeCycleCount ? `${x.activeCycleCount} active` : 'all settled'}
+            value={x.outstandingCycles}
+            tone={x.outstandingCycles > 0 ? 'danger' : 'muted'}
+          />
         </div>
+
+        {(x.subscriptionDebt > 0 || x.advanceBalance > 0) && (
+          <div className="mt-3 pt-3 border-t border-dashed space-y-1.5 text-xs">
+            {x.subscriptionDebt > 0 && (
+              <Row label="Subscription debt (guarantor)" value={x.subscriptionDebt} danger />
+            )}
+            {x.advanceBalance > 0 && (
+              <Row label="Personal advance (wallet)" value={x.advanceBalance} danger />
+            )}
+          </div>
+        )}
 
         {onViewBreakdown && x.tenantCount > 0 && (
           <Button
@@ -105,6 +108,39 @@ export function AgentCompanyDebtCard({ onViewBreakdown }: Props) {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function Stat({
+  label,
+  sub,
+  value,
+  tone = 'default',
+}: {
+  label: string;
+  sub?: string;
+  value: number;
+  tone?: 'default' | 'positive' | 'danger' | 'muted';
+}) {
+  return (
+    <div className="rounded-md border bg-muted/30 p-2.5 flex flex-col gap-0.5 min-w-0">
+      <span className="text-[10px] uppercase tracking-wide text-muted-foreground leading-tight">
+        {label}
+      </span>
+      <span
+        className={cn(
+          'font-bold text-sm sm:text-base tabular-nums truncate',
+          tone === 'positive' && 'text-emerald-600',
+          tone === 'danger' && 'text-destructive',
+          tone === 'muted' && 'text-muted-foreground',
+        )}
+      >
+        {formatUGX(value)}
+      </span>
+      {sub && (
+        <span className="text-[10px] text-muted-foreground leading-tight">{sub}</span>
+      )}
+    </div>
   );
 }
 
