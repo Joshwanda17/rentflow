@@ -156,6 +156,15 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [profileTenantId, setProfileTenantId] = useState<string | null>(null);
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [propertyPickerOpen, setPropertyPickerOpen] = useState(false);
+  const [groupByProperty, setGroupByProperty] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const toggleGroup = (key: string) => {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (open && user) fetchTenants();
@@ -691,9 +700,10 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
             </div>
 
             {/* "More filters" toggle — keeps the page calm on small screens */}
+            <div className="flex items-center gap-2">
             <button
               onClick={() => setShowMoreFilters(v => !v)}
-              className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
               style={{ touchAction: 'manipulation', minHeight: '36px' }}
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
@@ -704,6 +714,20 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 </Badge>
               )}
             </button>
+            <button
+              onClick={() => { setGroupByProperty(v => !v); setCollapsedGroups(new Set()); }}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                groupByProperty
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+              }`}
+              style={{ touchAction: 'manipulation', minHeight: '36px' }}
+              aria-pressed={groupByProperty}
+            >
+              <Building2 className="h-3.5 w-3.5" />
+              {groupByProperty ? 'Grouped by property' : 'Group by property'}
+            </button>
+            </div>
 
             {showMoreFilters && (
               <div className="grid grid-cols-2 gap-2 pt-1">
@@ -827,8 +851,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 </Button>
               )}
             </div>
-          ) : (
-            processedTenants.map((tenant) => {
+          ) : (() => {
+            const tenantCards = processedTenants.map((tenant) => {
               const isExpanded = expandedTenantId === tenant.id;
               const requests = tenantRequests[tenant.id] || [];
               const isLoadingThis = loadingRequests === tenant.id;
@@ -861,7 +885,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               const progressColor = progressPct >= 100 ? 'bg-emerald-500' : hasDebt ? 'bg-rose-500' : 'bg-primary';
               const StatusIcon = statusMeta.Icon;
 
-              return (
+              return { tenant, el: (
                 <div
                   key={tenant.id}
                   className="rounded-2xl border border-border/60 bg-card overflow-hidden transition-shadow hover:shadow-md"
@@ -1239,9 +1263,65 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                     )}
                   </AnimatePresence>
                 </div>
-              );
-            })
-          )}
+              ) };
+            });
+
+            if (!groupByProperty) {
+              return tenantCards.map(c => c.el);
+            }
+
+            // Group cards by property address. Tenants without a property
+            // fall into a single "No property assigned" bucket so nothing is hidden.
+            const groups = new Map<string, typeof tenantCards>();
+            for (const c of tenantCards) {
+              const key = tenantContext[c.tenant.id]?.propertyAddress?.trim() || 'No property assigned';
+              if (!groups.has(key)) groups.set(key, []);
+              groups.get(key)!.push(c);
+            }
+
+            return Array.from(groups.entries())
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([property, items]) => {
+                const isCollapsed = collapsedGroups.has(property);
+                const groupOwing = items.reduce((s, c) => s + (tenantBalances[c.tenant.id] || 0), 0);
+                const groupDaily = items.reduce((s, c) => s + (tenantDaily[c.tenant.id] || 0), 0);
+                return (
+                  <div key={property} className="rounded-2xl border border-border/60 bg-muted/20 overflow-hidden">
+                    <button
+                      onClick={() => toggleGroup(property)}
+                      className="w-full flex items-center gap-3 px-3.5 py-3 text-left active:bg-muted/40 transition-colors"
+                      style={{ touchAction: 'manipulation', minHeight: '56px' }}
+                      aria-expanded={!isCollapsed}
+                    >
+                      <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                        <Building2 className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold truncate leading-tight">{property}</p>
+                        <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                          {items.length} tenant{items.length !== 1 ? 's' : ''}
+                          {groupDaily > 0 && <> · {formatUGX(groupDaily)}/day expected</>}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none">Owing</p>
+                        <p className={`text-sm font-bold font-mono leading-tight ${groupOwing > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                          {groupOwing > 0 ? formatUGX(groupOwing) : 'UGX 0'}
+                        </p>
+                      </div>
+                      {isCollapsed
+                        ? <ArrowDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                        : <ArrowUp className="h-4 w-4 text-muted-foreground shrink-0" />}
+                    </button>
+                    {!isCollapsed && (
+                      <div className="p-2 pt-0 space-y-2 bg-background/40">
+                        {items.map(c => c.el)}
+                      </div>
+                    )}
+                  </div>
+                );
+              });
+          })()}
         </div>
         )}
         </>
