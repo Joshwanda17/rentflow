@@ -855,6 +855,17 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           <div className="flex-1 overflow-y-auto px-4 py-3">
             <AgentRequestPipelineView />
           </div>
+        ) : mapMode ? (
+          <div className="flex-1 overflow-hidden px-4 py-3">
+            <PropertyMapView
+              tenants={processedTenants}
+              tenantContext={tenantContext}
+              tenantBalances={tenantBalances}
+              tenantDaily={tenantDaily}
+              propertyLocations={propertyLocations}
+              onSelectTenant={(id) => setProfileTenantId(id)}
+            />
+          </div>
         ) : (
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
           {loading ? (
