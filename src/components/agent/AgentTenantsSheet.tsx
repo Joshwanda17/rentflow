@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp, ArrowLeft, Shield, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp, ArrowLeft, Shield, ArrowUp, ArrowDown, ArrowUpDown, Wallet, DollarSign, AlertCircle, CheckCircle2, CreditCard, Eye, Building2, SlidersHorizontal, Plus } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
 import { generateWelileAiId, getRiskTierLabel } from '@/lib/welileAiId';
 import { format, startOfDay } from 'date-fns';
@@ -135,6 +136,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [riskFilter, setRiskFilter] = useState<RiskFilter>(() => loadPrefs().riskFilter ?? 'all');
   const [sortKey, setSortKey] = useState<SortKey>('balance');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [propertyFilter, setPropertyFilter] = useState<string>('all');
   const [tenantBalances, setTenantBalances] = useState<Record<string, number>>({});
   const [tenantTotals, setTenantTotals] = useState<Record<string, { total: number; paid: number }>>({});
   const [tenantStatuses, setTenantStatuses] = useState<Record<string, Set<string>>>({});
@@ -379,6 +381,9 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     if (riskFilter !== 'all') {
       list = list.filter(t => tenantMeta[t.id]?.riskLevel === riskFilter);
     }
+    if (propertyFilter !== 'all') {
+      list = list.filter(t => (tenantContext[t.id]?.propertyAddress || '') === propertyFilter);
+    }
 
     const dir = sortDir === 'asc' ? 1 : -1;
     list.sort((a, b) => {
@@ -418,6 +423,14 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     });
     return list;
   }, [tenants, search, activeFilter, riskFilter, sortKey, sortDir, tenantBalances, tenantStatuses, tenantContext, tenantMeta]);
+
+  const propertyOptions = useMemo(() => {
+    const set = new Set<string>();
+    Object.values(tenantContext).forEach(c => {
+      if (c?.propertyAddress) set.add(c.propertyAddress);
+    });
+    return Array.from(set).sort();
+  }, [tenantContext]);
 
   // Stats
   const stats = useMemo(() => {
@@ -577,133 +590,124 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
 
           {view === 'tenants' && (
           <>
-          {/* Search — name, phone, property, landlord, or AI ID */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search name, phone, property, or AI ID…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 h-11 rounded-xl bg-muted/40 border-0 focus-visible:ring-1 focus-visible:ring-primary/30"
-              style={{ fontSize: '16px' }}
-              aria-label="Search tenants by name, phone, property, or AI ID"
-            />
-            {search && (
-              <button
-                onClick={() => setSearch('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-sm p-1"
-                aria-label="Clear search"
-              >✕</button>
-            )}
+          {/* Stat cards row — exec-dashboard style */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+            {[
+              { icon: Users, label: 'Total Tenants', value: String(stats.total), sub: 'All tenants', bg: 'bg-violet-100', fg: 'text-violet-600' },
+              { icon: Wallet, label: 'Owing', value: String(stats.owingCount), sub: 'Tenants owing', bg: 'bg-amber-100', fg: 'text-amber-600', subClass: 'text-rose-600 font-medium' },
+              { icon: DollarSign, label: 'Collected', value: formatUGX(Object.values(tenantTotals).reduce((s, v) => s + (v?.paid || 0), 0)), sub: 'Lifetime', bg: 'bg-emerald-100', fg: 'text-emerald-600' },
+              { icon: AlertCircle, label: 'Overdue Amount', value: formatUGX(stats.totalOwing), sub: `From ${stats.owingCount} tenants`, bg: 'bg-rose-100', fg: 'text-rose-600', subClass: 'text-rose-600 font-medium' },
+              { icon: TrendingUp, label: 'Occupancy', value: stats.total > 0 ? `${Math.round((stats.paidUpCount + stats.owingCount) / stats.total * 100)}%` : '0%', sub: 'Active cycles', bg: 'bg-sky-100', fg: 'text-sky-600', subClass: 'text-emerald-600 font-medium' },
+            ].map((s, i) => {
+              const Icon = s.icon;
+              return (
+                <div key={i} className="rounded-2xl border border-border/60 bg-card p-3 shadow-sm">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`h-10 w-10 rounded-xl ${s.bg} flex items-center justify-center shrink-0`}>
+                      <Icon className={`h-4 w-4 ${s.fg}`} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-muted-foreground leading-tight">{s.label}</p>
+                      <p className="text-base font-bold leading-tight truncate">{s.value}</p>
+                      <p className={`text-[10px] leading-tight ${s.subClass || 'text-muted-foreground'}`}>{s.sub}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
-          {/* 3 Filter Tabs */}
-          <div className="flex gap-2">
-            {filterTabs.map(tab => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveFilter(tab.key)}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                  activeFilter === tab.key
-                    ? tab.key === 'owing'
-                      ? 'bg-destructive text-destructive-foreground shadow-sm'
-                      : tab.key === 'paid-up'
-                        ? 'bg-success text-success-foreground shadow-sm'
-                        : 'bg-primary text-primary-foreground shadow-sm'
-                    : 'bg-muted/50 text-muted-foreground'
-                }`}
-                style={{ touchAction: 'manipulation', minHeight: '44px' }}
-              >
-                {tab.label}
-                <span className={`min-w-[20px] h-[20px] rounded-full flex items-center justify-center text-[11px] font-bold ${
-                  activeFilter === tab.key ? 'bg-background/25' : 'bg-background/60'
-                }`}>
-                  {tab.count}
-                </span>
-              </button>
-            ))}
+          {/* Filter bar — search + 4 dropdowns + Filter button */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search tenant, phone, property, or AI ID…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 h-10 rounded-xl bg-muted/40 border-transparent focus-visible:ring-1 focus-visible:ring-primary/30"
+                style={{ fontSize: '16px' }}
+                aria-label="Search tenants"
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-sm p-1"
+                  aria-label="Clear search"
+                >✕</button>
+              )}
+            </div>
+            <Select value={activeFilter} onValueChange={(v) => setActiveFilter(v as FilterTab)}>
+              <SelectTrigger className="w-[140px] h-10 rounded-xl">
+                <div className="text-left">
+                  <p className="text-[10px] text-muted-foreground leading-none mb-0.5">Status</p>
+                  <SelectValue />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All ({stats.total})</SelectItem>
+                <SelectItem value="owing">Owing ({stats.owingCount})</SelectItem>
+                <SelectItem value="paid-up">Paid Up ({stats.paidUpCount})</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={riskFilter} onValueChange={(v) => setRiskFilter(v as RiskFilter)}>
+              <SelectTrigger className="w-[140px] h-10 rounded-xl">
+                <div className="text-left">
+                  <p className="text-[10px] text-muted-foreground leading-none mb-0.5">Risk Level</p>
+                  <SelectValue />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="good">Good</SelectItem>
+                <SelectItem value="standard">Standard</SelectItem>
+                <SelectItem value="caution">Caution</SelectItem>
+                <SelectItem value="new">New</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={propertyFilter} onValueChange={setPropertyFilter}>
+              <SelectTrigger className="w-[180px] h-10 rounded-xl">
+                <div className="text-left">
+                  <p className="text-[10px] text-muted-foreground leading-none mb-0.5">Property</p>
+                  <SelectValue placeholder="All Properties" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Properties</SelectItem>
+                {propertyOptions.map(p => (
+                  <SelectItem key={p} value={p}>{p}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={`${sortKey}-${sortDir}`} onValueChange={(v) => {
+              const [k, d] = v.split('-') as [SortKey, SortDir];
+              setSortKey(k); setSortDir(d);
+            }}>
+              <SelectTrigger className="w-[170px] h-10 rounded-xl">
+                <div className="text-left">
+                  <p className="text-[10px] text-muted-foreground leading-none mb-0.5">Sort By</p>
+                  <SelectValue />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="balance-desc">Balance (High → Low)</SelectItem>
+                <SelectItem value="balance-asc">Balance (Low → High)</SelectItem>
+                <SelectItem value="risk-desc">Risk (Worst first)</SelectItem>
+                <SelectItem value="aiId-asc">AI ID (A → Z)</SelectItem>
+                <SelectItem value="property-asc">Property (A → Z)</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" className="h-10 rounded-xl gap-2">
+              <SlidersHorizontal className="h-4 w-4" />
+              Filter
+            </Button>
           </div>
 
-          {/* Total owed summary */}
           {stats.totalOwing > 0 && (
             <p className="text-xs text-muted-foreground">
               Total owed: <span className="font-bold text-destructive font-mono">{formatUGX(stats.totalOwing)}</span>
             </p>
           )}
-
-          {/* Risk tier filter — horizontal chip row */}
-          <div className="flex items-center gap-2 overflow-x-auto -mx-1 px-1 pb-0.5 scrollbar-hide">
-            <div className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0 pr-1">
-              <Shield className="h-3.5 w-3.5" />
-              Risk
-            </div>
-            {([
-              { key: 'all', label: 'All', tone: 'bg-muted text-foreground' },
-              { key: 'good', label: 'Good', tone: 'bg-success/15 text-success' },
-              { key: 'standard', label: 'Standard', tone: 'bg-primary/15 text-primary' },
-              { key: 'caution', label: 'Caution', tone: 'bg-destructive/15 text-destructive' },
-              { key: 'new', label: 'New', tone: 'bg-muted/70 text-muted-foreground' },
-            ] as const).map(opt => {
-              const isActive = riskFilter === opt.key;
-              return (
-                <button
-                  key={opt.key}
-                  onClick={() => setRiskFilter(opt.key as RiskFilter)}
-                  className={`shrink-0 h-9 px-3 rounded-full text-xs font-semibold transition-all border ${
-                    isActive
-                      ? 'border-foreground/20 ring-1 ring-foreground/10 ' + opt.tone
-                      : 'border-transparent ' + opt.tone + ' opacity-70 hover:opacity-100'
-                  }`}
-                  style={{ touchAction: 'manipulation', minHeight: '36px' }}
-                  aria-pressed={isActive}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Sort bar — tap to set, tap active to flip direction */}
-          <div className="flex items-center gap-2 overflow-x-auto -mx-1 px-1 pb-0.5 scrollbar-hide">
-            <div className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider shrink-0 pr-1">
-              <ArrowUpDown className="h-3.5 w-3.5" />
-              Sort
-            </div>
-            {([
-              { key: 'risk', label: 'Risk' },
-              { key: 'aiId', label: 'AI ID' },
-              { key: 'property', label: 'Property' },
-              { key: 'balance', label: 'Owing' },
-            ] as const).map(opt => {
-              const isActive = sortKey === opt.key;
-              const Arrow = sortDir === 'asc' ? ArrowUp : ArrowDown;
-              return (
-                <button
-                  key={opt.key}
-                  onClick={() => {
-                    if (sortKey === opt.key) {
-                      setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
-                    } else {
-                      setSortKey(opt.key);
-                      // Sensible defaults per column
-                      setSortDir(opt.key === 'aiId' || opt.key === 'property' ? 'asc' : 'desc');
-                    }
-                  }}
-                  className={`shrink-0 h-9 px-3 rounded-full text-xs font-semibold transition-all border inline-flex items-center gap-1 ${
-                    isActive
-                      ? 'border-foreground/20 ring-1 ring-foreground/10 bg-primary/15 text-primary'
-                      : 'border-transparent bg-muted text-muted-foreground opacity-80 hover:opacity-100'
-                  }`}
-                  style={{ touchAction: 'manipulation', minHeight: '36px' }}
-                  aria-pressed={isActive}
-                  aria-label={`Sort by ${opt.label}${isActive ? ` (${sortDir === 'asc' ? 'ascending' : 'descending'})` : ''}`}
-                >
-                  {opt.label}
-                  {isActive && <Arrow className="h-3 w-3" />}
-                </button>
-              );
-            })}
-          </div>
           </>
           )}
         </div>
@@ -745,157 +749,170 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               const totals = tenantTotals[tenant.id] || { total: 0, paid: 0 };
               const progressPct = totals.total > 0 ? Math.min(100, Math.round((totals.paid / totals.total) * 100)) : 0;
               const hasDebt = balance > 0;
+              const meta = tenantMeta[tenant.id];
+              const ctx = tenantContext[tenant.id];
+              const propertyAddress = ctx?.propertyAddress || '';
+              const landlordName = ctx?.landlordName || '';
+              const payStatus: 'paid_up' | 'owing' = hasDebt ? 'owing' : 'paid_up';
+              const statusMeta = payStatus === 'paid_up'
+                ? { label: 'Paid up', cls: 'bg-emerald-100 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500', Icon: CheckCircle2 }
+                : { label: 'Owing',   cls: 'bg-rose-100 text-rose-700 border-rose-200',          dot: 'bg-rose-500',   Icon: AlertCircle };
+              const riskUiMeta: Record<string, { label: string; cls: string }> = {
+                good:     { label: 'Low Risk',    cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+                standard: { label: 'Medium Risk', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+                caution:  { label: 'High Risk',   cls: 'bg-rose-50 text-rose-700 border-rose-200' },
+                new:      { label: 'New Member',  cls: 'bg-muted text-muted-foreground border-border' },
+              };
+              const riskUi = riskUiMeta[meta?.riskLevel ?? 'new'];
+              const reliabilityMeta = meta?.completionRate >= 80
+                ? { label: 'Pays on time', cls: 'bg-emerald-50 text-emerald-700' }
+                : meta?.completionRate >= 50
+                  ? { label: 'Usually late', cls: 'bg-amber-50 text-amber-700' }
+                  : meta?.totalRequests > 0
+                    ? { label: 'Frequently late', cls: 'bg-rose-50 text-rose-700' }
+                    : { label: 'New', cls: 'bg-muted text-muted-foreground' };
+              const progressColor = progressPct >= 100 ? 'bg-emerald-500' : hasDebt ? 'bg-rose-500' : 'bg-primary';
+              const StatusIcon = statusMeta.Icon;
 
               return (
                 <div
                   key={tenant.id}
-                  className={`rounded-2xl border overflow-hidden transition-colors ${
-                    hasDebt ? 'border-destructive/20 bg-destructive/[0.03]' : 'border-border/60 bg-card'
-                  }`}
+                  className="rounded-2xl border border-border/60 bg-card overflow-hidden transition-shadow hover:shadow-md"
                 >
                   {/* Tenant row — tap to expand */}
                   <button
                     onClick={() => toggleExpand(tenant.id)}
-                    className="w-full p-3.5 text-left active:bg-muted/30 transition-colors"
+                    className="w-full p-4 text-left active:bg-muted/30 transition-colors"
                     style={{ touchAction: 'manipulation', minHeight: '44px' }}
                   >
-                    <div className="flex items-center gap-3">
-                      {/* Avatar */}
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-sm font-bold ${
-                        hasDebt ? 'bg-destructive/10 text-destructive' : 'bg-success/10 text-success'
-                      }`}>
-                        {(tenant.full_name?.trim()?.charAt(0) || tenant.phone?.charAt(0) || '?').toUpperCase()}
-                      </div>
-
-                      {/* Name + phone + progress */}
-                      <div className="flex-1 min-w-0">
-                        <p
-                          className="font-semibold text-base break-words text-primary underline underline-offset-2 cursor-pointer"
-                          onClick={(e) => { e.stopPropagation(); setProfileTenantId(tenant.id); }}
-                        >
-                          {tenant.full_name && tenant.full_name.trim() ? (
-                            <Highlight text={tenant.full_name.trim()} query={search} />
-                          ) : (
-                            <span className="text-muted-foreground italic">Unnamed tenant</span>
-                          )}
-                        </p>
-                        <p className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
-                          <Phone className="h-3 w-3" />
-                          <Highlight text={tenant.phone} query={search} />
-                        </p>
-                        {/* AI ID + risk tier chips (also reflect active risk filter) */}
-                        {tenantMeta[tenant.id] && (
-                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                            <span className="text-[10px] font-mono font-semibold text-muted-foreground bg-muted/60 rounded-md px-1.5 py-0.5">
-                              <Highlight text={tenantMeta[tenant.id].aiId} query={search} />
+                    <div className="grid grid-cols-12 gap-3 items-center">
+                      {/* Tenant: avatar + name + phone + reliability */}
+                      <div className="col-span-12 md:col-span-3 flex items-center gap-3 min-w-0">
+                        <div className="relative">
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 text-base font-bold ${
+                            hasDebt ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
+                          }`}>
+                            {(tenant.full_name?.trim()?.charAt(0) || tenant.phone?.charAt(0) || '?').toUpperCase()}
+                          </div>
+                          <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background ${statusMeta.dot}`} />
+                        </div>
+                        <div className="min-w-0">
+                          <p
+                            className="font-semibold truncate text-primary underline underline-offset-2 cursor-pointer"
+                            onClick={(e) => { e.stopPropagation(); setProfileTenantId(tenant.id); }}
+                          >
+                            {tenant.full_name && tenant.full_name.trim() ? (
+                              <Highlight text={tenant.full_name.trim()} query={search} />
+                            ) : (
+                              <span className="text-muted-foreground italic">Unnamed tenant</span>
+                            )}
+                          </p>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1 truncate">
+                            <Phone className="h-3 w-3" />
+                            <Highlight text={tenant.phone} query={search} />
+                          </p>
+                          <div className="flex items-center gap-1 mt-1 flex-wrap">
+                            {meta && (
+                              <span className="text-[10px] font-mono font-semibold text-muted-foreground bg-muted/60 rounded-md px-1.5 py-0.5">
+                                {meta.aiId}
+                              </span>
+                            )}
+                            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-md ${reliabilityMeta.cls}`}>
+                              {reliabilityMeta.label}
                             </span>
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <button
-                                  type="button"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className={`inline-flex items-center gap-1 text-[10px] font-semibold rounded-md px-1.5 py-0.5 bg-muted/60 hover:bg-muted transition-colors cursor-help ${tenantMeta[tenant.id].riskColor}`}
-                                  aria-label={`Risk tier: ${tenantMeta[tenant.id].riskLabel}. Tap to see how it's calculated.`}
-                                >
-                                  <Shield className="h-2.5 w-2.5" />
-                                  {tenantMeta[tenant.id].riskLabel}
-                                </button>
-                              </PopoverTrigger>
-                              <PopoverContent
-                                side="top"
-                                align="start"
-                                className="w-72 p-3 text-xs"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <div className="space-y-2">
-                                  <div className="flex items-center gap-1.5 font-bold text-sm">
-                                    <Shield className={`h-3.5 w-3.5 ${tenantMeta[tenant.id].riskColor}`} />
-                                    How risk is calculated
-                                  </div>
-                                  <p className="text-muted-foreground leading-relaxed">
-                                    Based on this tenant's <span className="font-semibold text-foreground">repayment completion rate</span> across all rent plans.
-                                  </p>
-                                  <div className="rounded-lg bg-muted/60 p-2 space-y-1">
-                                    <div className="flex justify-between">
-                                      <span className="text-muted-foreground">Completed plans</span>
-                                      <span className="font-mono font-semibold">
-                                        {tenantMeta[tenant.id].completedCount} / {tenantMeta[tenant.id].totalRequests}
-                                      </span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-muted-foreground">Completion rate</span>
-                                      <span className="font-mono font-semibold">
-                                        {tenantMeta[tenant.id].totalRequests > 0
-                                          ? `${tenantMeta[tenant.id].completionRate}%`
-                                          : 'N/A'}
-                                      </span>
-                                    </div>
-                                    <div className="flex justify-between pt-1 border-t border-border/50">
-                                      <span className="text-muted-foreground">Current tier</span>
-                                      <span className={`font-semibold ${tenantMeta[tenant.id].riskColor}`}>
-                                        {tenantMeta[tenant.id].riskLabel}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  <ul className="space-y-1 text-[11px]">
-                                    <li className="flex items-center gap-1.5">
-                                      <span className="h-2 w-2 rounded-full bg-success shrink-0" />
-                                      <span><span className="font-semibold text-success">Good</span> — 80%+ completion</span>
-                                    </li>
-                                    <li className="flex items-center gap-1.5">
-                                      <span className="h-2 w-2 rounded-full bg-primary shrink-0" />
-                                      <span><span className="font-semibold text-primary">Standard</span> — 50–79% completion</span>
-                                    </li>
-                                    <li className="flex items-center gap-1.5">
-                                      <span className="h-2 w-2 rounded-full bg-destructive shrink-0" />
-                                      <span><span className="font-semibold text-destructive">Caution</span> — under 50%</span>
-                                    </li>
-                                    <li className="flex items-center gap-1.5">
-                                      <span className="h-2 w-2 rounded-full bg-muted-foreground shrink-0" />
-                                      <span><span className="font-semibold text-muted-foreground">New</span> — no rent plans yet</span>
-                                    </li>
-                                  </ul>
-                                </div>
-                              </PopoverContent>
-                            </Popover>
                           </div>
-                        )}
+                        </div>
+                      </div>
+
+                      {/* Property + landlord */}
+                      <div className="col-span-6 md:col-span-2 min-w-0">
+                        <div className="flex items-start gap-2">
+                          <Building2 className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">
+                              {propertyAddress ? <Highlight text={propertyAddress} query={search} /> : <span className="text-muted-foreground">No property</span>}
+                            </p>
+                            {landlordName && (
+                              <p className="text-[11px] text-muted-foreground truncate flex items-center gap-1 mt-0.5">
+                                <User className="h-3 w-3" />
+                                {landlordName}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Balance */}
+                      <div className="col-span-6 md:col-span-2">
+                        <p className="text-[10px] text-muted-foreground">Balance</p>
+                        <p className={`font-bold font-mono ${hasDebt ? 'text-rose-600' : 'text-emerald-600'}`}>
+                          {hasDebt ? formatUGX(balance) : 'UGX 0'}
+                        </p>
                         {totals.total > 0 && (
-                          <div className="mt-1.5">
-                            <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all ${
-                                  progressPct >= 100 ? 'bg-success' : progressPct >= 50 ? 'bg-primary' : 'bg-destructive'
-                                }`}
-                                style={{ width: `${progressPct}%` }}
-                              />
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-0.5">{progressPct}% repaid</p>
-                          </div>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            of {formatUGX(totals.total)}
+                          </p>
                         )}
                       </div>
 
-                      {/* Amount / status */}
-                      <div className="shrink-0 text-right max-w-[110px] flex flex-col items-end">
-                         {hasDebt ? (
-                          <span className="text-lg font-bold text-destructive font-mono">
-                            {formatUGX(balance)}
+                      {/* Progress */}
+                      <div className="col-span-12 md:col-span-2">
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span className="font-medium font-mono">
+                            {formatUGX(totals.paid)} / {formatUGX(totals.total)}
                           </span>
-                        ) : (
-                          <Badge className="text-[10px] bg-success/15 text-success border-0">
-                            Paid up ✓
-                          </Badge>
-                        )}
-                        {/* Per-tenant offline Field Collect */}
+                          <span className="font-semibold">{progressPct}%</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div className={`h-full ${progressColor}`} style={{ width: `${progressPct}%` }} />
+                        </div>
+                        <p className={`text-[11px] mt-1 ${progressPct >= 100 ? 'text-emerald-600' : hasDebt ? 'text-rose-600' : 'text-muted-foreground'}`}>
+                          {progressPct >= 100 ? 'Paid in full' : hasDebt ? `${formatUGX(balance)} remaining` : '—'}
+                        </p>
+                      </div>
+
+                      {/* Status + Risk badges */}
+                      <div className="col-span-6 md:col-span-1 flex flex-col gap-1.5">
+                        <span className={`inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-medium ${statusMeta.cls}`}>
+                          <StatusIcon className="h-3 w-3" />
+                          {statusMeta.label}
+                        </span>
+                        <span className={`inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-medium ${riskUi.cls}`}>
+                          <Shield className="h-3 w-3" />
+                          {riskUi.label}
+                        </span>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="col-span-6 md:col-span-2 flex flex-col gap-1.5">
+                        <Button
+                          size="sm"
+                          onClick={(e) => { e.stopPropagation(); setFieldCollectTarget(tenant); }}
+                          className="h-8 gap-1.5 rounded-lg"
+                        >
+                          <CreditCard className="h-3.5 w-3.5" />
+                          Collect Payment
+                        </Button>
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={(e) => { e.stopPropagation(); setFieldCollectTarget(tenant); }}
-                          className="mt-1.5 h-7 px-2 gap-1 text-[11px] font-semibold border-primary/40 text-primary hover:bg-primary/10"
-                          title="Record offline collection"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (tenant.phone) window.open(`https://wa.me/${tenant.phone.replace(/\D/g, '')}`, '_blank');
+                          }}
+                          className="h-8 gap-1.5 rounded-lg"
                         >
-                          <Banknote className="h-3 w-3" />
-                          Field Collect
+                          <MessageCircle className="h-3.5 w-3.5" />
+                          Message
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => { e.stopPropagation(); setProfileTenantId(tenant.id); }}
+                          className="h-8 gap-1.5 rounded-lg"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          View Details
                         </Button>
                       </div>
                     </div>
