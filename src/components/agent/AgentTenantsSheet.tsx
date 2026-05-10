@@ -851,8 +851,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 </Button>
               )}
             </div>
-          ) : (
-            processedTenants.map((tenant) => {
+          ) : (() => {
+            const tenantCards = processedTenants.map((tenant) => {
               const isExpanded = expandedTenantId === tenant.id;
               const requests = tenantRequests[tenant.id] || [];
               const isLoadingThis = loadingRequests === tenant.id;
@@ -885,7 +885,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               const progressColor = progressPct >= 100 ? 'bg-emerald-500' : hasDebt ? 'bg-rose-500' : 'bg-primary';
               const StatusIcon = statusMeta.Icon;
 
-              return (
+              return { tenant, el: (
                 <div
                   key={tenant.id}
                   className="rounded-2xl border border-border/60 bg-card overflow-hidden transition-shadow hover:shadow-md"
