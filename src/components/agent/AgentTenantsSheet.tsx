@@ -61,7 +61,7 @@ interface AgentTenantsSheetProps {
 
 type FilterTab = 'owing' | 'paid-up' | 'all';
 type RiskFilter = 'all' | 'good' | 'standard' | 'caution' | 'new';
-type SortKey = 'risk' | 'aiId' | 'property' | 'balance' | 'daily';
+type SortKey = 'risk' | 'aiId' | 'property' | 'balance' | 'daily' | 'property-daily' | 'property-balance';
 type SortDir = 'asc' | 'desc';
 
 const PREFS_KEY = 'agent-tenants-sheet:prefs:v1';
@@ -455,6 +455,19 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           cmp = pa.localeCompare(pb);
           break;
         }
+        case 'property-daily':
+        case 'property-balance': {
+          const pa = (tenantContext[a.id]?.propertyAddress ?? '').toLowerCase();
+          const pb = (tenantContext[b.id]?.propertyAddress ?? '').toLowerCase();
+          if (!pa && pb) return 1;
+          if (pa && !pb) return -1;
+          const pcmp = pa.localeCompare(pb);
+          if (pcmp !== 0) return pcmp; // property always ascending
+          const va = sortKey === 'property-daily' ? (tenantDaily[a.id] || 0) : (tenantBalances[a.id] || 0);
+          const vb = sortKey === 'property-daily' ? (tenantDaily[b.id] || 0) : (tenantBalances[b.id] || 0);
+          cmp = va - vb;
+          break;
+        }
         case 'balance':
         default: {
           cmp = (tenantBalances[a.id] || 0) - (tenantBalances[b.id] || 0);
@@ -816,7 +829,9 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               </PopoverContent>
             </Popover>
             <Select value={`${sortKey}-${sortDir}`} onValueChange={(v) => {
-              const [k, d] = v.split('-') as [SortKey, SortDir];
+              const idx = v.lastIndexOf('-');
+              const k = v.slice(0, idx) as SortKey;
+              const d = v.slice(idx + 1) as SortDir;
               setSortKey(k); setSortDir(d);
             }}>
               <SelectTrigger className="col-span-2 h-10 rounded-xl">
@@ -833,6 +848,10 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 <SelectItem value="risk-desc">Risk (Worst first)</SelectItem>
                 <SelectItem value="aiId-asc">AI ID (A → Z)</SelectItem>
                 <SelectItem value="property-asc">Property (A → Z)</SelectItem>
+                <SelectItem value="property-daily-desc">Property, then Daily (High → Low)</SelectItem>
+                <SelectItem value="property-daily-asc">Property, then Daily (Low → High)</SelectItem>
+                <SelectItem value="property-balance-desc">Property, then Balance (High → Low)</SelectItem>
+                <SelectItem value="property-balance-asc">Property, then Balance (Low → High)</SelectItem>
               </SelectContent>
             </Select>
               </div>
