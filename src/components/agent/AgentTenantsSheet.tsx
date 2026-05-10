@@ -580,11 +580,14 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   }, [tenants, search, activeFilter, riskFilter, sortKey, sortDir, tenantBalances, tenantDaily, tenantStatuses, tenantContext, tenantMeta, tenantLastPaid, recentCollectionFilter, propertyFilter]);
 
   const propertyOptions = useMemo(() => {
-    const set = new Set<string>();
+    const counts = new Map<string, number>();
     Object.values(tenantContext).forEach(c => {
-      if (c?.propertyAddress) set.add(c.propertyAddress);
+      const addr = c?.propertyAddress?.trim();
+      if (addr) counts.set(addr, (counts.get(addr) || 0) + 1);
     });
-    return Array.from(set).sort();
+    return Array.from(counts.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([address, count]) => ({ address, count }));
   }, [tenantContext]);
 
   // Stats
