@@ -729,7 +729,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               )}
             </button>
             <button
-              onClick={() => { setGroupByProperty(v => !v); setCollapsedGroups(new Set()); }}
+              onClick={() => { setGroupByProperty(v => !v); setCollapsedGroups(new Set()); if (mapMode) setMapMode(false); }}
               className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-colors ${
                 groupByProperty
                   ? 'bg-primary/10 text-primary'
@@ -740,6 +740,19 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
             >
               <Building2 className="h-3.5 w-3.5" />
               {groupByProperty ? 'Grouped by property' : 'Group by property'}
+            </button>
+            <button
+              onClick={() => setMapMode(v => !v)}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                mapMode
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+              }`}
+              style={{ touchAction: 'manipulation', minHeight: '36px' }}
+              aria-pressed={mapMode}
+            >
+              {mapMode ? <List className="h-3.5 w-3.5" /> : <MapIcon className="h-3.5 w-3.5" />}
+              {mapMode ? 'List view' : 'Map view'}
             </button>
             </div>
 
