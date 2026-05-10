@@ -500,6 +500,18 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     if (propertyFilter !== 'all') {
       list = list.filter(t => (tenantContext[t.id]?.propertyAddress || '') === propertyFilter);
     }
+    if (recentCollectionFilter !== 'all') {
+      if (recentCollectionFilter === 'never') {
+        list = list.filter(t => !tenantLastPaid[t.id]?.date);
+      } else {
+        const days = parseInt(recentCollectionFilter, 10);
+        const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+        list = list.filter(t => {
+          const d = tenantLastPaid[t.id]?.date;
+          return d ? new Date(d).getTime() >= cutoff : false;
+        });
+      }
+    }
 
     const dir = sortDir === 'asc' ? 1 : -1;
     list.sort((a, b) => {
@@ -564,7 +576,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
       return cmp * dir;
     });
     return list;
-  }, [tenants, search, activeFilter, riskFilter, sortKey, sortDir, tenantBalances, tenantDaily, tenantStatuses, tenantContext, tenantMeta, tenantLastPaid]);
+  }, [tenants, search, activeFilter, riskFilter, sortKey, sortDir, tenantBalances, tenantDaily, tenantStatuses, tenantContext, tenantMeta, tenantLastPaid, recentCollectionFilter, propertyFilter]);
 
   const propertyOptions = useMemo(() => {
     const set = new Set<string>();
