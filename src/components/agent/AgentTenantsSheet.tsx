@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp, ArrowLeft, Shield, ArrowUp, ArrowDown, ArrowUpDown, Wallet, DollarSign, AlertCircle, CheckCircle2, CreditCard, Eye, Building2, SlidersHorizontal, Plus, Check, ChevronsUpDown, Map as MapIcon, Navigation, List } from 'lucide-react';
+import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp, ArrowLeft, Shield, ArrowUp, ArrowDown, ArrowUpDown, Wallet, DollarSign, AlertCircle, CheckCircle2, CreditCard, Eye, Building2, SlidersHorizontal, Plus, Check, ChevronsUpDown, Map as MapIcon, Navigation, List, X } from 'lucide-react';
 import { PropertyMapView } from './PropertyMapView';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -887,7 +887,19 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                       {propertyFilter === 'all' ? 'All Properties' : propertyFilter}
                     </p>
                   </div>
-                  <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0 ml-2" />
+                  <div className="flex items-center gap-1 shrink-0 ml-2">
+                    {propertyFilter !== 'all' && (
+                      <span
+                        onClick={(e) => { e.stopPropagation(); setPropertyFilter('all'); }}
+                        className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
+                        role="button"
+                        aria-label="Clear property filter"
+                      >
+                        <X className="h-3 w-3" />
+                      </span>
+                    )}
+                    <ChevronsUpDown className="h-4 w-4 opacity-50 shrink-0" />
+                  </div>
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="p-0 w-[min(92vw,320px)]" align="start">
