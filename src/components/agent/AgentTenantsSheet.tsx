@@ -64,12 +64,19 @@ type RiskFilter = 'all' | 'good' | 'standard' | 'caution' | 'new';
 type SortKey = 'risk' | 'aiId' | 'property' | 'balance' | 'daily' | 'property-daily' | 'property-balance' | 'lastCollected';
 type SortDir = 'asc' | 'desc';
 
-const PREFS_KEY = 'agent-tenants-sheet:prefs:v1';
+const PREFS_KEY = 'agent-tenants-sheet:prefs:v2';
+
+type RecentCollectionFilter = 'all' | '1' | '3' | '7' | '14' | '30' | 'never';
 
 interface SheetPrefs {
   search?: string;
   activeFilter?: FilterTab;
   riskFilter?: RiskFilter;
+  propertyFilter?: string;
+  sortKey?: SortKey;
+  sortDir?: SortDir;
+  recentCollectionFilter?: RecentCollectionFilter;
+  groupByProperty?: boolean;
 }
 
 function loadPrefs(): SheetPrefs {
