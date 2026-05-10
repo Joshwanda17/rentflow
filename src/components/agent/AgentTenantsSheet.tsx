@@ -59,7 +59,7 @@ interface AgentTenantsSheetProps {
 
 type FilterTab = 'owing' | 'paid-up' | 'all';
 type RiskFilter = 'all' | 'good' | 'standard' | 'caution' | 'new';
-type SortKey = 'risk' | 'aiId' | 'property' | 'balance';
+type SortKey = 'risk' | 'aiId' | 'property' | 'balance' | 'daily';
 type SortDir = 'asc' | 'desc';
 
 const PREFS_KEY = 'agent-tenants-sheet:prefs:v1';
@@ -420,6 +420,10 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           cmp = (tenantBalances[a.id] || 0) - (tenantBalances[b.id] || 0);
           break;
         }
+        case 'daily': {
+          cmp = (tenantDaily[a.id] || 0) - (tenantDaily[b.id] || 0);
+          break;
+        }
       }
       if (cmp === 0) {
         // Stable tiebreaker: name asc
@@ -429,7 +433,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
       return cmp * dir;
     });
     return list;
-  }, [tenants, search, activeFilter, riskFilter, sortKey, sortDir, tenantBalances, tenantStatuses, tenantContext, tenantMeta]);
+  }, [tenants, search, activeFilter, riskFilter, sortKey, sortDir, tenantBalances, tenantDaily, tenantStatuses, tenantContext, tenantMeta]);
 
   const propertyOptions = useMemo(() => {
     const set = new Set<string>();
@@ -699,6 +703,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               <SelectContent>
                 <SelectItem value="balance-desc">Balance (High → Low)</SelectItem>
                 <SelectItem value="balance-asc">Balance (Low → High)</SelectItem>
+                <SelectItem value="daily-desc">Daily Expected (High → Low)</SelectItem>
+                <SelectItem value="daily-asc">Daily Expected (Low → High)</SelectItem>
                 <SelectItem value="risk-desc">Risk (Worst first)</SelectItem>
                 <SelectItem value="aiId-asc">AI ID (A → Z)</SelectItem>
                 <SelectItem value="property-asc">Property (A → Z)</SelectItem>
