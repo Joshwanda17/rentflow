@@ -910,7 +910,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
             {showMoreFilters && (
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <Select value={riskFilter} onValueChange={(v) => setRiskFilter(v as RiskFilter)}>
-              <SelectTrigger className="w-[140px] h-10 rounded-xl">
+              <SelectTrigger className="w-[140px] h-10 rounded-xl border-2 border-solid border-purple-600">
                 <div className="text-left">
                   <p className="text-[10px] text-muted-foreground leading-none mb-0.5">Risk Level</p>
                   <SelectValue />
@@ -954,7 +954,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               </PopoverTrigger>
               <PopoverContent className="p-0 w-[min(92vw,320px)]" align="start">
                 <Command>
-                  <CommandInput placeholder="Search property name or address…" className="h-10" />
+                  <CommandInput placeholder="Search property name or address…" className="h-10 border-2 border-solid border-purple-600 rounded-md" />
                   <CommandList>
                     <CommandEmpty>No matching property.</CommandEmpty>
                     <CommandGroup>
@@ -1037,7 +1037,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               const d = v.slice(idx + 1) as SortDir;
               setSortKey(k); setSortDir(d);
             }}>
-              <SelectTrigger className="col-span-2 h-10 rounded-xl">
+              <SelectTrigger className="col-span-2 h-10 rounded-xl border-2 border-solid border-purple-600">
                 <div className="text-left">
                   <p className="text-[10px] text-muted-foreground leading-none mb-0.5">Sort By</p>
                   <SelectValue />
@@ -1060,7 +1060,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               </SelectContent>
             </Select>
             <Select value={recentCollectionFilter} onValueChange={(v) => setRecentCollectionFilter(v as typeof recentCollectionFilter)}>
-              <SelectTrigger className="col-span-2 h-10 rounded-xl">
+              <SelectTrigger className="col-span-2 h-10 rounded-xl border-2 border-solid border-purple-600">
                 <div className="text-left">
                   <p className="text-[10px] text-muted-foreground leading-none mb-0.5">Recent Collection</p>
                   <SelectValue />
