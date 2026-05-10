@@ -148,6 +148,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [tenantLastPaid, setTenantLastPaid] = useState<Record<string, { date: string; amount: number }>>({});
   // Per-tenant context for richer search/filter (latest landlord & address)
   const [tenantContext, setTenantContext] = useState<Record<string, { landlordName: string; propertyAddress: string; completedCount: number; totalRequests: number }>>({});
+  const [propertyLocations, setPropertyLocations] = useState<Record<string, { lat: number; lng: number; address: string }>>({});
   const [renewDialogOpen, setRenewDialogOpen] = useState(false);
   const [renewPrefill, setRenewPrefill] = useState<{ name: string; phone: string; amount: string } | null>(null);
   const [renewingReqId, setRenewingReqId] = useState<string | null>(null);
@@ -253,7 +254,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         const tenantIds = tenantList.map(t => t.id);
         const { data: rentRequests } = await supabase
           .from('rent_requests')
-          .select('tenant_id, total_repayment, amount_repaid, daily_repayment, status, created_at, landlord:landlords(name, property_address)')
+          .select('tenant_id, total_repayment, amount_repaid, daily_repayment, status, created_at, landlord:landlords(name, property_address, latitude, longitude)')
           .in('tenant_id', tenantIds)
           .in('status', ['pending', 'approved', 'funded', 'disbursed', 'repaying', 'completed'])
           .order('created_at', { ascending: false });
@@ -263,6 +264,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         const totals: Record<string, { total: number; paid: number }> = {};
         const statusMap: Record<string, Set<string>> = {};
         const ctx: Record<string, { landlordName: string; propertyAddress: string; completedCount: number; totalRequests: number }> = {};
+        const locs: Record<string, { lat: number; lng: number; address: string }> = {};
         (rentRequests || []).forEach((rr: any) => {
           const owing = (rr.total_repayment || 0) - (rr.amount_repaid || 0);
           balances[rr.tenant_id] = (balances[rr.tenant_id] || 0) + Math.max(0, owing);
@@ -283,6 +285,13 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               totalRequests: 0,
             };
           }
+          // Capture lat/lng once per property address (latest-first wins)
+          const addr = rr.landlord?.property_address?.trim();
+          const lat = Number(rr.landlord?.latitude);
+          const lng = Number(rr.landlord?.longitude);
+          if (addr && Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0 && !locs[addr]) {
+            locs[addr] = { lat, lng, address: addr };
+          }
           ctx[rr.tenant_id].totalRequests += 1;
           // Only count a rent plan as truly completed when the tenant has fully
           // repaid — guards against rows mis-marked 'completed' upstream.
@@ -297,6 +306,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         setTenantTotals(totals);
         setTenantStatuses(statusMap);
         setTenantContext(ctx);
+        setPropertyLocations(locs);
 
         // Most recent cash-in per tenant (for "Last collected" indicator)
         const { data: recentRepayments } = await supabase
