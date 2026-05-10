@@ -851,7 +851,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               .slice(0, 6);
             if (top.length < 2) return null;
             return (
-              <div className="-mx-4 px-4 overflow-x-auto no-scrollbar">
+              <div className="-mx-4 px-4 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 <div className="flex items-center gap-1.5 w-max pb-1">
                   <button
                     onClick={() => setPropertyFilter('all')}
