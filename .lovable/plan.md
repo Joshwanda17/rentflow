@@ -1,122 +1,73 @@
-# Fix Float / Commission Mis-Bucketing — Permanent Migration
+# Plan: Show Agents What They Owe Welile
 
-## Problem
+## Goal
+Give every agent a single, honest figure for **how much money Welile has paid out on behalf of their tenants** — and how much of that the company is still waiting to recover. No new tables, no schema changes, no writes; pure read + display.
 
-When agent **Onesmus** paid UGX 152,000 for tenant **Ignitius** (ledger group `9b17ad8d…`), all 4 ledger legs posted correctly, but his wallet showed:
+## What "owed" means here
+For an agent, the company's exposure to them is the sum across all of their tenants' rent cycles of:
 
-- float = 650,000 (should be 498,000)
-- withdrawable = 0 (should be 15,200 commission)
-
-Root cause: `wallets` is now a **view** built on `v_user_wallet_strict`. That view assigns each ledger row to a bucket using a **hardcoded category list** that does not include the newer `rent_payment_for_tenant`, `rent_obligation`, `agent_proxy_investment`, `coo_proxy_investment`, `pending_portfolio_topup`, `proxy_partner_withdrawal`, `wallet_transfer` (debit) categories.
-
-Meanwhile the canonical routing function `wallet_route_for_category(user_id, category, direction)` already routes these to the **float** bucket for agents.
-
-The two sources drifted. Eight agents are currently impacted (any wallet that has ever posted one of those categories).
-
-## The Permanent Fix
-
-Rebuild `v_user_wallet_strict` so its bucket assignment is driven **directly by `wallet_route_for_category(user_id, category, direction)`** instead of a hardcoded list. After this, the view and the routing function can never disagree again — adding a new category to the routing function automatically corrects the view.
-
-No ledger rewrites. No `wallets` table backfill (it's a view — recompute is instant). No data migration. The 8 affected agents — and Onesmus specifically — will display correct float / withdrawable / advance the moment the view is replaced.
-
-## Migration (single file)
-
-```sql
--- 1) Replace the view definition
-CREATE OR REPLACE VIEW public.v_user_wallet_strict AS
-WITH anchors AS (
-  SELECT user_id, anchor_at FROM public.wallet_fresh_start_anchors
-),
-ledger AS (
-  SELECT gl.user_id, gl.category, gl.direction, gl.amount
-  FROM public.general_ledger gl
-  LEFT JOIN anchors a ON a.user_id = gl.user_id
-  WHERE gl.ledger_scope = 'wallet'
-    AND (gl.classification IS NULL OR gl.classification = 'production')
-    AND (a.anchor_at IS NULL OR gl.created_at >= a.anchor_at)
-    AND NOT (
-      COALESCE(gl.classification, '') = 'admin_correction'
-      AND COALESCE(gl.category, '')  = 'system_balance_correction'
-    )
-),
-routed AS (
-  SELECT l.user_id, l.amount, r.bucket, r.sign
-  FROM ledger l
-  CROSS JOIN LATERAL public.wallet_route_for_category(l.user_id, l.category, l.direction) r
-),
-buckets AS (
-  SELECT
-    user_id,
-    SUM(CASE WHEN bucket = 'withdrawable'      THEN sign * amount ELSE 0 END) AS withdrawable_raw,
-    SUM(CASE WHEN bucket = 'float'             THEN sign * amount ELSE 0 END) AS float_raw,
-    SUM(CASE WHEN bucket IN ('advance_credit','advance_repayment')
-             THEN sign * amount ELSE 0 END)                                    AS advance_raw
-  FROM routed
-  GROUP BY user_id
-),
-holds AS (
-  SELECT user_id, COALESCE(SUM(amount), 0) AS pending_holds
-  FROM public.withdrawal_requests
-  WHERE status = ANY (ARRAY['pending','requested','manager_approved','processing'])
-  GROUP BY user_id
-),
-universe AS (
-  SELECT user_id FROM public.wallets_physical
-  UNION SELECT user_id FROM buckets
-  UNION SELECT user_id FROM holds
-)
-SELECT
-  u.user_id,
-  GREATEST(0, COALESCE(b.withdrawable_raw, 0) - COALESCE(h.pending_holds, 0))         AS withdrawable,
-  GREATEST(0, COALESCE(b.float_raw, 0))                                                AS float_balance,
-  GREATEST(0, COALESCE(b.advance_raw, 0))                                              AS advance_balance,
-  COALESCE(h.pending_holds, 0)                                                         AS pending_holds,
-  GREATEST(0, COALESCE(b.withdrawable_raw, 0) - COALESCE(h.pending_holds, 0))
-    + GREATEST(0, COALESCE(b.float_raw, 0))                                            AS total_visible
-FROM universe u
-LEFT JOIN buckets b ON b.user_id = u.user_id
-LEFT JOIN holds   h ON h.user_id = u.user_id;
-
--- 2) Defensive: ensure the routing function silently skips junk-classified rows
---    (already filtered above, but harmless to keep IMMUTABLE/STABLE marker correct)
-
--- 3) Sanity check (run as part of the migration, raises if Onesmus is still wrong)
-DO $$
-DECLARE v_w numeric; v_f numeric;
-BEGIN
-  SELECT withdrawable, float_balance INTO v_w, v_f
-  FROM public.v_user_wallet_strict
-  WHERE user_id = 'e3cf4d3a-d021-49e4-b815-7e1938166eeb';
-
-  IF v_f <> 498000 OR v_w <> 15200 THEN
-    RAISE EXCEPTION 'Reseed verification failed for Onesmus: float=%, withdrawable=% (expected 498000 / 15200)', v_f, v_w;
-  END IF;
-END $$;
+```
+owed_to_company = Σ (total_repayment − amount_repaid)   for active cycles
+                + Σ accumulated_debt                    from subscription_charges (guarantor role)
+                + advance_balance                        (already in wallet bucket)
 ```
 
-## Why no row-level reseed is needed
+Plus two contextual totals so the number is not scary in isolation:
+- **Lifetime rent disbursed for my tenants** (what Welile has ever paid out for them)
+- **Lifetime repaid** (what's come back, via tenants or via the agent)
 
-`wallets` is a view derived from `v_user_wallet_strict`, which is derived from `general_ledger`. Replacing the view re-derives every wallet on next read. Onesmus's row will read 498,000 / 15,200 immediately; the other 7 affected agents auto-correct the same way.
+All three numbers come from data the app already queries — no new schema.
 
-## Confirmation that no agent will be hit again
+## Data sources (all already in use)
+1. `rent_requests` filtered by this agent (linking_agent / agent assignment), statuses `disbursed | repaying | completed | funded` — fields `rent_amount`, `total_repayment`, `amount_repaid`, `disbursed_at`. Pattern already used in `AgentTenantsSheet.tsx` and `AgentRequestPipelineView.tsx`.
+2. `subscription_charges` where `agent_id = me` and `status = active` — `accumulated_debt` (already used in `AgentRiskExposureCard`).
+3. `useAgentBalances()` — `advanceBalance` (already shown in `AgentFloatBalanceCard`).
 
-After this migration:
+No new RPC. No new edge function. No DB migration.
 
-1. The bucket allocation in `v_user_wallet_strict` calls `wallet_route_for_category(user_id, category, direction)` — the **same** function the ledger router, CFO Direct Debit, and `apply_wallet_movement` use.
-2. Any new ledger category introduced in the future is routed in **one place** (the function). The view inherits the routing automatically.
-3. The migration includes a verification block (`DO $$ … $$`) that fails the deploy if Onesmus's wallet doesn't match the expected post-fix figures.
-4. A post-deploy spot check across the 8 currently-affected agents will be run to confirm.
+## UI changes
+A single new card: **`AgentCompanyDebtCard.tsx`** under `src/components/agent/`.
 
-## Code changes
+Layout (mobile-first, fits the existing card grid):
 
-None required in `src/` — the React app reads from the `wallets` view through the existing hooks (`useWallet`, `useAgentBalances`, `get_user_available_balance`). All of those already depend on the strict view.
+```text
+┌─ Owed to Welile ────────────────────────────┐
+│  UGX 1,240,000          [What is this?]     │  ← headline, destructive when > 0
+│  Outstanding company exposure on your book  │
+│                                             │
+│  Lifetime paid out for my tenants  4.20M    │
+│  Lifetime repaid                   2.96M    │
+│  Active cycles outstanding         1.18M    │
+│  Subscription debt (guarantor)       40K    │
+│  Personal advance (wallet)            20K   │
+│                                             │
+│  [ View tenant breakdown → ]                │  ← opens AgentTenantsSheet (already exists)
+└─────────────────────────────────────────────┘
+```
 
-## Out of scope
+- Headline figure uses `formatUGX`, destructive color when > 0, muted when 0.
+- "What is this?" tooltip explains: *"This is everything Welile has paid out for your tenants that hasn't been repaid yet. It is not a personal debt — it goes down every time a tenant repays."* This is important so agents don't panic.
+- The breakdown link reuses `AgentTenantsSheet` (already mounted from the dashboard) so we don't build a second list.
 
-- No edits to `agent_allocate_tenant_payment` (both overloads post correctly; the ledger is the source of truth).
-- No edits to `apply_wallet_movement` (intentional no-op since 2026-04-23).
-- No changes to `general_ledger` rows (immutable by policy).
+## Hook
+New hook `useAgentCompanyExposure.ts` (mirrors `AgentRiskExposureCard`'s pattern):
+- Single `useQuery`, key `['agent-company-exposure', userId]`.
+- Parallel fetch: `rent_requests` (3 status sets) + `subscription_charges` + reuse `useAgentBalances` for `advanceBalance`.
+- Returns `{ outstandingCycles, lifetimeDisbursed, lifetimeRepaid, subscriptionDebt, advanceBalance, totalOwed }`.
+- 30s `refetchInterval`, invalidated by the same realtime channels `useWalletRealtime` already taps.
 
-## Approval requested
+## Where it mounts
+`src/components/dashboards/AgentDashboard.tsx`, immediately **above** the existing `<AgentRiskExposureCard />` (line ~546), so the order on the home screen reads: Wallet → **Owed to Welile** → Risk Exposure → Tenants. This keeps the most actionable number near the top.
 
-Approve and I will submit the migration via the migration tool, then run the post-deploy spot check across the 8 affected wallets.
+It also gets a compact echo inside `FullScreenWalletSheet` (under the Available Balance hero) so an agent who opens their wallet from anywhere sees the same total.
+
+## Out of scope (not doing now)
+- No new ledger writes, no new categories, no triggers.
+- No `subscription_charges` schema additions.
+- No changes to repayment math, commission, or float rules.
+- No new approval flows.
+
+## Verification before shipping
+- Spot-check 3 known agents (one with zero tenants, one fully repaid, one with active cycles) by running the same SQL the hook will run and comparing to the card.
+- Confirm the headline equals `outstandingCycles + subscriptionDebt + advanceBalance` exactly.
+- Confirm card hides itself (returns `null`) when the agent has no tenants and no advance — same pattern as `AgentRiskExposureCard`.
