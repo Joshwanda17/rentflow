@@ -700,9 +700,10 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
             </div>
 
             {/* "More filters" toggle — keeps the page calm on small screens */}
+            <div className="flex items-center gap-2">
             <button
               onClick={() => setShowMoreFilters(v => !v)}
-              className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
               style={{ touchAction: 'manipulation', minHeight: '36px' }}
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
@@ -713,6 +714,20 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 </Badge>
               )}
             </button>
+            <button
+              onClick={() => { setGroupByProperty(v => !v); setCollapsedGroups(new Set()); }}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                groupByProperty
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+              }`}
+              style={{ touchAction: 'manipulation', minHeight: '36px' }}
+              aria-pressed={groupByProperty}
+            >
+              <Building2 className="h-3.5 w-3.5" />
+              {groupByProperty ? 'Grouped by property' : 'Group by property'}
+            </button>
+            </div>
 
             {showMoreFilters && (
               <div className="grid grid-cols-2 gap-2 pt-1">
