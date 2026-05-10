@@ -786,142 +786,87 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                   key={tenant.id}
                   className="rounded-2xl border border-border/60 bg-card overflow-hidden transition-shadow hover:shadow-md"
                 >
-                  {/* Tenant row — tap to expand */}
+                  {/* Tenant row — mobile-first; tap row to expand, tap name for full profile */}
                   <button
                     onClick={() => toggleExpand(tenant.id)}
-                    className="w-full p-4 text-left active:bg-muted/30 transition-colors"
-                    style={{ touchAction: 'manipulation', minHeight: '44px' }}
+                    className="w-full p-3.5 text-left active:bg-muted/30 transition-colors"
+                    style={{ touchAction: 'manipulation', minHeight: '64px' }}
                   >
-                    <div className="grid grid-cols-12 gap-3 items-center">
-                      {/* Tenant: avatar + name + phone + reliability */}
-                      <div className="col-span-12 md:col-span-3 flex items-center gap-3 min-w-0">
+                    <div className="flex items-center gap-3">
+                      {/* Avatar */}
                         <div className="relative">
-                          <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 text-base font-bold ${
+                          <div className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 text-base font-bold ${
                             hasDebt ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
                           }`}>
                             {(tenant.full_name?.trim()?.charAt(0) || tenant.phone?.charAt(0) || '?').toUpperCase()}
                           </div>
                           <span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background ${statusMeta.dot}`} />
                         </div>
-                        <div className="min-w-0">
-                          <p
-                            className="font-semibold truncate text-primary underline underline-offset-2 cursor-pointer"
-                            onClick={(e) => { e.stopPropagation(); setProfileTenantId(tenant.id); }}
-                          >
+
+                      {/* Name + phone (name → opens full profile) */}
+                      <div className="flex-1 min-w-0">
+                        <p
+                          className="font-semibold truncate text-primary underline underline-offset-2 cursor-pointer text-[15px] leading-tight"
+                          onClick={(e) => { e.stopPropagation(); setProfileTenantId(tenant.id); }}
+                        >
                             {tenant.full_name && tenant.full_name.trim() ? (
                               <Highlight text={tenant.full_name.trim()} query={search} />
                             ) : (
                               <span className="text-muted-foreground italic">Unnamed tenant</span>
                             )}
                           </p>
-                          <p className="text-xs text-muted-foreground flex items-center gap-1 truncate">
+                        <p className="text-[11px] text-muted-foreground flex items-center gap-1 truncate mt-0.5">
                             <Phone className="h-3 w-3" />
                             <Highlight text={tenant.phone} query={search} />
+                          {propertyAddress && (
+                            <span className="truncate">· {propertyAddress}</span>
+                          )}
                           </p>
-                          <div className="flex items-center gap-1 mt-1 flex-wrap">
-                            {meta && (
-                              <span className="text-[10px] font-mono font-semibold text-muted-foreground bg-muted/60 rounded-md px-1.5 py-0.5">
-                                {meta.aiId}
-                              </span>
-                            )}
-                            <span className={`text-[10px] font-medium px-2 py-0.5 rounded-md ${reliabilityMeta.cls}`}>
-                              {reliabilityMeta.label}
-                            </span>
-                          </div>
-                        </div>
                       </div>
 
-                      {/* Property + landlord */}
-                      <div className="col-span-6 md:col-span-2 min-w-0">
-                        <div className="flex items-start gap-2">
-                          <Building2 className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium truncate">
-                              {propertyAddress ? <Highlight text={propertyAddress} query={search} /> : <span className="text-muted-foreground">No property</span>}
-                            </p>
-                            {landlordName && (
-                              <p className="text-[11px] text-muted-foreground truncate flex items-center gap-1 mt-0.5">
-                                <User className="h-3 w-3" />
-                                {landlordName}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Balance */}
-                      <div className="col-span-6 md:col-span-2">
-                        <p className="text-[10px] text-muted-foreground">Balance</p>
-                        <p className={`font-bold font-mono ${hasDebt ? 'text-rose-600' : 'text-emerald-600'}`}>
+                      {/* Amount due + daily expected */}
+                      <div className="text-right shrink-0">
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none">Due</p>
+                        <p className={`font-bold font-mono text-[15px] leading-tight ${hasDebt ? 'text-rose-600' : 'text-emerald-600'}`}>
                           {hasDebt ? formatUGX(balance) : 'UGX 0'}
                         </p>
-                        {totals.total > 0 && (
-                          <p className="text-[10px] text-muted-foreground mt-0.5">
-                            of {formatUGX(totals.total)}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Progress */}
-                      <div className="col-span-12 md:col-span-2">
-                        <div className="flex items-center justify-between text-xs mb-1">
-                          <span className="font-medium font-mono">
-                            {formatUGX(totals.paid)} / {formatUGX(totals.total)}
-                          </span>
-                          <span className="font-semibold">{progressPct}%</span>
-                        </div>
-                        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                          <div className={`h-full ${progressColor}`} style={{ width: `${progressPct}%` }} />
-                        </div>
-                        <p className={`text-[11px] mt-1 ${progressPct >= 100 ? 'text-emerald-600' : hasDebt ? 'text-rose-600' : 'text-muted-foreground'}`}>
-                          {progressPct >= 100 ? 'Paid in full' : hasDebt ? `${formatUGX(balance)} remaining` : '—'}
+                        <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                          {formatUGX(tenantDaily[tenant.id] || 0)}/day
                         </p>
                       </div>
+                    </div>
 
-                      {/* Status + Risk badges */}
-                      <div className="col-span-6 md:col-span-1 flex flex-col gap-1.5">
-                        <span className={`inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-medium ${statusMeta.cls}`}>
-                          <StatusIcon className="h-3 w-3" />
-                          {statusMeta.label}
-                        </span>
-                        <span className={`inline-flex items-center justify-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-medium ${riskUi.cls}`}>
-                          <Shield className="h-3 w-3" />
-                          {riskUi.label}
-                        </span>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="col-span-6 md:col-span-2 flex flex-col gap-1.5">
-                        <Button
-                          size="sm"
-                          onClick={(e) => { e.stopPropagation(); setFieldCollectTarget(tenant); }}
-                          className="h-8 gap-1.5 rounded-lg"
-                        >
-                          <CreditCard className="h-3.5 w-3.5" />
-                          Collect Payment
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (tenant.phone) window.open(`https://wa.me/${tenant.phone.replace(/\D/g, '')}`, '_blank');
-                          }}
-                          className="h-8 gap-1.5 rounded-lg"
-                        >
-                          <MessageCircle className="h-3.5 w-3.5" />
-                          Message
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={(e) => { e.stopPropagation(); setProfileTenantId(tenant.id); }}
-                          className="h-8 gap-1.5 rounded-lg"
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                          View Details
-                        </Button>
-                      </div>
+                    {/* Quick actions row — mobile-friendly tap targets */}
+                    <div className="grid grid-cols-3 gap-2 mt-3">
+                      <Button
+                        size="sm"
+                        onClick={(e) => { e.stopPropagation(); setFieldCollectTarget(tenant); }}
+                        className="h-9 gap-1.5 rounded-lg text-xs"
+                      >
+                        <CreditCard className="h-3.5 w-3.5" />
+                        Collect
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (tenant.phone) window.open(`https://wa.me/${tenant.phone.replace(/\D/g, '')}`, '_blank');
+                        }}
+                        className="h-9 gap-1.5 rounded-lg text-xs"
+                      >
+                        <MessageCircle className="h-3.5 w-3.5" />
+                        Message
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => { e.stopPropagation(); setProfileTenantId(tenant.id); }}
+                        className="h-9 gap-1.5 rounded-lg text-xs"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        Profile
+                      </Button>
                     </div>
                   </button>
 
