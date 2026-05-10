@@ -946,6 +946,23 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 <SelectItem value="lastCollected-asc">Last collected (Oldest → Recent)</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={recentCollectionFilter} onValueChange={(v) => setRecentCollectionFilter(v as typeof recentCollectionFilter)}>
+              <SelectTrigger className="col-span-2 h-10 rounded-xl">
+                <div className="text-left">
+                  <p className="text-[10px] text-muted-foreground leading-none mb-0.5">Recent Collection</p>
+                  <SelectValue />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Any time</SelectItem>
+                <SelectItem value="1">Collected in last 24 hours</SelectItem>
+                <SelectItem value="3">Collected in last 3 days</SelectItem>
+                <SelectItem value="7">Collected in last 7 days</SelectItem>
+                <SelectItem value="14">Collected in last 14 days</SelectItem>
+                <SelectItem value="30">Collected in last 30 days</SelectItem>
+                <SelectItem value="never">Never collected</SelectItem>
+              </SelectContent>
+            </Select>
               </div>
             )}
           </div>
