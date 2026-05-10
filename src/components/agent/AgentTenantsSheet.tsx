@@ -162,6 +162,9 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [mapMode, setMapMode] = useState(false);
   const [receiptLoadingId, setReceiptLoadingId] = useState<string | null>(null);
+  // "Recent collection" filter — limit to tenants with last cash-in within N days.
+  // 'all' = no filter, 'never' = no collections at all, otherwise a window in days.
+  const [recentCollectionFilter, setRecentCollectionFilter] = useState<'all' | '1' | '3' | '7' | '14' | '30' | 'never'>('all');
   const toggleGroup = (key: string) => {
     setCollapsedGroups(prev => {
       const next = new Set(prev);
@@ -497,6 +500,18 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     if (propertyFilter !== 'all') {
       list = list.filter(t => (tenantContext[t.id]?.propertyAddress || '') === propertyFilter);
     }
+    if (recentCollectionFilter !== 'all') {
+      if (recentCollectionFilter === 'never') {
+        list = list.filter(t => !tenantLastPaid[t.id]?.date);
+      } else {
+        const days = parseInt(recentCollectionFilter, 10);
+        const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+        list = list.filter(t => {
+          const d = tenantLastPaid[t.id]?.date;
+          return d ? new Date(d).getTime() >= cutoff : false;
+        });
+      }
+    }
 
     const dir = sortDir === 'asc' ? 1 : -1;
     list.sort((a, b) => {
@@ -561,7 +576,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
       return cmp * dir;
     });
     return list;
-  }, [tenants, search, activeFilter, riskFilter, sortKey, sortDir, tenantBalances, tenantDaily, tenantStatuses, tenantContext, tenantMeta, tenantLastPaid]);
+  }, [tenants, search, activeFilter, riskFilter, sortKey, sortDir, tenantBalances, tenantDaily, tenantStatuses, tenantContext, tenantMeta, tenantLastPaid, recentCollectionFilter, propertyFilter]);
 
   const propertyOptions = useMemo(() => {
     const set = new Set<string>();
@@ -929,6 +944,23 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 <SelectItem value="property-balance-asc">Property, then Balance (Low → High)</SelectItem>
                 <SelectItem value="lastCollected-desc">Last collected (Recent → Oldest)</SelectItem>
                 <SelectItem value="lastCollected-asc">Last collected (Oldest → Recent)</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={recentCollectionFilter} onValueChange={(v) => setRecentCollectionFilter(v as typeof recentCollectionFilter)}>
+              <SelectTrigger className="col-span-2 h-10 rounded-xl">
+                <div className="text-left">
+                  <p className="text-[10px] text-muted-foreground leading-none mb-0.5">Recent Collection</p>
+                  <SelectValue />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Any time</SelectItem>
+                <SelectItem value="1">Collected in last 24 hours</SelectItem>
+                <SelectItem value="3">Collected in last 3 days</SelectItem>
+                <SelectItem value="7">Collected in last 7 days</SelectItem>
+                <SelectItem value="14">Collected in last 14 days</SelectItem>
+                <SelectItem value="30">Collected in last 30 days</SelectItem>
+                <SelectItem value="never">Never collected</SelectItem>
               </SelectContent>
             </Select>
               </div>
