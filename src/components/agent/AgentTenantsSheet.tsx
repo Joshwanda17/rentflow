@@ -161,12 +161,78 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [groupByProperty, setGroupByProperty] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [mapMode, setMapMode] = useState(false);
+  const [receiptLoadingId, setReceiptLoadingId] = useState<string | null>(null);
   const toggleGroup = (key: string) => {
     setCollapsedGroups(prev => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key); else next.add(key);
       return next;
     });
+  };
+
+  // Fetch the latest rent_request for a tenant — used to build the most recent
+  // repayment receipt for the "Last collected" pill quick actions.
+  const fetchLatestRentStatement = useCallback(async (tenant: Tenant) => {
+    const { data, error } = await supabase
+      .from('rent_requests')
+      .select('id, rent_amount, total_repayment, amount_repaid, daily_repayment, duration_days, status, created_at, landlord:landlords(name, property_address)')
+      .eq('tenant_id', tenant.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) return null;
+    const req: any = data;
+    return {
+      tenantName: tenant.full_name,
+      tenantPhone: tenant.phone,
+      landlordName: req.landlord?.name || 'N/A',
+      propertyAddress: req.landlord?.property_address,
+      rentAmount: Number(req.rent_amount || 0),
+      totalRepayment: Number(req.total_repayment || 0),
+      amountRepaid: Number(req.amount_repaid || 0),
+      dailyRepayment: Number(req.daily_repayment || 0),
+      durationDays: Number(req.duration_days || 0),
+      status: req.status || 'approved',
+      createdAt: req.created_at,
+      requestId: req.id,
+    };
+  }, []);
+
+  const handleDownloadLastReceipt = async (tenant: Tenant) => {
+    setReceiptLoadingId(tenant.id);
+    try {
+      const data = await fetchLatestRentStatement(tenant);
+      if (!data) {
+        toast({ title: 'No receipt available', description: 'No rent plan found for this tenant.', variant: 'destructive' });
+        return;
+      }
+      await downloadRentStatement(data);
+    } catch (e: any) {
+      toast({ title: 'Failed to open receipt', description: e?.message || 'Try again.', variant: 'destructive' });
+    } finally {
+      setReceiptLoadingId(null);
+    }
+  };
+
+  const handleShareLastReceiptWhatsApp = async (tenant: Tenant) => {
+    setReceiptLoadingId(tenant.id);
+    try {
+      const data = await fetchLatestRentStatement(tenant);
+      if (!data) {
+        toast({ title: 'No receipt available', description: 'No rent plan found for this tenant.', variant: 'destructive' });
+        return;
+      }
+      const text = buildRentStatementWhatsApp(data);
+      const phone = (tenant.phone || '').replace(/\D/g, '');
+      const url = phone
+        ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
+        : `https://wa.me/?text=${encodeURIComponent(text)}`;
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (e: any) {
+      toast({ title: 'Failed to share', description: e?.message || 'Try again.', variant: 'destructive' });
+    } finally {
+      setReceiptLoadingId(null);
+    }
   };
 
   useEffect(() => {
