@@ -59,7 +59,7 @@ interface AgentTenantsSheetProps {
 
 type FilterTab = 'owing' | 'paid-up' | 'all';
 type RiskFilter = 'all' | 'good' | 'standard' | 'caution' | 'new';
-type SortKey = 'risk' | 'aiId' | 'property' | 'balance';
+type SortKey = 'risk' | 'aiId' | 'property' | 'balance' | 'daily';
 type SortDir = 'asc' | 'desc';
 
 const PREFS_KEY = 'agent-tenants-sheet:prefs:v1';
@@ -418,6 +418,10 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         case 'balance':
         default: {
           cmp = (tenantBalances[a.id] || 0) - (tenantBalances[b.id] || 0);
+          break;
+        }
+        case 'daily': {
+          cmp = (tenantDaily[a.id] || 0) - (tenantDaily[b.id] || 0);
           break;
         }
       }
