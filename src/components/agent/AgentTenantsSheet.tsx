@@ -64,12 +64,19 @@ type RiskFilter = 'all' | 'good' | 'standard' | 'caution' | 'new';
 type SortKey = 'risk' | 'aiId' | 'property' | 'balance' | 'daily' | 'property-daily' | 'property-balance' | 'lastCollected';
 type SortDir = 'asc' | 'desc';
 
-const PREFS_KEY = 'agent-tenants-sheet:prefs:v1';
+const PREFS_KEY = 'agent-tenants-sheet:prefs:v2';
+
+type RecentCollectionFilter = 'all' | '1' | '3' | '7' | '14' | '30' | 'never';
 
 interface SheetPrefs {
   search?: string;
   activeFilter?: FilterTab;
   riskFilter?: RiskFilter;
+  propertyFilter?: string;
+  sortKey?: SortKey;
+  sortDir?: SortDir;
+  recentCollectionFilter?: RecentCollectionFilter;
+  groupByProperty?: boolean;
 }
 
 function loadPrefs(): SheetPrefs {
@@ -136,9 +143,9 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [loadingRequests, setLoadingRequests] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterTab>(() => loadPrefs().activeFilter ?? 'owing');
   const [riskFilter, setRiskFilter] = useState<RiskFilter>(() => loadPrefs().riskFilter ?? 'all');
-  const [sortKey, setSortKey] = useState<SortKey>('balance');
-  const [sortDir, setSortDir] = useState<SortDir>('desc');
-  const [propertyFilter, setPropertyFilter] = useState<string>('all');
+  const [sortKey, setSortKey] = useState<SortKey>(() => loadPrefs().sortKey ?? 'balance');
+  const [sortDir, setSortDir] = useState<SortDir>(() => loadPrefs().sortDir ?? 'desc');
+  const [propertyFilter, setPropertyFilter] = useState<string>(() => loadPrefs().propertyFilter ?? 'all');
   const [tenantBalances, setTenantBalances] = useState<Record<string, number>>({});
   const [tenantDaily, setTenantDaily] = useState<Record<string, number>>({});
   const [tenantTotals, setTenantTotals] = useState<Record<string, { total: number; paid: number }>>({});
@@ -158,13 +165,15 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [profileTenantId, setProfileTenantId] = useState<string | null>(null);
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [propertyPickerOpen, setPropertyPickerOpen] = useState(false);
-  const [groupByProperty, setGroupByProperty] = useState(false);
+  const [groupByProperty, setGroupByProperty] = useState<boolean>(() => loadPrefs().groupByProperty ?? false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [mapMode, setMapMode] = useState(false);
   const [receiptLoadingId, setReceiptLoadingId] = useState<string | null>(null);
   // "Recent collection" filter — limit to tenants with last cash-in within N days.
   // 'all' = no filter, 'never' = no collections at all, otherwise a window in days.
-  const [recentCollectionFilter, setRecentCollectionFilter] = useState<'all' | '1' | '3' | '7' | '14' | '30' | 'never'>('all');
+  const [recentCollectionFilter, setRecentCollectionFilter] = useState<RecentCollectionFilter>(
+    () => loadPrefs().recentCollectionFilter ?? 'all',
+  );
   const tenantListRef = useRef<HTMLDivElement>(null);
   const toggleGroup = (key: string) => {
     setCollapsedGroups(prev => {
@@ -244,17 +253,27 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     if (!open) { setExpandedTenantId(null); setProfileTenantId(null); }
   }, [open, user]);
 
-  // Persist search / status tab / risk chip across sheet open-close and reloads
+  // Persist search / status tab / risk chip / property / sort / recent / grouping
+  // across sheet open-close, navigation, and reloads
   useEffect(() => {
     try {
       window.localStorage.setItem(
         PREFS_KEY,
-        JSON.stringify({ search, activeFilter, riskFilter } satisfies SheetPrefs),
+        JSON.stringify({
+          search,
+          activeFilter,
+          riskFilter,
+          propertyFilter,
+          sortKey,
+          sortDir,
+          recentCollectionFilter,
+          groupByProperty,
+        } satisfies SheetPrefs),
       );
     } catch {
       /* storage unavailable — ignore */
     }
-  }, [search, activeFilter, riskFilter]);
+  }, [search, activeFilter, riskFilter, propertyFilter, sortKey, sortDir, recentCollectionFilter, groupByProperty]);
 
   const fetchTenants = async () => {
     if (!user) return;
