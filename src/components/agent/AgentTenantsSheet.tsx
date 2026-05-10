@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp, ArrowLeft, Shield, ArrowUp, ArrowDown, ArrowUpDown, Wallet, DollarSign, AlertCircle, CheckCircle2, CreditCard, Eye, Building2, SlidersHorizontal, Plus } from 'lucide-react';
+import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp, ArrowLeft, Shield, ArrowUp, ArrowDown, ArrowUpDown, Wallet, DollarSign, AlertCircle, CheckCircle2, CreditCard, Eye, Building2, SlidersHorizontal, Plus, Check, ChevronsUpDown } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
 import { generateWelileAiId, getRiskTierLabel } from '@/lib/welileAiId';
 import { format, startOfDay, formatDistanceToNowStrict } from 'date-fns';
@@ -154,6 +155,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [behaviorData, setBehaviorData] = useState<any>(null);
   const [profileTenantId, setProfileTenantId] = useState<string | null>(null);
   const [showMoreFilters, setShowMoreFilters] = useState(false);
+  const [propertyPickerOpen, setPropertyPickerOpen] = useState(false);
 
   useEffect(() => {
     if (open && user) fetchTenants();
