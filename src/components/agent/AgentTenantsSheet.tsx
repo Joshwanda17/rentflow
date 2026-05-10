@@ -141,6 +141,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [tenantDaily, setTenantDaily] = useState<Record<string, number>>({});
   const [tenantTotals, setTenantTotals] = useState<Record<string, { total: number; paid: number }>>({});
   const [tenantStatuses, setTenantStatuses] = useState<Record<string, Set<string>>>({});
+  const [tenantLastPaid, setTenantLastPaid] = useState<Record<string, { date: string; amount: number }>>({});
   // Per-tenant context for richer search/filter (latest landlord & address)
   const [tenantContext, setTenantContext] = useState<Record<string, { landlordName: string; propertyAddress: string; completedCount: number; totalRequests: number }>>({});
   const [renewDialogOpen, setRenewDialogOpen] = useState(false);
@@ -280,6 +281,21 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         setTenantTotals(totals);
         setTenantStatuses(statusMap);
         setTenantContext(ctx);
+
+        // Most recent cash-in per tenant (for "Last collected" indicator)
+        const { data: recentRepayments } = await supabase
+          .from('repayments')
+          .select('tenant_id, amount, created_at')
+          .in('tenant_id', tenantIds)
+          .order('created_at', { ascending: false })
+          .limit(1000);
+        const lastPaid: Record<string, { date: string; amount: number }> = {};
+        (recentRepayments || []).forEach((r: any) => {
+          if (!lastPaid[r.tenant_id]) {
+            lastPaid[r.tenant_id] = { date: r.created_at, amount: Number(r.amount || 0) };
+          }
+        });
+        setTenantLastPaid(lastPaid);
       }
     } catch (err) {
       console.error('Failed to fetch tenants:', err);
