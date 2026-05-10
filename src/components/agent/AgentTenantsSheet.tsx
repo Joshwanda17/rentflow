@@ -925,16 +925,19 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                       </CommandItem>
                       {propertyOptions.map(p => (
                         <CommandItem
-                          key={p}
-                          value={p}
+                          key={p.address}
+                          value={p.address}
                           onSelect={() => {
-                            setPropertyFilter(p);
+                            setPropertyFilter(p.address);
                             setPropertyPickerOpen(false);
                             requestAnimationFrame(() => tenantListRef.current?.focus());
                           }}
                         >
-                          <Check className={`mr-2 h-4 w-4 shrink-0 ${propertyFilter === p ? 'opacity-100' : 'opacity-0'}`} />
-                          <span className="truncate">{p}</span>
+                          <Check className={`mr-2 h-4 w-4 shrink-0 ${propertyFilter === p.address ? 'opacity-100' : 'opacity-0'}`} />
+                          <span className="truncate flex-1">{p.address}</span>
+                          <span className="ml-2 text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground">
+                            {p.count}
+                          </span>
                         </CommandItem>
                       ))}
                     </CommandGroup>
