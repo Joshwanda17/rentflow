@@ -65,6 +65,20 @@ type SortKey = 'risk' | 'aiId' | 'property' | 'balance' | 'daily' | 'property-da
 type SortDir = 'asc' | 'desc';
 
 const PREFS_KEY = 'agent-tenants-sheet:prefs:v2';
+const RECENT_PROPERTIES_KEY = 'agent-tenants-sheet:recent-properties:v1';
+const MAX_RECENT_PROPERTIES = 5;
+
+function loadRecentProperties(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(RECENT_PROPERTIES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
+  } catch {
+    return [];
+  }
+}
 
 type RecentCollectionFilter = 'all' | '1' | '3' | '7' | '14' | '30' | 'never';
 
