@@ -138,6 +138,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [propertyFilter, setPropertyFilter] = useState<string>('all');
   const [tenantBalances, setTenantBalances] = useState<Record<string, number>>({});
+  const [tenantDaily, setTenantDaily] = useState<Record<string, number>>({});
   const [tenantTotals, setTenantTotals] = useState<Record<string, { total: number; paid: number }>>({});
   const [tenantStatuses, setTenantStatuses] = useState<Record<string, Set<string>>>({});
   // Per-tenant context for richer search/filter (latest landlord & address)
@@ -235,18 +236,23 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
         const tenantIds = tenantList.map(t => t.id);
         const { data: rentRequests } = await supabase
           .from('rent_requests')
-          .select('tenant_id, total_repayment, amount_repaid, status, created_at, landlord:landlords(name, property_address)')
+          .select('tenant_id, total_repayment, amount_repaid, daily_repayment, status, created_at, landlord:landlords(name, property_address)')
           .in('tenant_id', tenantIds)
           .in('status', ['pending', 'approved', 'funded', 'disbursed', 'repaying', 'completed'])
           .order('created_at', { ascending: false });
 
         const balances: Record<string, number> = {};
+        const daily: Record<string, number> = {};
         const totals: Record<string, { total: number; paid: number }> = {};
         const statusMap: Record<string, Set<string>> = {};
         const ctx: Record<string, { landlordName: string; propertyAddress: string; completedCount: number; totalRequests: number }> = {};
         (rentRequests || []).forEach((rr: any) => {
           const owing = (rr.total_repayment || 0) - (rr.amount_repaid || 0);
           balances[rr.tenant_id] = (balances[rr.tenant_id] || 0) + Math.max(0, owing);
+          // Sum daily expected only from active (still-owing) cycles
+          if (owing > 0 && ['approved', 'funded', 'disbursed', 'repaying'].includes(rr.status)) {
+            daily[rr.tenant_id] = (daily[rr.tenant_id] || 0) + Number(rr.daily_repayment || 0);
+          }
           const prev = totals[rr.tenant_id] || { total: 0, paid: 0 };
           totals[rr.tenant_id] = { total: prev.total + (rr.total_repayment || 0), paid: prev.paid + (rr.amount_repaid || 0) };
           if (!statusMap[rr.tenant_id]) statusMap[rr.tenant_id] = new Set();
@@ -270,6 +276,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           }
         });
         setTenantBalances(balances);
+        setTenantDaily(daily);
         setTenantTotals(totals);
         setTenantStatuses(statusMap);
         setTenantContext(ctx);
