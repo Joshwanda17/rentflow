@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -165,6 +165,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   // "Recent collection" filter — limit to tenants with last cash-in within N days.
   // 'all' = no filter, 'never' = no collections at all, otherwise a window in days.
   const [recentCollectionFilter, setRecentCollectionFilter] = useState<'all' | '1' | '3' | '7' | '14' | '30' | 'never'>('all');
+  const tenantListRef = useRef<HTMLDivElement>(null);
   const toggleGroup = (key: string) => {
     setCollapsedGroups(prev => {
       const next = new Set(prev);
@@ -1057,7 +1058,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
             />
           </div>
         ) : (
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+        <div ref={tenantListRef} tabIndex={-1} className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
