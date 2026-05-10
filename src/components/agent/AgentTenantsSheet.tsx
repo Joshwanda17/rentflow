@@ -969,12 +969,52 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                         <Check className={`mr-2 h-4 w-4 ${propertyFilter === 'all' ? 'opacity-100' : 'opacity-0'}`} />
                         All Properties
                       </CommandItem>
+                    </CommandGroup>
+                    {(() => {
+                      const validRecents = recentProperties.filter(addr =>
+                        propertyOptions.some(p => p.address === addr),
+                      );
+                      if (validRecents.length === 0) return null;
+                      return (
+                        <>
+                          <CommandSeparator />
+                          <CommandGroup heading="Recent">
+                            {validRecents.map(addr => {
+                              const opt = propertyOptions.find(p => p.address === addr);
+                              return (
+                                <CommandItem
+                                  key={`recent-${addr}`}
+                                  value={`recent ${addr}`}
+                                  onSelect={() => {
+                                    setPropertyFilter(addr);
+                                    recordRecentProperty(addr);
+                                    setPropertyPickerOpen(false);
+                                    requestAnimationFrame(() => tenantListRef.current?.focus());
+                                  }}
+                                >
+                                  <Check className={`mr-2 h-4 w-4 shrink-0 ${propertyFilter === addr ? 'opacity-100' : 'opacity-0'}`} />
+                                  <span className="truncate flex-1">{addr}</span>
+                                  {opt && (
+                                    <span className="ml-2 text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground">
+                                      {opt.count}
+                                    </span>
+                                  )}
+                                </CommandItem>
+                              );
+                            })}
+                          </CommandGroup>
+                          <CommandSeparator />
+                        </>
+                      );
+                    })()}
+                    <CommandGroup heading="All properties">
                       {propertyOptions.map(p => (
                         <CommandItem
                           key={p.address}
                           value={p.address}
                           onSelect={() => {
                             setPropertyFilter(p.address);
+                            recordRecentProperty(p.address);
                             setPropertyPickerOpen(false);
                             requestAnimationFrame(() => tenantListRef.current?.focus());
                           }}
