@@ -179,6 +179,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [profileTenantId, setProfileTenantId] = useState<string | null>(null);
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [propertyPickerOpen, setPropertyPickerOpen] = useState(false);
+  const [recentProperties, setRecentProperties] = useState<string[]>(() => loadRecentProperties());
   const [groupByProperty, setGroupByProperty] = useState<boolean>(() => loadPrefs().groupByProperty ?? false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [mapMode, setMapMode] = useState(false);
@@ -189,6 +190,18 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     () => loadPrefs().recentCollectionFilter ?? 'all',
   );
   const tenantListRef = useRef<HTMLDivElement>(null);
+
+  // Push a property to the front of the MRU list and persist (deduped, capped).
+  const recordRecentProperty = useCallback((address: string) => {
+    if (!address || address === 'all') return;
+    setRecentProperties(prev => {
+      const next = [address, ...prev.filter(p => p !== address)].slice(0, MAX_RECENT_PROPERTIES);
+      try {
+        window.localStorage.setItem(RECENT_PROPERTIES_KEY, JSON.stringify(next));
+      } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
   const toggleGroup = (key: string) => {
     setCollapsedGroups(prev => {
       const next = new Set(prev);
