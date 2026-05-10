@@ -703,30 +703,37 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
               </Badge>
             }
           >
-            {/* Headline numbers */}
-            <div className="grid grid-cols-2 gap-2.5">
-              <Stat label="Outstanding" value={formatUGX(summary.currentOutstanding)} tone="destructive" />
-              <Stat
-                label="Your Ops Float"
-                value={floatLoading ? <Loader2 className="h-4 w-4 animate-spin inline" /> : formatUGX(agentFloatBalance)}
-                tone="success"
-              />
+            {/* Paid / Remaining / Target — matches Manager tenant card layout.
+                Target = principal + 33%/30 access fee + registration fee
+                (already encoded in rent_requests.total_repayment). */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <div className="rounded-xl border border-success/30 bg-success/10 p-3 text-center">
+                <p className="text-[11px] uppercase tracking-wider text-success/80 font-semibold">Paid</p>
+                <p className="text-base sm:text-lg font-bold font-mono text-success mt-0.5 tabular-nums">
+                  {formatUGX(summary.activeRequest.amount_repaid)}
+                </p>
+              </div>
+              <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-center">
+                <p className="text-[11px] uppercase tracking-wider text-destructive/80 font-semibold">Remaining</p>
+                <p className="text-base sm:text-lg font-bold font-mono text-destructive mt-0.5 tabular-nums">
+                  {formatUGX(summary.currentOutstanding)}
+                </p>
+              </div>
+              <div className="rounded-xl border border-primary/30 bg-primary/10 p-3 text-center">
+                <p className="text-[11px] uppercase tracking-wider text-primary/80 font-semibold">Target</p>
+                <p className="text-base sm:text-lg font-bold font-mono text-primary mt-0.5 tabular-nums">
+                  {formatUGX(summary.activeRequest.total_repayment)}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">incl. fees</p>
+              </div>
             </div>
 
-            {/* Plan breakdown */}
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="bg-muted/40 rounded-xl p-2.5">
-                <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Rent</p>
-                <p className="text-sm font-bold font-mono mt-0.5">{formatUGX(summary.activeRequest.rent_amount)}</p>
-              </div>
-              <div className="bg-muted/40 rounded-xl p-2.5">
-                <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Total Due</p>
-                <p className="text-sm font-bold font-mono mt-0.5">{formatUGX(summary.activeRequest.total_repayment)}</p>
-              </div>
-              <div className="bg-muted/40 rounded-xl p-2.5">
-                <p className="text-[11px] text-muted-foreground uppercase tracking-wider">Repaid</p>
-                <p className="text-sm font-bold font-mono text-success mt-0.5">{formatUGX(summary.activeRequest.amount_repaid)}</p>
-              </div>
+            {/* Ops float context (kept for collection action) */}
+            <div className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2 text-xs">
+              <span className="text-muted-foreground">Your Ops Float</span>
+              <span className="font-bold font-mono tabular-nums text-success">
+                {floatLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin inline" /> : formatUGX(agentFloatBalance)}
+              </span>
             </div>
 
             {/* Progress */}
