@@ -381,6 +381,9 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     if (riskFilter !== 'all') {
       list = list.filter(t => tenantMeta[t.id]?.riskLevel === riskFilter);
     }
+    if (propertyFilter !== 'all') {
+      list = list.filter(t => (tenantContext[t.id]?.propertyAddress || '') === propertyFilter);
+    }
 
     const dir = sortDir === 'asc' ? 1 : -1;
     list.sort((a, b) => {
@@ -420,6 +423,14 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
     });
     return list;
   }, [tenants, search, activeFilter, riskFilter, sortKey, sortDir, tenantBalances, tenantStatuses, tenantContext, tenantMeta]);
+
+  const propertyOptions = useMemo(() => {
+    const set = new Set<string>();
+    Object.values(tenantContext).forEach(c => {
+      if (c?.propertyAddress) set.add(c.propertyAddress);
+    });
+    return Array.from(set).sort();
+  }, [tenantContext]);
 
   // Stats
   const stats = useMemo(() => {
