@@ -162,6 +162,9 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [mapMode, setMapMode] = useState(false);
   const [receiptLoadingId, setReceiptLoadingId] = useState<string | null>(null);
+  // "Recent collection" filter — limit to tenants with last cash-in within N days.
+  // 'all' = no filter, 'never' = no collections at all, otherwise a window in days.
+  const [recentCollectionFilter, setRecentCollectionFilter] = useState<'all' | '1' | '3' | '7' | '14' | '30' | 'never'>('all');
   const toggleGroup = (key: string) => {
     setCollapsedGroups(prev => {
       const next = new Set(prev);
