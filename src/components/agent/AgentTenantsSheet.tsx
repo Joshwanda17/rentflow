@@ -153,6 +153,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [behaviorCardOpen, setBehaviorCardOpen] = useState(false);
   const [behaviorData, setBehaviorData] = useState<any>(null);
   const [profileTenantId, setProfileTenantId] = useState<string | null>(null);
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
 
   useEffect(() => {
     if (open && user) fetchTenants();
@@ -644,40 +645,67 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
             })}
           </div>
 
-          {/* Filter bar — search + 4 dropdowns + Filter button */}
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative flex-1 min-w-[200px]">
+          {/* Search — always visible, big and obvious */}
+          <div className="space-y-2">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search tenant, phone, property, or AI ID…"
+                placeholder="Search by name or phone…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 h-10 rounded-xl bg-muted/40 border-transparent focus-visible:ring-1 focus-visible:ring-primary/30"
+                className="pl-10 h-12 rounded-xl bg-muted/40 border-transparent focus-visible:ring-1 focus-visible:ring-primary/30 text-base"
                 style={{ fontSize: '16px' }}
                 aria-label="Search tenants"
               />
               {search && (
                 <button
                   onClick={() => setSearch('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-sm p-1"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-base p-1"
                   aria-label="Clear search"
                 >✕</button>
               )}
             </div>
-            <Select value={activeFilter} onValueChange={(v) => setActiveFilter(v as FilterTab)}>
-              <SelectTrigger className="w-[140px] h-10 rounded-xl">
-                <div className="text-left">
-                  <p className="text-[10px] text-muted-foreground leading-none mb-0.5">Status</p>
-                  <SelectValue />
-                </div>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All ({stats.total})</SelectItem>
-                <SelectItem value="owing">Owing ({stats.owingCount})</SelectItem>
-                <SelectItem value="paid-up">Paid Up ({stats.paidUpCount})</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={riskFilter} onValueChange={(v) => setRiskFilter(v as RiskFilter)}>
+
+            {/* Big tap-friendly status chips — the main filter most agents need */}
+            <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-muted/50">
+              {filterTabs.map((tab) => {
+                const active = activeFilter === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => setActiveFilter(tab.key)}
+                    className={`py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                      active ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'
+                    }`}
+                    style={{ touchAction: 'manipulation', minHeight: '44px' }}
+                  >
+                    <span>{tab.label}</span>
+                    <span className={`text-xs font-mono px-1.5 py-0.5 rounded-md ${
+                      active ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+                    }`}>{tab.count}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* "More filters" toggle — keeps the page calm on small screens */}
+            <button
+              onClick={() => setShowMoreFilters(v => !v)}
+              className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+              style={{ touchAction: 'manipulation', minHeight: '36px' }}
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              {showMoreFilters ? 'Hide filters' : 'More filters & sorting'}
+              {(riskFilter !== 'all' || propertyFilter !== 'all') && (
+                <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
+                  {[riskFilter !== 'all', propertyFilter !== 'all'].filter(Boolean).length}
+                </Badge>
+              )}
+            </button>
+
+            {showMoreFilters && (
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <Select value={riskFilter} onValueChange={(v) => setRiskFilter(v as RiskFilter)}>
               <SelectTrigger className="w-[140px] h-10 rounded-xl">
                 <div className="text-left">
                   <p className="text-[10px] text-muted-foreground leading-none mb-0.5">Risk Level</p>
@@ -710,7 +738,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
               const [k, d] = v.split('-') as [SortKey, SortDir];
               setSortKey(k); setSortDir(d);
             }}>
-              <SelectTrigger className="w-[170px] h-10 rounded-xl">
+              <SelectTrigger className="col-span-2 h-10 rounded-xl">
                 <div className="text-left">
                   <p className="text-[10px] text-muted-foreground leading-none mb-0.5">Sort By</p>
                   <SelectValue />
@@ -726,10 +754,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                 <SelectItem value="property-asc">Property (A → Z)</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" className="h-10 rounded-xl gap-2">
-              <SlidersHorizontal className="h-4 w-4" />
-              Filter
-            </Button>
+              </div>
+            )}
           </div>
 
           {stats.totalOwing > 0 && (
