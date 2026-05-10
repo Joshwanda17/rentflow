@@ -580,11 +580,14 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   }, [tenants, search, activeFilter, riskFilter, sortKey, sortDir, tenantBalances, tenantDaily, tenantStatuses, tenantContext, tenantMeta, tenantLastPaid, recentCollectionFilter, propertyFilter]);
 
   const propertyOptions = useMemo(() => {
-    const set = new Set<string>();
+    const counts = new Map<string, number>();
     Object.values(tenantContext).forEach(c => {
-      if (c?.propertyAddress) set.add(c.propertyAddress);
+      const addr = c?.propertyAddress?.trim();
+      if (addr) counts.set(addr, (counts.get(addr) || 0) + 1);
     });
-    return Array.from(set).sort();
+    return Array.from(counts.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([address, count]) => ({ address, count }));
   }, [tenantContext]);
 
   // Stats
@@ -922,16 +925,19 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                       </CommandItem>
                       {propertyOptions.map(p => (
                         <CommandItem
-                          key={p}
-                          value={p}
+                          key={p.address}
+                          value={p.address}
                           onSelect={() => {
-                            setPropertyFilter(p);
+                            setPropertyFilter(p.address);
                             setPropertyPickerOpen(false);
                             requestAnimationFrame(() => tenantListRef.current?.focus());
                           }}
                         >
-                          <Check className={`mr-2 h-4 w-4 shrink-0 ${propertyFilter === p ? 'opacity-100' : 'opacity-0'}`} />
-                          <span className="truncate">{p}</span>
+                          <Check className={`mr-2 h-4 w-4 shrink-0 ${propertyFilter === p.address ? 'opacity-100' : 'opacity-0'}`} />
+                          <span className="truncate flex-1">{p.address}</span>
+                          <span className="ml-2 text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground">
+                            {p.count}
+                          </span>
                         </CommandItem>
                       ))}
                     </CommandGroup>
