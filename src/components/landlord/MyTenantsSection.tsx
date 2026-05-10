@@ -1,53 +1,157 @@
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, MapPin, Banknote, Plus, UserCheck, MessageSquare, RefreshCw } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Users,
+  Wallet,
+  DollarSign,
+  AlertCircle,
+  TrendingUp,
+  Search,
+  SlidersHorizontal,
+  Plus,
+  CreditCard,
+  MessageSquare,
+  Eye,
+  Phone,
+  Building2,
+  CheckCircle2,
+  Shield,
+  MoreVertical,
+} from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import StarRatingDisplay from '@/components/reviews/StarRatingDisplay';
 import LandlordAddTenantDialog from './LandlordAddTenantDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import UserReviewsSection from '@/components/reviews/UserReviewsSection';
 
-interface Tenant {
+interface TenantRow {
   id: string;
   tenant_id: string;
   property_address: string;
-  monthly_rent: number | null;
-  registered_by: string | null;
-  tenant_profile?: {
-    id: string;
-    full_name: string;
-    phone: string;
-    avatar_url: string | null;
-  };
-  agent_profile?: {
-    full_name: string;
-    phone: string;
-  };
-  current_rating?: number;
-  total_reviews?: number;
+  monthly_rent: number;
+  tenant_name: string;
+  tenant_phone: string;
+  avatar_url: string | null;
+  // derived
+  balance: number;
+  totalRepayment: number;
+  amountRepaid: number;
+  hasActiveCycle: boolean;
+  payStatus: 'paid_up' | 'owing' | 'due_soon' | 'overdue';
+  riskLevel: 'low' | 'medium' | 'high';
+  reliability: 'pays_on_time' | 'usually_late' | 'frequently_late';
+  lastPayment: string | null;
+  dueDate: string | null;
+  daysDelta: number | null;
+}
+
+const STATUS_META: Record<TenantRow['payStatus'], { label: string; cls: string; dot: string }> = {
+  paid_up:  { label: 'Paid Up',  cls: 'bg-emerald-100 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
+  owing:    { label: 'Owing',    cls: 'bg-rose-100 text-rose-700 border-rose-200',          dot: 'bg-rose-500' },
+  due_soon: { label: 'Due Soon', cls: 'bg-amber-100 text-amber-700 border-amber-200',       dot: 'bg-amber-500' },
+  overdue:  { label: 'Overdue',  cls: 'bg-rose-100 text-rose-700 border-rose-200',          dot: 'bg-rose-500' },
+};
+
+const RISK_META: Record<TenantRow['riskLevel'], { label: string; cls: string }> = {
+  low:    { label: 'Low Risk',    cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  medium: { label: 'Medium Risk', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+  high:   { label: 'High Risk',   cls: 'bg-rose-50 text-rose-700 border-rose-200' },
+};
+
+const RELIABILITY_META: Record<TenantRow['reliability'], { label: string; cls: string }> = {
+  pays_on_time:    { label: 'Pays on time',    cls: 'bg-emerald-50 text-emerald-700' },
+  usually_late:    { label: 'Usually late',    cls: 'bg-amber-50 text-amber-700' },
+  frequently_late: { label: 'Frequently late', cls: 'bg-rose-50 text-rose-700' },
+};
+
+function initials(name: string) {
+  return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+}
+
+function avatarColor(name: string) {
+  const palette = [
+    'bg-violet-200 text-violet-700',
+    'bg-rose-200 text-rose-700',
+    'bg-emerald-200 text-emerald-700',
+    'bg-amber-200 text-amber-700',
+    'bg-sky-200 text-sky-700',
+  ];
+  let h = 0;
+  for (const c of name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return palette[h % palette.length];
+}
+
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  sub,
+  iconBg,
+  iconColor,
+  valueClass = '',
+  subClass = 'text-muted-foreground',
+}: {
+  icon: any;
+  label: string;
+  value: string;
+  sub?: string;
+  iconBg: string;
+  iconColor: string;
+  valueClass?: string;
+  subClass?: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
+      <div className="flex items-center gap-3">
+        <div className={`h-11 w-11 rounded-xl ${iconBg} flex items-center justify-center shrink-0`}>
+          <Icon className={`h-5 w-5 ${iconColor}`} />
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs text-muted-foreground">{label}</p>
+          <p className={`text-xl font-bold leading-tight ${valueClass}`}>{value}</p>
+          {sub && <p className={`text-[11px] mt-0.5 ${subClass}`}>{sub}</p>}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function MyTenantsSection() {
   const { user } = useAuth();
-  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [rows, setRows] = useState<TenantRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showRegisterDialog, setShowRegisterDialog] = useState(false);
-  const [reviewTenant, setReviewTenant] = useState<Tenant | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [reviewTenant, setReviewTenant] = useState<TenantRow | null>(null);
+
+  // filters
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [riskFilter, setRiskFilter] = useState<string>('all');
+  const [propertyFilter, setPropertyFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('recent');
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
   useEffect(() => {
-    if (user) {
-      fetchTenants();
-    }
-  }, [user]);
+    if (user) fetch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
-  const fetchTenants = async () => {
+  async function fetch() {
     if (!user) return;
     setLoading(true);
 
@@ -56,243 +160,583 @@ export default function MyTenantsSection() {
       .select('phone')
       .eq('id', user.id)
       .single();
-
     if (!profile) {
       setLoading(false);
       return;
     }
 
-    // Find landlord entries that match this user's phone
-    const { data: landlordEntries, error } = await supabase
+    const { data: landlordEntries } = await supabase
       .from('landlords')
-      .select('id, tenant_id, property_address, monthly_rent, phone, registered_by')
+      .select('id, tenant_id, property_address, monthly_rent')
       .eq('phone', profile.phone);
 
-    if (error) {
-      console.error('Error fetching tenants:', error);
+    const entries = (landlordEntries || []).filter((e) => e.tenant_id);
+    if (entries.length === 0) {
+      setRows([]);
       setLoading(false);
       return;
     }
 
-    const tenantIds = (landlordEntries || []).map(l => l.tenant_id).filter(Boolean);
-    const agentIds = (landlordEntries || []).map(l => l.registered_by).filter(Boolean) as string[];
-    
-    if (tenantIds.length === 0) {
-      setTenants([]);
-      setLoading(false);
-      return;
-    }
+    const tenantIds = [...new Set(entries.map((e) => e.tenant_id as string))];
 
-    // Fetch tenant profiles, agent profiles, and review summaries in parallel
-    const allProfileIds = [...new Set([...tenantIds, ...agentIds])];
-    
-    // Only fetch profiles (auth-related), stub reviews to reduce DB calls
-    const [profilesResult] = await Promise.all([
-      supabase.from('profiles').select('id, full_name, phone, avatar_url').in('id', allProfileIds),
+    const [profilesRes, rentRes] = await Promise.all([
+      supabase.from('profiles').select('id, full_name, phone, avatar_url').in('id', tenantIds),
+      supabase
+        .from('rent_requests')
+        .select(
+          'tenant_id, rent_amount, total_repayment, amount_repaid, status, end_date, updated_at, created_at',
+        )
+        .in('tenant_id', tenantIds)
+        .or(`landlord_id.eq.${user.id},landlord_phone.eq.${profile.phone}`),
     ]);
 
-    const profiles = profilesResult.data;
-    const allReviews: any[] = []; // Stubbed - user_reviews query removed
+    const profMap = new Map((profilesRes.data || []).map((p) => [p.id, p]));
+    const rentByTenant = new Map<string, any[]>();
+    for (const rr of rentRes.data || []) {
+      const arr = rentByTenant.get(rr.tenant_id) || [];
+      arr.push(rr);
+      rentByTenant.set(rr.tenant_id, arr);
+    }
 
-    const tenantsWithProfiles: Tenant[] = (landlordEntries || []).map(entry => {
-      const tenantProfile = profiles?.find(p => p.id === entry.tenant_id);
-      const agentProfile = entry.registered_by ? profiles?.find(p => p.id === entry.registered_by) : undefined;
-      const tenantReviews = allReviews.filter(r => r.reviewed_user_id === entry.tenant_id);
-      const avgRating = tenantReviews.length > 0
-        ? tenantReviews.reduce((sum, r) => sum + r.rating, 0) / tenantReviews.length
-        : 0;
-      
+    const today = Date.now();
+
+    const built: TenantRow[] = entries.map((e) => {
+      const p = profMap.get(e.tenant_id as string);
+      const cycles = rentByTenant.get(e.tenant_id as string) || [];
+      const active = cycles.find((c) =>
+        ['funded', 'disbursed', 'repaying', 'approved', 'active'].includes(c.status),
+      );
+      const totalRepayment = Number(active?.total_repayment ?? e.monthly_rent ?? 0);
+      const amountRepaid = Number(active?.amount_repaid ?? 0);
+      const balance = Math.max(0, totalRepayment - amountRepaid);
+      const dueDate = active?.end_date ?? null;
+      const daysDelta = dueDate
+        ? Math.round((new Date(dueDate).getTime() - today) / 86400000)
+        : null;
+
+      let payStatus: TenantRow['payStatus'] = 'paid_up';
+      if (balance > 0 && daysDelta !== null) {
+        if (daysDelta < 0) payStatus = 'overdue';
+        else if (daysDelta <= 7) payStatus = 'due_soon';
+        else payStatus = 'owing';
+      } else if (balance > 0) {
+        payStatus = 'owing';
+      }
+
+      const pct = totalRepayment > 0 ? amountRepaid / totalRepayment : 1;
+      const riskLevel: TenantRow['riskLevel'] =
+        payStatus === 'overdue' ? 'high' : payStatus === 'due_soon' ? 'medium' : 'low';
+      const reliability: TenantRow['reliability'] =
+        pct >= 0.95 ? 'pays_on_time' : pct >= 0.6 ? 'usually_late' : 'frequently_late';
+
+      const lastPayment = cycles
+        .map((c) => c.updated_at)
+        .filter(Boolean)
+        .sort()
+        .pop() || null;
+
       return {
-        id: entry.id,
-        tenant_id: entry.tenant_id!,
-        property_address: entry.property_address,
-        monthly_rent: entry.monthly_rent,
-        registered_by: entry.registered_by,
-        tenant_profile: tenantProfile,
-        agent_profile: agentProfile ? { full_name: agentProfile.full_name, phone: agentProfile.phone } : undefined,
-        current_rating: avgRating,
-        total_reviews: tenantReviews.length,
+        id: e.id,
+        tenant_id: e.tenant_id as string,
+        property_address: e.property_address,
+        monthly_rent: Number(e.monthly_rent || 0),
+        tenant_name: p?.full_name || 'Unknown Tenant',
+        tenant_phone: p?.phone || '',
+        avatar_url: p?.avatar_url || null,
+        balance,
+        totalRepayment,
+        amountRepaid,
+        hasActiveCycle: !!active,
+        payStatus,
+        riskLevel,
+        reliability,
+        lastPayment,
+        dueDate,
+        daysDelta,
       };
     });
 
-    setTenants(tenantsWithProfiles);
+    setRows(built);
     setLoading(false);
-  };
+  }
 
-  const getInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-  };
+  const properties = useMemo(
+    () => Array.from(new Set(rows.map((r) => r.property_address).filter(Boolean))),
+    [rows],
+  );
+
+  const filtered = useMemo(() => {
+    let list = rows.slice();
+    if (search.trim()) {
+      const s = search.toLowerCase();
+      list = list.filter(
+        (r) =>
+          r.tenant_name.toLowerCase().includes(s) ||
+          r.tenant_phone.toLowerCase().includes(s) ||
+          r.property_address.toLowerCase().includes(s),
+      );
+    }
+    if (statusFilter !== 'all') list = list.filter((r) => r.payStatus === statusFilter);
+    if (riskFilter !== 'all') list = list.filter((r) => r.riskLevel === riskFilter);
+    if (propertyFilter !== 'all') list = list.filter((r) => r.property_address === propertyFilter);
+    switch (sortBy) {
+      case 'balance_desc':
+        list.sort((a, b) => b.balance - a.balance);
+        break;
+      case 'name':
+        list.sort((a, b) => a.tenant_name.localeCompare(b.tenant_name));
+        break;
+      case 'due':
+        list.sort((a, b) => (a.daysDelta ?? 9999) - (b.daysDelta ?? 9999));
+        break;
+      default:
+        break;
+    }
+    return list;
+  }, [rows, search, statusFilter, riskFilter, propertyFilter, sortBy]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const pageRows = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  // stats
+  const stats = useMemo(() => {
+    const total = rows.length;
+    const owing = rows.filter((r) => r.balance > 0).length;
+    const overdueRows = rows.filter((r) => r.payStatus === 'overdue');
+    const overdueAmount = overdueRows.reduce((s, r) => s + r.balance, 0);
+    const collected = rows.reduce((s, r) => s + r.amountRepaid, 0);
+    const occupancy = total > 0 ? Math.round((rows.filter((r) => r.hasActiveCycle).length / total) * 100) : 0;
+    return { total, owing, overdueAmount, overdueCount: overdueRows.length, collected, occupancy };
+  }, [rows]);
 
   if (loading) {
     return (
-      <Card className="glass-card border-border/50 shadow-elevated">
-        <CardHeader>
-          <Skeleton className="h-6 w-40" />
-          <Skeleton className="h-4 w-60" />
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Skeleton className="h-20 rounded-lg" />
-          <Skeleton className="h-20 rounded-lg" />
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-20 rounded-2xl" />
+          ))}
+        </div>
+        <Skeleton className="h-14 rounded-2xl" />
+        <Skeleton className="h-32 rounded-2xl" />
+        <Skeleton className="h-32 rounded-2xl" />
+      </div>
     );
   }
 
   return (
-    <>
-      <Card className="glass-card border-border/50 shadow-elevated overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
-        
-        <CardHeader className="relative">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <motion.div
-                className="p-2 rounded-lg bg-primary/10"
-                whileHover={{ scale: 1.1, rotate: -5 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-              >
-                <Users className="h-5 w-5 text-primary" />
-              </motion.div>
-              My Tenants
-            </CardTitle>
-            <Button variant="ghost" size="icon" onClick={fetchTenants} className="h-8 w-8">
-              <RefreshCw className="h-4 w-4" />
-            </Button>
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">My Tenants</h2>
+        </div>
+        <Button onClick={() => setShowAdd(true)} className="gap-2 rounded-xl">
+          <Plus className="h-4 w-4" />
+          Add Tenant
+        </Button>
+      </div>
+
+      {/* Stat Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <StatCard
+          icon={Users}
+          label="Total Tenants"
+          value={String(stats.total)}
+          sub="All tenants"
+          iconBg="bg-violet-100"
+          iconColor="text-violet-600"
+        />
+        <StatCard
+          icon={Wallet}
+          label="Owing"
+          value={String(stats.owing)}
+          sub="Tenants owing"
+          iconBg="bg-amber-100"
+          iconColor="text-amber-600"
+          subClass="text-rose-600 font-medium"
+        />
+        <StatCard
+          icon={DollarSign}
+          label="Collected This Month"
+          value={formatUGX(stats.collected)}
+          sub="Lifetime collected"
+          iconBg="bg-emerald-100"
+          iconColor="text-emerald-600"
+        />
+        <StatCard
+          icon={AlertCircle}
+          label="Overdue Amount"
+          value={formatUGX(stats.overdueAmount)}
+          sub={`From ${stats.overdueCount} tenants`}
+          iconBg="bg-amber-100"
+          iconColor="text-amber-600"
+          subClass="text-amber-600 font-medium"
+        />
+        <StatCard
+          icon={TrendingUp}
+          label="Occupancy Rate"
+          value={`${stats.occupancy}%`}
+          sub="Active cycles"
+          iconBg="bg-sky-100"
+          iconColor="text-sky-600"
+          subClass="text-emerald-600 font-medium"
+        />
+      </div>
+
+      {/* Filters */}
+      <Card className="rounded-2xl border-border/60">
+        <CardContent className="p-3 flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Search tenant, phone, property..."
+              className="pl-9 h-10 rounded-xl bg-muted/40 border-transparent"
+            />
           </div>
-          <CardDescription>
-            View and rate your tenants
-          </CardDescription>
-        </CardHeader>
-
-        <CardContent className="space-y-4 relative">
-          <AnimatePresence mode="popLayout">
-            {tenants.length === 0 ? (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-center py-8"
-              >
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted/50 flex items-center justify-center">
-                  <Users className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <p className="text-muted-foreground mb-4">
-                  No tenants registered yet
-                </p>
-                <Button onClick={() => setShowRegisterDialog(true)} className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Register a Tenant
-                </Button>
-              </motion.div>
-            ) : (
-              <>
-                {tenants.map((tenant, index) => (
-                  <motion.div
-                    key={tenant.id}
-                    layout
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="p-4 rounded-xl bg-background/50 border border-border/50"
-                  >
-                    <div className="flex items-start gap-3">
-                      <Avatar className="h-12 w-12">
-                        <AvatarImage src={tenant.tenant_profile?.avatar_url || undefined} />
-                        <AvatarFallback>
-                          {getInitials(tenant.tenant_profile?.full_name || 'T')}
-                        </AvatarFallback>
-                      </Avatar>
-                      
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium">{tenant.tenant_profile?.full_name || 'Unknown Tenant'}</p>
-                        <p className="text-xs text-muted-foreground">{tenant.tenant_profile?.phone}</p>
-                        
-                        <div className="flex flex-wrap items-center gap-2 mt-2 text-sm text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {tenant.property_address}
-                          </span>
-                          {tenant.monthly_rent && (
-                            <span className="flex items-center gap-1">
-                              <Banknote className="h-3 w-3" />
-                              {formatUGX(tenant.monthly_rent)}/mo
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Agent Attribution */}
-                        {tenant.agent_profile && (
-                          <div className="mt-2">
-                            <Badge variant="outline" className="text-xs gap-1 bg-primary/5 border-primary/20 text-primary">
-                              <UserCheck className="h-3 w-3" />
-                              Registered by: {tenant.agent_profile.full_name} ({tenant.agent_profile.phone})
-                            </Badge>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Rating & Review */}
-                      <div className="shrink-0 text-right">
-                        <StarRatingDisplay
-                          rating={tenant.current_rating || 0}
-                          totalReviews={tenant.total_reviews || 0}
-                          size="sm"
-                        />
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="mt-1 h-7 text-xs gap-1 text-primary"
-                          onClick={() => setReviewTenant(tenant)}
-                        >
-                          <MessageSquare className="h-3 w-3" />
-                          Review
-                        </Button>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  <Button
-                    variant="outline"
-                    className="w-full gap-2 border-dashed"
-                    onClick={() => setShowRegisterDialog(true)}
-                  >
-                    <Plus className="h-4 w-4" />
-                    Register Another Tenant
-                  </Button>
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
+          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+            <SelectTrigger className="w-[140px] h-10 rounded-xl">
+              <div className="text-left">
+                <p className="text-[10px] text-muted-foreground leading-none">Status</p>
+                <SelectValue />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="paid_up">Paid Up</SelectItem>
+              <SelectItem value="owing">Owing</SelectItem>
+              <SelectItem value="due_soon">Due Soon</SelectItem>
+              <SelectItem value="overdue">Overdue</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={riskFilter} onValueChange={(v) => { setRiskFilter(v); setPage(1); }}>
+            <SelectTrigger className="w-[140px] h-10 rounded-xl">
+              <div className="text-left">
+                <p className="text-[10px] text-muted-foreground leading-none">Risk Level</p>
+                <SelectValue />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="low">Low</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="high">High</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={propertyFilter} onValueChange={(v) => { setPropertyFilter(v); setPage(1); }}>
+            <SelectTrigger className="w-[180px] h-10 rounded-xl">
+              <div className="text-left">
+                <p className="text-[10px] text-muted-foreground leading-none">Property</p>
+                <SelectValue placeholder="All Properties" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Properties</SelectItem>
+              {properties.map((p) => (
+                <SelectItem key={p} value={p}>
+                  {p}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-[170px] h-10 rounded-xl">
+              <div className="text-left">
+                <p className="text-[10px] text-muted-foreground leading-none">Sort By</p>
+                <SelectValue />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="recent">Recently Added</SelectItem>
+              <SelectItem value="balance_desc">Balance (High → Low)</SelectItem>
+              <SelectItem value="due">Due Date</SelectItem>
+              <SelectItem value="name">Name (A → Z)</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" className="gap-2 h-10 rounded-xl">
+            <SlidersHorizontal className="h-4 w-4" />
+            Filter
+          </Button>
         </CardContent>
       </Card>
 
+      {/* List */}
+      <div className="space-y-3">
+        {pageRows.length === 0 ? (
+          <Card className="rounded-2xl border-dashed">
+            <CardContent className="py-12 text-center text-muted-foreground">
+              No tenants match these filters.
+            </CardContent>
+          </Card>
+        ) : (
+          pageRows.map((r, idx) => {
+            const status = STATUS_META[r.payStatus];
+            const risk = RISK_META[r.riskLevel];
+            const rel = RELIABILITY_META[r.reliability];
+            const pct = r.totalRepayment > 0 ? Math.min(100, Math.round((r.amountRepaid / r.totalRepayment) * 100)) : 100;
+            const progressColor =
+              pct >= 100 ? 'bg-emerald-500' : r.payStatus === 'overdue' ? 'bg-rose-500' : r.payStatus === 'due_soon' ? 'bg-amber-500' : 'bg-rose-400';
+
+            return (
+              <motion.div
+                key={r.id}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.03 }}
+              >
+                <Card className="rounded-2xl border border-border/60 hover:shadow-md transition-shadow">
+                  <CardContent className="p-4">
+                    <div className="grid grid-cols-12 gap-4 items-center">
+                      {/* Tenant */}
+                      <div className="col-span-12 md:col-span-3 flex items-center gap-3 min-w-0">
+                        <div className="relative">
+                          <Avatar className={`h-12 w-12 ${avatarColor(r.tenant_name)}`}>
+                            <AvatarImage src={r.avatar_url || undefined} />
+                            <AvatarFallback className={avatarColor(r.tenant_name)}>
+                              {initials(r.tenant_name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span
+                            className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background ${status.dot}`}
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-semibold truncate">{r.tenant_name}</p>
+                          <p className="text-xs text-muted-foreground flex items-center gap-1 truncate">
+                            <Phone className="h-3 w-3" />
+                            {r.tenant_phone}
+                          </p>
+                          <span className={`inline-block mt-1 px-2 py-0.5 rounded-md text-[10px] font-medium ${rel.cls}`}>
+                            {rel.label}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Property */}
+                      <div className="col-span-6 md:col-span-2 min-w-0">
+                        <div className="flex items-start gap-2">
+                          <Building2 className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm truncate">{r.property_address}</p>
+                            {r.dueDate && (
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                Lease ends:{' '}
+                                {new Date(r.dueDate).toLocaleDateString('en-GB', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  year: 'numeric',
+                                })}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Balance */}
+                      <div className="col-span-6 md:col-span-2">
+                        <p className="text-[10px] text-muted-foreground">Balance</p>
+                        <p
+                          className={`font-bold ${
+                            r.balance > 0 ? 'text-rose-600' : 'text-emerald-600'
+                          }`}
+                        >
+                          {formatUGX(r.balance)}
+                        </p>
+                        {r.lastPayment && r.balance === 0 && (
+                          <>
+                            <p className="text-[10px] text-muted-foreground mt-1">Last Payment</p>
+                            <p className="text-xs">
+                              {new Date(r.lastPayment).toLocaleDateString('en-GB', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                              })}
+                            </p>
+                          </>
+                        )}
+                        {r.dueDate && r.balance > 0 && (
+                          <>
+                            <p className="text-[10px] text-muted-foreground mt-1">Due Date</p>
+                            <p
+                              className={`text-xs font-medium ${
+                                r.payStatus === 'overdue' ? 'text-rose-600' : ''
+                              }`}
+                            >
+                              {new Date(r.dueDate).toLocaleDateString('en-GB', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                              })}
+                            </p>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Progress */}
+                      <div className="col-span-12 md:col-span-2">
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span className="font-medium">
+                            {formatUGX(r.amountRepaid)} / {formatUGX(r.totalRepayment)}
+                          </span>
+                          <span className="font-semibold">{pct}%</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className={`h-full ${progressColor}`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <p
+                          className={`text-[11px] mt-1 ${
+                            pct >= 100
+                              ? 'text-emerald-600'
+                              : r.payStatus === 'overdue'
+                              ? 'text-rose-600'
+                              : r.payStatus === 'due_soon'
+                              ? 'text-amber-600'
+                              : 'text-muted-foreground'
+                          }`}
+                        >
+                          {pct >= 100
+                            ? 'Paid in full'
+                            : r.daysDelta === null
+                            ? '—'
+                            : r.daysDelta < 0
+                            ? `Overdue by ${Math.abs(r.daysDelta)} days`
+                            : `Due in ${r.daysDelta} days`}
+                        </p>
+                      </div>
+
+                      {/* Badges */}
+                      <div className="col-span-6 md:col-span-1 flex flex-col gap-1.5">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-medium ${status.cls}`}
+                        >
+                          {r.payStatus === 'paid_up' ? (
+                            <CheckCircle2 className="h-3 w-3" />
+                          ) : (
+                            <AlertCircle className="h-3 w-3" />
+                          )}
+                          {status.label}
+                        </span>
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-medium ${risk.cls}`}
+                        >
+                          <Shield className="h-3 w-3" />
+                          {risk.label}
+                        </span>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="col-span-6 md:col-span-2 flex flex-col gap-1.5">
+                        <Button size="sm" className="gap-1.5 h-8 rounded-lg">
+                          <CreditCard className="h-3.5 w-3.5" />
+                          Collect Payment
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5 h-8 rounded-lg"
+                          onClick={() => {
+                            if (r.tenant_phone) {
+                              window.open(
+                                `https://wa.me/${r.tenant_phone.replace(/\D/g, '')}`,
+                                '_blank',
+                              );
+                            }
+                          }}
+                        >
+                          <MessageSquare className="h-3.5 w-3.5" />
+                          Message
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5 h-8 rounded-lg"
+                          onClick={() => setReviewTenant(r)}
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          View Details
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Pagination */}
+      {filtered.length > 0 && (
+        <div className="flex items-center justify-between text-xs text-muted-foreground pt-2">
+          <span>
+            Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, filtered.length)} of{' '}
+            {filtered.length} tenants
+          </span>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 w-8 p-0 rounded-lg"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+            >
+              ‹
+            </Button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .slice(0, 5)
+              .map((n) => (
+                <Button
+                  key={n}
+                  variant={n === page ? 'default' : 'outline'}
+                  size="sm"
+                  className="h-8 w-8 p-0 rounded-lg"
+                  onClick={() => setPage(n)}
+                >
+                  {n}
+                </Button>
+              ))}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 w-8 p-0 rounded-lg"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+            >
+              ›
+            </Button>
+          </div>
+        </div>
+      )}
+
       <LandlordAddTenantDialog
-        open={showRegisterDialog}
-        onOpenChange={setShowRegisterDialog}
-        onSuccess={fetchTenants}
+        open={showAdd}
+        onOpenChange={setShowAdd}
+        onSuccess={fetch}
       />
 
-      {/* Tenant Review Dialog */}
-      <Dialog open={!!reviewTenant} onOpenChange={(open) => !open && setReviewTenant(null)}>
-        <DialogContent className="max-w-sm max-h-[80vh] overflow-y-auto">
+      <Dialog open={!!reviewTenant} onOpenChange={(o) => !o && setReviewTenant(null)}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-base">
-              Review: {reviewTenant?.tenant_profile?.full_name || 'Tenant'}
+              {reviewTenant?.tenant_name || 'Tenant'} — Details
             </DialogTitle>
           </DialogHeader>
           {reviewTenant && (
             <UserReviewsSection
               userId={reviewTenant.tenant_id}
-              userName={reviewTenant.tenant_profile?.full_name || 'Tenant'}
+              userName={reviewTenant.tenant_name}
             />
           )}
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }
