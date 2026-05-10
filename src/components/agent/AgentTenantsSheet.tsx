@@ -15,7 +15,7 @@ import { generateWelileAiId, getRiskTierLabel } from '@/lib/welileAiId';
 import { format, startOfDay, formatDistanceToNowStrict } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { downloadRepaymentPdf, shareRepaymentPdfWhatsApp } from '@/lib/repaymentSchedulePdf';
-import { downloadRentStatement } from '@/lib/receiptPdf';
+import { downloadRentStatement, buildRentStatementWhatsApp } from '@/lib/receiptPdf';
 import { useToast } from '@/hooks/use-toast';
 import AgentRentRequestDialog from './AgentRentRequestDialog';
 import { AgentTenantCollectDialog } from './AgentTenantCollectDialog';
@@ -161,12 +161,78 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
   const [groupByProperty, setGroupByProperty] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [mapMode, setMapMode] = useState(false);
+  const [receiptLoadingId, setReceiptLoadingId] = useState<string | null>(null);
   const toggleGroup = (key: string) => {
     setCollapsedGroups(prev => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key); else next.add(key);
       return next;
     });
+  };
+
+  // Fetch the latest rent_request for a tenant — used to build the most recent
+  // repayment receipt for the "Last collected" pill quick actions.
+  const fetchLatestRentStatement = useCallback(async (tenant: Tenant) => {
+    const { data, error } = await supabase
+      .from('rent_requests')
+      .select('id, rent_amount, total_repayment, amount_repaid, daily_repayment, duration_days, status, created_at, landlord:landlords(name, property_address)')
+      .eq('tenant_id', tenant.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) return null;
+    const req: any = data;
+    return {
+      tenantName: tenant.full_name,
+      tenantPhone: tenant.phone,
+      landlordName: req.landlord?.name || 'N/A',
+      propertyAddress: req.landlord?.property_address,
+      rentAmount: Number(req.rent_amount || 0),
+      totalRepayment: Number(req.total_repayment || 0),
+      amountRepaid: Number(req.amount_repaid || 0),
+      dailyRepayment: Number(req.daily_repayment || 0),
+      durationDays: Number(req.duration_days || 0),
+      status: req.status || 'approved',
+      createdAt: req.created_at,
+      requestId: req.id,
+    };
+  }, []);
+
+  const handleDownloadLastReceipt = async (tenant: Tenant) => {
+    setReceiptLoadingId(tenant.id);
+    try {
+      const data = await fetchLatestRentStatement(tenant);
+      if (!data) {
+        toast({ title: 'No receipt available', description: 'No rent plan found for this tenant.', variant: 'destructive' });
+        return;
+      }
+      await downloadRentStatement(data);
+    } catch (e: any) {
+      toast({ title: 'Failed to open receipt', description: e?.message || 'Try again.', variant: 'destructive' });
+    } finally {
+      setReceiptLoadingId(null);
+    }
+  };
+
+  const handleShareLastReceiptWhatsApp = async (tenant: Tenant) => {
+    setReceiptLoadingId(tenant.id);
+    try {
+      const data = await fetchLatestRentStatement(tenant);
+      if (!data) {
+        toast({ title: 'No receipt available', description: 'No rent plan found for this tenant.', variant: 'destructive' });
+        return;
+      }
+      const text = buildRentStatementWhatsApp(data);
+      const phone = (tenant.phone || '').replace(/\D/g, '');
+      const url = phone
+        ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
+        : `https://wa.me/?text=${encodeURIComponent(text)}`;
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (e: any) {
+      toast({ title: 'Failed to share', description: e?.message || 'Try again.', variant: 'destructive' });
+    } finally {
+      setReceiptLoadingId(null);
+    }
   };
 
   useEffect(() => {
@@ -1060,18 +1126,59 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
 
                     {/* Quick actions row — mobile-friendly tap targets */}
                     {tenantLastPaid[tenant.id] ? (
-                      <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1.5">
-                        <span className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wider flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3" />
-                          Last collected
-                        </span>
-                        <span className="text-[11px] font-mono font-bold text-emerald-700">
-                          +{formatUGX(tenantLastPaid[tenant.id].amount)}
-                          <span className="font-sans font-normal text-emerald-600/80 ml-1.5">
-                            · {formatDistanceToNowStrict(new Date(tenantLastPaid[tenant.id].date), { addSuffix: true })}
-                          </span>
-                        </span>
-                      </div>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={(e) => e.stopPropagation()}
+                            className="mt-2 w-full flex items-center justify-between gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 active:scale-[0.99] transition-transform hover:bg-emerald-100"
+                            style={{ touchAction: 'manipulation' }}
+                            aria-label="Open latest receipt"
+                          >
+                            <span className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wider flex items-center gap-1">
+                              {receiptLoadingId === tenant.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="h-3 w-3" />
+                              )}
+                              Last collected
+                            </span>
+                            <span className="text-[11px] font-mono font-bold text-emerald-700">
+                              +{formatUGX(tenantLastPaid[tenant.id].amount)}
+                              <span className="font-sans font-normal text-emerald-600/80 ml-1.5">
+                                · {formatDistanceToNowStrict(new Date(tenantLastPaid[tenant.id].date), { addSuffix: true })}
+                              </span>
+                            </span>
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          className="w-56 p-2"
+                          align="end"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <p className="px-2 pt-1 pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            Latest receipt
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadLastReceipt(tenant)}
+                            disabled={receiptLoadingId === tenant.id}
+                            className="w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-muted active:bg-muted disabled:opacity-60"
+                          >
+                            <FileDown className="h-4 w-4" />
+                            Download PDF
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleShareLastReceiptWhatsApp(tenant)}
+                            disabled={receiptLoadingId === tenant.id}
+                            className="w-full flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-muted active:bg-muted disabled:opacity-60"
+                          >
+                            <MessageCircle className="h-4 w-4 text-emerald-600" />
+                            Share via WhatsApp
+                          </button>
+                        </PopoverContent>
+                      </Popover>
                     ) : (
                       <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-muted/40 border border-border/40 px-2.5 py-1.5">
                         <AlertCircle className="h-3 w-3 text-muted-foreground" />
