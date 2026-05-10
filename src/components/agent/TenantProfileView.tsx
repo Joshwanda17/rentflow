@@ -179,6 +179,9 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
   const [reverseDialogOpen, setReverseDialogOpen] = useState(false);
   const [rentLimitOpen, setRentLimitOpen] = useState(false);
   const [renewing, setRenewing] = useState(false);
+  const [historyRange, setHistoryRange] = useState<'all' | '7d' | '30d' | 'month' | 'custom'>('all');
+  const [historyFrom, setHistoryFrom] = useState<string>('');
+  const [historyTo, setHistoryTo] = useState<string>('');
 
   const loadLastAllocation = async () => {
     if (!user?.id) return;
