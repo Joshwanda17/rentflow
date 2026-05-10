@@ -61,7 +61,7 @@ interface AgentTenantsSheetProps {
 
 type FilterTab = 'owing' | 'paid-up' | 'all';
 type RiskFilter = 'all' | 'good' | 'standard' | 'caution' | 'new';
-type SortKey = 'risk' | 'aiId' | 'property' | 'balance' | 'daily' | 'property-daily' | 'property-balance';
+type SortKey = 'risk' | 'aiId' | 'property' | 'balance' | 'daily' | 'property-daily' | 'property-balance' | 'lastCollected';
 type SortDir = 'asc' | 'desc';
 
 const PREFS_KEY = 'agent-tenants-sheet:prefs:v1';
@@ -477,6 +477,15 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           cmp = (tenantDaily[a.id] || 0) - (tenantDaily[b.id] || 0);
           break;
         }
+        case 'lastCollected': {
+          const ta = tenantLastPaid[a.id]?.date ? new Date(tenantLastPaid[a.id].date).getTime() : 0;
+          const tb = tenantLastPaid[b.id]?.date ? new Date(tenantLastPaid[b.id].date).getTime() : 0;
+          // Push tenants with no collection to the bottom regardless of direction
+          if (!ta && tb) return 1;
+          if (ta && !tb) return -1;
+          cmp = ta - tb;
+          break;
+        }
       }
       if (cmp === 0) {
         // Stable tiebreaker: name asc
@@ -486,7 +495,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
       return cmp * dir;
     });
     return list;
-  }, [tenants, search, activeFilter, riskFilter, sortKey, sortDir, tenantBalances, tenantDaily, tenantStatuses, tenantContext, tenantMeta]);
+  }, [tenants, search, activeFilter, riskFilter, sortKey, sortDir, tenantBalances, tenantDaily, tenantStatuses, tenantContext, tenantMeta, tenantLastPaid]);
 
   const propertyOptions = useMemo(() => {
     const set = new Set<string>();
