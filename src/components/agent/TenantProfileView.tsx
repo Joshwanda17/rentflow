@@ -756,19 +756,29 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
             {/* Payment history — each cash-in with running Paid / Remaining */}
             {(() => {
               const target = summary.activeRequest!.total_repayment;
-              const cycleRepayments = repayments
+              const allCycleRepayments = repayments
                 .filter(r => r.rent_request_id === summary.activeRequest!.id)
                 .slice()
                 .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-              if (cycleRepayments.length === 0) {
-                return (
-                  <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-3 text-center text-xs text-muted-foreground">
-                    No payments collected yet for this cycle.
-                  </div>
-                );
+
+              // Determine date window
+              const now = new Date();
+              let fromTs: number | null = null;
+              let toTs: number | null = null;
+              if (historyRange === '7d') {
+                fromTs = now.getTime() - 7 * 86400000;
+              } else if (historyRange === '30d') {
+                fromTs = now.getTime() - 30 * 86400000;
+              } else if (historyRange === 'month') {
+                fromTs = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+              } else if (historyRange === 'custom') {
+                if (historyFrom) fromTs = new Date(historyFrom).getTime();
+                if (historyTo) toTs = new Date(historyTo).getTime() + 86399000; // include end day
               }
+
+              // Compute running totals on full history, then filter view by date
               let running = 0;
-              const rows = cycleRepayments.map(r => {
+              const allRows = allCycleRepayments.map(r => {
                 running += r.amount || 0;
                 return {
                   id: r.id,
@@ -777,16 +787,83 @@ export function TenantProfileView({ tenantId, onBack }: TenantProfileViewProps) 
                   paid: running,
                   remaining: Math.max(0, target - running),
                 };
-              }).reverse(); // newest first
+              });
+              const filteredRows = allRows.filter(row => {
+                const t = new Date(row.date).getTime();
+                if (fromTs !== null && t < fromTs) return false;
+                if (toTs !== null && t > toTs) return false;
+                return true;
+              });
+              const periodTotal = filteredRows.reduce((s, r) => s + r.amount, 0);
+              const rows = filteredRows.slice().reverse(); // newest first
+
+              const rangeChips: { key: typeof historyRange; label: string }[] = [
+                { key: 'all', label: 'All' },
+                { key: '7d', label: '7d' },
+                { key: '30d', label: '30d' },
+                { key: 'month', label: 'This month' },
+                { key: 'custom', label: 'Custom' },
+              ];
+
+              if (allCycleRepayments.length === 0) {
+                return (
+                  <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-3 text-center text-xs text-muted-foreground">
+                    No payments collected yet for this cycle.
+                  </div>
+                );
+              }
               return (
                 <div className="rounded-xl border border-border/60 overflow-hidden">
                   <div className="flex items-center justify-between px-3 py-2 bg-muted/40">
                     <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                       Payment History
                     </p>
-                    <p className="text-[10px] text-muted-foreground">{cycleRepayments.length} payment{cycleRepayments.length === 1 ? '' : 's'}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {filteredRows.length} of {allCycleRepayments.length} · {formatUGX(periodTotal)}
+                    </p>
+                  </div>
+                  {/* Date range filter */}
+                  <div className="px-3 py-2 bg-muted/20 border-b border-border/60 space-y-2">
+                    <div className="flex flex-wrap gap-1">
+                      {rangeChips.map(chip => (
+                        <button
+                          key={chip.key}
+                          type="button"
+                          onClick={() => setHistoryRange(chip.key)}
+                          className={`px-2 py-1 rounded-md text-[10px] font-medium border transition-colors ${
+                            historyRange === chip.key
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'bg-background text-muted-foreground border-border/60 hover:bg-muted'
+                          }`}
+                        >
+                          {chip.label}
+                        </button>
+                      ))}
+                    </div>
+                    {historyRange === 'custom' && (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="date"
+                          value={historyFrom}
+                          onChange={(e) => setHistoryFrom(e.target.value)}
+                          className="flex-1 text-[11px] px-2 py-1 rounded-md border border-border/60 bg-background"
+                        />
+                        <span className="text-[10px] text-muted-foreground">to</span>
+                        <input
+                          type="date"
+                          value={historyTo}
+                          onChange={(e) => setHistoryTo(e.target.value)}
+                          className="flex-1 text-[11px] px-2 py-1 rounded-md border border-border/60 bg-background"
+                        />
+                      </div>
+                    )}
                   </div>
                   <div className="divide-y divide-border/60 max-h-64 overflow-y-auto">
+                    {rows.length === 0 && (
+                      <div className="px-3 py-3 text-center text-xs text-muted-foreground">
+                        No payments in this period.
+                      </div>
+                    )}
                     {rows.map(row => (
                       <div key={row.id} className="flex items-center justify-between gap-3 px-3 py-2">
                         <div className="min-w-0">
