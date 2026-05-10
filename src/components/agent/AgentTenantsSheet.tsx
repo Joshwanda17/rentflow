@@ -887,6 +887,67 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                         className="overflow-hidden border-t border-border/40"
                       >
                         <div className="p-3.5 space-y-3">
+                          {/* Next 7-day collection plan — quick mobile planner */}
+                          {(tenantDaily[tenant.id] || 0) > 0 && (() => {
+                            const daily = tenantDaily[tenant.id] || 0;
+                            const weekTotal = daily * 7;
+                            const cap = Math.min(weekTotal, balance);
+                            const today = new Date();
+                            const days = Array.from({ length: 7 }, (_, i) => {
+                              const d = new Date(today);
+                              d.setDate(today.getDate() + i);
+                              return d;
+                            });
+                            let running = 0;
+                            return (
+                              <div className="rounded-xl border border-border/60 bg-background p-3">
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                    Next 7 days
+                                  </p>
+                                  <p className="text-[11px] text-muted-foreground">
+                                    Plan: <span className="font-bold font-mono text-foreground">{formatUGX(cap)}</span>
+                                  </p>
+                                </div>
+                                <div className="grid grid-cols-7 gap-1.5">
+                                  {days.map((d, i) => {
+                                    const isToday = i === 0;
+                                    running += daily;
+                                    const beyondDebt = running > balance && balance > 0;
+                                    return (
+                                      <div
+                                        key={i}
+                                        className={`rounded-lg p-1.5 text-center border ${
+                                          isToday
+                                            ? 'bg-primary/10 border-primary/30'
+                                            : beyondDebt
+                                              ? 'bg-muted/30 border-border/40 opacity-60'
+                                              : 'bg-muted/40 border-border/40'
+                                        }`}
+                                      >
+                                        <p className="text-[9px] font-semibold text-muted-foreground uppercase">
+                                          {format(d, 'EEE')}
+                                        </p>
+                                        <p className="text-[10px] text-muted-foreground leading-tight">
+                                          {format(d, 'd MMM')}
+                                        </p>
+                                        <p className={`text-[10px] font-bold font-mono mt-0.5 leading-tight ${
+                                          isToday ? 'text-primary' : 'text-foreground'
+                                        }`}>
+                                          {formatUGX(daily)}
+                                        </p>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                                {balance > 0 && weekTotal > balance && (
+                                  <p className="text-[10px] text-muted-foreground mt-2">
+                                    Remaining debt clears in ~{Math.ceil(balance / daily)} day{Math.ceil(balance / daily) !== 1 ? 's' : ''}.
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })()}
                           {isLoadingThis ? (
                             <div className="flex items-center justify-center py-6">
                               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
