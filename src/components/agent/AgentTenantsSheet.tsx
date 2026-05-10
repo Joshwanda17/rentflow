@@ -1263,9 +1263,65 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                     )}
                   </AnimatePresence>
                 </div>
-              );
-            })
-          )}
+              ) };
+            });
+
+            if (!groupByProperty) {
+              return tenantCards.map(c => c.el);
+            }
+
+            // Group cards by property address. Tenants without a property
+            // fall into a single "No property assigned" bucket so nothing is hidden.
+            const groups = new Map<string, typeof tenantCards>();
+            for (const c of tenantCards) {
+              const key = tenantContext[c.tenant.id]?.propertyAddress?.trim() || 'No property assigned';
+              if (!groups.has(key)) groups.set(key, []);
+              groups.get(key)!.push(c);
+            }
+
+            return Array.from(groups.entries())
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([property, items]) => {
+                const isCollapsed = collapsedGroups.has(property);
+                const groupOwing = items.reduce((s, c) => s + (tenantBalances[c.tenant.id] || 0), 0);
+                const groupDaily = items.reduce((s, c) => s + (tenantDaily[c.tenant.id] || 0), 0);
+                return (
+                  <div key={property} className="rounded-2xl border border-border/60 bg-muted/20 overflow-hidden">
+                    <button
+                      onClick={() => toggleGroup(property)}
+                      className="w-full flex items-center gap-3 px-3.5 py-3 text-left active:bg-muted/40 transition-colors"
+                      style={{ touchAction: 'manipulation', minHeight: '56px' }}
+                      aria-expanded={!isCollapsed}
+                    >
+                      <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                        <Building2 className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold truncate leading-tight">{property}</p>
+                        <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                          {items.length} tenant{items.length !== 1 ? 's' : ''}
+                          {groupDaily > 0 && <> · {formatUGX(groupDaily)}/day expected</>}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none">Owing</p>
+                        <p className={`text-sm font-bold font-mono leading-tight ${groupOwing > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                          {groupOwing > 0 ? formatUGX(groupOwing) : 'UGX 0'}
+                        </p>
+                      </div>
+                      {isCollapsed
+                        ? <ArrowDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                        : <ArrowUp className="h-4 w-4 text-muted-foreground shrink-0" />}
+                    </button>
+                    {!isCollapsed && (
+                      <div className="p-2 pt-0 space-y-2 bg-background/40">
+                        {items.map(c => c.el)}
+                      </div>
+                    )}
+                  </div>
+                );
+              });
+          })()}
         </div>
         )}
         </>
