@@ -2,6 +2,8 @@ import ExecutiveDashboardLayout from '@/components/layout/ExecutiveDashboardLayo
 import COOReportPage from '@/components/coo/COOReportPage';
 import { usePartnerOpsReportData } from '@/components/coo/useCOOReportData';
 import { usePersistedActiveTab } from '@/hooks/usePersistedActiveTab';
+import { useQuery } from '@tanstack/react-query';
+import { fetchSupporterSummary } from '@/lib/supabaseBatchUtils';
 import { Handshake, UserPlus, Clock, CheckCircle2, XCircle, Wallet, Users, ArrowDownToLine } from 'lucide-react';
 
 const ugx = (n: number) => `UGX ${new Intl.NumberFormat('en-UG').format(Math.round(n || 0))}`;
