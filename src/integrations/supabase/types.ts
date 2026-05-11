@@ -5411,7 +5411,13 @@ export type Database = {
       gmail_transactions: {
         Row: {
           amount: number | null
+          balance: number | null
+          channel: string | null
+          counterparty: string | null
           created_at: string
+          dedup_hash: string | null
+          direction: string | null
+          fee: number | null
           from_email: string | null
           from_name: string | null
           gmail_message_id: string
@@ -5428,7 +5434,13 @@ export type Database = {
         }
         Insert: {
           amount?: number | null
+          balance?: number | null
+          channel?: string | null
+          counterparty?: string | null
           created_at?: string
+          dedup_hash?: string | null
+          direction?: string | null
+          fee?: number | null
           from_email?: string | null
           from_name?: string | null
           gmail_message_id: string
@@ -5445,7 +5457,13 @@ export type Database = {
         }
         Update: {
           amount?: number | null
+          balance?: number | null
+          channel?: string | null
+          counterparty?: string | null
           created_at?: string
+          dedup_hash?: string | null
+          direction?: string | null
+          fee?: number | null
           from_email?: string | null
           from_name?: string | null
           gmail_message_id?: string
