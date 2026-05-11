@@ -2,6 +2,8 @@ import ExecutiveDashboardLayout from '@/components/layout/ExecutiveDashboardLayo
 import COOReportPage from '@/components/coo/COOReportPage';
 import { usePartnerOpsReportData } from '@/components/coo/useCOOReportData';
 import { usePersistedActiveTab } from '@/hooks/usePersistedActiveTab';
+import { useQuery } from '@tanstack/react-query';
+import { fetchSupporterSummary } from '@/lib/supabaseBatchUtils';
 import { Handshake, UserPlus, Clock, CheckCircle2, XCircle, Wallet, Users, ArrowDownToLine } from 'lucide-react';
 
 const ugx = (n: number) => `UGX ${new Intl.NumberFormat('en-UG').format(Math.round(n || 0))}`;
@@ -13,10 +15,16 @@ const ugx = (n: number) => `UGX ${new Intl.NumberFormat('en-UG').format(Math.rou
 export default function PartnerOpsReportPage() {
   const [, setActiveTab] = usePersistedActiveTab('coo');
   const { data, isLoading, refetch } = usePartnerOpsReportData();
+  const { data: partnerSummary } = useQuery({
+    queryKey: ['partner-summary'],
+    queryFn: fetchSupporterSummary,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const k = data?.kpis ?? { totalPortfolios: 0, totalAum: 0, verified: 0, pendingReview: 0, rejected: 0, pendingWithdrawals: 0, pendingWithdrawalAmt: 0 };
   const activities = data?.activities ?? [];
   const trend = data?.trend ?? [];
+  const totalPartners = partnerSummary?.totalPartners ?? 0;
 
   return (
     <ExecutiveDashboardLayout role="coo" activeTab="reports-partner-ops" onTabChange={setActiveTab}>
@@ -37,7 +45,7 @@ export default function PartnerOpsReportPage() {
           { label: 'Pending withdrawals',   value: String(k.pendingWithdrawals), sub: 'Awaiting Financial Ops', icon: ArrowDownToLine, severity: 'warning', urgent: k.pendingWithdrawals > 0 },
           { label: 'Pending payout (UGX)',  value: ugx(k.pendingWithdrawalAmt), sub: 'Sum across requests',     icon: Wallet,   severity: 'warning' },
           { label: 'Verified portfolios',   value: String(k.verified),        sub: 'Cleared by CFO',            icon: CheckCircle2, severity: 'success' },
-          { label: 'Active partner pool',   value: String(activities.filter(a => a.type === 'New portfolio').length), sub: 'In window', icon: Users, severity: 'neutral' },
+          { label: 'Total Partners',     value: String(totalPartners), sub: 'With 1+ portfolios',        icon: Users, severity: 'neutral' },
         ]}
         charts={[
           {
