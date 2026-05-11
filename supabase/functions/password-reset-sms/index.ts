@@ -49,12 +49,12 @@ function formatPhoneInternational(rawPhone: string): string {
   return "+" + digits;
 }
 
-async function sendSMS(phone: string, message: string): Promise<boolean> {
+async function sendSMS(phone: string, message: string): Promise<{ ok: boolean; reason?: string }> {
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
   if (!apiKey || !username) {
     console.error("[password-reset-sms] Missing AT credentials");
-    return false;
+    return { ok: false, reason: "SMS service not configured" };
   }
   const isSandbox = username.toLowerCase() === "sandbox";
   const baseUrl = isSandbox
@@ -74,13 +74,18 @@ async function sendSMS(phone: string, message: string): Promise<boolean> {
     console.log("[password-reset-sms] AT response:", JSON.stringify(data));
     const recipients = data?.SMSMessageData?.Recipients;
     if (recipients?.length > 0) {
-      const status = recipients[0].statusCode;
-      return status === 101 || status === 100;
+      const r = recipients[0];
+      const status = r.statusCode;
+      if (status === 101 || status === 100) return { ok: true };
+      if (status === 405 || /InsufficientBalance/i.test(r.status || "")) {
+        return { ok: false, reason: "SMS service is temporarily out of credit. Please try email reset or contact support." };
+      }
+      return { ok: false, reason: r.status || "SMS provider rejected the request" };
     }
-    return false;
+    return { ok: false, reason: "No recipient response from SMS provider" };
   } catch (error) {
     console.error("[password-reset-sms] SMS error:", error);
-    return false;
+    return { ok: false, reason: "Network error contacting SMS provider" };
   }
 }
 
@@ -240,9 +245,14 @@ Deno.serve(async (req) => {
       const message = `Your Welile password reset code is: ${otp}. It expires in 1 hour. Do not share this code with anyone.`;
       const sent = await sendSMS(phone, message);
 
-      if (!sent) {
-        return new Response(JSON.stringify({ error: "Failed to send SMS. Please try again." }), {
-          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      if (!sent.ok) {
+        // Return 200 with structured error to avoid frontend blank-screen on 500.
+        return new Response(JSON.stringify({
+          success: false,
+          error: sent.reason || "Failed to send SMS. Please try again.",
+          fallback: true,
+        }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
