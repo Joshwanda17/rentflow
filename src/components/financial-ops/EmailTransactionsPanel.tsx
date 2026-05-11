@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff } from 'lucide-react';
+import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, History } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription,
 } from '@/components/ui/dialog';
@@ -118,6 +118,8 @@ export function EmailTransactionsPanel() {
 
       <GmailConnectionStatus state={state} lastSuccessAt={lastSuccessAt} />
 
+      <GmailReconnectAuditPanel />
+
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard label="Emails captured" value={rows.length.toString()} />
         <StatCard label="Parsed transactions" value={parsedCount.toString()} />
@@ -209,6 +211,31 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: R
 }
 
 function GmailConnectionStatus({ state, lastSuccessAt }: { state: PollState | null; lastSuccessAt: string | null }) {
+  const { toast } = useToast();
+  const [verifying, setVerifying] = useState(false);
+
+  const verifyNow = async (action: 'verify' | 'reconnect_initiated') => {
+    setVerifying(true);
+    const { data, error } = await supabase.functions.invoke('gmail-verify-connection', { body: { action } });
+    setVerifying(false);
+    if (error) {
+      toast({ title: 'Verify failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    const oc = (data as any)?.outcome;
+    const ms = (data as any)?.latency_ms;
+    if (oc === 'verified' || oc === 'skipped') {
+      toast({ title: `Gmail ${oc}`, description: ms ? `${ms}ms — logged to audit.` : 'Logged to audit.' });
+    } else {
+      toast({
+        title: `Gmail ${oc ?? 'error'}`,
+        description: ((data as any)?.error || 'See audit log for details.').slice(0, 200),
+        variant: 'destructive',
+      });
+    }
+    window.dispatchEvent(new CustomEvent('gmail-reconnect-audit-refresh'));
+  };
+
   const err = (state?.last_error || '').toLowerCase();
   const isExpired =
     state?.last_status === 'error' &&
@@ -255,7 +282,130 @@ function GmailConnectionStatus({ state, lastSuccessAt }: { state: PollState | nu
             {lastSuccessAt ? format(new Date(lastSuccessAt), 'MMM d, HH:mm:ss') : 'never'}
           </strong>
         </span>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 px-2 gap-1.5 text-[11px]"
+          onClick={() => verifyNow('verify')}
+          disabled={verifying}
+        >
+          {verifying ? <Loader2 className="h-3 w-3 animate-spin" /> : <ShieldCheck className="h-3 w-3" />}
+          Verify
+        </Button>
+        {(isExpired || isError) && (
+          <Button
+            size="sm"
+            variant="destructive"
+            className="h-7 px-2 gap-1.5 text-[11px]"
+            onClick={() => verifyNow('reconnect_initiated')}
+            disabled={verifying}
+          >
+            <RefreshCw className="h-3 w-3" />
+            Log reconnect
+          </Button>
+        )}
       </div>
+    </div>
+  );
+}
+
+interface ReconnectAuditRow {
+  id: string;
+  action: string;
+  outcome: string;
+  latency_ms: number | null;
+  error_message: string | null;
+  initiated_by_email: string | null;
+  created_at: string;
+}
+
+function GmailReconnectAuditPanel() {
+  const [rows, setRows] = useState<ReconnectAuditRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = async () => {
+    const { data } = await (supabase.from('gmail_reconnect_audit') as any)
+      .select('id,action,outcome,latency_ms,error_message,initiated_by_email,created_at')
+      .order('created_at', { ascending: false })
+      .limit(25);
+    setRows((data as ReconnectAuditRow[]) ?? []);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    load();
+    const onRefresh = () => load();
+    window.addEventListener('gmail-reconnect-audit-refresh', onRefresh);
+    const ch = supabase
+      .channel('gmail_reconnect_audit_feed')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'gmail_reconnect_audit' },
+        (payload) => setRows((cur) => [payload.new as ReconnectAuditRow, ...cur].slice(0, 25)),
+      )
+      .subscribe();
+    return () => {
+      window.removeEventListener('gmail-reconnect-audit-refresh', onRefresh);
+      supabase.removeChannel(ch);
+    };
+  }, []);
+
+  const outcomeBadge = (oc: string) => {
+    const map: Record<string, string> = {
+      verified: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20',
+      skipped: 'bg-sky-500/10 text-sky-700 border-sky-500/20',
+      initiated: 'bg-amber-500/10 text-amber-700 border-amber-500/20',
+      failed: 'bg-rose-500/10 text-rose-700 border-rose-500/20',
+      error: 'bg-destructive/10 text-destructive border-destructive/20',
+    };
+    return map[oc] ?? 'bg-muted text-muted-foreground';
+  };
+
+  return (
+    <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="p-4 border-b flex items-center gap-2">
+        <History className="h-4 w-4 text-muted-foreground" />
+        <h3 className="font-semibold text-sm">Gmail reconnect / verify audit log</h3>
+        <span className="text-[11px] text-muted-foreground ml-auto">last 25</span>
+      </div>
+      {loading ? (
+        <div className="p-6 flex justify-center">
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="p-6 text-center text-sm text-muted-foreground">
+          No verify or reconnect attempts recorded yet.
+        </div>
+      ) : (
+        <div className="divide-y max-h-[320px] overflow-y-auto">
+          {rows.map((r) => (
+            <div key={r.id} className="p-3 text-sm flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant="outline" className={`text-[10px] capitalize ${outcomeBadge(r.outcome)}`}>
+                    {r.outcome}
+                  </Badge>
+                  <Badge variant="outline" className="text-[10px] capitalize">
+                    {r.action.replace('_', ' ')}
+                  </Badge>
+                  {r.latency_ms !== null && (
+                    <span className="text-[10px] font-mono text-muted-foreground">{r.latency_ms}ms</span>
+                  )}
+                  {r.initiated_by_email && (
+                    <span className="text-[11px] text-muted-foreground truncate">by {r.initiated_by_email}</span>
+                  )}
+                </div>
+                {r.error_message && (
+                  <p className="text-[11px] text-destructive/90 mt-1 line-clamp-2">{r.error_message}</p>
+                )}
+              </div>
+              <span className="text-[11px] text-muted-foreground shrink-0 font-mono">
+                {format(new Date(r.created_at), 'MMM d, HH:mm:ss')}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
