@@ -306,9 +306,9 @@ export default function WithdrawFlow({
     return 'Cash Collection';
   };
 
-  const processWithdrawal = async () => {
-    if (!user) return;
-    if (isSubmittingRef.current) return;
+  const processWithdrawal = async (): Promise<boolean> => {
+    if (!user) return false;
+    if (isSubmittingRef.current) return false;
     isSubmittingRef.current = true;
 
     try {
@@ -323,7 +323,7 @@ export default function WithdrawFlow({
             { duration: 8000 },
           );
           isSubmittingRef.current = false;
-          return;
+          return false;
         }
       } catch (e) {
         console.warn('[WithdrawFlow] ledger pre-check failed, proceeding to server gate', e);
@@ -370,7 +370,7 @@ export default function WithdrawFlow({
           // Force a fresh ledger read so the UI reflects truth.
           await refetchLedger();
           isSubmittingRef.current = false;
-          return;
+          return false;
         }
         if ((requestError as any).code === '23505') {
           const msg = String((requestError as any).message || '');
@@ -382,13 +382,13 @@ export default function WithdrawFlow({
             // Reset so a different recipient/amount can be tried.
             clientRequestIdRef.current = null;
             isSubmittingRef.current = false;
-            return;
+            return false;
           }
           // Idempotency key collision — the original insert already
           // succeeded server-side. Surface a soft success and stop.
           toast.success('Withdrawal already submitted.');
           isSubmittingRef.current = false;
-          return;
+          return true;
         }
         throw new Error(requestError.message || 'Failed to submit withdrawal request');
       }
@@ -437,12 +437,14 @@ export default function WithdrawFlow({
       // Submission committed — release the idempotency key so the next
       // intentional withdrawal gets a fresh one.
       clientRequestIdRef.current = null;
+      return true;
     } catch (error: any) {
       console.error('Withdrawal failed:', error);
       setPaymentStatus('failed');
       toast.error(error.message || 'Withdrawal failed');
       // Keep clientRequestIdRef so a manual retry from the user collapses
       // into the same row server-side via the unique index.
+      return false;
     } finally {
       isSubmittingRef.current = false;
     }
@@ -456,9 +458,15 @@ export default function WithdrawFlow({
   };
 
   const handleProcessingComplete = async () => {
-    await processWithdrawal();
+    const ok = await processWithdrawal();
     setIsProcessing(false);
-    setIsComplete(true);
+    if (ok) {
+      setIsComplete(true);
+    } else {
+      // Bounce back to the review step so the user can retry instead of
+      // seeing a false "Payment Pending" success screen.
+      setCurrentStep(4);
+    }
   };
 
   const renderStep = () => {
