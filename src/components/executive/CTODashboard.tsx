@@ -79,15 +79,33 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
     staleTime: 600000,
   });
 
-  // Real: notifications as system events log
+  // Authoritative system event stream: public.system_events
+  // (notifications is write-suppressed per platform policy and is NOT the source of truth)
   const { data: systemEvents, isLoading: loadingEvents } = useQuery({
-    queryKey: ['cto-system-events'],
+    queryKey: ['cto-system-events-v2'],
     queryFn: async () => {
-      const { data } = await supabase.from('notifications').select('id, title, message, type, created_at')
-        .order('created_at', { ascending: false }).limit(100);
-      return data || [];
+      const { data } = await supabase.from('system_events')
+        .select('id, event_type, user_id, related_entity_type, related_entity_id, metadata, processed, created_at')
+        .order('created_at', { ascending: false })
+        .limit(200);
+      const categorize = (et: string): 'security' | 'error' | 'warning' | 'info' => {
+        const e = (et || '').toLowerCase();
+        if (/(fraud|frozen|freeze|suspicious|breach|denied|unauthorized|locked|blocked)/.test(e)) return 'security';
+        if (/(fail|failed|reject|rejected|error|defaulted|cancelled|reversal|reversed)/.test(e)) return 'error';
+        if (/(drift|warning|absorb|stale|retry|missing|overdraw|unrouted|violation)/.test(e)) return 'warning';
+        return 'info';
+      };
+      return (data || []).map((r: any) => ({
+        id: r.id,
+        title: r.event_type,
+        message: r.related_entity_type
+          ? `${r.related_entity_type}${r.related_entity_id ? ' #' + String(r.related_entity_id).slice(0, 8) : ''}${r.metadata ? ' · ' + JSON.stringify(r.metadata).slice(0, 140) : ''}`
+          : (r.metadata ? JSON.stringify(r.metadata).slice(0, 180) : ''),
+        type: categorize(r.event_type),
+        created_at: r.created_at,
+      }));
     },
-    staleTime: 300000,
+    staleTime: 60000,
   });
 
   // Real: deposit request processing stats (system throughput indicator)
@@ -169,7 +187,7 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
   });
 
   // Derived metrics
-  const errorCount = (systemEvents || []).filter(n => n.type === 'error' || n.type === 'alert' || n.type === 'warning').length;
+  const errorCount = (systemEvents || []).filter(n => n.type === 'error' || n.type === 'warning').length;
   const securityAlerts = (systemEvents || []).filter(n =>
     n.type === 'security' || n.title?.toLowerCase().includes('fraud') || n.title?.toLowerCase().includes('frozen')
   ).length;
@@ -186,7 +204,8 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
     { key: 'created_at', label: 'Time', render: (v) => v ? format(new Date(v as string), 'dd MMM HH:mm') : '—' },
     { key: 'type', label: 'Type', render: (v) => (
       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-        v === 'error' || v === 'alert' ? 'bg-destructive/10 text-destructive' :
+        v === 'error' ? 'bg-destructive/10 text-destructive' :
+        v === 'security' ? 'bg-purple-500/10 text-purple-700' :
         v === 'warning' ? 'bg-amber-500/10 text-amber-700' :
         'bg-muted text-muted-foreground'
       }`}>
@@ -352,7 +371,6 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
             label: 'Type',
             options: [
               { value: 'error', label: 'Error' },
-              { value: 'alert', label: 'Alert' },
               { value: 'warning', label: 'Warning' },
               { value: 'info', label: 'Info' },
               { value: 'security', label: 'Security' },
