@@ -23,9 +23,29 @@ import { captureOfflineDraft } from '@/lib/offlineCollectionDrafts';
  *    constraint 'wallets_balance_check'") that bubbles up from the wallet
  *    sole-writer trigger when the cached balance is stale.
  */
-function humanizeAllocationError(message: string, code?: string): string {
+function humanizeAllocationError(
+  message: string,
+  code?: string,
+  details?: { strict_float?: number | null; cached_float?: number | null; requested?: number | null },
+): string {
   if (code === 'COMMISSION_LEDGER_INCONSISTENT') {
     return 'Float allocation paused — your commission ledger is out of balance. Support has been notified and will reconcile your wallet shortly.';
+  }
+  if (code === 'INSUFFICIENT_FLOAT') {
+    const strict = Number(details?.strict_float ?? 0);
+    const cached = Number(details?.cached_float ?? 0);
+    const requested = Number(details?.requested ?? 0);
+    const available = Math.max(0, Math.min(strict, cached));
+    const shortBy = Math.max(0, requested - available);
+    const parts = [
+      `Insufficient float to allocate ${formatUGX(requested)}.`,
+      `Available float: ${formatUGX(available)}${shortBy > 0 ? ` (short by ${formatUGX(shortBy)})` : ''}.`,
+    ];
+    if (Number.isFinite(strict) && strict !== cached) {
+      parts.push(`Verified ledger float: ${formatUGX(strict)} · Cached: ${formatUGX(cached)}.`);
+    }
+    parts.push('Top up your float wallet, then retry.');
+    return parts.join(' ');
   }
   const m = (message || '').toLowerCase();
   if (m.includes('wallets_balance_check') || m.includes('violates check constraint')) {
@@ -125,7 +145,11 @@ export function AgentTenantCollectDialog({
       if (!res?.success || res?.error) {
         const rawMsg = res?.error || 'Allocation failed. Please try again.';
         const message = res?.error_code
-          ? humanizeAllocationError(rawMsg, res.error_code)
+          ? humanizeAllocationError(rawMsg, res.error_code, {
+              strict_float: res?.strict_float ?? res?.metadata?.strict_float,
+              cached_float: res?.cached_float ?? res?.metadata?.cached_float,
+              requested: res?.requested ?? amount,
+            })
           : humanizeAllocationError(rawMsg);
         console.error('[AgentTenantCollectDialog] allocation rejected:', res);
         throw new Error(message);
