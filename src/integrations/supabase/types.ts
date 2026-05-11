@@ -9900,6 +9900,7 @@ export type Database = {
           next_roi_due_date: string | null
           number_of_payments: number | null
           outstanding_at_end: number | null
+          outstanding_grace_days: number | null
           payout_method: string | null
           payout_transaction_reference: string | null
           preferred_language: string | null
@@ -9981,6 +9982,7 @@ export type Database = {
           next_roi_due_date?: string | null
           number_of_payments?: number | null
           outstanding_at_end?: number | null
+          outstanding_grace_days?: number | null
           payout_method?: string | null
           payout_transaction_reference?: string | null
           preferred_language?: string | null
@@ -10062,6 +10064,7 @@ export type Database = {
           next_roi_due_date?: string | null
           number_of_payments?: number | null
           outstanding_at_end?: number | null
+          outstanding_grace_days?: number | null
           payout_method?: string | null
           payout_transaction_reference?: string | null
           preferred_language?: string | null
