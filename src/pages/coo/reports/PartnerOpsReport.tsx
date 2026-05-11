@@ -15,10 +15,16 @@ const ugx = (n: number) => `UGX ${new Intl.NumberFormat('en-UG').format(Math.rou
 export default function PartnerOpsReportPage() {
   const [, setActiveTab] = usePersistedActiveTab('coo');
   const { data, isLoading, refetch } = usePartnerOpsReportData();
+  const { data: partnerSummary } = useQuery({
+    queryKey: ['partner-summary'],
+    queryFn: fetchSupporterSummary,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const k = data?.kpis ?? { totalPortfolios: 0, totalAum: 0, verified: 0, pendingReview: 0, rejected: 0, pendingWithdrawals: 0, pendingWithdrawalAmt: 0 };
   const activities = data?.activities ?? [];
   const trend = data?.trend ?? [];
+  const totalPartners = partnerSummary?.totalPartners ?? 0;
 
   return (
     <ExecutiveDashboardLayout role="coo" activeTab="reports-partner-ops" onTabChange={setActiveTab}>
