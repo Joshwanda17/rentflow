@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Download, FileText, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { Loader2, Download, FileText, ArrowDownLeft, ArrowUpRight, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { UserSearchPicker } from './UserSearchPicker';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, parseISO } from 'date-fns';
@@ -36,6 +39,9 @@ export function CFOWalletActivities() {
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [directionFilter, setDirectionFilter] = useState<'all' | 'cash_in' | 'cash_out'>('all');
+  const [dateFrom, setDateFrom] = useState<string>('');
+  const [dateTo, setDateTo] = useState<string>('');
 
   const loadActivities = async (user: UserResult) => {
     setLoading(true);
@@ -73,12 +79,26 @@ export function CFOWalletActivities() {
     if (u) loadActivities(u);
   };
 
-  const totalIn = entries.filter(e => e.direction === 'cash_in').reduce((s, e) => s + Number(e.amount), 0);
-  const totalOut = entries.filter(e => e.direction === 'cash_out').reduce((s, e) => s + Number(e.amount), 0);
+  const filteredEntries = useMemo(() => {
+    const fromMs = dateFrom ? new Date(dateFrom + 'T00:00:00').getTime() : null;
+    const toMs = dateTo ? new Date(dateTo + 'T23:59:59').getTime() : null;
+    return entries.filter(e => {
+      if (directionFilter !== 'all' && e.direction !== directionFilter) return false;
+      const t = new Date(e.transaction_date).getTime();
+      if (fromMs !== null && t < fromMs) return false;
+      if (toMs !== null && t > toMs) return false;
+      return true;
+    });
+  }, [entries, directionFilter, dateFrom, dateTo]);
+
+  const totalIn = filteredEntries.filter(e => e.direction === 'cash_in').reduce((s, e) => s + Number(e.amount), 0);
+  const totalOut = filteredEntries.filter(e => e.direction === 'cash_out').reduce((s, e) => s + Number(e.amount), 0);
   const netBalance = totalIn - totalOut;
+  const hasFilters = directionFilter !== 'all' || dateFrom || dateTo;
+  const clearFilters = () => { setDirectionFilter('all'); setDateFrom(''); setDateTo(''); };
 
   const exportPdf = async () => {
-    if (!selectedUser || entries.length === 0) {
+    if (!selectedUser || filteredEntries.length === 0) {
       toast.error('Nothing to export');
       return;
     }
@@ -127,17 +147,25 @@ export function CFOWalletActivities() {
       doc.text('Summary', margin, y);
       y += 5;
       doc.setFont('helvetica', 'normal');
+      const filterLabel =
+        directionFilter === 'cash_in' ? 'Deposits only' :
+        directionFilter === 'cash_out' ? 'Withdrawals only' : 'All directions';
+      const rangeLabel = `${dateFrom || 'earliest'} → ${dateTo || 'latest'}`;
+      doc.text(`Filter:    ${filterLabel}`, margin, y);
+      y += 5;
+      doc.text(`Range:     ${rangeLabel}`, margin, y);
+      y += 5;
       doc.text(`Total In:  ${formatUGX(totalIn)}`, margin, y);
       y += 5;
       doc.text(`Total Out: ${formatUGX(totalOut)}`, margin, y);
       y += 5;
       doc.text(`Net:       ${formatUGX(netBalance)}`, margin, y);
       y += 5;
-      doc.text(`Entries:   ${entries.length}`, margin, y);
+      doc.text(`Entries:   ${filteredEntries.length}`, margin, y);
       y += 6;
 
       // Table
-      const rows = entries.map(e => [
+      const rows = filteredEntries.map(e => [
         format(parseISO(e.transaction_date), 'dd MMM yyyy HH:mm'),
         e.direction === 'cash_in' ? 'IN' : 'OUT',
         e.category.replace(/_/g, ' '),
@@ -194,6 +222,37 @@ export function CFOWalletActivities() {
 
       {selectedUser && (
         <>
+          <Card>
+            <CardContent className="pt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+                <div>
+                  <Label className="text-xs">Type</Label>
+                  <Select value={directionFilter} onValueChange={(v: any) => setDirectionFilter(v)}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="cash_in">Deposits (In)</SelectItem>
+                      <SelectItem value="cash_out">Withdrawals (Out)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">From</Label>
+                  <Input type="date" value={dateFrom} max={dateTo || undefined} onChange={e => setDateFrom(e.target.value)} className="mt-1" />
+                </div>
+                <div>
+                  <Label className="text-xs">To</Label>
+                  <Input type="date" value={dateTo} min={dateFrom || undefined} onChange={e => setDateTo(e.target.value)} className="mt-1" />
+                </div>
+                <div>
+                  <Button variant="outline" size="sm" onClick={clearFilters} disabled={!hasFilters} className="w-full">
+                    <X className="h-4 w-4 mr-1" /> Clear filters
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Card><CardContent className="pt-4">
               <p className="text-xs text-muted-foreground">Total In</p>
@@ -209,12 +268,12 @@ export function CFOWalletActivities() {
             </CardContent></Card>
             <Card><CardContent className="pt-4">
               <p className="text-xs text-muted-foreground">Entries</p>
-              <p className="text-lg font-bold">{entries.length}</p>
+              <p className="text-lg font-bold">{filteredEntries.length}<span className="text-xs text-muted-foreground font-normal"> / {entries.length}</span></p>
             </CardContent></Card>
           </div>
 
           <div className="flex justify-end">
-            <Button onClick={exportPdf} disabled={exporting || loading || entries.length === 0} size="sm">
+            <Button onClick={exportPdf} disabled={exporting || loading || filteredEntries.length === 0} size="sm">
               {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
               Export PDF
             </Button>
@@ -224,7 +283,7 @@ export function CFOWalletActivities() {
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2">
                 <FileText className="h-4 w-4" />
-                Activities ({entries.length})
+                Activities ({filteredEntries.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -232,11 +291,11 @@ export function CFOWalletActivities() {
                 <div className="flex items-center justify-center py-8 text-muted-foreground">
                   <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading...
                 </div>
-              ) : entries.length === 0 ? (
-                <div className="text-center py-8 text-sm text-muted-foreground">No wallet activities found.</div>
+              ) : filteredEntries.length === 0 ? (
+                <div className="text-center py-8 text-sm text-muted-foreground">No wallet activities match the current filters.</div>
               ) : (
                 <div className="space-y-1 max-h-[600px] overflow-y-auto">
-                  {entries.map(e => {
+                  {filteredEntries.map(e => {
                     const isIn = e.direction === 'cash_in';
                     return (
                       <div key={e.id} className="flex items-start justify-between gap-2 p-2 rounded-lg hover:bg-muted/30 border-b last:border-0">
