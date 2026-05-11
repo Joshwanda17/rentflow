@@ -34,6 +34,7 @@ import { CFOAgentRequisitions } from '@/components/cfo/CFOAgentRequisitions';
 import { RentCollectionsFeed } from '@/components/cfo/RentCollectionsFeed';
 import { AgentPerformanceRankings } from '@/components/cfo/AgentPerformanceRankings';
 import { CFOPartnerInvestments } from '@/components/cfo/CFOPartnerInvestments';
+import { CronJobsHealthPanel } from '@/components/cfo/CronJobsHealthPanel';
 export default function CFODashboard() {
   const { user, loading: authLoading, role } = useAuth();
   const navigate = useNavigate();
@@ -244,6 +245,7 @@ export default function CFODashboard() {
 
           {/* Reconciliation Tab */}
           <TabsContent value="reconciliation" className="space-y-6">
+            <CronJobsHealthPanel />
             <p className="text-sm text-muted-foreground">
               Reconciliation panels have been retired. The general ledger is now
               the single source of truth for every wallet bucket.

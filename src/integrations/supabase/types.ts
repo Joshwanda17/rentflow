@@ -13765,6 +13765,17 @@ export type Database = {
             }
             Returns: undefined
           }
+      cron_jobs_health: {
+        Args: never
+        Returns: {
+          active: boolean
+          is_stale: boolean
+          jobname: string
+          last_run_at: string
+          last_status: string
+          schedule: string
+        }[]
+      }
       decrement_rent_requested: {
         Args: { p_amount: number; p_summary_id: string }
         Returns: undefined

@@ -11,6 +11,8 @@ export interface AgentSplitBalances {
   commissionBalance: number;
   /** Withdrawable funds NOT classified as commission (e.g. CFO admin-expense credits). Review with CFO. */
   otherBalance: number;
+  /** Sum of in-flight withdrawal requests (pending/processing). Subtracted from withdrawable already. */
+  pendingHolds: number;
   totalBalance: number;
 }
 
@@ -58,6 +60,7 @@ export function useAgentBalances(agentId?: string) {
       const strictWithdrawable = Number((view.withdrawable as number | string | undefined) ?? 0);
       const floatBalance = Number((view.float_balance as number | string | undefined) ?? 0);
       const advanceBalance = Number((view.advance_balance as number | string | undefined) ?? 0);
+      const pendingHolds = Number((view.pending_holds as number | string | undefined) ?? 0);
 
       // Compute true commission balance by NETTING in vs out per row.
       // CRITICAL: legacy ghost/back-fill data sometimes contains a paired
@@ -103,6 +106,7 @@ export function useAgentBalances(agentId?: string) {
         advanceBalance,
         commissionBalance,
         otherBalance,
+        pendingHolds,
         totalBalance: withdrawableBalance + floatBalance,
       };
     },
@@ -126,6 +130,7 @@ export function useAgentBalances(agentId?: string) {
     advanceBalance: data?.advanceBalance ?? 0,
     commissionBalance: data?.commissionBalance ?? 0,
     otherBalance: data?.otherBalance ?? 0,
+    pendingHolds: data?.pendingHolds ?? 0,
     totalBalance: data?.totalBalance ?? 0,
     isLoading,
     error,
