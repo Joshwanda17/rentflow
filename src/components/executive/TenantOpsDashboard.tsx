@@ -1020,13 +1020,6 @@ export function TenantOpsDashboard() {
       icon: Network,
       color: 'bg-indigo-500/10 text-indigo-600 border-indigo-200',
     },
-    {
-      id: 'daily-collections' as ActiveView,
-      label: 'Daily Collections',
-      description: 'Live daily collection monitoring',
-      icon: CalendarCheck,
-      color: 'bg-cyan-500/10 text-cyan-600 border-cyan-200',
-    },
   ];
 
   const goBack = () => {
@@ -1206,7 +1199,12 @@ export function TenantOpsDashboard() {
             transition={{ duration: 0.15 }}
             className="space-y-3"
           >
-            {/* Quick KPI summary row */}
+            {/* Headline: Daily Collection Monitoring Dashboard */}
+            <DailyCollectionMonitoringDashboard mode="editable" title="Daily Collection Monitoring" />
+
+            {/* Pipeline status strip */}
+            <div className="pt-2">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Pipeline status</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <Card className="border bg-amber-500/5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setOverviewFilter('pending')}>
                 <CardContent className="p-2.5 text-center">
@@ -1233,8 +1231,11 @@ export function TenantOpsDashboard() {
                 </CardContent>
               </Card>
             </div>
+            </div>
 
-            {/* Print Report Button */}
+            {/* Reports & Exports */}
+            <div className="pt-2">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Reports &amp; Exports</p>
             <div className="flex flex-wrap justify-end items-center gap-2">
               <Popover>
                 <PopoverTrigger asChild>
@@ -1314,8 +1315,11 @@ export function TenantOpsDashboard() {
                 Print Report
               </Button>
             </div>
+            </div>
 
-            {/* Navigation Cards */}
+            {/* Tenant Ops Tools */}
+            <div className="pt-2">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Tenant Ops Tools</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-2.5">
               {navCards.map((card) => {
                 const Icon = card.icon;
@@ -1350,6 +1354,7 @@ export function TenantOpsDashboard() {
                   </motion.button>
                 );
               })}
+            </div>
             </div>
             {/* Tenant List */}
             <TenantOverviewList
