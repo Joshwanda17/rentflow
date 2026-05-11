@@ -37,6 +37,47 @@ export async function fetchAllUserIdsByRole(role: 'agent' | 'ceo' | 'cfo' | 'cmo
 }
 
 /**
+ * Fetch user IDs that hold ONLY the `supporter` role (no other enabled roles).
+ * Used by Partner Ops + COO partner dashboards so the supporter list excludes
+ * staff/agents/managers who happen to have a supporter role attached.
+ */
+let _supporterOnlyIdsCache: { ids: string[]; ts: number } | null = null;
+const SUPPORTER_ONLY_TTL = 5 * 60 * 1000;
+export async function fetchSupporterOnlyUserIds(): Promise<string[]> {
+  if (_supporterOnlyIdsCache && Date.now() - _supporterOnlyIdsCache.ts < SUPPORTER_ONLY_TTL) {
+    return _supporterOnlyIdsCache.ids;
+  }
+  // Pull all enabled role rows (paginated) and compute users whose ONLY role is supporter.
+  const PAGE_SIZE = 1000;
+  let offset = 0;
+  let hasMore = true;
+  const roleMap = new Map<string, Set<string>>();
+  while (hasMore) {
+    const { data } = await supabase
+      .from('user_roles')
+      .select('user_id, role')
+      .eq('enabled', true)
+      .range(offset, offset + PAGE_SIZE - 1);
+    if (data && data.length > 0) {
+      data.forEach((r: any) => {
+        if (!roleMap.has(r.user_id)) roleMap.set(r.user_id, new Set());
+        roleMap.get(r.user_id)!.add(r.role);
+      });
+      offset += PAGE_SIZE;
+      hasMore = data.length === PAGE_SIZE;
+    } else {
+      hasMore = false;
+    }
+  }
+  const ids: string[] = [];
+  roleMap.forEach((roles, userId) => {
+    if (roles.size === 1 && roles.has('supporter')) ids.push(userId);
+  });
+  _supporterOnlyIdsCache = { ids, ts: Date.now() };
+  return ids;
+}
+
+/**
  * Batch IN queries to avoid URL length overflow (PostgREST 400).
  * Calls `fn` with chunks of IDs and merges results.
  */
@@ -64,7 +105,7 @@ export async function fetchAllPartnerIds(): Promise<string[]> {
   if (_partnerIdsCache && Date.now() - _partnerIdsCache.ts < PARTNER_IDS_TTL) {
     return _partnerIdsCache.ids;
   }
-  const allSupporterIds = await fetchAllUserIdsByRole('supporter');
+  const allSupporterIds = await fetchSupporterOnlyUserIds();
   if (allSupporterIds.length === 0) {
     _partnerIdsCache = { ids: [], ts: Date.now() };
     return [];
@@ -160,7 +201,7 @@ export async function fetchAllNearingPayoutPortfolios(): Promise<{
   supporterIds: Set<string>;
 }> {
   // 1. Get all supporter IDs
-  const allSupporterIds = await fetchAllUserIdsByRole('supporter');
+  const allSupporterIds = await fetchSupporterOnlyUserIds();
   if (allSupporterIds.length === 0) {
     return { portfolios: [], profileMap: new Map(), supporterIds: new Set() };
   }
@@ -213,7 +254,7 @@ export async function fetchSupporterSummary(): Promise<{
   activePartners: number;
   suspendedPartners: number;
 }> {
-  const allIds = await fetchAllUserIdsByRole('supporter');
+  const allIds = await fetchSupporterOnlyUserIds();
   if (allIds.length === 0) {
     return { totalPartners: 0, totalFunded: 0, totalWalletBalance: 0, totalDeals: 0, activePartners: 0, suspendedPartners: 0 };
   }
