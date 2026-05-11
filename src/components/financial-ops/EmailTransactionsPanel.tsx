@@ -50,14 +50,13 @@ export function EmailTransactionsPanel() {
 
   const load = async () => {
     const [{ data: txs }, { data: ps }] = await Promise.all([
-      supabase
-        .from('gmail_transactions')
+      (supabase.from('gmail_transactions') as any)
         .select('id,gmail_message_id,from_email,from_name,subject,snippet,amount,transaction_id,parsed,internal_date,direction,channel,counterparty,fee,balance')
         .order('internal_date', { ascending: false, nullsFirst: false })
         .limit(200),
       supabase.from('gmail_poll_state').select('last_polled_at,last_status,last_error').eq('id', 1).maybeSingle(),
     ]);
-    setRows((txs as GmailTx[]) ?? []);
+    setRows((txs as unknown as GmailTx[]) ?? []);
     setState((ps as PollState) ?? null);
     setLoading(false);
   };
