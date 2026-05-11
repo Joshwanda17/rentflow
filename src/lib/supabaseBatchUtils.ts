@@ -105,23 +105,25 @@ export async function fetchAllPartnerIds(): Promise<string[]> {
   if (_partnerIdsCache && Date.now() - _partnerIdsCache.ts < PARTNER_IDS_TTL) {
     return _partnerIdsCache.ids;
   }
-  const allSupporterIds = await fetchSupporterOnlyUserIds();
-  if (allSupporterIds.length === 0) {
-    _partnerIdsCache = { ids: [], ts: Date.now() };
-    return [];
-  }
-  const supporterSet = new Set(allSupporterIds);
-  const portfolioRows = await batchedQuery<{ investor_id: string | null; agent_id: string }>(
-    allSupporterIds,
-    (batch) => supabase.from('investor_portfolios')
-      .select('investor_id, agent_id')
-      .or(`investor_id.in.(${batch.join(',')}),agent_id.in.(${batch.join(',')})`)
-  );
+  // Partner = ANY user with ≥1 row in investor_portfolios, regardless of role.
+  // Page through every portfolio (no role intersection, no status filter).
+  const PAGE = 1000;
+  let offset = 0;
+  let hasMore = true;
   const ownerIds = new Set<string>();
-  portfolioRows.forEach(p => {
-    if (p.investor_id && supporterSet.has(p.investor_id)) ownerIds.add(p.investor_id);
-    else if (p.agent_id && supporterSet.has(p.agent_id)) ownerIds.add(p.agent_id);
-  });
+  while (hasMore) {
+    const { data } = await supabase
+      .from('investor_portfolios')
+      .select('investor_id')
+      .range(offset, offset + PAGE - 1);
+    if (data && data.length > 0) {
+      data.forEach((p: any) => { if (p.investor_id) ownerIds.add(p.investor_id); });
+      offset += PAGE;
+      hasMore = data.length === PAGE;
+    } else {
+      hasMore = false;
+    }
+  }
   const ids = Array.from(ownerIds);
   _partnerIdsCache = { ids, ts: Date.now() };
   return ids;
