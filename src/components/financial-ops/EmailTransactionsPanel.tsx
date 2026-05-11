@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone } from 'lucide-react';
+import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription,
 } from '@/components/ui/dialog';
@@ -104,6 +104,7 @@ export function EmailTransactionsPanel() {
           {polling ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           Poll now
         </Button>
+        <DebugPollDialog />
         <SmsSetupGuide />
       </div>
 
@@ -231,6 +232,150 @@ function SmsSetupGuide() {
             The poller already matches subjects starting with <code>SMS from…</code> and emails from any sender containing <code>smsforwarder</code>.
           </p>
         </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+interface DebugItem {
+  id: string;
+  decision: string;
+  reason?: string;
+  from?: string | null;
+  from_name?: string | null;
+  subject?: string | null;
+  snippet?: string | null;
+  internal_date?: string | null;
+  last_cutoff?: string | null;
+  extracted?: Record<string, any>;
+  parser_notes?: string[];
+}
+
+function DebugPollDialog() {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [report, setReport] = useState<DebugItem[] | null>(null);
+  const [meta, setMeta] = useState<{ scanned: number; query: string; last_cutoff: string | null } | null>(null);
+  const [filter, setFilter] = useState<'all' | 'parsed' | 'unparsed' | 'skipped'>('all');
+
+  const runDebug = async () => {
+    setRunning(true); setReport(null);
+    const { data, error } = await supabase.functions.invoke('gmail-poll-transactions', { body: { debug: true } });
+    setRunning(false);
+    if (error) {
+      toast({ title: 'Debug poll failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    const d = data as any;
+    setReport((d?.debug ?? []) as DebugItem[]);
+    setMeta({ scanned: d?.scanned ?? 0, query: d?.query ?? '', last_cutoff: d?.last_cutoff ?? null });
+  };
+
+  const filtered = (report ?? []).filter((r) => {
+    if (filter === 'all') return true;
+    if (filter === 'skipped') return r.decision === 'skipped';
+    if (filter === 'parsed') return r.decision === 'would_insert_parsed';
+    if (filter === 'unparsed') return r.decision === 'would_insert_unparsed';
+    return true;
+  });
+
+  const counts = {
+    parsed: (report ?? []).filter((r) => r.decision === 'would_insert_parsed').length,
+    unparsed: (report ?? []).filter((r) => r.decision === 'would_insert_unparsed').length,
+    skipped: (report ?? []).filter((r) => r.decision === 'skipped').length,
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="gap-2">
+          <Bug className="h-4 w-4" /> Debug poll
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Gmail poll debug report</DialogTitle>
+          <DialogDescription>
+            Runs the poller in dry-run mode and shows why each scanned email was matched, rejected, or only partially parsed. Nothing is written to the database.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button size="sm" onClick={runDebug} disabled={running} className="gap-2">
+            {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bug className="h-4 w-4" />}
+            Run dry-run
+          </Button>
+          {report && (
+            <>
+              <Badge variant="outline">scanned {meta?.scanned ?? 0}</Badge>
+              <Badge className="bg-emerald-500/10 text-emerald-700 border-emerald-500/20">parsed {counts.parsed}</Badge>
+              <Badge className="bg-amber-500/10 text-amber-700 border-amber-500/20">unparsed {counts.unparsed}</Badge>
+              <Badge variant="secondary">skipped {counts.skipped}</Badge>
+              <div className="ml-auto flex gap-1">
+                {(['all','parsed','unparsed','skipped'] as const).map((f) => (
+                  <Button key={f} size="sm" variant={filter === f ? 'default' : 'ghost'} onClick={() => setFilter(f)} className="h-7 text-xs capitalize">{f}</Button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+        {meta?.last_cutoff && (
+          <p className="text-[11px] text-muted-foreground">
+            Last poll cutoff: <code>{meta.last_cutoff}</code> — emails older than this are skipped.
+          </p>
+        )}
+        <div className="max-h-[55vh] overflow-y-auto space-y-2 -mx-1 px-1">
+          {!report && !running && (
+            <p className="text-sm text-muted-foreground py-8 text-center">Click <strong>Run dry-run</strong> to inspect the next 50 emails Gmail returns for the query.</p>
+          )}
+          {running && (
+            <div className="py-10 flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+          )}
+          {report && filtered.length === 0 && (
+            <p className="text-sm text-muted-foreground py-6 text-center">No emails match this filter.</p>
+          )}
+          {filtered.map((item) => {
+            const tone = item.decision === 'would_insert_parsed' ? 'border-emerald-500/30 bg-emerald-500/5'
+              : item.decision === 'would_insert_unparsed' ? 'border-amber-500/30 bg-amber-500/5'
+              : 'border-muted bg-muted/30';
+            const label = item.decision === 'would_insert_parsed' ? 'parsed'
+              : item.decision === 'would_insert_unparsed' ? 'unparsed'
+              : `skipped • ${item.reason ?? ''}`;
+            return (
+              <div key={item.id} className={`rounded-lg border p-3 text-xs ${tone}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-sm truncate">{item.from_name || item.from || 'Unknown sender'}</p>
+                    <p className="text-muted-foreground truncate">{item.subject || '(no subject)'}</p>
+                    {item.snippet && <p className="text-muted-foreground/80 line-clamp-2 mt-1">{item.snippet}</p>}
+                  </div>
+                  <Badge variant="outline" className="shrink-0 text-[10px]">{label}</Badge>
+                </div>
+                {item.extracted && (
+                  <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-0.5 font-mono text-[10px]">
+                    {Object.entries(item.extracted).map(([k, v]) => (
+                      <div key={k} className="truncate">
+                        <span className="text-muted-foreground">{k}:</span> <span className={v == null ? 'text-rose-600' : 'text-foreground'}>{v == null ? '—' : String(v)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {item.parser_notes && item.parser_notes.length > 0 && (
+                  <p className="mt-2 text-[10px] text-amber-700">Notes: {item.parser_notes.join(', ')}</p>
+                )}
+                {item.reason === 'older_than_last_poll' && item.internal_date && (
+                  <p className="mt-1 text-[10px] text-muted-foreground">internal_date {item.internal_date} ≤ cutoff {item.last_cutoff}</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        {meta?.query && (
+          <details className="text-[10px] text-muted-foreground">
+            <summary className="cursor-pointer">Gmail search query</summary>
+            <pre className="mt-1 whitespace-pre-wrap break-all bg-muted p-2 rounded">{meta.query}</pre>
+          </details>
+        )}
       </DialogContent>
     </Dialog>
   );
