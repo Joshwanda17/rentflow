@@ -50,6 +50,7 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
       items: [
         { label: 'Home', icon: BarChart3, id: 'overview' },
         { label: 'Send Money', icon: Wallet, id: 'wallet-payout' },
+        { label: 'Wallet Activities', icon: ClipboardList, id: 'wallet-activities' },
         { label: 'Platform Impact', icon: Globe, id: 'platform-impact' },
       ],
     },
