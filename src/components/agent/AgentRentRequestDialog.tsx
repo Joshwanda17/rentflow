@@ -313,8 +313,10 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     else if (!isValidUgPhone(cleanTenantPhone)) errors.push('Tenant phone must be a valid Ugandan number (e.g. 0783 123 456)');
 
     const cleanNationalId = tenantNationalId.trim().toUpperCase();
-    if (!cleanNationalId || cleanNationalId.length < 10 || cleanNationalId.length > 14 || !/^[A-Z0-9]+$/.test(cleanNationalId)) {
-      errors.push('National ID is required (10-14 alphanumeric characters)');
+    if (!isOutstanding) {
+      if (!cleanNationalId || cleanNationalId.length < 10 || cleanNationalId.length > 14 || !/^[A-Z0-9]+$/.test(cleanNationalId)) {
+        errors.push('National ID is required (10-14 alphanumeric characters)');
+      }
     }
 
     if (!preferredLanguage) errors.push('Preferred language is required');
@@ -837,21 +839,6 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                           <p className="text-[10px] text-destructive">Invalid Ugandan phone number</p>
                         )}
                       </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label className="text-xs">National ID *</Label>
-                      <Input
-                        value={tenantNationalId}
-                        onChange={(e) => setTenantNationalId(e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase())}
-                        placeholder="e.g. CM12345678901"
-                        className="h-10 font-mono uppercase"
-                        maxLength={14}
-                        required
-                      />
-                      {tenantNationalId.length > 0 && (tenantNationalId.length < 10 || tenantNationalId.length > 14) && (
-                        <p className="text-[10px] text-destructive">Must be 10-14 characters</p>
-                      )}
                     </div>
 
                     <div className="space-y-1">
