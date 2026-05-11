@@ -1,54 +1,52 @@
 /**
- * SMS deposit-confirmation parser.
+ * SMS / email transaction parser.
  *
  * Pure, dependency-free extractor used by the "Paste from SMS" button in
- * `DepositFlow`. Given the raw text of a MoMo / bank confirmation SMS,
- * pulls out the four fields the deposit form requires:
- *
- *   • amount         (UGX integer)
- *   • transactionId  (MTN MP…, Airtel TID…, or generic Ref/Receipt token)
- *   • date           (normalised to YYYY-MM-DD for <input type="date">)
- *   • time           (normalised to 24h HH:MM for <input type="time">)
+ * `DepositFlow` AND by the gmail-poll-transactions edge function. Given
+ * the raw text of a MoMo / Airtel Money / bank confirmation message,
+ * pulls out every field we know how to recover.
  *
  * Any field that can't be confidently parsed is left undefined — the
- * caller is responsible for hard-blocking submit until all four are set.
+ * caller must hard-block submission until the required ones are set.
  */
 
+export type TxDirection = 'in' | 'out' | 'charge';
+export type TxChannel = 'mtn_momo' | 'airtel_money' | 'bank' | 'other';
+
 export interface ParsedSMS {
-  amount?: number;
+  amount?: number;          // primary transaction amount in UGX
+  fee?: number;             // charge/fee in UGX
+  balance?: number;         // post-transaction balance in UGX
   transactionId?: string;
-  date?: string; // YYYY-MM-DD
-  time?: string; // HH:MM (24h)
+  date?: string;            // YYYY-MM-DD
+  time?: string;            // HH:MM 24h
+  direction?: TxDirection;
+  channel?: TxChannel;
+  counterparty?: string;    // name or phone of the other party
 }
 
-/** Normalise a date token (DD/MM/YYYY, D-M-YY, YYYY-MM-DD) → YYYY-MM-DD. */
+// ─── helpers ─────────────────────────────────────────────────────────────
+const MONTH_MAP: Record<string, string> = {
+  jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+  jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
+};
+
 function normaliseDate(raw: string): string | undefined {
   const trimmed = raw.trim();
-
-  // Already ISO-ish: YYYY-MM-DD
   const iso = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
   if (iso) {
     const [, y, m, d] = iso;
     return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
   }
-
-  // DD/MM/YYYY or DD-MM-YYYY (Ugandan SMS convention is day-first)
   const dmy = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
   if (dmy) {
     let [, d, m, y] = dmy;
     if (y.length === 2) y = `20${y}`;
     return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
   }
-
   return undefined;
 }
 
-const MONTH_MAP: Record<string, string> = {
-  jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
-  jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
-};
-
-/** Normalise DD-Mon-YYYY / D Mon YY style dates → YYYY-MM-DD. */
 function normaliseNamedDate(d: string, mon: string, y: string): string | undefined {
   const mm = MONTH_MAP[mon.slice(0, 3).toLowerCase()];
   if (!mm) return undefined;
@@ -56,7 +54,6 @@ function normaliseNamedDate(d: string, mon: string, y: string): string | undefin
   return `${yyyy}-${mm}-${d.padStart(2, '0')}`;
 }
 
-/** Normalise a time token (HH:MM, H:MM AM/PM, HH:MM:SS) → 24h HH:MM. */
 function normaliseTime(raw: string): string | undefined {
   const m = raw.trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s?(AM|PM)?$/i);
   if (!m) return undefined;
@@ -69,80 +66,119 @@ function normaliseTime(raw: string): string | undefined {
   return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
 }
 
+function toInt(raw: string): number | undefined {
+  const n = Math.round(parseFloat(raw.replace(/,/g, '')));
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+}
+
+// One amount token: optional currency prefix, digits with commas, optional decimals.
+const AMT = String.raw`(?:UGX|USh|UShs?|Shs?|Ush\.)?\s*\.?\s*([\d][\d,]*(?:\.\d+)?)`;
+
+// ─── main parser ─────────────────────────────────────────────────────────
 export function parseSMS(text: string): ParsedSMS {
-  const result: ParsedSMS = {};
-  if (!text) return result;
+  const out: ParsedSMS = {};
+  if (!text) return out;
+  const t = text.replace(/\s+/g, ' ').trim();
+  const lower = t.toLowerCase();
 
-  // ── Amount ──────────────────────────────────────────────────────────
-  // Matches "UGX 50,000", "USh 50000", "UShs.50,000.00", "Shs 1,200"
-  // Skips tokens preceded by Bal/Balance/Charge/Fee so "Bal UGX 323,546" or
-  // "Charge UGX 0" don't get mistaken for the paid amount.
-  const amountRe = /(?:UGX|USh|UShs|Shs)\s*\.?\s*([\d,]+(?:\.\d+)?)/gi;
-  const skipRe = /(bal(?:ance)?|charge|fee|fees)\s*[:.]?\s*$/i;
-  let firstAmt: number | undefined;
-  let chosenAmt: number | undefined;
-  for (const m of text.matchAll(amountRe)) {
-    const cleaned = m[1].replace(/,/g, '');
-    const n = Math.round(parseFloat(cleaned));
-    if (!Number.isFinite(n) || n <= 0) continue;
-    if (firstAmt === undefined) firstAmt = n;
-    const start = m.index ?? 0;
-    const lookback = text.slice(Math.max(0, start - 12), start);
-    if (skipRe.test(lookback)) continue;
-    chosenAmt = n;
-    break;
+  // ── Channel (heuristic) ────────────────────────────────────────────
+  if (/\bmomo\b|mtn mobile money|mtn momo|\bmtn\b/i.test(t)) out.channel = 'mtn_momo';
+  else if (/airtel money|\bairtel\b|\btid\b/i.test(t)) out.channel = 'airtel_money';
+  else if (/\bbank\b|stanbic|centenary|dfcu|equity|absa|stanchart|standard chartered|housing finance|citibank|kcb|ncba|baroda|tropical|ecobank|orient|finance trust|opportunity bank|post bank|cairo bank/i.test(t))
+    out.channel = 'bank';
+  else out.channel = 'other';
+
+  // ── Direction ──────────────────────────────────────────────────────
+  if (/\b(received|deposited|credited|you have received|payment received|recd from|cash in|deposit of)\b/i.test(t))
+    out.direction = 'in';
+  else if (/\b(sent|paid|withdrawn|withdrew|debited|cash out|transferred to|payment to|purchase of|bought)\b/i.test(t))
+    out.direction = 'out';
+  else if (/\b(charge|fee|fees|tax|levy)\b/i.test(t) && !/charge\s*[:\-]?\s*(?:ugx)?\s*0\b/i.test(t))
+    out.direction = 'charge';
+
+  // ── Fee (extract before main amount so we can exclude it) ──────────
+  const feeMatch = t.match(new RegExp(String.raw`(?:Charge|Fee|Fees|Tax|Levy)\s*[:.\-]?\s*` + AMT, 'i'));
+  if (feeMatch) out.fee = toInt(feeMatch[1]);
+
+  // ── Balance (post-tx) ──────────────────────────────────────────────
+  const balMatch = t.match(new RegExp(String.raw`(?:New\s+balance|Balance|Bal)\s*[:.\-]?\s*` + AMT, 'i'));
+  if (balMatch) out.balance = toInt(balMatch[1]);
+
+  // ── Primary amount ─────────────────────────────────────────────────
+  // Strategy: prefer an amount that follows a strong verb (received/sent/paid/
+  // deposited/withdrawn/of). Fall back to the first currency-prefixed amount
+  // that is NOT the fee or balance we already extracted.
+  const verbAmt = t.match(new RegExp(
+    String.raw`(?:received|deposited|credited|sent|paid|withdrew|withdrawn|debited|payment of|amount of|sum of|of)\s+(?:UGX|USh|UShs?|Shs?)?\s*\.?\s*([\d][\d,]*(?:\.\d+)?)`,
+    'i',
+  ));
+  if (verbAmt) out.amount = toInt(verbAmt[1]);
+
+  if (out.amount === undefined) {
+    const amountRe = /(?:UGX|USh|UShs|Shs)\s*\.?\s*([\d,]+(?:\.\d+)?)/gi;
+    const skipRe = /(bal(?:ance)?|charge|fee|fees|tax|levy|new\s*balance)\s*[:.\-]?\s*$/i;
+    let firstAmt: number | undefined; let chosen: number | undefined;
+    for (const m of t.matchAll(amountRe)) {
+      const n = toInt(m[1]); if (n === undefined) continue;
+      if (firstAmt === undefined) firstAmt = n;
+      const lookback = t.slice(Math.max(0, (m.index ?? 0) - 16), m.index ?? 0);
+      if (skipRe.test(lookback)) continue;
+      if (out.fee && n === out.fee) continue;
+      if (out.balance && n === out.balance) continue;
+      chosen = n; break;
+    }
+    out.amount = chosen ?? firstAmt;
   }
-  if (chosenAmt !== undefined) result.amount = chosenAmt;
-  else if (firstAmt !== undefined) result.amount = firstAmt;
 
-  // ── Transaction ID ─────────────────────────────────────────────────
-  // Provider-specific formats first (highest signal), then generic.
-  //
-  // MTN MoMo (current): the canonical TID lives in the "ID: <digits>"
-  // field on every variant of the confirmation SMS, e.g.
-  //   "...New balance: UGX 480,692.86. ID: 40473329892. Download MoMo..."
-  // The leading `(?:^|[^A-Z])` deliberately rejects the "ID" inside
-  // "TID" so an Airtel SMS does not get mis-parsed as MTN.
-  const mtnId = text.match(/(?:^|[^A-Z])ID[:\s.#-]+(\d{8,18})\b/i);
-  // Airtel: "TID 146525101664", "TID.146...", "TID:146...". Stored
-  // canonically as "TID<digits>".
-  const airtel = text.match(/\bTID[\s.:#-]*(\d{4,18})\b/i);
-  // Legacy MTN format kept as a last-resort fallback for old SMS that
-  // only carry the MP… token without an "ID:" field.
-  const mtnLegacy = text.match(/\bMP[A-Z0-9]{8,}\b/i);
-  const generic = text.match(
-    /\b(?:Txn\s?ID|Transaction\s?ID|Ref(?:erence)?|Receipt)[:\s#]*([A-Z0-9-]{4,})\b/i,
-  );
-  if (mtnId) result.transactionId = mtnId[1];
-  else if (airtel) result.transactionId = `TID${airtel[1]}`;
-  else if (mtnLegacy) result.transactionId = mtnLegacy[0].toUpperCase();
-  else if (generic) result.transactionId = generic[1].toUpperCase();
+  // ── Transaction ID (provider-specific then generic) ────────────────
+  const mtnId = t.match(/(?:^|[^A-Z])ID[:\s.#-]+(\d{8,18})\b/i);            // MTN MoMo "ID: 4047…"
+  const airtel = t.match(/\bTID[\s.:#-]*(\d{4,18})\b/i);                     // Airtel "TID 1465…"
+  const mtnLegacy = t.match(/\bMP[A-Z0-9]{8,}\b/i);                          // legacy "MP…"
+  const flutter = t.match(/\b(?:FLW|FW)[A-Z0-9]{6,}\b/i);                    // Flutterwave
+  const bankRef = t.match(/\b(?:FT|TXN|CR|DR|TRF|REF)[A-Z0-9]{6,}\b/i);      // bank refs
+  const generic = t.match(/\b(?:Txn\s?ID|Transaction\s?ID|Trans\s?ID|Ref(?:erence)?|Receipt(?:\s?No)?|Confirmation)[:\s#]*([A-Z0-9-]{4,})\b/i);
+  if (mtnId) out.transactionId = mtnId[1];
+  else if (airtel) out.transactionId = `TID${airtel[1]}`;
+  else if (mtnLegacy) out.transactionId = mtnLegacy[0].toUpperCase();
+  else if (flutter) out.transactionId = flutter[0].toUpperCase();
+  else if (bankRef) out.transactionId = bankRef[0].toUpperCase();
+  else if (generic) out.transactionId = generic[1].toUpperCase();
+
+  // ── Counterparty (name + optional phone) ───────────────────────────
+  // "from <NAME> (256...)", "to <NAME> 256...", "from 256..."
+  const cpMatch = t.match(/\b(?:from|to|by)\s+([A-Z][A-Za-z'.\- ]{1,40}?)(?=\s+(?:on|at|UGX|USh|Shs|Bal|ID|TID|Ref|\.|,|256|\+256|0\d{9}))/);
+  if (cpMatch) out.counterparty = cpMatch[1].trim();
+  if (!out.counterparty) {
+    const phoneCp = t.match(/\b(?:from|to|by)\s+((?:\+?256|0)\d{9})\b/);
+    if (phoneCp) out.counterparty = phoneCp[1];
+  }
 
   // ── Date ───────────────────────────────────────────────────────────
-  const numericDate = text.match(
-    /\b(\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\b/,
-  );
+  const numericDate = t.match(/\b(\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\b/);
   if (numericDate) {
-    const normalised = normaliseDate(numericDate[1]);
-    if (normalised) result.date = normalised;
+    const norm = normaliseDate(numericDate[1]);
+    if (norm) out.date = norm;
   }
-  if (!result.date) {
-    // Month-name dates: "04-May-2026", "4 May 2026", "04/May/26"
-    const named = text.match(
-      /\b(\d{1,2})[\s/-](Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[\s/-](\d{2,4})\b/i,
-    );
+  if (!out.date) {
+    const named = t.match(/\b(\d{1,2})[\s/-](Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[\s/-](\d{2,4})\b/i);
     if (named) {
-      const normalised = normaliseNamedDate(named[1], named[2], named[3]);
-      if (normalised) result.date = normalised;
+      const norm = normaliseNamedDate(named[1], named[2], named[3]);
+      if (norm) out.date = norm;
     }
   }
 
   // ── Time ───────────────────────────────────────────────────────────
-  const timeMatch = text.match(/\b(\d{1,2}:\d{2}(?::\d{2})?\s?(?:AM|PM)?)\b/i);
+  const timeMatch = t.match(/\b(\d{1,2}:\d{2}(?::\d{2})?\s?(?:AM|PM)?)\b/i);
   if (timeMatch) {
-    const normalised = normaliseTime(timeMatch[1]);
-    if (normalised) result.time = normalised;
+    const norm = normaliseTime(timeMatch[1]);
+    if (norm) out.time = norm;
   }
 
-  return result;
+  // Fallback direction inference if verbs missing
+  if (!out.direction && out.amount) {
+    if (/\bdeposit|top.?up\b/i.test(lower)) out.direction = 'in';
+    else if (/\bwithdrawal|purchase|airtime|data bundle\b/i.test(lower)) out.direction = 'out';
+  }
+
+  return out;
 }
