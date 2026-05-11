@@ -5384,6 +5384,84 @@ export type Database = {
         }
         Relationships: []
       }
+      gmail_poll_state: {
+        Row: {
+          id: number
+          last_error: string | null
+          last_internal_date_ms: number | null
+          last_polled_at: string | null
+          last_status: string | null
+        }
+        Insert: {
+          id?: number
+          last_error?: string | null
+          last_internal_date_ms?: number | null
+          last_polled_at?: string | null
+          last_status?: string | null
+        }
+        Update: {
+          id?: number
+          last_error?: string | null
+          last_internal_date_ms?: number | null
+          last_polled_at?: string | null
+          last_status?: string | null
+        }
+        Relationships: []
+      }
+      gmail_transactions: {
+        Row: {
+          amount: number | null
+          created_at: string
+          from_email: string | null
+          from_name: string | null
+          gmail_message_id: string
+          gmail_thread_id: string | null
+          id: string
+          internal_date: string | null
+          parsed: boolean
+          raw_body: string | null
+          snippet: string | null
+          subject: string | null
+          transaction_id: string | null
+          tx_date: string | null
+          tx_time: string | null
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          from_email?: string | null
+          from_name?: string | null
+          gmail_message_id: string
+          gmail_thread_id?: string | null
+          id?: string
+          internal_date?: string | null
+          parsed?: boolean
+          raw_body?: string | null
+          snippet?: string | null
+          subject?: string | null
+          transaction_id?: string | null
+          tx_date?: string | null
+          tx_time?: string | null
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          from_email?: string | null
+          from_name?: string | null
+          gmail_message_id?: string
+          gmail_thread_id?: string | null
+          id?: string
+          internal_date?: string | null
+          parsed?: boolean
+          raw_body?: string | null
+          snippet?: string | null
+          subject?: string | null
+          transaction_id?: string | null
+          tx_date?: string | null
+          tx_time?: string | null
+        }
+        Relationships: []
+      }
       house_listings: {
         Row: {
           access_fee: number
