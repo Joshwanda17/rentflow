@@ -14,9 +14,11 @@ export function AngelCalculator() {
   const [amount, setAmount] = useState(1_000_000);
   const [selectedValuation, setSelectedValuation] = useState<number | null>(null);
 
-  const shares = Math.floor(amount / PRICE_PER_SHARE);
+  // Fractional shares — UGX 50,000 → 2.5 shares, no truncation.
+  const shares = amount / PRICE_PER_SHARE;
   const poolOwnership = (shares / TOTAL_SHARES) * 100;
   const companyOwnership = (POOL_PERCENT / TOTAL_SHARES) * shares;
+  const sharesLabel = shares.toLocaleString(undefined, { maximumFractionDigits: 4 });
 
   const handleAmountChange = (val: string) => {
     const num = parseInt(val.replace(/[^0-9]/g, ''), 10);
@@ -65,7 +67,7 @@ export function AngelCalculator() {
         {/* Results */}
         <div className="grid grid-cols-3 gap-2">
           <div className="p-3 rounded-2xl bg-primary/5 text-center">
-            <p className="text-xl font-black text-primary">{shares}</p>
+            <p className="text-xl font-black text-primary">{sharesLabel}</p>
             <p className="text-[10px] text-muted-foreground font-medium">Shares</p>
           </div>
           <div className="p-3 rounded-2xl bg-primary/5 text-center">
