@@ -532,9 +532,19 @@ function DedupAuditPanel() {
                     </Badge>
                   </div>
                   {r.snippet && (
-                    <pre className="mt-2 p-2 rounded bg-muted/60 border border-border/50 text-[11px] text-muted-foreground whitespace-pre-wrap break-words font-mono leading-snug">
-                      {r.snippet.slice(0, 200)}{r.snippet.length > 200 ? '…' : ''}
-                    </pre>
+                    <div className="mt-2 relative">
+                      <pre className="p-2 rounded bg-muted/60 border border-border/50 text-[11px] text-muted-foreground whitespace-pre-wrap break-words font-mono leading-snug pr-8">
+                        {r.snippet.slice(0, 200)}{r.snippet.length > 200 ? '…' : ''}
+                      </pre>
+                      <button
+                        type="button"
+                        onClick={() => copySnippet(r)}
+                        className="absolute top-1.5 right-1.5 p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                        title="Copy to clipboard"
+                      >
+                        {copiedId === r.id ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
+                      </button>
+                    </div>
                   )}
                   <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 font-mono text-[10px] text-muted-foreground">
                     {r.matched_transaction_id && (
