@@ -638,6 +638,36 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
               </Table>
             </div>
           )}
+          {filteredRows.length > TRACKER_PAGE_SIZE && (
+            <div className="flex items-center justify-between px-4 py-3 border-t">
+              <span className="text-[11px] text-muted-foreground">
+                Showing {(trackerCurrentPage - 1) * TRACKER_PAGE_SIZE + 1}–{Math.min(trackerCurrentPage * TRACKER_PAGE_SIZE, filteredRows.length)} of {filteredRows.length}
+              </span>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2"
+                  onClick={() => setTrackerPage(p => Math.max(1, p - 1))}
+                  disabled={trackerCurrentPage === 1}
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </Button>
+                <span className="text-[11px] font-medium text-foreground tabular-nums px-2">
+                  Page {trackerCurrentPage} of {trackerTotalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2"
+                  onClick={() => setTrackerPage(p => Math.min(trackerTotalPages, p + 1))}
+                  disabled={trackerCurrentPage === trackerTotalPages}
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
