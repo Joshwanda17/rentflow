@@ -316,6 +316,14 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
     return { expected, collected, outstanding };
   }, [filteredRows]);
 
+  // Pagination for tracker table
+  const trackerTotalPages = Math.max(1, Math.ceil(filteredRows.length / TRACKER_PAGE_SIZE));
+  const trackerCurrentPage = Math.min(trackerPage, trackerTotalPages);
+  const pagedRows = useMemo(
+    () => filteredRows.slice((trackerCurrentPage - 1) * TRACKER_PAGE_SIZE, trackerCurrentPage * TRACKER_PAGE_SIZE),
+    [filteredRows, trackerCurrentPage]
+  );
+
   // KPIs
   const collectionToday = (collections || []).reduce((s, c) => s + Number(c.amount || 0), 0);
   const collectionPrev = (prevCollections || []).reduce((s, c) => s + Number(c.amount || 0), 0);
