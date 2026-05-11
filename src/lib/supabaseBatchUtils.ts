@@ -198,31 +198,42 @@ export async function fetchSupporterSummary(): Promise<{
     return { totalPartners: 0, totalFunded: 0, totalWalletBalance: 0, totalDeals: 0, activePartners: 0, suspendedPartners: 0 };
   }
 
-  const [wallets, portfolioAgg, frozenCount] = await Promise.all([
-    batchedQuery<{ balance: number }>(allIds, (batch) =>
-      supabase.from('wallets').select('balance').in('user_id', batch)
+  const [wallets, portfolioRows, frozenProfiles] = await Promise.all([
+    batchedQuery<{ user_id: string; balance: number }>(allIds, (batch) =>
+      supabase.from('wallets').select('user_id, balance').in('user_id', batch)
     ),
-    batchedQuery<{ investment_amount: number }>(allIds, (batch) =>
+    batchedQuery<{ investment_amount: number; investor_id: string | null; agent_id: string }>(allIds, (batch) =>
       supabase.from('investor_portfolios')
-        .select('investment_amount')
+        .select('investment_amount, investor_id, agent_id')
         .or(`investor_id.in.(${batch.join(',')}),agent_id.in.(${batch.join(',')})`)
         .in('status', ['active', 'pending_approval', 'pending'])
     ),
-    batchedQuery<{ frozen_at: string | null }>(allIds, (batch) =>
-      supabase.from('profiles').select('frozen_at').in('id', batch).not('frozen_at', 'is', null)
+    batchedQuery<{ id: string; frozen_at: string | null }>(allIds, (batch) =>
+      supabase.from('profiles').select('id, frozen_at').in('id', batch).not('frozen_at', 'is', null)
     ),
   ]);
 
-  const totalWalletBalance = wallets.reduce((s, w) => s + (w.balance || 0), 0);
-  const totalFunded = portfolioAgg.reduce((s, p) => s + (p.investment_amount || 0), 0);
-  const suspendedPartners = frozenCount.length;
+  // A partner/funder is defined as a supporter with 1 or more portfolios
+  const ownerIds = new Set<string>();
+  portfolioRows.forEach(p => {
+    const owner = p.investor_id || p.agent_id;
+    if (owner) ownerIds.add(owner);
+  });
+
+  const frozenIds = new Set(frozenProfiles.map(p => p.id));
+  const suspendedPartners = Array.from(ownerIds).filter(id => frozenIds.has(id)).length;
+
+  const totalWalletBalance = wallets
+    .filter(w => ownerIds.has(w.user_id))
+    .reduce((s, w) => s + (w.balance || 0), 0);
+  const totalFunded = portfolioRows.reduce((s, p) => s + (p.investment_amount || 0), 0);
 
   return {
-    totalPartners: allIds.length,
+    totalPartners: ownerIds.size,
     totalFunded,
     totalWalletBalance,
-    totalDeals: portfolioAgg.length,
-    activePartners: allIds.length - suspendedPartners,
+    totalDeals: portfolioRows.length,
+    activePartners: ownerIds.size - suspendedPartners,
     suspendedPartners,
   };
 }
