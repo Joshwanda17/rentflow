@@ -105,23 +105,25 @@ export async function fetchAllPartnerIds(): Promise<string[]> {
   if (_partnerIdsCache && Date.now() - _partnerIdsCache.ts < PARTNER_IDS_TTL) {
     return _partnerIdsCache.ids;
   }
-  const allSupporterIds = await fetchSupporterOnlyUserIds();
-  if (allSupporterIds.length === 0) {
-    _partnerIdsCache = { ids: [], ts: Date.now() };
-    return [];
-  }
-  const supporterSet = new Set(allSupporterIds);
-  const portfolioRows = await batchedQuery<{ investor_id: string | null; agent_id: string }>(
-    allSupporterIds,
-    (batch) => supabase.from('investor_portfolios')
-      .select('investor_id, agent_id')
-      .or(`investor_id.in.(${batch.join(',')}),agent_id.in.(${batch.join(',')})`)
-  );
+  // Partner = ANY user with ≥1 row in investor_portfolios, regardless of role.
+  // Page through every portfolio (no role intersection, no status filter).
+  const PAGE = 1000;
+  let offset = 0;
+  let hasMore = true;
   const ownerIds = new Set<string>();
-  portfolioRows.forEach(p => {
-    if (p.investor_id && supporterSet.has(p.investor_id)) ownerIds.add(p.investor_id);
-    else if (p.agent_id && supporterSet.has(p.agent_id)) ownerIds.add(p.agent_id);
-  });
+  while (hasMore) {
+    const { data } = await supabase
+      .from('investor_portfolios')
+      .select('investor_id')
+      .range(offset, offset + PAGE - 1);
+    if (data && data.length > 0) {
+      data.forEach((p: any) => { if (p.investor_id) ownerIds.add(p.investor_id); });
+      offset += PAGE;
+      hasMore = data.length === PAGE;
+    } else {
+      hasMore = false;
+    }
+  }
   const ids = Array.from(ownerIds);
   _partnerIdsCache = { ids, ts: Date.now() };
   return ids;
@@ -254,39 +256,47 @@ export async function fetchSupporterSummary(): Promise<{
   activePartners: number;
   suspendedPartners: number;
 }> {
-  const allIds = await fetchSupporterOnlyUserIds();
-  if (allIds.length === 0) {
+  // A partner/funder = ANY user with one or more rows in investor_portfolios.
+  // Page through ALL portfolios (no role/status filter) so the count matches DB truth.
+  const PAGE = 1000;
+  let offset = 0;
+  let hasMore = true;
+  const portfolioRows: { investment_amount: number | null; investor_id: string | null }[] = [];
+
+  while (hasMore) {
+    const { data } = await supabase
+      .from('investor_portfolios')
+      .select('investment_amount, investor_id')
+      .range(offset, offset + PAGE - 1);
+    if (data && data.length > 0) {
+      portfolioRows.push(...(data as any));
+      offset += PAGE;
+      hasMore = data.length === PAGE;
+    } else {
+      hasMore = false;
+    }
+  }
+
+  const ownerIds = new Set<string>();
+  portfolioRows.forEach(p => { if (p.investor_id) ownerIds.add(p.investor_id); });
+  const ids = Array.from(ownerIds);
+
+  if (ids.length === 0) {
     return { totalPartners: 0, totalFunded: 0, totalWalletBalance: 0, totalDeals: 0, activePartners: 0, suspendedPartners: 0 };
   }
 
-  const [wallets, portfolioRows, frozenProfiles] = await Promise.all([
-    batchedQuery<{ user_id: string; balance: number }>(allIds, (batch) =>
+  const [wallets, frozenProfiles] = await Promise.all([
+    batchedQuery<{ user_id: string; balance: number }>(ids, (batch) =>
       supabase.from('wallets').select('user_id, balance').in('user_id', batch)
     ),
-    batchedQuery<{ investment_amount: number; investor_id: string | null; agent_id: string }>(allIds, (batch) =>
-      supabase.from('investor_portfolios')
-        .select('investment_amount, investor_id, agent_id')
-        .or(`investor_id.in.(${batch.join(',')}),agent_id.in.(${batch.join(',')})`)
-        .in('status', ['active', 'pending_approval', 'pending'])
-    ),
-    batchedQuery<{ id: string; frozen_at: string | null }>(allIds, (batch) =>
+    batchedQuery<{ id: string; frozen_at: string | null }>(ids, (batch) =>
       supabase.from('profiles').select('id, frozen_at').in('id', batch).not('frozen_at', 'is', null)
     ),
   ]);
 
-  // A partner/funder is defined as a supporter with 1 or more portfolios
-  const ownerIds = new Set<string>();
-  portfolioRows.forEach(p => {
-    const owner = p.investor_id || p.agent_id;
-    if (owner) ownerIds.add(owner);
-  });
-
   const frozenIds = new Set(frozenProfiles.map(p => p.id));
-  const suspendedPartners = Array.from(ownerIds).filter(id => frozenIds.has(id)).length;
-
-  const totalWalletBalance = wallets
-    .filter(w => ownerIds.has(w.user_id))
-    .reduce((s, w) => s + (w.balance || 0), 0);
+  const suspendedPartners = ids.filter(id => frozenIds.has(id)).length;
+  const totalWalletBalance = wallets.reduce((s, w) => s + (w.balance || 0), 0);
   const totalFunded = portfolioRows.reduce((s, p) => s + (p.investment_amount || 0), 0);
 
   return {
