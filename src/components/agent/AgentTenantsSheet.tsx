@@ -745,13 +745,13 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[92vh] rounded-t-3xl flex flex-col p-0 gap-0">
+      <SheetContent side="bottom" className="h-[92vh] rounded-t-3xl flex flex-col p-0 gap-0 overflow-y-auto">
         {profileTenantId ? (
           <TenantProfileView tenantId={profileTenantId} onBack={() => setProfileTenantId(null)} />
         ) : (
         <>
-        {/* ───── Sticky Header ───── */}
-        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b border-border/50 px-4 pt-4 pb-3 space-y-3">
+        {/* ───── Header (scrolls with content so the tenant list below is reachable on small screens) ───── */}
+        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b border-border/50 px-4 pt-4 pb-3 space-y-3 shrink-0">
           <SheetHeader className="pb-0">
             <SheetTitle className="flex items-center justify-between">
               <div className="flex items-center gap-2">
