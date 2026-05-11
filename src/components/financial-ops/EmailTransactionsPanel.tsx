@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert } from 'lucide-react';
+import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription,
 } from '@/components/ui/dialog';
@@ -402,6 +402,7 @@ function DedupAuditPanel() {
   const [expanded, setExpanded] = useState(false);
   const [filter, setFilter] = useState<'all' | 'transaction_id_match' | 'dedup_hash_match'>('all');
   const [search, setSearch] = useState('');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const load = async () => {
     const { data } = await (supabase.from('gmail_dedup_audit') as any)
@@ -439,6 +440,27 @@ function DedupAuditPanel() {
     }
     return true;
   });
+
+  const copySnippet = async (r: DedupAuditRow) => {
+    const text = [
+      `From: ${r.from_email || 'Unknown'}`,
+      `Subject: ${r.subject || '(no subject)'}`,
+      `Reason: ${r.reason}`,
+      `Matched TID: ${r.matched_transaction_id || '—'}`,
+      `Hash: ${r.dedup_hash || '—'}`,
+      `Gmail ID: ${r.gmail_message_id}`,
+      `Date: ${r.internal_date ? format(new Date(r.internal_date), 'yyyy-MM-dd HH:mm:ss') : '—'}`,
+      `---`,
+      r.snippet || '',
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(r.id);
+      setTimeout(() => setCopiedId((cur) => (cur === r.id ? null : cur)), 2000);
+    } catch {
+      /* ignore */
+    }
+  };
 
   return (
     <div className="rounded-xl border bg-card overflow-hidden">
@@ -510,9 +532,19 @@ function DedupAuditPanel() {
                     </Badge>
                   </div>
                   {r.snippet && (
-                    <pre className="mt-2 p-2 rounded bg-muted/60 border border-border/50 text-[11px] text-muted-foreground whitespace-pre-wrap break-words font-mono leading-snug">
-                      {r.snippet.slice(0, 200)}{r.snippet.length > 200 ? '…' : ''}
-                    </pre>
+                    <div className="mt-2 relative">
+                      <pre className="p-2 rounded bg-muted/60 border border-border/50 text-[11px] text-muted-foreground whitespace-pre-wrap break-words font-mono leading-snug pr-8">
+                        {r.snippet.slice(0, 200)}{r.snippet.length > 200 ? '…' : ''}
+                      </pre>
+                      <button
+                        type="button"
+                        onClick={() => copySnippet(r)}
+                        className="absolute top-1.5 right-1.5 p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                        title="Copy to clipboard"
+                      >
+                        {copiedId === r.id ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
+                      </button>
+                    </div>
                   )}
                   <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 font-mono text-[10px] text-muted-foreground">
                     {r.matched_transaction_id && (
