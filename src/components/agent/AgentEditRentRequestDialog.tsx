@@ -6,9 +6,26 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Loader2, RefreshCw, Send } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { LandlordSearchSelect, type LandlordOption } from '@/components/agent/LandlordSearchSelect';
 import { toast } from 'sonner';
 import { calculateRentRepayment, formatUGX } from '@/lib/rentCalculations';
 import type { AgentRejectedRequest } from '@/hooks/useAgentRejectedRequests';
+
+const HOUSE_CATEGORIES = [
+  { value: 'single-room', label: 'Single Room' },
+  { value: 'double-room', label: 'Double Room' },
+  { value: '1-bed', label: '1 Bed House' },
+  { value: '2-bed', label: '2 Bedroom House' },
+  { value: '2-bed-full', label: '2 Bed + Sitting, Kitchen & 2 Toilets' },
+  { value: '3-bed', label: '3 Bedroom Apartment' },
+  { value: '3-bed-luxury', label: '3 Bed Luxury + Boys Quarter' },
+  { value: '4-bed', label: '4+ Bedroom Villa' },
+  { value: 'commercial', label: 'Commercial Property' },
+];
+
+const PREFERRED_LANGUAGES = ['English', 'Luganda', 'Runyankole', 'Lusoga', 'Acholi', 'Lugbara', 'Other'];
 
 interface Props {
   request: AgentRejectedRequest | null;
@@ -25,6 +42,12 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
   const [elecMeter, setElecMeter] = useState('');
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [houseCategory, setHouseCategory] = useState<string>('');
+  const [preferredLanguage, setPreferredLanguage] = useState<string>('');
+  const [noSmartphone, setNoSmartphone] = useState(false);
+  const [landlord, setLandlord] = useState<LandlordOption | null>(null);
+  const [outstandingBalance, setOutstandingBalance] = useState('');
+  const [graceDays, setGraceDays] = useState('');
 
   useEffect(() => {
     if (request) {
@@ -34,10 +57,34 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
       setWaterMeter(request.tenant_water_meter ?? '');
       setElecMeter(request.tenant_electricity_meter ?? '');
       setNote('');
+      setHouseCategory(request.house_category ?? '');
+      setPreferredLanguage(request.preferred_language ?? '');
+      setNoSmartphone(!!request.tenant_no_smartphone);
+      setOutstandingBalance(
+        request.initial_outstanding_balance != null ? String(request.initial_outstanding_balance) : ''
+      );
+      setGraceDays(
+        request.outstanding_grace_days != null ? String(request.outstanding_grace_days) : ''
+      );
+      // Hydrate the landlord picker from the request's current landlord_id.
+      (async () => {
+        if (!request.landlord_id) {
+          setLandlord(null);
+          return;
+        }
+        const { data } = await supabase
+          .from('landlords')
+          .select('id, name, phone, property_address')
+          .eq('id', request.landlord_id)
+          .maybeSingle();
+        setLandlord((data as LandlordOption) ?? null);
+      })();
     }
   }, [request]);
 
   if (!request) return null;
+
+  const isOutstanding = request.registration_type === 'outstanding_balance';
 
   const rentNum = Number(rentAmount) || 0;
   const durNum = Number(duration) || 0;
@@ -50,17 +97,30 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
       toast.error('Resubmission note must be at least 10 characters');
       return;
     }
+    if (!landlord?.id) {
+      toast.error('Please select a landlord');
+      return;
+    }
     setSubmitting(true);
     try {
+      const patch: Record<string, unknown> = {
+        rent_amount: rentNum,
+        duration_days: durNum,
+        number_of_payments: Number(numberOfPayments) || 4,
+        tenant_water_meter: waterMeter.trim() || null,
+        tenant_electricity_meter: elecMeter.trim() || null,
+        house_category: houseCategory || null,
+        preferred_language: preferredLanguage || null,
+        tenant_no_smartphone: noSmartphone,
+        landlord_id: landlord.id,
+      };
+      if (isOutstanding) {
+        patch.initial_outstanding_balance = outstandingBalance ? Number(outstandingBalance) : null;
+        patch.outstanding_grace_days = graceDays ? Math.max(0, parseInt(graceDays, 10)) : null;
+      }
       const { error } = await supabase.rpc('agent_resubmit_rent_request' as any, {
         p_request_id: request.id,
-        p_patch: {
-          rent_amount: rentNum,
-          duration_days: durNum,
-          number_of_payments: Number(numberOfPayments) || 4,
-          tenant_water_meter: waterMeter.trim() || null,
-          tenant_electricity_meter: elecMeter.trim() || null,
-        },
+        p_patch: patch,
         p_agent_note: note.trim(),
       });
       if (error) throw error;
@@ -97,6 +157,11 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
 
         <div className="space-y-3">
           <div className="space-y-1.5">
+            <Label>Landlord</Label>
+            <LandlordSearchSelect value={landlord} onChange={setLandlord} />
+          </div>
+
+          <div className="space-y-1.5">
             <Label htmlFor="rent">Rent amount (UGX)</Label>
             <Input id="rent" inputMode="numeric" value={rentAmount}
               onChange={(e) => setRentAmount(e.target.value.replace(/[^0-9]/g, ''))} />
@@ -113,6 +178,32 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
                 onChange={(e) => setNumberOfPayments(e.target.value.replace(/[^0-9]/g, ''))} />
             </div>
           </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>House category</Label>
+              <Select value={houseCategory} onValueChange={setHouseCategory}>
+                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  {HOUSE_CATEGORIES.map(c => (
+                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Preferred language</Label>
+              <Select value={preferredLanguage} onValueChange={setPreferredLanguage}>
+                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectContent>
+                  {PREFERRED_LANGUAGES.map(l => (
+                    <SelectItem key={l} value={l}>{l}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="wm">Water meter</Label>
@@ -123,6 +214,34 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
               <Input id="em" value={elecMeter} onChange={(e) => setElecMeter(e.target.value)} />
             </div>
           </div>
+
+          <div className="flex items-center justify-between rounded-md border p-3">
+            <div>
+              <p className="text-sm font-medium">Tenant has no smartphone</p>
+              <p className="text-xs text-muted-foreground">Enable for SMS-only flows.</p>
+            </div>
+            <Switch checked={noSmartphone} onCheckedChange={setNoSmartphone} />
+          </div>
+
+          {isOutstanding && (
+            <div className="space-y-3 rounded-md border border-primary/40 bg-primary/5 p-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-primary">
+                Outstanding balance
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="ob">Initial outstanding (UGX)</Label>
+                  <Input id="ob" inputMode="numeric" value={outstandingBalance}
+                    onChange={(e) => setOutstandingBalance(e.target.value.replace(/[^0-9]/g, ''))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="gd">Days remaining</Label>
+                  <Input id="gd" inputMode="numeric" value={graceDays}
+                    onChange={(e) => setGraceDays(e.target.value.replace(/[^0-9]/g, ''))} />
+                </div>
+              </div>
+            </div>
+          )}
 
           {calc && (
             <div className="grid grid-cols-3 gap-2 text-center">
