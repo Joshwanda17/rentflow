@@ -30,6 +30,8 @@ interface AngelPoolSharePurchaseProps {
   funded_by?: string
   logo_url?: string
   unsubscribe_url?: string
+  agreement_url?: string
+  dashboard_url?: string
 }
 
 const fmtNum = (v: number | string | undefined) => {
@@ -60,6 +62,8 @@ export function AngelPoolSharePurchase({
   funded_by = 'investor',
   logo_url = 'https://wirntoujqoyjobfhyelc.supabase.co/storage/v1/object/public/email-assets/welile-logo.png',
   unsubscribe_url = 'https://welile.com/unsubscribe',
+  agreement_url = 'https://welilereceipts.com/legal/EARLY_ANGEL_POOL_SHAREHOLDERS_AGREEMENT.pdf',
+  dashboard_url = 'https://welilereceipts.com/auth',
 }: AngelPoolSharePurchaseProps) {
   const year = new Date().getFullYear()
 
@@ -234,6 +238,42 @@ export function AngelPoolSharePurchase({
                     <Text style={bodyText}>
                       Your share allocation has been recorded under the Angel Pool. This confirmation reflects your current shareholding based on the pool valuation and share price at the time of purchase.
                     </Text>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td className="padding-mobile" style={{ padding: '0 40px 30px 40px' }}>
+                    <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={ctaCard}>
+                      <tbody>
+                        <tr>
+                          <td style={{ padding: '28px 28px 22px 28px' }} align="center">
+                            <Text style={ctaEyebrow}>Next Step · Sign Your Shareholders Agreement</Text>
+                            <Text style={ctaTitle}>You're officially an early shareholder.</Text>
+                            <Text style={ctaBody}>
+                              Download the <strong>Early Angel Pool Shareholders Agreement</strong>, review it carefully, and sign it to formalise your stake in {company_name}.
+                            </Text>
+                            <table border={0} cellPadding={0} cellSpacing={0} role="presentation" style={{ margin: '8px auto 6px auto' }}>
+                              <tbody><tr>
+                                <td align="center" style={ctaButtonWrap}>
+                                  <a href={agreement_url} target="_blank" rel="noopener noreferrer" style={ctaButton}>
+                                    ⬇  Download Shareholders Agreement (PDF)
+                                  </a>
+                                </td>
+                              </tr></tbody>
+                            </table>
+                            <Text style={ctaDivider}>— or —</Text>
+                            <Text style={dashboardLinkWrap}>
+                              <a href={dashboard_url} target="_blank" rel="noopener noreferrer" style={dashboardLink}>
+                                Access Dashboard →
+                              </a>
+                            </Text>
+                            <Text style={ctaFootnote}>
+                              Log in to view your live shareholding, valuation projections and share certificate.
+                            </Text>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </td>
                 </tr>
 
