@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -324,7 +324,7 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
     [filteredRows, trackerCurrentPage]
   );
   // Reset to first page whenever filters/date/range change
-  useMemo(() => { setTrackerPage(1); }, [agentFilter, propertyFilter, day, range]);
+  useEffect(() => { setTrackerPage(1); }, [agentFilter, propertyFilter, day, range]);
 
   // KPIs
   const collectionToday = (collections || []).reduce((s, c) => s + Number(c.amount || 0), 0);
