@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug } from 'lucide-react';
+import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription,
 } from '@/components/ui/dialog';
@@ -182,6 +182,8 @@ export function EmailTransactionsPanel() {
           </div>
         )}
       </div>
+
+      <DedupAuditPanel />
     </div>
   );
 }
@@ -378,5 +380,106 @@ function DebugPollDialog() {
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+interface DedupAuditRow {
+  id: string;
+  gmail_message_id: string;
+  dedup_hash: string | null;
+  matched_transaction_id: string | null;
+  matched_row_id: string | null;
+  reason: string;
+  from_email: string | null;
+  subject: string | null;
+  snippet: string | null;
+  internal_date: string | null;
+  created_at: string;
+}
+
+function DedupAuditPanel() {
+  const [rows, setRows] = useState<DedupAuditRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+
+  const load = async () => {
+    const { data } = await (supabase.from('gmail_dedup_audit') as any)
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100);
+    setRows((data as DedupAuditRow[]) ?? []);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    load();
+    const ch = supabase
+      .channel('gmail_dedup_audit_feed')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'gmail_dedup_audit' }, (payload) => {
+        setRows((cur) => [payload.new as DedupAuditRow, ...cur].slice(0, 100));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  return (
+    <div className="rounded-xl border bg-card overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full p-4 border-b flex items-center justify-between hover:bg-muted/30 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <ShieldAlert className="h-4 w-4 text-amber-600" />
+          <h3 className="font-semibold text-sm">Dedup audit log</h3>
+          <Badge variant="secondary" className="text-[10px]">{rows.length}</Badge>
+        </div>
+        <span className="text-xs text-muted-foreground">{expanded ? 'Hide' : 'Show'}</span>
+      </button>
+      {expanded && (
+        <>
+          {loading ? (
+            <div className="p-6 flex justify-center"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+          ) : rows.length === 0 ? (
+            <div className="p-6 text-center text-xs text-muted-foreground">
+              No deduplicated emails yet. Skipped duplicates will appear here in real time.
+            </div>
+          ) : (
+            <div className="divide-y max-h-[400px] overflow-y-auto">
+              {rows.map((r) => (
+                <div key={r.id} className="p-3 text-xs hover:bg-muted/30">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium truncate">{r.from_email || 'Unknown sender'}</p>
+                      <p className="text-muted-foreground truncate">{r.subject || '(no subject)'}</p>
+                      {r.snippet && <p className="text-muted-foreground/70 line-clamp-1 mt-0.5">{r.snippet}</p>}
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={`shrink-0 text-[10px] ${
+                        r.reason === 'transaction_id_match'
+                          ? 'bg-rose-500/10 text-rose-700 border-rose-500/20'
+                          : 'bg-amber-500/10 text-amber-700 border-amber-500/20'
+                      }`}
+                    >
+                      {r.reason.replace('_', ' ')}
+                    </Badge>
+                  </div>
+                  <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 font-mono text-[10px] text-muted-foreground">
+                    {r.matched_transaction_id && (
+                      <span>matched TID: <span className="text-foreground">{r.matched_transaction_id}</span></span>
+                    )}
+                    {r.dedup_hash && (
+                      <span title={r.dedup_hash}>hash: <span className="text-foreground">{r.dedup_hash.slice(0, 12)}…</span></span>
+                    )}
+                    <span>msg: {r.gmail_message_id.slice(0, 14)}…</span>
+                    <span>{format(new Date(r.created_at), 'MMM d HH:mm:ss')}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
   );
 }

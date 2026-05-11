@@ -288,12 +288,29 @@ Deno.serve(async (req) => {
         if (dedupHash) orParts.push(`dedup_hash.eq.${dedupHash}`);
         const { data: dup } = await supabase
           .from('gmail_transactions')
-          .select('id')
+          .select('id, transaction_id, dedup_hash')
           .or(orParts.join(','))
           .limit(1)
           .maybeSingle();
         if (dup) {
-          if (debug) debugReport.push({ id: m.id, decision: 'skipped', reason: 'duplicate_transaction', from: fromEmail, subject });
+          const reason = (parsed.transaction_id && (dup as any).transaction_id?.toLowerCase() === parsed.transaction_id.toLowerCase())
+            ? 'transaction_id_match'
+            : 'dedup_hash_match';
+          if (debug) {
+            debugReport.push({ id: m.id, decision: 'skipped', reason, from: fromEmail, subject });
+          } else {
+            await supabase.from('gmail_dedup_audit').insert({
+              gmail_message_id: m.id,
+              dedup_hash: dedupHash,
+              matched_transaction_id: (dup as any).transaction_id ?? null,
+              matched_row_id: (dup as any).id,
+              reason,
+              from_email: fromEmail,
+              subject,
+              snippet,
+              internal_date: internalMs ? new Date(internalMs).toISOString() : null,
+            });
+          }
           continue;
         }
       }

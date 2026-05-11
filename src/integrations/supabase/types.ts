@@ -5384,6 +5384,48 @@ export type Database = {
         }
         Relationships: []
       }
+      gmail_dedup_audit: {
+        Row: {
+          created_at: string
+          dedup_hash: string | null
+          from_email: string | null
+          gmail_message_id: string
+          id: string
+          internal_date: string | null
+          matched_row_id: string | null
+          matched_transaction_id: string | null
+          reason: string
+          snippet: string | null
+          subject: string | null
+        }
+        Insert: {
+          created_at?: string
+          dedup_hash?: string | null
+          from_email?: string | null
+          gmail_message_id: string
+          id?: string
+          internal_date?: string | null
+          matched_row_id?: string | null
+          matched_transaction_id?: string | null
+          reason: string
+          snippet?: string | null
+          subject?: string | null
+        }
+        Update: {
+          created_at?: string
+          dedup_hash?: string | null
+          from_email?: string | null
+          gmail_message_id?: string
+          id?: string
+          internal_date?: string | null
+          matched_row_id?: string | null
+          matched_transaction_id?: string | null
+          reason?: string
+          snippet?: string | null
+          subject?: string | null
+        }
+        Relationships: []
+      }
       gmail_poll_state: {
         Row: {
           id: number
