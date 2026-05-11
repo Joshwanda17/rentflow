@@ -68,8 +68,10 @@ Deno.serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const shares = Math.floor(amount / PRICE_PER_SHARE);
-    const actualAmount = shares * PRICE_PER_SHARE;
+    // Fractional shares: amount / 20,000 (e.g. UGX 50,000 → 2.5 shares).
+    // actualAmount equals the entered amount; DB trigger enforces shares*20000 ≈ amount.
+    const actualAmount = Math.round(amount);
+    const shares = Number((actualAmount / PRICE_PER_SHARE).toFixed(6));
     const poolOwnershipPercent = (shares / TOTAL_SHARES) * 100;
     const companyOwnershipPercent = (shares / TOTAL_SHARES) * POOL_PERCENT;
 

@@ -190,11 +190,13 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
   };
 
   const parsedAmount = Number(amount) || 0;
-  const shares = Math.floor(parsedAmount / PRICE_PER_SHARE);
-  const actualAmount = shares * PRICE_PER_SHARE;
+  // Fractional shares: 1 share = UGX 20,000. Amount entered is paid in full.
+  const actualAmount = Math.round(parsedAmount);
+  const shares = Number((actualAmount / PRICE_PER_SHARE).toFixed(6));
   const poolPercent = (shares / TOTAL_SHARES) * 100;
   const companyPercent = (shares / TOTAL_SHARES) * POOL_PERCENT;
   const commission = Math.floor(actualAmount * 0.01);
+  const sharesLabel = shares.toLocaleString(undefined, { maximumFractionDigits: 4 });
 
   const fundingBalance = fundingSource === 'agent'
     ? agentBalance
@@ -237,7 +239,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
       `✅ Angel Pool Investment Confirmed!\n\n` +
       `Investor: ${selectedInvestor.full_name}\n` +
       `Amount: UGX ${result.actual_amount.toLocaleString()}\n` +
-      `Shares: ${result.shares}\n` +
+      `Shares: ${Number(result.shares).toLocaleString(undefined, { maximumFractionDigits: 4 })}\n` +
       `Pool Ownership: ${result.pool_ownership_percent.toFixed(4)}%\n` +
       `Company Equity: ${result.company_ownership_percent.toFixed(4)}%\n` +
       `Reference: ${result.reference_id}\n\n` +
@@ -408,7 +410,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
               />
               {parsedAmount > 0 && shares > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  = {shares} shares × UGX {PRICE_PER_SHARE.toLocaleString()} = {formatUGX(actualAmount)}
+                  = {sharesLabel} shares × UGX {PRICE_PER_SHARE.toLocaleString()} = {formatUGX(actualAmount)}
                 </p>
               )}
               {parsedAmount > 0 && fundingBalance < actualAmount && (
@@ -514,7 +516,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Shares</span>
-                <span className="font-semibold">{shares.toLocaleString()}</span>
+                <span className="font-semibold">{sharesLabel}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Pool Ownership</span>
@@ -554,7 +556,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
             <div>
               <p className="font-bold text-lg">Investment Confirmed!</p>
               <p className="text-sm text-muted-foreground mt-1">
-                {result.shares} shares allocated to {selectedInvestor.full_name}
+                {Number(result.shares).toLocaleString(undefined, { maximumFractionDigits: 4 })} shares allocated to {selectedInvestor.full_name}
               </p>
             </div>
 
@@ -574,7 +576,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Shares</span>
-                <span>{result.shares}</span>
+                <span>{Number(result.shares).toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-emerald-600">Commission Earned</span>
