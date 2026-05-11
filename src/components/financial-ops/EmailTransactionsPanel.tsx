@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, History, LinkIcon } from 'lucide-react';
+import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, History, LinkIcon, ChevronDown, ChevronUp } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription,
 } from '@/components/ui/dialog';
@@ -258,6 +258,8 @@ function GmailConnectionStatus({
 }) {
   const { toast } = useToast();
   const [verifying, setVerifying] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+  const [copiedDetails, setCopiedDetails] = useState(false);
 
   const verifyNow = async (action: 'verify' | 'reconnect_initiated') => {
     setVerifying(true);
@@ -286,6 +288,13 @@ function GmailConnectionStatus({
   const friendly = isError ? friendlyPollError(state?.last_error) : null;
   const isExpired = friendly?.kind === 'expired' || friendly?.kind === 'scope';
 
+  // Try to extract an HTTP status code from the raw error (e.g. "[401]", "status 403", "HTTP 429").
+  const statusCode = (() => {
+    if (!state?.last_error) return null;
+    const m = state.last_error.match(/\b(?:HTTP\s*|status\s*|code\s*|\[)(\d{3})\b/i);
+    return m ? m[1] : null;
+  })();
+
   const tone = isExpired
     ? 'border-destructive/40 bg-destructive/5 text-destructive'
     : isError
@@ -301,12 +310,31 @@ function GmailConnectionStatus({
       ? 'Gmail connected'
       : 'Gmail status unknown';
 
+  const copyDetails = async () => {
+    if (!state?.last_error) return;
+    try {
+      await navigator.clipboard.writeText(state.last_error);
+      setCopiedDetails(true);
+      setTimeout(() => setCopiedDetails(false), 1500);
+    } catch {
+      /* noop */
+    }
+  };
+
   return (
-    <div className={`rounded-xl border p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 ${tone}`}>
+    <div className={`rounded-xl border p-3 flex flex-col gap-2 ${tone}`}>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
       <div className="flex items-center gap-2.5 min-w-0">
         <Icon className="h-4 w-4 shrink-0" />
         <div className="min-w-0">
-          <p className="text-sm font-semibold truncate">{label}</p>
+          <p className="text-sm font-semibold truncate flex items-center gap-2">
+            {label}
+            {isError && statusCode && (
+              <span className="font-mono text-[10px] px-1.5 py-0.5 rounded border border-current/30 bg-background/40">
+                HTTP {statusCode}
+              </span>
+            )}
+          </p>
           {isError && friendly && (
             <p className="text-[11px] opacity-80 line-clamp-2">{friendly.description}</p>
           )}
@@ -319,6 +347,18 @@ function GmailConnectionStatus({
             {lastSuccessAt ? format(new Date(lastSuccessAt), 'MMM d, HH:mm:ss') : 'never'}
           </strong>
         </span>
+        {isError && state?.last_error && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 gap-1.5 text-[11px]"
+            onClick={() => setShowDetails((v) => !v)}
+            aria-expanded={showDetails}
+          >
+            {showDetails ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            {showDetails ? 'Hide details' : 'Show details'}
+          </Button>
+        )}
         {isError && onRetry && (
           <Button
             size="sm"
@@ -354,6 +394,34 @@ function GmailConnectionStatus({
           </Button>
         )}
       </div>
+      </div>
+      {isError && showDetails && state?.last_error && (
+        <div className="rounded-lg border border-current/20 bg-background/60 text-foreground p-2.5 mt-1">
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground">
+              Last poll error
+              {state?.last_polled_at && (
+                <span className="ml-2 font-mono normal-case tracking-normal">
+                  · {format(new Date(state.last_polled_at), 'MMM d, HH:mm:ss')}
+                </span>
+              )}
+              {statusCode && <span className="ml-2 font-mono">· HTTP {statusCode}</span>}
+            </p>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 px-2 gap-1 text-[10px]"
+              onClick={copyDetails}
+            >
+              {copiedDetails ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+              {copiedDetails ? 'Copied' : 'Copy'}
+            </Button>
+          </div>
+          <pre className="text-[11px] leading-relaxed font-mono whitespace-pre-wrap break-all max-h-48 overflow-auto">
+            {state.last_error}
+          </pre>
+        </div>
+      )}
     </div>
   );
 }
