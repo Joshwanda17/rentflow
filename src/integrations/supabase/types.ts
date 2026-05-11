@@ -9918,6 +9918,8 @@ export type Database = {
           request_fee: number
           request_latitude: number | null
           request_longitude: number | null
+          resubmitted_at: string | null
+          resubmitted_note: string | null
           roi_payments_count: number | null
           schedule_status: string | null
           status: string | null
@@ -10000,6 +10002,8 @@ export type Database = {
           request_fee: number
           request_latitude?: number | null
           request_longitude?: number | null
+          resubmitted_at?: string | null
+          resubmitted_note?: string | null
           roi_payments_count?: number | null
           schedule_status?: string | null
           status?: string | null
@@ -10082,6 +10086,8 @@ export type Database = {
           request_fee?: number
           request_latitude?: number | null
           request_longitude?: number | null
+          resubmitted_at?: string | null
+          resubmitted_note?: string | null
           roi_payments_count?: number | null
           schedule_status?: string | null
           status?: string | null
