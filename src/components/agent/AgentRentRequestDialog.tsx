@@ -803,6 +803,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       LC1 is already linked to the landlord — no need to add it again.
                     </p>
                     <LandlordSearchSelect
+                      key={landlordPickerKey}
                       value={selectedLandlord}
                       onChange={setSelectedLandlord}
                     />
@@ -811,6 +812,21 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         <MapPin className="h-3 w-3" /> {selectedLandlord.property_address}
                       </p>
                     )}
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <p className="text-[11px] text-muted-foreground">
+                        Can't find the landlord?
+                      </p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs"
+                        onClick={() => setShowRegisterLandlord(true)}
+                      >
+                        <Building2 className="h-3.5 w-3.5 mr-1" />
+                        Register new landlord
+                      </Button>
+                    </div>
                   </div>
 
                   {/* 👤 Tenant Personal Information */}
