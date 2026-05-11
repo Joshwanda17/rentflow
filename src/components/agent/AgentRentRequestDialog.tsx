@@ -265,8 +265,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     
     if (incomeType === 'outstanding') {
       const days = parseInt(duration);
+      // Outstanding flow: rent_amount is the monthly rent the tenant owes
+      // (separate field), while `amount` (= outstandingBalance) is the arrears.
+      const rentMonthly = parseInt(outstandingRentAmount.replace(/,/g, '')) || amount;
       return {
-        rentAmount: amount,
+        rentAmount: rentMonthly,
         durationDays: days,
         accessFee: 0,
         requestFee: 0,
