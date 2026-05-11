@@ -158,7 +158,7 @@ export function generateDailyCollectionReportPdf(input: DailyCollectionReportInp
   const fmtDeltaCash = (d: number) => ({ text: `${d > 0 ? '+' : ''}${ugx(d)} vs yesterday`, positive: d >= 0 });
 
   drawKpi(margin + 0 * (cardW + gap), 'Total Tenants Onboarded (Today)', String(k.onboardedToday), COLORS.slate, fmtDeltaCount(k.onboardedDelta), 'P', COLORS.blue);
-  drawKpi(margin + 1 * (cardW + gap), 'Tenants Paid For (Today)', String(k.tenantsPaid), COLORS.green, fmtDeltaCount(k.tenantsPaidDelta), '✓', COLORS.green);
+  drawKpi(margin + 1 * (cardW + gap), 'Tenants Paid For (Today)', String(k.tenantsPaid), COLORS.green, fmtDeltaCount(k.tenantsPaidDelta), 'V', COLORS.green);
   drawKpi(margin + 2 * (cardW + gap), 'Collection Today (UGX)', ugx(k.collectionToday), COLORS.blue, fmtDeltaCash(k.collectionDelta), '$', COLORS.blue);
   drawKpi(margin + 3 * (cardW + gap), 'Collection This Month (UGX)', ugx(k.collectionMonth), COLORS.amber, { text: 'MTD Collection', positive: true }, 'M', COLORS.amber);
   drawKpi(margin + 4 * (cardW + gap), 'Total Rent Paid (All Time)', ugx(k.totalRentPaidAllTime), COLORS.purple, { text: 'Total To Date', positive: true }, 'B', COLORS.purple);
@@ -441,7 +441,7 @@ export function generateDailyCollectionReportPdf(input: DailyCollectionReportInp
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(6.8);
   doc.setTextColor(...COLORS.green);
-  doc.text('🏆 TOP PERFORMER', rightX + 3, tbY + 5);
+  doc.text('TOP PERFORMER', rightX + 3, tbY + 5);
   doc.setFontSize(10);
   doc.setTextColor(...COLORS.slate);
   doc.text((input.top?.name || '—').slice(0, 16), rightX + 3, tbY + 11.5);
