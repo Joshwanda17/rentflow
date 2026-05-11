@@ -141,6 +141,79 @@ Deno.serve(async (req) => {
       company_ownership_percent: companyOwnershipPercent, reference_id: referenceId,
     });
 
+    // Best-effort: send Angel Pool share-purchase confirmation email to first-time investors.
+    // Never fails the request — financial transaction is the source of truth.
+    try {
+      // First-time check: count investor's prior confirmed purchases (excluding the one we just inserted by reference).
+      const { count: priorCount } = await adminClient
+        .from("angel_pool_investments")
+        .select("id", { count: "exact", head: true })
+        .eq("investor_id", user.id)
+        .eq("status", "confirmed")
+        .neq("reference_id", referenceId);
+
+      if ((priorCount ?? 0) === 0) {
+        const { data: investorProfile } = await adminClient
+          .from("profiles")
+          .select("email, full_name")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (investorProfile?.email) {
+          const { data: postPool } = await adminClient
+            .from("angel_pool_investments")
+            .select("shares")
+            .eq("status", "confirmed");
+          const sold = (postPool || []).reduce((s: number, r: any) => s + r.shares, 0);
+          const availableShares = Math.max(0, TOTAL_SHARES - sold);
+
+          const purchaseDate = new Date(txDate).toLocaleDateString("en-GB", {
+            day: "2-digit", month: "long", year: "numeric",
+          });
+
+          const { error: emailErr } = await adminClient.functions.invoke("send-transactional-email", {
+            body: {
+              templateName: "angel-pool-share-purchase",
+              recipientEmail: investorProfile.email,
+              idempotencyKey: `angel-pool-${referenceId}`,
+              templateData: {
+                partner_name: investorProfile.full_name || "Partner",
+                pool_name: "Welile Angel Pool",
+                share_reference: referenceId,
+                shares_purchased: shares,
+                currency: "UGX",
+                investment_amount: actualAmount,
+                ownership_percentage: companyOwnershipPercent.toFixed(4),
+                price_per_share: PRICE_PER_SHARE,
+                pool_valuation: TOTAL_SHARES * PRICE_PER_SHARE,
+                purchase_date: purchaseDate,
+                total_pool_shares: TOTAL_SHARES,
+                available_shares: availableShares,
+                pool_percentage: POOL_PERCENT,
+                pool_round: "Seed Round",
+                company_name: "Welile",
+                funded_by: "investor",
+              },
+            },
+          });
+          if (emailErr) console.error("Angel pool email enqueue error:", emailErr);
+          await logSystemEvent(adminClient, "angel_pool_email_sent", user.id,
+            "angel_pool_investments", referenceId,
+            { recipient: investorProfile.email, reference_id: referenceId, first_time: true });
+        } else {
+          await logSystemEvent(adminClient, "angel_pool_email_skipped", user.id,
+            "angel_pool_investments", referenceId,
+            { reason: "no_email_on_file", reference_id: referenceId });
+        }
+      } else {
+        await logSystemEvent(adminClient, "angel_pool_email_skipped", user.id,
+          "angel_pool_investments", referenceId,
+          { reason: "not_first_purchase", prior_count: priorCount, reference_id: referenceId });
+      }
+    } catch (emailEx) {
+      console.error("Angel pool email dispatch failed:", emailEx);
+    }
+
     return new Response(JSON.stringify({
       success: true, reference_id: referenceId, shares, actual_amount: actualAmount,
       pool_ownership_percent: poolOwnershipPercent, company_ownership_percent: companyOwnershipPercent,
