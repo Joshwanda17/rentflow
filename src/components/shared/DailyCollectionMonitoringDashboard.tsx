@@ -190,17 +190,22 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
     staleTime: 60_000,
   });
 
-  // ---- All-time totals (cheap aggregate: amount_repaid sum across active+repaid requests)
+  // ---- All-time totals: total paid + total outstanding (active rent plans only)
   const { data: allTimeStats } = useQuery({
     queryKey: ['daily-collection-alltime'],
     queryFn: async () => {
       const { data } = await supabase
         .from('rent_requests')
-        .select('amount_repaid')
+        .select('amount_repaid, total_repayment, status')
         .in('status', ['funded', 'disbursed', 'repaying', 'fully_repaid'])
         .limit(5000);
-      const totalPaid = (data || []).reduce((s, r: any) => s + Number(r.amount_repaid || 0), 0);
-      return { totalPaid };
+      const rows = (data || []) as any[];
+      const totalPaid = rows.reduce((s, r) => s + Number(r.amount_repaid || 0), 0);
+      // Outstanding = sum of (total_repayment - amount_repaid) across still-active plans
+      const totalOutstanding = rows
+        .filter(r => r.status !== 'fully_repaid')
+        .reduce((s, r) => s + Math.max(0, Number(r.total_repayment || 0) - Number(r.amount_repaid || 0)), 0);
+      return { totalPaid, totalOutstanding };
     },
     staleTime: 5 * 60_000,
   });
@@ -515,6 +520,7 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
                   collectionDelta: collectionToday - collectionPrev,
                   collectionMonth,
                   totalRentPaidAllTime: allTimeStats?.totalPaid || 0,
+                  totalOutstandingAllTenants: allTimeStats?.totalOutstanding || 0,
                 },
                 rows: filteredRows.map(r => ({
                   date: r.date,
@@ -560,7 +566,7 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
         <KpiCard
           label="Tenants Onboarded (Today)"
           value={String(onboardedToday?.today ?? 0)}
@@ -595,6 +601,13 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
           icon={Building}
           color="text-primary bg-primary/10"
           subtitle="Total to date"
+        />
+        <KpiCard
+          label="Total Outstanding (All Tenants)"
+          value={formatUGX(allTimeStats?.totalOutstanding || 0)}
+          icon={AlertTriangle}
+          color="text-destructive bg-destructive/10"
+          subtitle="Across active rent plans"
         />
       </div>
 

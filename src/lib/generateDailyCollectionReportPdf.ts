@@ -36,6 +36,7 @@ export interface DailyCollectionReportInput {
     collectionDelta: number;
     collectionMonth: number;
     totalRentPaidAllTime: number;
+    totalOutstandingAllTenants: number;
   };
   rows: DailyTrackerRow[];
   totals: { expected: number; collected: number; outstanding: number };
@@ -112,7 +113,7 @@ export function generateDailyCollectionReportPdf(input: DailyCollectionReportInp
 
   // ===== KPI cards (5) =====
   const gap = 3;
-  const cardW = (contentWidth - gap * 4) / 5;
+  const cardW = (contentWidth - gap * 5) / 6;
   const cardH = 22;
   const drawKpi = (
     x: number,
@@ -162,6 +163,7 @@ export function generateDailyCollectionReportPdf(input: DailyCollectionReportInp
   drawKpi(margin + 2 * (cardW + gap), 'Collection Today (UGX)', ugx(k.collectionToday), COLORS.blue, fmtDeltaCash(k.collectionDelta), '$', COLORS.blue);
   drawKpi(margin + 3 * (cardW + gap), 'Collection This Month (UGX)', ugx(k.collectionMonth), COLORS.amber, { text: 'MTD Collection', positive: true }, 'M', COLORS.amber);
   drawKpi(margin + 4 * (cardW + gap), 'Total Rent Paid (All Time)', ugx(k.totalRentPaidAllTime), COLORS.purple, { text: 'Total To Date', positive: true }, 'B', COLORS.purple);
+  drawKpi(margin + 5 * (cardW + gap), 'Total Outstanding (All Tenants)', ugx(k.totalOutstandingAllTenants), COLORS.red, { text: 'Across active plans', positive: false }, '!', COLORS.red);
 
   y += cardH + 5;
 
