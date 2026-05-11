@@ -200,8 +200,23 @@ Deno.serve(async (req) => {
         else if (frequency === "weekly") nextChargeDate.setDate(nextChargeDate.getDate() + 7);
         else nextChargeDate.setMonth(nextChargeDate.getMonth() + 1);
 
+        // === Outstanding-balance grace period ===
+        // For tenants registered with arrears who still have N days left on their
+        // CURRENT rent period, defer the first arrears charge so they aren't
+        // double-billed (current rent period + arrears collection at the same time).
+        // Billing model: arrears-only over duration_days. Recurring rent resumes
+        // via a separate rent_request after the arrears subscription completes.
+        const graceDays = Number(rentRequest.outstanding_grace_days || 0);
+        const isOutstandingArrears = rentRequest.registration_type === 'outstanding_balance';
+        if (isOutstandingArrears && graceDays > 0) {
+          const deferred = new Date(startDate);
+          deferred.setDate(deferred.getDate() + graceDays);
+          nextChargeDate.setTime(deferred.getTime());
+          console.log(`[approve-rent-request] Outstanding arrears: deferring first charge by ${graceDays} day(s) to ${nextChargeDate.toISOString().split('T')[0]}`);
+        }
+
         const endDate = new Date(startDate);
-        endDate.setDate(endDate.getDate() + durationDays);
+        endDate.setDate(endDate.getDate() + durationDays + (isOutstandingArrears ? graceDays : 0));
 
         const { error: subError } = await adminClient.from("subscription_charges").insert({
           tenant_id: rentRequest.tenant_id,
