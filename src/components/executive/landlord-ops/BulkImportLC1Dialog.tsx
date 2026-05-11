@@ -41,9 +41,6 @@ function normalizePhone(raw: string): string {
   return s;
 }
 
-function isValidUgPhone(p: string): boolean {
-  return /^256(7|3|4)\d{8}$/.test(p);
-}
 
 export function BulkImportLC1Dialog({ open, onClose, onImported }: Props) {
   const { user } = useAuth();
@@ -80,7 +77,6 @@ export function BulkImportLC1Dialog({ open, onClose, onImported }: Props) {
     else if (name.length < 2) errors.push('Name too short');
     else if (name.length > 100) errors.push('Name too long');
     if (!phone) errors.push('Phone required');
-    else if (!isValidUgPhone(phone)) errors.push('Invalid UG phone');
     if (!village) errors.push('Village required');
     else if (village.length > 100) errors.push('Village too long');
 
@@ -243,7 +239,7 @@ export function BulkImportLC1Dialog({ open, onClose, onImported }: Props) {
               </Button>
             </div>
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>Max 2000 rows. Phones auto-normalized to 256XXXXXXXXX.</span>
+              <span>Max 2000 rows. Phone numbers accepted in any format.</span>
               <Button variant="ghost" size="sm" onClick={downloadTemplate}>
                 <Download className="h-3.5 w-3.5 mr-1" /> Template
               </Button>
