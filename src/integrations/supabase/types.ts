@@ -5450,6 +5450,42 @@ export type Database = {
         }
         Relationships: []
       }
+      gmail_reconnect_audit: {
+        Row: {
+          action: string
+          created_at: string
+          error_message: string | null
+          id: string
+          initiated_by: string | null
+          initiated_by_email: string | null
+          latency_ms: number | null
+          outcome: string
+          raw_response: Json | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          initiated_by?: string | null
+          initiated_by_email?: string | null
+          latency_ms?: number | null
+          outcome: string
+          raw_response?: Json | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          initiated_by?: string | null
+          initiated_by_email?: string | null
+          latency_ms?: number | null
+          outcome?: string
+          raw_response?: Json | null
+        }
+        Relationships: []
+      }
       gmail_transactions: {
         Row: {
           amount: number | null
