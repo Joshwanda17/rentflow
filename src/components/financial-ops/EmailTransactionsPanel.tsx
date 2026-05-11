@@ -497,7 +497,6 @@ function DedupAuditPanel() {
                     <div className="min-w-0 flex-1">
                       <p className="font-medium truncate">{r.from_email || 'Unknown sender'}</p>
                       <p className="text-muted-foreground truncate">{r.subject || '(no subject)'}</p>
-                      {r.snippet && <p className="text-muted-foreground/70 line-clamp-1 mt-0.5">{r.snippet}</p>}
                     </div>
                     <Badge
                       variant="outline"
@@ -510,6 +509,11 @@ function DedupAuditPanel() {
                       {r.reason.replace('_', ' ')}
                     </Badge>
                   </div>
+                  {r.snippet && (
+                    <pre className="mt-2 p-2 rounded bg-muted/60 border border-border/50 text-[11px] text-muted-foreground whitespace-pre-wrap break-words font-mono leading-snug">
+                      {r.snippet.slice(0, 200)}{r.snippet.length > 200 ? '…' : ''}
+                    </pre>
+                  )}
                   <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 font-mono text-[10px] text-muted-foreground">
                     {r.matched_transaction_id && (
                       <span>matched TID: <span className="text-foreground">{r.matched_transaction_id}</span></span>
