@@ -537,7 +537,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           request_longitude: isOutstanding ? null : (gpsLocation?.lng ?? null),
           ...(isOutstanding ? {
             registration_type: 'outstanding_balance',
-            initial_outstanding_balance: fees.rentAmount,
+            initial_outstanding_balance: amount,
+            // Days remaining on the tenant's current rent period — captured by
+            // the agent during outstanding registration. Stored as a structured
+            // prefix in landlord_call_notes until a dedicated column exists.
+            landlord_call_notes: outstandingDaysRemaining
+              ? `[DAYS_REMAINING:${outstandingDaysRemaining}]`
+              : null,
           } : {}),
         } as any)
         .select('id')
