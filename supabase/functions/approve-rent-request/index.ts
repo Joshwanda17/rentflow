@@ -241,10 +241,14 @@ Deno.serve(async (req) => {
 
           await adminClient.from("notifications").insert({
             user_id: rentRequest.tenant_id,
-            title: "📅 Repayment Schedule Active",
-            message: `Your wallet will be auto-charged UGX ${chargeAmount.toLocaleString()} ${frequency} starting ${nextChargeDate.toLocaleDateString()}. Total: UGX ${totalRepayment.toLocaleString()} over ${totalCharges} payments.`,
+            title: isOutstandingArrears
+              ? "📅 Arrears Plan Activated"
+              : "📅 Repayment Schedule Active",
+            message: isOutstandingArrears
+              ? `Your arrears plan is active. Daily charges of UGX ${chargeAmount.toLocaleString()} will start on ${nextChargeDate.toLocaleDateString()}${graceDays > 0 ? ` (after your current rent period of ${graceDays} day(s))` : ''}. Total arrears: UGX ${totalRepayment.toLocaleString()} over ${totalCharges} days.`
+              : `Your wallet will be auto-charged UGX ${chargeAmount.toLocaleString()} ${frequency} starting ${nextChargeDate.toLocaleDateString()}. Total: UGX ${totalRepayment.toLocaleString()} over ${totalCharges} payments.`,
             type: "info",
-            metadata: { rent_request_id, frequency, charge_amount: chargeAmount, total_charges: totalCharges },
+            metadata: { rent_request_id, frequency, charge_amount: chargeAmount, total_charges: totalCharges, outstanding_grace_days: isOutstandingArrears ? graceDays : null },
           });
         }
       }
