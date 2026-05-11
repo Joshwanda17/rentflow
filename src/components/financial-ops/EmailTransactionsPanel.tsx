@@ -208,6 +208,58 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: R
   );
 }
 
+function GmailConnectionStatus({ state, lastSuccessAt }: { state: PollState | null; lastSuccessAt: string | null }) {
+  const err = (state?.last_error || '').toLowerCase();
+  const isExpired =
+    state?.last_status === 'error' &&
+    (err.includes('invalid credentials') ||
+      err.includes('unauthenticated') ||
+      err.includes('401') ||
+      err.includes('insufficient') ||
+      err.includes('token'));
+  const isError = state?.last_status === 'error';
+  const isOk = state?.last_status === 'ok';
+
+  const tone = isExpired
+    ? 'border-destructive/40 bg-destructive/5 text-destructive'
+    : isError
+      ? 'border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-400'
+      : isOk
+        ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400'
+        : 'border-border bg-muted/30 text-muted-foreground';
+
+  const Icon = isExpired || isError ? WifiOff : isOk ? Wifi : Wifi;
+  const label = isExpired
+    ? 'Gmail connection expired — reconnect required'
+    : isError
+      ? 'Gmail poll error'
+      : isOk
+        ? 'Gmail connected'
+        : 'Gmail status unknown';
+
+  return (
+    <div className={`rounded-xl border p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 ${tone}`}>
+      <div className="flex items-center gap-2.5 min-w-0">
+        <Icon className="h-4 w-4 shrink-0" />
+        <div className="min-w-0">
+          <p className="text-sm font-semibold truncate">{label}</p>
+          {isError && state?.last_error && (
+            <p className="text-[11px] opacity-80 truncate">{state.last_error.slice(0, 140)}</p>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-3 text-[11px] sm:text-xs shrink-0">
+        <span className="opacity-80">
+          Last successful poll:{' '}
+          <strong className="font-mono">
+            {lastSuccessAt ? format(new Date(lastSuccessAt), 'MMM d, HH:mm:ss') : 'never'}
+          </strong>
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function SmsSetupGuide() {
   return (
     <Dialog>
