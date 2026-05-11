@@ -85,7 +85,9 @@ export function EmailTransactionsPanel() {
     const { data, error } = await supabase.functions.invoke('gmail-poll-transactions', { body: {} });
     setPolling(false);
     if (error) {
-      toast({ title: 'Poll failed', description: error.message, variant: 'destructive' });
+      const friendly = friendlyPollError(error.message);
+      toast({ title: friendly.title, description: friendly.description, variant: 'destructive' });
+      await load(); // refresh state so banner shows the new error
     } else {
       const inserted = (data as any)?.inserted ?? 0;
       const scanned = (data as any)?.scanned ?? 0;
@@ -117,7 +119,12 @@ export function EmailTransactionsPanel() {
         <SmsSetupGuide />
       </div>
 
-      <GmailConnectionStatus state={state} lastSuccessAt={lastSuccessAt} />
+      <GmailConnectionStatus
+        state={state}
+        lastSuccessAt={lastSuccessAt}
+        onRetry={pollNow}
+        retrying={polling}
+      />
 
       <GmailReconnectAuditPanel />
 
