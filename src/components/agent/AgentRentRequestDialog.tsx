@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { optimizeImage } from '@/lib/imageOptimizer';
 import { GuarantorConsentCheckbox } from '@/components/agent/GuarantorConsentCheckbox';
 import { LandlordSearchSelect, type LandlordOption } from '@/components/agent/LandlordSearchSelect';
+import RegisterLandlordDialog from '@/components/agent/RegisterLandlordDialog';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Dialog,
@@ -143,6 +144,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [selectedLandlord, setSelectedLandlord] = useState<LandlordOption | null>(null);
   const [outstandingRentAmount, setOutstandingRentAmount] = useState('');
   const [outstandingDaysRemaining, setOutstandingDaysRemaining] = useState('');
+  const [showRegisterLandlord, setShowRegisterLandlord] = useState(false);
+  const [landlordPickerKey, setLandlordPickerKey] = useState(0);
 
   // Pre-fill fields when dialog opens with prefill props
   useEffect(() => {
@@ -478,11 +481,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
       // Register tenant via edge function (handles both existing and new users)
       const cleanTenantPhone = tenantPhone.replace(/\s/g, '');
+      const cleanNationalId = tenantNationalId.trim().toUpperCase();
       const { data: tenantResult, error: tenantRegError } = await supabase.functions.invoke('register-tenant', {
         body: {
           full_name: tenantName.trim(),
           phone: cleanTenantPhone,
-          national_id: tenantNationalId.trim().toUpperCase(),
+          // National ID is optional in the outstanding flow.
+          national_id: cleanNationalId || null,
         },
       });
 
