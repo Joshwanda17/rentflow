@@ -77,7 +77,6 @@ export function BulkImportLC1Dialog({ open, onClose, onImported }: Props) {
     else if (name.length < 2) errors.push('Name too short');
     else if (name.length > 100) errors.push('Name too long');
     if (!phone) errors.push('Phone required');
-    else if (!isValidUgPhone(phone)) errors.push('Invalid UG phone');
     if (!village) errors.push('Village required');
     else if (village.length > 100) errors.push('Village too long');
 
