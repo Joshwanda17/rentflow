@@ -54,26 +54,62 @@ export async function batchedQuery<T>(
 }
 
 /**
+ * Fetch ALL partner/funder IDs — supporters that own at least one portfolio
+ * (as `investor_id` OR `agent_id` in `investor_portfolios`, any status).
+ * Cached per session to avoid repeated full scans.
+ */
+let _partnerIdsCache: { ids: string[]; ts: number } | null = null;
+const PARTNER_IDS_TTL = 5 * 60 * 1000; // 5 min
+export async function fetchAllPartnerIds(): Promise<string[]> {
+  if (_partnerIdsCache && Date.now() - _partnerIdsCache.ts < PARTNER_IDS_TTL) {
+    return _partnerIdsCache.ids;
+  }
+  const allSupporterIds = await fetchAllUserIdsByRole('supporter');
+  if (allSupporterIds.length === 0) {
+    _partnerIdsCache = { ids: [], ts: Date.now() };
+    return [];
+  }
+  const supporterSet = new Set(allSupporterIds);
+  const portfolioRows = await batchedQuery<{ investor_id: string | null; agent_id: string }>(
+    allSupporterIds,
+    (batch) => supabase.from('investor_portfolios')
+      .select('investor_id, agent_id')
+      .or(`investor_id.in.(${batch.join(',')}),agent_id.in.(${batch.join(',')})`)
+  );
+  const ownerIds = new Set<string>();
+  portfolioRows.forEach(p => {
+    if (p.investor_id && supporterSet.has(p.investor_id)) ownerIds.add(p.investor_id);
+    else if (p.agent_id && supporterSet.has(p.agent_id)) ownerIds.add(p.agent_id);
+  });
+  const ids = Array.from(ownerIds);
+  _partnerIdsCache = { ids, ts: Date.now() };
+  return ids;
+}
+
+/**
  * Fetch a paginated page of supporter IDs + total count.
  * Optionally filter by name/phone/email search term (joins profiles).
+ *
+ * NOTE: "Supporter" here means partner/funder — a supporter that owns at
+ * least one portfolio. Plain supporters with zero portfolios are excluded
+ * so the Partner Management table (and all its filters) only operate on
+ * the partner set.
  */
 export async function fetchPaginatedSupporterIds(
   page: number,
   pageSize: number,
   search?: string
 ): Promise<{ ids: string[]; totalCount: number }> {
+  const partnerIds = await fetchAllPartnerIds();
+  if (partnerIds.length === 0) return { ids: [], totalCount: 0 };
+  const partnerSet = new Set(partnerIds);
+
   // If searching, do a single broad profile search then intersect with supporter set in memory.
   // This avoids N batched .in() round-trips against profiles (the previous slow path).
   if (search && search.trim().length > 0) {
     const raw = search.trim();
     const q = raw.replace(/[%,]/g, ''); // sanitize PostgREST wildcards/separators
     if (!q) return { ids: [], totalCount: 0 };
-
-    // Fetch supporter IDs once (already paginated past 1k internally) so we can
-    // intersect — supporter list is small relative to profiles.
-    const allSupporterIds = await fetchAllUserIdsByRole('supporter');
-    if (allSupporterIds.length === 0) return { ids: [], totalCount: 0 };
-    const supporterSet = new Set(allSupporterIds);
 
     // Single round-trip ilike across profiles (indexed in this project on
     // lower(full_name)/lower(email)) — far cheaper than batched .in()+or().
@@ -85,7 +121,7 @@ export async function fetchPaginatedSupporterIds(
 
     const matchedIds = (matches || [])
       .map((p: any) => p.id as string)
-      .filter(id => supporterSet.has(id));
+      .filter(id => partnerSet.has(id));
     const start = page * pageSize;
     return {
       ids: matchedIds.slice(start, start + pageSize),
@@ -93,27 +129,11 @@ export async function fetchPaginatedSupporterIds(
     };
   }
 
-  // No search: simple paginated query on user_roles
+  // No search: paginate over the in-memory partner ID list (already filtered to ≥1 portfolio)
   const start = page * pageSize;
-  const end = start + pageSize - 1;
-
-  const [{ count }, { data }] = await Promise.all([
-    supabase
-      .from('user_roles')
-      .select('user_id', { count: 'exact', head: true })
-      .eq('role', 'supporter')
-      .eq('enabled', true),
-    supabase
-      .from('user_roles')
-      .select('user_id')
-      .eq('role', 'supporter')
-      .eq('enabled', true)
-      .range(start, end),
-  ]);
-
   return {
-    ids: (data || []).map(r => r.user_id),
-    totalCount: count || 0,
+    ids: partnerIds.slice(start, start + pageSize),
+    totalCount: partnerIds.length,
   };
 }
 
