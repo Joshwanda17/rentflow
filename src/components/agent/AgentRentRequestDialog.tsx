@@ -1445,6 +1445,16 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           ) : null}
         </AnimatePresence>
       </DialogContent>
+      <RegisterLandlordDialog
+        open={showRegisterLandlord}
+        onOpenChange={setShowRegisterLandlord}
+        onSuccess={() => {
+          setShowRegisterLandlord(false);
+          // Force the search popover to re-fetch fresh results.
+          setLandlordPickerKey((k) => k + 1);
+          toast.success('Landlord registered. Search to select them now.');
+        }}
+      />
     </Dialog>
   );
 }
