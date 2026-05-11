@@ -67,14 +67,14 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
       for (const r of data ?? []) {
         const e = map.get(r.investor_id);
         if (e) {
-          e.total_shares += r.shares;
-          e.total_amount += r.amount;
-          e.pool_pct += r.pool_ownership_percent;
-          e.company_pct += r.company_ownership_percent;
+          e.total_shares += Number(r.shares);
+          e.total_amount += Number(r.amount);
+          e.pool_pct += Number(r.pool_ownership_percent);
+          e.company_pct += Number(r.company_ownership_percent);
           if (r.created_at > e.latest_date) e.latest_date = r.created_at;
           if (r.reference_id && !e.reference_ids.includes(r.reference_id)) e.reference_ids.push(r.reference_id);
         } else {
-          map.set(r.investor_id, { total_shares: r.shares, total_amount: r.amount, pool_pct: r.pool_ownership_percent, company_pct: r.company_ownership_percent, latest_date: r.created_at, status: r.status, reference_ids: r.reference_id ? [r.reference_id] : [] });
+          map.set(r.investor_id, { total_shares: Number(r.shares), total_amount: Number(r.amount), pool_pct: Number(r.pool_ownership_percent), company_pct: Number(r.company_ownership_percent), latest_date: r.created_at, status: r.status, reference_ids: r.reference_id ? [r.reference_id] : [] });
         }
       }
 
