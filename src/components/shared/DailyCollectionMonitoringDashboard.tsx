@@ -196,7 +196,7 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
     queryFn: async () => {
       const { data } = await supabase
         .from('rent_requests')
-        .select('amount_repaid, total_repayment, status')
+        .select('amount_repaid, total_repayment, rent_amount, status')
         .in('status', ['funded', 'disbursed', 'repaying', 'fully_repaid'])
         .limit(5000);
       const rows = (data || []) as any[];
@@ -205,7 +205,9 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
       const totalOutstanding = rows
         .filter(r => r.status !== 'fully_repaid')
         .reduce((s, r) => s + Math.max(0, Number(r.total_repayment || 0) - Number(r.amount_repaid || 0)), 0);
-      return { totalPaid, totalOutstanding };
+      // Total rent the company has disbursed to landlords on behalf of tenants (all time)
+      const totalDisbursed = rows.reduce((s, r) => s + Number(r.rent_amount || 0), 0);
+      return { totalPaid, totalOutstanding, totalDisbursed };
     },
     staleTime: 5 * 60_000,
   });
@@ -566,7 +568,7 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2.5">
         <KpiCard
           label="Tenants Onboarded (Today)"
           value={String(onboardedToday?.today ?? 0)}
@@ -608,6 +610,13 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
           icon={AlertTriangle}
           color="text-destructive bg-destructive/10"
           subtitle="Across active rent plans"
+        />
+        <KpiCard
+          label="Total Disbursed to Landlords (All Time)"
+          value={formatUGX(allTimeStats?.totalDisbursed || 0)}
+          icon={Wallet}
+          color="text-warning bg-warning/10"
+          subtitle="Rent paid out by company"
         />
       </div>
 
