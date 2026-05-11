@@ -351,6 +351,7 @@ export default function LandlordRegistrationForm({
           className="space-y-3"
         >
           {/* Qualification Score Bar */}
+          {!minimal && (
           <div className="p-2.5 rounded-lg bg-muted/50 border">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs font-medium text-muted-foreground">Qualification Score</span>
@@ -365,6 +366,7 @@ export default function LandlordRegistrationForm({
               />
             </div>
           </div>
+          )}
 
           {/* Landlord Name */}
           <div className="space-y-1">
