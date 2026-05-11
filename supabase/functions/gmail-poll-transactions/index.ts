@@ -55,6 +55,27 @@ function extractPlainBody(payload: any): string {
   return '';
 }
 
+async function sha256Hex(input: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function buildDedupKey(p: {
+  transaction_id?: string | null; from_email?: string | null;
+  amount?: number | null; internal_date?: Date | null; counterparty?: string | null;
+}): string {
+  const minute = p.internal_date
+    ? `${p.internal_date.getUTCFullYear()}-${String(p.internal_date.getUTCMonth()+1).padStart(2,'0')}-${String(p.internal_date.getUTCDate()).padStart(2,'0')} ${String(p.internal_date.getUTCHours()).padStart(2,'0')}:${String(p.internal_date.getUTCMinutes()).padStart(2,'0')}`
+    : '';
+  return [
+    (p.transaction_id ?? '').toLowerCase(),
+    p.from_email ?? '',
+    p.amount ?? '',
+    minute,
+    p.counterparty ?? '',
+  ].join('|');
+}
+
 // ---- SMS-style transaction parser (mirrors src/utils/smsParser.ts) ----
 const MONTH_MAP: Record<string, string> = {
   jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
@@ -124,6 +145,17 @@ function parseTransaction(text: string): {
   else if (flutter) out.transaction_id = flutter[0].toUpperCase();
   else if (bankRef) out.transaction_id = bankRef[0].toUpperCase();
   else if (generic) out.transaction_id = generic[1].toUpperCase();
+
+  // Filter junk transaction IDs (common stop-words / too short / no digits)
+  if (out.transaction_id) {
+    const cleaned = out.transaction_id.trim();
+    const stop = new Set(['FROM','TO','BY','REF','TXN','TRANS','RECEIPT','REFERENCE','CONFIRMATION','TXNID','TRANSID','OF','THE','YOUR','THIS','THAT','WITH','SENT','PAID','RECEIVED']);
+    if (cleaned.length < 6 || stop.has(cleaned.toUpperCase()) || !/[0-9]/.test(cleaned)) {
+      delete out.transaction_id;
+    } else {
+      out.transaction_id = cleaned;
+    }
+  }
 
   const cpMatch = t.match(/\b(?:from|to|by)\s+([A-Z][A-Za-z'.\- ]{1,40}?)(?=\s+(?:on|at|UGX|USh|Shs|Bal|ID|TID|Ref|\.|,|256|\+256|0\d{9}))/);
   if (cpMatch) out.counterparty = cpMatch[1].trim();
@@ -238,6 +270,34 @@ Deno.serve(async (req) => {
       if (internalMs > newestMs) newestMs = internalMs;
 
       const isParsed = !!(parsed.amount || parsed.transaction_id);
+      const internalDateObj = internalMs ? new Date(internalMs) : null;
+      const dedupHash = (parsed.transaction_id || parsed.amount)
+        ? await sha256Hex(buildDedupKey({
+            transaction_id: parsed.transaction_id,
+            from_email: fromEmail,
+            amount: parsed.amount,
+            internal_date: internalDateObj,
+            counterparty: parsed.counterparty,
+          }))
+        : null;
+
+      // Skip if a row with the same transaction_id or dedup_hash already exists.
+      if (parsed.transaction_id || dedupHash) {
+        const orParts: string[] = [];
+        if (parsed.transaction_id) orParts.push(`transaction_id.eq.${parsed.transaction_id}`);
+        if (dedupHash) orParts.push(`dedup_hash.eq.${dedupHash}`);
+        const { data: dup } = await supabase
+          .from('gmail_transactions')
+          .select('id')
+          .or(orParts.join(','))
+          .limit(1)
+          .maybeSingle();
+        if (dup) {
+          if (debug) debugReport.push({ id: m.id, decision: 'skipped', reason: 'duplicate_transaction', from: fromEmail, subject });
+          continue;
+        }
+      }
+
       const reasons: string[] = [];
       if (!parsed.amount) reasons.push('no_amount_detected');
       if (!parsed.transaction_id) reasons.push('no_transaction_id_detected');
@@ -288,8 +348,12 @@ Deno.serve(async (req) => {
         counterparty: parsed.counterparty ?? null,
         fee: parsed.fee ?? null,
         balance: parsed.balance ?? null,
+        dedup_hash: dedupHash,
       });
       if (!error) inserted++;
+      else if ((error as any)?.code === '23505') {
+        // Race: another poll inserted this row between our check and insert. Safe to ignore.
+      }
     }
 
     if (!debug) {
