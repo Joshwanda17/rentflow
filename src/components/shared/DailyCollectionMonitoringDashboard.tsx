@@ -769,7 +769,8 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
       </Card>
 
       {/* Agent summary + Donut */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div className={cn('grid grid-cols-1 gap-3', mode !== 'editable' && 'lg:grid-cols-2')}>
+        {mode !== 'editable' && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
@@ -817,6 +818,7 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
             )}
           </CardContent>
         </Card>
+        )}
 
         <Card>
           <CardHeader className="pb-2">
