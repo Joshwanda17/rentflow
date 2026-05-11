@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { optimizeImage } from '@/lib/imageOptimizer';
 import { GuarantorConsentCheckbox } from '@/components/agent/GuarantorConsentCheckbox';
+import { LandlordSearchSelect, type LandlordOption } from '@/components/agent/LandlordSearchSelect';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Dialog,
@@ -138,6 +139,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // FIX #9: house category for outstanding flow
   const [outstandingHouseCategory, setOutstandingHouseCategory] = useState('');
 
+  // ===== Outstanding flow (refactor): selected landlord + extra rent fields =====
+  const [selectedLandlord, setSelectedLandlord] = useState<LandlordOption | null>(null);
+  const [outstandingRentAmount, setOutstandingRentAmount] = useState('');
+  const [outstandingDaysRemaining, setOutstandingDaysRemaining] = useState('');
+
   // Pre-fill fields when dialog opens with prefill props
   useEffect(() => {
     if (open) {
@@ -226,6 +232,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setLc1Village('');
     setHouseCategory('');
     setOutstandingHouseCategory('');
+    setSelectedLandlord(null);
+    setOutstandingRentAmount('');
+    setOutstandingDaysRemaining('');
     setNoSmartphone(false);
     setGpsLocation(null);
     setGpsLoading(false);
