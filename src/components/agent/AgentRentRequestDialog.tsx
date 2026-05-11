@@ -264,8 +264,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   
   // Calculate fees based on income type
   const calculateFees = () => {
-    if (!amount || !incomeType) return null;
-    
+    if (!incomeType) return null;
+    // Outstanding flow accepts a zero balance (tenant already cleared) — only
+    // non-outstanding flows require a positive amount to compute fees.
+    if (incomeType !== 'outstanding' && !amount) return null;
+
     if (incomeType === 'outstanding') {
       const days = parseInt(duration);
       // Outstanding flow: rent_amount is the monthly rent the tenant owes
@@ -277,7 +280,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
         accessFee: 0,
         requestFee: 0,
         totalRepayment: amount,
-        dailyRepayment: Math.ceil(amount / days),
+        dailyRepayment: amount > 0 ? Math.ceil(amount / days) : 0,
       };
     }
     
@@ -331,8 +334,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       if (!outstandingRentAmount || parseInt(outstandingRentAmount.replace(/,/g, '')) <= 0) {
         errors.push('Rent amount is required');
       }
-      if (!outstandingDaysRemaining || parseInt(outstandingDaysRemaining) <= 0) {
+      // Outstanding balance and days remaining can both be 0
+      // (tenant already cleared / no current period left).
+      if (outstandingDaysRemaining === '' || isNaN(parseInt(outstandingDaysRemaining))) {
         errors.push('Days remaining is required');
+      }
+      if (outstandingBalance === '' || isNaN(parseInt(outstandingBalance.replace(/,/g, '')))) {
+        errors.push('Outstanding balance is required');
       }
     } else {
       if (!landlordName.trim()) errors.push('Landlord name is required');
