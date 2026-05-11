@@ -22,6 +22,7 @@ import {
 import {
   Users, CheckCircle2, Banknote, CalendarDays, Building, Trophy, AlertTriangle,
   TrendingUp, TrendingDown, Loader2, Wallet, Filter, CalendarIcon, X,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import {
   startOfDay, endOfDay, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
@@ -110,6 +111,8 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
   const [recordAmount, setRecordAmount] = useState('');
   const [recordMethod, setRecordMethod] = useState<string>('cash');
   const [recordRemarks, setRecordRemarks] = useState('');
+  const [trackerPage, setTrackerPage] = useState(1);
+  const TRACKER_PAGE_SIZE = 25;
   const [submitting, setSubmitting] = useState(false);
 
   // Range -> [from, to]
