@@ -394,7 +394,44 @@ export default function LandlordRegistrationForm({
             />
           </div>
 
+          {/* Minimal-mode LC1 fields (Outstanding Balance flow) */}
+          {minimal && (
+            <div className="space-y-2 p-2.5 rounded-lg border bg-muted/30">
+              <div className="flex items-center gap-1.5">
+                <ShieldCheck className="h-3 w-3 text-primary" />
+                <span className="text-xs font-semibold">LC1 Chairperson</span>
+              </div>
+              <div className="space-y-2">
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold flex items-center gap-1.5">
+                    <User className="h-3 w-3" /> LC1 Name *
+                  </Label>
+                  <Input
+                    value={lc1Name}
+                    onChange={(e) => setLc1Name(e.target.value)}
+                    placeholder="Chairperson full name"
+                    className="h-10"
+                    required
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold flex items-center gap-1.5">
+                    <Phone className="h-3 w-3" /> LC1 Phone *
+                  </Label>
+                  <Input
+                    value={lc1Phone}
+                    onChange={(e) => setLc1Phone(e.target.value)}
+                    placeholder="0700000000"
+                    className="h-10"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Number of Rentals & Category in row */}
+          {!minimal && (
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
               <Label className="text-xs font-semibold flex items-center gap-1.5">
@@ -425,8 +462,10 @@ export default function LandlordRegistrationForm({
               </Select>
             </div>
           </div>
+          )}
 
           {/* Property Address */}
+          {!minimal && (
           <div className="space-y-1">
             <Label className="text-xs font-semibold flex items-center gap-1.5">
               <MapPin className="h-3 w-3" /> Property Address *
@@ -439,8 +478,10 @@ export default function LandlordRegistrationForm({
               required
             />
           </div>
+          )}
 
           {/* GPS Location */}
+          {!minimal && (
           <div className={`flex items-center justify-between p-2.5 rounded-lg border ${
             locationCaptured ? 'bg-success/10 border-success/30'
               : locationError ? 'bg-destructive/10 border-destructive/30'
@@ -482,8 +523,10 @@ export default function LandlordRegistrationForm({
               {locationCaptured ? 'Refresh' : 'Capture'}
             </Button>
           </div>
+          )}
 
           {/* Mobile Money Section */}
+          {!minimal && (
           <div className="space-y-2 p-2.5 rounded-lg border bg-muted/30">
             <div className="flex items-center gap-1.5">
               <Wallet className="h-3 w-3 text-primary" />
@@ -516,8 +559,10 @@ export default function LandlordRegistrationForm({
               </div>
             </div>
           </div>
+          )}
 
           {/* Utility Meters */}
+          {!minimal && (
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
               <Label className="text-xs font-semibold flex items-center gap-1.5">
@@ -542,8 +587,10 @@ export default function LandlordRegistrationForm({
               />
             </div>
           </div>
+          )}
 
           {/* Temporary Password */}
+          {!minimal && (
           <div className="space-y-1">
             <div className="flex items-center justify-between">
               <Label className="text-xs font-semibold">Temporary Password</Label>
@@ -567,6 +614,7 @@ export default function LandlordRegistrationForm({
               </Button>
             </div>
           </div>
+          )}
 
           {/* Submit */}
           <Button type="submit" className="w-full h-11 text-sm gap-2" disabled={loading}>
