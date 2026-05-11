@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check } from 'lucide-react';
+import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription,
 } from '@/components/ui/dialog';
@@ -45,6 +45,9 @@ export function EmailTransactionsPanel() {
   const { toast } = useToast();
   const [rows, setRows] = useState<GmailTx[]>([]);
   const [state, setState] = useState<PollState | null>(null);
+  const [lastSuccessAt, setLastSuccessAt] = useState<string | null>(
+    () => (typeof window !== 'undefined' ? localStorage.getItem('gmail_last_success_at') : null)
+  );
   const [loading, setLoading] = useState(true);
   const [polling, setPolling] = useState(false);
 
@@ -58,6 +61,11 @@ export function EmailTransactionsPanel() {
     ]);
     setRows((txs as unknown as GmailTx[]) ?? []);
     setState((ps as PollState) ?? null);
+    const psTyped = ps as PollState | null;
+    if (psTyped?.last_status === 'ok' && psTyped.last_polled_at) {
+      setLastSuccessAt(psTyped.last_polled_at);
+      try { localStorage.setItem('gmail_last_success_at', psTyped.last_polled_at); } catch {}
+    }
     setLoading(false);
   };
 
@@ -107,6 +115,8 @@ export function EmailTransactionsPanel() {
         <DebugPollDialog />
         <SmsSetupGuide />
       </div>
+
+      <GmailConnectionStatus state={state} lastSuccessAt={lastSuccessAt} />
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard label="Emails captured" value={rows.length.toString()} />
@@ -194,6 +204,58 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: R
       <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">{label}</p>
       <p className="font-black text-lg mt-1">{value}</p>
       {sub && <div className="mt-1">{sub}</div>}
+    </div>
+  );
+}
+
+function GmailConnectionStatus({ state, lastSuccessAt }: { state: PollState | null; lastSuccessAt: string | null }) {
+  const err = (state?.last_error || '').toLowerCase();
+  const isExpired =
+    state?.last_status === 'error' &&
+    (err.includes('invalid credentials') ||
+      err.includes('unauthenticated') ||
+      err.includes('401') ||
+      err.includes('insufficient') ||
+      err.includes('token'));
+  const isError = state?.last_status === 'error';
+  const isOk = state?.last_status === 'ok';
+
+  const tone = isExpired
+    ? 'border-destructive/40 bg-destructive/5 text-destructive'
+    : isError
+      ? 'border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-400'
+      : isOk
+        ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400'
+        : 'border-border bg-muted/30 text-muted-foreground';
+
+  const Icon = isExpired || isError ? WifiOff : isOk ? Wifi : Wifi;
+  const label = isExpired
+    ? 'Gmail connection expired — reconnect required'
+    : isError
+      ? 'Gmail poll error'
+      : isOk
+        ? 'Gmail connected'
+        : 'Gmail status unknown';
+
+  return (
+    <div className={`rounded-xl border p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 ${tone}`}>
+      <div className="flex items-center gap-2.5 min-w-0">
+        <Icon className="h-4 w-4 shrink-0" />
+        <div className="min-w-0">
+          <p className="text-sm font-semibold truncate">{label}</p>
+          {isError && state?.last_error && (
+            <p className="text-[11px] opacity-80 truncate">{state.last_error.slice(0, 140)}</p>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-3 text-[11px] sm:text-xs shrink-0">
+        <span className="opacity-80">
+          Last successful poll:{' '}
+          <strong className="font-mono">
+            {lastSuccessAt ? format(new Date(lastSuccessAt), 'MMM d, HH:mm:ss') : 'never'}
+          </strong>
+        </span>
+      </div>
     </div>
   );
 }
