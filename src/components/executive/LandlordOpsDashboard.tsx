@@ -46,6 +46,7 @@ import { Trash2, XCircle, Pencil } from 'lucide-react';
 import { EditLandlordDialog } from './landlord-ops/EditLandlordDialog';
 import { EditLC1Dialog } from './landlord-ops/EditLC1Dialog';
 import { BulkImportLC1Dialog } from './landlord-ops/BulkImportLC1Dialog';
+import { BulkImportLandlordsDialog } from './landlord-ops/BulkImportLandlordsDialog';
 import { AssignPersonDialog } from './landlord-ops/AssignPersonDialog';
 import { LandlordsPaidView } from './landlord-ops/LandlordsPaidView';
 import { LandlordsWithTenantsView } from './landlord-ops/LandlordsWithTenantsView';
@@ -230,6 +231,7 @@ export function LandlordOpsDashboard() {
   const [editLandlord, setEditLandlord] = useState<{ id: string; name: string; phone: string; [k: string]: any } | null>(null);
   const [editLC1, setEditLC1] = useState<{ id: string; name: string; phone: string | null; village: string | null; listingIds: string[] } | null>(null);
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
+  const [bulkImportLandlordsOpen, setBulkImportLandlordsOpen] = useState(false);
   const [deleteLandlord, setDeleteLandlord] = useState<{ id: string; name: string } | null>(null);
   const [deleteReason, setDeleteReason] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -1023,7 +1025,12 @@ export function LandlordOpsDashboard() {
         <BackButton />
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold flex items-center gap-2"><Building2 className="h-5 w-5 text-sky-600" /> All Landlords</h2>
-          <span className="text-xs text-muted-foreground">{filtered.length} landlords</span>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={() => setBulkImportLandlordsOpen(true)} className="h-9">
+              <Upload className="h-4 w-4 mr-1.5" /> Bulk Import
+            </Button>
+            <span className="text-xs text-muted-foreground">{filtered.length} landlords</span>
+          </div>
         </div>
 
         {/* Search */}
