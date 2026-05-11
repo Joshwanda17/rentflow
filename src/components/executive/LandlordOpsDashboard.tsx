@@ -1151,6 +1151,11 @@ export function LandlordOpsDashboard() {
         actionDialog={actionDialog} setActionDialog={setActionDialog}
         user={user} refetchAll={refetchAll} queryClient={queryClient}
       />
+      <BulkImportLandlordsDialog
+        open={bulkImportLandlordsOpen}
+        onClose={() => setBulkImportLandlordsOpen(false)}
+        onImported={refetchAll}
+      />
       </>
     );
   }
