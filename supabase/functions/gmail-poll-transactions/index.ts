@@ -306,8 +306,8 @@ Deno.serve(async (req) => {
               matched_row_id: (dup as any).id,
               reason,
               from_email: fromEmail,
-              subject: subject?.slice(0, 200) ?? null,
-              snippet: snippet?.slice(0, 200) ?? null,
+              subject: subject ?? null,
+              snippet: snippet ?? null,
               internal_date: internalMs ? new Date(internalMs).toISOString() : null,
             });
           }
