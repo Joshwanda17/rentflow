@@ -239,7 +239,7 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
       `✅ Angel Pool Investment Confirmed!\n\n` +
       `Investor: ${selectedInvestor.full_name}\n` +
       `Amount: UGX ${result.actual_amount.toLocaleString()}\n` +
-      `Shares: ${result.shares}\n` +
+      `Shares: ${Number(result.shares).toLocaleString(undefined, { maximumFractionDigits: 4 })}\n` +
       `Pool Ownership: ${result.pool_ownership_percent.toFixed(4)}%\n` +
       `Company Equity: ${result.company_ownership_percent.toFixed(4)}%\n` +
       `Reference: ${result.reference_id}\n\n` +
