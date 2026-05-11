@@ -93,23 +93,22 @@ export function PartnerDirectory({ onSelectPartners }: PartnerDirectoryProps) {
   const [bulkMode, setBulkMode] = useState(false);
   
 
-  // Fetch all users with supporter role, then enrich with portfolio data
+  // Fetch all users with one or more portfolios (definition of partner/funder), then enrich
   const { data: partners, isLoading } = useQuery({
     queryKey: ['partner-directory-full'],
     queryFn: async () => {
-      // Step 1: Get ALL user IDs with the 'supporter' role
+      // Step 1: Page through ALL portfolios — partners are users who hold one or more portfolios
       const PAGE_SIZE = 1000;
       let offset = 0;
       let hasMore = true;
-      const supporterUserIds: string[] = [];
+      const allPortfolios: any[] = [];
 
       while (hasMore) {
-        const { data } = await supabase.from('user_roles')
-          .select('user_id')
-          .eq('role', 'supporter')
+        const { data } = await supabase.from('investor_portfolios')
+          .select('id, investor_id, investment_amount, total_roi_earned, status, created_at')
           .range(offset, offset + PAGE_SIZE - 1);
         if (data && data.length > 0) {
-          supporterUserIds.push(...data.map(r => r.user_id));
+          allPortfolios.push(...data);
           offset += PAGE_SIZE;
           hasMore = data.length === PAGE_SIZE;
         } else {
@@ -117,23 +116,13 @@ export function PartnerDirectory({ onSelectPartners }: PartnerDirectoryProps) {
         }
       }
 
-      if (supporterUserIds.length === 0) return [];
-
-      // Step 2: Fetch all portfolios for these users
-      const allPortfolios: any[] = [];
+      if (allPortfolios.length === 0) return [];
       const BATCH = 50;
-      for (let i = 0; i < supporterUserIds.length; i += BATCH) {
-        const batch = supporterUserIds.slice(i, i + BATCH);
-        const { data } = await supabase.from('investor_portfolios')
-          .select('id, investor_id, agent_id, investment_amount, total_roi_earned, status, created_at')
-          .or(`investor_id.in.(${batch.join(',')}),agent_id.in.(${batch.join(',')})`);
-        if (data) allPortfolios.push(...data);
-      }
 
       // Group portfolios by investor
       const investorMap = new Map<string, { totalInvested: number; totalROI: number; portfolioCount: number; activePortfolios: number; earliestDate: string; status: string }>();
       allPortfolios.forEach(p => {
-        const investorId = p.investor_id || p.agent_id;
+        const investorId = p.investor_id;
         if (!investorId) return;
         const existing = investorMap.get(investorId) || { totalInvested: 0, totalROI: 0, portfolioCount: 0, activePortfolios: 0, earliestDate: p.created_at, status: 'inactive' };
         existing.totalInvested += p.investment_amount || 0;
@@ -145,17 +134,21 @@ export function PartnerDirectory({ onSelectPartners }: PartnerDirectoryProps) {
         investorMap.set(investorId, existing);
       });
 
-      // Step 3: Fetch profiles in batches
+      // Step 2: Fetch profiles in batches for the distinct investor IDs
+      const partnerIds = Array.from(investorMap.keys());
       const allProfiles: any[] = [];
-      for (let i = 0; i < supporterUserIds.length; i += BATCH) {
+      for (let i = 0; i < partnerIds.length; i += BATCH) {
         const { data } = await supabase.from('profiles')
           .select('id, full_name, phone, email, avatar_url, created_at, territory, last_active_at')
-          .in('id', supporterUserIds.slice(i, i + BATCH));
+          .in('id', partnerIds.slice(i, i + BATCH));
         if (data) allProfiles.push(...data);
       }
+      const profileMap = new Map(allProfiles.map(p => [p.id, p]));
 
-      return allProfiles.map(p => {
-        const inv = investorMap.get(p.id);
+      // Build rows for every partner (even if profile row is missing)
+      return partnerIds.map(id => {
+        const p: any = profileMap.get(id) || { id, full_name: 'Unknown', phone: '', email: '', avatar_url: null, created_at: null, territory: null, last_active_at: null };
+        const inv = investorMap.get(id);
         return {
           id: p.id,
           investor_id: p.id,
@@ -171,7 +164,7 @@ export function PartnerDirectory({ onSelectPartners }: PartnerDirectoryProps) {
           activePortfolios: inv?.activePortfolios || 0,
           status: inv?.status || 'new',
           tier: getPartnerTier(inv?.totalInvested || 0, inv?.activePortfolios || 0),
-          lastActiveAt: (p as any).last_active_at || null,
+          lastActiveAt: p.last_active_at || null,
         } as PartnerRow;
       });
     },
