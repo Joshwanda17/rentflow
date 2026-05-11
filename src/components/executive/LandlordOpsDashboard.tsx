@@ -1201,7 +1201,12 @@ export function LandlordOpsDashboard() {
       <>
       <div className="space-y-3">
         <BackButton />
-        <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> LC1 Chairpersons ({lc1Groups.length})</h2>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> LC1 Chairpersons ({lc1Groups.length})</h2>
+          <Button size="sm" onClick={() => setBulkImportOpen(true)} className="h-9">
+            <Upload className="h-4 w-4 mr-1.5" /> Bulk Import
+          </Button>
+        </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search by name, village, or phone…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-11" />
