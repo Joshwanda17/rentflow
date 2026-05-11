@@ -7,9 +7,20 @@ const corsHeaders = {
 
 const GATEWAY_URL = 'https://connector-gateway.lovable.dev/google_mail/gmail/v1';
 
-// Match anything that smells like a transaction confirmation.
-// Tweak this query in the future without touching code by editing here.
-const GMAIL_QUERY = '(UGX OR USh OR UShs OR Shs OR MoMo OR "TID" OR "transaction" OR "Mobile Money" OR "Airtel Money" OR "MTN" OR subject:"SMS from" OR subject:"SMS Forwarder" OR from:smsforwarder OR "Forwarded SMS") newer_than:7d';
+// Capture every recent email that mentions money in any common form.
+// We deliberately keep this VERY broad: any UGX/USh/Shs token, any digit
+// sequence with a thousands separator, common provider words, and any
+// forwarded SMS. Filtering happens downstream by the parser (`parsed`
+// flag) so nothing useful is missed at the Gmail layer.
+const GMAIL_QUERY = [
+  '(',
+  'UGX OR USh OR UShs OR Shs OR "USh." OR "Ush" OR "shs."',
+  'OR MoMo OR "Mobile Money" OR "Airtel Money" OR MTN OR Airtel OR Stanbic OR Centenary OR DFCU OR Equity OR Absa OR "Stanbic Bank"',
+  'OR "TID" OR "Txn ID" OR "Transaction ID" OR "Trans ID" OR "Receipt" OR "Reference" OR "Confirmation"',
+  'OR "received" OR "deposited" OR "credited" OR "withdrawn" OR "paid" OR "sent" OR "debited"',
+  'OR subject:"SMS from" OR subject:"SMS Forwarder" OR from:smsforwarder OR "Forwarded SMS"',
+  ') newer_than:30d',
+].join(' ');
 
 function b64urlDecode(input: string): string {
   const pad = input.length % 4 === 0 ? '' : '='.repeat(4 - (input.length % 4));
