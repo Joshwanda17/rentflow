@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, History } from 'lucide-react';
+import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone, Bug, ShieldAlert, Copy, Check, Wifi, WifiOff, ShieldCheck, History, LinkIcon } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription,
 } from '@/components/ui/dialog';
@@ -112,6 +112,7 @@ export function EmailTransactionsPanel() {
           {polling ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           Poll now
         </Button>
+        <ReconnectGmailDialog />
         <DebugPollDialog />
         <SmsSetupGuide />
       </div>
@@ -775,5 +776,84 @@ function DedupAuditPanel() {
         </>
       )}
     </div>
+  );
+}
+
+function ReconnectGmailDialog() {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [logging, setLogging] = useState(false);
+
+  const logReconnectAttempt = async () => {
+    setLogging(true);
+    const { error } = await supabase.functions.invoke('gmail-verify-connection', {
+      body: { action: 'reconnect_initiated' },
+    });
+    setLogging(false);
+    if (error) {
+      toast({ title: 'Audit log failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({
+      title: 'Reconnect attempt logged',
+      description: 'Now ask the AI in chat to reconnect Gmail to complete OAuth.',
+    });
+    window.dispatchEvent(new CustomEvent('gmail-reconnect-audit-refresh'));
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="gap-2">
+          <LinkIcon className="h-4 w-4" /> Reconnect Gmail
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <LinkIcon className="h-5 w-5 text-primary" /> Reconnect Gmail
+          </DialogTitle>
+          <DialogDescription>
+            Use this when polling has stopped because the Gmail connection's OAuth token has
+            expired or scopes have changed.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 text-sm">
+          <ol className="list-decimal pl-5 space-y-2 text-muted-foreground">
+            <li>
+              Click <strong className="text-foreground">Log &amp; open chat</strong> below — this
+              records the attempt in the audit log.
+            </li>
+            <li>
+              In the Lovable chat, type{' '}
+              <code className="px-1.5 py-0.5 rounded bg-muted text-foreground font-mono text-[11px]">
+                Reconnect Gmail
+              </code>{' '}
+              and approve the OAuth prompt that appears.
+            </li>
+            <li>
+              Return here and click <strong className="text-foreground">Verify</strong> on the
+              status banner to confirm the new token works.
+            </li>
+          </ol>
+
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-[12px] text-amber-700 dark:text-amber-400">
+            OAuth must complete in the Lovable chat surface — browsers can't initiate the
+            reconnect directly from this page.
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="ghost" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+          <Button onClick={logReconnectAttempt} disabled={logging} className="gap-2">
+            {logging ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Log &amp; open chat
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
