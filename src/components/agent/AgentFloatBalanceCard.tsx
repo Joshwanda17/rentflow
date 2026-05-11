@@ -1,11 +1,11 @@
 import { useAgentBalances } from '@/hooks/useAgentBalances';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Loader2, Wallet, Lock, AlertTriangle } from 'lucide-react';
+import { Loader2, Wallet, Lock, AlertTriangle, Clock } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export function AgentFloatBalanceCard() {
-  const { withdrawableBalance, floatBalance, advanceBalance, isLoading } = useAgentBalances();
+  const { withdrawableBalance, floatBalance, advanceBalance, pendingHolds, isLoading } = useAgentBalances();
 
   if (isLoading) {
     return (
@@ -17,7 +17,7 @@ export function AgentFloatBalanceCard() {
     );
   }
 
-  if (withdrawableBalance === 0 && floatBalance === 0 && advanceBalance === 0) return null;
+  if (withdrawableBalance === 0 && floatBalance === 0 && advanceBalance === 0 && pendingHolds === 0) return null;
 
   return (
     <Card>
@@ -32,6 +32,27 @@ export function AgentFloatBalanceCard() {
           {formatUGX(withdrawableBalance)}
         </p>
         <p className="text-[11px] text-muted-foreground mt-0.5">Available to withdraw</p>
+
+        {/* Pending withdrawal hold (already subtracted from withdrawable) */}
+        {pendingHolds > 0 && (
+          <div className="mt-3 pt-3 border-t border-dashed flex items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1 text-xs text-amber-600">
+              <Clock className="h-3 w-3" />
+              Held against pending withdrawal
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="cursor-help underline decoration-dotted underline-offset-2">why?</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[260px] text-xs">
+                    You have a withdrawal in progress. This amount is reserved and will be released back if the request is rejected.
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </span>
+            <span className="text-xs font-semibold text-amber-600 tabular-nums">{formatUGX(pendingHolds)}</span>
+          </div>
+        )}
 
         {/* Outstanding advance (liability) */}
         {advanceBalance > 0 && (
