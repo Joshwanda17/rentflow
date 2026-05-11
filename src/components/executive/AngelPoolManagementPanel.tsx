@@ -241,7 +241,9 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
     updateConfig.mutate(editValues, { onSuccess: () => setEditOpen(false) });
   };
 
-  const fmt = (n: number) => n.toLocaleString('en-UG');
+  const fmt = (n: number) => Number(n).toLocaleString('en-UG');
+  const fmtShares = (n: number) =>
+    Number(n).toLocaleString('en-UG', { maximumFractionDigits: 4 });
   const isLoading = configLoading || investLoading;
 
   return (
