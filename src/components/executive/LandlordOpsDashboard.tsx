@@ -1994,6 +1994,11 @@ function LandlordDialogs({ editLandlord, setEditLandlord, editLC1, setEditLC1, a
         onClose={() => setEditLC1(null)}
         onSaved={refetchAll}
       />
+      <BulkImportLC1Dialog
+        open={bulkImportOpen}
+        onClose={() => setBulkImportOpen(false)}
+        onImported={refetchAll}
+      />
       <AssignPersonDialog
         open={!!assignPerson}
         onClose={() => setAssignPerson(null)}
