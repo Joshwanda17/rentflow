@@ -545,11 +545,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           ...(isOutstanding ? {
             registration_type: 'outstanding_balance',
             initial_outstanding_balance: amount,
-            // Days remaining on the tenant's current rent period — captured by
-            // the agent during outstanding registration. Stored as a structured
-            // prefix in landlord_call_notes until a dedicated column exists.
-            landlord_call_notes: outstandingDaysRemaining
-              ? `[DAYS_REMAINING:${outstandingDaysRemaining}]`
+            // Days remaining on the tenant's current rent period — auto-charge
+            // engine defers the first arrears charge by this many days so the
+            // tenant isn't double-billed (current period + arrears).
+            outstanding_grace_days: outstandingDaysRemaining
+              ? Math.max(0, parseInt(outstandingDaysRemaining, 10))
               : null,
           } : {}),
         } as any)
