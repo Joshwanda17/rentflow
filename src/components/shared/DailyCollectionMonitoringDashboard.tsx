@@ -694,7 +694,18 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
                     <TableRow key={r.rentRequestId}>
                       <TableCell className="text-xs">{(trackerCurrentPage - 1) * TRACKER_PAGE_SIZE + i + 1}</TableCell>
                       <TableCell className="text-xs whitespace-nowrap">{r.date}</TableCell>
-                      <TableCell className="text-xs">{r.agentName}</TableCell>
+                      <TableCell className="text-xs">
+                        {mode === 'editable' ? (
+                          <button
+                            type="button"
+                            className="text-primary hover:underline text-left"
+                            onClick={() => { setAssignRow(r); setAssignOpen(true); }}
+                            title="Link an agent to this tenant"
+                          >
+                            {r.agentName && r.agentName !== '—' ? r.agentName : 'Link agent'}
+                          </button>
+                        ) : r.agentName}
+                      </TableCell>
                       <TableCell className="text-xs font-medium">
                         {mode === 'editable' ? (
                           <button
