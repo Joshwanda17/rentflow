@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp, ArrowLeft, Shield, ArrowUp, ArrowDown, ArrowUpDown, Wallet, DollarSign, AlertCircle, CheckCircle2, CreditCard, Eye, Building2, SlidersHorizontal, Plus, Check, ChevronsUpDown, Map as MapIcon, Navigation, List, X } from 'lucide-react';
+import { Loader2, Search, Phone, PhoneCall, FileDown, MessageCircle, Users, RefreshCw, Banknote, MapPin, Home, User, TrendingUp, ArrowLeft, Shield, ArrowUp, ArrowDown, ArrowUpDown, Wallet, DollarSign, AlertCircle, CheckCircle2, CreditCard, Eye, Building2, SlidersHorizontal, Plus, Check, ChevronsUpDown, Map as MapIcon, Navigation, List, X, CalendarClock } from 'lucide-react';
 import { PropertyMapView } from './PropertyMapView';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
@@ -644,8 +644,11 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
       const s = tenantStatuses[t.id];
       return s && s.size > 0 && (tenantBalances[t.id] || 0) === 0;
     }).length;
-    return { totalOwing, owingCount, paidUpCount, total: tenants.length };
-  }, [tenants, tenantBalances, tenantStatuses]);
+    const dailyExpectation = Object.entries(tenantDaily).reduce((s, [tid, v]) => {
+      return s + ((tenantBalances[tid] || 0) > 0 ? (v || 0) : 0);
+    }, 0);
+    return { totalOwing, owingCount, paidUpCount, total: tenants.length, dailyExpectation };
+  }, [tenants, tenantBalances, tenantStatuses, tenantDaily]);
 
   const filterTabs: { key: FilterTab; label: string; count: number }[] = [
     { key: 'owing', label: 'Owing', count: stats.owingCount },
@@ -795,9 +798,10 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           {view === 'tenants' && (
           <>
           {/* Stat cards row — exec-dashboard style */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
             {[
               { icon: Users, label: 'Total Tenants', value: String(stats.total), sub: 'All tenants', bg: 'bg-violet-100', fg: 'text-violet-600' },
+              { icon: CalendarClock, label: 'Daily Expectation', value: formatUGX(stats.dailyExpectation), sub: `From ${stats.owingCount} active`, bg: 'bg-indigo-100', fg: 'text-indigo-600', subClass: 'text-indigo-600 font-medium' },
               { icon: Wallet, label: 'Owing', value: String(stats.owingCount), sub: 'Tenants owing', bg: 'bg-amber-100', fg: 'text-amber-600', subClass: 'text-rose-600 font-medium' },
               { icon: DollarSign, label: 'Collected', value: formatUGX(Object.values(tenantTotals).reduce((s, v) => s + (v?.paid || 0), 0)), sub: 'Lifetime', bg: 'bg-emerald-100', fg: 'text-emerald-600' },
               { icon: AlertCircle, label: 'Overdue Amount', value: formatUGX(stats.totalOwing), sub: `From ${stats.owingCount} tenants`, bg: 'bg-rose-100', fg: 'text-rose-600', subClass: 'text-rose-600 font-medium' },
