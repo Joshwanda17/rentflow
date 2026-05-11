@@ -46,6 +46,7 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, p
     roi_mode: 'monthly_payout',
     portfolio_pin: '',
     payout_day: '15',
+    contribution_date: new Date().toISOString().slice(0, 10),
     payment_method: '',
     mobile_network: '',
     mobile_money_number: '',
@@ -68,6 +69,7 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, p
       setForm({
         account_name: '', investment_amount: '', roi_percentage: '20', duration_months: '12',
         roi_mode: 'monthly_payout', portfolio_pin: '', payout_day: '15',
+        contribution_date: new Date().toISOString().slice(0, 10),
         payment_method: '', mobile_network: '', mobile_money_number: '',
         bank_name: '', bank_account_name: '', account_number: '',
       });
@@ -124,6 +126,7 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, p
           roi_mode: form.roi_mode,
           portfolio_pin: form.portfolio_pin,
           payout_day: parseInt(form.payout_day),
+          contribution_date: form.contribution_date || null,
           payment_method: form.payment_method || null,
           mobile_network: form.mobile_network || null,
           mobile_money_number: form.mobile_money_number || null,
@@ -247,15 +250,20 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess, p
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Payout Day</Label>
-              <Select value={form.payout_day} onValueChange={v => set('payout_day', v)}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {[1, 5, 10, 15, 20, 25, 28].map(d => (
-                    <SelectItem key={d} value={String(d)}>{d}{d === 1 ? 'st' : d === 2 ? 'nd' : d === 3 ? 'rd' : 'th'}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label className="text-xs">Contribution Date</Label>
+              <Input
+                type="date"
+                className="h-9"
+                value={form.contribution_date}
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={e => {
+                  const v = e.target.value;
+                  // Derive payout day-of-month from the chosen contribution date
+                  const day = v ? Math.min(28, Number(v.slice(8, 10)) || 15) : 15;
+                  setForm(p => ({ ...p, contribution_date: v, payout_day: String(day) }));
+                }}
+              />
+              <p className="text-[10px] text-muted-foreground">Sets the recurring payout day to match this date.</p>
             </div>
           </div>
 
