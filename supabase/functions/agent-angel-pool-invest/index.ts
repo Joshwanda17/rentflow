@@ -182,8 +182,21 @@ Deno.serve(async (req) => {
     });
 
     // Best-effort: send share-purchase confirmation email to the investor.
+    // Only sent on the investor's FIRST confirmed Angel Pool purchase.
     // Never fails the request — financial transaction is the source of truth.
     try {
+      const { count: priorCount } = await adminClient
+        .from("angel_pool_investments")
+        .select("id", { count: "exact", head: true })
+        .eq("investor_id", investor_id)
+        .eq("status", "confirmed")
+        .neq("reference_id", referenceId);
+
+      if ((priorCount ?? 0) > 0) {
+        await logSystemEvent(adminClient, "agent_angel_pool_email_skipped", user.id,
+          "angel_pool_investments", referenceId,
+          { investor_id, reason: "not_first_purchase", prior_count: priorCount, reference_id: referenceId });
+      } else {
       const { data: investorProfile } = await adminClient
         .from("profiles")
         .select("email, full_name")
@@ -236,6 +249,7 @@ Deno.serve(async (req) => {
         await logSystemEvent(adminClient, "agent_angel_pool_email_skipped", user.id,
           "angel_pool_investments", referenceId,
           { investor_id, reason: "no_email_on_file", reference_id: referenceId });
+      }
       }
     } catch (emailEx) {
       console.error("Angel pool email dispatch failed:", emailEx);

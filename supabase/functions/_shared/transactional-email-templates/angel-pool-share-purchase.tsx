@@ -30,6 +30,8 @@ interface AngelPoolSharePurchaseProps {
   funded_by?: string
   logo_url?: string
   unsubscribe_url?: string
+  agreement_url?: string
+  dashboard_url?: string
 }
 
 const fmtNum = (v: number | string | undefined) => {
@@ -60,6 +62,8 @@ export function AngelPoolSharePurchase({
   funded_by = 'investor',
   logo_url = 'https://wirntoujqoyjobfhyelc.supabase.co/storage/v1/object/public/email-assets/welile-logo.png',
   unsubscribe_url = 'https://welile.com/unsubscribe',
+  agreement_url = 'https://welilereceipts.com/legal/EARLY_ANGEL_POOL_SHAREHOLDERS_AGREEMENT.pdf',
+  dashboard_url = 'https://welilereceipts.com/auth',
 }: AngelPoolSharePurchaseProps) {
   const year = new Date().getFullYear()
 
@@ -239,6 +243,42 @@ export function AngelPoolSharePurchase({
 
                 <tr>
                   <td className="padding-mobile" style={{ padding: '0 40px 30px 40px' }}>
+                    <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={ctaCard}>
+                      <tbody>
+                        <tr>
+                          <td style={{ padding: '28px 28px 22px 28px' }} align="center">
+                            <Text style={ctaEyebrow}>Next Step · Sign Your Shareholders Agreement</Text>
+                            <Text style={ctaTitle}>You're officially an early shareholder.</Text>
+                            <Text style={ctaBody}>
+                              Download the <strong>Early Angel Pool Shareholders Agreement</strong>, review it carefully, and sign it to formalise your stake in {company_name}.
+                            </Text>
+                            <table border={0} cellPadding={0} cellSpacing={0} role="presentation" style={{ margin: '8px auto 6px auto' }}>
+                              <tbody><tr>
+                                <td align="center" style={ctaButtonWrap}>
+                                  <a href={agreement_url} target="_blank" rel="noopener noreferrer" style={ctaButton}>
+                                    ⬇  Download Shareholders Agreement (PDF)
+                                  </a>
+                                </td>
+                              </tr></tbody>
+                            </table>
+                            <Text style={ctaDivider}>— or —</Text>
+                            <Text style={dashboardLinkWrap}>
+                              <a href={dashboard_url} target="_blank" rel="noopener noreferrer" style={dashboardLink}>
+                                Access Dashboard →
+                              </a>
+                            </Text>
+                            <Text style={ctaFootnote}>
+                              Log in to view your live shareholding, valuation projections and share certificate.
+                            </Text>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+
+                <tr>
+                  <td className="padding-mobile" style={{ padding: '0 40px 30px 40px' }}>
                     <table width="100%" border={0} cellPadding={0} cellSpacing={0} role="presentation" style={noticeCard}>
                       <tbody><tr>
                         <td style={{ padding: '15px 20px' }}>
@@ -380,6 +420,50 @@ const footerCompanyName: React.CSSProperties = { margin: '0 0 12px 0', color: MU
 const footerDisclaimer: React.CSSProperties = { margin: '0 0 20px 0', color: MUTED, fontSize: '12px', lineHeight: '18px' }
 const footerLink: React.CSSProperties = { color: MUTED, fontSize: '12px', textDecoration: 'underline', margin: '0 10px' }
 const footerCopyText: React.CSSProperties = { margin: 0, color: '#cbd5e1', fontSize: '12px' }
+
+const ctaCard: React.CSSProperties = {
+  backgroundImage: `linear-gradient(135deg, #faf5ff 0%, #ffffff 50%, #f0f9ff 100%)`,
+  border: `1px solid ${BORDER}`,
+  borderRadius: '14px',
+  overflow: 'hidden',
+}
+const ctaEyebrow: React.CSSProperties = {
+  margin: '0 0 8px 0', color: BRAND, fontSize: '11px', fontWeight: 800,
+  textTransform: 'uppercase', letterSpacing: '1.4px', textAlign: 'center',
+}
+const ctaTitle: React.CSSProperties = {
+  margin: '0 0 10px 0', color: INK, fontSize: '18px', fontWeight: 800,
+  textAlign: 'center', letterSpacing: '-0.3px',
+}
+const ctaBody: React.CSSProperties = {
+  margin: '0 0 18px 0', color: BODY, fontSize: '14px', lineHeight: '22px', textAlign: 'center',
+}
+const ctaButtonWrap: React.CSSProperties = { borderRadius: '10px' }
+const ctaButton: React.CSSProperties = {
+  display: 'inline-block',
+  backgroundColor: BRAND,
+  backgroundImage: `linear-gradient(135deg, ${BRAND} 0%, #a855f7 100%)`,
+  color: '#ffffff',
+  textDecoration: 'none',
+  padding: '14px 28px',
+  borderRadius: '10px',
+  fontSize: '14px',
+  fontWeight: 700,
+  letterSpacing: '0.3px',
+  boxShadow: '0 6px 18px rgba(123, 25, 212, 0.28)',
+}
+const ctaDivider: React.CSSProperties = {
+  margin: '14px 0 10px 0', color: MUTED, fontSize: '11px',
+  fontWeight: 600, letterSpacing: '1px', textAlign: 'center', textTransform: 'uppercase',
+}
+const dashboardLinkWrap: React.CSSProperties = { margin: '0 0 8px 0', textAlign: 'center' }
+const dashboardLink: React.CSSProperties = {
+  color: BRAND, fontSize: '14px', fontWeight: 700, textDecoration: 'none',
+  borderBottom: `2px solid ${BRAND}`, paddingBottom: '2px',
+}
+const ctaFootnote: React.CSSProperties = {
+  margin: '6px 0 0 0', color: MUTED, fontSize: '12px', textAlign: 'center', fontStyle: 'italic',
+}
 
 export const template = {
   component: AngelPoolSharePurchase,
