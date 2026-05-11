@@ -182,6 +182,16 @@ Deno.serve(async (req) => {
   );
 
   try {
+    // Debug mode: return per-message diagnostics without writing to DB.
+    const url = new URL(req.url);
+    let debug = url.searchParams.get('debug') === '1';
+    if (!debug) {
+      try {
+        const body = await req.clone().json();
+        if (body && (body.debug === true || body.debug === 1)) debug = true;
+      } catch { /* no body */ }
+    }
+
     const { data: state } = await supabase
       .from('gmail_poll_state').select('*').eq('id', 1).maybeSingle();
     const lastMs: number = Number(state?.last_internal_date_ms ?? 0);
@@ -193,16 +203,17 @@ Deno.serve(async (req) => {
     const messages: { id: string; threadId: string }[] = list?.messages ?? [];
 
     let inserted = 0; let newestMs = lastMs;
+    const debugReport: any[] = [];
     for (const m of messages) {
       const { data: existing } = await supabase
         .from('gmail_transactions').select('id').eq('gmail_message_id', m.id).maybeSingle();
-      if (existing) continue;
+      if (existing) {
+        if (debug) debugReport.push({ id: m.id, decision: 'skipped', reason: 'already_in_db' });
+        continue;
+      }
 
       const full = await gmailFetch(`/users/me/messages/${m.id}?format=full`);
       const internalMs = Number(full?.internalDate ?? 0);
-      if (lastMs && internalMs && internalMs <= lastMs) continue;
-      if (internalMs > newestMs) newestMs = internalMs;
-
       const headers: { name: string; value: string }[] = full?.payload?.headers ?? [];
       const h = (n: string) => headers.find((x) => x.name?.toLowerCase() === n.toLowerCase())?.value ?? null;
       const fromRaw = h('From') ?? '';
@@ -214,6 +225,49 @@ Deno.serve(async (req) => {
       const body = extractPlainBody(full?.payload);
       const combined = [subject, snippet, body].filter(Boolean).join('\n');
       const parsed = parseTransaction(combined);
+
+      if (lastMs && internalMs && internalMs <= lastMs) {
+        if (debug) debugReport.push({
+          id: m.id, decision: 'skipped', reason: 'older_than_last_poll',
+          internal_date: new Date(internalMs).toISOString(),
+          last_cutoff: new Date(lastMs).toISOString(),
+          from: fromEmail, subject,
+        });
+        continue;
+      }
+      if (internalMs > newestMs) newestMs = internalMs;
+
+      const isParsed = !!(parsed.amount || parsed.transaction_id);
+      const reasons: string[] = [];
+      if (!parsed.amount) reasons.push('no_amount_detected');
+      if (!parsed.transaction_id) reasons.push('no_transaction_id_detected');
+      if (!parsed.direction) reasons.push('no_direction_keyword');
+      if (parsed.channel === 'other') reasons.push('channel_unknown');
+
+      if (debug) {
+        debugReport.push({
+          id: m.id,
+          decision: isParsed ? 'would_insert_parsed' : 'would_insert_unparsed',
+          from: fromEmail,
+          from_name: fromName,
+          subject,
+          snippet: snippet?.slice(0, 160) ?? null,
+          internal_date: internalMs ? new Date(internalMs).toISOString() : null,
+          extracted: {
+            amount: parsed.amount ?? null,
+            transaction_id: parsed.transaction_id ?? null,
+            direction: parsed.direction ?? null,
+            channel: parsed.channel ?? null,
+            counterparty: parsed.counterparty ?? null,
+            fee: parsed.fee ?? null,
+            balance: parsed.balance ?? null,
+            tx_date: parsed.tx_date ?? null,
+            tx_time: parsed.tx_time ?? null,
+          },
+          parser_notes: reasons,
+        });
+        continue; // do not write in debug mode
+      }
 
       const { error } = await supabase.from('gmail_transactions').insert({
         gmail_message_id: m.id,
@@ -227,7 +281,7 @@ Deno.serve(async (req) => {
         transaction_id: parsed.transaction_id ?? null,
         tx_date: parsed.tx_date ?? null,
         tx_time: parsed.tx_time ?? null,
-        parsed: !!(parsed.amount || parsed.transaction_id),
+        parsed: isParsed,
         internal_date: internalMs ? new Date(internalMs).toISOString() : null,
         direction: parsed.direction ?? null,
         channel: parsed.channel ?? null,
@@ -238,15 +292,22 @@ Deno.serve(async (req) => {
       if (!error) inserted++;
     }
 
-    await supabase.from('gmail_poll_state').upsert({
-      id: 1,
-      last_internal_date_ms: newestMs || lastMs,
-      last_polled_at: new Date().toISOString(),
-      last_status: 'ok',
-      last_error: null,
-    });
+    if (!debug) {
+      await supabase.from('gmail_poll_state').upsert({
+        id: 1,
+        last_internal_date_ms: newestMs || lastMs,
+        last_polled_at: new Date().toISOString(),
+        last_status: 'ok',
+        last_error: null,
+      });
+    }
 
-    return new Response(JSON.stringify({ ok: true, scanned: messages.length, inserted }), {
+    return new Response(JSON.stringify({
+      ok: true, scanned: messages.length, inserted,
+      query: GMAIL_QUERY,
+      last_cutoff: lastMs ? new Date(lastMs).toISOString() : null,
+      debug: debug ? debugReport : undefined,
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
