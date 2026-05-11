@@ -839,7 +839,7 @@ function KpiCard({ label, value, delta, icon: Icon, color, subtitle }: {
         <p className="text-base sm:text-lg font-bold leading-tight truncate">{value}</p>
         <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{label}</p>
         {delta && (
-          <p className={cn('text-[10px] mt-0.5 font-medium', delta.positive ? 'text-emerald-600' : 'text-destructive')}>
+          <p className={cn('text-[10px] mt-0.5 font-medium', delta.positive ? 'text-success' : 'text-destructive')}>
             {delta.text}
           </p>
         )}
