@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,6 +22,7 @@ import {
 import {
   Users, CheckCircle2, Banknote, CalendarDays, Building, Trophy, AlertTriangle,
   TrendingUp, TrendingDown, Loader2, Wallet, Filter, CalendarIcon, X,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import {
   startOfDay, endOfDay, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
@@ -110,6 +111,8 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
   const [recordAmount, setRecordAmount] = useState('');
   const [recordMethod, setRecordMethod] = useState<string>('cash');
   const [recordRemarks, setRecordRemarks] = useState('');
+  const [trackerPage, setTrackerPage] = useState(1);
+  const TRACKER_PAGE_SIZE = 25;
   const [submitting, setSubmitting] = useState(false);
 
   // Range -> [from, to]
@@ -312,6 +315,16 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
     const outstanding = Math.max(0, expected - collected);
     return { expected, collected, outstanding };
   }, [filteredRows]);
+
+  // Pagination for tracker table
+  const trackerTotalPages = Math.max(1, Math.ceil(filteredRows.length / TRACKER_PAGE_SIZE));
+  const trackerCurrentPage = Math.min(trackerPage, trackerTotalPages);
+  const pagedRows = useMemo(
+    () => filteredRows.slice((trackerCurrentPage - 1) * TRACKER_PAGE_SIZE, trackerCurrentPage * TRACKER_PAGE_SIZE),
+    [filteredRows, trackerCurrentPage]
+  );
+  // Reset to first page whenever filters/date/range change
+  useEffect(() => { setTrackerPage(1); }, [agentFilter, propertyFilter, day, range]);
 
   // KPIs
   const collectionToday = (collections || []).reduce((s, c) => s + Number(c.amount || 0), 0);
@@ -591,9 +604,9 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredRows.map((r, i) => (
+                  {pagedRows.map((r, i) => (
                     <TableRow key={r.rentRequestId}>
-                      <TableCell className="text-xs">{i + 1}</TableCell>
+                      <TableCell className="text-xs">{(trackerCurrentPage - 1) * TRACKER_PAGE_SIZE + i + 1}</TableCell>
                       <TableCell className="text-xs whitespace-nowrap">{r.date}</TableCell>
                       <TableCell className="text-xs">{r.agentName}</TableCell>
                       <TableCell className="text-xs font-medium">{r.tenantName}</TableCell>
@@ -623,6 +636,36 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
                   </TableRow>
                 </TableBody>
               </Table>
+            </div>
+          )}
+          {filteredRows.length > TRACKER_PAGE_SIZE && (
+            <div className="flex items-center justify-between px-4 py-3 border-t">
+              <span className="text-[11px] text-muted-foreground">
+                Showing {(trackerCurrentPage - 1) * TRACKER_PAGE_SIZE + 1}–{Math.min(trackerCurrentPage * TRACKER_PAGE_SIZE, filteredRows.length)} of {filteredRows.length}
+              </span>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2"
+                  onClick={() => setTrackerPage(p => Math.max(1, p - 1))}
+                  disabled={trackerCurrentPage === 1}
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </Button>
+                <span className="text-[11px] font-medium text-foreground tabular-nums px-2">
+                  Page {trackerCurrentPage} of {trackerTotalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2"
+                  onClick={() => setTrackerPage(p => Math.min(trackerTotalPages, p + 1))}
+                  disabled={trackerCurrentPage === trackerTotalPages}
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
