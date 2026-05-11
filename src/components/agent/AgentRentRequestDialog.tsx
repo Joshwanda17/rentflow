@@ -1448,6 +1448,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       <RegisterLandlordDialog
         open={showRegisterLandlord}
         onOpenChange={setShowRegisterLandlord}
+        minimal={incomeType === 'outstanding'}
         onSuccess={() => {
           setShowRegisterLandlord(false);
           // Force the search popover to re-fetch fresh results.

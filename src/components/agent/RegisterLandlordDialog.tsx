@@ -7,9 +7,10 @@ interface RegisterLandlordDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  minimal?: boolean;
 }
 
-export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }: RegisterLandlordDialogProps) {
+export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess, minimal }: RegisterLandlordDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
@@ -27,6 +28,7 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
           onSuccess={onSuccess}
           onClose={() => onOpenChange(false)}
           toastFn={(opts) => toast(opts.title, { description: opts.description })}
+          minimal={minimal}
         />
       </DialogContent>
     </Dialog>

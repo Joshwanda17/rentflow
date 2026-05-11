@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -30,6 +30,13 @@ interface LandlordRegistrationFormProps {
   onSuccess?: () => void;
   onClose: () => void;
   toastFn: (opts: { title: string; description?: string; variant?: 'destructive' | 'default' }) => void;
+  /**
+   * Minimal mode (used by the Outstanding Balance tenant flow).
+   * Only requires: Landlord Name, Landlord Phone, LC1 Name, LC1 Phone.
+   * All other fields (address, GPS, MoMo, meters, password) are hidden /
+   * auto-handled.
+   */
+  minimal?: boolean;
 }
 
 export default function LandlordRegistrationForm({
@@ -37,6 +44,7 @@ export default function LandlordRegistrationForm({
   onSuccess,
   onClose,
   toastFn,
+  minimal = false,
 }: LandlordRegistrationFormProps) {
   const { user } = useAuth();
   const { location, loading: locationLoading, error: locationError, captureLocation } = useGeoLocation();
@@ -51,6 +59,10 @@ export default function LandlordRegistrationForm({
   const [propertyAddress, setPropertyAddress] = useState('');
   const [numberOfRentals, setNumberOfRentals] = useState('');
   const [houseCategory, setHouseCategory] = useState('');
+
+  // LC1 (only collected in minimal/outstanding mode)
+  const [lc1Name, setLc1Name] = useState('');
+  const [lc1Phone, setLc1Phone] = useState('');
 
   // Mobile Money
   const [momoName, setMomoName] = useState('');
@@ -71,7 +83,17 @@ export default function LandlordRegistrationForm({
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     setTempPassword(result);
+    return result;
   };
+
+  // In minimal mode, auto-generate the temp password silently so the user
+  // never has to interact with it.
+  useEffect(() => {
+    if (minimal && !tempPassword) {
+      generateTempPassword();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [minimal]);
 
   // Name matching logic
   const nameMatchScore = useMemo(() => {
@@ -113,15 +135,36 @@ export default function LandlordRegistrationForm({
     e.preventDefault();
     if (!user) return;
 
-    if (!landlordName.trim() || !landlordPhone.trim() || !propertyAddress.trim()) {
-      toastFn({ title: 'Missing Fields', description: 'Name, phone and address are required.', variant: 'destructive' });
-      return;
+    if (minimal) {
+      if (
+        !landlordName.trim() ||
+        !landlordPhone.trim() ||
+        !lc1Name.trim() ||
+        !lc1Phone.trim()
+      ) {
+        toastFn({
+          title: 'Missing Fields',
+          description: 'Landlord name & phone, plus LC1 name & phone, are required.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    } else {
+      if (!landlordName.trim() || !landlordPhone.trim() || !propertyAddress.trim()) {
+        toastFn({ title: 'Missing Fields', description: 'Name, phone and address are required.', variant: 'destructive' });
+        return;
+      }
+      if (!tempPassword) {
+        toastFn({ title: 'Missing Password', description: 'Generate a temporary password.', variant: 'destructive' });
+        return;
+      }
     }
 
-    if (!tempPassword) {
-      toastFn({ title: 'Missing Password', description: 'Generate a temporary password.', variant: 'destructive' });
-      return;
-    }
+    // Make sure we always have a password to seed the activation invite.
+    const passwordToUse = tempPassword || generateTempPassword();
+    // landlords.property_address is NOT NULL — in minimal mode, fall back
+    // to a placeholder that ops can update later.
+    const addressToUse = propertyAddress.trim() || (minimal ? 'To be confirmed' : '');
 
     setLoading(true);
 
@@ -141,7 +184,7 @@ export default function LandlordRegistrationForm({
       const insertData: Record<string, unknown> = {
         name: landlordName.trim(),
         phone: landlordPhone.trim(),
-        property_address: propertyAddress.trim(),
+        property_address: addressToUse,
         registered_by: user.id,
         latitude: location?.latitude || null,
         longitude: location?.longitude || null,
@@ -161,6 +204,20 @@ export default function LandlordRegistrationForm({
 
       const { data: newLandlord, error } = await supabase.from('landlords').insert(insertData as any).select('id').single();
       if (error) throw error;
+
+      // Persist LC1 chairperson when collected (minimal/outstanding flow).
+      if (minimal && lc1Name.trim() && lc1Phone.trim()) {
+        const { error: lc1Err } = await supabase
+          .from('lc1_chairpersons')
+          .insert({
+            name: lc1Name.trim(),
+            phone: lc1Phone.trim(),
+            village: 'To be confirmed',
+          } as any);
+        if (lc1Err) {
+          console.warn('[LandlordRegistration] LC1 insert failed:', lc1Err);
+        }
+      }
 
       // Credit 5,000 UGX registration bonus to the registering user's wallet
       try {
@@ -185,9 +242,9 @@ export default function LandlordRegistrationForm({
           full_name: landlordName.trim(),
           phone: landlordPhone.trim(),
           email: placeholderEmail,
-          temp_password: tempPassword,
+          temp_password: passwordToUse,
           role: 'landlord',
-          property_address: propertyAddress.trim(),
+          property_address: addressToUse,
           latitude: location?.latitude || null,
           longitude: location?.longitude || null,
           location_accuracy: location?.accuracy || null,
@@ -294,6 +351,7 @@ export default function LandlordRegistrationForm({
           className="space-y-3"
         >
           {/* Qualification Score Bar */}
+          {!minimal && (
           <div className="p-2.5 rounded-lg bg-muted/50 border">
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs font-medium text-muted-foreground">Qualification Score</span>
@@ -308,6 +366,7 @@ export default function LandlordRegistrationForm({
               />
             </div>
           </div>
+          )}
 
           {/* Landlord Name */}
           <div className="space-y-1">
@@ -337,7 +396,44 @@ export default function LandlordRegistrationForm({
             />
           </div>
 
+          {/* Minimal-mode LC1 fields (Outstanding Balance flow) */}
+          {minimal && (
+            <div className="space-y-2 p-2.5 rounded-lg border bg-muted/30">
+              <div className="flex items-center gap-1.5">
+                <ShieldCheck className="h-3 w-3 text-primary" />
+                <span className="text-xs font-semibold">LC1 Chairperson</span>
+              </div>
+              <div className="space-y-2">
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold flex items-center gap-1.5">
+                    <User className="h-3 w-3" /> LC1 Name *
+                  </Label>
+                  <Input
+                    value={lc1Name}
+                    onChange={(e) => setLc1Name(e.target.value)}
+                    placeholder="Chairperson full name"
+                    className="h-10"
+                    required
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-semibold flex items-center gap-1.5">
+                    <Phone className="h-3 w-3" /> LC1 Phone *
+                  </Label>
+                  <Input
+                    value={lc1Phone}
+                    onChange={(e) => setLc1Phone(e.target.value)}
+                    placeholder="0700000000"
+                    className="h-10"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Number of Rentals & Category in row */}
+          {!minimal && (
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
               <Label className="text-xs font-semibold flex items-center gap-1.5">
@@ -368,8 +464,10 @@ export default function LandlordRegistrationForm({
               </Select>
             </div>
           </div>
+          )}
 
           {/* Property Address */}
+          {!minimal && (
           <div className="space-y-1">
             <Label className="text-xs font-semibold flex items-center gap-1.5">
               <MapPin className="h-3 w-3" /> Property Address *
@@ -382,8 +480,10 @@ export default function LandlordRegistrationForm({
               required
             />
           </div>
+          )}
 
           {/* GPS Location */}
+          {!minimal && (
           <div className={`flex items-center justify-between p-2.5 rounded-lg border ${
             locationCaptured ? 'bg-success/10 border-success/30'
               : locationError ? 'bg-destructive/10 border-destructive/30'
@@ -425,8 +525,10 @@ export default function LandlordRegistrationForm({
               {locationCaptured ? 'Refresh' : 'Capture'}
             </Button>
           </div>
+          )}
 
           {/* Mobile Money Section */}
+          {!minimal && (
           <div className="space-y-2 p-2.5 rounded-lg border bg-muted/30">
             <div className="flex items-center gap-1.5">
               <Wallet className="h-3 w-3 text-primary" />
@@ -459,8 +561,10 @@ export default function LandlordRegistrationForm({
               </div>
             </div>
           </div>
+          )}
 
           {/* Utility Meters */}
+          {!minimal && (
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
               <Label className="text-xs font-semibold flex items-center gap-1.5">
@@ -485,8 +589,10 @@ export default function LandlordRegistrationForm({
               />
             </div>
           </div>
+          )}
 
           {/* Temporary Password */}
+          {!minimal && (
           <div className="space-y-1">
             <div className="flex items-center justify-between">
               <Label className="text-xs font-semibold">Temporary Password</Label>
@@ -510,6 +616,7 @@ export default function LandlordRegistrationForm({
               </Button>
             </div>
           </div>
+          )}
 
           {/* Submit */}
           <Button type="submit" className="w-full h-11 text-sm gap-2" disabled={loading}>
