@@ -270,6 +270,34 @@ Deno.serve(async (req) => {
       if (internalMs > newestMs) newestMs = internalMs;
 
       const isParsed = !!(parsed.amount || parsed.transaction_id);
+      const internalDateObj = internalMs ? new Date(internalMs) : null;
+      const dedupHash = (parsed.transaction_id || parsed.amount)
+        ? await sha256Hex(buildDedupKey({
+            transaction_id: parsed.transaction_id,
+            from_email: fromEmail,
+            amount: parsed.amount,
+            internal_date: internalDateObj,
+            counterparty: parsed.counterparty,
+          }))
+        : null;
+
+      // Skip if a row with the same transaction_id or dedup_hash already exists.
+      if (parsed.transaction_id || dedupHash) {
+        const orParts: string[] = [];
+        if (parsed.transaction_id) orParts.push(`transaction_id.eq.${parsed.transaction_id}`);
+        if (dedupHash) orParts.push(`dedup_hash.eq.${dedupHash}`);
+        const { data: dup } = await supabase
+          .from('gmail_transactions')
+          .select('id')
+          .or(orParts.join(','))
+          .limit(1)
+          .maybeSingle();
+        if (dup) {
+          if (debug) debugReport.push({ id: m.id, decision: 'skipped', reason: 'duplicate_transaction', from: fromEmail, subject });
+          continue;
+        }
+      }
+
       const reasons: string[] = [];
       if (!parsed.amount) reasons.push('no_amount_detected');
       if (!parsed.transaction_id) reasons.push('no_transaction_id_detected');
@@ -320,8 +348,12 @@ Deno.serve(async (req) => {
         counterparty: parsed.counterparty ?? null,
         fee: parsed.fee ?? null,
         balance: parsed.balance ?? null,
+        dedup_hash: dedupHash,
       });
       if (!error) inserted++;
+      else if ((error as any)?.code === '23505') {
+        // Race: another poll inserted this row between our check and insert. Safe to ignore.
+      }
     }
 
     if (!debug) {
