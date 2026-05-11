@@ -3274,10 +3274,13 @@ function MiniKPI({ icon, label, value, variant }: {
 
 /* ─── Nearing Payouts Card ─── */
 function NearingPayoutsCard({ portfolios, onClick }: { portfolios: NearingPayoutPortfolio[]; onClick: () => void }) {
-  const overdueCount = portfolios.filter(p => p.daysUntil < 0).length;
-  const upcomingCount = portfolios.filter(p => p.daysUntil >= 0 && p.daysUntil <= 7).length;
-  const totalAmount = portfolios.filter(p => p.daysUntil <= 7).reduce((s, p) => s + Math.round(p.investmentAmount * p.roiPercentage / 100), 0);
-  const hasPayouts = portfolios.length > 0;
+  // Only count payouts whose ROI date is TODAY (daysUntil === 0).
+  // Overdue (<0) and upcoming (>0) are excluded from this card; the dialog still lists everything.
+  const dueToday = portfolios.filter(p => p.daysUntil === 0);
+  const dueTodayCount = dueToday.length;
+  const totalAmount = dueToday.reduce((s, p) => s + Math.round(p.investmentAmount * p.roiPercentage / 100), 0);
+  const hasPayouts = dueTodayCount > 0;
+  const overdueCount = 0; // styling flag retained, but card is scoped to "today"
   return (
     <button onClick={onClick} className={cn(
       'rounded-2xl border p-4 space-y-2.5 text-left w-full transition-all hover:shadow-lg active:scale-[0.98]',
@@ -3300,17 +3303,15 @@ function NearingPayoutsCard({ portfolios, onClick }: { portfolios: NearingPayout
               'text-xs font-bold uppercase tracking-wider',
               overdueCount > 0 ? 'text-destructive' : hasPayouts ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'
             )}>
-              Nearing Payouts
+              Payouts Due Today
             </span>
             <p className={cn(
               'text-[11px] leading-snug mt-0.5',
               overdueCount > 0 ? 'text-destructive/80 font-medium' : hasPayouts ? 'text-amber-600/80 font-medium' : 'text-muted-foreground'
             )}>
-              {overdueCount > 0
-                ? `${overdueCount} overdue · ${upcomingCount} upcoming`
-                : hasPayouts
-                ? `~${formatUGX(totalAmount)} due within 7 days`
-                : 'No payouts due soon'}
+              {hasPayouts
+                ? `~${formatUGX(totalAmount)} due today`
+                : 'No payouts due today'}
             </p>
           </div>
         </div>
@@ -3318,7 +3319,7 @@ function NearingPayoutsCard({ portfolios, onClick }: { portfolios: NearingPayout
           'text-2xl font-black tabular-nums px-3 py-1 rounded-xl',
           overdueCount > 0 ? 'bg-destructive/10 text-destructive' : hasPayouts ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300' : 'text-foreground'
         )}>
-          {portfolios.length}
+          {dueTodayCount}
         </div>
       </div>
       {hasPayouts && (
