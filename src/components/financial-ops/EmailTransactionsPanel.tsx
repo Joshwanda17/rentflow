@@ -20,6 +20,11 @@ interface GmailTx {
   transaction_id: string | null;
   parsed: boolean;
   internal_date: string | null;
+  direction: string | null;
+  channel: string | null;
+  counterparty: string | null;
+  fee: number | null;
+  balance: number | null;
 }
 
 interface PollState {
@@ -47,7 +52,7 @@ export function EmailTransactionsPanel() {
     const [{ data: txs }, { data: ps }] = await Promise.all([
       supabase
         .from('gmail_transactions')
-        .select('id,gmail_message_id,from_email,from_name,subject,snippet,amount,transaction_id,parsed,internal_date')
+        .select('id,gmail_message_id,from_email,from_name,subject,snippet,amount,transaction_id,parsed,internal_date,direction,channel,counterparty,fee,balance')
         .order('internal_date', { ascending: false, nullsFirst: false })
         .limit(200),
       supabase.from('gmail_poll_state').select('last_polled_at,last_status,last_error').eq('id', 1).maybeSingle(),
@@ -143,9 +148,26 @@ export function EmailTransactionsPanel() {
                       ) : (
                         <Badge variant="outline" className="text-[10px]">unparsed</Badge>
                       )}
+                      {r.channel && r.channel !== 'other' && (
+                        <Badge variant="outline" className="text-[10px] capitalize">{r.channel.replace('_',' ')}</Badge>
+                      )}
+                      {r.direction && (
+                        <Badge variant="outline" className={`text-[10px] capitalize ${
+                          r.direction === 'in' ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20'
+                          : r.direction === 'out' ? 'bg-rose-500/10 text-rose-700 border-rose-500/20'
+                          : 'bg-amber-500/10 text-amber-700 border-amber-500/20'
+                        }`}>{r.direction === 'in' ? 'received' : r.direction === 'out' ? 'sent' : 'charge'}</Badge>
+                      )}
                       {r.transaction_id && <Badge variant="outline" className="text-[10px] font-mono">{r.transaction_id}</Badge>}
                     </div>
                     <p className="text-xs text-muted-foreground truncate mt-0.5">{r.subject || '(no subject)'}</p>
+                    {(r.counterparty || r.fee || r.balance !== null) && (
+                      <p className="text-[11px] text-muted-foreground/80 mt-0.5 flex flex-wrap gap-x-3">
+                        {r.counterparty && <span>↔ <strong className="text-foreground/80">{r.counterparty}</strong></span>}
+                        {r.fee ? <span>fee {fmtUgx(r.fee)}</span> : null}
+                        {r.balance !== null && r.balance !== undefined ? <span>bal {fmtUgx(r.balance)}</span> : null}
+                      </p>
+                    )}
                     <p className="text-xs text-muted-foreground/80 line-clamp-2 mt-1">{r.snippet}</p>
                   </div>
                   <div className="text-right shrink-0">
