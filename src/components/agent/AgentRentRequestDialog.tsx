@@ -407,39 +407,45 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           return;
         }
       }
-      // ===== FIX #3: Upsert landlord — check existing by phone first =====
+      // ===== Resolve landlord =====
+      // Outstanding flow uses the searchable picker — landlord already exists,
+      // so we use the selected ID directly. Other flows fall back to upsert-by-phone.
       const cleanLandlordPhone = landlordPhone.replace(/\s/g, '');
       let landlordId: string;
 
-      const { data: existingLandlord } = await supabase
-        .from('landlords')
-        .select('id')
-        .eq('phone', cleanLandlordPhone)
-        .limit(1)
-        .maybeSingle();
-
-      if (existingLandlord) {
-        landlordId = existingLandlord.id;
+      if (isOutstanding && selectedLandlord) {
+        landlordId = selectedLandlord.id;
       } else {
-        const { data: landlord, error: landlordError } = await supabase
+        const { data: existingLandlord } = await supabase
           .from('landlords')
-          .insert({
-            name: landlordName.trim(),
-            phone: cleanLandlordPhone,
-            property_address: isOutstanding ? lc1Village.trim() : propertyAddress.trim(),
-            registered_by: user?.id,
-          })
           .select('id')
-          .single();
+          .eq('phone', cleanLandlordPhone)
+          .limit(1)
+          .maybeSingle();
 
-        if (landlordError) throw landlordError;
-        landlordId = landlord.id;
+        if (existingLandlord) {
+          landlordId = existingLandlord.id;
+        } else {
+          const { data: landlord, error: landlordError } = await supabase
+            .from('landlords')
+            .insert({
+              name: landlordName.trim(),
+              phone: cleanLandlordPhone,
+              property_address: propertyAddress.trim(),
+              registered_by: user?.id,
+            })
+            .select('id')
+            .single();
+
+          if (landlordError) throw landlordError;
+          landlordId = landlord.id;
+        }
       }
 
-      // ===== FIX #4: Upsert LC1 — check existing by phone first =====
+      // ===== LC1 upsert (skipped entirely for outstanding — already linked to landlord) =====
       let lc1Id: string | null = null;
       const cleanLc1Phone = lc1Phone.replace(/\s/g, '');
-      if (!isOutstanding || (lc1Name.trim() && cleanLc1Phone)) {
+      if (!isOutstanding) {
         const { data: existingLc1 } = await supabase
           .from('lc1_chairpersons')
           .select('id')
