@@ -18,10 +18,13 @@ import {
   Calendar,
   MessageSquare,
   Banknote,
+  Pencil,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useAgentRejectedRequests } from '@/hooks/useAgentRejectedRequests';
+import { AgentEditRentRequestDialog } from './AgentEditRentRequestDialog';
+import type { AgentRejectedRequest } from '@/hooks/useAgentRejectedRequests';
 
 type PipelineTab = 'submitted' | 'approved' | 'rejected';
 
@@ -224,6 +227,7 @@ export function AgentRequestPipelineView() {
   const [submittedPage, setSubmittedPage] = useState(0);
   const [approvedPage, setApprovedPage] = useState(0);
   const [rejectedPage, setRejectedPage] = useState(0);
+  const [editing, setEditing] = useState<AgentRejectedRequest | null>(null);
 
   const submitted = usePipelineRequests(
     SUBMITTED_STATUSES,
@@ -436,6 +440,16 @@ export function AgentRequestPipelineView() {
                         {r.rejected_reason || 'No reason provided.'}
                       </p>
                     </div>
+                      <div className="flex justify-end pt-1">
+                        <Button
+                          size="sm"
+                          onClick={() => setEditing(r)}
+                          className="gap-1.5 h-8"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          Edit & Resubmit
+                        </Button>
+                      </div>
                   </CardContent>
                 </Card>
               ))}
@@ -449,6 +463,16 @@ export function AgentRequestPipelineView() {
           )}
         </div>
       )}
+
+      <AgentEditRentRequestDialog
+        request={editing}
+        open={!!editing}
+        onOpenChange={(o) => { if (!o) setEditing(null); }}
+        onResubmitted={() => {
+          setEditing(null);
+          rejectedQuery.refetch();
+        }}
+      />
     </div>
   );
 }
