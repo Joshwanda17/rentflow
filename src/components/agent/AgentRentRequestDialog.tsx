@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { optimizeImage } from '@/lib/imageOptimizer';
 import { GuarantorConsentCheckbox } from '@/components/agent/GuarantorConsentCheckbox';
+import { LandlordSearchSelect, type LandlordOption } from '@/components/agent/LandlordSearchSelect';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Dialog,
@@ -138,6 +139,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   // FIX #9: house category for outstanding flow
   const [outstandingHouseCategory, setOutstandingHouseCategory] = useState('');
 
+  // ===== Outstanding flow (refactor): selected landlord + extra rent fields =====
+  const [selectedLandlord, setSelectedLandlord] = useState<LandlordOption | null>(null);
+  const [outstandingRentAmount, setOutstandingRentAmount] = useState('');
+  const [outstandingDaysRemaining, setOutstandingDaysRemaining] = useState('');
+
   // Pre-fill fields when dialog opens with prefill props
   useEffect(() => {
     if (open) {
@@ -226,6 +232,9 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     setLc1Village('');
     setHouseCategory('');
     setOutstandingHouseCategory('');
+    setSelectedLandlord(null);
+    setOutstandingRentAmount('');
+    setOutstandingDaysRemaining('');
     setNoSmartphone(false);
     setGpsLocation(null);
     setGpsLoading(false);
@@ -256,8 +265,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
     
     if (incomeType === 'outstanding') {
       const days = parseInt(duration);
+      // Outstanding flow: rent_amount is the monthly rent the tenant owes
+      // (separate field), while `amount` (= outstandingBalance) is the arrears.
+      const rentMonthly = parseInt(outstandingRentAmount.replace(/,/g, '')) || amount;
       return {
-        rentAmount: amount,
+        rentAmount: rentMonthly,
         durationDays: days,
         accessFee: 0,
         requestFee: 0,
@@ -307,13 +319,21 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
     if (!preferredLanguage) errors.push('Preferred language is required');
 
-    if (!landlordName.trim()) errors.push('Landlord name is required');
-    if (!landlordPhone.trim()) errors.push('Landlord phone is required');
-    else if (!isValidUgPhone(cleanLandlordPhone)) errors.push('Landlord phone must be a valid Ugandan number (e.g. 0700 123 456)');
+    // Outstanding flow uses a searchable landlord picker (LC already linked).
+    // Other flows still collect landlord + LC1 inline.
+    if (isOutstanding) {
+      if (!selectedLandlord) errors.push('Please select a landlord');
+      if (!outstandingRentAmount || parseInt(outstandingRentAmount.replace(/,/g, '')) <= 0) {
+        errors.push('Rent amount is required');
+      }
+      if (!outstandingDaysRemaining || parseInt(outstandingDaysRemaining) <= 0) {
+        errors.push('Days remaining is required');
+      }
+    } else {
+      if (!landlordName.trim()) errors.push('Landlord name is required');
+      if (!landlordPhone.trim()) errors.push('Landlord phone is required');
+      else if (!isValidUgPhone(cleanLandlordPhone)) errors.push('Landlord phone must be a valid Ugandan number (e.g. 0700 123 456)');
 
-    if (isOutstanding && !lc1Village.trim()) errors.push('Village/Cell location is required');
-
-    if (!isOutstanding) {
       if (!propertyAddress.trim()) errors.push('Property address is required');
       if (!lc1Name.trim()) errors.push('LC1 name is required');
       if (!lc1Phone.trim()) errors.push('LC1 phone is required');
@@ -323,14 +343,6 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       }
       if (!lc1Village.trim()) errors.push('LC1 village is required');
       if (!houseCategory) errors.push('House category is required');
-    } else {
-      // LC1 phone is optional for outstanding — warn but don't block
-      if (lc1Phone.trim()) {
-        const cleanLc1 = lc1Phone.replace(/\s/g, '');
-        if (!isValidUgPhone(cleanLc1)) {
-          // Don't block, just silently ignore partial LC1 phone for outstanding
-        }
-      }
     }
 
     // ===== Block duplicate phone numbers across roles =====
@@ -398,39 +410,45 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           return;
         }
       }
-      // ===== FIX #3: Upsert landlord — check existing by phone first =====
+      // ===== Resolve landlord =====
+      // Outstanding flow uses the searchable picker — landlord already exists,
+      // so we use the selected ID directly. Other flows fall back to upsert-by-phone.
       const cleanLandlordPhone = landlordPhone.replace(/\s/g, '');
       let landlordId: string;
 
-      const { data: existingLandlord } = await supabase
-        .from('landlords')
-        .select('id')
-        .eq('phone', cleanLandlordPhone)
-        .limit(1)
-        .maybeSingle();
-
-      if (existingLandlord) {
-        landlordId = existingLandlord.id;
+      if (isOutstanding && selectedLandlord) {
+        landlordId = selectedLandlord.id;
       } else {
-        const { data: landlord, error: landlordError } = await supabase
+        const { data: existingLandlord } = await supabase
           .from('landlords')
-          .insert({
-            name: landlordName.trim(),
-            phone: cleanLandlordPhone,
-            property_address: isOutstanding ? lc1Village.trim() : propertyAddress.trim(),
-            registered_by: user?.id,
-          })
           .select('id')
-          .single();
+          .eq('phone', cleanLandlordPhone)
+          .limit(1)
+          .maybeSingle();
 
-        if (landlordError) throw landlordError;
-        landlordId = landlord.id;
+        if (existingLandlord) {
+          landlordId = existingLandlord.id;
+        } else {
+          const { data: landlord, error: landlordError } = await supabase
+            .from('landlords')
+            .insert({
+              name: landlordName.trim(),
+              phone: cleanLandlordPhone,
+              property_address: propertyAddress.trim(),
+              registered_by: user?.id,
+            })
+            .select('id')
+            .single();
+
+          if (landlordError) throw landlordError;
+          landlordId = landlord.id;
+        }
       }
 
-      // ===== FIX #4: Upsert LC1 — check existing by phone first =====
+      // ===== LC1 upsert (skipped entirely for outstanding — already linked to landlord) =====
       let lc1Id: string | null = null;
       const cleanLc1Phone = lc1Phone.replace(/\s/g, '');
-      if (!isOutstanding || (lc1Name.trim() && cleanLc1Phone)) {
+      if (!isOutstanding) {
         const { data: existingLc1 } = await supabase
           .from('lc1_chairpersons')
           .select('id')
@@ -519,7 +537,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           request_longitude: isOutstanding ? null : (gpsLocation?.lng ?? null),
           ...(isOutstanding ? {
             registration_type: 'outstanding_balance',
-            initial_outstanding_balance: fees.rentAmount,
+            initial_outstanding_balance: amount,
+            // Days remaining on the tenant's current rent period — captured by
+            // the agent during outstanding registration. Stored as a structured
+            // prefix in landlord_call_notes until a dedicated column exists.
+            landlord_call_notes: outstandingDaysRemaining
+              ? `[DAYS_REMAINING:${outstandingDaysRemaining}]`
+              : null,
           } : {}),
         } as any)
         .select('id')
@@ -762,99 +786,31 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     </p>
                   </div>
 
-                  {/* 🏠 Landlord Registration Section */}
-                  <div className="space-y-3 p-4 rounded-2xl border-primary border-4 bg-primary-foreground" style={{ backgroundColor: 'rgba(124, 59, 237, 0.06)', borderColor: 'rgba(124, 59, 237, 0.25)' }}>
+                  {/* 🏠 Select Landlord (debounced search) */}
+                  <div className="space-y-3 p-4 rounded-2xl border-4" style={{ backgroundColor: 'rgba(124, 59, 237, 0.06)', borderColor: 'rgba(124, 59, 237, 0.25)' }}>
                     <h4 className="text-sm font-semibold flex items-center gap-2">
                       <Building2 className="h-4 w-4 text-primary" />
-                      🏠 Landlord Registration
+                      🏠 Select Landlord
                     </h4>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Landlord Name *</Label>
-                        <Input
-                          value={landlordName}
-                          onChange={(e) => setLandlordName(e.target.value)}
-                          placeholder="Full name"
-                          className="h-10"
-                          required
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Landlord Phone *</Label>
-                        <Input
-                          value={landlordPhone}
-                          onChange={(e) => setLandlordPhone(formatPhoneInput(e.target.value))}
-                          placeholder="0700 123 456"
-                          className="h-10"
-                          maxLength={12}
-                          required
-                        />
-                        {landlordPhone.replace(/\s/g, '').length >= 10 && !isValidUgPhone(landlordPhone.replace(/\s/g, '')) && (
-                          <p className="text-[10px] text-destructive">Invalid Ugandan phone number</p>
-                        )}
-                        {landlordPhone.replace(/\s/g, '').length >= 10 &&
-                          tenantPhone.replace(/\s/g, '').length >= 10 &&
-                          landlordPhone.replace(/\s/g, '') === tenantPhone.replace(/\s/g, '') && (
-                            <p className="text-[10px] text-destructive">Cannot be the same as Tenant phone</p>
-                          )}
-                      </div>
-                    </div>
-                    {/* FIX #8: Village required */}
-                    <div className="space-y-1">
-                      <Label className="text-xs flex items-center gap-1">
-                        <MapPin className="h-3 w-3" /> Village/Cell Location *
-                      </Label>
-                      <Input
-                        value={lc1Village}
-                        onChange={(e) => setLc1Village(e.target.value)}
-                        placeholder="📍 Village/Cell"
-                        className="h-10"
-                        required
-                      />
-                    </div>
-
-                    {/* LC1 Chairperson subsection */}
-                    <div className="space-y-2 pt-1">
-                      <p className="text-xs text-muted-foreground font-medium">LC1 Chairperson</p>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <Label className="text-xs">LC1 Name</Label>
-                          <Input
-                            value={lc1Name}
-                            onChange={(e) => setLc1Name(e.target.value)}
-                            placeholder="LC1 name"
-                            className="h-10"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">LC1 Phone</Label>
-                          <Input
-                            value={lc1Phone}
-                            onChange={(e) => setLc1Phone(formatPhoneInput(e.target.value))}
-                            placeholder="0700 123 456"
-                            className="h-10"
-                            maxLength={12}
-                          />
-                          {lc1Phone.replace(/\s/g, '').length >= 10 &&
-                            tenantPhone.replace(/\s/g, '').length >= 10 &&
-                            lc1Phone.replace(/\s/g, '') === tenantPhone.replace(/\s/g, '') && (
-                              <p className="text-[10px] text-destructive">Cannot be the same as Tenant phone</p>
-                            )}
-                          {lc1Phone.replace(/\s/g, '').length >= 10 &&
-                            landlordPhone.replace(/\s/g, '').length >= 10 &&
-                            lc1Phone.replace(/\s/g, '') === landlordPhone.replace(/\s/g, '') && (
-                              <p className="text-[10px] text-destructive">Cannot be the same as Landlord phone</p>
-                            )}
-                        </div>
-                      </div>
-                    </div>
+                    <p className="text-[11px] text-muted-foreground -mt-1">
+                      LC1 is already linked to the landlord — no need to add it again.
+                    </p>
+                    <LandlordSearchSelect
+                      value={selectedLandlord}
+                      onChange={setSelectedLandlord}
+                    />
+                    {selectedLandlord?.property_address && (
+                      <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                        <MapPin className="h-3 w-3" /> {selectedLandlord.property_address}
+                      </p>
+                    )}
                   </div>
 
-                  {/* 👤 Tenant Registration Section */}
+                  {/* 👤 Tenant Personal Information */}
                   <div className="space-y-3 p-4 rounded-2xl bg-muted/40 border-4 border-primary">
                     <h4 className="text-sm font-semibold flex items-center gap-2">
                       <User className="h-4 w-4 text-primary" />
-                      👤 Tenant Registration
+                      👤 Personal Information
                     </h4>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
@@ -911,8 +867,41 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
 
-                    {/* FIX #7: Currency formatting on outstanding balance input */}
+                  {/* 💰 Rent Information */}
+                  <div className="space-y-3 p-4 rounded-2xl border-4" style={{ backgroundColor: 'rgba(124, 59, 237, 0.06)', borderColor: 'rgba(124, 59, 237, 0.25)' }}>
+                    <h4 className="text-sm font-semibold flex items-center gap-2">
+                      <Banknote className="h-4 w-4 text-primary" />
+                      💰 Rent Information
+                    </h4>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold">Rent Amount (UGX) *</Label>
+                        <Input
+                          value={formatCurrencyInput(outstandingRentAmount)}
+                          onChange={(e) => setOutstandingRentAmount(e.target.value.replace(/[^0-9]/g, ''))}
+                          placeholder="e.g. 300,000"
+                          className="h-10"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold">Repayment Duration *</Label>
+                        <Select value={duration} onValueChange={(v) => setDuration(v as '30' | '60' | '90')}>
+                          <SelectTrigger className="h-10">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="30">30 Days</SelectItem>
+                            <SelectItem value="60">60 Days</SelectItem>
+                            <SelectItem value="90">90 Days</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
                     <div className="space-y-1">
                       <Label className="text-xs font-semibold">Outstanding Balance (UGX) *</Label>
                       <Input
@@ -934,24 +923,22 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       )}
                     </div>
 
-                    {/* FIX #6: Duration selector for outstanding balance */}
                     <div className="space-y-1">
-                      <Label className="text-xs font-semibold">Repayment Duration *</Label>
-                      <Select value={duration} onValueChange={(v) => setDuration(v as '30' | '60' | '90')}>
-                        <SelectTrigger className="h-10 border-2 rounded-xl" style={{ borderColor: 'rgba(124, 59, 237, 0.3)' }}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="30">30 Days</SelectItem>
-                          <SelectItem value="60">60 Days</SelectItem>
-                          <SelectItem value="90">90 Days</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label className="text-xs font-semibold">Days Remaining *</Label>
+                      <Input
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        value={outstandingDaysRemaining}
+                        onChange={(e) => setOutstandingDaysRemaining(e.target.value.replace(/[^0-9]/g, ''))}
+                        placeholder="Days left on current rent period"
+                        className="h-10"
+                        required
+                      />
                     </div>
 
-                    {/* FIX #9: House category selector for outstanding */}
                     <div className="space-y-1">
-                      <Label className="text-xs font-semibold">House Category (optional)</Label>
+                      <Label className="text-xs font-semibold">House Type *</Label>
                       <Select value={outstandingHouseCategory} onValueChange={setOutstandingHouseCategory}>
                         <SelectTrigger className="h-10">
                           <SelectValue placeholder="Select house type" />
