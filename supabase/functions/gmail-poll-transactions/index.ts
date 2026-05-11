@@ -9,7 +9,7 @@ const GATEWAY_URL = 'https://connector-gateway.lovable.dev/google_mail/gmail/v1'
 
 // Match anything that smells like a transaction confirmation.
 // Tweak this query in the future without touching code by editing here.
-const GMAIL_QUERY = '(UGX OR USh OR UShs OR Shs OR MoMo OR "TID" OR "transaction" OR "Mobile Money" OR "Airtel Money" OR "MTN") newer_than:7d';
+const GMAIL_QUERY = '(UGX OR USh OR UShs OR Shs OR MoMo OR "TID" OR "transaction" OR "Mobile Money" OR "Airtel Money" OR "MTN" OR subject:"SMS from" OR subject:"SMS Forwarder" OR from:smsforwarder OR "Forwarded SMS") newer_than:7d';
 
 function b64urlDecode(input: string): string {
   const pad = input.length % 4 === 0 ? '' : '='.repeat(4 - (input.length % 4));
