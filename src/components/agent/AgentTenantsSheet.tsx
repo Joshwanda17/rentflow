@@ -750,8 +750,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
           <TenantProfileView tenantId={profileTenantId} onBack={() => setProfileTenantId(null)} />
         ) : (
         <>
-        {/* ───── Header (sticks while the tenant list scrolls beneath it) ───── */}
-        <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md border-b border-border/50 px-4 pt-4 pb-3 space-y-3 shrink-0">
+        {/* ───── Header (scrolls with the rest of the page) ───── */}
+        <div className="bg-background/95 border-b border-border/50 px-4 pt-4 pb-3 space-y-3 shrink-0">
           <SheetHeader className="pb-0">
             <SheetTitle className="flex items-center justify-between">
               <div className="flex items-center gap-2">
