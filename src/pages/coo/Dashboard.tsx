@@ -20,6 +20,7 @@ import { RejectedRequestsQueue } from '@/components/executive/RejectedRequestsQu
 import { FinancialOpsCommandCenter } from '@/components/financial-ops/FinancialOpsCommandCenter';
 import { ShareSupporterRecruit } from '@/components/shared/ShareSupporterRecruit';
 import { COOAgentHub } from '@/components/coo/COOAgentHub';
+import { COOPartnerBroadcast } from '@/components/coo/COOPartnerBroadcast';
 import { MissedDaysTracker } from '@/components/executive/MissedDaysTracker';
 import { PendingPortfolioTopUps } from '@/components/cfo/PendingPortfolioTopUps';
 import { PartnerFinancialActivity } from '@/components/executive/PartnerFinancialActivity';
@@ -29,7 +30,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Activity, ClipboardList, Users, Wallet, BarChart3,
   FileText, AlertTriangle, Banknote, Handshake, UserCheck, UserPlus,
-  TrendingUp, ArrowLeft, ChevronRight, Receipt, Home, CalendarCheck
+  TrendingUp, ArrowLeft, ChevronRight, Receipt, Home, CalendarCheck, Megaphone
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -53,6 +54,7 @@ const quickNavItems: QuickNavItem[] = [
   { id: 'agent-activity', label: 'Agent Activity', icon: Activity, color: 'bg-purple-500/10 text-purple-600 border-purple-500/20', description: 'Live tracking' },
   { id: 'analytics', label: 'Analytics', icon: BarChart3, color: 'bg-teal-500/10 text-teal-600 border-teal-500/20', description: 'Payment modes' },
   { id: 'partners', label: 'Partners', icon: Handshake, color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20', description: 'Manage partners' },
+  { id: 'partner-broadcast', label: 'Partner Broadcast', icon: Megaphone, color: 'bg-violet-500/10 text-violet-600 border-violet-500/20', description: 'Mass email partners' },
   { id: 'partner-onboarding', label: 'Partner Onboarding', icon: UserPlus, color: 'bg-fuchsia-500/10 text-fuchsia-600 border-fuchsia-500/20', description: 'Approve / reject', route: '/partner-onboarding' },
   { id: 'reports', label: 'Financial Reports', icon: FileText, color: 'bg-sky-500/10 text-sky-600 border-sky-500/20', description: 'Financial reports' },
   { id: 'alerts', label: 'Alerts', icon: AlertTriangle, color: 'bg-orange-500/10 text-orange-600 border-orange-500/20', description: 'Risk & flags' },
@@ -204,6 +206,13 @@ export default function COODashboardPage() {
             {isMobile && renderBackButton('Overview')}
             {renderSectionHeader('Partners', Handshake)}
             <COOPartnersPage />
+          </div>
+        );
+      case 'partner-broadcast':
+        return (
+          <div className="space-y-3">
+            {isMobile && renderBackButton('Overview')}
+            <COOPartnerBroadcast />
           </div>
         );
       case 'partner-topups':
