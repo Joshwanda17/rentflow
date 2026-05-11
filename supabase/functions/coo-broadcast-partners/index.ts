@@ -197,6 +197,13 @@ Deno.serve(async (req) => {
     const rawHtml = (body.html || '').toString();
     const dryRun = !!body.dry_run;
     const notificationType = ((body.notification_type || '').toString().trim() || NOTIFICATION_TYPE_DEFAULT).slice(0, 60);
+    const testEmailRaw = (body.test_email || '').toString().trim().toLowerCase();
+    const isTest = !!testEmailRaw;
+    if (isTest && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(testEmailRaw)) {
+      return new Response(JSON.stringify({ error: 'Invalid test_email address' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     if (!subject || subject.length > 200) {
       return new Response(JSON.stringify({ error: 'Subject is required (max 200 chars)' }), {
@@ -216,39 +223,48 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Resolve all distinct partner (supporter role) emails
-    const { data: roleRows, error: roleErr } = await admin
-      .from('user_roles').select('user_id').eq('role', 'supporter');
-    if (roleErr) throw roleErr;
-    const userIds = Array.from(new Set((roleRows || []).map((r: any) => r.user_id))).filter(Boolean);
-
+    const CHUNK = 100;
     const emails = new Set<string>();
     const recipients: { user_id: string; email: string; full_name: string }[] = [];
-    // Page through profiles to keep below 1000-row default
-    const CHUNK = 100;
-    for (let i = 0; i < userIds.length; i += CHUNK) {
-      const slice = userIds.slice(i, i + CHUNK);
-      const { data: profs, error: profErr } = await admin
-        .from('profiles').select('id, email, full_name').in('id', slice);
-      if (profErr) throw profErr;
-      for (const p of profs || []) {
-        const e = (p.email || '').toString().trim().toLowerCase();
-        if (!e || !e.includes('@') || e.endsWith('.welile.user') || e.endsWith('.noapp.welile.user')) continue;
-        if (emails.has(e)) continue;
-        emails.add(e);
-        recipients.push({ user_id: p.id, email: e, full_name: ((p as any).full_name || '').toString().trim() || 'Partner' });
-      }
-    }
-
-    // Filter out suppressed emails
-    const allEmails = recipients.map((r) => r.email);
     const suppressed = new Set<string>();
-    if (allEmails.length) {
-      for (let i = 0; i < allEmails.length; i += CHUNK) {
-        const slice = allEmails.slice(i, i + CHUNK);
-        const { data: sup } = await admin
-          .from('email_suppressions').select('email').in('email', slice);
-        for (const s of sup || []) suppressed.add((s as any).email);
+
+    if (isTest) {
+      // Single-recipient test send — bypass partner lookup and suppressions.
+      const { data: prof } = await admin
+        .from('profiles').select('id, full_name').eq('email', testEmailRaw).maybeSingle();
+      recipients.push({
+        user_id: (prof as any)?.id || caller.id,
+        email: testEmailRaw,
+        full_name: ((prof as any)?.full_name || '').toString().trim() || 'Partner',
+      });
+      emails.add(testEmailRaw);
+    } else {
+      // Resolve all distinct partner (supporter role) emails
+      const { data: roleRows, error: roleErr } = await admin
+        .from('user_roles').select('user_id').eq('role', 'supporter');
+      if (roleErr) throw roleErr;
+      const userIds = Array.from(new Set((roleRows || []).map((r: any) => r.user_id))).filter(Boolean);
+      for (let i = 0; i < userIds.length; i += CHUNK) {
+        const slice = userIds.slice(i, i + CHUNK);
+        const { data: profs, error: profErr } = await admin
+          .from('profiles').select('id, email, full_name').in('id', slice);
+        if (profErr) throw profErr;
+        for (const p of profs || []) {
+          const e = (p.email || '').toString().trim().toLowerCase();
+          if (!e || !e.includes('@') || e.endsWith('.welile.user') || e.endsWith('.noapp.welile.user')) continue;
+          if (emails.has(e)) continue;
+          emails.add(e);
+          recipients.push({ user_id: p.id, email: e, full_name: ((p as any).full_name || '').toString().trim() || 'Partner' });
+        }
+      }
+      const allEmails = recipients.map((r) => r.email);
+      if (allEmails.length) {
+        for (let i = 0; i < allEmails.length; i += CHUNK) {
+          const slice = allEmails.slice(i, i + CHUNK);
+          const { data: sup } = await admin
+            .from('email_suppressions').select('email').in('email', slice);
+          for (const s of sup || []) suppressed.add((s as any).email);
+        }
       }
     }
     const finalRecipients = recipients.filter((r) => !suppressed.has(r.email));
@@ -339,21 +355,23 @@ Deno.serve(async (req) => {
 
     await admin.from('audit_logs').insert({
       user_id: caller.id,
-      action_type: 'coo_partner_broadcast_sent',
+      action_type: isTest ? 'coo_partner_broadcast_test' : 'coo_partner_broadcast_sent',
       table_name: 'email_send_log',
       record_id: caller.id,
-      reason: 'COO mass broadcast to partners',
+      reason: isTest ? 'COO partner broadcast TEST send' : 'COO mass broadcast to partners',
       metadata: {
         subject,
         queued,
         suppressed: suppressed.size,
         total_partner_emails: recipients.length,
         errors_count: errors.length,
+        test_email: isTest ? testEmailRaw : null,
       },
     });
 
     return new Response(JSON.stringify({
       success: true,
+      test: isTest,
       queued,
       suppressed: suppressed.size,
       total: recipients.length,
