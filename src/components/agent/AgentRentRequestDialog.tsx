@@ -911,12 +911,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         className="h-12 text-lg font-bold border-2 rounded-xl focus:ring-0" style={{ borderColor: 'rgba(124, 59, 237, 0.4)' }} onFocus={(e) => e.currentTarget.style.borderColor = '#7C3BED'} onBlur={(e) => e.currentTarget.style.borderColor = 'rgba(124, 59, 237, 0.4)'}
                         required
                       />
-                      {amount > 0 && amount < outstandingMinAmount && (
-                        <p className="text-[10px] text-destructive mt-1">
-                          Minimum outstanding balance is {formatUGX(outstandingMinAmount)}
-                        </p>
-                      )}
-                      {amount >= outstandingMinAmount && (
+                      {amount > 0 && (
                         <p className="text-xs text-muted-foreground mt-1">
                           Daily repayment: <span className="font-semibold">{formatUGX(Math.ceil(amount / parseInt(duration)))}/day</span> for {duration} days
                         </p>
@@ -992,7 +987,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <Button 
                       onClick={handleSubmit} 
                       className="flex-1 text-white hover:opacity-90" style={{ backgroundColor: '#7C3BED' }}
-                      disabled={loading || amount < outstandingMinAmount}
+                      disabled={loading || amount <= 0}
                     >
                       {loading ? (
                         <>
