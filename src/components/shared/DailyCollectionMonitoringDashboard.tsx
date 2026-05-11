@@ -520,6 +520,7 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
                   collectionDelta: collectionToday - collectionPrev,
                   collectionMonth,
                   totalRentPaidAllTime: allTimeStats?.totalPaid || 0,
+                  totalOutstandingAllTenants: allTimeStats?.totalOutstanding || 0,
                 },
                 rows: filteredRows.map(r => ({
                   date: r.date,
