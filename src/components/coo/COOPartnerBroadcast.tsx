@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
   Bold, Italic, List, ListOrdered, Quote, Heading2, Link2,
-  Undo2, Redo2, Send, Users, Sparkles, Loader2, Mail, AlertTriangle,
+  Undo2, Redo2, Send, Users, Sparkles, Loader2, Mail, AlertTriangle, Eye,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -19,6 +19,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { renderPartnerEmailPreview } from './partnerEmailPreview';
 
 export function COOPartnerBroadcast() {
   const [subject, setSubject] = useState('');
@@ -27,6 +28,8 @@ export function COOPartnerBroadcast() {
   const [loadingCount, setLoadingCount] = useState(true);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [sending, setSending] = useState(false);
+  const [showPreview, setShowPreview] = useState(true);
+  const [bodyHtml, setBodyHtml] = useState('');
 
   const editor = useEditor({
     extensions: [
@@ -39,6 +42,7 @@ export function COOPartnerBroadcast() {
       },
     },
     content: '',
+    onUpdate: ({ editor }) => setBodyHtml(editor.getHTML()),
   });
 
   useEffect(() => {
@@ -81,6 +85,14 @@ export function COOPartnerBroadcast() {
   };
 
   if (!editor) return null;
+
+  const previewHtml = renderPartnerEmailPreview({
+    emailTitle: subject.trim() || 'Your subject will appear here',
+    notificationType: 'Partner Communication',
+    partnerName: 'Partner',
+    messageBodyHtml: bodyHtml || '<p style="color:#94a3b8;font-style:italic;">Your message body preview will appear here…</p>',
+    notificationDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }),
+  });
 
   const ToolbarBtn = ({
     onClick, active, label, children,
@@ -179,6 +191,35 @@ export function COOPartnerBroadcast() {
             </div>
             <p className="text-[11px] text-muted-foreground">
               Tip: keep it scannable — short paragraphs, clear ask, one link.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="flex items-center gap-2">
+                <Eye className="h-4 w-4 text-primary" /> Live email preview
+              </Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowPreview((v) => !v)}
+              >
+                {showPreview ? 'Hide' : 'Show'}
+              </Button>
+            </div>
+            {showPreview && (
+              <div className="rounded-lg border bg-muted/20 overflow-hidden">
+                <iframe
+                  title="Partner email preview"
+                  srcDoc={previewHtml}
+                  className="w-full h-[640px] bg-white"
+                  sandbox=""
+                />
+              </div>
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              Each partner will see their own name in place of "Partner". Date is auto-filled at send time.
             </p>
           </div>
 
