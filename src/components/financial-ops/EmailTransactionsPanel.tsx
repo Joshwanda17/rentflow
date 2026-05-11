@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Mail, RefreshCw, Loader2, CheckCircle2, AlertCircle, Smartphone } from 'lucide-react';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription,
+} from '@/components/ui/dialog';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
@@ -97,6 +100,7 @@ export function EmailTransactionsPanel() {
           {polling ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           Poll now
         </Button>
+        <SmsSetupGuide />
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -167,5 +171,46 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: R
       <p className="font-black text-lg mt-1">{value}</p>
       {sub && <div className="mt-1">{sub}</div>}
     </div>
+  );
+}
+
+function SmsSetupGuide() {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="gap-2">
+          <Smartphone className="h-4 w-4" /> SMS → Gmail setup
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Auto-forward SMS to Gmail</DialogTitle>
+          <DialogDescription>
+            One-time phone setup. After this, every incoming SMS is forwarded to the connected Gmail and appears here within 1 minute.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 text-sm">
+          <div>
+            <p className="font-semibold mb-1">Android (recommended)</p>
+            <ol className="list-decimal pl-5 space-y-1.5 text-muted-foreground">
+              <li>Install <strong>SMS Forwarder</strong> by Hannes Petri (free, open-source) from the Play Store.</li>
+              <li>Open the app → tap <strong>Add rule</strong>.</li>
+              <li>Sender filter: leave blank, or restrict to shortcodes like <code className="text-xs">MTNMoMo</code>, <code className="text-xs">Airtel</code>, <code className="text-xs">Stanbic</code>.</li>
+              <li>Action: <strong>Email</strong>. Set the recipient to the Gmail address connected to Welile.</li>
+              <li>Subject: <code className="text-xs">SMS from {'{sender}'}</code> &nbsp;|&nbsp; Body: <code className="text-xs">{'{content}'}</code></li>
+              <li>Grant SMS permission and disable battery optimisation for the app.</li>
+              <li>Send a test SMS to confirm it lands in Gmail and appears in this feed.</li>
+            </ol>
+          </div>
+          <div className="rounded-lg border bg-muted/40 p-3 text-xs">
+            <p className="font-semibold mb-1">iPhone</p>
+            <p className="text-muted-foreground">iOS does not allow apps to read SMS, so true auto-forwarding isn't possible. Use a dedicated Android device for the SIM, or route the SIM through a GSM gateway.</p>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            The poller already matches subjects starting with <code>SMS from…</code> and emails from any sender containing <code>smsforwarder</code>.
+          </p>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
