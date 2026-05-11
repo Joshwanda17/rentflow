@@ -46,8 +46,9 @@ Deno.serve(async (req) => {
 
     const adminClient = createClient(supabaseUrl, serviceKey);
 
-    const shares = Math.floor(amount / PRICE_PER_SHARE);
-    const actualAmount = shares * PRICE_PER_SHARE;
+    // Fractional shares: amount / 20,000 (e.g. UGX 50,000 → 2.5 shares).
+    const actualAmount = Math.round(amount);
+    const shares = Number((actualAmount / PRICE_PER_SHARE).toFixed(6));
     const poolOwnershipPercent = (shares / TOTAL_SHARES) * 100;
     const companyOwnershipPercent = (shares / TOTAL_SHARES) * POOL_PERCENT;
 
