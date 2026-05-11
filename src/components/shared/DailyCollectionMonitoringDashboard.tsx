@@ -565,7 +565,7 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
         <KpiCard
           label="Tenants Onboarded (Today)"
           value={String(onboardedToday?.today ?? 0)}
@@ -600,6 +600,13 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
           icon={Building}
           color="text-primary bg-primary/10"
           subtitle="Total to date"
+        />
+        <KpiCard
+          label="Total Outstanding (All Tenants)"
+          value={formatUGX(allTimeStats?.totalOutstanding || 0)}
+          icon={AlertTriangle}
+          color="text-destructive bg-destructive/10"
+          subtitle="Across active rent plans"
         />
       </div>
 
