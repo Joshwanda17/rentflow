@@ -23,6 +23,14 @@ export interface AgentRejectedRequest {
   tenant_electricity_meter: string | null;
   request_latitude: number | null;
   request_longitude: number | null;
+  // Expanded editable fields
+  lc1_id: string | null;
+  house_category: string | null;
+  preferred_language: string | null;
+  tenant_no_smartphone: boolean | null;
+  registration_type: string | null;
+  initial_outstanding_balance: number | null;
+  outstanding_grace_days: number | null;
   // Reviewer columns we resolve to a name
   tenant_ops_reviewed_by: string | null;
   tenant_ops_reviewed_at: string | null;
@@ -80,7 +88,7 @@ export function useAgentRejectedRequests() {
       const { data, error } = await supabase
         .from('rent_requests')
         .select(
-          'id, rent_amount, duration_days, number_of_payments, daily_repayment, total_repayment, access_fee, request_fee, status, created_at, rejected_at, rejected_at_stage, rejected_reason, reopen_count, tenant_id, landlord_id, tenant_water_meter, tenant_electricity_meter, request_latitude, request_longitude, tenant_ops_reviewed_by, tenant_ops_reviewed_at, agent_verified_by, agent_verified_at, landlord_ops_reviewed_by, landlord_ops_reviewed_at, coo_reviewed_by, coo_reviewed_at, cfo_reviewed_by, cfo_reviewed_at',
+          'id, rent_amount, duration_days, number_of_payments, daily_repayment, total_repayment, access_fee, request_fee, status, created_at, rejected_at, rejected_at_stage, rejected_reason, reopen_count, tenant_id, landlord_id, lc1_id, house_category, preferred_language, tenant_no_smartphone, registration_type, initial_outstanding_balance, outstanding_grace_days, tenant_water_meter, tenant_electricity_meter, request_latitude, request_longitude, tenant_ops_reviewed_by, tenant_ops_reviewed_at, agent_verified_by, agent_verified_at, landlord_ops_reviewed_by, landlord_ops_reviewed_at, coo_reviewed_by, coo_reviewed_at, cfo_reviewed_by, cfo_reviewed_at',
         )
         .eq('agent_id', user!.id)
         .eq('status', 'rejected')
