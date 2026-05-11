@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Search, Phone, ChevronRight, User } from 'lucide-react';
+import { Search, Phone, ChevronRight, User, ChevronLeft } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -68,6 +68,8 @@ interface TenantOverviewListProps {
 export function TenantOverviewList({ data, loading, initialCategory, onSelectTenant }: TenantOverviewListProps) {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<Category>((initialCategory as Category) || 'all');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 25;
 
   // Sync when parent changes the filter
   useEffect(() => {
@@ -75,6 +77,9 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
       setCategory(initialCategory as Category);
     }
   }, [initialCategory]);
+
+  // Reset to first page when filters/search change
+  useEffect(() => { setPage(1); }, [search, category]);
 
   // Deduplicate tenants - group by tenant_id, pick most recent request
   const tenants = useMemo(() => {
@@ -115,6 +120,13 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
 
     return result;
   }, [tenants, category, search, data]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginated = useMemo(
+    () => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filtered, currentPage]
+  );
 
   const categoryCounts = useMemo(() => {
     const counts: Record<Category, number> = {
@@ -203,7 +215,7 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
             </CardContent>
           </Card>
         ) : (
-          filtered.map((tenant) => (
+          paginated.map((tenant) => (
             <button
               key={tenant.tenant_id}
               onClick={() => onSelectTenant(tenant.tenant_id, tenant.tenant_name)}
@@ -242,6 +254,38 @@ export function TenantOverviewList({ data, loading, initialCategory, onSelectTen
           ))
         )}
       </div>
+
+      {/* Pagination */}
+      {filtered.length > PAGE_SIZE && (
+        <div className="flex items-center justify-between pt-2 border-t">
+          <span className="text-[11px] text-muted-foreground">
+            Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} of {filtered.length}
+          </span>
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 px-2"
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            <span className="text-[11px] font-medium text-foreground tabular-nums px-2">
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 px-2"
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
