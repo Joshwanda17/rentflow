@@ -128,7 +128,7 @@ export function COOPartnerBroadcast() {
             <div className="mt-3 flex flex-wrap gap-2">
               <Badge variant="secondary" className="bg-white/15 hover:bg-white/15 text-white border-0">
                 <Users className="h-3 w-3 mr-1" />
-                {loadingCount ? 'Counting…' : `${recipientCount ?? 0} partners reachable`}
+                {loadingCount ? 'Counting…' : `${recipientCount ?? 0} partners with portfolios`}
               </Badge>
               {suppressedCount > 0 && (
                 <Badge variant="secondary" className="bg-white/15 hover:bg-white/15 text-white border-0">
@@ -137,6 +137,11 @@ export function COOPartnerBroadcast() {
                 </Badge>
               )}
             </div>
+            <p className="text-[11px] opacity-70 mt-1.5">
+              {loadingCount
+                ? 'Calculating audience…'
+                : `Audience = every user holding one or more portfolio. ${recipientCount ?? 0} have valid emails and will receive this broadcast.`}
+            </p>
           </div>
         </CardContent>
       </Card>
