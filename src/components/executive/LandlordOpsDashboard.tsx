@@ -1268,6 +1268,11 @@ export function LandlordOpsDashboard() {
         actionDialog={actionDialog} setActionDialog={setActionDialog}
         user={user} refetchAll={refetchAll} queryClient={queryClient}
       />
+      <BulkImportLC1Dialog
+        open={bulkImportOpen}
+        onClose={() => setBulkImportOpen(false)}
+        onImported={refetchAll}
+      />
       </>
     );
   }
