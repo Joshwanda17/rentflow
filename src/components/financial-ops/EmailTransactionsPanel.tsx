@@ -402,6 +402,7 @@ function DedupAuditPanel() {
   const [expanded, setExpanded] = useState(false);
   const [filter, setFilter] = useState<'all' | 'transaction_id_match' | 'dedup_hash_match'>('all');
   const [search, setSearch] = useState('');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const load = async () => {
     const { data } = await (supabase.from('gmail_dedup_audit') as any)
@@ -439,6 +440,27 @@ function DedupAuditPanel() {
     }
     return true;
   });
+
+  const copySnippet = async (r: DedupAuditRow) => {
+    const text = [
+      `From: ${r.from_email || 'Unknown'}`,
+      `Subject: ${r.subject || '(no subject)'}`,
+      `Reason: ${r.reason}`,
+      `Matched TID: ${r.matched_transaction_id || '—'}`,
+      `Hash: ${r.dedup_hash || '—'}`,
+      `Gmail ID: ${r.gmail_message_id}`,
+      `Date: ${r.internal_date ? format(new Date(r.internal_date), 'yyyy-MM-dd HH:mm:ss') : '—'}`,
+      `---`,
+      r.snippet || '',
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(r.id);
+      setTimeout(() => setCopiedId((cur) => (cur === r.id ? null : cur)), 2000);
+    } catch {
+      /* ignore */
+    }
+  };
 
   return (
     <div className="rounded-xl border bg-card overflow-hidden">
