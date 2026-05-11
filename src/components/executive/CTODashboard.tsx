@@ -204,7 +204,8 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
     { key: 'created_at', label: 'Time', render: (v) => v ? format(new Date(v as string), 'dd MMM HH:mm') : '—' },
     { key: 'type', label: 'Type', render: (v) => (
       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-        v === 'error' || v === 'alert' ? 'bg-destructive/10 text-destructive' :
+        v === 'error' ? 'bg-destructive/10 text-destructive' :
+        v === 'security' ? 'bg-purple-500/10 text-purple-700' :
         v === 'warning' ? 'bg-amber-500/10 text-amber-700' :
         'bg-muted text-muted-foreground'
       }`}>
@@ -370,7 +371,6 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
             label: 'Type',
             options: [
               { value: 'error', label: 'Error' },
-              { value: 'alert', label: 'Alert' },
               { value: 'warning', label: 'Warning' },
               { value: 'info', label: 'Info' },
               { value: 'security', label: 'Security' },
