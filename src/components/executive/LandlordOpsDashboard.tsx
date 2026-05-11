@@ -229,6 +229,7 @@ export function LandlordOpsDashboard() {
   const [actionDialog, setActionDialog] = useState<{ listing: ListingWithLandlord; type: 'delete' | 'delist' | 'reject' } | null>(null);
   const [editLandlord, setEditLandlord] = useState<{ id: string; name: string; phone: string; [k: string]: any } | null>(null);
   const [editLC1, setEditLC1] = useState<{ id: string; name: string; phone: string | null; village: string | null; listingIds: string[] } | null>(null);
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
   const [deleteLandlord, setDeleteLandlord] = useState<{ id: string; name: string } | null>(null);
   const [deleteReason, setDeleteReason] = useState('');
   const [deleting, setDeleting] = useState(false);
