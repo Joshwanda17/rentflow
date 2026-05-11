@@ -218,7 +218,44 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: R
   );
 }
 
-function GmailConnectionStatus({ state, lastSuccessAt }: { state: PollState | null; lastSuccessAt: string | null }) {
+/**
+ * Maps a raw poll error message into a friendly headline + description.
+ * Covers the common Gmail / gateway failure modes operators encounter.
+ */
+function friendlyPollError(raw: string | null | undefined): { title: string; description: string; kind: 'expired' | 'scope' | 'rate' | 'network' | 'config' | 'gmail' | 'unknown' } {
+  const m = (raw || '').toLowerCase();
+  if (m.includes('google_mail_api_key') || m.includes('not connected') || m.includes('not configured')) {
+    return { title: 'Gmail isn\'t connected', description: 'Connect a Gmail account in Lovable Cloud → Connectors before polling.', kind: 'config' };
+  }
+  if (m.includes('invalid credentials') || m.includes('unauthenticated') || m.includes('[401]') || m.includes(' 401')) {
+    return { title: 'Gmail session expired', description: 'The OAuth token is no longer valid. Click Reconnect Gmail to re-authenticate.', kind: 'expired' };
+  }
+  if (m.includes('insufficient') || m.includes('scope') || m.includes('[403]') || m.includes(' 403')) {
+    return { title: 'Missing Gmail permission', description: 'The connection lacks a required scope. Reconnect Gmail and approve all requested permissions.', kind: 'scope' };
+  }
+  if (m.includes('429') || m.includes('rate') || m.includes('quota')) {
+    return { title: 'Gmail rate limit hit', description: 'Google is throttling requests. Wait a minute, then click Retry.', kind: 'rate' };
+  }
+  if (m.includes('502') || m.includes('503') || m.includes('504') || m.includes('timeout') || m.includes('fetch')) {
+    return { title: 'Network or gateway hiccup', description: 'A transient error reached the Gmail gateway. Click Retry to try again.', kind: 'network' };
+  }
+  if (m.startsWith('gmail ') || m.includes('gmail /')) {
+    return { title: 'Gmail rejected the request', description: raw?.slice(0, 200) || 'Unknown Gmail API error.', kind: 'gmail' };
+  }
+  return { title: 'Polling failed', description: raw?.slice(0, 200) || 'Unknown error. Click Retry to try again.', kind: 'unknown' };
+}
+
+function GmailConnectionStatus({
+  state,
+  lastSuccessAt,
+  onRetry,
+  retrying,
+}: {
+  state: PollState | null;
+  lastSuccessAt: string | null;
+  onRetry?: () => void | Promise<void>;
+  retrying?: boolean;
+}) {
   const { toast } = useToast();
   const [verifying, setVerifying] = useState(false);
 
@@ -244,16 +281,10 @@ function GmailConnectionStatus({ state, lastSuccessAt }: { state: PollState | nu
     window.dispatchEvent(new CustomEvent('gmail-reconnect-audit-refresh'));
   };
 
-  const err = (state?.last_error || '').toLowerCase();
-  const isExpired =
-    state?.last_status === 'error' &&
-    (err.includes('invalid credentials') ||
-      err.includes('unauthenticated') ||
-      err.includes('401') ||
-      err.includes('insufficient') ||
-      err.includes('token'));
   const isError = state?.last_status === 'error';
   const isOk = state?.last_status === 'ok';
+  const friendly = isError ? friendlyPollError(state?.last_error) : null;
+  const isExpired = friendly?.kind === 'expired' || friendly?.kind === 'scope';
 
   const tone = isExpired
     ? 'border-destructive/40 bg-destructive/5 text-destructive'
@@ -264,13 +295,11 @@ function GmailConnectionStatus({ state, lastSuccessAt }: { state: PollState | nu
         : 'border-border bg-muted/30 text-muted-foreground';
 
   const Icon = isExpired || isError ? WifiOff : isOk ? Wifi : Wifi;
-  const label = isExpired
-    ? 'Gmail connection expired — reconnect required'
-    : isError
-      ? 'Gmail poll error'
-      : isOk
-        ? 'Gmail connected'
-        : 'Gmail status unknown';
+  const label = isError
+    ? friendly!.title
+    : isOk
+      ? 'Gmail connected'
+      : 'Gmail status unknown';
 
   return (
     <div className={`rounded-xl border p-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 ${tone}`}>
@@ -278,8 +307,8 @@ function GmailConnectionStatus({ state, lastSuccessAt }: { state: PollState | nu
         <Icon className="h-4 w-4 shrink-0" />
         <div className="min-w-0">
           <p className="text-sm font-semibold truncate">{label}</p>
-          {isError && state?.last_error && (
-            <p className="text-[11px] opacity-80 truncate">{state.last_error.slice(0, 140)}</p>
+          {isError && friendly && (
+            <p className="text-[11px] opacity-80 line-clamp-2">{friendly.description}</p>
           )}
         </div>
       </div>
@@ -290,6 +319,18 @@ function GmailConnectionStatus({ state, lastSuccessAt }: { state: PollState | nu
             {lastSuccessAt ? format(new Date(lastSuccessAt), 'MMM d, HH:mm:ss') : 'never'}
           </strong>
         </span>
+        {isError && onRetry && (
+          <Button
+            size="sm"
+            variant="default"
+            className="h-7 px-2 gap-1.5 text-[11px]"
+            onClick={() => onRetry()}
+            disabled={retrying}
+          >
+            {retrying ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+            Retry
+          </Button>
+        )}
         <Button
           size="sm"
           variant="outline"
