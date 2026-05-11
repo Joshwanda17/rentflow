@@ -323,6 +323,8 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
     () => filteredRows.slice((trackerCurrentPage - 1) * TRACKER_PAGE_SIZE, trackerCurrentPage * TRACKER_PAGE_SIZE),
     [filteredRows, trackerCurrentPage]
   );
+  // Reset to first page whenever filters/date/range change
+  useMemo(() => { setTrackerPage(1); }, [agentFilter, propertyFilter, day, range]);
 
   // KPIs
   const collectionToday = (collections || []).reduce((s, c) => s + Number(c.amount || 0), 0);
@@ -602,9 +604,9 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredRows.map((r, i) => (
+                  {pagedRows.map((r, i) => (
                     <TableRow key={r.rentRequestId}>
-                      <TableCell className="text-xs">{i + 1}</TableCell>
+                      <TableCell className="text-xs">{(trackerCurrentPage - 1) * TRACKER_PAGE_SIZE + i + 1}</TableCell>
                       <TableCell className="text-xs whitespace-nowrap">{r.date}</TableCell>
                       <TableCell className="text-xs">{r.agentName}</TableCell>
                       <TableCell className="text-xs font-medium">{r.tenantName}</TableCell>
