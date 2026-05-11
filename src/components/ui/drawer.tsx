@@ -6,13 +6,8 @@ import { useBackAwareOpenState } from "@/hooks/useBackGestureClose";
 
 const Drawer = ({ shouldScaleBackground = true, ...props }: React.ComponentProps<typeof DrawerPrimitive.Root>) => {
   const { rootProps, rest } = useBackAwareOpenState(props);
-  return (
-    <DrawerPrimitive.Root
-      shouldScaleBackground={shouldScaleBackground}
-      {...rootProps}
-      {...rest}
-    />
-  );
+  const merged = { shouldScaleBackground, ...rootProps, ...rest } as React.ComponentProps<typeof DrawerPrimitive.Root>;
+  return <DrawerPrimitive.Root {...merged} />;
 };
 Drawer.displayName = "Drawer";
 
