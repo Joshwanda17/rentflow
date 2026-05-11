@@ -125,6 +125,17 @@ function parseTransaction(text: string): {
   else if (bankRef) out.transaction_id = bankRef[0].toUpperCase();
   else if (generic) out.transaction_id = generic[1].toUpperCase();
 
+  // Filter junk transaction IDs (common stop-words / too short / no digits)
+  if (out.transaction_id) {
+    const cleaned = out.transaction_id.trim();
+    const stop = new Set(['FROM','TO','BY','REF','TXN','TRANS','RECEIPT','REFERENCE','CONFIRMATION','TXNID','TRANSID','OF','THE','YOUR','THIS','THAT','WITH','SENT','PAID','RECEIVED']);
+    if (cleaned.length < 6 || stop.has(cleaned.toUpperCase()) || !/[0-9]/.test(cleaned)) {
+      delete out.transaction_id;
+    } else {
+      out.transaction_id = cleaned;
+    }
+  }
+
   const cpMatch = t.match(/\b(?:from|to|by)\s+([A-Z][A-Za-z'.\- ]{1,40}?)(?=\s+(?:on|at|UGX|USh|Shs|Bal|ID|TID|Ref|\.|,|256|\+256|0\d{9}))/);
   if (cpMatch) out.counterparty = cpMatch[1].trim();
   if (!out.counterparty) {
