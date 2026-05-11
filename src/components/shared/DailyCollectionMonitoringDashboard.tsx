@@ -190,17 +190,22 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
     staleTime: 60_000,
   });
 
-  // ---- All-time totals (cheap aggregate: amount_repaid sum across active+repaid requests)
+  // ---- All-time totals: total paid + total outstanding (active rent plans only)
   const { data: allTimeStats } = useQuery({
     queryKey: ['daily-collection-alltime'],
     queryFn: async () => {
       const { data } = await supabase
         .from('rent_requests')
-        .select('amount_repaid')
+        .select('amount_repaid, total_repayment, status')
         .in('status', ['funded', 'disbursed', 'repaying', 'fully_repaid'])
         .limit(5000);
-      const totalPaid = (data || []).reduce((s, r: any) => s + Number(r.amount_repaid || 0), 0);
-      return { totalPaid };
+      const rows = (data || []) as any[];
+      const totalPaid = rows.reduce((s, r) => s + Number(r.amount_repaid || 0), 0);
+      // Outstanding = sum of (total_repayment - amount_repaid) across still-active plans
+      const totalOutstanding = rows
+        .filter(r => r.status !== 'fully_repaid')
+        .reduce((s, r) => s + Math.max(0, Number(r.total_repayment || 0) - Number(r.amount_repaid || 0)), 0);
+      return { totalPaid, totalOutstanding };
     },
     staleTime: 5 * 60_000,
   });
