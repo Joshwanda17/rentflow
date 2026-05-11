@@ -18,6 +18,7 @@ import { ReconciliationReviewScreen } from './ReconciliationReviewScreen';
 import { WithdrawalHistoryStatement } from './WithdrawalHistoryStatement';
 import { PortfolioTopUpVerification } from './PortfolioTopUpVerification';
 import { WalletBreakdownReadOnly } from './WalletBreakdownReadOnly';
+import { EmailTransactionsPanel } from './EmailTransactionsPanel';
 
 
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
@@ -25,7 +26,7 @@ import { AgentRequisitionForm } from './AgentRequisitionForm';
 import { 
   ShieldCheck, Banknote, ArrowLeft, ChevronDown,
   ClipboardList, Search, Scale, Shield, Gauge, BookOpen, TrendingUp, FileText,
-  WifiOff, MoreHorizontal, AlertTriangle, ScanLine, Receipt
+  WifiOff, MoreHorizontal, AlertTriangle, ScanLine, Receipt, Mail
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 
@@ -34,7 +35,8 @@ type Tool =
   | null
   | 'ops' | 'queue' | 'search' | 'recon' | 'ledgers' | 'audit'
   | 'withdrawals' | 'opportunities' | 'requisitions'
-  | 'mismatch_metrics' | 'recon_review' | 'withdrawal_history' | 'wallet_breakdown';
+  | 'mismatch_metrics' | 'recon_review' | 'withdrawal_history' | 'wallet_breakdown'
+  | 'email_tx';
 
 /**
  * Items hidden behind the "More" button. Per CFO mandate the dashboard
@@ -50,6 +52,7 @@ const moreActions: MoreAction[] = [
   { kind: 'tool', id: 'withdrawal_history', label: 'Withdrawal History', desc: 'Statement of every withdrawal — balance before & after', icon: Receipt },
   { kind: 'tool', id: 'ledgers', label: 'Ledger', desc: 'Full record of all wallet activity', icon: BookOpen },
   { kind: 'tool', id: 'ops', label: 'Ops Center', desc: 'Automation & monitoring', icon: Gauge },
+  { kind: 'tool', id: 'email_tx', label: 'Email Transactions', desc: 'Live transactions extracted from connected Gmail', icon: Mail },
   { kind: 'tool', id: 'queue', label: 'Approval Queue', desc: 'Pending approvals', icon: ClipboardList },
   { kind: 'tool', id: 'search', label: 'Transaction Search', desc: 'Find any transaction', icon: Search },
   { kind: 'tool', id: 'recon', label: 'Reconciliation', desc: 'Wallet-ledger drift', icon: Scale },
@@ -116,6 +119,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
       <div className="space-y-5">
         <SubBack onClick={() => setActiveTool(null)} />
         {activeTool === 'ops' && <ScaleDashboard />}
+        {activeTool === 'email_tx' && <EmailTransactionsPanel />}
         {activeTool === 'queue' && <ApprovalQueue />}
         {activeTool === 'search' && <TransactionSearch />}
         {activeTool === 'recon' && (
