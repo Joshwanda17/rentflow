@@ -67,14 +67,14 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
       for (const r of data ?? []) {
         const e = map.get(r.investor_id);
         if (e) {
-          e.total_shares += r.shares;
-          e.total_amount += r.amount;
-          e.pool_pct += r.pool_ownership_percent;
-          e.company_pct += r.company_ownership_percent;
+          e.total_shares += Number(r.shares);
+          e.total_amount += Number(r.amount);
+          e.pool_pct += Number(r.pool_ownership_percent);
+          e.company_pct += Number(r.company_ownership_percent);
           if (r.created_at > e.latest_date) e.latest_date = r.created_at;
           if (r.reference_id && !e.reference_ids.includes(r.reference_id)) e.reference_ids.push(r.reference_id);
         } else {
-          map.set(r.investor_id, { total_shares: r.shares, total_amount: r.amount, pool_pct: r.pool_ownership_percent, company_pct: r.company_ownership_percent, latest_date: r.created_at, status: r.status, reference_ids: r.reference_id ? [r.reference_id] : [] });
+          map.set(r.investor_id, { total_shares: Number(r.shares), total_amount: Number(r.amount), pool_pct: Number(r.pool_ownership_percent), company_pct: Number(r.company_ownership_percent), latest_date: r.created_at, status: r.status, reference_ids: r.reference_id ? [r.reference_id] : [] });
         }
       }
 
@@ -241,7 +241,9 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
     updateConfig.mutate(editValues, { onSuccess: () => setEditOpen(false) });
   };
 
-  const fmt = (n: number) => n.toLocaleString('en-UG');
+  const fmt = (n: number) => Number(n).toLocaleString('en-UG');
+  const fmtShares = (n: number) =>
+    Number(n).toLocaleString('en-UG', { maximumFractionDigits: 4 });
   const isLoading = configLoading || investLoading;
 
   return (
@@ -276,7 +278,7 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
         <Card>
           <CardContent className="pt-4 pb-3 px-4">
             <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1"><BarChart3 className="h-3.5 w-3.5" /> Shares Sold</div>
-            <p className="text-lg font-bold">{fmt(sharesSold)} <span className="text-xs text-muted-foreground font-normal">/ {fmt(config.total_shares)}</span></p>
+            <p className="text-lg font-bold">{fmtShares(sharesSold)} <span className="text-xs text-muted-foreground font-normal">/ {fmt(config.total_shares)}</span></p>
           </CardContent>
         </Card>
         <Card>
@@ -307,7 +309,7 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
         <Card>
           <CardContent className="pt-4 pb-3 px-4">
             <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1"><BarChart3 className="h-3.5 w-3.5" /> Shares Left</div>
-            <p className="text-lg font-bold">{fmt(sharesRemaining)}</p>
+            <p className="text-lg font-bold">{fmtShares(sharesRemaining)}</p>
           </CardContent>
         </Card>
       </div>
@@ -374,7 +376,7 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
                         </span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">{fmt(inv.total_shares)}</TableCell>
+                    <TableCell className="text-right">{fmtShares(inv.total_shares)}</TableCell>
                     <TableCell className="text-right hidden sm:table-cell">UGX {fmt(inv.total_amount)}</TableCell>
                     <TableCell className="text-right hidden md:table-cell">{inv.pool_pct.toFixed(4)}%</TableCell>
                     <TableCell className="text-right hidden md:table-cell">{inv.company_pct.toFixed(4)}%</TableCell>
@@ -460,9 +462,9 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
             {actionType === 'edit' && (
               <div>
                 <Label>New Total Shares</Label>
-                <Input type="number" min={0} value={editShares} onChange={e => setEditShares(Number(e.target.value))} />
+                <Input type="number" min={0} step="0.0001" value={editShares} onChange={e => setEditShares(Number(e.target.value))} />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Current: {selectedInvestor?.total_shares.toLocaleString()} shares · New amount: UGX {(editShares * config.price_per_share).toLocaleString()}
+                  Current: {fmtShares(selectedInvestor?.total_shares ?? 0)} shares · New amount: UGX {Math.round(editShares * config.price_per_share).toLocaleString()}
                 </p>
               </div>
             )}
@@ -519,7 +521,7 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
               </Card>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <Card><CardContent className="pt-3 pb-2 px-3"><p className="text-xs text-muted-foreground">Total Shares</p><p className="text-base font-bold">{fmt(selectedInvestor.total_shares)}</p></CardContent></Card>
+                <Card><CardContent className="pt-3 pb-2 px-3"><p className="text-xs text-muted-foreground">Total Shares</p><p className="text-base font-bold">{fmtShares(selectedInvestor.total_shares)}</p></CardContent></Card>
                 <Card><CardContent className="pt-3 pb-2 px-3"><p className="text-xs text-muted-foreground">Invested</p><p className="text-base font-bold">UGX {fmt(selectedInvestor.total_amount)}</p></CardContent></Card>
                 <Card><CardContent className="pt-3 pb-2 px-3"><p className="text-xs text-muted-foreground">Pool %</p><p className="text-base font-bold">{selectedInvestor.pool_pct.toFixed(4)}%</p></CardContent></Card>
                 <Card><CardContent className="pt-3 pb-2 px-3"><p className="text-xs text-muted-foreground">Company %</p><p className="text-base font-bold">{selectedInvestor.company_pct.toFixed(4)}%</p></CardContent></Card>
@@ -545,7 +547,7 @@ export function AngelPoolManagementPanel({ userRole }: Props) {
                       {profileTxns.map((t, i) => (
                         <TableRow key={i}>
                           <TableCell className="font-mono text-xs">{t.reference_id || '—'}</TableCell>
-                          <TableCell className="text-right">{fmt(t.shares)}</TableCell>
+                          <TableCell className="text-right">{fmtShares(Number(t.shares))}</TableCell>
                           <TableCell className="text-right">UGX {fmt(t.amount)}</TableCell>
                           <TableCell className="text-xs">{format(new Date(t.created_at), 'dd MMM yyyy')}</TableCell>
                           <TableCell><span className="text-xs capitalize">{t.status}</span></TableCell>
