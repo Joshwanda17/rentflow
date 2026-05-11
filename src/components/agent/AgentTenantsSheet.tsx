@@ -745,13 +745,13 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[92vh] rounded-t-3xl flex flex-col p-0 gap-0">
+      <SheetContent side="bottom" className="h-[92vh] rounded-t-3xl flex flex-col p-0 gap-0 overflow-y-auto">
         {profileTenantId ? (
           <TenantProfileView tenantId={profileTenantId} onBack={() => setProfileTenantId(null)} />
         ) : (
         <>
-        {/* ───── Sticky Header ───── */}
-        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b border-border/50 px-4 pt-4 pb-3 space-y-3">
+        {/* ───── Header (sticks while the tenant list scrolls beneath it) ───── */}
+        <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-md border-b border-border/50 px-4 pt-4 pb-3 space-y-3 shrink-0">
           <SheetHeader className="pb-0">
             <SheetTitle className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -1162,7 +1162,7 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
             />
           </div>
         ) : (
-        <div ref={tenantListRef} tabIndex={-1} className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+        <div ref={tenantListRef} tabIndex={-1} className="px-4 py-3 space-y-2">
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
