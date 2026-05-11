@@ -187,22 +187,68 @@ function parseTransaction(text: string): {
   return out;
 }
 
+/**
+ * Gmail gateway fetch with automatic exponential-backoff retry on
+ * authentication-class failures (401 Unauthenticated / 403 insufficient-
+ * scope / network blips). The connector gateway can transiently return
+ * 401 immediately after a token refresh; a short retry loop avoids
+ * surfacing those as user-visible errors.
+ *
+ * Backoff schedule: 500ms, 1500ms, 4500ms (3 retries → 4 total attempts).
+ * Non-auth errors (e.g. 4xx parse errors, 5xx server errors other than
+ * 502/503/504) fail fast.
+ */
 async function gmailFetch(path: string, init?: RequestInit) {
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   const GOOGLE_MAIL_API_KEY = Deno.env.get('GOOGLE_MAIL_API_KEY');
   if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY is not configured');
   if (!GOOGLE_MAIL_API_KEY) throw new Error('GOOGLE_MAIL_API_KEY is not configured (Gmail not connected)');
-  const res = await fetch(`${GATEWAY_URL}${path}`, {
-    ...init,
-    headers: {
-      ...(init?.headers ?? {}),
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
-      'X-Connection-Api-Key': GOOGLE_MAIL_API_KEY,
-    },
-  });
-  const body = await res.text();
-  if (!res.ok) throw new Error(`Gmail ${path} [${res.status}]: ${body}`);
-  try { return JSON.parse(body); } catch { return body; }
+
+  const MAX_ATTEMPTS = 4;
+  const BASE_DELAY_MS = 500;
+  let lastErr: unknown = null;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const res = await fetch(`${GATEWAY_URL}${path}`, {
+        ...init,
+        headers: {
+          ...(init?.headers ?? {}),
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          'X-Connection-Api-Key': GOOGLE_MAIL_API_KEY,
+        },
+      });
+      const body = await res.text();
+      if (res.ok) {
+        try { return JSON.parse(body); } catch { return body; }
+      }
+
+      const isAuth = res.status === 401 || res.status === 403;
+      const isTransient = res.status === 502 || res.status === 503 || res.status === 504 || res.status === 429;
+      const retryable = isAuth || isTransient;
+
+      const err = new Error(`Gmail ${path} [${res.status}]: ${body}`);
+      if (!retryable || attempt === MAX_ATTEMPTS) throw err;
+
+      lastErr = err;
+      const delay = BASE_DELAY_MS * Math.pow(3, attempt - 1); // 500, 1500, 4500
+      const jitter = Math.floor(Math.random() * 200);
+      console.warn(
+        `[gmailFetch] attempt ${attempt}/${MAX_ATTEMPTS} failed (${res.status}) — retrying in ${delay + jitter}ms: ${path}`,
+      );
+      await new Promise((r) => setTimeout(r, delay + jitter));
+    } catch (e) {
+      // Network-level failure (TypeError / fetch error) — retry as transient
+      if (attempt === MAX_ATTEMPTS || (e instanceof Error && e.message.startsWith('Gmail '))) {
+        throw e;
+      }
+      lastErr = e;
+      const delay = BASE_DELAY_MS * Math.pow(3, attempt - 1);
+      console.warn(`[gmailFetch] network attempt ${attempt}/${MAX_ATTEMPTS} failed — retrying in ${delay}ms`, e);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  throw lastErr ?? new Error(`Gmail ${path}: exhausted retries`);
 }
 
 Deno.serve(async (req) => {
