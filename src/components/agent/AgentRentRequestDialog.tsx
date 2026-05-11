@@ -939,7 +939,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       <Input
                         type="number"
                         inputMode="numeric"
-                        min={1}
+                        min={0}
                         value={outstandingDaysRemaining}
                         onChange={(e) => setOutstandingDaysRemaining(e.target.value.replace(/[^0-9]/g, ''))}
                         placeholder="Days left on current rent period"
@@ -1003,7 +1003,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                     <Button 
                       onClick={handleSubmit} 
                       className="flex-1 text-white hover:opacity-90" style={{ backgroundColor: '#7C3BED' }}
-                      disabled={loading || amount <= 0}
+                      disabled={loading || (incomeType !== 'outstanding' && amount <= 0)}
                     >
                       {loading ? (
                         <>
