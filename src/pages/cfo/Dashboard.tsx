@@ -47,6 +47,7 @@ import { LedgerHealthPanel } from '@/components/cfo/LedgerHealthPanel';
 import { FieldCashExposureCard } from '@/components/cfo/FieldCashExposureCard';
 import { CFOAgentOpsFloatSender } from '@/components/cfo/CFOAgentOpsFloatSender';
 import { CFOImpactKPIStrip } from '@/components/cfo/CFOImpactKPIStrip';
+import { CFOWalletActivities } from '@/components/cfo/CFOWalletActivities';
 import { usePersistedActiveTab } from '@/hooks/usePersistedActiveTab';
 
 export default function CFODashboardPage() {
@@ -218,6 +219,8 @@ export default function CFODashboardPage() {
             <CFOImpactKPIStrip />
           </div>
         );
+      case 'wallet-activities':
+        return <CFOWalletActivities />;
       default:
         return <CFOOverviewDashboard onTabChange={setActiveTab} />;
     }
