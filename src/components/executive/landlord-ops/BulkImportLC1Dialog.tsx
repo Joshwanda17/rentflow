@@ -41,8 +41,8 @@ function normalizePhone(raw: string): string {
   return s;
 }
 
-function isValidUgPhone(p: string): boolean {
-  return /^256(7|3|4)\d{8}$/.test(p);
+function isValidUgPhone(_p: string): boolean {
+  return true; // format validation relaxed — numbers can be edited after import
 }
 
 export function BulkImportLC1Dialog({ open, onClose, onImported }: Props) {
