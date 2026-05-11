@@ -316,13 +316,21 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
     if (!preferredLanguage) errors.push('Preferred language is required');
 
-    if (!landlordName.trim()) errors.push('Landlord name is required');
-    if (!landlordPhone.trim()) errors.push('Landlord phone is required');
-    else if (!isValidUgPhone(cleanLandlordPhone)) errors.push('Landlord phone must be a valid Ugandan number (e.g. 0700 123 456)');
+    // Outstanding flow uses a searchable landlord picker (LC already linked).
+    // Other flows still collect landlord + LC1 inline.
+    if (isOutstanding) {
+      if (!selectedLandlord) errors.push('Please select a landlord');
+      if (!outstandingRentAmount || parseInt(outstandingRentAmount.replace(/,/g, '')) <= 0) {
+        errors.push('Rent amount is required');
+      }
+      if (!outstandingDaysRemaining || parseInt(outstandingDaysRemaining) <= 0) {
+        errors.push('Days remaining is required');
+      }
+    } else {
+      if (!landlordName.trim()) errors.push('Landlord name is required');
+      if (!landlordPhone.trim()) errors.push('Landlord phone is required');
+      else if (!isValidUgPhone(cleanLandlordPhone)) errors.push('Landlord phone must be a valid Ugandan number (e.g. 0700 123 456)');
 
-    if (isOutstanding && !lc1Village.trim()) errors.push('Village/Cell location is required');
-
-    if (!isOutstanding) {
       if (!propertyAddress.trim()) errors.push('Property address is required');
       if (!lc1Name.trim()) errors.push('LC1 name is required');
       if (!lc1Phone.trim()) errors.push('LC1 phone is required');
@@ -332,14 +340,6 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
       }
       if (!lc1Village.trim()) errors.push('LC1 village is required');
       if (!houseCategory) errors.push('House category is required');
-    } else {
-      // LC1 phone is optional for outstanding — warn but don't block
-      if (lc1Phone.trim()) {
-        const cleanLc1 = lc1Phone.replace(/\s/g, '');
-        if (!isValidUgPhone(cleanLc1)) {
-          // Don't block, just silently ignore partial LC1 phone for outstanding
-        }
-      }
     }
 
     // ===== Block duplicate phone numbers across roles =====
