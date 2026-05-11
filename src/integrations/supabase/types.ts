@@ -9893,7 +9893,7 @@ export type Database = {
           landlord_ops_reviewed_at: string | null
           landlord_ops_reviewed_by: string | null
           landlord_verification_method: string | null
-          lc1_id: string
+          lc1_id: string | null
           manager_verified: boolean | null
           manager_verified_at: string | null
           manager_verified_by: string | null
@@ -9975,7 +9975,7 @@ export type Database = {
           landlord_ops_reviewed_at?: string | null
           landlord_ops_reviewed_by?: string | null
           landlord_verification_method?: string | null
-          lc1_id: string
+          lc1_id?: string | null
           manager_verified?: boolean | null
           manager_verified_at?: string | null
           manager_verified_by?: string | null
@@ -10057,7 +10057,7 @@ export type Database = {
           landlord_ops_reviewed_at?: string | null
           landlord_ops_reviewed_by?: string | null
           landlord_verification_method?: string | null
-          lc1_id?: string
+          lc1_id?: string | null
           manager_verified?: boolean | null
           manager_verified_at?: string | null
           manager_verified_by?: string | null
