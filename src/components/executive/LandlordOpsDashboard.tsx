@@ -13,7 +13,7 @@ import {
   Phone, MessageCircle, Image, MapPinned, DoorOpen, TrendingDown, Users,
   Building2, UserCheck, Smartphone, Handshake, GitBranch, Link2,
   ArrowLeft, ChevronRight, Search, X, Globe, UserX, UserPlus,
-  Table2, Printer, CalendarIcon, Loader2,
+  Table2, Printer, CalendarIcon, Loader2, Upload,
 } from 'lucide-react';
 import { ChainHealthTab } from './landlord-ops/ChainHealthTab';
 import { Badge } from '@/components/ui/badge';
@@ -45,6 +45,7 @@ import { EmptyHouseActionDialog } from './landlord-ops/EmptyHouseActionDialog';
 import { Trash2, XCircle, Pencil } from 'lucide-react';
 import { EditLandlordDialog } from './landlord-ops/EditLandlordDialog';
 import { EditLC1Dialog } from './landlord-ops/EditLC1Dialog';
+import { BulkImportLC1Dialog } from './landlord-ops/BulkImportLC1Dialog';
 import { AssignPersonDialog } from './landlord-ops/AssignPersonDialog';
 import { LandlordsPaidView } from './landlord-ops/LandlordsPaidView';
 import { LandlordsWithTenantsView } from './landlord-ops/LandlordsWithTenantsView';
@@ -228,6 +229,7 @@ export function LandlordOpsDashboard() {
   const [actionDialog, setActionDialog] = useState<{ listing: ListingWithLandlord; type: 'delete' | 'delist' | 'reject' } | null>(null);
   const [editLandlord, setEditLandlord] = useState<{ id: string; name: string; phone: string; [k: string]: any } | null>(null);
   const [editLC1, setEditLC1] = useState<{ id: string; name: string; phone: string | null; village: string | null; listingIds: string[] } | null>(null);
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
   const [deleteLandlord, setDeleteLandlord] = useState<{ id: string; name: string } | null>(null);
   const [deleteReason, setDeleteReason] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -1199,7 +1201,12 @@ export function LandlordOpsDashboard() {
       <>
       <div className="space-y-3">
         <BackButton />
-        <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> LC1 Chairpersons ({lc1Groups.length})</h2>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <h2 className="text-lg font-bold flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-amber-600" /> LC1 Chairpersons ({lc1Groups.length})</h2>
+          <Button size="sm" onClick={() => setBulkImportOpen(true)} className="h-9">
+            <Upload className="h-4 w-4 mr-1.5" /> Bulk Import
+          </Button>
+        </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search by name, village, or phone…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-11" />
@@ -1260,6 +1267,11 @@ export function LandlordOpsDashboard() {
         adjustListing={adjustListing} setAdjustListing={setAdjustListing}
         actionDialog={actionDialog} setActionDialog={setActionDialog}
         user={user} refetchAll={refetchAll} queryClient={queryClient}
+      />
+      <BulkImportLC1Dialog
+        open={bulkImportOpen}
+        onClose={() => setBulkImportOpen(false)}
+        onImported={refetchAll}
       />
       </>
     );
