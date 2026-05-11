@@ -10,6 +10,7 @@ import { Loader2, Search, User, Wallet, PiggyBank, CheckCircle, ArrowRight, Copy
 import { PRICE_PER_SHARE, TOTAL_SHARES, POOL_PERCENT } from '@/components/angel-pool/constants';
 import { cn } from '@/lib/utils';
 import { usePhoneDuplicateCheck } from '@/hooks/usePhoneDuplicateCheck';
+import { invokeEdgeFunction } from '@/lib/invokeEdgeFunction';
 
 interface AgentAngelPoolInvestDialogProps {
   open: boolean;
@@ -207,8 +208,9 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
   const handleSubmit = async () => {
     if (!selectedInvestor || !canProceed) return;
     setSubmitting(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('agent-angel-pool-invest', {
+    const { data, error } = await invokeEdgeFunction<InvestmentResult>(
+      'agent-angel-pool-invest',
+      {
         body: {
           investor_id: selectedInvestor.id,
           amount: actualAmount,
@@ -217,20 +219,15 @@ export function AgentAngelPoolInvestDialog({ open, onOpenChange, onSuccess }: Ag
           funding_source: fundingSource,
           investment_date: investmentDate,
         },
-      });
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      setResult(data);
-      setStep('success');
-      toast.success('Angel Pool investment completed!');
-      onSuccess?.();
-    } catch (err: any) {
-      toast.error(err.message || 'Investment failed');
-    } finally {
-      setSubmitting(false);
-    }
+        errorTitle: 'Investment failed',
+      },
+    );
+    setSubmitting(false);
+    if (error || !data) return;
+    setResult(data);
+    setStep('success');
+    toast.success('Angel Pool investment completed!');
+    onSuccess?.();
   };
 
   const handleWhatsAppShare = () => {
