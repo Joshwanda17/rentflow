@@ -119,6 +119,7 @@ export function FinancialOpsCommandCenter({ requirePaymentRef }: { requirePaymen
       <div className="space-y-5">
         <SubBack onClick={() => setActiveTool(null)} />
         {activeTool === 'ops' && <ScaleDashboard />}
+        {activeTool === 'email_tx' && <EmailTransactionsPanel />}
         {activeTool === 'queue' && <ApprovalQueue />}
         {activeTool === 'search' && <TransactionSearch />}
         {activeTool === 'recon' && (
