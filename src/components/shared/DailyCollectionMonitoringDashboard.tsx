@@ -738,17 +738,17 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
-              <Trophy className="h-4 w-4 text-amber-500" /> Top & Bottom Agents
+              <Trophy className="h-4 w-4 text-warning" /> Top & Bottom Agents
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {topAgent ? (
-              <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5">
-                <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 mb-1">
+              <div className="p-3 rounded-xl border border-success/30 bg-success/5">
+                <div className="flex items-center gap-2 text-xs font-semibold text-success mb-1">
                   <Trophy className="h-3.5 w-3.5" /> TOP PERFORMER
                 </div>
                 <p className="text-base font-bold">{topAgent.name}</p>
-                <p className="text-2xl font-extrabold text-emerald-600">{topAgent.rate}%</p>
+                <p className="text-2xl font-extrabold text-success">{topAgent.rate}%</p>
                 <p className="text-[11px] text-muted-foreground">Collection Rate</p>
               </div>
             ) : (
@@ -770,7 +770,7 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
 
       {mode === 'readonly' && (
         <div className="flex items-center gap-2 text-[11px] text-muted-foreground p-2 rounded-lg bg-muted/30 border">
-          <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+          <AlertTriangle className="h-3.5 w-3.5 text-warning" />
           You are viewing in read-only mode. Only Tenant Ops staff can record payments here.
         </div>
       )}
