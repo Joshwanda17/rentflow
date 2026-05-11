@@ -116,6 +116,8 @@ export function EmailTransactionsPanel() {
         <SmsSetupGuide />
       </div>
 
+      <GmailConnectionStatus state={state} lastSuccessAt={lastSuccessAt} />
+
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard label="Emails captured" value={rows.length.toString()} />
         <StatCard label="Parsed transactions" value={parsedCount.toString()} />
