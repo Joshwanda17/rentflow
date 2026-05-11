@@ -55,6 +55,27 @@ function extractPlainBody(payload: any): string {
   return '';
 }
 
+async function sha256Hex(input: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function buildDedupKey(p: {
+  transaction_id?: string | null; from_email?: string | null;
+  amount?: number | null; internal_date?: Date | null; counterparty?: string | null;
+}): string {
+  const minute = p.internal_date
+    ? `${p.internal_date.getUTCFullYear()}-${String(p.internal_date.getUTCMonth()+1).padStart(2,'0')}-${String(p.internal_date.getUTCDate()).padStart(2,'0')} ${String(p.internal_date.getUTCHours()).padStart(2,'0')}:${String(p.internal_date.getUTCMinutes()).padStart(2,'0')}`
+    : '';
+  return [
+    (p.transaction_id ?? '').toLowerCase(),
+    p.from_email ?? '',
+    p.amount ?? '',
+    minute,
+    p.counterparty ?? '',
+  ].join('|');
+}
+
 // ---- SMS-style transaction parser (mirrors src/utils/smsParser.ts) ----
 const MONTH_MAP: Record<string, string> = {
   jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
