@@ -33,6 +33,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { generateDailyCollectionReportPdf } from '@/lib/generateDailyCollectionReportPdf';
 import { downloadPdfBlob } from '@/lib/generateTenantOpsExtractPdf';
+import TenantAssignAgentDialog from '@/components/shared/TenantAssignAgentDialog';
 
 type Mode = 'editable' | 'readonly';
 type Range = 'today' | 'week' | 'month';
@@ -116,6 +117,8 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
   const [trackerPage, setTrackerPage] = useState(1);
   const TRACKER_PAGE_SIZE = 10;
   const [submitting, setSubmitting] = useState(false);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignRow, setAssignRow] = useState<TenantTrackerRow | null>(null);
 
   // Range -> [from, to]
   const [rangeFrom, rangeTo] = useMemo(() => {
@@ -692,7 +695,18 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
                       <TableCell className="text-xs">{(trackerCurrentPage - 1) * TRACKER_PAGE_SIZE + i + 1}</TableCell>
                       <TableCell className="text-xs whitespace-nowrap">{r.date}</TableCell>
                       <TableCell className="text-xs">{r.agentName}</TableCell>
-                      <TableCell className="text-xs font-medium">{r.tenantName}</TableCell>
+                      <TableCell className="text-xs font-medium">
+                        {mode === 'editable' ? (
+                          <button
+                            type="button"
+                            className="text-primary hover:underline text-left"
+                            onClick={() => { setAssignRow(r); setAssignOpen(true); }}
+                            title="Assign agent / link property"
+                          >
+                            {r.tenantName}
+                          </button>
+                        ) : r.tenantName}
+                      </TableCell>
                       <TableCell className="text-xs">{r.property}</TableCell>
                       <TableCell className="text-xs text-right tabular-nums">{formatUGX(r.expected)}</TableCell>
                       <TableCell className="text-xs text-right tabular-nums">{formatUGX(r.collected)}</TableCell>
@@ -948,6 +962,16 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <TenantAssignAgentDialog
+        open={assignOpen}
+        onOpenChange={setAssignOpen}
+        rentRequestId={assignRow?.rentRequestId || null}
+        tenantId={assignRow?.tenantId || null}
+        tenantName={assignRow?.tenantName || ''}
+        currentAgentId={assignRow?.agentId || null}
+        onSaved={() => { refetchCollections(); queryClient.invalidateQueries({ queryKey: ['daily-collection-rent-requests'] }); }}
+      />
     </div>
   );
 }
