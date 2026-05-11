@@ -45,7 +45,7 @@ export default function PartnerOpsReportPage() {
           { label: 'Pending withdrawals',   value: String(k.pendingWithdrawals), sub: 'Awaiting Financial Ops', icon: ArrowDownToLine, severity: 'warning', urgent: k.pendingWithdrawals > 0 },
           { label: 'Pending payout (UGX)',  value: ugx(k.pendingWithdrawalAmt), sub: 'Sum across requests',     icon: Wallet,   severity: 'warning' },
           { label: 'Verified portfolios',   value: String(k.verified),        sub: 'Cleared by CFO',            icon: CheckCircle2, severity: 'success' },
-          { label: 'Active partner pool',   value: String(activities.filter(a => a.type === 'New portfolio').length), sub: 'In window', icon: Users, severity: 'neutral' },
+          { label: 'Total Partners',     value: String(totalPartners), sub: 'With 1+ portfolios',        icon: Users, severity: 'neutral' },
         ]}
         charts={[
           {
