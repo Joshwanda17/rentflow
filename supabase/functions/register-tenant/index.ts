@@ -115,7 +115,15 @@ Deno.serve(async (req) => {
     const nameCheck = validateFullName(rawName);
     const full_name = nameCheck.valid ? nameCheck.trimmed : null;
     const phone = validatePhone(rawPhone);
-    const national_id = validateNationalId(rawNationalId);
+    // National ID is OPTIONAL. Only validate when the caller actually provided
+    // a non-empty value (e.g. outstanding-balance tenants may not have one yet).
+    const rawNidStr = typeof rawNationalId === 'string' ? rawNationalId.trim() : '';
+    const national_id = rawNidStr ? validateNationalId(rawNationalId) : null;
+    if (rawNidStr && !national_id) {
+      return new Response(JSON.stringify({ error: 'Invalid National ID. Must be 10-14 alphanumeric characters.' }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     if (!full_name) {
       return new Response(JSON.stringify({ error: nameCheck.error || FULL_NAME_ERROR }), {
@@ -125,12 +133,6 @@ Deno.serve(async (req) => {
 
     if (!phone) {
       return new Response(JSON.stringify({ error: "Invalid phone number format." }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    if (!national_id) {
-      return new Response(JSON.stringify({ error: "National ID is required. Must be 10-14 alphanumeric characters." }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -157,14 +159,16 @@ Deno.serve(async (req) => {
 
     const existingByPhone = existing ?? existingByLast9?.[0] ?? null;
 
-    // Check for duplicate National ID. Reuse it only when it is the same phone/account.
-    const { data: existingNationalId } = await supabaseAdmin
-      .from("profiles")
-      .select("id, full_name, phone")
-      .eq("national_id", national_id)
-      .maybeSingle();
+    // Check for duplicate National ID — only when one was provided.
+    const existingNationalId = national_id
+      ? (await supabaseAdmin
+          .from("profiles")
+          .select("id, full_name, phone")
+          .eq("national_id", national_id)
+          .maybeSingle()).data
+      : null;
 
-    if (existingNationalId && (!existingByPhone || existingNationalId.id !== existingByPhone.id)) {
+    if (national_id && existingNationalId && (!existingByPhone || existingNationalId.id !== existingByPhone.id)) {
       const nationalDigits = String(existingNationalId.phone ?? '').replace(/\D/g, '');
       if (nationalDigits.slice(-9) !== last9) {
         console.log("[register-tenant] Duplicate national_id found:", existingNationalId.id);
@@ -176,8 +180,11 @@ Deno.serve(async (req) => {
 
     if (existingByPhone) {
       console.log("[register-tenant] Found existing profile by phone:", existingByPhone.id);
-      if (!existingByPhone.national_id || existingByPhone.national_id === national_id) {
+      // Only patch national_id when the caller supplied one and it doesn't conflict.
+      if (national_id && (!existingByPhone.national_id || existingByPhone.national_id === national_id)) {
         await supabaseAdmin.from("profiles").update({ national_id, referrer_id: callingUser.id }).eq("id", existingByPhone.id);
+      } else {
+        await supabaseAdmin.from("profiles").update({ referrer_id: callingUser.id }).eq("id", existingByPhone.id);
       }
       return new Response(JSON.stringify({ user_id: existingByPhone.id, existing: true }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -226,9 +233,15 @@ Deno.serve(async (req) => {
     // Update profile (trigger should have created it).
     // Also stamp referrer_id so the agent who registered this tenant can see them
     // under "My Tenants" (which filters by profiles.referrer_id).
+    const profileUpdate: Record<string, unknown> = {
+      full_name,
+      phone: cleanPhone,
+      referrer_id: callingUser.id,
+    };
+    if (national_id) profileUpdate.national_id = national_id;
     const { error: profileErr } = await supabaseAdmin
       .from("profiles")
-      .update({ full_name, phone: cleanPhone, national_id, referrer_id: callingUser.id })
+      .update(profileUpdate)
       .eq("id", userId);
     
     if (profileErr) {
