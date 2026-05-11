@@ -132,7 +132,7 @@ Deno.serve(async (req) => {
     const emails = new Set<string>();
     const recipients: { user_id: string; email: string }[] = [];
     // Page through profiles to keep below 1000-row default
-    const CHUNK = 500;
+    const CHUNK = 100;
     for (let i = 0; i < userIds.length; i += CHUNK) {
       const slice = userIds.slice(i, i + CHUNK);
       const { data: profs, error: profErr } = await admin
