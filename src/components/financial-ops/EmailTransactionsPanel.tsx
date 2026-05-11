@@ -400,6 +400,8 @@ function DedupAuditPanel() {
   const [rows, setRows] = useState<DedupAuditRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'transaction_id_match' | 'dedup_hash_match'>('all');
+  const [search, setSearch] = useState('');
 
   const load = async () => {
     const { data } = await (supabase.from('gmail_dedup_audit') as any)
@@ -421,6 +423,23 @@ function DedupAuditPanel() {
     return () => { supabase.removeChannel(ch); };
   }, []);
 
+  const counts = {
+    all: rows.length,
+    transaction_id_match: rows.filter((r) => r.reason === 'transaction_id_match').length,
+    dedup_hash_match: rows.filter((r) => r.reason === 'dedup_hash_match').length,
+  };
+
+  const filtered = rows.filter((r) => {
+    if (filter !== 'all' && r.reason !== filter) return false;
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      const hay = [r.from_email, r.subject, r.snippet, r.matched_transaction_id, r.dedup_hash, r.gmail_message_id]
+        .filter(Boolean).join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
   return (
     <div className="rounded-xl border bg-card overflow-hidden">
       <button
@@ -437,15 +456,42 @@ function DedupAuditPanel() {
       </button>
       {expanded && (
         <>
+          <div className="p-3 border-b flex flex-wrap items-center gap-2 bg-muted/20">
+            {([
+              { id: 'all', label: 'All' },
+              { id: 'transaction_id_match', label: 'TID match' },
+              { id: 'dedup_hash_match', label: 'Hash match' },
+            ] as const).map((f) => (
+              <Button
+                key={f.id}
+                size="sm"
+                variant={filter === f.id ? 'default' : 'outline'}
+                onClick={() => setFilter(f.id)}
+                className="h-7 text-xs gap-1.5"
+              >
+                {f.label}
+                <Badge variant="secondary" className="text-[10px] h-4 px-1">{counts[f.id]}</Badge>
+              </Button>
+            ))}
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search sender, subject, TID, hash…"
+              className="ml-auto h-7 text-xs px-2 rounded border bg-background w-full sm:w-64"
+            />
+          </div>
           {loading ? (
             <div className="p-6 flex justify-center"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
-          ) : rows.length === 0 ? (
+          ) : filtered.length === 0 ? (
             <div className="p-6 text-center text-xs text-muted-foreground">
-              No deduplicated emails yet. Skipped duplicates will appear here in real time.
+              {rows.length === 0
+                ? 'No deduplicated emails yet. Skipped duplicates will appear here in real time.'
+                : 'No entries match the current filters.'}
             </div>
           ) : (
             <div className="divide-y max-h-[400px] overflow-y-auto">
-              {rows.map((r) => (
+              {filtered.map((r) => (
                 <div key={r.id} className="p-3 text-xs hover:bg-muted/30">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
