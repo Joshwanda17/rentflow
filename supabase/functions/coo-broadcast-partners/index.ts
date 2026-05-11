@@ -239,11 +239,11 @@ Deno.serve(async (req) => {
       });
       emails.add(testEmailRaw);
     } else {
-      // Resolve all distinct partner (supporter role) emails
-      const { data: roleRows, error: roleErr } = await admin
-        .from('user_roles').select('user_id').eq('role', 'supporter');
-      if (roleErr) throw roleErr;
-      const userIds = Array.from(new Set((roleRows || []).map((r: any) => r.user_id))).filter(Boolean);
+      // Resolve all distinct users who hold one or more portfolio (not just supporter role)
+      const { data: portRows, error: portErr } = await admin
+        .from('investor_portfolios').select('investor_id');
+      if (portErr) throw portErr;
+      const userIds = Array.from(new Set((portRows || []).map((r: any) => r.investor_id))).filter(Boolean);
       for (let i = 0; i < userIds.length; i += CHUNK) {
         const slice = userIds.slice(i, i + CHUNK);
         const { data: profs, error: profErr } = await admin
