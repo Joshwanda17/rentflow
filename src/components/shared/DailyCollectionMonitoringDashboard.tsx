@@ -22,7 +22,7 @@ import {
 import {
   Users, CheckCircle2, Banknote, CalendarDays, Building, Trophy, AlertTriangle,
   TrendingUp, TrendingDown, Loader2, Wallet, Filter, CalendarIcon, X,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Printer,
 } from 'lucide-react';
 import {
   startOfDay, endOfDay, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
@@ -31,6 +31,8 @@ import {
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { generateDailyCollectionReportPdf } from '@/lib/generateDailyCollectionReportPdf';
+import { downloadPdfBlob } from '@/lib/generateTenantOpsExtractPdf';
 
 type Mode = 'editable' | 'readonly';
 type Range = 'today' | 'week' | 'month';
@@ -496,6 +498,65 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
             <Calendar mode="single" selected={day} onSelect={(d) => d && setDay(d)} initialFocus className="p-3 pointer-events-auto" />
           </PopoverContent>
         </Popover>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1.5 ml-auto"
+          onClick={() => {
+            try {
+              const blob = generateDailyCollectionReportPdf({
+                day,
+                kpis: {
+                  onboardedToday: onboardedToday?.today || 0,
+                  onboardedDelta: (onboardedToday?.today || 0) - (onboardedToday?.yest || 0),
+                  tenantsPaid,
+                  tenantsPaidDelta: tenantsPaid - tenantsPaidPrev,
+                  collectionToday,
+                  collectionDelta: collectionToday - collectionPrev,
+                  collectionMonth,
+                  totalRentPaidAllTime: allTimeStats?.totalPaid || 0,
+                },
+                rows: filteredRows.map(r => ({
+                  date: r.date,
+                  agentName: r.agentName,
+                  tenantName: r.tenantName,
+                  property: r.property,
+                  expected: r.expected,
+                  collected: r.collected,
+                  balance: r.balance,
+                  status: r.status,
+                  paymentMethod: r.paymentMethod,
+                  remarks: r.remarks,
+                })),
+                totals,
+                agentSummary: agentSummary.map(a => ({
+                  name: a.name,
+                  tenantCount: a.tenantCount,
+                  paidCount: a.paidCount,
+                  expected: a.expected,
+                  collected: a.collected,
+                  balance: a.balance,
+                  rate: a.rate,
+                  status: a.status,
+                })),
+                donut: {
+                  collected: totals.collected,
+                  outstanding: totals.outstanding,
+                  collectedPct,
+                },
+                monthly: monthTrend,
+                top: topAgent ? { name: topAgent.name, rate: topAgent.rate } : undefined,
+                bottom: bottomAgent ? { name: bottomAgent.name, rate: bottomAgent.rate } : undefined,
+              });
+              downloadPdfBlob(blob, `daily-collection-${format(day, 'yyyy-MM-dd')}.pdf`);
+              toast.success('Report downloaded');
+            } catch (e: any) {
+              toast.error(e?.message || 'Failed to generate report');
+            }
+          }}
+        >
+          <Printer className="h-3.5 w-3.5" /> Print Report
+        </Button>
       </div>
 
       {/* KPI cards */}
