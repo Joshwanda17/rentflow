@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { optimizeImage } from '@/lib/imageOptimizer';
 import { GuarantorConsentCheckbox } from '@/components/agent/GuarantorConsentCheckbox';
 import { LandlordSearchSelect, type LandlordOption } from '@/components/agent/LandlordSearchSelect';
+import RegisterLandlordDialog from '@/components/agent/RegisterLandlordDialog';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Dialog,
@@ -143,6 +144,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
   const [selectedLandlord, setSelectedLandlord] = useState<LandlordOption | null>(null);
   const [outstandingRentAmount, setOutstandingRentAmount] = useState('');
   const [outstandingDaysRemaining, setOutstandingDaysRemaining] = useState('');
+  const [showRegisterLandlord, setShowRegisterLandlord] = useState(false);
+  const [landlordPickerKey, setLandlordPickerKey] = useState(0);
 
   // Pre-fill fields when dialog opens with prefill props
   useEffect(() => {
@@ -478,11 +481,13 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
 
       // Register tenant via edge function (handles both existing and new users)
       const cleanTenantPhone = tenantPhone.replace(/\s/g, '');
+      const cleanNationalId = tenantNationalId.trim().toUpperCase();
       const { data: tenantResult, error: tenantRegError } = await supabase.functions.invoke('register-tenant', {
         body: {
           full_name: tenantName.trim(),
           phone: cleanTenantPhone,
-          national_id: tenantNationalId.trim().toUpperCase(),
+          // National ID is optional in the outstanding flow.
+          national_id: cleanNationalId || null,
         },
       });
 
@@ -798,6 +803,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                       LC1 is already linked to the landlord — no need to add it again.
                     </p>
                     <LandlordSearchSelect
+                      key={landlordPickerKey}
                       value={selectedLandlord}
                       onChange={setSelectedLandlord}
                     />
@@ -806,6 +812,21 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
                         <MapPin className="h-3 w-3" /> {selectedLandlord.property_address}
                       </p>
                     )}
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <p className="text-[11px] text-muted-foreground">
+                        Can't find the landlord?
+                      </p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs"
+                        onClick={() => setShowRegisterLandlord(true)}
+                      >
+                        <Building2 className="h-3.5 w-3.5 mr-1" />
+                        Register new landlord
+                      </Button>
+                    </div>
                   </div>
 
                   {/* 👤 Tenant Personal Information */}
@@ -1424,6 +1445,16 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess, 
           ) : null}
         </AnimatePresence>
       </DialogContent>
+      <RegisterLandlordDialog
+        open={showRegisterLandlord}
+        onOpenChange={setShowRegisterLandlord}
+        onSuccess={() => {
+          setShowRegisterLandlord(false);
+          // Force the search popover to re-fetch fresh results.
+          setLandlordPickerKey((k) => k + 1);
+          toast.success('Landlord registered. Search to select them now.');
+        }}
+      />
     </Dialog>
   );
 }
