@@ -45,49 +45,93 @@ function extractPlainBody(payload: any): string {
 }
 
 // ---- SMS-style transaction parser (mirrors src/utils/smsParser.ts) ----
+const MONTH_MAP: Record<string, string> = {
+  jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+  jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
+};
+const AMT = String.raw`(?:UGX|USh|UShs?|Shs?|Ush\.)?\s*\.?\s*([\d][\d,]*(?:\.\d+)?)`;
+const toInt = (raw: string) => {
+  const n = Math.round(parseFloat(raw.replace(/,/g, '')));
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+};
+function normDate(raw: string): string | undefined {
+  const iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (iso) return `${iso[1]}-${iso[2].padStart(2,'0')}-${iso[3].padStart(2,'0')}`;
+  const dmy = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
+  if (dmy) { let [,d,m,y]=dmy; if (y.length===2) y=`20${y}`; return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; }
+  return undefined;
+}
 function parseTransaction(text: string): {
-  amount?: number; transaction_id?: string; tx_date?: string; tx_time?: string;
+  amount?: number; fee?: number; balance?: number; transaction_id?: string;
+  tx_date?: string; tx_time?: string; direction?: string; channel?: string; counterparty?: string;
 } {
   const out: any = {};
   if (!text) return out;
+  const t = text.replace(/\s+/g, ' ').trim();
 
-  const amountRe = /(?:UGX|USh|UShs|Shs)\s*\.?\s*([\d,]+(?:\.\d+)?)/gi;
-  const skipRe = /(bal(?:ance)?|charge|fee|fees)\s*[:.]?\s*$/i;
-  let firstAmt: number | undefined; let chosenAmt: number | undefined;
-  for (const m of text.matchAll(amountRe)) {
-    const n = Math.round(parseFloat(m[1].replace(/,/g, '')));
-    if (!Number.isFinite(n) || n <= 0) continue;
-    if (firstAmt === undefined) firstAmt = n;
-    const start = m.index ?? 0;
-    const lookback = text.slice(Math.max(0, start - 12), start);
-    if (skipRe.test(lookback)) continue;
-    chosenAmt = n; break;
+  if (/\bmomo\b|mtn mobile money|mtn momo|\bmtn\b/i.test(t)) out.channel = 'mtn_momo';
+  else if (/airtel money|\bairtel\b|\btid\b/i.test(t)) out.channel = 'airtel_money';
+  else if (/\bbank\b|stanbic|centenary|dfcu|equity|absa|stanchart|standard chartered|housing finance|kcb|ncba|baroda|tropical|ecobank|orient|finance trust|opportunity bank|post bank|cairo bank/i.test(t)) out.channel = 'bank';
+  else out.channel = 'other';
+
+  if (/\b(received|deposited|credited|you have received|payment received|recd from|cash in|deposit of)\b/i.test(t)) out.direction = 'in';
+  else if (/\b(sent|paid|withdrawn|withdrew|debited|cash out|transferred to|payment to|purchase of|bought)\b/i.test(t)) out.direction = 'out';
+  else if (/\b(charge|fee|fees|tax|levy)\b/i.test(t) && !/charge\s*[:\-]?\s*(?:ugx)?\s*0\b/i.test(t)) out.direction = 'charge';
+
+  const feeM = t.match(new RegExp(String.raw`(?:Charge|Fee|Fees|Tax|Levy)\s*[:.\-]?\s*` + AMT, 'i'));
+  if (feeM) out.fee = toInt(feeM[1]);
+  const balM = t.match(new RegExp(String.raw`(?:New\s+balance|Balance|Bal)\s*[:.\-]?\s*` + AMT, 'i'));
+  if (balM) out.balance = toInt(balM[1]);
+
+  const verbAmt = t.match(new RegExp(String.raw`(?:received|deposited|credited|sent|paid|withdrew|withdrawn|debited|payment of|amount of|sum of|of)\s+(?:UGX|USh|UShs?|Shs?)?\s*\.?\s*([\d][\d,]*(?:\.\d+)?)`, 'i'));
+  if (verbAmt) out.amount = toInt(verbAmt[1]);
+  if (out.amount === undefined) {
+    const amountRe = /(?:UGX|USh|UShs|Shs)\s*\.?\s*([\d,]+(?:\.\d+)?)/gi;
+    const skipRe = /(bal(?:ance)?|charge|fee|fees|tax|levy|new\s*balance)\s*[:.\-]?\s*$/i;
+    let firstAmt: number | undefined; let chosen: number | undefined;
+    for (const m of t.matchAll(amountRe)) {
+      const n = toInt(m[1]); if (n === undefined) continue;
+      if (firstAmt === undefined) firstAmt = n;
+      const lookback = t.slice(Math.max(0, (m.index ?? 0) - 16), m.index ?? 0);
+      if (skipRe.test(lookback)) continue;
+      if (out.fee && n === out.fee) continue;
+      if (out.balance && n === out.balance) continue;
+      chosen = n; break;
+    }
+    out.amount = chosen ?? firstAmt;
   }
-  out.amount = chosenAmt ?? firstAmt;
 
-  const mtnId = text.match(/(?:^|[^A-Z])ID[:\s.#-]+(\d{8,18})\b/i);
-  const airtel = text.match(/\bTID[\s.:#-]*(\d{4,18})\b/i);
-  const mtnLegacy = text.match(/\bMP[A-Z0-9]{8,}\b/i);
-  const generic = text.match(/\b(?:Txn\s?ID|Transaction\s?ID|Ref(?:erence)?|Receipt)[:\s#]*([A-Z0-9-]{4,})\b/i);
+  const mtnId = t.match(/(?:^|[^A-Z])ID[:\s.#-]+(\d{8,18})\b/i);
+  const airtel = t.match(/\bTID[\s.:#-]*(\d{4,18})\b/i);
+  const mtnLegacy = t.match(/\bMP[A-Z0-9]{8,}\b/i);
+  const flutter = t.match(/\b(?:FLW|FW)[A-Z0-9]{6,}\b/i);
+  const bankRef = t.match(/\b(?:FT|TXN|CR|DR|TRF|REF)[A-Z0-9]{6,}\b/i);
+  const generic = t.match(/\b(?:Txn\s?ID|Transaction\s?ID|Trans\s?ID|Ref(?:erence)?|Receipt(?:\s?No)?|Confirmation)[:\s#]*([A-Z0-9-]{4,})\b/i);
   if (mtnId) out.transaction_id = mtnId[1];
   else if (airtel) out.transaction_id = `TID${airtel[1]}`;
   else if (mtnLegacy) out.transaction_id = mtnLegacy[0].toUpperCase();
+  else if (flutter) out.transaction_id = flutter[0].toUpperCase();
+  else if (bankRef) out.transaction_id = bankRef[0].toUpperCase();
   else if (generic) out.transaction_id = generic[1].toUpperCase();
 
-  const numericDate = text.match(/\b(\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\b/);
-  if (numericDate) {
-    const t = numericDate[1];
-    const iso = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-    if (iso) out.tx_date = `${iso[1]}-${iso[2].padStart(2,'0')}-${iso[3].padStart(2,'0')}`;
-    else {
-      const dmy = t.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
-      if (dmy) {
-        let [, d, m, y] = dmy; if (y.length === 2) y = `20${y}`;
-        out.tx_date = `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
-      }
+  const cpMatch = t.match(/\b(?:from|to|by)\s+([A-Z][A-Za-z'.\- ]{1,40}?)(?=\s+(?:on|at|UGX|USh|Shs|Bal|ID|TID|Ref|\.|,|256|\+256|0\d{9}))/);
+  if (cpMatch) out.counterparty = cpMatch[1].trim();
+  if (!out.counterparty) {
+    const phoneCp = t.match(/\b(?:from|to|by)\s+((?:\+?256|0)\d{9})\b/);
+    if (phoneCp) out.counterparty = phoneCp[1];
+  }
+
+  const numericDate = t.match(/\b(\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\b/);
+  if (numericDate) { const n = normDate(numericDate[1]); if (n) out.tx_date = n; }
+  if (!out.tx_date) {
+    const named = t.match(/\b(\d{1,2})[\s/-](Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[\s/-](\d{2,4})\b/i);
+    if (named) {
+      const mm = MONTH_MAP[named[2].slice(0,3).toLowerCase()];
+      if (mm) { const y = named[3].length === 2 ? `20${named[3]}` : named[3]; out.tx_date = `${y}-${mm}-${named[1].padStart(2,'0')}`; }
     }
   }
-  const timeMatch = text.match(/\b(\d{1,2}):(\d{2})(?::\d{2})?\s?(AM|PM)?\b/i);
+
+  const timeMatch = t.match(/\b(\d{1,2}):(\d{2})(?::\d{2})?\s?(AM|PM)?\b/i);
   if (timeMatch) {
     let hh = parseInt(timeMatch[1], 10); const mm = parseInt(timeMatch[2], 10);
     const ampm = timeMatch[3]?.toUpperCase();
@@ -174,6 +218,11 @@ Deno.serve(async (req) => {
         tx_time: parsed.tx_time ?? null,
         parsed: !!(parsed.amount || parsed.transaction_id),
         internal_date: internalMs ? new Date(internalMs).toISOString() : null,
+        direction: parsed.direction ?? null,
+        channel: parsed.channel ?? null,
+        counterparty: parsed.counterparty ?? null,
+        fee: parsed.fee ?? null,
+        balance: parsed.balance ?? null,
       });
       if (!error) inserted++;
     }
