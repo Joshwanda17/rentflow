@@ -24,8 +24,8 @@ export function PullToRefresh({
     progress,
   } = usePullToRefresh({
     onRefresh,
-    threshold: 80,
-    maxPull: 120,
+    threshold: 300,
+    maxPull: 360,
   });
 
   if (disabled) {
