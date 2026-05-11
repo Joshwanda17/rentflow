@@ -45,29 +45,26 @@ export function EmailTransactionsPanel() {
   const { toast } = useToast();
   const [rows, setRows] = useState<GmailTx[]>([]);
   const [state, setState] = useState<PollState | null>(null);
-  const [lastSuccessAt, setLastSuccessAt] = useState<string | null>(null);
+  const [lastSuccessAt, setLastSuccessAt] = useState<string | null>(
+    () => (typeof window !== 'undefined' ? localStorage.getItem('gmail_last_success_at') : null)
+  );
   const [loading, setLoading] = useState(true);
   const [polling, setPolling] = useState(false);
 
   const load = async () => {
-    const [{ data: txs }, { data: ps }, { data: lastOk }] = await Promise.all([
+    const [{ data: txs }, { data: ps }] = await Promise.all([
       (supabase.from('gmail_transactions') as any)
         .select('id,gmail_message_id,from_email,from_name,subject,snippet,amount,transaction_id,parsed,internal_date,direction,channel,counterparty,fee,balance')
         .order('internal_date', { ascending: false, nullsFirst: false })
         .limit(200),
       supabase.from('gmail_poll_state').select('last_polled_at,last_status,last_error').eq('id', 1).maybeSingle(),
-      (supabase.from('gmail_poll_state') as any)
-        .select('last_polled_at')
-        .eq('id', 1)
-        .eq('last_status', 'ok')
-        .maybeSingle(),
     ]);
     setRows((txs as unknown as GmailTx[]) ?? []);
     setState((ps as PollState) ?? null);
-    if ((ps as PollState | null)?.last_status === 'ok') {
-      setLastSuccessAt((ps as PollState).last_polled_at);
-    } else if ((lastOk as any)?.last_polled_at) {
-      setLastSuccessAt((lastOk as any).last_polled_at);
+    const psTyped = ps as PollState | null;
+    if (psTyped?.last_status === 'ok' && psTyped.last_polled_at) {
+      setLastSuccessAt(psTyped.last_polled_at);
+      try { localStorage.setItem('gmail_last_success_at', psTyped.last_polled_at); } catch {}
     }
     setLoading(false);
   };
