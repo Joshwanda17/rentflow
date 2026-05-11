@@ -246,8 +246,16 @@ Deno.serve(async (req) => {
 
     if (fetchError || !depositRequests || depositRequests.length === 0) {
       return new Response(
-        JSON.stringify({ error: "No pending deposit requests found" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({
+          success: true,
+          already_processed: true,
+          message:
+            "These deposit requests were already processed (likely by a concurrent click or another operator). Refresh to see the latest status.",
+          processed: 0,
+          total: idsToProcess.length,
+          results: [],
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
