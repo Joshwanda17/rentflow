@@ -239,7 +239,7 @@ export function BulkImportLC1Dialog({ open, onClose, onImported }: Props) {
               </Button>
             </div>
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>Max 2000 rows. Phones auto-normalized to 256XXXXXXXXX.</span>
+              <span>Max 2000 rows. Phone numbers accepted in any format.</span>
               <Button variant="ghost" size="sm" onClick={downloadTemplate}>
                 <Download className="h-3.5 w-3.5 mr-1" /> Template
               </Button>
