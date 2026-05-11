@@ -81,8 +81,8 @@ interface TenantTrackerRow {
 const DONUT_COLORS = ['hsl(var(--primary))', 'hsl(var(--destructive))'];
 
 function statusBadge(status: 'paid' | 'partial' | 'missed') {
-  if (status === 'paid') return <Badge className="bg-emerald-500 text-white hover:bg-emerald-500/90">Paid</Badge>;
-  if (status === 'partial') return <Badge className="bg-amber-500 text-white hover:bg-amber-500/90">Partial</Badge>;
+  if (status === 'paid') return <Badge className="bg-success text-success-foreground hover:bg-success/90">Paid</Badge>;
+  if (status === 'partial') return <Badge className="bg-warning text-warning-foreground hover:bg-warning/90">Partial</Badge>;
   return <Badge variant="destructive">Missed</Badge>;
 }
 
@@ -492,34 +492,34 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
           value={String(onboardedToday?.today ?? 0)}
           delta={deltaCount(onboardedToday?.today || 0, onboardedToday?.yest || 0)}
           icon={Users}
-          color="text-blue-600 bg-blue-500/10"
+          color="text-primary bg-primary/10"
         />
         <KpiCard
           label="Tenants Paid For (Today)"
           value={String(tenantsPaid)}
           delta={deltaCount(tenantsPaid, tenantsPaidPrev)}
           icon={CheckCircle2}
-          color="text-emerald-600 bg-emerald-500/10"
+          color="text-success bg-success/10"
         />
         <KpiCard
           label="Collection Today (UGX)"
           value={formatUGX(collectionToday)}
           delta={delta(collectionToday, collectionPrev)}
           icon={Banknote}
-          color="text-cyan-600 bg-cyan-500/10"
+          color="text-primary bg-primary/10"
         />
         <KpiCard
           label="Collection This Month"
           value={formatUGX(collectionMonth)}
           icon={CalendarDays}
-          color="text-amber-600 bg-amber-500/10"
+          color="text-warning bg-warning/10"
           subtitle="MTD Collection"
         />
         <KpiCard
           label="Total Rent Paid (All Time)"
           value={formatUGX(allTimeStats?.totalPaid || 0)}
           icon={Building}
-          color="text-purple-600 bg-purple-500/10"
+          color="text-primary bg-primary/10"
           subtitle="Total to date"
         />
       </div>
@@ -666,8 +666,8 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
                         <TableCell className="text-xs text-right font-bold">{a.rate}%</TableCell>
                         <TableCell>
                           {a.status === 'good'
-                            ? <Badge className="bg-emerald-500 text-white hover:bg-emerald-500/90">Good</Badge>
-                            : <Badge className="bg-amber-500 text-white hover:bg-amber-500/90">At Risk</Badge>}
+                            ? <Badge className="bg-success text-success-foreground hover:bg-success/90">Good</Badge>
+                            : <Badge className="bg-warning text-warning-foreground hover:bg-warning/90">At Risk</Badge>}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -738,17 +738,17 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
-              <Trophy className="h-4 w-4 text-amber-500" /> Top & Bottom Agents
+              <Trophy className="h-4 w-4 text-warning" /> Top & Bottom Agents
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {topAgent ? (
-              <div className="p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5">
-                <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 mb-1">
+              <div className="p-3 rounded-xl border border-success/30 bg-success/5">
+                <div className="flex items-center gap-2 text-xs font-semibold text-success mb-1">
                   <Trophy className="h-3.5 w-3.5" /> TOP PERFORMER
                 </div>
                 <p className="text-base font-bold">{topAgent.name}</p>
-                <p className="text-2xl font-extrabold text-emerald-600">{topAgent.rate}%</p>
+                <p className="text-2xl font-extrabold text-success">{topAgent.rate}%</p>
                 <p className="text-[11px] text-muted-foreground">Collection Rate</p>
               </div>
             ) : (
@@ -770,7 +770,7 @@ export default function DailyCollectionMonitoringDashboard({ mode, title }: Prop
 
       {mode === 'readonly' && (
         <div className="flex items-center gap-2 text-[11px] text-muted-foreground p-2 rounded-lg bg-muted/30 border">
-          <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+          <AlertTriangle className="h-3.5 w-3.5 text-warning" />
           You are viewing in read-only mode. Only Tenant Ops staff can record payments here.
         </div>
       )}
@@ -839,7 +839,7 @@ function KpiCard({ label, value, delta, icon: Icon, color, subtitle }: {
         <p className="text-base sm:text-lg font-bold leading-tight truncate">{value}</p>
         <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{label}</p>
         {delta && (
-          <p className={cn('text-[10px] mt-0.5 font-medium', delta.positive ? 'text-emerald-600' : 'text-destructive')}>
+          <p className={cn('text-[10px] mt-0.5 font-medium', delta.positive ? 'text-success' : 'text-destructive')}>
             {delta.text}
           </p>
         )}
