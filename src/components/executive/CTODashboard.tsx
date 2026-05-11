@@ -187,7 +187,7 @@ export function CTODashboard({ activeTab }: { activeTab?: string }) {
   });
 
   // Derived metrics
-  const errorCount = (systemEvents || []).filter(n => n.type === 'error' || n.type === 'alert' || n.type === 'warning').length;
+  const errorCount = (systemEvents || []).filter(n => n.type === 'error' || n.type === 'warning').length;
   const securityAlerts = (systemEvents || []).filter(n =>
     n.type === 'security' || n.title?.toLowerCase().includes('fraud') || n.title?.toLowerCase().includes('frozen')
   ).length;
