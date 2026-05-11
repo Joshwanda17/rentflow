@@ -4,8 +4,12 @@ import { X } from "lucide-react";
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
+import { useBackAwareOpenState } from "@/hooks/useBackGestureClose";
 
-const Sheet = SheetPrimitive.Root;
+const Sheet = (props: React.ComponentProps<typeof SheetPrimitive.Root>) => {
+  const { rootProps, rest } = useBackAwareOpenState(props);
+  return <SheetPrimitive.Root {...rootProps} {...rest} />;
+};
 
 const SheetTrigger = SheetPrimitive.Trigger;
 
