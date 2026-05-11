@@ -2,10 +2,13 @@ import * as React from "react";
 import { Drawer as DrawerPrimitive } from "vaul";
 
 import { cn } from "@/lib/utils";
+import { useBackAwareOpenState } from "@/hooks/useBackGestureClose";
 
-const Drawer = ({ shouldScaleBackground = true, ...props }: React.ComponentProps<typeof DrawerPrimitive.Root>) => (
-  <DrawerPrimitive.Root shouldScaleBackground={shouldScaleBackground} {...props} />
-);
+const Drawer = ({ shouldScaleBackground = true, ...props }: React.ComponentProps<typeof DrawerPrimitive.Root>) => {
+  const { rootProps, rest } = useBackAwareOpenState(props);
+  const merged = { shouldScaleBackground, ...rootProps, ...rest } as React.ComponentProps<typeof DrawerPrimitive.Root>;
+  return <DrawerPrimitive.Root {...merged} />;
+};
 Drawer.displayName = "Drawer";
 
 const DrawerTrigger = DrawerPrimitive.Trigger;
