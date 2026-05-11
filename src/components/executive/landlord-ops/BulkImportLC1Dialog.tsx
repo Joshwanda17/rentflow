@@ -41,9 +41,6 @@ function normalizePhone(raw: string): string {
   return s;
 }
 
-function isValidUgPhone(_p: string): boolean {
-  return true; // format validation relaxed — numbers can be edited after import
-}
 
 export function BulkImportLC1Dialog({ open, onClose, onImported }: Props) {
   const { user } = useAuth();
