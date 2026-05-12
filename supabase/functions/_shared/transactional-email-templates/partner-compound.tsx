@@ -121,7 +121,7 @@ export function PartnerCompound({
                       We are pleased to confirm the successful compounding of your portfolio (<span style={{ color: '#a855f7' }}>{portfolio_id}</span>) with {company_name} Technologies Limited.
                     </Text>
                     <Text style={{ ...introText, margin: 0 }}>
-                      On the <strong>{compound_date}</strong>, in accordance with your existing agreement, your portfolio of <strong>{formattedInitial}</strong> earned a {roi_return} return (<strong>{formattedReturn}</strong>). This brings your new total portfolio value to <strong>{formattedNewTotal}</strong>.
+                      On the <strong>{compound_date}</strong>, in accordance with your existing agreement, your portfolio of <strong>{formattedInitial}</strong> earned a {roiLabel} return (<strong>{formattedReturn}</strong>). This brings your new total portfolio value to <strong>{formattedNewTotal}</strong>.
                     </Text>
                   </td>
                 </tr>
@@ -132,7 +132,7 @@ export function PartnerCompound({
                       <tbody>
                         <tr>
                           <td align="center" style={returnInner}>
-                            <Text style={returnEyebrow}>Return Earned ({roi_return})</Text>
+                            <Text style={returnEyebrow}>Return Earned ({roiLabel})</Text>
                             <Text style={returnValue}>+{formattedReturn}</Text>
                           </td>
                         </tr>
