@@ -1,99 +1,70 @@
-## Investigation: Why agents don't receive commission and float
+## Why one-line patches keep failing
 
-I traced the agent commission/float flow end-to-end against live data. There are **three concrete defects**, in order of impact.
+40+ edge functions call `create_ledger_transaction`; only 5 pass `recipient_type`. Every other caller is one omission away from re-creating Muwanguzi Fred's bug. The defect is structural and must be fixed at the database boundary, not per-caller.
 
----
+Constraints from the user: **no reseed**, **no new tables**.
 
-### 1. The auto-charge cron is DISABLED → no rent commission ever lands
+## Permanent solution — DB-only, reuses existing tables
 
-Agent rent commission (10%) is paid by the database function `credit_agent_rent_commission`, which is **only called by the `auto-charge-wallets` edge function**. That edge function is invoked by the pg_cron job `auto-charge-wallets-daily` (`0 6 * * *`).
+### 1. Hardcode the category → recipient_type mapping inside `create_ledger_transaction`
 
-Live state in `cron.job`:
+Add a `CASE` block that derives `recipient_type` for every `ledger_scope='wallet'` entry whose direction is `cash_in`/`cash_out`. The allowlist already exists (32 production categories). Map them in-function:
 
-```
-auto-charge-wallets-daily        active = false
-daily-credit-charges             active = false
-retry-no-smartphone-charges-3h   active = false
-```
+```text
+operational_wallet (float bucket):
+  agent_float_deposit, agent_float_settlement, agent_float_used_for_rent,
+  partner_float_topup, …
 
-Symptom in `subscription_charges`:
-
-```
-status=active   count=6   next_charge_date stuck at 2026-04-16   (today = 2026-05-11)
-```
-
-Six active rent subscriptions have been waiting **~25 days** for a daily charge that never ran. Confirming with the ledger:
-
-```
-agent_commission cash_in (wallet scope) since 2026-04-01:  2 rows, total 3,000 UGX
+user (withdrawable bucket):
+  wallet_deposit, agent_commission_earned, partner_commission,
+  roi_wallet_credit, landlord_rent_disbursement, payroll_credit,
+  wallet_transfer_in/out, business_advance_disbursement, …
 ```
 
-That is the entire rent-commission pipeline producing essentially zero output across the platform.
+Resolution rules inside the function:
+1. If caller passed `recipient_type` → validate it matches the CASE default. On mismatch, log to existing `wallet_routing_violations` and use the CASE default (table-of-truth wins, never the caller).
+2. If caller omitted `recipient_type` → fill it from the CASE default automatically.
+3. If category is unknown to the CASE block → `RAISE EXCEPTION 'ROUTING_REQUIRED for category %'`. No silent path.
+4. Always set `recipient_id := entry.user_id` for wallet-scope legs.
 
-**Fix:** re-enable the three cron jobs (`auto-charge-wallets-daily`, `daily-credit-charges`, `retry-no-smartphone-charges-3h`) and run `auto-charge-wallets` once manually to drain the 25-day backlog. Add a CFO/CTO health check that flags any cron job whose `active=false` OR whose last successful run is older than 24h.
+This single migration converts the 35+ unpatched callers from "silently broken" to "correct by construction" without touching any edge function code.
 
----
+### 2. Make `apply_wallet_movement` loud
 
-### 2. Pending withdrawals zero out displayed commission
+- Remove the silent early-return when `route='none'`. Replace with `RAISE EXCEPTION`.
+- Existing `wallet_unrouted_movements` table stays as the audit trail; in production it should now stay empty.
+- This guarantees that if step 1 ever has a gap, the transaction fails fast instead of silently freezing a wallet cache.
 
-Example agent `e3cf4d3a-d021-49e4-b815-7e1938166eeb` (top earner):
+### 3. Backstop trigger on `general_ledger`
 
-| Bucket | wallets cache | strict view |
-|---|---|---|
-| withdrawable | 0 | 0 |
-| float | 200,000 | 200,000 |
+Add `trg_enforce_wallet_leg_routing` (BEFORE INSERT) that re-checks: every `ledger_scope='wallet'` row must have `recipient_type IN ('user','operational_wallet')` and `recipient_id = user_id`. Even if a future migration bypasses `create_ledger_transaction`, the wallet bucket cannot be left un-routed. Same defense-in-depth pattern as `trg_enforce_production_april_cutoff` and `enforce_wallet_ledger_only` — no new table, just a trigger.
 
-Since the 2026-05-07 fresh-start anchor:
+### 4. Observability — reuse what exists
 
-```
-agent_commission_earned  +65,000  (12 events, 10% of float allocations, OK)
-agent_float_deposit     +850,000
-rent_payment_for_tenant -650,000
-... net float = 200,000   ✓
-... net withdrawable = 65,000
-```
+- Surface `wallet_routing_violations` count (last 24h) inside the existing CFO `PhantomDriftPanel` as a new row. No new table, no new view file required — direct count query.
+- Existing `wallet_unrouted_movements` already has the RLS + UI hook from the sole-writer rule.
 
-But there is a **pending withdrawal** of exactly 65,000 UGX (`withdrawal_requests.status='pending'` since 2026-05-11 10:31). The strict view subtracts pending holds → withdrawable = 0.
+### 5. Edge-function cleanup (optional, no urgency)
 
-So the agent thinks "I earned commission and it disappeared", when it is actually correctly held against an in-flight withdrawal. The UI does not currently surface "X UGX held against your pending withdrawal".
+After steps 1–3 ship, edge functions are correct by construction. Updating them to pass `recipient_type` explicitly becomes documentation, not a bugfix, and can happen one PR at a time. `approve-deposit` will be patched in the same PR as the migration purely for clarity.
 
-**Fix:** in `AgentFloatBalanceCard` / `FullScreenWalletSheet`, show pending withdrawal hold as a separate dashed line under withdrawable (we already fetch `pending_holds` in `v_user_wallet_strict`). No ledger change.
+## Forward-only stance (per "DO NOT RESEED")
 
----
+- Muwanguzi Fred's historical ledger entries remain the source of truth and continue to surface in `v_user_wallet_strict` / `get_user_wallet_view` / the PDF.
+- Every deposit / commission / withdrawal posted **after** the migration moves his cached buckets correctly via the sole-writer path.
+- No retroactive cache adjustment, no reseed call, no ledger rewrite.
 
-### 3. `credit_agent_rent_commission` writes raw INSERTs, bypassing the routing system
+## Migration order (single PR)
 
-The function inserts directly into `general_ledger` instead of calling `create_ledger_transaction`. Two consequences:
+1. Migration: rewrite `create_ledger_transaction` body with the CASE mapping + violation logging using existing `wallet_routing_violations`.
+2. Migration: rewrite `apply_wallet_movement` to RAISE on unrouted instead of return.
+3. Migration: add `trg_enforce_wallet_leg_routing` BEFORE INSERT trigger on `general_ledger`.
+4. Edge fn: `approve-deposit` adds explicit `recipient_type` for clarity (not for correctness — DB now enforces it).
+5. Smoke test: dry-run a float deposit + a wallet deposit + a commission credit → confirm `wallets.float_balance` and `withdrawable_balance` move and `wallet_routing_violations` stays empty.
 
-- Entries carry no `recipient_type`, so the wallet-routing v2 contract (memory: `wallet-routing-v2`) is bypassed. Today routing still lands on `withdrawable` because the categories `agent_commission` / `marketing_expense` fall through to defaults — but it is fragile and inconsistent with `agent_allocate_tenant_payment`, which DOES use `create_ledger_transaction` with `recipient_type`.
-- It uses `category='agent_commission'` while the float-allocation path uses `category='agent_commission_earned'`. The dashboard hook `useAgentBalances` already sums both, but other tools (commission reports, exports) only look for one or the other → silent under-counting.
+## Out of scope
 
-**Fix:** rewrite `credit_agent_rent_commission` to use `create_ledger_transaction` with explicit `recipient_type='user'` for wallet legs and standardize on `category='agent_commission_earned'` (with a one-time backfill query that re-categorizes existing `agent_commission` rows for reporting consistency — no money moves).
-
----
-
-### Out of scope of this investigation (verified working)
-
-- `agent_allocate_tenant_payment` correctly posts the 10% commission to `withdrawable` for agents who pay landlords from float — math matched the ledger sample.
-- Float math for the sampled agent is correct (deposits − payouts = cached float).
-- `wallet_route_for_category(uuid, category, direction)` agent-aware override is functioning.
-- Tenant-placement bounty trigger fires correctly.
-
----
-
-### Technical change set (to be implemented after approval)
-
-1. **Re-enable cron jobs** via migration:
-   ```sql
-   UPDATE cron.job SET active = true
-    WHERE jobname IN ('auto-charge-wallets-daily','daily-credit-charges','retry-no-smartphone-charges-3h');
-   ```
-   Then call `auto-charge-wallets` once to flush the 25-day backlog.
-
-2. **CFO health panel**: new RPC `cron_jobs_health()` returning each job's `active`, last-run, last-status; surface in CFO Reconcile tab with a red banner if any agent-impacting job is `active=false` or stale > 24h.
-
-3. **UI: surface pending withdrawal hold** in `AgentFloatBalanceCard` and `FullScreenWalletSheet` (read `pending_holds` from existing `get_user_wallet_view` payload — no new endpoint).
-
-4. **Refactor `credit_agent_rent_commission`** to call `create_ledger_transaction` with `recipient_type='user'` and standardize on `agent_commission_earned`. Include a non-monetary reporting backfill of existing `agent_commission` rows (relabel category, no amount change).
-
-5. **Memory update**: add `mem://features/agent/commission-pipeline.md` documenting that auto-charge cron is the sole producer of rent commission, so any cron outage = silent commission stoppage.
+- No new tables.
+- No `reseed_anchored_*` calls.
+- No retroactive ledger rewrites.
+- No UI redesign (only a single counter added to the existing CFO panel).
