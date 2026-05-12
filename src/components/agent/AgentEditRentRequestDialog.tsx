@@ -161,14 +161,14 @@ export function AgentEditRentRequestDialog({ request, open, onOpenChange, onResu
         description = `Reviewer note must be at least 10 characters (you wrote ${have}). Add a sentence explaining what you changed and why.`;
       } else if (/duration must be between/i.test(raw)) {
         title = 'Duration out of range';
-        description = `Duration must be between 7 and 120 days (you set ${duration || '—'}). Adjust the days field, then resubmit.`;
+        description = `Duration must be between 7 and 120 days (you set ${durNum || '—'}). Adjust the days field, then resubmit.`;
       } else if (/invalid rent amount/i.test(raw)) {
         title = 'Invalid rent amount';
-        description = `Rent must be greater than 0 (you set ${rent || '—'}). Enter a positive UGX amount, then resubmit.`;
+        description = `Rent must be greater than 0 (you set ${rentNum || '—'}). Enter a positive UGX amount, then resubmit.`;
       } else if (/invalid number of payments/i.test(raw)) {
-        const np = (patch as any).number_of_payments ?? '—';
+        const np = Number(numberOfPayments) || 4;
         title = 'Invalid number of payments';
-        description = `Number of payments must be between 1 and the duration in days (you set ${np} for a ${duration || '—'}-day plan). Lower the payments or extend the duration.`;
+        description = `Number of payments must be between 1 and the duration in days (you set ${np} for a ${durNum || '—'}-day plan). Lower the payments or extend the duration.`;
       } else if (/landlord/i.test(raw) && /not.*found|invalid/i.test(raw)) {
         title = 'Landlord missing';
         description = 'Pick a landlord from the list before resubmitting.';
