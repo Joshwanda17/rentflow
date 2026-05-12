@@ -11694,6 +11694,24 @@ export type Database = {
           },
         ]
       }
+      system_config: {
+        Row: {
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
       system_events: {
         Row: {
           created_at: string | null
@@ -13356,6 +13374,7 @@ export type Database = {
           bank_account_name: string | null
           bank_account_number: string | null
           bank_name: string | null
+          beneficiary_id: string | null
           cfo_approved_at: string | null
           cfo_approved_by: string | null
           client_request_id: string | null
@@ -13370,6 +13389,7 @@ export type Database = {
           fin_ops_verified_at: string | null
           fin_ops_verified_by: string | null
           id: string
+          initiated_by: string | null
           linked_party: string | null
           manager_approved_at: string | null
           manager_approved_by: string | null
@@ -13401,6 +13421,7 @@ export type Database = {
           bank_account_name?: string | null
           bank_account_number?: string | null
           bank_name?: string | null
+          beneficiary_id?: string | null
           cfo_approved_at?: string | null
           cfo_approved_by?: string | null
           client_request_id?: string | null
@@ -13415,6 +13436,7 @@ export type Database = {
           fin_ops_verified_at?: string | null
           fin_ops_verified_by?: string | null
           id?: string
+          initiated_by?: string | null
           linked_party?: string | null
           manager_approved_at?: string | null
           manager_approved_by?: string | null
@@ -13446,6 +13468,7 @@ export type Database = {
           bank_account_name?: string | null
           bank_account_number?: string | null
           bank_name?: string | null
+          beneficiary_id?: string | null
           cfo_approved_at?: string | null
           cfo_approved_by?: string | null
           client_request_id?: string | null
@@ -13460,6 +13483,7 @@ export type Database = {
           fin_ops_verified_at?: string | null
           fin_ops_verified_by?: string | null
           id?: string
+          initiated_by?: string | null
           linked_party?: string | null
           manager_approved_at?: string | null
           manager_approved_by?: string | null
@@ -14593,7 +14617,9 @@ export type Database = {
         Returns: boolean
       }
       is_sub_agent: { Args: { _agent_id: string }; Returns: boolean }
-      is_supporter: { Args: never; Returns: boolean }
+      is_supporter:
+        | { Args: never; Returns: boolean }
+        | { Args: { p_user_id: string }; Returns: boolean }
       is_tenant_locked: { Args: { _user_id: string }; Returns: boolean }
       ledger_category_allowlist: { Args: never; Returns: string[] }
       lift_withdrawable_to_ledger: {
