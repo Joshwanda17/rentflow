@@ -563,6 +563,8 @@ export const template = {
     logo_url: 'https://welilereceipts.com/welile-logo.png',
     is_managed_by_agent: true,
     agent_name: 'James Okello',
+    principal_amount: 10_000_000,
+    roi_percentage: 12.5,
     unsubscribe_url: 'https://welile.com/unsubscribe',
     contact_url: 'https://welile.com/contact',
   },
