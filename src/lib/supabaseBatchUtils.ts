@@ -202,36 +202,37 @@ export async function fetchAllNearingPayoutPortfolios(): Promise<{
   profileMap: Map<string, { full_name: string; phone: string; email: string }>;
   supporterIds: Set<string>;
 }> {
-  // 1. Get all supporter IDs
-  const allSupporterIds = await fetchSupporterOnlyUserIds();
-  if (allSupporterIds.length === 0) {
-    return { portfolios: [], profileMap: new Map(), supporterIds: new Set() };
-  }
-
-  const supporterIdSet = new Set(allSupporterIds);
-
-  // 2. Fetch ALL active portfolios belonging to supporters
-  const portfolios = await batchedQuery<any>(allSupporterIds, (batch) =>
-    supabase.from('investor_portfolios')
+  // Fetch ALL active portfolios across the platform (paginated). The Nearing Payout
+  // count must reflect operational reality — every portfolio whose Next Payout Date
+  // is today must show up, regardless of whether the owner is a "supporter-only"
+  // user, an agent acting as a proxy supporter, or a partner. Filtering by role
+  // here historically hid 8/11 portfolios due today on 2026-05-12.
+  const PAGE = 1000;
+  let offset = 0;
+  let hasMore = true;
+  const portfolios: any[] = [];
+  while (hasMore) {
+    const { data, error } = await supabase
+      .from('investor_portfolios')
       .select('id, investor_id, agent_id, investment_amount, roi_percentage, payout_day, roi_mode, status, created_at, next_roi_date, account_name, portfolio_code')
-      .or(`investor_id.in.(${batch.join(',')}),agent_id.in.(${batch.join(',')})`)
       .eq('status', 'active')
       .order('created_at', { ascending: false })
-  );
+      .range(offset, offset + PAGE - 1);
+    if (error) break;
+    if (data && data.length > 0) {
+      portfolios.push(...data);
+      offset += PAGE;
+      hasMore = data.length === PAGE;
+    } else {
+      hasMore = false;
+    }
+  }
 
-  // Dedup
-  const seen = new Set<string>();
-  const deduped = portfolios.filter(p => {
-    if (seen.has(p.id)) return false;
-    seen.add(p.id);
-    return true;
-  });
-
-  // 3. Collect unique owner IDs and fetch profiles
+  // Owner = investor_id when present, otherwise agent_id.
   const ownerIds = new Set<string>();
-  deduped.forEach(p => {
-    if (p.investor_id && supporterIdSet.has(p.investor_id)) ownerIds.add(p.investor_id);
-    else if (p.agent_id && supporterIdSet.has(p.agent_id)) ownerIds.add(p.agent_id);
+  portfolios.forEach(p => {
+    const ownerId = p.investor_id || p.agent_id;
+    if (ownerId) ownerIds.add(ownerId);
   });
 
   const profiles = await batchedQuery<{ id: string; full_name: string; phone: string; email: string }>(
@@ -241,7 +242,10 @@ export async function fetchAllNearingPayoutPortfolios(): Promise<{
 
   const profileMap = new Map(profiles.map(p => [p.id, p]));
 
-  return { portfolios: deduped, profileMap, supporterIds: supporterIdSet };
+  // `supporterIds` is now "the set of all owner IDs we have profiles for" — the
+  // downstream consumer uses it only to resolve the display name, so any owner
+  // counts. Naming kept for backward compatibility with the call site.
+  return { portfolios, profileMap, supporterIds: ownerIds };
 }
 
 /**
