@@ -79,6 +79,16 @@ const PAYOUT_CATEGORIES: PayoutCategory[] = [
     recipientLock: 'operational_wallet',
   },
   {
+    id: 'agent_float_allocation',
+    label: '🏦 Agent Float Allocation',
+    description: 'Manually credit an agent\'s Float balance when their normal deposit approval did not land — routes to Operational Wallet (Float). Uses the same `agent_float_deposit` ledger category as approve-deposit so the bucket and reporting stay consistent.',
+    impact: 'neutral',
+    walletCategory: 'agent_float_deposit',
+    platformCategory: 'agent_float_deposit',
+    allowedOps: ['credit'],
+    recipientLock: 'operational_wallet',
+  },
+  {
     id: 'marketing_expenses',
     label: '📢 Marketing Expenses',
     description: 'Payments for marketing, advertising, and promotional activities',
