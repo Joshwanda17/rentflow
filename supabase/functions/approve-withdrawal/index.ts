@@ -805,7 +805,7 @@ Deno.serve(async (req) => {
 
         const { data: portfolio } = await admin
           .from("investor_portfolios")
-          .select("portfolio_code")
+         .select("portfolio_code, roi_percentage, investment_amount")
           .eq("investor_id", partnerId)
           .order("created_at", { ascending: false })
           .limit(1)
